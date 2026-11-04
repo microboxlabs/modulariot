@@ -8,6 +8,8 @@ import java.net.URLEncoder;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.Duration;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -74,6 +76,40 @@ public class TelnyxClient {
         return http.send(request(apiKey, "/v2/telephony_credentials/" + segment(credentialId) + "/token")
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build());
+    }
+
+    /** {@code GET /v2/detail_records}: SIP trunking records of the last 3 days, one page of up to 50. */
+    public HttpResponse<String> detailRecords(String apiKey, int page) throws IOException, InterruptedException {
+        Instant now = Instant.now();
+        return detailRecords(apiKey, page, now, now);
+    }
+
+    /** Keep the initial lookback in scope whether Telnyx interprets days as rolling or calendar days. */
+    public HttpResponse<String> detailRecords(String apiKey, int page, Instant scanStartedAt, Instant now)
+            throws IOException, InterruptedException {
+        long seconds = Math.max(0, Duration.between(scanStartedAt, now).getSeconds());
+        long days = 3 + (seconds + 86399) / 86400;
+        return http.send(get(apiKey, "/v2/detail_records?" + segment("filter[record_type]") + "=sip-trunking&"
+                + segment("filter[date_range]") + "=last_" + days + "_days&" + segment("page[number]") + "=" + page + "&"
+                + segment("page[size]") + "=50&sort=-started_at"));
+    }
+
+    /** Only the server can turn a parked WebRTC leg into a PSTN call. */
+    public HttpResponse<String> transfer(String apiKey, String callId, String to, String from,
+            String targetState, String commandId, int timeLimitSeconds) throws IOException, InterruptedException {
+        return command(apiKey, callId, "transfer", "{\"to\":" + json(to) + ",\"from\":" + json(from)
+                + ",\"target_leg_client_state\":" + json(targetState) + ",\"command_id\":" + json(commandId)
+                + ",\"timeout_secs\":30,\"time_limit_secs\":" + timeLimitSeconds + "}");
+    }
+
+    public HttpResponse<String> hangup(String apiKey, String callId) throws IOException, InterruptedException {
+        return command(apiKey, callId, "hangup", "{}");
+    }
+
+    private HttpResponse<String> command(String apiKey, String callId, String action, String body)
+            throws IOException, InterruptedException {
+        return http.send(request(apiKey, "/v2/calls/" + segment(callId) + "/actions/" + action)
+                .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build());
     }
 
     private static String json(String value) {

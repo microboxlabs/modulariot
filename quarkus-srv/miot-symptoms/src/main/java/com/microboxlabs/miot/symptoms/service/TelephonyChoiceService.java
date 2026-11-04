@@ -63,10 +63,27 @@ public class TelephonyChoiceService {
      * @throws TelephonyUnavailableException when that line is not Telnyx, or Telnyx refuses
      */
     public WebRtcToken webRtcToken(String tenantCode, String operator) {
+        return webRtcToken(tenantCode, operator, null);
+    }
+
+    /** {@code req}: the number to call and the case, for the usage ledger; may be null. */
+    public WebRtcToken webRtcToken(String tenantCode, String operator, CallRequest req) {
         TelephonyLine line = active(tenantCode)
                 .filter(l -> l.provider() == TelephonyProvider.TELNYX)
                 .orElseThrow(() -> new TelephonyUnavailableException("The organization's calls do not use Telnyx"));
-        return telephony.webRtcToken(tenantCode, line.connectionId(), operator);
+        return telephony.webRtcToken(tenantCode, line.connectionId(), operator,
+                req == null ? null : req.calleeNumber(), req == null ? null : req.caseRef());
+    }
+
+    /** The browser says the call ended; the billed seconds still come from Telnyx. */
+    public void callEnded(String tenantCode, String callRef, CallEnded req) {
+        telephony.callEnded(tenantCode, callRef, req == null ? null : req.providerCallId());
+    }
+
+    public record CallRequest(String calleeNumber, String caseRef) {
+    }
+
+    public record CallEnded(String providerCallId) {
     }
 
     public TelephonySetup save(String tenantCode, String actor, TelephonyRequest req) {

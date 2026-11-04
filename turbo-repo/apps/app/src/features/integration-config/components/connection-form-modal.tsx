@@ -449,6 +449,7 @@ export function ConnectionFormModal({
             provider={telephony}
             register={register}
             dict={dict}
+            connectionId={connection?.id}
           />
         )}
 

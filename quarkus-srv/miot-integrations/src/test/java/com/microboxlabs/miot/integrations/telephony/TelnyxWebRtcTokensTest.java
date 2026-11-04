@@ -36,14 +36,14 @@ class TelnyxWebRtcTokensTest {
     private static final Map<String, Object> METADATA = Map.of("sipConnectionId", "sip-1",
             "callerNumber", "+56 9 0000 0000");
 
-    private final StubHttp http = new StubHttp();
+    private final StubHttp http = new StubHttp().reply("GET /v2/credential_connections", 200, parked("conn-1"));
     private String apiKey = "KEY_test";
     private IntegrationConnection stored = connection(ProviderType.TELNYX, ConnectionStatus.ACTIVE);
 
     private final TelnyxWebRtcTokens tokens = new TelnyxWebRtcTokens(
             (tenant, id) -> stored != null && stored.id().equals(id) ? stored : null,
             (tenant, c) -> new ResolvedConnection(c.id(), c.baseUrl(), c.metadata(), Map.of("token", apiKey)),
-            new TelnyxClient(http, API), new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
+            new TelnyxClient(http, API), new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), "https://miot.test");
 
     @Test
     void reusesTheOperatorsCredentialAndReturnsAToken() {
@@ -54,9 +54,9 @@ class TelnyxWebRtcTokensTest {
         assertEquals("eyJ.placeholder.jwt", token.token());
         assertEquals("+56900000000", token.callerNumber());
         assertEquals(NOW.plusSeconds(24 * 3600), token.expiresAt());
-        assertTrue(http.seen().get(0).request().uri().getRawQuery().contains(name));
+        assertTrue(http.seen().get(1).request().uri().getRawQuery().contains(name));
         assertEquals("Bearer KEY_test", http.last().header("Authorization"));
-        assertEquals(2, http.seen().size(), "no credential is created when one exists");
+        assertEquals(3, http.seen().size(), "no credential is created when one exists");
         assertTrue(!token.toString().contains("eyJ"), "the token stays out of logs");
     }
 
@@ -67,7 +67,7 @@ class TelnyxWebRtcTokensTest {
                 .reply("POST /v2/telephony_credentials", 201, "{\"data\":{\"id\":\"new-1\"}}");
 
         assertEquals("eyJ.quoted", tokens.issue("acme", "conn-1", "ana@example.com").token());
-        StubHttp.Seen create = http.seen().get(1);
+        StubHttp.Seen create = http.seen().get(2);
         assertEquals("POST", create.request().method());
         assertTrue(create.body().contains("\"connection_id\":\"sip-1\""), create.body());
         assertTrue(!create.body().contains("ana@example.com"), "the email is not sent to Telnyx");
@@ -100,6 +100,35 @@ class TelnyxWebRtcTokensTest {
         assertTrue(e.getMessage().contains("rejected"));
     }
 
+    static String parked(String connectionId) {
+        return "{\"data\":{\"active\":true,\"outbound\":{\"call_parking_enabled\":true},"
+                + "\"webhook_api_version\":\"2\",\"sip_uri_calling_preference\":\"disabled\","
+                + "\"webhook_event_url\":\"https://miot.test/webhooks/telnyx/" + connectionId + "\"}}";
+    }
+
+    @Test
+    void refusesReusableLoginsOnAConnectionThatCanDialDirectly() {
+        http.reply("GET /v2/credential_connections", 200, parked("conn-1").replace("\"call_parking_enabled\":true", "\"call_parking_enabled\":false"));
+        assertThrows(TelephonyUnavailableException.class, () -> tokens.issue("acme", "conn-1", "ana@example.com"));
+        assertEquals(1, http.seen().size(), "no JWT is minted");
+    }
+
+    @Test
+    void refusesADifferentWebhookAndDirectSipUriCalling() {
+        http.reply("GET /v2/credential_connections", 200, parked("other"));
+        assertThrows(TelephonyUnavailableException.class, () -> tokens.issue("acme", "conn-1", "ana@example.com"));
+        http.reply("GET /v2/credential_connections", 200, parked("conn-1").replace("disabled", "unrestricted"));
+        assertThrows(TelephonyUnavailableException.class, () -> tokens.issue("acme", "conn-1", "ana@example.com"));
+    }
+
+    @Test
+    void refusesAFailoverThatBypassesThisServersAdmission() {
+        http.reply("GET /v2/credential_connections", 200, parked("conn-1").replace("\"active\":true",
+                "\"active\":true,\"webhook_event_failover_url\":\"https://other.test/unrestricted\""));
+        assertThrows(TelephonyUnavailableException.class, () -> tokens.issue("acme", "conn-1", "ana@example.com"));
+        assertEquals(1, http.seen().size());
+    }
+
     @Test
     void malformedStoredKeysNeverAppearInTokenIssuanceErrors() {
         apiKey = "KEY_sensitive\ninvalid";
@@ -116,7 +145,7 @@ class TelnyxWebRtcTokensTest {
                 ConnectionStatus.ACTIVE, null, null, Map.of("sipConnectionId", " sip-1 ", "callerNumber", "+56900000000"));
         replyExistingCredential();
         assertEquals("eyJ.placeholder.jwt", tokens.issue("acme", "conn-1", "ana@example.com").token());
-        assertEquals(2, http.seen().size(), "the normalized SIP id reuses the existing credential");
+        assertEquals(3, http.seen().size(), "the normalized SIP id reuses the existing credential");
     }
 
     @Test

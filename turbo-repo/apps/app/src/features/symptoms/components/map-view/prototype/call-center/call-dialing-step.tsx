@@ -48,9 +48,13 @@ import {
   type TelephonyCallResult,
 } from "./telnyx-call";
 import {
+  CHANNELS_BUSY,
+  QUOTA_EXHAUSTED,
   fetchWebRtcToken,
+  reportCallEnded,
   type TelephonyLine,
 } from "@/features/symptoms/control-tower/telephony-api";
+import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
 
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
@@ -81,6 +85,8 @@ export default function CallDialingStep({
   onStartedChange,
   dial = startTelnyxCall,
   token = fetchWebRtcToken,
+  endCall = reportCallEnded,
+  caseRef = null,
   openTeams = openTeamsCall,
 }: Readonly<{
   dict: I18nRecord;
@@ -117,6 +123,9 @@ export default function CallDialingStep({
   /** Test seams: place the call and get the login. */
   dial?: typeof startTelnyxCall;
   token?: typeof fetchWebRtcToken;
+  endCall?: typeof reportCallEnded;
+  /** The case the call is about, for the usage ledger. */
+  caseRef?: string | null;
   openTeams?: (links: { app: string; web: string }) => void;
 }>) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
@@ -133,10 +142,13 @@ export default function CallDialingStep({
   const [phase, setPhase] = useState<CallPhase | null>(null);
   const [answeredAt, setAnsweredAt] = useState<number | null>(null);
   const [dialError, setDialError] = useState<string | null>(null);
+  // Why the managed line refused the call; the operator can still use the phone.
+  const [refusal, setRefusal] = useState<string | null>(null);
   const [browserAttempt, setBrowserAttempt] = useState(false);
   const [dialReady, setDialReady] = useState(false);
   const liveRef = useRef<LiveCall | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const releaseRef = useRef<(() => void) | null>(null);
   const cancelledRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const onConfirmRef = useRef(onConfirm);
@@ -157,6 +169,7 @@ export default function CallDialingStep({
     return () => {
       cancelledRef.current = true;
       abortRef.current?.abort();
+      releaseRef.current?.();
       liveRef.current?.hangup();
     };
   }, []);
@@ -182,14 +195,31 @@ export default function CallDialingStep({
     setBrowserAttempt(true);
     setDialReady(false);
     setPhase("connecting");
+    let acquiredRef: string | null = null;
+    let released = false;
+    const release = (callId: string | null = null) => {
+      if (released || !acquiredRef) return;
+      released = true;
+      void endCall(acquiredRef, callId).catch(() => undefined);
+    };
+    releaseRef.current = release;
     try {
-      const login = await token();
-      if (cancelledRef.current) return;
+      const login = await token({
+        calleeNumber: `+${destination}`,
+        caseRef: caseRef ?? undefined,
+      });
+      acquiredRef = login.callRef ?? null;
+      if (cancelledRef.current) {
+        release();
+        return;
+      }
+      const callRef = acquiredRef;
       liveRef.current = await dial({
         token: login.token,
         callerNumber: login.callerNumber,
         destination: `+${destination}`,
         remoteElement: audioRef.current,
+        clientState: callRef ? btoa(callRef) : undefined,
         signal: abortRef.current.signal,
         onPhase: (next, at) => {
           setPhase(next);
@@ -197,6 +227,7 @@ export default function CallDialingStep({
         },
         onEnd: (result) => {
           liveRef.current = null;
+          release(result.callId);
           if (!cancelledRef.current) {
             if (!result.callId) {
               setPhase(null);
@@ -212,8 +243,13 @@ export default function CallDialingStep({
       setDialReady(true);
       if (cancelledRef.current) liveRef.current?.hangup();
     } catch (cause) {
+      release();
       if (cancelledRef.current) return;
       setPhase(null);
+      const code = cause instanceof ControlTowerError ? cause.code : undefined;
+      setRefusal(
+        code === QUOTA_EXHAUSTED || code === CHANNELS_BUSY ? code : null
+      );
       setDialError(cause instanceof Error ? cause.message : String(cause));
       setStarted(false);
       onStartedChange?.(false);
@@ -321,12 +357,26 @@ export default function CallDialingStep({
         </div>
 
         {dialError && (
-          <p
+          <div
             role="alert"
             className="mx-4 mb-2 shrink-0 text-sm text-red-600 dark:text-red-400"
           >
-            {t("call_telnyx_failed")}: {dialError}
-          </p>
+            {refusal === QUOTA_EXHAUSTED && <p>{t("call_quota_exhausted")}</p>}
+            {refusal === CHANNELS_BUSY && <p>{t("call_channels_busy")}</p>}
+            {!refusal && (
+              <p>
+                {t("call_telnyx_failed")}: {dialError}
+              </p>
+            )}
+            {destination && (
+              <a
+                href={`tel:+${destination}`}
+                className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                {t("call_use_phone")}
+              </a>
+            )}
+          </div>
         )}
         {(telephonyPending || telephonyFailed) && (
           <p
@@ -453,6 +503,7 @@ export default function CallDialingStep({
                 onClick={() => {
                   cancelledRef.current = true;
                   abortRef.current?.abort();
+                  releaseRef.current?.();
                   liveRef.current?.hangup();
                   onCancel(elapsed);
                 }}

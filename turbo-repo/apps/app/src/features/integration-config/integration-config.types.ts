@@ -250,6 +250,8 @@ export const ConnectionFormSchema = z.object({
   sipConnectionId: z.string(),
   callerNumber: z.string(),
   defaultCallerId: z.string(),
+  channelLimit: z.string(),
+  webhookPublicKey: z.string(),
 });
 
 export type ConnectionFormData = z.infer<typeof ConnectionFormSchema>;

@@ -23,6 +23,7 @@ import com.microboxlabs.miot.integrations.service.ConnectionNotConfiguredExcepti
 import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
+import com.microboxlabs.miot.integrations.telephony.ManagedUsageRecorder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.enterprise.inject.Instance;
@@ -64,6 +65,13 @@ public class WhatsAppMessagingService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final ChannelAccountsService accounts;
+    private final TemplateMeter meter;
+
+    /** Counts a template sent: {@code sendingTenant} is whose WhatsApp account sent it. */
+    @FunctionalInterface
+    public interface TemplateMeter {
+        void sent(String tenantCode, String sendingTenant, String messageId, java.time.Instant at);
+    }
 
     private final Instance<TemplateStore> templates;
 
@@ -73,18 +81,51 @@ public class WhatsAppMessagingService {
             MetaWhatsAppClient metaClient,
             ConversationRepository conversationRepository,
             MessageRepository messageRepository,
-            ChannelAccountsService accounts, Instance<TemplateStore> templates) {
-        this.templates = templates;
-        this.connectionResolver = connectionResolver;
-        this.metaClient = metaClient;
-        this.conversationRepository = conversationRepository;
-        this.messageRepository = messageRepository;
-        this.accounts = accounts;
+            ChannelAccountsService accounts,
+            ManagedUsageRecorder usage,
+            Instance<TemplateStore> templates) {
+        this(connectionResolver, metaClient, conversationRepository, messageRepository, accounts,
+                usage::whatsAppTemplate, templates);
+    }
+
+    /** Without metering, as tests build it. */
+    public WhatsAppMessagingService(IntegrationConnectionResolver resolver, MetaWhatsAppClient client,
+            ConversationRepository conversations, MessageRepository messages, ChannelAccountsService accounts) {
+        this(resolver, client, conversations, messages, accounts, (tenant, sending, id, at) -> { }, null);
     }
 
     public WhatsAppMessagingService(IntegrationConnectionResolver resolver, MetaWhatsAppClient client,
-            ConversationRepository conversations, MessageRepository messages, ChannelAccountsService accounts) {
-        this(resolver, client, conversations, messages, accounts, null);
+            ConversationRepository conversations, MessageRepository messages, ChannelAccountsService accounts,
+            TemplateMeter meter) {
+        this(resolver, client, conversations, messages, accounts, meter, null);
+    }
+
+    public WhatsAppMessagingService(IntegrationConnectionResolver resolver, MetaWhatsAppClient client,
+            ConversationRepository conversations, MessageRepository messages, ChannelAccountsService accounts,
+            Instance<TemplateStore> templates) {
+        this(resolver, client, conversations, messages, accounts, (tenant, sending, id, at) -> { }, templates);
+    }
+
+    private WhatsAppMessagingService(IntegrationConnectionResolver resolver, MetaWhatsAppClient client,
+            ConversationRepository conversations, MessageRepository messages, ChannelAccountsService accounts,
+            TemplateMeter meter, Instance<TemplateStore> templates) {
+        this.connectionResolver = resolver;
+        this.metaClient = client;
+        this.conversationRepository = conversations;
+        this.messageRepository = messages;
+        this.accounts = accounts;
+        this.meter = meter;
+        this.templates = templates;
+    }
+
+    /** A template that left through the platform's account is charged to the organization. Never fails a send. */
+    private void meter(String tenantCode, String sendingTenant, String messageId) {
+        try {
+            meter.sent(tenantCode, sendingTenant, messageId, java.time.Instant.now());
+        } catch (RuntimeException e) {
+            LOG.warnf("Could not record the WhatsApp template %s for tenant %s: %s", messageId, tenantCode,
+                    e.getMessage());
+        }
     }
 
     private static void requireSendingCredentials(String phoneNumberId, String token) {
@@ -144,6 +185,9 @@ public class WhatsAppMessagingService {
         try {
             metaMessageId = dispatch(connection, phoneNumberId, token, request);
             status = MessageStatus.SENT;
+            if (request.isTemplate()) {
+                meter(tenantCode, sendingTenant, metaMessageId);
+            }
         } catch (WhatsAppSendException e) {
             LOG.warnf("WhatsApp send failed for tenant %s to %s (%s)", tenantCode, maskPhone(request.to()),
                     e.getClass().getSimpleName());
@@ -231,6 +275,7 @@ public class WhatsAppMessagingService {
                         message.to(), message.templateName(),
                         message.language() == null ? DEFAULT_LANGUAGE : message.language(), message.params());
                 status = MessageStatus.SENT;
+                meter(tenantCode, sendingTenant, providerMessageId);
             } catch (ConnectionResolutionException | IllegalArgumentException | WhatsAppSendException e) {
                 // The admitted sender needs the original provider status to distinguish a
                 // definitive rejection from an unknown outcome before releasing its reservation.
@@ -305,6 +350,7 @@ public class WhatsAppMessagingService {
                     message.templateName(), language == null ? DEFAULT_LANGUAGE : language,
                     params == null ? Map.of() : params);
             Message sent = messageRepository.markSent(messageId, wamid, metadata, OffsetDateTime.now(ZoneOffset.UTC));
+            meter(tenantCode, sendingTenant, wamid);
             return sent != null ? sent : messageRepository.findById(messageId);
         } catch (ConnectionResolutionException | IllegalArgumentException e) {
             throw new SendFailure(e.getMessage(), false);

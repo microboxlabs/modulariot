@@ -1454,7 +1454,8 @@
           "brand": "Brand and content",
           "access": "Access",
           "ai": "AI",
-          "geocoding": "Geocoding"
+          "geocoding": "Geocoding",
+          "telephony": "Telephony"
         },
         "notOwnerTitle": "You don't have access to this section",
         "notOwnerBody": "Only platform administrators can see and change these settings.",
@@ -2034,6 +2035,49 @@
               "ACCREDITATION": "Created by the accreditation integration; it ends with the accreditation."
             }
           }
+        },
+        "telephonyPlan": {
+          "title": "Telephony plan",
+          "menuTitle": "Plan",
+          "menuHint": "Prices per minute, monthly minutes and enforcement",
+          "description": "Prices in US$ per billed minute (each call rounded up to a minute) or per WhatsApp template. The platform line is the Telnyx connection of the Platform scope, in Connections.",
+          "fields": {
+            "minutesPerMonth": "Minutes per month (default)",
+            "clMobileUsd": "Chile mobile (US$/min)",
+            "clLandlineUsd": "Chile landline (US$/min)",
+            "otherUsd": "Other destinations (US$/min)",
+            "whatsappCallUsd": "WhatsApp call (US$/min)",
+            "whatsappTemplateUsd": "WhatsApp template (US$ each)"
+          },
+          "enforced": "Enforce the minutes",
+          "enforcedHelp": "On: an organization without minutes cannot call on the platform line and is offered the phone. Off: no call is refused; usage is still recorded.",
+          "invalid": "Check the values: they must be numbers of 0 or more.",
+          "save": "Save",
+          "saved": "Plan saved",
+          "saveFailed": "Could not save the plan",
+          "loadFailed": "Could not read the plan"
+        },
+        "telephonyTenants": {
+          "selectOrganization": "Select an organization",
+          "title": "Organizations",
+          "menuTitle": "Organizations",
+          "menuHint": "Minutes used per organization",
+          "description": "Calls on the platform line and WhatsApp templates sent by the platform's account. Only calls Telnyx confirmed count.",
+          "month": "Month",
+          "empty": "No organization used the platform's telephony this month.",
+          "organization": "Organization",
+          "minutes": "Minutes",
+          "pending": "Unconfirmed",
+          "charge": "Charge",
+          "providerCost": "Telnyx cost",
+          "editMinutes": "Minutes",
+          "monthlyMinutes": "Minutes per month",
+          "monthlyMinutesHelp": "Empty uses the plan's minutes.",
+          "save": "Save",
+          "saved": "Minutes saved",
+          "saveFailed": "Could not save the minutes",
+          "cancel": "Cancel",
+          "loadFailed": "Could not read the usage"
         }
       },
       "organizations": {
@@ -4406,7 +4450,9 @@
         "telephonyNotReady": "{name} did not pass its test; it is not used until it does.",
         "telephonyConnections": "Set up in Connections",
         "telephonyLoadFailed": "Could not read the telephony settings.",
-        "telephonySaveFailed": "Could not save the telephony settings."
+        "telephonySaveFailed": "Could not save the telephony settings.",
+        "telephonyManaged": "platform line",
+        "telephonyMonth": "This month: {used} of {quota} minutes · {pending} unconfirmed · {charge}"
       },
       "communications": {
         "title": "Communications",
@@ -5534,7 +5580,14 @@
         "defaultCallerIdHelp": "The number Teams shows when calling, in E.164. Empty: each operator's own.",
         "credentialRequired": "Choose a credential of this provider.",
         "noTelnyxCredentials": "There are no Telnyx credentials. Create one in Credentials.",
-        "noTeamsCredentials": "There are no Microsoft Entra credentials. Create one in Credentials with the scope https://graph.microsoft.com/.default."
+        "noTeamsCredentials": "There are no Microsoft Entra credentials. Create one in Credentials with the scope https://graph.microsoft.com/.default.",
+        "channelLimit": "Simultaneous calls",
+        "channelLimitHelp": "How many calls the line can carry at once. Empty: 10.",
+        "channelLimitInvalid": "Simultaneous calls must be a whole number above 0.",
+        "webhookPublicKey": "Webhook public key (optional)",
+        "webhookPublicKeyHelp": "In Telnyx: Account Settings › Keys & Credentials › Public Key. The modulith checks call webhooks with it.",
+        "webhookUrl": "Webhook URL for the Credential Connection",
+        "webhookUrlHelp": "Paste it in Telnyx as the connection's webhook. Shown after saving."
       }
     },
     "calendar": {
@@ -7642,7 +7695,10 @@
     "call_telephony_load_failed": "Could not load telephony settings. Reopen the call to try again.",
     "call_telephony_answered": "answered (recorded by the telephony)",
     "call_telephony_unanswered": "not answered (recorded by the telephony)",
-    "call_telephony_pending": "record pending: Teams publishes the duration and the result a few minutes later"
+    "call_telephony_pending": "record pending: Teams publishes the duration and the result a few minutes later",
+    "call_quota_exhausted": "The platform's call minutes of this month are used.",
+    "call_channels_busy": "Every platform line is in a call. Try again in a moment.",
+    "call_use_phone": "Call with the phone"
   },
   "geographic_view": {
     "arrival_delay": "Arrival delay",

@@ -23,8 +23,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Issues Telnyx WebRTC tokens. Each operator has one telephony credential (a SIP login) under the
@@ -42,36 +44,66 @@ public class TelnyxWebRtcTokens {
     private final TelnyxClient client;
     private final ObjectMapper json;
     private final Clock clock;
-    private final BiFunction<String, Supplier<String>, String> credentialLocks;
+    private final BiFunction<String, Supplier<JsonNode>, JsonNode> credentialLocks;
+    private final String webhookBaseUrl;
 
     @Inject
     public TelnyxWebRtcTokens(IntegrationConnectionRepository repository, IntegrationConnectionResolver resolver,
-            TelnyxClient client, ObjectMapper json, ManagedConnectionLock locks) {
-        this(repository::findByTenantAndId, resolver::resolve, client, json, Clock.systemUTC(), locks::locked);
+            TelnyxClient client, ObjectMapper json, ManagedConnectionLock locks,
+            @ConfigProperty(name = "miot.integrations.telephony.webhook-base-url") Optional<String> webhookBaseUrl) {
+        this(repository::findByTenantAndId, resolver::resolve, client, json, Clock.systemUTC(), webhookBaseUrl.orElse(""), locks::locked);
     }
 
     public TelnyxWebRtcTokens(BiFunction<String, String, IntegrationConnection> connections,
             BiFunction<String, IntegrationConnection, ResolvedConnection> resolver, TelnyxClient client,
             ObjectMapper json, Clock clock) {
-        this(connections, resolver, client, json, clock, (key, work) -> work.get());
+        this(connections, resolver, client, json, clock, "");
     }
 
     public TelnyxWebRtcTokens(BiFunction<String, String, IntegrationConnection> connections,
             BiFunction<String, IntegrationConnection, ResolvedConnection> resolver, TelnyxClient client,
-            ObjectMapper json, Clock clock, BiFunction<String, Supplier<String>, String> credentialLocks) {
+            ObjectMapper json, Clock clock, String webhookBaseUrl) {
+        this(connections, resolver, client, json, clock, webhookBaseUrl, (key, work) -> work.get());
+    }
+
+    public TelnyxWebRtcTokens(BiFunction<String, String, IntegrationConnection> connections,
+            BiFunction<String, IntegrationConnection, ResolvedConnection> resolver, TelnyxClient client,
+            ObjectMapper json, Clock clock, String webhookBaseUrl,
+            BiFunction<String, Supplier<JsonNode>, JsonNode> credentialLocks) {
         this.credentialLocks = credentialLocks;
         this.connections = connections;
         this.resolver = resolver;
         this.client = client;
         this.json = json;
         this.clock = clock;
+        this.webhookBaseUrl = trimTrailingSlashes(webhookBaseUrl);
+    }
+
+    private static String trimTrailingSlashes(String value) {
+        int end = value.length();
+        while (end > 0 && value.charAt(end - 1) == '/') end--;
+        return value.substring(0, end);
+    }
+
+    /** A token, the operator's credential, and the connection it was issued on. */
+    public record Issued(WebRtcToken token, String credentialId, String sipUsername,
+            IntegrationConnection connection) {
     }
 
     public WebRtcToken issue(String tenantCode, String connectionId, String operator) {
+        return issueFor(tenantCode, connectionId, tenantCode, operator).token();
+    }
+
+    /**
+     * @param connectionTenant the tenant that owns the connection: the organization, or the platform for the
+     *                         managed line
+     * @param callingTenant    the organization the operator works for; it names the operator's credential
+     */
+    public Issued issueFor(String connectionTenant, String connectionId, String callingTenant, String operator) {
         if (operator == null || operator.isBlank()) {
             throw new IllegalArgumentException("operator is required");
         }
-        IntegrationConnection connection = connections.apply(tenantCode, connectionId);
+        IntegrationConnection connection = connections.apply(connectionTenant, connectionId);
         if (connection == null || connection.providerType() != ProviderType.TELNYX) {
             throw new TelephonyUnavailableException("The organization has no Telnyx connection");
         }
@@ -83,7 +115,7 @@ public class TelnyxWebRtcTokens {
         }
         ResolvedConnection resolved;
         try {
-            resolved = resolver.apply(tenantCode, connection);
+            resolved = resolver.apply(connectionTenant, connection);
         } catch (ConnectionResolutionException e) {
             throw new TelephonyUnavailableException(e.getMessage());
         }
@@ -94,13 +126,16 @@ public class TelnyxWebRtcTokens {
             throw new TelephonyUnavailableException("The Telnyx connection is incomplete; test it in Conexiones");
         }
         try {
-            String name = credentialName(tenantCode, operator);
-            String credentialId = credentialLocks.apply("telnyx-webrtc:" + name,
+            requireParkedConnection(apiKey.trim(), sipConnectionId, connection.id());
+            String name = credentialName(callingTenant, operator);
+            JsonNode credential = credentialLocks.apply("telnyx-webrtc:" + name,
                     () -> credentialOrFail(apiKey.trim(), sipConnectionId, name));
+            String credentialId = credential.path("id").asText();
             HttpResponse<String> response = client.telephonyToken(apiKey.trim(), credentialId);
             require(response, "issue the token");
             String token = tokenOf(response.body());
-            return new WebRtcToken(token, callerNumber, clock.instant().plus(TOKEN_TTL));
+            return new Issued(new WebRtcToken(token, callerNumber, clock.instant().plus(TOKEN_TTL)), credentialId,
+                    blankToNull(credential.path("sip_username").asText("")), connection);
         } catch (IOException e) {
             throw new TelephonyUnavailableException("Could not reach Telnyx: " + e.getMessage());
         } catch (InterruptedException e) {
@@ -114,7 +149,7 @@ public class TelnyxWebRtcTokens {
         return value.trim();
     }
 
-    private String credentialOrFail(String apiKey, String sipConnectionId, String name) {
+    private JsonNode credentialOrFail(String apiKey, String sipConnectionId, String name) {
         try {
             return credentialFor(apiKey, sipConnectionId, name);
         } catch (IOException e) {
@@ -125,24 +160,47 @@ public class TelnyxWebRtcTokens {
         }
     }
 
+    private void requireParkedConnection(String apiKey, String sipConnectionId, String connectionId)
+            throws IOException, InterruptedException {
+        if (!webhookBaseUrl.startsWith("https://")) {
+            throw new TelephonyUnavailableException("Configure miot.integrations.telephony.webhook-base-url before issuing Telnyx logins");
+        }
+        HttpResponse<String> response = client.credentialConnection(apiKey, sipConnectionId);
+        require(response, "verify parked-call admission");
+        JsonNode c = read(response.body()).path("data");
+        String expectedWebhook = webhookBaseUrl + "/webhooks/telnyx/" + connectionId;
+        String failover = c.path("webhook_event_failover_url").asText("");
+        if (!c.path("active").asBoolean(false) || !c.path("outbound").path("call_parking_enabled").asBoolean(false)
+                || !"2".equals(c.path("webhook_api_version").asText())
+                || !expectedWebhook.equals(c.path("webhook_event_url").asText())
+                || (!failover.isBlank() && !expectedWebhook.equals(failover))
+                || !"disabled".equals(c.path("sip_uri_calling_preference").asText())) {
+            throw new TelephonyUnavailableException("Telnyx must park outbound calls at this server's v2 webhook and disable direct SIP URI calls");
+        }
+    }
+
     /** The operator's credential under this credential connection, created when there is none usable. */
-    private String credentialFor(String apiKey, String sipConnectionId, String name)
+    private JsonNode credentialFor(String apiKey, String sipConnectionId, String name)
             throws IOException, InterruptedException {
         HttpResponse<String> found = client.telephonyCredentials(apiKey, name);
         require(found, "list the telephony credentials");
         for (JsonNode c : read(found.body()).path("data")) {
             if (name.equals(c.path("name").asText()) && onConnection(c, sipConnectionId)
                     && !c.path("expired").asBoolean(false) && !c.path("id").asText().isBlank()) {
-                return c.path("id").asText();
+                return c;
             }
         }
         HttpResponse<String> created = client.createTelephonyCredential(apiKey, sipConnectionId, name);
         require(created, "create the operator's telephony credential");
-        String id = read(created.body()).path("data").path("id").asText();
-        if (id.isBlank()) {
+        JsonNode data = read(created.body()).path("data");
+        if (data.path("id").asText().isBlank()) {
             throw new TelephonyUnavailableException("Telnyx created a telephony credential without an id");
         }
-        return id;
+        return data;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     /** Telnyx names the credential's connection in {@code resource_id} as {@code connection:<id>}. */

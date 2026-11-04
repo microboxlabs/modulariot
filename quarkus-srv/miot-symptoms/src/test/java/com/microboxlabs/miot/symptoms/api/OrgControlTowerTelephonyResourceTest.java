@@ -39,7 +39,7 @@ class OrgControlTowerTelephonyResourceTest {
             }
 
             @Override
-            public WebRtcToken webRtcToken(String tenantCode, String connectionId, String operator) {
+            public WebRtcToken webRtcToken(String tenantCode, String connectionId, String operator, String callee, String caseRef) {
                 assertEquals("acme", tenantCode);
                 issuedTo = operator;
                 return new WebRtcToken("placeholder", "+56911111111", Instant.now().plusSeconds(60));
@@ -52,7 +52,7 @@ class OrgControlTowerTelephonyResourceTest {
 
     @Test
     void issuesOnlyForTheSignedInOperatorAndDoesNotCacheTheToken() {
-        var response = resource("Ana@example.com").webRtcToken("org-a").await().atMost(Duration.ofSeconds(5));
+        var response = resource("Ana@example.com").webRtcToken("org-a", new TelephonyChoiceService.CallRequest("+56911111111", null)).await().atMost(Duration.ofSeconds(5));
         assertEquals(200, response.getStatus());
         assertEquals("ana@example.com", issuedTo);
         assertEquals("no-store", response.getHeaderString("Cache-Control"));
@@ -61,15 +61,17 @@ class OrgControlTowerTelephonyResourceTest {
     @Test
     void rejectsTheSharedServiceIdentityBeforeIssuingALogin() {
         var anonymous = resource(null);
-        assertThrows(ForbiddenException.class, () -> anonymous.webRtcToken("org-a"));
+        var call = new TelephonyChoiceService.CallRequest("+56911111111", null);
+        assertThrows(ForbiddenException.class, () -> anonymous.webRtcToken("org-a", call));
         assertThrows(ForbiddenException.class, () -> anonymous.reconcile("org-a"));
+        assertThrows(ForbiddenException.class, () -> anonymous.callEnded("org-a", "ref", null));
         assertNull(issuedTo);
     }
 
     @Test
     void rejectsAnOrganizationOutsideTheRequestContext() {
         var resource = resource("ana@example.com");
-        assertThrows(WebApplicationException.class, () -> resource.webRtcToken("other-org"));
+        assertThrows(WebApplicationException.class, () -> resource.webRtcToken("other-org", null));
         assertNull(issuedTo);
     }
 }

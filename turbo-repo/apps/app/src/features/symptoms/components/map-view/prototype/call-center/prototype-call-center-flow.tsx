@@ -260,6 +260,11 @@ export default function PrototypeCallCenterFlow({
           line={providerCalls ? (telephony?.active ?? null) : null}
           telephonyPending={providerCalls && !telephony && !telephonyError}
           telephonyFailed={providerCalls && Boolean(telephonyError)}
+          caseRef={
+            treatmentData?.symptom_info?.id != null
+              ? String(treatmentData.symptom_info.id)
+              : null
+          }
           onCancel={handleCancelCall}
           onConfirm={handleConfirmCall}
           onStartedChange={setDialingStarted}

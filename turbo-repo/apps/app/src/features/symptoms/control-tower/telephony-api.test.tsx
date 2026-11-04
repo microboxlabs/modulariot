@@ -82,16 +82,29 @@ describe("telephony configuration API boundary", () => {
     });
     expect(() => parseTelephonySetup(null)).toThrow();
   });
+  it.each([true, false])("preserves the managed-line flag %s", (managed) => {
+    const shared = { ...line, managed };
+    const result = parseTelephonySetup({
+      ...setup,
+      active: shared,
+      lines: [shared],
+    });
+    expect(result.active?.managed).toBe(managed);
+    expect(result.lines[0].managed).toBe(managed);
+  });
+
   it("validates the operator token before giving it to the calling SDK", async () => {
     const response = {
       token: "synthetic-token",
       callerNumber: "+12025550101",
       expiresAt: "2026-11-05T10:00:00Z",
+      callRef: "managed-admission-1",
     };
     request.mockResolvedValue(response);
     await expect(fetchWebRtcToken()).resolves.toEqual(response);
     expect(request).toHaveBeenCalledWith("/tower/telephony/webrtc-token", {
       method: "POST",
+      body: {},
     });
   });
 

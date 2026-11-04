@@ -7,6 +7,8 @@ const lineSchema = z.object({
   name: z.string(),
   callerNumber: z.string().nullable().optional().default(null),
   ready: z.boolean(),
+  /** The platform shared line; absent on older responses. */
+  managed: z.boolean().optional(),
 });
 const setupSchema = z.object({
   preferred: providerSchema.nullable().optional().default(null),
@@ -37,6 +39,7 @@ const webRtcTokenSchema = z.object({
   token: z.string().trim().min(1),
   callerNumber: z.string().regex(/^\+[1-9]\d{6,14}$/),
   expiresAt: z.string().datetime({ offset: true }),
+  callRef: z.string().min(1).nullable().optional(),
 });
 export type WebRtcToken = z.infer<typeof webRtcTokenSchema>;
 

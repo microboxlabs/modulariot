@@ -33,7 +33,8 @@ class TelephonyChoiceServiceTest {
         }
 
         @Override
-        public WebRtcToken webRtcToken(String tenantCode, String connectionId, String operator) {
+        public WebRtcToken webRtcToken(String tenantCode, String connectionId, String operator, String callee,
+                String caseRef) {
             issued.add(connectionId + " " + operator);
             return new WebRtcToken("jwt", "+56900000000", Instant.EPOCH);
         }

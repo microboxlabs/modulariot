@@ -9,6 +9,15 @@ The Control Tower places calls through the organization's telephony connection. 
 
 For Telnyx, use a Credential Connection made for WebRTC. A Teams Operator Connect connection does not work.
 
+A TELNYX connection can be the organization's own, or the platform's: a TELNYX connection in the Plataforma scope. An organization without its own uses the platform's (the managed line), with one shared caller number, charged per minute. Teams Phone is only the organization's own: its licenses are per user in the organization's Microsoft 365.
+
+Optional TELNYX metadata:
+
+| Key | Purpose |
+| --- | --- |
+| `channelLimit` | calls at once on the line; default 10 |
+| `webhookPublicKey` | Telnyx's webhook public key (ed25519, base64), to verify webhooks |
+
 ## Which line calls use
 
 The organization's choice is stored in `tower_settings.telephony_provider`. The line used is:
@@ -28,6 +37,17 @@ All are under `/api/v1/orgs/{organizationId}/control-tower/telephony`.
 | `PUT {provider}` | `controltower:settings.update` | Saves `TELNYX`, `TEAMS_PHONE` or `null` (automatic). |
 | `POST /webrtc-token` | `controltower:case.treat` | `{token, callerNumber, expiresAt}` for the operator. 409 when calls do not use Telnyx. |
 | `POST /reconcile` | `controltower:case.treat` | `{checked, recorded, pending}` for the operator's pending Teams calls. |
+| `POST /calls/{callRef}/ended {providerCallId}` | `controltower:case.treat` | The browser's call ended: frees its channel. |
+
+The token request takes `{calleeNumber, caseRef}` and answers `callRef`. A 409 carries `code`:
+
+| Code | When |
+| --- | --- |
+| `telephony_quota_exhausted` | the managed line, the plan is enforced, and the organization used its minutes |
+| `telephony_channels_busy` | `channelLimit` calls are on the line |
+| `telephony_unavailable` | no Telnyx line, or Telnyx refused |
+
+The app then says why and offers `tel:`.
 
 ## Telnyx calls
 
@@ -60,3 +80,44 @@ The reconcile reads Graph `getPstnCalls` for the window of the operator's pendin
 | No match 48 hours after the call | `status: NOT_FOUND` |
 
 A 404 or an empty list from Graph is treated as pending.
+
+## Managed line: usage and billing
+
+Billing uses what Telnyx reports. The browser's report only frees the channel; its supplied call id is ignored. Verified webhooks and detail records bind provider ids, destinations and charges. Writers serialize per connection, and a detail record remains authoritative over later webhooks.
+
+| Step | What is stored in `miot_integrations` |
+| --- | --- |
+| Token issued | `telephony_operator_credentials`: the operator's SIP login and its organization. `telephony_usage`: a STARTED row, holding one channel. |
+| Telnyx webhook `call.answered`, `call.hangup` | The private PSTN-leg `client_state` resolves the admission binding to its ledger row; seconds run from answer to hangup. |
+| Reconcile job, every 15 minutes | Detail records of the managed Credential Connection from the last 3 days. Each is charged to the organization that owns its `auth_username`, with `call_sec` (0 when not answered) and Telnyx's `cost`. |
+| STARTED or ENDED for 2 hours with no provider confirmation | EXPIRED; it frees its channel and is not charged. |
+
+Each call is rounded up to a whole minute. Only CONFIRMED rows are charged.
+
+### Per-call admission and resumable reconciliation
+
+The WebRTC JWT remains a reusable 24-hour login, but its Credential Connection must park outbound calls. Set `MIOT_INTEGRATIONS_TELEPHONY_WEBHOOK_BASE_URL` to the public HTTPS modulith origin. Before issuing any JWT the server verifies that the provider connection is active, has `outbound.call_parking_enabled: true`, uses webhook API version `2` at exactly `<origin>/webhooks/telnyx/{connectionId}`, and disables inbound SIP URI calling with `sip_uri_calling_preference: disabled`. A missing or different configuration refuses the token.
+
+**Admission remains blocked for production certification:** [Telnyx documents that emergency calls bypass parking](https://support.telnyx.com/en/articles/4351104-sip-connection-settings). Parking therefore protects ordinary PSTN calls but does not establish admission for every route available to this reusable JWT. A verified provider restriction covering those routes, or a different authentication/calling architecture, is still required. These changes have not been exercised against a real Telnyx account.
+
+On the signed parked-leg webhook the server consumes one unused reservation, rechecks quota and the line's current channel limit, and transfers the leg to the reservation's stored destination using its API key. Reservations must be consumed within five minutes. A second SDK call cannot reuse one. The transfer has a stable command ID for retries and a private target-leg state, never returned to the browser, so only the PSTN leg supplies billable answer/hangup events. A browser end report cannot release an admitted channel; provider events or the bounded provider call duration release it.
+
+The fallback detail-record scan visits at most 20 pages per run and persists its next page in PostgreSQL. Restarts and other replicas continue that cursor under a shared lock. Pages use descending `started_at`, so new records enter before the cursor and may cause safe duplicate processing rather than skipping unvisited records. The lookback expands by the elapsed scan duration rounded up to days, retaining the original window with either rolling or calendar-day provider semantics. HTTP failures and malformed pagination retain the failed page. Incomplete results and logs include `nextPage`. A completed scan clears the cursor and starts a fresh three-day pass next time to revisit late records and costs.
+
+Migration `V0.6.41` adds the admission bindings and reconciliation cursor. Previously applied migrations remain unchanged. Before enabling production calling, configure parking and the signed webhook on Telnyx, set the public origin above, and test an allowed call, a second SDK call with the same JWT, quota/channel refusal, hangup, and CDR reconciliation against the actual provider.
+
+Provider contracts: [parked credential connections](https://developers.telnyx.com/docs/voice/webrtc/auth/credential-connections), [server-side transfer](https://developers.telnyx.com/api-reference/call-commands/transfer-call), [detail record pagination](https://developers.telnyx.com/api-reference/detail-records/search-detail-records).
+
+| Setting | Where |
+| --- | --- |
+| Webhook URL | `https://<modulith>/webhooks/telnyx/{connectionId}`, on the Telnyx Credential Connection |
+| Webhook check | ed25519 signature of `telnyx-timestamp + "|" + body`, at most 5 minutes old |
+| Job | `miot.integrations.telephony.reconcile.enabled` (true), `miot.integrations.telephony.reconcile.every` (15m) |
+| Plan and minutes | Settings › Plataforma › Telefonía; `GET/PUT /api/v1/platform/telephony-plan` |
+| Organization's month | `GET /api/v1/orgs/{organizationId}/telephony-usage` |
+
+Prices are per billed minute: Chile mobile (`+56 9` and 8 digits), Chile landline (any other `+56`), other destinations, WhatsApp call. WhatsApp templates are priced each. A template is recorded when it is sent through the platform's WhatsApp account for an organization. A WhatsApp call is recorded from the `calls` webhook, once WhatsApp calling is on.
+
+## Calls back to the shared number
+
+An incoming call to the shared number belongs to the organization of the latest managed call to that caller in the last 24 hours, else to the platform's voicemail or notice. The webhook makes this decision and logs it (`InboundRouter`). Answering and transferring the call needs a Telnyx Call Control application. That is not built.

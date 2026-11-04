@@ -31,12 +31,18 @@ export interface TelephonyValues {
   readonly sipConnectionId: string;
   readonly callerNumber: string;
   readonly defaultCallerId: string;
+  /** Telnyx: calls at once on the line; empty is 10. */
+  readonly channelLimit: string;
+  /** Telnyx: the webhook public key (ed25519, base64). Public, so in metadata. */
+  readonly webhookPublicKey: string;
 }
 
 export const EMPTY_TELEPHONY: TelephonyValues = {
   sipConnectionId: "",
   callerNumber: "",
   defaultCallerId: "",
+  channelLimit: "",
+  webhookPublicKey: "",
 };
 
 /** The number without spaces, dots, dashes or parentheses, or null when it is not E.164. */
@@ -48,12 +54,18 @@ export function e164(value: string): string | null {
 export function telephonyValues(
   metadata: Record<string, unknown> | undefined
 ): TelephonyValues {
-  const text = (key: string) =>
-    typeof metadata?.[key] === "string" ? (metadata[key] as string) : "";
+  const text = (key: string) => {
+    const value = metadata?.[key];
+    return typeof value === "string" || typeof value === "number"
+      ? String(value)
+      : "";
+  };
   return {
     sipConnectionId: text("sipConnectionId"),
     callerNumber: text("callerNumber"),
     defaultCallerId: text("defaultCallerId"),
+    channelLimit: text("channelLimit"),
+    webhookPublicKey: text("webhookPublicKey"),
   };
 }
 
@@ -66,6 +78,9 @@ export function telephonyProblem(
     if (!values.sipConnectionId.trim())
       return "telephony.sipConnectionIdRequired";
     if (!e164(values.callerNumber)) return "telephony.callerNumberInvalid";
+    const limit = values.channelLimit.trim();
+    if (limit && !/^[1-9]\d*$/.test(limit))
+      return "telephony.channelLimitInvalid";
     return null;
   }
   if (values.defaultCallerId.trim() && !e164(values.defaultCallerId))
@@ -79,9 +94,13 @@ export function telephonyMetadata(
   values: TelephonyValues
 ): Record<string, string> {
   if (provider === "TELNYX") {
+    const limit = values.channelLimit.trim();
+    const key = values.webhookPublicKey.trim();
     return {
       sipConnectionId: values.sipConnectionId.trim(),
       callerNumber: e164(values.callerNumber) ?? values.callerNumber.trim(),
+      ...(limit ? { channelLimit: limit } : {}),
+      ...(key ? { webhookPublicKey: key } : {}),
     };
   }
   const callerId = e164(values.defaultCallerId);

@@ -46,10 +46,30 @@ export async function saveTelephony(provider: TelephonyProvider | null) {
   return saved;
 }
 
-/** Asks for a Telnyx WebRTC login for the signed-in operator (24 hours). */
-export async function fetchWebRtcToken() {
+/** Refusal codes of the token request (409). */
+export const QUOTA_EXHAUSTED = "telephony_quota_exhausted";
+export const CHANNELS_BUSY = "telephony_channels_busy";
+
+/** Reserves a managed call and requests the operator's reusable Telnyx login. */
+export async function fetchWebRtcToken(
+  call: { calleeNumber?: string; caseRef?: string } = {}
+) {
   return parseWebRtcToken(
-    await request<unknown>(`${telephonyKey}/webrtc-token`, { method: "POST" })
+    await request<unknown>(`${telephonyKey}/webrtc-token`, {
+      method: "POST",
+      body: call,
+    })
+  );
+}
+
+/** The browser's call ended; frees its channel. Telnyx still gives the billed seconds. */
+export function reportCallEnded(
+  callRef: string,
+  providerCallId: string | null
+) {
+  return request<void>(
+    `${telephonyKey}/calls/${encodeURIComponent(callRef)}/ended`,
+    { method: "POST", body: { providerCallId } }
   );
 }
 

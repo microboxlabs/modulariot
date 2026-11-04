@@ -1454,7 +1454,8 @@
           "brand": "Marca y contenido",
           "access": "Acceso",
           "ai": "IA",
-          "geocoding": "Geocodificación"
+          "geocoding": "Geocodificación",
+          "telephony": "Telefonía"
         },
         "notOwnerTitle": "No tienes acceso a esta sección",
         "notOwnerBody": "Solo quienes administran la plataforma pueden ver y cambiar estos ajustes.",
@@ -2034,6 +2035,49 @@
               "ACCREDITATION": "Lo creó la integración de acreditación y vence con la acreditación."
             }
           }
+        },
+        "telephonyPlan": {
+          "title": "Plan de telefonía",
+          "menuTitle": "Plan",
+          "menuHint": "Precios por minuto, minutos del mes y su aplicación",
+          "description": "Precios en US$ por minuto facturado (cada llamada se redondea al minuto) o por plantilla de WhatsApp. La línea de la plataforma es la conexión Telnyx del ámbito Plataforma, en Conexiones.",
+          "fields": {
+            "minutesPerMonth": "Minutos por mes (por defecto)",
+            "clMobileUsd": "Chile móvil (US$/min)",
+            "clLandlineUsd": "Chile fijo (US$/min)",
+            "otherUsd": "Otros destinos (US$/min)",
+            "whatsappCallUsd": "Llamada WhatsApp (US$/min)",
+            "whatsappTemplateUsd": "Plantilla WhatsApp (US$ c/u)"
+          },
+          "enforced": "Aplicar los minutos",
+          "enforcedHelp": "Activo: una organización sin minutos no puede llamar por la línea de la plataforma y se le ofrece el teléfono. Inactivo: no se rechaza ninguna llamada; el uso se registra igual.",
+          "invalid": "Revisa los valores: deben ser números de 0 o más.",
+          "save": "Guardar",
+          "saved": "Plan guardado",
+          "saveFailed": "No se pudo guardar el plan",
+          "loadFailed": "No se pudo leer el plan"
+        },
+        "telephonyTenants": {
+          "selectOrganization": "Selecciona una organización",
+          "title": "Organizaciones",
+          "menuTitle": "Organizaciones",
+          "menuHint": "Minutos usados por organización",
+          "description": "Llamadas por la línea de la plataforma y plantillas de WhatsApp enviadas por la cuenta de la plataforma. Solo cuentan las llamadas que Telnyx confirmó.",
+          "month": "Mes",
+          "empty": "Ninguna organización usó la telefonía de la plataforma este mes.",
+          "organization": "Organización",
+          "minutes": "Minutos",
+          "pending": "Sin confirmar",
+          "charge": "Cargo",
+          "providerCost": "Costo Telnyx",
+          "editMinutes": "Minutos",
+          "monthlyMinutes": "Minutos por mes",
+          "monthlyMinutesHelp": "Vacío usa los minutos del plan.",
+          "save": "Guardar",
+          "saved": "Minutos guardados",
+          "saveFailed": "No se pudieron guardar los minutos",
+          "cancel": "Cancelar",
+          "loadFailed": "No se pudo leer el uso"
         }
       },
       "organizations": {
@@ -4406,7 +4450,9 @@
         "telephonyNotReady": "{name} no pasó su prueba; no se usa hasta que la pase.",
         "telephonyConnections": "Configurar en Conexiones",
         "telephonyLoadFailed": "No se pudo leer la telefonía.",
-        "telephonySaveFailed": "No se pudo guardar la telefonía."
+        "telephonySaveFailed": "No se pudo guardar la telefonía.",
+        "telephonyManaged": "línea de la plataforma",
+        "telephonyMonth": "Este mes: {used} de {quota} minutos · {pending} sin confirmar · {charge}"
       },
       "communications": {
         "title": "Comunicaciones",
@@ -5534,7 +5580,14 @@
         "defaultCallerIdHelp": "El número que Teams muestra al llamar, en formato E.164. Vacío: el que tenga asignado cada operador.",
         "credentialRequired": "Elige una credencial de este proveedor.",
         "noTelnyxCredentials": "No hay credenciales Telnyx. Crea una en Credenciales.",
-        "noTeamsCredentials": "No hay credenciales de Microsoft Entra. Crea una en Credenciales con el scope https://graph.microsoft.com/.default."
+        "noTeamsCredentials": "No hay credenciales de Microsoft Entra. Crea una en Credenciales con el scope https://graph.microsoft.com/.default.",
+        "channelLimit": "Llamadas simultáneas",
+        "channelLimitHelp": "Cuántas llamadas puede haber a la vez en esta línea. Vacío: 10.",
+        "channelLimitInvalid": "Las llamadas simultáneas deben ser un número entero mayor que 0.",
+        "webhookPublicKey": "Clave pública de webhooks (opcional)",
+        "webhookPublicKeyHelp": "En Telnyx: Account Settings › Keys & Credentials › Public Key. Con ella el modulith verifica los webhooks de llamadas.",
+        "webhookUrl": "URL de webhook para la Credential Connection",
+        "webhookUrlHelp": "Pégala en Telnyx como webhook de la conexión. Se muestra después de guardar."
       }
     },
     "calendar": {
@@ -7642,7 +7695,10 @@
     "call_telephony_load_failed": "No se pudo cargar la telefonía. Vuelve a abrir la llamada para reintentar.",
     "call_telephony_answered": "contestada (registrado por la telefonía)",
     "call_telephony_unanswered": "no contestada (registrado por la telefonía)",
-    "call_telephony_pending": "registro pendiente: Teams publica la duración y el resultado unos minutos después"
+    "call_telephony_pending": "registro pendiente: Teams publica la duración y el resultado unos minutos después",
+    "call_quota_exhausted": "Se usaron los minutos de llamadas de la plataforma de este mes.",
+    "call_channels_busy": "Todas las líneas de la plataforma están en una llamada. Intenta en un momento.",
+    "call_use_phone": "Llamar con el teléfono"
   },
   "geographic_view": {
     "arrival_delay": "Retraso de llegada",

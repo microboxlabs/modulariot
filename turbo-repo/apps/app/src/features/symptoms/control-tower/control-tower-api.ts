@@ -177,7 +177,9 @@ const BASE = `${API_ROOT}control-tower`;
 export class ControlTowerError extends Error {
   constructor(
     message: string,
-    readonly status: number
+    readonly status: number,
+    /** The API's `{code}`, when it names the reason (e.g. telephony_quota_exhausted). */
+    readonly code?: string
   ) {
     super(message);
   }
@@ -213,7 +215,8 @@ async function request<T>(
   if (!response.ok) {
     throw new ControlTowerError(
       json?.error ?? `HTTP ${response.status}`,
-      response.status
+      response.status,
+      typeof json?.code === "string" ? json.code : undefined
     );
   }
   return json as T;

@@ -50,6 +50,9 @@ class PgTelnyxCredentialCreationTest {
         String name = TelnyxWebRtcTokens.credentialName("acme", "ana@example.com");
         TelephonyHttp provider = request -> {
             String path = request.uri().getRawPath();
+            if (path.startsWith("/v2/credential_connections/")) {
+                return new StubHttp().reply("GET " + path, 200, TelnyxWebRtcTokensTest.parked("conn-1")).send(request);
+            }
             String body;
             if ("GET".equals(request.method())) {
                 if (listings.incrementAndGet() == 1) {
@@ -101,6 +104,6 @@ class PgTelnyxCredentialCreationTest {
                 ConnectionStatus.ACTIVE, null, null, Map.of("sipConnectionId", "sip-1", "callerNumber", "+56900000000"));
         return new TelnyxWebRtcTokens((tenant, id) -> connection,
                 (tenant, c) -> new ResolvedConnection(c.id(), c.baseUrl(), c.metadata(), Map.of("token", "KEY_test")),
-                new TelnyxClient(provider, api), new ObjectMapper(), Clock.systemUTC(), lock::locked);
+                new TelnyxClient(provider, api), new ObjectMapper(), Clock.systemUTC(), "https://miot.test", lock::locked);
     }
 }

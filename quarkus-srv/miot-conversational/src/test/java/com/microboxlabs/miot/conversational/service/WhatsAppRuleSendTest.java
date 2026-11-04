@@ -42,8 +42,24 @@ class WhatsAppRuleSendTest {
     private final List<String> sentFrom = new ArrayList<>();
     private final Set<String> failing = new HashSet<>();
     private final InMemoryChannelAccounts accounts = new InMemoryChannelAccounts();
+    private final List<String> metered = new ArrayList<>();
     private final WhatsAppMessagingService service = new WhatsAppMessagingService(new FakeResolver(),
-            new FakeMeta(), store.conversationRepository, store.messageRepository, accounts.service);
+            new FakeMeta(), store.conversationRepository, store.messageRepository, accounts.service,
+            (tenant, sending, id, at) -> metered.add(tenant + " via " + sending));
+
+    @Test
+    void eachTemplateSentIsMeteredWithTheAccountThatSentIt() {
+        connections.put(PLATFORM, connection("conn-platform", "PLATFORM-PNID"));
+        connections.put(TENANT, connection("conn-org", "ORG-PNID"));
+
+        service.sendInContext(TENANT, message(), false);
+        service.sendInContext(TENANT, message(), true);
+        accounts.own(TENANT, "whatsapp");
+        service.sendInContext(TENANT, message(), false);
+
+        assertEquals(List.of(TENANT + " via " + PLATFORM, TENANT + " via " + TENANT), metered,
+                "a test run sends nothing and meters nothing");
+    }
 
     @Test
     void aRuleMessageIsSentFromThePlatformNumberOnTheOrganizationsConversation() {

@@ -93,6 +93,7 @@ export default function TemplateTextField({
   onFocusField?: (insert: Inserter) => () => void;
 }>) {
   const ref = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
+  const composing = useRef(false);
   const changeRef = useRef(onChange);
   changeRef.current = onChange;
   const listId = useId();
@@ -158,7 +159,7 @@ export default function TemplateTextField({
     });
   };
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    if (composing.current || e.nativeEvent.isComposing) return;
     if (!open || suggestions.length === 0) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
@@ -278,6 +279,12 @@ export default function TemplateTextField({
             track();
           }}
           onKeyDown={onKeyDown}
+          onCompositionStart={() => {
+            composing.current = true;
+          }}
+          onCompositionEnd={() => {
+            composing.current = false;
+          }}
           onKeyUp={(e) => {
             if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
               track();

@@ -3804,7 +3804,7 @@
           "operator": "An operator closes it",
           "normal": "Back to normal for",
           "age": "Since it opened, after",
-          "tripEnded": "The trip ends",
+          "tripInactive": "No active trip",
           "event": "The GPS event arrives"
         },
         "closeLevelLabel": "Level",
@@ -3823,6 +3823,8 @@
         "timelineSample": "Sample case",
         "timelineNone": "This symptom has no cases yet.",
         "timelineHint": "A real case of this symptom, with the rules published when it happened.",
+        "timelineSamplesError": "Could not load recent cases. Try again.",
+        "timelineEntriesError": "Could not load this case's timeline. Try again.",
         "timeline": {
           "OPENED": "Opens · {level}",
           "LEVEL_CHANGED": "Moves to {level}",

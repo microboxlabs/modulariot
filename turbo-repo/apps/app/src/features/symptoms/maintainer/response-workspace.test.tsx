@@ -151,6 +151,10 @@ describe("ResponseWorkspace", () => {
     view.rerender(<ResponseWorkspace {...props} preview={next} />);
     expect(screen.queryByText('"previous-case"')).toBeNull();
     expect(screen.getByText('"new-case"')).toBeTruthy();
+    view.rerender(
+      <ResponseWorkspace {...props} preview={{ ...next, cases: [] }} />
+    );
+    expect(screen.queryByText('"new-case"')).toBeNull();
   });
 
   it("starts on a level with an error, else the highest that applies", () => {

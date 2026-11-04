@@ -53,7 +53,7 @@ describe("close rows", () => {
       { when: { kind: "normal", minutes: 5 }, maxLevel: null },
       { when: { kind: "age", hours: 12 }, maxLevel: null },
       {
-        when: { kind: "tripEnded", path: "signal.trip.active" },
+        when: { kind: "tripInactive", path: "signal.trip.active" },
         maxLevel: null,
       },
       {
@@ -67,7 +67,7 @@ describe("close rows", () => {
     ]);
     expect(parseCloseRows("signal.trip.active == false", FIELDS)).toEqual([
       {
-        when: { kind: "tripEnded", path: "signal.trip.active" },
+        when: { kind: "tripInactive", path: "signal.trip.active" },
         maxLevel: null,
       },
     ]);
@@ -130,5 +130,7 @@ describe("note rows", () => {
   it("is null for other conditions and empty for no rule", () => {
     expect(parseNoteRows("case.level <= 2")).toBeNull();
     expect(parseNoteRows("")).toEqual([]);
+    expect(parseNoteRows("false")).toEqual([]);
+    expect(parseNoteRows(" (false) ")).toEqual([]);
   });
 });

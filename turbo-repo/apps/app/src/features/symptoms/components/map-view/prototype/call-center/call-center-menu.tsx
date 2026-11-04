@@ -1,386 +1,523 @@
 "use client";
 
 /**
- * PROTOTYPE — step 1 of the new "Llamar a…" debug flow: a contact list
- * sourced from its own dedicated `call-roles-store.ts` — not the generic
- * Selectables admin system (that's what the older, non-debug "Llamar al
- * conductor" form's dropdown still reads from via
- * `useSelectableOptions("who_to_call")`, kept untouched as the fallback).
- * The whole row is the call button — hover highlights it, clicking anywhere
- * on it moves to the dialing step. Calls made from here already show up as
- * treatments in the symptom's own timeline, so there's no separate call
- * history here — the trailing column is just a last-call-time + accepted/
- * denied tally, not a log.
- *
- * Adding a contact happens inline (`new-number-panel.tsx`): phone number,
- * then name, then "Solo llamar" (a real entry in that same dedicated store
- * with its own phone — see `contact-details.ts` — so the call shows up in
- * "Ya llamados") or "Llamar y guardar en la libreta" (also created in the
- * organization's contact book through the API, marked provisional until
- * someone completes it, and the list entry stays linked to it). A seeded option has
- * no details entry at all, which is how a row tells the two kinds apart.
+ * "A quién llamar": the level's operator steps in order, each with the
+ * contacts of the book that have its role (the trip's driver for
+ * "Conductor"). The rest of the book is under "Otros contactos". With no
+ * steps, the driver and the whole book. Clicking a row moves to dialing.
  */
 
-import { useEffect, useReducer, useState } from "react";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import { tr } from "@/features/i18n/tr.service";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  HiChevronDown,
+  HiChevronRight,
+  HiOutlineSearch,
+  HiPlus,
+} from "react-icons/hi";
+import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
-import type { CallRole } from "./call-roles-store";
+import { isDriverRole } from "@/features/symptoms/control-tower/contact-roles";
+import {
+  type TowerContact,
+  useSymptomTreatments,
+} from "@/features/symptoms/control-tower/control-tower-api";
+import {
+  type Step,
+  useLevelResponse,
+} from "@/features/symptoms/maintainer/maintainer-api";
 import {
   BentoGrid,
-  PlainSection,
   GeneralInfoGrid,
+  PlainSection,
 } from "../prototype-form-kit";
-import { formatChileanPhone } from "./format-chilean-phone";
-import { mockNameForId, mockCallStatsForId } from "./mock-contact-data";
-import { useContactDetails, type ContactDetails } from "./contact-details";
-import { useCallRoles } from "./call-roles-store";
-import ContactRow from "./contact-row";
-import { isMockDataEnabled } from "../prototype-api-guard";
-import type { CallMethod } from "./call-method";
 import {
-  makeContactId,
-  useContactBook,
-  type BookContact,
-} from "@/features/settings-admin/contact-book/store";
-import { HiOutlineSearch, HiPlus } from "react-icons/hi";
+  calledInCase,
+  type CallGroup,
+  callPlan,
+  fillScript,
+  matchesTarget,
+  stepAt,
+} from "./call-plan";
+import {
+  ALL_CALL_METHODS,
+  CALL_METHOD_LABEL_KEYS,
+  type CallMethod,
+} from "./call-method";
+import { type CallTarget, stepMethod, useCallTargets } from "./call-targets";
+import ContactRow from "./contact-row";
+import { formatChileanPhone } from "./format-chilean-phone";
 import NewNumberPanel, {
   draftFromQuery,
   type NewNumberAction,
   type NewNumberDraft,
 } from "./new-number-panel";
 
-/** Deterministic mock number so a contact's phone stays stable across renders
- *  — there's no real phonebook backing these prototype "other" contacts.
- *  Gated by `isMockDataEnabled` like every other fabricated field here. */
-function mockPhoneForId(id: string): string {
-  if (!isMockDataEnabled()) return "";
-  let hash = 0;
-  for (let i = 0; i < id.length; i++)
-    hash = (hash * 31 + (id.codePointAt(i) ?? 0)) >>> 0;
-  const digits = ((hash % 90000000) + 10000000).toString();
-  return `+56 9 ${digits.slice(0, 4)} ${digits.slice(4, 8)}`;
+const CHANNEL_KEYS: Record<string, string> = {
+  call: "channelCall",
+  whatsapp: "channelWhatsapp",
+  teams: "channelTeams",
+  email: "channelEmail",
+};
+
+function channelLabel(channel: string | null, d: I18nRecord) {
+  const key = channel ? CHANNEL_KEYS[channel] : undefined;
+  return key ? trDynamic(key, d) : (channel ?? "");
 }
 
-export default function CallCenterMenu({
-  dict,
-  treatmentData,
-  onCall,
-  recentCallTimes,
-}: Readonly<{
-  dict: I18nRecord;
-  treatmentData: TreatmentsGeneralResponseItem | null;
-  onCall: (
-    contact: CallRole,
-    phoneNumber: string,
-    personName: string,
-    /** Empty for a custom contact — its option name IS the person's name,
-     *  not a role, so there's nothing to badge it with. */
-    role: string,
-    allowedMethods?: CallMethod[]
-  ) => void;
-  /** Real last-call time per contact id actually called this session (as
-   *  opposed to `mockCallStatsForId`'s stable-but-fake history) — that
-   *  contact's row shows this time in green instead of the mock one, and
-   *  sorts to the bottom of the list. */
-  recentCallTimes?: Record<string, Date>;
-}>) {
-  const t = (k: string) => tr(`symptoms.${k}`, dict);
-  const { options, addContact } = useCallRoles();
-  const { details, setDetails } = useContactDetails();
-  const { contacts: book, save: saveBookContact } = useContactBook();
+function clock(seconds: number) {
+  const s = Math.max(0, Math.round(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 
-  // `FormattedDate format="relative"` only recomputes on re-render — without
-  // this the "hace X min" next to each contact would freeze at whatever it
-  // read on mount instead of ticking forward as real time passes.
-  const [, forceTick] = useReducer((n: number) => n + 1, 0);
+function roleText(step: Step, d: I18nRecord) {
+  if (isDriverRole(step.role)) return tr("driver", d);
+  return step.role?.trim() || tr("anyone", d);
+}
+
+const NO_STEPS: Step[] = [];
+
+function methodLabels(dict: I18nRecord): Record<CallMethod, string> {
+  return Object.fromEntries(
+    ALL_CALL_METHODS.map((m) => [
+      m,
+      trDynamic(`symptoms.${CALL_METHOD_LABEL_KEYS[m]}`, dict),
+    ])
+  ) as Record<CallMethod, string>;
+}
+
+const SUBHEADER =
+  "flex h-7 shrink-0 items-center border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800/60";
+
+/** Seconds since `startedAt`, ticking every second. */
+function useElapsed(startedAt: number) {
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => forceTick(), 30_000);
-    return () => clearInterval(id);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, []);
+  return (now - startedAt) / 1000;
+}
 
-  const [search, setSearch] = useState("");
-  // Starting values of the inline "new number" form while it's open (null =
-  // closed): pre-filled from the search's "Agregar «…»" button.
-  const [addDraft, setAddDraft] = useState<NewNumberDraft | null>(null);
-  const addOpen = addDraft !== null;
-
-  const generalInfo = (
-    <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
-  );
-
-  // An entry picked from the contact book stays LINKED to it: name, phone,
-  // role and methods are read live from the book (edits in Settings show up
-  // here at once), and deleting the person there removes the entry from this
-  // list. Entries without a `bookId` (seeded roles, contacts added before the
-  // book existed) keep using their own stored details.
-  const bookById = new Map(book.map((c) => [c.id, c]));
-  const linkedContact = (o: CallRole) => {
-    const id = details[o.id]?.bookId;
-    return id ? bookById.get(id) : undefined;
-  };
-  const visibleOptions = options.filter(
-    (o) => !details[o.id]?.bookId || linkedContact(o)
-  );
-  const effectiveContact = (
-    o: CallRole
-  ): { name: string; custom: ContactDetails | undefined } => {
-    const b = linkedContact(o);
-    if (!b) return { name: o.name, custom: details[o.id] };
-    return {
-      name: b.name,
-      custom: {
-        phone: b.phone || undefined,
-        role: b.role || undefined,
-        methods: b.methods.length > 0 ? b.methods : undefined,
-      },
-    };
-  };
-
-  // Shared by rendering and searching so what you can search for is exactly
-  // what the row displays.
-  const describeOption = (option: CallRole) => {
-    const isDriver = option.id === options[0]?.id;
-    const { name: optionName, custom } = effectiveContact(option);
-    const defaultName = isDriver
-      ? (treatmentData?.trip_info?.driver ?? mockNameForId(option.id))
-      : mockNameForId(option.id);
-    const personName = custom ? optionName : defaultName;
-    const roleLabel = custom ? (custom.role ?? "") : optionName;
-    const phone = formatChileanPhone(
-      custom?.phone ??
-        (isDriver
-          ? (treatmentData?.trip_info?.driver_contact ??
-            mockPhoneForId(option.id))
-          : mockPhoneForId(option.id))
-    );
-    return { custom, personName, roleLabel, phone };
-  };
-
-  const query = search.trim().toLowerCase();
-  const queryDigits = query.replace(/\D/g, "");
-  const matchesQuery = (name: string, role: string, phone: string) =>
-    !query ||
-    name.toLowerCase().includes(query) ||
-    role.toLowerCase().includes(query) ||
-    (queryDigits.length > 0 && phone.replace(/\D/g, "").includes(queryDigits));
-  const optionMatches = (o: CallRole) => {
-    const { personName, roleLabel, phone } = describeOption(o);
-    return matchesQuery(personName, roleLabel, phone);
-  };
-
-  // Contacts actually called this session sink into their own "Ya llamados"
-  // group below the rest (oldest of them first) instead of sitting wherever
-  // they started — everyone else keeps the store's own order.
-  const pendingOptions = visibleOptions.filter(
-    (o) => !recentCallTimes?.[o.id] && optionMatches(o)
-  );
-  const calledOptions = recentCallTimes
-    ? visibleOptions
-        .filter((o) => recentCallTimes[o.id] && optionMatches(o))
-        .sort(
-          (a, b) =>
-            recentCallTimes[a.id].getTime() - recentCallTimes[b.id].getTime()
-        )
-    : [];
-
-  // Contact-book people NOT on this list — only surfaced while searching, and
-  // callable directly (no link is created; they just get called).
-  const linkedBookIds = new Set(
-    options
-      .map((o) => details[o.id]?.bookId)
-      .filter((id): id is string => Boolean(id))
-  );
-  const bookOnly = query
-    ? book.filter(
-        (c) => !linkedBookIds.has(c.id) && matchesQuery(c.name, c.role, c.phone)
-      )
-    : [];
-
-  // Inline "Agregar contacto": the new number joins this list and gets called
-  // right away; "callAndSave" also puts the person in the contact book (the
-  // list entry then stays linked to it, like any book contact picked here).
-  const handleNewNumber = (
-    { phone, name }: NewNumberDraft,
-    action: NewNumberAction
-  ) => {
-    const number = phone.trim();
-    const shownPhone = formatChileanPhone(number);
-    const personName = name.trim() || shownPhone;
-    const optionId = addContact(personName);
-    let methods: CallMethod[] | undefined;
-    // The entry works with its own phone right away; once the book has the
-    // contact, it is linked to it instead.
-    setDetails(optionId, { phone: number });
-    if (action === "callAndSave") {
-      methods = ["phone", "whatsapp"];
-      const contact: BookContact = {
-        id: makeContactId(),
-        name: personName,
-        phone: number,
-        role: "",
-        methods,
-        channels: { phone: number, whatsapp: number },
-        provisional: true,
-      };
-      saveBookContact(contact)
-        .then((saved) => setDetails(optionId, { bookId: saved.id }))
-        .catch(() => {
-          setDetails(optionId, { phone: number, methods });
-          ShowNotification({
-            type: "error",
-            message: t("call_center_new_save_error"),
-          });
-        });
-    }
-    setAddDraft(null);
-    setSearch("");
-    onCall(
-      { id: optionId, name: personName, description: "" },
-      shownPhone,
-      personName,
-      "",
-      methods
-    );
-  };
-
-  const renderContactOption = (option: CallRole) => {
-    const { custom, personName, roleLabel, phone } = describeOption(option);
-    const recentCallAt = recentCallTimes?.[option.id];
-    // `recentCallAt` is a real, tracked timestamp regardless of mock mode —
-    // accepted/denied have no real backing either way, so default to 0
-    // rather than spread `mockCallStatsForId`'s result, which is `null`
-    // once mock data is off.
-    const stats = recentCallAt
-      ? { lastCallAt: recentCallAt, accepted: 0, denied: 0 }
-      : mockCallStatsForId(option.id);
-
-    return (
-      <ContactRow
-        key={option.id}
-        personName={personName}
-        roleLabel={roleLabel}
-        phone={phone}
-        stats={stats}
-        recentlyCalled={!!recentCallAt}
-        justCalledLabel={t("call_center_just_called")}
-        ariaLabel={`${t("call_center_call_button")} ${personName}`}
-        onClick={() =>
-          onCall(option, phone, personName, roleLabel, custom?.methods)
-        }
-      />
-    );
-  };
-
-  const renderBookContact = (c: BookContact) => {
-    const phone = formatChileanPhone(c.phone);
-    const methods = c.methods.length > 0 ? c.methods : undefined;
-    const option: CallRole = {
-      id: c.id,
-      name: c.name,
-      description: "",
-    };
-    return (
-      <ContactRow
-        key={c.id}
-        personName={c.name}
-        roleLabel={c.role}
-        phone={phone}
-        ariaLabel={`${t("call_center_call_button")} ${c.name}`}
-        onClick={() => onCall(option, phone, c.name, c.role, methods)}
-      />
-    );
-  };
-
+function TargetRow({
+  target,
+  calledAt,
+  step,
+  dict,
+  d,
+  onCall,
+}: Readonly<{
+  target: CallTarget;
+  calledAt: Date | undefined;
+  /** The step the row is listed under; absent under "Otros contactos". */
+  step?: Step;
+  dict: I18nRecord;
+  d: I18nRecord;
+  onCall: (target: CallTarget) => void;
+}>) {
+  const wanted = step ? stepMethod(step.channel) : null;
+  const unavailable = wanted !== null && !target.methods.includes(wanted);
+  const phone = formatChileanPhone(target.phone);
+  const stats = calledAt
+    ? {
+        lastCallAt: calledAt,
+        accepted: target.stats?.accepted ?? 0,
+        denied: target.stats?.denied ?? 0,
+      }
+    : target.stats;
   return (
-    <BentoGrid>
-      <PlainSection title={t("proto_section_general")}>
-        {generalInfo}
-      </PlainSection>
+    <ContactRow
+      personName={target.personName}
+      roleLabel={target.role}
+      phone={phone}
+      stats={stats}
+      recentlyCalled={!!calledAt}
+      justCalledLabel={tr("symptoms.call_center_just_called", dict)}
+      ariaLabel={`${tr("symptoms.call_center_call_button", dict)} ${target.personName}`}
+      methods={target.methods}
+      methodLabels={methodLabels(dict)}
+      unavailableNote={
+        unavailable
+          ? tr("unavailableOn", d, { channel: channelLabel(step!.channel, d) })
+          : undefined
+      }
+      onClick={() => onCall({ ...target, phone })}
+    />
+  );
+}
 
-      {/* Same colors as the form kit's usual card — just with three explicit
-          background tiers layered on top (card / header / row), since every
-          row here needs its own background. Hand-rolled instead of stretching
-          `FieldCard`, which doesn't have a per-row background hook. */}
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex h-10 shrink-0 items-center border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800">
-          <h3 className="truncate text-sm font-semibold leading-none text-gray-900 dark:text-white">
-            {t("proto_section_who")}
-          </h3>
+function StepGroup({
+  group,
+  due,
+  elapsed,
+  stepEnd,
+  loading,
+  called,
+  treatmentData,
+  canSkip,
+  dict,
+  d,
+  onCall,
+  onSkip,
+}: Readonly<{
+  group: CallGroup;
+  due: number;
+  elapsed: number;
+  stepEnd: number;
+  loading: boolean;
+  called: ReadonlyMap<string, Date>;
+  treatmentData: TreatmentsGeneralResponseItem | null;
+  canSkip: boolean;
+  dict: I18nRecord;
+  d: I18nRecord;
+  onCall: (target: CallTarget) => void;
+  onSkip: () => void;
+}>) {
+  const { step, index } = group;
+  const isDue = index === due;
+  const [skipping, setSkipping] = useState(false);
+  const [reason, setReason] = useState("");
+  let tone = "bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+  if (isDue)
+    tone =
+      "border-l-2 border-l-blue-600 bg-blue-50 font-semibold text-gray-900 dark:bg-blue-900/20 dark:text-white";
+  else if (index < due)
+    tone = "bg-white text-gray-400 dark:bg-gray-800 dark:text-gray-500";
+  return (
+    <div aria-current={isDue ? "step" : undefined}>
+      <div
+        className={`flex items-center gap-2 border-b border-gray-200 px-3 py-2 text-xs dark:border-gray-700 ${tone}`}
+      >
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current text-[10px]">
+          {index + 1}
+        </span>
+        <span className="min-w-0 flex-1 truncate">{roleText(step, d)}</span>
+        <span>{channelLabel(step.channel, d)}</span>
+        <span className="w-12 text-right">{step.budgetMinutes ?? "—"} min</span>
+      </div>
+      {isDue && step.script && (
+        <blockquote className="border-b border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+          <span className="mb-1 block text-xs text-gray-500">
+            {tr("say", d)}
+          </span>
+          {fillScript(step.script, treatmentData)}
+        </blockquote>
+      )}
+      {group.targets.map((target) => (
+        <TargetRow
+          key={target.id}
+          target={target}
+          calledAt={called.get(target.id)}
+          step={step}
+          dict={dict}
+          d={d}
+          onCall={onCall}
+        />
+      ))}
+      {group.targets.length === 0 && !loading && (
+        <p className="border-b border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
+          {tr("noContacts", d)}
+        </p>
+      )}
+      {isDue && (
+        <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+          <span>{tr("dueIn", d, { time: clock(stepEnd - elapsed) })}</span>
+          {canSkip && !skipping && (
+            <button
+              type="button"
+              className="ml-auto flex items-center text-blue-700 hover:underline dark:text-blue-300"
+              onClick={() => setSkipping(true)}
+            >
+              {tr("skip", d)}
+              <HiChevronRight className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
-        {!addOpen && (
+      )}
+      {isDue && skipping && (
+        <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+          <input
+            aria-label={tr("skipReason", d)}
+            className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+            placeholder={tr("skipReason", d)}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          <button
+            type="button"
+            disabled={!reason.trim()}
+            className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white disabled:opacity-50"
+            onClick={() => {
+              setSkipping(false);
+              setReason("");
+              onSkip();
+            }}
+          >
+            {tr("skipConfirm", d)}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OtherContacts({
+  targets,
+  called,
+  collapsible,
+  dict,
+  d,
+  onCall,
+  onNewNumber,
+}: Readonly<{
+  targets: CallTarget[];
+  called: ReadonlyMap<string, Date>;
+  /** False shows the list open, with no header. */
+  collapsible: boolean;
+  dict: I18nRecord;
+  d: I18nRecord;
+  onCall: (target: CallTarget) => void;
+  onNewNumber: (draft: NewNumberDraft) => void;
+}>) {
+  const [open, setOpen] = useState(!collapsible);
+  const [search, setSearch] = useState("");
+  const shown = targets.filter((t) => matchesTarget(t, search));
+  const Chevron = open ? HiChevronDown : HiChevronRight;
+  return (
+    <>
+      {collapsible && (
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          className={`${SUBHEADER} gap-1 text-left`}
+        >
+          <Chevron className="h-3.5 w-3.5 text-gray-500" />
+          <h4 className="truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            {tr("otherContacts", d, { n: String(targets.length) })}
+          </h4>
+        </button>
+      )}
+      {(!collapsible || open) && (
+        <>
           <div className="flex shrink-0 items-stretch gap-1 border-b border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-800/60">
             <div className="relative min-w-0 flex-1">
               <HiOutlineSearch className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
               <input
                 className="w-full rounded-md border border-gray-300 bg-white py-1.5 pl-8 pr-2.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                placeholder={t("call_center_contact_search_placeholder")}
+                placeholder={trDynamic(
+                  collapsible
+                    ? "symptoms.call_center_other_search_placeholder"
+                    : "symptoms.call_center_contact_search_placeholder",
+                  dict
+                )}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
           </div>
+          {shown.map((target) => (
+            <TargetRow
+              key={target.id}
+              target={target}
+              calledAt={called.get(target.id)}
+              dict={dict}
+              d={d}
+              onCall={onCall}
+            />
+          ))}
+          {search.trim() && shown.length === 0 && (
+            <p className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+              {tr("symptoms.call_center_contact_none", dict)}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => onNewNumber(draftFromQuery(search))}
+            className="flex shrink-0 items-center gap-1.5 border-b border-gray-200 bg-white px-3 py-2.5 text-left text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-blue-500/10"
+          >
+            <HiPlus className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">
+              {search.trim()
+                ? tr("symptoms.call_center_add_query", dict, {
+                    query: search.trim(),
+                  })
+                : tr("newNumber", d)}
+            </span>
+          </button>
+        </>
+      )}
+    </>
+  );
+}
+
+function newTarget(
+  contact: TowerContact | null,
+  name: string,
+  phone: string
+): CallTarget {
+  return {
+    id: contact?.id ?? `new:${phone}`,
+    contactId: contact?.id,
+    personName: contact?.name ?? name,
+    role: contact?.role ?? "",
+    phone: formatChileanPhone(contact?.phone ?? phone),
+    methods: ["phone", "whatsapp"],
+    stats: null,
+  };
+}
+
+export default function CallCenterMenu({
+  dict,
+  treatmentData,
+  startedAt,
+  skippedTo,
+  onSkip,
+  onCall,
+}: Readonly<{
+  dict: I18nRecord;
+  treatmentData: TreatmentsGeneralResponseItem | null;
+  /** When the panel opened; the due step follows the time since. */
+  startedAt: number;
+  /** The step the operator skipped to, if any. */
+  skippedTo: number | null;
+  onSkip: (step: number) => void;
+  onCall: (target: CallTarget) => void;
+}>) {
+  const d = (dict.symptoms as I18nRecord)?.ladder as I18nRecord;
+  const symptom = treatmentData?.symptom_info;
+  const { data: level } = useLevelResponse(
+    symptom?.name ?? null,
+    symptom?.icu_code ?? null
+  );
+  const { targets, addContact, isLoading } = useCallTargets(treatmentData);
+  // Only engine cases (negative ids) have Control Tower treatments.
+  const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
+  const { data: treatments } = useSymptomTreatments(caseId);
+  const called = useMemo(() => calledInCase(treatments), [treatments]);
+  const elapsed = useElapsed(startedAt);
+  const [addDraft, setAddDraft] = useState<NewNumberDraft | null>(null);
+  const callVersion = useRef(0);
+  useEffect(
+    () => () => {
+      callVersion.current += 1;
+    },
+    []
+  );
+  const selectTarget = (target: CallTarget) => {
+    callVersion.current += 1;
+    onCall(target);
+  };
+
+  const response = level?.level.response;
+  const steps = response?.operator ? (response.steps ?? NO_STEPS) : NO_STEPS;
+  const plan = useMemo(
+    () => callPlan(steps, targets, called),
+    [steps, targets, called]
+  );
+  const due =
+    steps.length > 0 ? Math.max(stepAt(steps, elapsed), skippedTo ?? 0) : -1;
+  const stepEnd = steps
+    .slice(0, due + 1)
+    .reduce((sum, s) => sum + (s.budgetMinutes ?? 0) * 60, 0);
+  const sla = (response?.slaMinutes ?? 0) * 60;
+
+  const handleNewNumber = async (
+    { phone, name }: NewNumberDraft,
+    action: NewNumberAction
+  ) => {
+    const version = ++callVersion.current;
+    const number = phone.trim();
+    const personName = name.trim() || formatChileanPhone(number);
+    setAddDraft(null);
+    if (action === "callAndSave") {
+      try {
+        const saved = await addContact({ name: personName, phone: number });
+        if (callVersion.current === version)
+          selectTarget(newTarget(saved, personName, number));
+        return;
+      } catch {
+        if (callVersion.current !== version) return;
+        ShowNotification({
+          type: "error",
+          message: tr("symptoms.call_center_new_save_error", dict),
+        });
+      }
+    }
+    selectTarget(newTarget(null, personName, number));
+  };
+
+  return (
+    <BentoGrid>
+      <PlainSection title={tr("symptoms.proto_section_general", dict)}>
+        <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
+      </PlainSection>
+
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex h-10 shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800">
+          <h3 className="truncate text-sm font-semibold leading-none text-gray-900 dark:text-white">
+            {tr("symptoms.proto_section_who", dict)}
+          </h3>
+          {steps.length > 0 && level && (
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              v{level.version}
+            </span>
+          )}
+          {steps.length > 0 && sla > 0 && (
+            <span
+              className={`ml-auto font-mono text-xs ${elapsed > sla ? "text-red-600 dark:text-red-400" : "text-gray-700 dark:text-gray-300"}`}
+            >
+              SLA {clock(sla - elapsed)}
+            </span>
+          )}
+        </div>
+        {steps.length > 0 && (
+          // Announced only when the due step changes, not every second.
+          <p className="sr-only" role="status" aria-live="polite">
+            {tr("dueStep", d, {
+              n: String(due + 1),
+              role: roleText(steps[due], d),
+            })}
+          </p>
         )}
         {addDraft && (
           <NewNumberPanel
             dict={dict}
             initial={addDraft}
-            onSubmit={handleNewNumber}
+            onSubmit={(draft, action) => void handleNewNumber(draft, action)}
             onCancel={() => setAddDraft(null)}
           />
         )}
         <div
-          className={`min-h-0 flex-1 flex-col overflow-y-auto ${addOpen ? "hidden" : "flex"}`}
+          className={`min-h-0 flex-1 flex-col overflow-y-auto ${addDraft ? "hidden" : "flex"}`}
         >
-          {visibleOptions.length === 0 && !query && (
-            <p className="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400">
-              {t("proto_selectable_unassigned")}
-            </p>
-          )}
-          {pendingOptions.map(renderContactOption)}
-
-          {calledOptions.length > 0 && (
-            <div className="flex h-7 shrink-0 items-center border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800/60">
-              <h4 className="truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                {t("call_center_already_called_header")}
-              </h4>
-            </div>
-          )}
-          {calledOptions.map(renderContactOption)}
-
-          {bookOnly.length > 0 && (
-            <div className="flex h-7 shrink-0 items-center border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800/60">
-              <h4 className="truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                {t("call_center_contact_book_header")}
-              </h4>
-            </div>
-          )}
-          {bookOnly.map(renderBookContact)}
-
-          {query &&
-            pendingOptions.length === 0 &&
-            calledOptions.length === 0 &&
-            bookOnly.length === 0 && (
-              <p className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">
-                {t("call_center_contact_none")}
-              </p>
-            )}
-
-          {query && (
-            <button
-              type="button"
-              onClick={() => setAddDraft(draftFromQuery(search))}
-              className="flex shrink-0 items-center gap-1.5 border-b border-gray-200 bg-white px-3 py-2.5 text-left text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-blue-500/10"
-            >
-              <HiPlus className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">
-                {tr("symptoms.call_center_add_query", dict, {
-                  query: search.trim(),
-                })}
-              </span>
-            </button>
-          )}
+          {plan.groups.map((group) => (
+            <StepGroup
+              key={`step-${group.index}`}
+              group={group}
+              due={due}
+              elapsed={elapsed}
+              stepEnd={stepEnd}
+              loading={isLoading}
+              called={called}
+              treatmentData={treatmentData}
+              canSkip={due < steps.length - 1}
+              dict={dict}
+              d={d}
+              onCall={selectTarget}
+              onSkip={() => onSkip(due + 1)}
+            />
+          ))}
+          <OtherContacts
+            targets={plan.others}
+            called={called}
+            collapsible={steps.length > 0}
+            dict={dict}
+            d={d}
+            onCall={selectTarget}
+            onNewNumber={setAddDraft}
+          />
         </div>
       </section>
     </BentoGrid>

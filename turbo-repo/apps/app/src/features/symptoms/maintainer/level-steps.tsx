@@ -4,7 +4,9 @@ import { useState } from "react";
 import { HiArrowDown, HiArrowUp, HiPencil, HiPlus, HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import type { BookRole } from "../control-tower/contact-roles";
 import type { Step } from "./maintainer-api";
+import RolePicker, { RoleWarning } from "./role-picker";
 import ScriptModal from "./script-modal";
 import { FIELD, FIELD_ERROR, FieldError } from "./ui/response-block";
 import Select from "./ui/select";
@@ -82,6 +84,7 @@ function StepItem({
   index,
   count,
   errors,
+  roles,
   readOnly,
   d,
   onSet,
@@ -93,6 +96,7 @@ function StepItem({
   index: number;
   count: number;
   errors: StepErrors[number] | undefined;
+  roles: readonly BookRole[] | undefined;
   readOnly: boolean;
   d: I18nRecord;
   onSet: (patch: Partial<Step>) => void;
@@ -126,13 +130,15 @@ function StepItem({
             ))}
           </Select>
           <span>{tr("stepTo", d)}</span>
-          <input
-            aria-label={tr("stepRole", d)}
-            className={`${FIELD} min-w-40 flex-1 ${errorClass(errors?.contact)}`}
+          <RolePicker
+            label={tr("stepRole", d)}
+            className={`${FIELD} ${errorClass(errors?.contact)}`}
+            wrapperClassName="min-w-40 flex-1"
             disabled={readOnly}
-            placeholder={tr("stepRolePlaceholder", d)}
-            value={step.role ?? ""}
-            onChange={(e) => onSet({ role: e.target.value })}
+            value={step.role}
+            roles={roles}
+            d={d}
+            onChange={(role) => onSet({ role })}
           />
           <span>{last ? tr("stepWithin", d) : tr("stepIfNot", d)}</span>
           <input
@@ -161,6 +167,7 @@ function StepItem({
             />
           )}
         </div>
+        <RoleWarning value={step.role} roles={roles} d={d} />
         <FieldError text={errors?.contact} />
         <FieldError text={errors?.minutes} />
         <button
@@ -222,6 +229,7 @@ export default function LevelSteps({
   steps,
   slaMinutes,
   errors = {},
+  roles,
   sample,
   readOnly,
   d,
@@ -230,6 +238,8 @@ export default function LevelSteps({
   steps: Step[];
   slaMinutes: number | null;
   errors?: StepErrors;
+  /** The contact book's roles; undefined while they load. */
+  roles?: readonly BookRole[];
   /** A source sample the script preview is filled from. */
   sample?: Record<string, unknown>;
   readOnly: boolean;
@@ -288,6 +298,7 @@ export default function LevelSteps({
               index={i}
               count={steps.length}
               errors={errors[i]}
+              roles={roles}
               readOnly={readOnly}
               d={d}
               onSet={(patch) => set(i, patch)}

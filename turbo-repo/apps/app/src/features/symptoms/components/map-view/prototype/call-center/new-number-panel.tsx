@@ -1,12 +1,10 @@
 "use client";
 
 /**
- * PROTOTYPE — "Agregar contacto" in the call-center list, inline instead of a
- * modal: phone number first, then a name, then either just call (the person
- * joins this list, so the call lands in its "Ya llamados" history) or call
- * and also save them to the contact book. The phone uses the same input as
- * the contact book's phone channel: PhoneInput (country code picker, E.164
- * value).
+ * "Nuevo número" in the call-center list: phone number first, then a name,
+ * then either just call, or call and save the person to the contact book as
+ * a provisional contact. The phone uses the contact book's PhoneInput
+ * (country code picker, E.164 value).
  */
 
 import { useState, type SubmitEvent } from "react";

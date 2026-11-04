@@ -13,6 +13,8 @@
  * beside it.
  */
 
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { FaPhoneAlt } from "react-icons/fa";
 import { HiX } from "react-icons/hi";
@@ -25,7 +27,7 @@ import {
   CALL_METHOD_LABEL_KEYS,
   type CallMethod,
 } from "./call-method";
-import { mockCallStatsForId } from "./mock-contact-data";
+import type { CallStats } from "./call-targets";
 import ContactRow from "./contact-row";
 
 function formatDuration(totalSeconds: number): string {
@@ -40,27 +42,27 @@ function formatDuration(totalSeconds: number): string {
 
 export default function CallDialingStep({
   dict,
-  contactId,
+  stats,
   contactName,
   contactRole,
   contactPhone,
   allowedMethods,
+  contactId,
   reason,
   onCancel,
   onConfirm,
   onStartedChange,
 }: Readonly<{
   dict: I18nRecord;
-  /** Used only to seed the mock missed/last-call stats shown on the contact
-   *  row — absent just means that row's stats stay blank. */
-  contactId?: string;
+  /** The contact's call counts from the book; absent for the driver or a new number. */
+  stats?: CallStats | null;
   contactName: string;
   contactRole: string;
   contactPhone?: string;
-  /** Which channels this contact can be reached on — empty/absent means no
-   *  restriction (every method is offered), same as a seeded "who to call"
-   *  option always has. */
-  allowedMethods?: CallMethod[];
+  /** The channels the contact can be reached on. Empty shows "Sin canales registrados". */
+  allowedMethods: readonly CallMethod[];
+  /** The contact book id, for the link to edit a contact with no channels. */
+  contactId?: string;
   /** The message to communicate, pre-filled upstream (treatment template) —
    *  shown here as a read-only "script to follow" while calling, not an
    *  editable field. */
@@ -72,11 +74,8 @@ export default function CallDialingStep({
   onStartedChange?: (started: boolean) => void;
 }>) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
-  const methods =
-    allowedMethods && allowedMethods.length > 0
-      ? allowedMethods
-      : ALL_CALL_METHODS;
-  const stats = contactId ? mockCallStatsForId(contactId) : null;
+  const { lang } = useParams<{ lang: string }>();
+  const methods = ALL_CALL_METHODS.filter((m) => allowedMethods.includes(m));
   const [started, setStarted] = useState(false);
   const [method, setMethod] = useState<CallMethod>("phone");
   const [showCancel, setShowCancel] = useState(false);
@@ -166,6 +165,21 @@ export default function CallDialingStep({
             then press start" step. Once live, they're replaced by the
             confirm/cancel pair. */}
         <div className="flex w-full shrink-0 flex-row items-center justify-center gap-3 p-4 pt-0!">
+          {!started && methods.length === 0 && (
+            <div className="flex flex-col items-center gap-1 text-sm">
+              <p className="text-gray-700 dark:text-gray-300">
+                {t("call_center_no_channels")}
+              </p>
+              {contactId && (
+                <Link
+                  href={`/${lang}/users/settings/contact-book?edit=${encodeURIComponent(contactId)}`}
+                  className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  {t("call_center_edit_contact")}
+                </Link>
+              )}
+            </div>
+          )}
           {!started &&
             methods.map((id) => {
               const Icon = CALL_METHOD_ICONS[id];

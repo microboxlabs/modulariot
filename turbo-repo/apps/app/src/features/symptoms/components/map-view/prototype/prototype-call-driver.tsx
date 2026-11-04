@@ -32,7 +32,7 @@ import {
   fillTextarea,
 } from "./prototype-form-kit";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
-import { mockCallStatsForId } from "./call-center/mock-contact-data";
+import { type CallStats, toApiMethod } from "./call-center/call-targets";
 import {
   CALL_METHOD_ICONS,
   CALL_METHOD_LABEL_KEYS,
@@ -179,6 +179,8 @@ export default function PrototypeCallDriver({
   initialCallTargetName,
   initialCallTargetRole,
   initialCallTargetPhone,
+  initialCallTargetContactId,
+  initialCallTargetStats = null,
   callMethodUsed,
   aiAssistEnabled = false,
   callDurationSeconds = null,
@@ -206,6 +208,10 @@ export default function PrototypeCallDriver({
   /** Debug call-center flow: that contact's phone number, shown alongside
    *  the name in the "who was called" readout. */
   initialCallTargetPhone?: string;
+  /** The contact book id of the person called; absent for the driver or an unsaved number. */
+  initialCallTargetContactId?: string;
+  /** The called contact's counts from the book. */
+  initialCallTargetStats?: CallStats | null;
   /** Debug call-center flow: which channel the call went through. */
   callMethodUsed?: CallMethod;
   /** Debug call-center flow: the call already happened (reason + duration are
@@ -333,10 +339,13 @@ export default function PrototypeCallDriver({
         finish,
         progress: engineProgress.current,
         action: {
+          contactId: initialCallTargetContactId,
           contactName: initialCallTargetName || targetLabel || "Conductor",
           contactPhone: initialCallTargetPhone || telefonoLlamada || undefined,
           contactRole: initialCallTargetRole || undefined,
+          method: callMethodUsed ? toApiMethod(callMethodUsed) : undefined,
           outcomeLabel: resultadoLabel || undefined,
+          answered: resultadoId ? !sinRespuesta : undefined,
           durationSeconds: callDurationSeconds ?? undefined,
           note: notaLlamada.trim() || undefined,
         },
@@ -411,9 +420,7 @@ export default function PrototypeCallDriver({
   const CalledMethodIcon = callMethodUsed
     ? CALL_METHOD_ICONS[callMethodUsed]
     : null;
-  const calledStats = initialCallTargetId
-    ? mockCallStatsForId(initialCallTargetId)
-    : null;
+  const calledStats = initialCallTargetStats;
 
   const whoToCallFields = initialCallTargetName ? (
     <div className="flex items-center gap-3">

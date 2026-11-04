@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.service;
 
 import com.microboxlabs.miot.symptoms.domain.ActionKind;
+import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
@@ -136,8 +137,24 @@ public class TreatmentService {
         }
         Contact c = contacts.find(tenantCode, contactId)
                 .orElseThrow(() -> new IllegalArgumentException("contactId not found: " + contactId));
+        if (req.kind() == ActionKind.CALL) {
+            requireChannel(c, req.method());
+        }
         return new CallTarget(contactId, orElse(given.name(), c.name()), orElse(given.role(), c.role()),
                 orElse(given.phone(), c.phone()));
+    }
+
+    /** A call to a saved contact goes through a channel the contact has. Ad hoc contacts are not checked. */
+    private static void requireChannel(Contact c, CallMethod method) {
+        if (method == null) {
+            throw new IllegalArgumentException("a CALL to a saved contact needs a method");
+        }
+        List<CallMethod> methods = c.methods() == null ? List.of() : c.methods();
+        if (!methods.contains(method)) {
+            String has = methods.isEmpty() ? "none" : String.join(", ", methods.stream().map(Enum::name).toList());
+            throw new IllegalArgumentException("contact " + c.id() + " has no " + method + " channel; its channels: "
+                    + has);
+        }
     }
 
     private static String orElse(String value, String fallback) {

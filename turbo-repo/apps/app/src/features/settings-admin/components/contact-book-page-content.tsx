@@ -14,7 +14,9 @@ import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   ControlTowerError,
+  controlTowerRequest,
   useContacts,
+  type TowerContact,
   type TowerContactQuery,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import { useContactReach } from "@/features/conversations/conversations-api";
@@ -31,7 +33,7 @@ import {
   useContactBookPages,
   type BookContact,
 } from "../contact-book/store";
-import { useContactBadges } from "../contact-book/taxonomy-store";
+import { ensureBadge, useContactBadges } from "../contact-book/taxonomy-store";
 import { useLoadMore } from "../contact-book/use-load-more";
 
 type ContactFilters = Record<"kind" | "role" | "company" | "tag", string>;
@@ -150,6 +152,31 @@ export default function ContactBookPageContent({
     setEditing(contact);
     setModalOpen(true);
   };
+
+  // `?edit=<contact id>` opens that contact, for links such as the call panel's "Sin canales registrados".
+  const [editId] = useState(() =>
+    globalThis.window === undefined
+      ? null
+      : new URLSearchParams(window.location.search).get("edit")
+  );
+  const editLoadError = tr("editLoadError", d);
+  useEffect(() => {
+    if (!editId) return;
+    let cancelled = false;
+    controlTowerRequest<TowerContact>(`/contacts/${encodeURIComponent(editId)}`)
+      .then((c) => {
+        if (cancelled) return;
+        setEditing(toBookContact(c, (c.tags ?? []).map(ensureBadge)));
+        setModalOpen(true);
+      })
+      .catch(() => {
+        if (!cancelled)
+          ShowNotification({ type: "error", message: editLoadError });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editId, editLoadError]);
 
   const saveContact = async (contact: BookContact) => {
     try {

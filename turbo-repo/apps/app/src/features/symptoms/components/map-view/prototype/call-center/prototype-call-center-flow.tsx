@@ -20,20 +20,23 @@
  * duration.
  */
 
-import EscalationLadderCard from "./escalation-ladder-card";
 import { useEffect, useState } from "react";
+import { mutate } from "swr";
+import {
+  contactsKey,
+  treatmentsKey,
+} from "@/features/symptoms/control-tower/control-tower-api";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
-import type { CallRole } from "./call-roles-store";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
 import PrototypeCallDriver, {
   type CallFormDraft,
 } from "../prototype-call-driver";
 import CallCenterMenu from "./call-center-menu";
 import CallDialingStep from "./call-dialing-step";
-import { useCallHistory } from "./call-history-store";
 import type { CallMethod } from "./call-method";
+import type { CallTarget } from "./call-targets";
 
 export type CallCenterFlowStep = "contacts" | "dialing" | "form";
 /** What's reported upward via `onStepChange` — same as `CallCenterFlowStep`, except the
@@ -51,7 +54,7 @@ export type CallCenterReportedStep = CallCenterFlowStep | "calling";
  *  its place entirely), so nothing captured here can live in this
  *  component's own state — it has to survive one level up. */
 export type CallSnapshot = {
-  contact: CallRole | null;
+  contact: CallTarget | null;
   personName: string;
   role: string;
   phone: string;
@@ -75,7 +78,13 @@ export default function PrototypeCallCenterFlow({
   onRepeatCallChange,
   formDraft,
   onFormDraftChange,
+  startedAt,
+  skippedTo,
+  onSkip,
 }: Readonly<{
+  startedAt: number;
+  skippedTo: number | null;
+  onSkip: (step: number) => void;
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   messageToCommunicate: string;
@@ -110,7 +119,7 @@ export default function PrototypeCallCenterFlow({
     resumeSnapshot ? "form" : "contacts"
   );
   const [dialingStarted, setDialingStarted] = useState(false);
-  const [activeContact, setActiveContact] = useState<CallRole | null>(
+  const [activeContact, setActiveContact] = useState<CallTarget | null>(
     resumeSnapshot?.contact ?? null
   );
   const [activePersonName, setActivePersonName] = useState(
@@ -127,11 +136,6 @@ export default function PrototypeCallCenterFlow({
   const [callMethodUsed, setCallMethodUsed] = useState<CallMethod | null>(
     resumeSnapshot?.methodUsed ?? null
   );
-  // Real (not mocked) last-call time per contact actually called — persisted
-  // (see `call-history-store.ts`) so the contacts list still shows it as
-  // green/sorted-last after this flow unmounts, e.g. once "Finalizar
-  // Tratamiento" navigates away, rather than only for this flow instance.
-  const { history: recentCallTimes, recordCall } = useCallHistory();
 
   useEffect(() => {
     const reported: CallCenterReportedStep =
@@ -140,18 +144,12 @@ export default function PrototypeCallCenterFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, dialingStarted]);
 
-  const handleCall = (
-    contact: CallRole,
-    phone: string,
-    personName: string,
-    role: string,
-    allowedMethods?: CallMethod[]
-  ) => {
-    setActiveContact(contact);
-    setActivePersonName(personName);
-    setActiveRole(role);
-    setActivePhone(phone);
-    setActiveAllowedMethods(allowedMethods);
+  const handleCall = (target: CallTarget) => {
+    setActiveContact(target);
+    setActivePersonName(target.personName);
+    setActiveRole(target.role);
+    setActivePhone(target.phone);
+    setActiveAllowedMethods(target.methods);
     setDialingStarted(false);
     setStep("dialing");
   };
@@ -164,9 +162,6 @@ export default function PrototypeCallCenterFlow({
   const handleConfirmCall = (elapsedSeconds: number, method: CallMethod) => {
     setCallDurationSeconds(elapsedSeconds);
     setCallMethodUsed(method);
-    if (activeContact) {
-      recordCall(activeContact.id);
-    }
     onFormDraftChange?.(null);
     onCallConfirmed?.({
       contact: activeContact,
@@ -188,37 +183,37 @@ export default function PrototypeCallCenterFlow({
    *  cancelling a live call on the FIRST attempt doesn't set this, only
    *  actually finishing one call and choosing to start another does. */
   const handleMakeAnotherCall = () => {
+    const symptomId = treatmentData?.symptom_info?.id;
+    if (symptomId != null) void mutate(treatmentsKey(symptomId));
+    void mutate(contactsKey);
     onRepeatCallChange?.(true);
     handleCancelCall();
   };
 
   return (
     <>
-      {/* Mounted for the whole panel, so its timing and skipped steps survive a call. */}
-      <div
-        className={
-          step === "contacts" ? "flex min-h-0 w-full flex-1 flex-col" : "hidden"
-        }
-      >
-        <EscalationLadderCard dict={dict} treatmentData={treatmentData} />
-        {step === "contacts" && (
+      {step === "contacts" && (
+        <div className="flex min-h-0 w-full flex-1 flex-col">
           <CallCenterMenu
             dict={dict}
             treatmentData={treatmentData}
+            startedAt={startedAt}
+            skippedTo={skippedTo}
+            onSkip={onSkip}
             onCall={handleCall}
-            recentCallTimes={recentCallTimes}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {step === "dialing" && (
         <CallDialingStep
           dict={dict}
-          contactId={activeContact?.id}
+          stats={activeContact?.stats}
           contactName={activePersonName}
           contactRole={activeRole}
           contactPhone={activePhone}
-          allowedMethods={activeAllowedMethods}
+          allowedMethods={activeAllowedMethods ?? []}
+          contactId={activeContact?.contactId}
           reason={messageToCommunicate}
           onCancel={handleCancelCall}
           onConfirm={handleConfirmCall}
@@ -239,6 +234,8 @@ export default function PrototypeCallCenterFlow({
           initialCallTargetName={activePersonName}
           initialCallTargetRole={activeRole}
           initialCallTargetPhone={activePhone}
+          initialCallTargetContactId={activeContact?.contactId}
+          initialCallTargetStats={activeContact?.stats}
           callMethodUsed={callMethodUsed ?? undefined}
           // Disabled for now — see PrototypeCallDriver's `aiAssistEnabled` doc.
           aiAssistEnabled={false}

@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
@@ -17,6 +18,8 @@ import com.microboxlabs.miot.symptoms.cases.HoldStore;
 import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
 import com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases;
 import com.microboxlabs.miot.symptoms.domain.ActionKind;
+import com.microboxlabs.miot.symptoms.domain.CallMethod;
+import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
@@ -143,6 +146,19 @@ class OrgControlTowerTreatmentsResourceTest {
         assertEquals(400, call(resource.addAction(ORG, t.id(), ignore(null, null))).getStatus());
         assertEquals(400, call(resource.addAction(ORG, t.id(), ignore(300, Map.of("until_trip_end", true))))
                 .getStatus(), "no trip to wait for");
+    }
+
+    @Test
+    void aCallOnAChannelTheContactLacksIsA400() {
+        Contact luis = contacts.insert(new Contact(null, TENANT, "Luis", "Transportista", "+12025550102",
+                List.of(CallMethod.PHONE), true, null, "ops@example.com", null, null));
+        TreatmentView t = openTreatment(13);
+
+        Response r = call(resource.addAction(ORG, t.id(), new AddActionRequest(ActionKind.CALL, luis.id(), null, null,
+                null, CallMethod.TEAMS, null, "No contesta", false, 0, null, null, null, null)));
+
+        assertEquals(400, r.getStatus());
+        assertTrue(String.valueOf(r.getEntity()).contains("has no TEAMS channel"), String.valueOf(r.getEntity()));
     }
 
     @Test

@@ -27,9 +27,10 @@ import {
   CALL_METHOD_LABEL_KEYS,
   type CallMethod,
 } from "./call-method";
+import type { TowerContactChannels } from "@/features/symptoms/control-tower/control-tower-api";
 import { phoneForMethod, type CallStats } from "./call-targets";
+import { channelLink } from "./channel-link";
 import ContactRow from "./contact-row";
-import type { TowerContact } from "@/features/symptoms/control-tower/control-tower-api";
 
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
@@ -47,7 +48,7 @@ export default function CallDialingStep({
   contactName,
   contactRole,
   contactPhone,
-  contactChannels,
+  channels,
   allowedMethods,
   contactId,
   reason,
@@ -62,7 +63,7 @@ export default function CallDialingStep({
   contactName: string;
   contactRole: string;
   contactPhone?: string;
-  contactChannels?: TowerContact["channels"];
+  channels?: TowerContactChannels | null;
   /** The channels the contact can be reached on. Empty shows "Sin canales registrados". */
   allowedMethods: readonly CallMethod[];
   /** The contact book id, for the link to edit a contact with no channels. */
@@ -124,7 +125,7 @@ export default function CallDialingStep({
             personName={contactName}
             roleLabel={contactRole}
             phone={phoneForMethod(
-              { phone: contactPhone ?? "", channels: contactChannels },
+              { phone: contactPhone ?? "", channels: channels },
               method
             )}
             stats={stats}
@@ -204,6 +205,16 @@ export default function CallDialingStep({
                   key={id}
                   type="button"
                   onClick={() => {
+                    // Opens the channel's app (dialer, WhatsApp chat with the
+                    // script typed); the call is timed here either way.
+                    const link = channelLink(
+                      id,
+                      channels?.[id] ?? contactPhone,
+                      reason
+                    );
+                    if (link?.startsWith("https://"))
+                      window.open(link, "_blank", "noopener,noreferrer");
+                    else if (link) window.location.href = link;
                     setMethod(id);
                     setStarted(true);
                     onStartedChange?.(true);

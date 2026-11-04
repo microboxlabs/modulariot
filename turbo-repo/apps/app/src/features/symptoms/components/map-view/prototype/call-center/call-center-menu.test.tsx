@@ -221,6 +221,24 @@ describe("CallCenterMenu", () => {
     );
   });
 
+  it("keeps separate contact channel addresses when selecting a target", async () => {
+    data.contacts = [
+      contact("synthetic", "Synthetic contact", "Dispatcher", {
+        methods: ["PHONE", "WHATSAPP"],
+        channels: { phone: "+12025550101", whatsapp: "+12025550102" },
+      }),
+    ];
+    const onCall = renderMenu();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: /Synthetic contact/ }));
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channels: { phone: "+12025550101", whatsapp: "+12025550102" },
+      })
+    );
+  });
+
   it("shows a goal even when the step has no message", () => {
     data.level = levelWith([
       {

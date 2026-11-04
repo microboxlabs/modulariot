@@ -64,6 +64,8 @@ public class EngineCaseService {
     private static final String DRIVER = "p_driver_id";
     private static final String CARRIER = "p_carrier_id";
     private static final String CARRIER_TAX_ID = "carrier_tax_id";
+    private static final String CONTEXT_FIELD = "context";
+    private static final String LEVEL_FIELD = "level";
     private static final String DRIVER_FIELD = "driver";
     private static final String CARRIER_FIELD = "carrier";
     private static final String ORIGIN_FIELD = "origin";
@@ -512,7 +514,7 @@ public class EngineCaseService {
             sample.put(POSITION_ASSET_ID, c.assetId());
             sample.put(ICU_CODE, c.level());
             sample.put("opened_at", c.openedAt().toString());
-            sample.set("context", context(tenantCode, find(tenantCode, c.symptomId())));
+            sample.set(CONTEXT_FIELD, context(tenantCode, find(tenantCode, c.symptomId())));
         });
         return out;
     }
@@ -523,7 +525,7 @@ public class EngineCaseService {
         kase.put("id", c.symptomId());
         kase.put("symptom", c.name());
         kase.put("family", c.family());
-        kase.put("level", c.level());
+        kase.put(LEVEL_FIELD, c.level());
         kase.put("levelName", condition(c.level()));
         kase.put("openedAt", c.openedAt().toString());
         kase.put("slaMinutes", c.slaMinutes());
@@ -554,6 +556,62 @@ public class EngineCaseService {
                     .put("rut", t.getString(CARRIER_TAX_ID));
         }
         return out;
+    }
+
+    /**
+     * A case's life as one ordered list, for the response editor's timeline preview: {@code OPENED},
+     * {@code LEVEL_CHANGED}, {@code NOTED} (the note rule's entries), {@code HELD} (an "Ignorar condición" hold),
+     * {@code ACTION} (each operator action) and {@code CLOSED} with what the rules read when it closed. Entries at
+     * the same time keep that order.
+     */
+    public JsonNode timeline(String tenantCode, long symptomId, List<TreatmentView> treatments) {
+        EngineCase c = find(tenantCode, symptomId);
+        List<ObjectNode> entries = new ArrayList<>();
+        List<EngineCase.LevelStep> steps = c.levels();
+        entries.add(entry("OPENED", c.openedAt()).put(LEVEL_FIELD, steps.isEmpty() ? c.level() : steps.get(0).level()));
+        for (int i = 1; i < steps.size(); i++) {
+            entries.add(entry("LEVEL_CHANGED", steps.get(i).at()).put(LEVEL_FIELD, steps.get(i).level())
+                    .put("previousLevel", steps.get(i - 1).level()));
+        }
+        for (EngineCaseStore.CaseNote n : store.notes(tenantCode, c.id())) {
+            entries.add(entry("NOTED", n.recordedAt()).put("eventType", n.eventType())
+                    .put(DESCRIPTION, n.description()));
+        }
+        Instant until = c.closedAt() != null ? c.closedAt() : clock.instant();
+        for (EngineCase.Ignored h : store.holds(tenantCode, c, until)) {
+            Instant starts = h.since().isBefore(c.openedAt()) ? c.openedAt() : h.since();
+            ObjectNode held = entry("HELD", starts).put("by", h.by()).put("untilTripEnd", h.untilTripEnd());
+            held.put("until", h.until() == null ? null : h.until().toString());
+            entries.add(held);
+        }
+        addTreatmentActions(entries, treatments);
+        if (c.closedAt() != null) {
+            ObjectNode closed = entry("CLOSED", c.closedAt());
+            closed.set(CONTEXT_FIELD, c.closingContext() == null ? JSON.nullNode() : c.closingContext().deepCopy());
+            entries.add(closed);
+        }
+        ArrayNode out = JSON.arrayNode();
+        entries.stream()
+                .sorted(java.util.Comparator.comparing((ObjectNode e) -> Instant.parse(e.path("at").asText())))
+                .forEach(out::add);
+        return out;
+    }
+
+    private static void addTreatmentActions(List<ObjectNode> entries, List<TreatmentView> treatments) {
+        for (TreatmentView t : treatments == null ? List.<TreatmentView>of() : treatments) {
+            for (TreatmentAction a : t.actions()) {
+                entries.add(entry("ACTION", a.performedAt().toInstant()).put("action", a.kind().name())
+                        .put("by", a.performedBy()).put("contact", a.contactName())
+                        .put("outcome", a.outcomeLabel()));
+            }
+        }
+    }
+
+    private static ObjectNode entry(String kind, Instant at) {
+        ObjectNode e = JSON.objectNode();
+        e.put("kind", kind);
+        e.put("at", at.toString());
+        return e;
     }
 
     /** The treatment page's header: the case, and its trip when it had one. */
@@ -713,7 +771,7 @@ public class EngineCaseService {
         reason.put(ICU_CODE, c.level());
         reason.put(ICU_CONDITION, condition(c.level()));
         reason.put("rule", c.levelRule());
-        reason.set("context", c.levelContext() == null ? JSON.nullNode() : c.levelContext().deepCopy());
+        reason.set(CONTEXT_FIELD, c.levelContext() == null ? JSON.nullNode() : c.levelContext().deepCopy());
         Instant lost = lostSince(c.openingContext());
         if (lost != null) {
             reason.put("lost_since", lost.toString());

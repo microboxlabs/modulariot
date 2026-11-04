@@ -27,6 +27,32 @@ function renderStep(
 }
 
 describe("CallDialingStep", () => {
+  it("opens the channel-specific WhatsApp recipient", () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    render(
+      <CallDialingStep
+        dict={dict}
+        contactName="Synthetic contact"
+        contactRole="Dispatcher"
+        contactPhone="+12025550101"
+        channels={{ phone: "+12025550101", whatsapp: "+12025550102" }}
+        allowedMethods={["phone", "whatsapp"]}
+        reason="Step message"
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Llamada por WhatsApp" })
+    );
+    expect(open).toHaveBeenCalledWith(
+      "https://wa.me/12025550102?text=Step%20message",
+      "_blank",
+      "noopener,noreferrer"
+    );
+    open.mockRestore();
+  });
+
   it("displays the selected WhatsApp channel's number", () => {
     render(
       <CallDialingStep
@@ -34,7 +60,7 @@ describe("CallDialingStep", () => {
         contactName="Luis"
         contactRole="Conductor"
         contactPhone="+12025550101"
-        contactChannels={{ whatsapp: "+12025550103" }}
+        channels={{ whatsapp: "+12025550103" }}
         allowedMethods={["whatsapp"]}
         reason=""
         onCancel={vi.fn()}
@@ -58,6 +84,31 @@ describe("CallDialingStep", () => {
     expect(
       screen.queryByRole("button", { name: "Llamada por Microsoft Teams" })
     ).toBeNull();
+  });
+
+  it("confirms the selected WhatsApp method", () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const confirm = vi.fn();
+    render(
+      <CallDialingStep
+        dict={dict}
+        contactName="Synthetic contact"
+        contactRole="Dispatcher"
+        channels={{ whatsapp: "+12025550102" }}
+        allowedMethods={["whatsapp"]}
+        reason=""
+        onCancel={vi.fn()}
+        onConfirm={confirm}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Llamada por WhatsApp" })
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+    );
+    expect(confirm).toHaveBeenCalledWith(expect.any(Number), "whatsapp");
+    open.mockRestore();
   });
 
   it("says so when the contact has no channel, and links to edit it", () => {

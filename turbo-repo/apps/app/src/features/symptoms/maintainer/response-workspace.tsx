@@ -1,12 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { CelField } from "./cel-editor";
-import LevelResponseDetail, { type LifecycleRules } from "./level-response";
+import type { LifecycleRules } from "./close-section";
+import LevelResponseDetail from "./level-response";
 import type { AudienceDicts } from "./level-steps";
 import { EMPTY_RESPONSE, levelOf, withLevel } from "./level-row";
-import type { Finding, LevelResponse, SymptomSpec } from "./maintainer-api";
+import type {
+  Finding,
+  LevelResponse,
+  Preview,
+  SymptomSpec,
+} from "./maintainer-api";
 import { problemsFor } from "./rule-problems";
 import { caseFields } from "./symptom-rule-sections";
 import { ICU_LEVELS } from "./symptom-labels";
@@ -161,6 +168,7 @@ export default function ResponseWorkspace({
   readOnly,
   icu,
   sourceFields = [],
+  preview,
   audience,
   d,
   onIcu,
@@ -178,6 +186,8 @@ export default function ResponseWorkspace({
   icu: number;
   /** The source's fields, which the close and note rules read besides the case. */
   sourceFields?: CelField[];
+  /** The rule's preview; its case moments are the { } mode's samples for the close and note rules. */
+  preview?: Preview;
   d: I18nRecord;
   onIcu: (icu: number) => void;
   onChange: (spec: SymptomSpec) => void;
@@ -188,12 +198,22 @@ export default function ResponseWorkspace({
   const setResponse = (next: LevelResponse) =>
     onChange(withLevel(spec, { ...level, response: next }));
   const lifecycle = spec.lifecycle ?? { open: "", close: "" };
+  // The case moments are the same for every spec, so the { } tree keeps the
+  // last ones while the next preview is made (validating, saving): without
+  // them the tree goes away and the editors jump to the full width.
+  const [shownPreview, setShownPreview] = useState(preview);
+  if (preview?.cases !== undefined && preview !== shownPreview)
+    setShownPreview(preview);
   const rules: LifecycleRules = {
     close: lifecycle.close ?? "",
     note: lifecycle.note ?? "",
     fields: [...caseFields(d), ...sourceFields],
     closeProblems: problemsFor(findings, "lifecycle.close", d),
     noteProblems: problemsFor(findings, "lifecycle.note", d),
+    samples: (shownPreview?.cases ?? []).map((c) => ({
+      sample: c.sample,
+      label: trDynamic(`caseScenario_${c.scenario}`, d),
+    })),
     onChange: ({ close, note }) =>
       onChange({ ...spec, lifecycle: { ...lifecycle, close, note } }),
   };

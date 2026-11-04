@@ -429,6 +429,7 @@ export default function SymptomDetail({
                 readOnly={!canWrite || Boolean(viewed)}
                 icu={responseIcu}
                 sourceFields={fields}
+                preview={viewed ? undefined : (currentPreview ?? undefined)}
                 d={d}
                 onIcu={setResponseIcu}
                 onChange={update}

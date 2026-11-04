@@ -1,7 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { createElement, type ImgHTMLAttributes } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { Finding, LevelResponse, SymptomSpec } from "./maintainer-api";
+import type {
+  Finding,
+  LevelResponse,
+  Preview,
+  SymptomSpec,
+} from "./maintainer-api";
 import ResponseWorkspace, { firstResponseLevel } from "./response-workspace";
 
 const AUDIENCE = { d: {}, fieldDict: {} };
@@ -109,6 +114,49 @@ const renderIt = (
 };
 
 describe("ResponseWorkspace", () => {
+  it("keeps the last preview cases while a new preview loads, then replaces them", () => {
+    const preview: Preview = {
+      source: "synthetic-source",
+      samples: [],
+      cases: [
+        {
+          scenario: "open",
+          sample: { marker: "previous-case" },
+          open: true,
+          outcome: "opens",
+          error: null,
+        },
+      ],
+    };
+    const props = {
+      audience: AUDIENCE,
+      spec: SPEC,
+      changedLevels: new Set<number>(),
+      findings: [],
+      readOnly: false,
+      icu: 4,
+      d: { ...d, exprMode: "CEL" },
+      onIcu: vi.fn(),
+      onChange: vi.fn(),
+    };
+    const view = render(<ResponseWorkspace {...props} preview={preview} />);
+    fireEvent.click(screen.getByRole("button", { name: "CEL" }));
+    expect(screen.getByText('"previous-case"')).toBeTruthy();
+    view.rerender(<ResponseWorkspace {...props} preview={undefined} />);
+    expect(screen.getByText('"previous-case"')).toBeTruthy();
+    const next: Preview = {
+      ...preview,
+      cases: [{ ...preview.cases![0]!, sample: { marker: "new-case" } }],
+    };
+    view.rerender(<ResponseWorkspace {...props} preview={next} />);
+    expect(screen.queryByText('"previous-case"')).toBeNull();
+    expect(screen.getByText('"new-case"')).toBeTruthy();
+    view.rerender(
+      <ResponseWorkspace {...props} preview={{ ...next, cases: [] }} />
+    );
+    expect(screen.queryByText('"new-case"')).toBeNull();
+  });
+
   it("starts on a level with an error, else the highest that applies", () => {
     expect(firstResponseLevel(SPEC, [STEP_ERROR])).toBe(4);
     expect(firstResponseLevel(SPEC, [])).toBe(4);

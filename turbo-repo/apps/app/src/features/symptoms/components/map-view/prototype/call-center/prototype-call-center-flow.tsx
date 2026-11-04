@@ -235,7 +235,7 @@ export default function PrototypeCallCenterFlow({
           contactName={activePersonName}
           contactRole={activeRole}
           contactPhone={activePhone}
-          contactChannels={activeContact?.channels}
+          channels={activeContact?.channels}
           allowedMethods={activeAllowedMethods ?? []}
           contactId={activeContact?.contactId}
           reason={messageToCommunicate}

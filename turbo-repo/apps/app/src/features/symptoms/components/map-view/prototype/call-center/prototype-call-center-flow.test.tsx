@@ -13,6 +13,7 @@ const target = vi.hoisted<CallTarget>(() => ({
   personName: "Synthetic contact",
   role: "Dispatcher",
   phone: "+12025550101",
+  channels: { phone: "+12025550101", whatsapp: "+12025550102" },
   methods: ["phone"],
   stats: null,
 }));
@@ -41,20 +42,24 @@ vi.mock("./call-center-menu", () => ({
 vi.mock("./call-dialing-step", () => ({
   default: ({
     reason,
+    channels,
     goal,
     onCancel,
     onConfirm,
   }: {
     reason: string;
+    channels?: { whatsapp?: string } | null;
     goal?: string;
     onCancel: () => void;
-    onConfirm: (seconds: number, method: "phone") => void;
+    onConfirm: (seconds: number, method: "phone" | "whatsapp") => void;
   }) => (
     <>
       <p>{reason}</p>
+      <p>{channels?.whatsapp}</p>
       <p>{goal}</p>
       <button onClick={onCancel}>Cancel call</button>
       <button onClick={() => onConfirm(1, "phone")}>Confirm call</button>
+      <button onClick={() => onConfirm(1, "whatsapp")}>Confirm WhatsApp</button>
     </>
   ),
 }));
@@ -112,11 +117,22 @@ describe("call step scripts", () => {
     render(<Flow />);
     fireEvent.click(screen.getByText("Step contact"));
     expect(screen.getByText("Step message")).toBeTruthy();
+    expect(screen.getByText("+12025550102")).toBeTruthy();
     expect(screen.getByText("Step goal")).toBeTruthy();
     fireEvent.click(screen.getByText("Cancel call"));
     fireEvent.click(screen.getByText("Other contact"));
     expect(screen.getByText("Default message")).toBeTruthy();
     expect(screen.queryByText("Step goal")).toBeNull();
+  });
+
+  it("records the selected channel's phone in the confirmed snapshot", () => {
+    const confirmed = vi.fn();
+    render(<Flow onConfirmed={confirmed} />);
+    fireEvent.click(screen.getByText("Step contact"));
+    fireEvent.click(screen.getByText("Confirm WhatsApp"));
+    expect(confirmed).toHaveBeenCalledWith(
+      expect.objectContaining({ methodUsed: "whatsapp", phone: "+12025550102" })
+    );
   });
 
   it("preserves the script and default across a completed-call remount", () => {

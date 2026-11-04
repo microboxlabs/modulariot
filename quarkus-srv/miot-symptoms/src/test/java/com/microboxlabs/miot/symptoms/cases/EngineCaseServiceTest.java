@@ -845,6 +845,75 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void theTimelineListsTheCasesLifeInTimeOrder() {
+        store.add(at(12, "TEST-PLATE", OPENED, OPENED.plusSeconds(3600)));
+        store.notes.put(12L, List.of(new EngineCaseStore.CaseNote(OPENED.plusSeconds(600), "main_power_reconnect",
+                "Volvió la energía", OPENED.plusSeconds(590))));
+
+        JsonNode timeline = service.timeline(TENANT, -12, List.of());
+
+        List<String> kinds = new ArrayList<>();
+        timeline.forEach(e -> kinds.add(e.path("kind").asText()));
+        assertEquals(List.of("OPENED", "NOTED", "CLOSED"), kinds);
+        assertEquals(4, timeline.get(0).path("level").asInt());
+        assertEquals("main_power_reconnect", timeline.get(1).path("eventType").asText());
+        assertEquals(OPENED.plusSeconds(3600).toString(), timeline.get(2).path("at").asText());
+    }
+
+    @Test
+    void theTimelineIncludesTreatmentActionsAndTheirRecordedFields() {
+        store.add(at(12, "TEST-PLATE", OPENED, OPENED.plusSeconds(3600)));
+        JsonNode timeline = service.timeline(TENANT, -12, List.of(treatment(TreatmentStatus.CLOSED,
+                action(ActionKind.CALL, "Synthetic contact", "Answered", "On the way"))));
+
+        JsonNode call = timeline.get(1);
+        assertEquals("OPENED", timeline.get(0).path("kind").asText());
+        assertEquals("ACTION", call.path("kind").asText());
+        assertEquals(OPENED.toString(), call.path("at").asText());
+        assertEquals("CALL", call.path("action").asText());
+        assertEquals("operator@example.com", call.path("by").asText());
+        assertEquals("Synthetic contact", call.path("contact").asText());
+        assertEquals("Answered", call.path("outcome").asText());
+    }
+
+    @Test
+    void theTimelineUsesHistoricalHoldsAndStartsPreexistingCoverageAtOpening() {
+        InMemoryEngineCases history = new InMemoryEngineCases() {
+            @Override
+            public List<EngineCase.Ignored> holds(String tenant, EngineCase c, Instant until) {
+                assertEquals(OPENED.plusSeconds(60), until);
+                return List.of(new EngineCase.Ignored("ended-hold", OPENED.minusSeconds(30),
+                        OPENED.plusSeconds(30), false, "ALL", "operator@example.test"));
+            }
+        };
+        history.add(at(12, "TEST-PLATE", OPENED, OPENED.plusSeconds(60)));
+        EngineCaseService historical = new EngineCaseService(history, (tenant, asset, definition) -> { },
+                t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+
+        JsonNode timeline = historical.timeline(TENANT, -12, List.of());
+
+        assertEquals("HELD", timeline.get(1).path("kind").asText());
+        assertEquals(OPENED.toString(), timeline.get(1).path("at").asText());
+        assertEquals("operator@example.test", timeline.get(1).path("by").asText());
+    }
+
+    @Test
+    void theTimelineOrdersFractionalInstantsAndKeepsTiesStable() {
+        store.add(at(12, "TEST-PLATE", OPENED, OPENED.plusMillis(100)));
+        store.notes.put(12L, List.of(
+                new EngineCaseStore.CaseNote(OPENED, "at-opening", null, OPENED),
+                new EngineCaseStore.CaseNote(OPENED.plusMillis(50), "later", null, OPENED.plusMillis(50))));
+
+        JsonNode timeline = service.timeline(TENANT, -12, List.of());
+
+        List<String> kinds = new ArrayList<>();
+        timeline.forEach(e -> kinds.add(e.path("kind").asText()));
+        assertEquals(List.of("OPENED", "NOTED", "NOTED", "CLOSED"), kinds);
+        assertEquals("at-opening", timeline.get(1).path("eventType").asText());
+        assertEquals(OPENED.plusMillis(50).toString(), timeline.get(2).path("at").asText());
+    }
+
+    @Test
     void scriptSamplesPutTheLevelsCasesFirstThenTheNewest() {
         store.add(at(1, "OLD", OPENED.minusSeconds(600), null));
         store.add(at(2, "NEW", OPENED, null));

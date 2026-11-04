@@ -498,6 +498,7 @@ function newTarget(
     personName: contact?.name ?? name,
     role: contact?.role ?? "",
     phone: formatChileanPhone(contact?.phone ?? phone),
+    channels: contact?.channels ?? { phone, whatsapp: phone },
     methods: ["phone", "whatsapp"],
     stats: null,
   };

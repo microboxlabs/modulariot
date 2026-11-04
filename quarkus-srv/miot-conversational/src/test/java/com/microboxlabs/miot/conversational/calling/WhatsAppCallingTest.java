@@ -2,11 +2,12 @@ package com.microboxlabs.miot.conversational.calling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.microboxlabs.miot.conversational.calling.CallPermissionPolicy.Decision;
-import com.microboxlabs.miot.conversational.calling.CallPermissionPolicy.Grant;
+import com.microboxlabs.miot.conversational.calling.CallRequestPolicy.Decision;
+import com.microboxlabs.miot.conversational.calling.CallRequestPolicy.Grant;
 import io.vertx.core.json.JsonObject;
 import java.time.Duration;
 import java.time.Instant;
@@ -15,6 +16,18 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class WhatsAppCallingTest {
+
+    @Test
+    void outOfRangeWebhookEpochsDoNotAbortTheDelivery() {
+        JsonObject body = new JsonObject("""
+                {"entry":[{"changes":[{"field":"calls","value":{
+                  "calls":[{"timestamp":9223372036854775807},{"timestamp":"9223372036854775807"}]
+                }}]}]}""");
+        var events = WhatsAppCallEvents.calls(body);
+        assertEquals(2, events.size());
+        assertNull(events.get(0).at());
+        assertNull(events.get(1).at());
+    }
 
     private static final Instant NOW = Instant.parse("2026-11-04T12:00:00Z");
 
@@ -28,19 +41,19 @@ class WhatsAppCallingTest {
     @Test
     void aValidPermissionAllowsTheCall() {
         Grant temporary = new Grant(true, NOW.minus(Duration.ofDays(1)), NOW.plus(Duration.ofDays(6)));
-        assertEquals(Decision.CALL, CallPermissionPolicy.decide(List.of(), Optional.of(temporary), NOW).decision());
+        assertEquals(Decision.CALL, CallRequestPolicy.decide(List.of(), Optional.of(temporary), NOW).decision());
         Grant permanent = new Grant(true, NOW.minus(Duration.ofDays(30)), null);
-        assertEquals(Decision.CALL, CallPermissionPolicy.decide(List.of(), Optional.of(permanent), NOW).decision());
+        assertEquals(Decision.CALL, CallRequestPolicy.decide(List.of(), Optional.of(permanent), NOW).decision());
     }
 
     @Test
     void oneRequestPerDay() {
         Instant earlier = NOW.minus(Duration.ofHours(3));
-        var outcome = CallPermissionPolicy.decide(List.of(earlier), Optional.empty(), NOW);
+        var outcome = CallRequestPolicy.decide(List.of(earlier), Optional.empty(), NOW);
         assertEquals(Decision.WAIT, outcome.decision());
         assertEquals(earlier.plus(Duration.ofHours(24)), outcome.nextRequestAt());
         assertEquals(Decision.REQUEST_PERMISSION,
-                CallPermissionPolicy.decide(List.of(NOW.minus(Duration.ofHours(25))), Optional.empty(), NOW)
+                CallRequestPolicy.decide(List.of(NOW.minus(Duration.ofHours(25))), Optional.empty(), NOW)
                         .decision());
     }
 
@@ -48,7 +61,7 @@ class WhatsAppCallingTest {
     void twoRequestsPerWeek() {
         Instant first = NOW.minus(Duration.ofDays(5));
         Instant second = NOW.minus(Duration.ofDays(2));
-        var outcome = CallPermissionPolicy.decide(List.of(second, first), Optional.empty(), NOW);
+        var outcome = CallRequestPolicy.decide(List.of(second, first), Optional.empty(), NOW);
         assertEquals(Decision.WAIT, outcome.decision());
         assertEquals(first.plus(Duration.ofDays(7)), outcome.nextRequestAt());
     }
@@ -57,10 +70,10 @@ class WhatsAppCallingTest {
     void anExpiredOrRejectedPermissionNeedsANewRequest() {
         Grant expired = new Grant(true, NOW.minus(Duration.ofDays(8)), NOW.minus(Duration.ofDays(1)));
         assertEquals(Decision.REQUEST_PERMISSION,
-                CallPermissionPolicy.decide(List.of(), Optional.of(expired), NOW).decision());
+                CallRequestPolicy.decide(List.of(), Optional.of(expired), NOW).decision());
         Grant rejected = new Grant(false, NOW.minus(Duration.ofDays(1)), null);
         assertEquals(Decision.REQUEST_PERMISSION,
-                CallPermissionPolicy.decide(List.of(), Optional.of(rejected), NOW).decision());
+                CallRequestPolicy.decide(List.of(), Optional.of(rejected), NOW).decision());
     }
 
     @Test

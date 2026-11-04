@@ -9,11 +9,13 @@ Calling uses the organization's existing WHATSAPP connection: its base URL, `pho
 | Class | What it does |
 | --- | --- |
 | `WhatsAppCallingSettings` | Reads the flag. `requireEnabled()` throws while it is off. |
-| `CallPermissionPolicy` | Decides whether the business can call, ask for permission, or must wait. |
+| `CallRequestPolicy` | Decides whether the business can call, ask for permission, or must wait. |
 | `WhatsAppCallingRequests` | Builds the request bodies below. Sends nothing. |
 | `WhatsAppCallEvents` | Parses `calls` webhook events and permission replies. |
 
 All are in `com.microboxlabs.miot.conversational.calling`.
+
+`CallRequestPolicy` is the skeleton's pure admission helper. The persistent permission workflow in [#2413](https://github.com/microboxlabs/modulariot/pull/2413) uses `CallPermissionPolicy`; the distinct names allow both changes to land together.
 
 ## Requests
 
@@ -38,7 +40,7 @@ A business-initiated call needs the user's permission. The business asks with a 
 | Temporary permission | valid until `expiration_timestamp` |
 | Permanent permission | valid until the user revokes it |
 
-`CallPermissionPolicy.decide(requests, grant, now)` returns:
+`CallRequestPolicy.decide(requests, grant, now)` returns:
 
 | Decision | When |
 | --- | --- |
@@ -59,7 +61,7 @@ Confirm the current limits in Meta's Calling API documentation before turning th
 
 ## Next steps
 
-1. Store permission requests and replies per WhatsApp contact (a table in `miot_conversational`), and feed them to `CallPermissionPolicy`.
+1. Store permission requests and replies per WhatsApp contact (a table in `miot_conversational`), and feed them to `CallRequestPolicy`.
 2. Wire `WhatsAppCallEvents` into `WhatsAppWebhookResource` behind the flag.
 3. Send the requests through the WHATSAPP connection, as `WhatsAppMessagingService` does.
 4. Media: the browser creates the SDP offer with `RTCPeerConnection` and applies the SDP answer from the `connect` event. The modulith relays SDP and never handles audio.

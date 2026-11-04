@@ -13,7 +13,7 @@ import java.util.Optional;
  * {@link #REQUESTS_PER_WEEK} in 7 days. A granted permission is valid until its expiration (temporary) or
  * until the user revokes it (permanent).
  */
-public final class CallPermissionPolicy {
+public final class CallRequestPolicy {
 
     public static final int REQUESTS_PER_DAY = 1;
     public static final int REQUESTS_PER_WEEK = 2;
@@ -37,7 +37,7 @@ public final class CallPermissionPolicy {
     public record Outcome(Decision decision, Instant nextRequestAt) {
     }
 
-    private CallPermissionPolicy() {
+    private CallRequestPolicy() {
     }
 
     /**

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.conversational.calling;
 
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -96,12 +97,12 @@ public final class WhatsAppCallEvents {
 
     /** Meta sends Unix seconds, as a number or as a string. */
     private static Instant seconds(Object value) {
-        if (value instanceof Number n) {
-            return Instant.ofEpochSecond(n.longValue());
-        }
         try {
+            if (value instanceof Number n) {
+                return Instant.ofEpochSecond(n.longValue());
+            }
             return value == null ? null : Instant.ofEpochSecond(Long.parseLong(value.toString()));
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException | DateTimeException e) {
             return null;
         }
     }

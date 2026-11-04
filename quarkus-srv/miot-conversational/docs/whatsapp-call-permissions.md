@@ -39,7 +39,9 @@ These limits apply per business number and contact. The service enforces them be
 | Temporary permission | 7 days |
 | Unanswered calls | After 2 in a row the contact gets a reminder from Meta. After 4 the permission is revoked. |
 
-Requests sent are stored in `conv_call_permission_request` and counted from there.
+Requests sent are stored in `conv_call_permission_request` and counted from there. Wamid-based uniqueness makes retry accounting idempotent. A rule job that already sent its message recovers the request record from that message's original business number and send time, without sending again. Manual requests use the same outbound message pool, preserving the wamid and connection metadata needed to route shared-number replies and delivery callbacks.
+
+Permission replies and terminal calls are journaled in `conv_call_permission_event`. A per-number/contact PostgreSQL transaction lock makes event insertion and permission replay atomic across workers. Calls are deduplicated by call id, replies by wamid; replay follows provider time, so delayed connected calls cannot erase newer misses and pre-grant misses cannot revoke a newer grant. A checkpoint preserves any permission predating this journal. Request admission and recording use the same lock; check/recheck/send remains bounded by the provider request timeout.
 
 ## Sending a request
 
@@ -47,7 +49,7 @@ The request is the platform template `miot_call_permission_request` (see migrati
 
 There are two ways to send it:
 
-- **Rule:** Comunicaciones → Nueva regla → preset "Salida del viaje → solicitar permiso de llamada al conductor". It fires on `trip.milestone.confirmed` with `milestone == 'departure'` and writes to the contact whose `nationalId` equals the trip's `driver`. The rule is created off, as a draft. A refused request marks the queued message as failed with the reason.
+- **Rule:** Comunicaciones → Nueva regla → preset "Salida del viaje → solicitar permiso de llamada al conductor". It fires on `trip.milestone.confirmed` with `milestone == 'departure'` and writes to the contact whose `nationalId` equals the trip's `driver` after removing RUT formatting and uppercasing (the contact condition's `nationalId(...)` function). The rule is created off, as a draft. A refused request marks the queued message as failed with the reason.
 - **Dialing step:** the WhatsApp row shows the state and a "Solicitar permiso" button. `POST /api/v1/orgs/{org}/conversations/whatsapp-call-permissions/requests` with `{"phone", "name"}`.
 
 `GET /api/v1/orgs/{org}/conversations/whatsapp-call-permissions?phone=...` returns the state, `canRequest`, the refusal and `nextRequestAt`.
@@ -70,3 +72,5 @@ Subscribe the Meta app to the `messages` and `calls` webhook fields.
 | Property | Default | Purpose |
 | --- | --- | --- |
 | `miot.conversational.whatsapp-calling.enabled` (`MIOT_WHATSAPP_CALLING_ENABLED`) | `false` | Allows sending call permission requests. When off, nothing is sent and the app keeps opening `wa.me`. Replies and call events are stored either way. |
+
+The mounted dialing step revalidates permission every 15 seconds and when focus returns, including after grants, revocations, and time-based expiry. Calling remains off by default. The permission service shares the conversational component build guard, so disabling that component does not require its template store.

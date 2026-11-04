@@ -38,7 +38,7 @@ public final class RulePresets {
                         {
                           "id": "%s",
                           "name": "Conductor del viaje",
-                          "entries": [{"contacts": "contact.nationalId == event.data.driver"}]
+                          "entries": [{"contacts": "contact.nationalId == nationalId(event.data.driver)"}]
                         }
                       ],
                       "steps": [

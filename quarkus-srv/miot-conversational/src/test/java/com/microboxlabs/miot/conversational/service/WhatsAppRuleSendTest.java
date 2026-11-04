@@ -56,6 +56,20 @@ class WhatsAppRuleSendTest {
     }
 
     @Test
+    void manualPermissionRequestsEnterTheSameTenantMessagePoolWithTheirSender() {
+        connections.put(PLATFORM, connection("conn-platform", "PLATFORM-PNID"));
+        var number = service.sendingNumber(TENANT, DRIVER);
+        String wamid = service.sendCallPermission(TENANT, number, DRIVER, "permission-template", "es", Map.of());
+        Message sent = store.messages.stream().filter(m -> wamid.equals(m.providerMessageId())).findFirst().orElseThrow();
+        assertEquals(TENANT, store.conversations.get(sent.conversationId()).tenantCode());
+        assertEquals("conn-platform", sent.metadata().get("connectionId"));
+        assertEquals("PLATFORM-PNID", sent.metadata().get("phoneNumberId"));
+        assertEquals(PLATFORM, sent.metadata().get(WhatsAppMessagingService.CONNECTION_TENANT));
+        assertTrue(!number.toString().contains("token-platform"));
+        assertTrue(number.toString().contains("<redacted>"));
+    }
+
+    @Test
     void withoutAPlatformAccountTheMessageFails() {
         connections.put(TENANT, connection("conn-org", "ORG-PNID"));
 

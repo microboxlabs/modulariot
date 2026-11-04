@@ -59,7 +59,7 @@ class WhatsAppCallingWebhookTest {
             pnid -> "PNID_ORG".equals(pnid) ? ORG : null, wamid -> null);
     private final InMemoryCallPermissions store = new InMemoryCallPermissions();
     private final CallPermissionService service = new CallPermissionService(store, key -> Optional.empty(),
-            (tenant, to) -> null, (n, to, name, language, params) -> null, false,
+            (tenant, to) -> null, (tenantCode, n, to, name, language, params) -> null, false,
             Clock.fixed(Instant.parse("2026-11-04T12:00:00Z"), ZoneOffset.UTC));
 
     private EnqueueJobsResponse enqueue(String tenant, EnqueueJobsRequest request) {

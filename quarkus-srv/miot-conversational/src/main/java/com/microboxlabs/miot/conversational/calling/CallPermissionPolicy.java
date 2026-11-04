@@ -120,6 +120,8 @@ public final class CallPermissionPolicy {
             return current;
         }
         Instant at = instant(call.timestamp(), now);
+        if ((current.respondedAt() != null && at.isBefore(current.respondedAt()))
+                || (current.lastConnectedCallAt() != null && !at.isAfter(current.lastConnectedCallAt()))) return current;
         if (call.connected()) {
             Instant last = current.lastConnectedCallAt() == null || at.isAfter(current.lastConnectedCallAt())
                     ? at : current.lastConnectedCallAt();

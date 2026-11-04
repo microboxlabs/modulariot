@@ -167,6 +167,10 @@ public class WhatsAppMessagingService {
      * FAILED with its reason. With {@code simulate} nothing is sent and the message is stored SIMULATED.
      */
     public Message sendInContext(String tenantCode, ContextMessage message, boolean simulate) {
+        return sendInContext(tenantCode, message, simulate, null);
+    }
+
+    private Message sendInContext(String tenantCode, ContextMessage message, boolean simulate, SendingNumber expected) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Conversation conversation = conversationRepository.findOrCreateForContext(tenantCode,
                 message.participant(message.to()), now);
@@ -184,6 +188,10 @@ public class WhatsAppMessagingService {
                 metadata.put(CONNECTION_TENANT, sendingTenant);
                 String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
                 String token = connection.secretString(TOKEN);
+                if (expected != null && (!expected.phoneNumberId().equals(phoneNumberId)
+                        || !expected.tenantCode().equals(sendingTenant))) {
+                    throw new ConnectionResolutionException("The sending number changed; retry");
+                }
                 if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
                     throw new ConnectionResolutionException(
                             "WhatsApp connection is missing phone_number_id or the access token");
@@ -270,6 +278,20 @@ public class WhatsAppMessagingService {
 
     /** The WhatsApp number an organization's rule messages go out from, with what calling Meta needs. */
     public record SendingNumber(String tenantCode, URI baseUrl, String phoneNumberId, String token) {
+        @Override public String toString() {
+            return "SendingNumber[tenantCode=" + tenantCode + ", phoneNumberId=" + phoneNumberId + ", token=<redacted>]";
+        }
+    }
+
+    /** Uses the normal outbound message pool, including tenant, wamid and connection metadata for reply routing. */
+    public String sendCallPermission(String tenantCode, SendingNumber expected, String to, String name,
+            String language, Map<String, String> params) {
+        Message message = sendInContext(tenantCode, new ContextMessage(null, null, to, null, null, null,
+                name, language, params, null, null, null, null), false, expected);
+        if (message.status() != MessageStatus.SENT) {
+            throw new WhatsAppSendException(message.errorMessage(), null, null);
+        }
+        return message.providerMessageId();
     }
 
     /**
@@ -495,6 +517,7 @@ public class WhatsAppMessagingService {
     private static Map<String, Object> metadata(ResolvedConnection connection) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("connectionId", connection.connectionId());
+        metadata.put("phoneNumberId", connection.metadataString(PHONE_NUMBER_ID));
         return metadata;
     }
 

@@ -353,7 +353,7 @@ public final class MetaWebhookParser {
         }
         try {
             return OffsetDateTime.ofInstant(Instant.ofEpochSecond(Long.parseLong(epochSeconds.trim())), ZoneOffset.UTC);
-        } catch (NumberFormatException notEpoch) {
+        } catch (NumberFormatException | java.time.DateTimeException notEpoch) {
             return null;
         }
     }

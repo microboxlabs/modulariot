@@ -44,7 +44,11 @@ export function useWhatsAppCallPermission(phone: string | null | undefined) {
   return useSWR<CallPermissionView>(
     phone ? callPermissionKey(phone) : null,
     (url: string) => controlTowerRequest<CallPermissionView>(url),
-    { revalidateOnFocus: false, shouldRetryOnError: false }
+    {
+      revalidateOnFocus: true,
+      refreshInterval: 15_000,
+      shouldRetryOnError: false,
+    }
   );
 }
 

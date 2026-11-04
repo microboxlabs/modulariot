@@ -3,7 +3,8 @@ package com.microboxlabs.miot.conversational.calling;
 import com.microboxlabs.miot.conversational.calling.CallPermissionPolicy.Limit;
 import com.microboxlabs.miot.conversational.calling.CallPermissionPolicy.Refusal;
 import com.microboxlabs.miot.conversational.calling.CallPermissionPolicy.State;
-import com.microboxlabs.miot.conversational.client.MetaWhatsAppClient;
+import io.quarkus.arc.properties.IfBuildProperty;
+import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.client.WhatsAppSendException;
 import com.microboxlabs.miot.conversational.rules.ConvTemplate;
 import com.microboxlabs.miot.conversational.rules.store.TemplateStore;
@@ -31,6 +32,7 @@ import org.jboss.logging.Logger;
  * webhook update the permission whatever the flag says.
  */
 @ApplicationScoped
+@IfBuildProperty(name = "miot.component.conversational.enabled", stringValue = "true")
 public class CallPermissionService {
 
     /** The platform template that carries the request. */
@@ -51,7 +53,7 @@ public class CallPermissionService {
     /** Sends a Meta template; returns its wamid. */
     @FunctionalInterface
     public interface Sender {
-        String send(SendingNumber number, String to, String metaName, String language, Map<String, String> params);
+        String send(String tenantCode, SendingNumber number, String to, String metaName, String language, Map<String, String> params);
     }
 
     /**
@@ -87,12 +89,11 @@ public class CallPermissionService {
 
     @Inject
     public CallPermissionService(CallPermissionStore store, TemplateStore templates,
-            WhatsAppMessagingService whatsapp, MetaWhatsAppClient meta,
+            WhatsAppMessagingService whatsapp,
             @ConfigProperty(name = "miot.conversational.whatsapp-calling.enabled", defaultValue = "false")
             boolean enabled) {
         this(store, key -> templates.find(ConvTemplate.PLATFORM_TENANT, key), whatsapp::sendingNumber,
-                (n, to, name, language, params) -> meta.sendTemplate(n.baseUrl(), n.phoneNumberId(), n.token(), to,
-                        name, language, params),
+                whatsapp::sendCallPermission,
                 enabled, Clock.systemUTC());
     }
 
@@ -156,7 +157,24 @@ public class CallPermissionService {
 
     /** Sends the request template to {@code phone} now, when the limits allow it. */
     public RequestResult request(String tenantCode, String phone, String recipientName, String actor) {
-        Admission admission = admit(tenantCode, phone);
+        return withAdmission(tenantCode, phone, admission -> requestAdmitted(tenantCode, recipientName, actor, admission));
+    }
+
+    /** Admission is rechecked under the same number/contact transaction lock used by sends and events. */
+    public <T> T withAdmission(String tenantCode, String phone, Function<Admission, T> work) {
+        Admission initial = admit(tenantCode, phone);
+        if (!initial.admitted()) return work.apply(initial);
+        return store.locked(initial.number().phoneNumberId(), initial.contactE164(), () -> {
+            Admission current = admit(tenantCode, phone);
+            if (current.admitted() && (!current.number().phoneNumberId().equals(initial.number().phoneNumberId())
+                    || !current.number().tenantCode().equals(initial.number().tenantCode()))) {
+                current = Admission.refused(Refusal.NO_CONNECTION, "The sending number changed; retry");
+            }
+            return work.apply(current);
+        });
+    }
+
+    private RequestResult requestAdmitted(String tenantCode, String recipientName, String actor, Admission admission) {
         if (!admission.admitted()) {
             return refused(admission);
         }
@@ -168,7 +186,7 @@ public class CallPermissionService {
         SendingNumber number = admission.number();
         String wamid;
         try {
-            wamid = sender.send(number, admission.contactE164(), template.get().metaName(),
+            wamid = sender.send(tenantCode, number, admission.contactE164(), template.get().metaName(),
                     template.get().language() == null ? DEFAULT_LANGUAGE : template.get().language(),
                     params(template.get().params(), recipientName));
         } catch (WhatsAppSendException e) {
@@ -188,26 +206,40 @@ public class CallPermissionService {
                 wamid, null, clock.instant());
     }
 
+    /** Recover an already-sent rule message using its original sender and send time. */
+    public void recordSent(String tenantCode, Message message) {
+        if (message.providerMessageId() == null || message.sentAt() == null) return;
+        Object number = message.metadata() == null ? null : message.metadata().get("phoneNumberId");
+        if (number == null) throw new IllegalStateException("Sent permission request lacks its original business number");
+        String contact = e164(message.address());
+        store.locked(number.toString(), contact, () -> {
+            store.recordRequest(tenantCode, number.toString(), contact, ORIGIN_RULE,
+                    message.providerMessageId(), null, message.sentAt().toInstant());
+            return true;
+        });
+    }
+
     public void applyReply(CallPermissionReply reply) {
-        if (reply.phoneNumberId() == null || reply.contactE164() == null) {
-            return;
-        }
-        CallPermission current = permission(reply.phoneNumberId(), reply.contactE164());
-        CallPermission next = CallPermissionPolicy.onReply(current, reply, clock.instant());
-        if (!next.equals(current)) {
-            store.save(next);
-        }
+        if (reply.phoneNumberId() == null || reply.contactE164() == null || reply.wamid() == null) return;
+        applyEvent(PermissionEvent.reply(reply, clock.instant()));
     }
 
     public void applyCall(CallEvent call) {
-        if (call.phoneNumberId() == null || call.contactE164() == null) {
-            return;
-        }
-        CallPermission current = permission(call.phoneNumberId(), call.contactE164());
-        CallPermission next = CallPermissionPolicy.onCall(current, call, clock.instant());
-        if (!next.equals(current)) {
-            store.save(next);
-        }
+        if (call.phoneNumberId() == null || call.contactE164() == null || call.callId() == null || !call.terminated()) return;
+        applyEvent(PermissionEvent.call(call, clock.instant()));
+    }
+
+    private void applyEvent(PermissionEvent event) {
+        store.locked(event.number(), event.contact(), () -> {
+            CallPermission state = store.checkpoint(event.number(), event.contact());
+            store.recordEvent(event);
+            var ordered = store.events(event.number(), event.contact()).stream()
+                    .sorted(java.util.Comparator.comparing(PermissionEvent::occurredAt)
+                            .thenComparingInt(PermissionEvent::order).thenComparing(PermissionEvent::id)).toList();
+            for (PermissionEvent recorded : ordered) state = recorded.apply(state);
+            store.save(state);
+            return true;
+        });
     }
 
     private View view(String numberId, String contact, Instant now) {

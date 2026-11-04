@@ -21,6 +21,17 @@ class MetaWebhookParserTest {
     }
 
     @Test
+    void outOfRangeEpochDoesNotAbortWebhookDelivery() {
+        var parsed = parse("""
+                {"entry":[{"changes":[{"value":{"metadata":{"phone_number_id":"PNID"},
+                "calls":[{"id":"call-range","from":"56900000001","to":"56900000002",
+                "direction":"BUSINESS_INITIATED","event":"terminate","timestamp":"9223372036854775807"}]}}]}]}
+                """);
+        assertEquals(1, parsed.calls().size());
+        assertNull(parsed.calls().get(0).timestamp());
+    }
+
+    @Test
     void parsesAnInboundTextMessageAndNormalizesTheSender() {
         String json = """
                 {"object":"whatsapp_business_account","entry":[{"id":"WABA1","changes":[{"field":"messages",

@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.conversational.calling;
 
+import com.microboxlabs.miot.integrations.service.ManagedConnectionLock;
+import com.microboxlabs.miot.integrations.persistence.ManagedProvisioningTransaction;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
@@ -42,13 +44,64 @@ public class PgCallPermissionStore implements CallPermissionStore {
     private static final String RECORD = """
             INSERT INTO miot_conversational.conv_call_permission_request
                 (id, tenant_code, business_phone_number_id, contact_e164, origin, wamid, requested_by, sent_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)""";
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING""";
 
+    private static final ThreadLocal<java.util.Set<String>> HELD = ThreadLocal.withInitial(java.util.HashSet::new);
     private final Supplier<Pool> pool;
+    private final ManagedConnectionLock lock;
 
     @Inject
-    PgCallPermissionStore(Instance<Pool> pool) {
-        this.pool = pool::get;
+    PgCallPermissionStore(Instance<Pool> pool, ManagedConnectionLock lock) {
+        this(pool::get, lock);
+    }
+
+    public PgCallPermissionStore(Supplier<Pool> pool, ManagedConnectionLock lock) {
+        this.pool = pool;
+        this.lock = lock;
+    }
+
+    @Override
+    public <T> T locked(String number, String contact, Supplier<T> work) {
+        String key = "wa-call:" + number + ":" + contact;
+        if (HELD.get().contains(key)) return work.get();
+        return lock.locked(key, () -> {
+            HELD.get().add(key);
+            try { return work.get(); }
+            finally {
+                HELD.get().remove(key);
+                if (HELD.get().isEmpty()) HELD.remove();
+            }
+        });
+    }
+
+    @Override
+    public CallPermission checkpoint(String number, String contact) {
+        String table = "miot_conversational.conv_call_permission_checkpoint";
+        CallPermission initial = find(number, contact).orElse(CallPermission.none(number, contact));
+        String sql = SAVE.substring(0, SAVE.indexOf("ON CONFLICT"))
+                .replace("miot_conversational.conv_call_permission", table) + "ON CONFLICT DO NOTHING";
+        query(sql, params(initial));
+        return permission(query(FIND.replace("miot_conversational.conv_call_permission", table),
+                Tuple.of(number, contact)).iterator().next());
+    }
+
+    @Override
+    public void recordEvent(PermissionEvent event) {
+        query("INSERT INTO miot_conversational.conv_call_permission_event "
+                + "(business_phone_number_id, contact_e164, event_id, occurred_at, payload) "
+                + "VALUES ($1, $2, $3, $4, $5::text::jsonb) ON CONFLICT DO NOTHING",
+                Tuple.of(event.number(), event.contact(), event.id(), time(event.occurredAt()), event.json()));
+    }
+
+    @Override
+    public List<PermissionEvent> events(String number, String contact) {
+        List<PermissionEvent> events = new ArrayList<>();
+        query("SELECT event_id, occurred_at, payload::text AS payload "
+                + "FROM miot_conversational.conv_call_permission_event "
+                + "WHERE business_phone_number_id = $1 AND contact_e164 = $2", Tuple.of(number, contact))
+                .forEach(row -> events.add(PermissionEvent.read(row.getString("event_id"),
+                        instant(row, "occurred_at"), row.getString("payload"))));
+        return events;
     }
 
     @Override
@@ -59,10 +112,14 @@ public class PgCallPermissionStore implements CallPermissionStore {
 
     @Override
     public void save(CallPermission p) {
-        query(SAVE, Tuple.tuple().addString(p.businessPhoneNumberId()).addString(p.contactE164())
+        query(SAVE, params(p));
+    }
+
+    private static Tuple params(CallPermission p) {
+        return Tuple.tuple().addString(p.businessPhoneNumberId()).addString(p.contactE164())
                 .addString(p.status().name()).addOffsetDateTime(time(p.expiresAt()))
                 .addOffsetDateTime(time(p.respondedAt())).addString(p.responseSource())
-                .addInteger(p.consecutiveUnanswered()).addOffsetDateTime(time(p.lastConnectedCallAt())));
+                .addInteger(p.consecutiveUnanswered()).addOffsetDateTime(time(p.lastConnectedCallAt()));
     }
 
     @Override
@@ -81,8 +138,8 @@ public class PgCallPermissionStore implements CallPermissionStore {
                 .addString(requestedBy).addOffsetDateTime(time(sentAt)));
     }
 
-    private RowSet<Row> query(String sql, Tuple params) {
-        return pool.get().preparedQuery(sql).execute(params).await().indefinitely();
+    protected RowSet<Row> query(String sql, Tuple params) {
+        return ManagedProvisioningTransaction.client(pool.get()).preparedQuery(sql).execute(params).await().indefinitely();
     }
 
     private static CallPermission permission(Row r) {

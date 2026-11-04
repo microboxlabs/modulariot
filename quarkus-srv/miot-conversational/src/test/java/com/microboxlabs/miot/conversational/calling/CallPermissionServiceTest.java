@@ -65,13 +65,35 @@ class CallPermissionServiceTest {
                 throw new ConnectionResolutionException("No WhatsApp");
             }
             return new SendingNumber("_platform", URI.create("https://graph.example.test/v21.0"), NUMBER, "token");
-        }, (number, to, name, language, params) -> {
+        }, (tenantCode, number, to, name, language, params) -> {
             if (failSend) {
                 throw new WhatsAppSendException("Meta said no", 400, null);
             }
             sent.add(new Sent(to, name, language, params));
             return "wamid." + sent.size();
         }, enabled, clock);
+    }
+
+    @Test
+    void callsAndRepliesReplayChronologicallyAndRetriesDoNotCountAgain() {
+        CallPermissionService service = service(true);
+        service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "grant", null, true, true, null,
+                "user_action", now.minusSeconds(100).atOffset(ZoneOffset.UTC)));
+        var newerMiss = new com.microboxlabs.miot.conversational.service.CallEvent(NUMBER, "miss-new", CONTACT,
+                "terminate", "BUSINESS_INITIATED", "COMPLETED", false, now.minusSeconds(10).atOffset(ZoneOffset.UTC));
+        service.applyCall(newerMiss);
+        service.applyCall(newerMiss);
+        service.applyCall(new com.microboxlabs.miot.conversational.service.CallEvent(NUMBER, "connected", CONTACT,
+                "terminate", "BUSINESS_INITIATED", "COMPLETED", true, now.minusSeconds(20).atOffset(ZoneOffset.UTC)));
+        service.applyCall(new com.microboxlabs.miot.conversational.service.CallEvent(NUMBER, "miss-old", CONTACT,
+                "terminate", "BUSINESS_INITIATED", "COMPLETED", false, now.minusSeconds(30).atOffset(ZoneOffset.UTC)));
+        assertEquals(1, store.find(NUMBER, CONTACT).orElseThrow().consecutiveUnanswered());
+        // A newer grant resets the streak regardless of the order those jobs ran.
+        service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "new-grant", null, true, true, null,
+                "user_action", now.minusSeconds(5).atOffset(ZoneOffset.UTC)));
+        service.applyCall(newerMiss);
+        assertEquals(0, store.find(NUMBER, CONTACT).orElseThrow().consecutiveUnanswered());
+        assertEquals(CallPermissionStatus.PERMANENT, store.find(NUMBER, CONTACT).orElseThrow().status());
     }
 
     @Test

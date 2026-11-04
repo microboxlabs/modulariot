@@ -105,7 +105,7 @@ class RuleSendJobsTest {
     void aCallPermissionRequestCountsAgainstMetaLimits() {
         var store = new InMemoryCallPermissions();
         var permissions = new CallPermissionService(store,
-                key -> Optional.empty(), f.whatsapp::sendingNumber, (n, to, name, lang, params) -> null,
+                key -> Optional.empty(), f.whatsapp::sendingNumber, (tenantCode, n, to, name, lang, params) -> null,
                 true, Clock.systemUTC());
         AsyncJobSpec spec = SendJobs.whatsapp(message(), new ContextMessage(ContextKind.SYMPTOM_CASE, "-7", DRIVER,
                 null, null, null, message().templateName(), "es", Map.of(), null, message().body(),
@@ -121,6 +121,33 @@ class RuleSendJobsTest {
         // Within 24 hours a second request to the same driver is refused.
         assertEquals(CallPermissionPolicy.Refusal.DAILY_LIMIT,
                 permissions.admit(TENANT, DRIVER).refusal());
+    }
+
+    @Test
+    void aSentRequestRecoversAccountingAfterTheFirstRecordFailed() {
+        var store = new InMemoryCallPermissions() {
+            boolean fail = true;
+            @Override public void recordRequest(String tenant, String number, String contact, String origin,
+                    String wamid, String actor, java.time.Instant at) {
+                if (fail) { fail = false; throw new IllegalStateException("Synthetic accounting outage"); }
+                super.recordRequest(tenant, number, contact, origin, wamid, actor, at);
+            }
+        };
+        var permissions = new CallPermissionService(store, key -> Optional.empty(), f.whatsapp::sendingNumber,
+                (tenant, n, to, name, lang, params) -> null, true, Clock.systemUTC());
+        var spec = SendJobs.whatsapp(message(), new ContextMessage(ContextKind.SYMPTOM_CASE, "-7", DRIVER,
+                null, null, null, message().templateName(), "es", Map.of(), null, message().body(), run().id(), 0), true);
+        var job = new WhatsAppSendJob(f.whatsapp, f.store.runStore, permissions);
+        assertThrows(IllegalStateException.class, () -> job.handle(TENANT, spec.payload()));
+        var sentAt = message().sentAt().toInstant();
+        Run original = run();
+        f.store.runs.put(original.id(), original.advanced(Run.Status.CANCELLED, original.step(), null, null, java.time.Instant.now()));
+        job.handle(TENANT, spec.payload());
+        job.handle(TENANT, spec.payload());
+        assertEquals(1, f.whatsappSent.size());
+        assertEquals(1, store.requests.size());
+        assertEquals(sentAt, store.requests.get(0).sentAt());
+        assertEquals(message().metadata().get("phoneNumberId"), store.requests.get(0).number());
     }
 
     @Test

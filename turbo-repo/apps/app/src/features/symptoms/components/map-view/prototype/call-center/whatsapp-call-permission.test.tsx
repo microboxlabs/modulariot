@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -72,6 +78,31 @@ describe("WhatsApp call permission on the dialing step", () => {
       "noopener,noreferrer"
     );
     open.mockRestore();
+  });
+
+  it("refreshes a mounted pending permission after the contact grants it", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+    });
+    try {
+      request.mockResolvedValue(
+        view({ state: "PENDING", canRequest: false, refusal: "DAILY_LIMIT" })
+      );
+      renderStep();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(screen.getByText("WhatsApp: permiso pendiente")).toBeTruthy();
+      request.mockResolvedValue(
+        view({ state: "CAN_CALL", permission: "PERMANENT", canRequest: false })
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      expect(screen.getByText("WhatsApp: puede llamar")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows when the contact can be called", async () => {

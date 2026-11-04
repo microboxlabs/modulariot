@@ -1,17 +1,18 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { HiPencil, HiTrash } from "react-icons/hi";
+import { HiPencil, HiPlus, HiTrash } from "react-icons/hi";
 import SortableRows from "@/features/common/components/sortable-rows";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { ChannelGlyph } from "@/features/conversations/channel-icon";
 import ContactsAudience from "@/features/conversations/contacts-audience";
 import { TRIP_FIELDS, whoOf } from "../control-tower/step-who";
 import { moveRow } from "./condition-form";
 import type { Step } from "./maintainer-api";
 import ScriptModal from "./script-modal";
-import { FIELD, FIELD_ERROR, FieldError } from "./ui/response-block";
-import Select from "./ui/select";
+import { PillNumber, PillSelect } from "./ui/pill";
+import { FIELD_ERROR, FieldError } from "./ui/response-block";
 
 /** How the operator reaches the person in a step. */
 export const STEP_CHANNELS = [
@@ -109,36 +110,28 @@ function StepItem({
     <div className="flex min-w-0 flex-col gap-1.5 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300">
       <div className="flex flex-wrap items-center gap-2">
         {handle}
-        <Select
-          aria-label={tr("stepChannel", d)}
-          className={FIELD}
+        {/* The same pills as a communication rule's step. */}
+        <PillSelect
+          ariaLabel={tr("stepChannel", d)}
+          icon={<ChannelGlyph channel={step.channel ?? "call"} />}
           disabled={readOnly}
           value={step.channel ?? "call"}
-          onChange={(e) => onSet({ channel: e.target.value })}
-        >
-          {STEP_CHANNELS.map((c) => (
-            <option key={c.key} value={c.key}>
-              {trDynamic(c.label, d)}
-            </option>
-          ))}
-        </Select>
-        <span>{last ? tr("stepWithin", d) : tr("stepIfNot", d)}</span>
-        <input
-          type="number"
-          min={1}
-          aria-label={tr("stepBudget", d)}
-          className={`${FIELD} w-16 ${errorClass(errors?.minutes)}`}
-          disabled={readOnly}
-          value={step.budgetMinutes ?? ""}
-          onChange={(e) =>
-            onSet({
-              budgetMinutes: e.target.value ? Number(e.target.value) : null,
-            })
-          }
+          onChange={(channel) => onSet({ channel })}
+          options={STEP_CHANNELS.map((c) => ({
+            value: c.key,
+            label: trDynamic(c.label, d),
+          }))}
         />
-        <span>
-          {last ? "min" : tr("stepThen", d, { n: String(index + 2) })}
-        </span>
+        <span>{last ? tr("stepWithin", d) : tr("stepIfNot", d)}</span>
+        <PillNumber
+          ariaLabel={tr("stepBudget", d)}
+          className={errorClass(errors?.minutes)}
+          disabled={readOnly}
+          value={step.budgetMinutes}
+          unit="min"
+          onChange={(budgetMinutes) => onSet({ budgetMinutes })}
+        />
+        {!last && <span>{tr("stepThen", d)}</span>}
         {!readOnly && (
           <button
             type="button"
@@ -303,7 +296,7 @@ export default function LevelSteps({
       {!readOnly && (
         <button
           type="button"
-          className="self-start text-xs text-blue-600 hover:underline dark:text-blue-400"
+          className="flex items-center gap-1 self-start text-sm text-blue-600 hover:underline dark:text-blue-400"
           onClick={() =>
             onChange([
               ...steps,
@@ -317,7 +310,8 @@ export default function LevelSteps({
             ])
           }
         >
-          {tr("addStepLink", d)}
+          <HiPlus className="h-4 w-4" />
+          {tr("addStep", d)}
         </button>
       )}
       {editing !== null && editingStep && (

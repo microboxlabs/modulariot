@@ -13,14 +13,13 @@ import LevelSteps, {
 } from "./level-steps";
 import type { Finding, LevelResponse } from "./maintainer-api";
 import { findingProblem, findingText, Problems } from "./rule-problems";
+import { PillNumber, PillSelect } from "./ui/pill";
 import {
-  FIELD,
   FIELD_ERROR,
   FieldError,
   FieldRow,
   ResponseBlock,
 } from "./ui/response-block";
-import Select from "./ui/select";
 
 /** What the operator must record to close a case, as stored in the spec. */
 const EVIDENCE = [
@@ -130,20 +129,14 @@ function OperatorBlock({
         <>
           <div className="flex flex-col gap-1">
             <FieldRow label={tr("attendWithin", d)}>
-              <input
-                type="number"
-                min={1}
-                aria-label={tr("attendWithin", d)}
-                className={`${FIELD} w-16 ${slaError ? FIELD_ERROR : ""}`}
+              <PillNumber
+                ariaLabel={tr("attendWithin", d)}
+                className={slaError ? FIELD_ERROR : ""}
                 disabled={readOnly}
-                value={response.slaMinutes ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    slaMinutes: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
+                value={response.slaMinutes}
+                unit="min"
+                onChange={(slaMinutes) => onChange({ slaMinutes })}
               />
-              <span>min</span>
             </FieldRow>
             {slaError && (
               <div className="sm:pl-[10.75rem]">
@@ -211,24 +204,20 @@ function CloseBlock({
     >
       {response.operator && (
         <FieldRow label={tr("closeRequires", d)}>
-          <Select
-            aria-label={tr("closeRequires", d)}
-            className={FIELD}
-            wrapperClassName="min-w-48"
+          <PillSelect
+            ariaLabel={tr("closeRequires", d)}
             disabled={readOnly}
             value={value}
-            onChange={(e) =>
-              onChange({ evidence: e.target.value ? [e.target.value] : [] })
-            }
-          >
-            <option value="">{tr("evidenceNothing", d)}</option>
-            {!known && <option value={value}>{value}</option>}
-            {EVIDENCE.map((e) => (
-              <option key={e.value} value={e.value}>
-                {trDynamic(e.label, d)}
-              </option>
-            ))}
-          </Select>
+            onChange={(next) => onChange({ evidence: next ? [next] : [] })}
+            options={[
+              { value: "", label: tr("evidenceNothing", d) },
+              ...(known ? [] : [{ value, label: value }]),
+              ...EVIDENCE.map((e) => ({
+                value: e.value,
+                label: trDynamic(e.label, d),
+              })),
+            ]}
+          />
         </FieldRow>
       )}
       {rules && <LifecycleRuleRows rules={rules} readOnly={readOnly} d={d} />}

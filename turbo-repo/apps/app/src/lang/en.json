@@ -4399,8 +4399,9 @@
         "newRuleForLevelName": "{symptom} · {level}",
         "channelPreferred": "Preferred",
         "telephonyTitle": "Telephony for \"Call\"",
+        "telephonySavesImmediately": "Changes save immediately, independently of the team settings.",
         "telephonyAuto": "Automatic: Telnyx when connected, else Teams Phone",
-        "telephonyActive": "Calls use",
+        "telephonyActive": "Selected connection",
         "telephonyNone": "the phone's dialer (no telephony connection)",
         "telephonyNotReady": "{name} did not pass its test; it is not used until it does.",
         "telephonyConnections": "Set up in Connections",
@@ -5519,8 +5520,8 @@
         "platformBody": "The provider every organization uses. Choose the Platform's Mapbox or Google Maps credential and our cost per call."
       },
       "telephony": {
-        "telnyxHelp": "\"Call\" places calls from the browser through Telnyx. The API key goes in a Telnyx credential.",
-        "teamsHelp": "\"Call\" opens the call in Teams. The credential is a Microsoft Entra app with the CallRecords.Read.All permission, to read the duration and the result.",
+        "telnyxHelp": "Configure the Telnyx SIP connection and caller number. Store its API key in a Telnyx credential.",
+        "teamsHelp": "Configure Teams Phone with a Microsoft Entra app credential. CallRecords.Read.All permits reading call duration and results.",
         "baseUrlHelp": "Fixed: the credential is only sent to this API.",
         "sipConnectionId": "Credential connection ID (SIP)",
         "sipConnectionIdHelp": "In Telnyx: Voice › SIP Trunking › the connection of type Credentials.",

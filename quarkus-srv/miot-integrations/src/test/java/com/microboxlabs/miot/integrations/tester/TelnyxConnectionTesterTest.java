@@ -93,6 +93,16 @@ class TelnyxConnectionTesterTest {
         assertTrue(response.message().contains("connection reset"));
     }
 
+    @Test
+    void aMalformedBearerKeyFailsWithoutExposingTheSecretOrSendingARequest() {
+        String key = "KEY_sensitive\ninvalid";
+        ConnectionTestResponse response = tester.test(connection(API, METADATA), credential(key), null);
+        assertFalse(response.success());
+        assertEquals("The API key is not a valid HTTP bearer token", response.message());
+        assertFalse(response.message().contains("KEY_sensitive"));
+        assertTrue(http.seen().isEmpty());
+    }
+
     private static IntegrationConnection connection(URI baseUrl, Map<String, Object> metadata) {
         return new IntegrationConnection("conn-1", "tenant", "Telnyx", ProviderType.TELNYX, baseUrl, "cred-1",
                 ConnectionStatus.DRAFT, null, null, metadata);

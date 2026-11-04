@@ -57,10 +57,12 @@ public class TelephonyChoiceService {
 
     public TelephonySetup save(String tenantCode, String actor, TelephonyRequest req) {
         TelephonyProvider provider = parse(req == null ? null : req.provider());
+        List<TelephonyLine> lines = telephony.lines(tenantCode);
+        TelephonySetup saved = new TelephonySetup(provider, pick(provider, lines).orElse(null), lines);
         store.saveTelephonyProvider(tenantCode, provider == null ? null : provider.name(), actor);
         audit.log(tenantCode, actor, "settings.telephony_saved", "settings", tenantCode, null,
                 Map.of("provider", provider == null ? "AUTO" : provider.name()));
-        return get(tenantCode);
+        return saved;
     }
 
     static Optional<TelephonyLine> pick(TelephonyProvider preferred, List<TelephonyLine> lines) {

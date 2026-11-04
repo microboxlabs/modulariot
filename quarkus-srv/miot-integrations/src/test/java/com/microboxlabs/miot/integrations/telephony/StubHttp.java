@@ -1,6 +1,11 @@
 package com.microboxlabs.miot.integrations.telephony;
 
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
@@ -70,7 +75,8 @@ public final class StubHttp implements TelephonyHttp {
         if (request.bodyPublisher().isEmpty()) {
             return null;
         }
-        StringBuilder out = new StringBuilder();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        CompletableFuture<String> completed = new CompletableFuture<>();
         request.bodyPublisher().get().subscribe(new Flow.Subscriber<>() {
             @Override
             public void onSubscribe(Flow.Subscription s) {
@@ -79,20 +85,29 @@ public final class StubHttp implements TelephonyHttp {
 
             @Override
             public void onNext(ByteBuffer item) {
-                out.append(StandardCharsets.UTF_8.decode(item));
+                byte[] bytes = new byte[item.remaining()];
+                item.get(bytes);
+                out.writeBytes(bytes);
             }
 
             @Override
             public void onError(Throwable throwable) {
-                throw new IllegalStateException("Could not read the stub request body", throwable);
+                completed.completeExceptionally(throwable);
             }
 
             @Override
             public void onComplete() {
-                // onNext already collected the complete string body; there are no resources to release.
+                completed.complete(out.toString(StandardCharsets.UTF_8));
             }
         });
-        return out.toString();
+        try {
+            return completed.get(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while reading the stub request body", e);
+        } catch (ExecutionException | TimeoutException e) {
+            throw new IllegalStateException("Could not read the stub request body", e);
+        }
     }
 
     private record Response(HttpRequest request, int statusCode, String body) implements HttpResponse<String> {

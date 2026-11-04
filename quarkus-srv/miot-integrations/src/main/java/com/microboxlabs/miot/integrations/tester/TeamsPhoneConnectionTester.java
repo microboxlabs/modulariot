@@ -3,6 +3,9 @@ package com.microboxlabs.miot.integrations.tester;
 import com.microboxlabs.miot.integrations.auth.AuthResolutionException;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthContext;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthRegistry;
+import com.microboxlabs.miot.integrations.domain.AuthType;
+import com.microboxlabs.miot.integrations.auth.oauth.OAuth2CredentialConfigs;
+import com.microboxlabs.miot.integrations.net.OutboundUrlGuard;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
@@ -23,6 +26,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Optional;
+import java.net.URI;
+import java.util.function.Consumer;
 
 /**
  * Checks a TEAMS_PHONE connection: Entra issues an app token for the credential, and Graph
@@ -34,13 +39,20 @@ public class TeamsPhoneConnectionTester implements ConnectionTester {
     private final GraphClient graph;
     private final CredentialAuthRegistry auth;
     private final IntegrationSecretCipher secretCipher;
+    private final Consumer<URI> tokenUrlGuard;
 
     @Inject
     public TeamsPhoneConnectionTester(GraphClient graph, CredentialAuthRegistry auth,
             IntegrationSecretCipher secretCipher) {
+        this(graph, auth, secretCipher, url -> OutboundUrlGuard.requirePublicHttpUrl(url, "tokenUrl"));
+    }
+
+    TeamsPhoneConnectionTester(GraphClient graph, CredentialAuthRegistry auth,
+            IntegrationSecretCipher secretCipher, Consumer<URI> tokenUrlGuard) {
         this.graph = graph;
         this.auth = auth;
         this.secretCipher = secretCipher;
+        this.tokenUrlGuard = tokenUrlGuard;
     }
 
     @Override
@@ -67,6 +79,11 @@ public class TeamsPhoneConnectionTester implements ConnectionTester {
         if (problem.isPresent()) {
             return fail(now, problem.get());
         }
+        try {
+            tokenUrlGuard.accept(OAuth2CredentialConfigs.tokenUrl(credential.credentialType(), credential.publicConfig()));
+        } catch (IllegalArgumentException e) {
+            return fail(now, e.getMessage());
+        }
         Map<String, Object> secret;
         try {
             secret = secretCipher.decrypt(credential.encryptedSecretJson());
@@ -75,7 +92,7 @@ public class TeamsPhoneConnectionTester implements ConnectionTester {
         }
         Map<String, String> headers;
         try {
-            headers = TeamsAppToken.headers(auth, new CredentialAuthContext(credential.authType(),
+            headers = TeamsAppToken.headers(auth, new CredentialAuthContext(AuthType.OAUTH2_CLIENT_CREDENTIALS,
                     credential.credentialType(), credential.publicConfig(), secret));
         } catch (AuthResolutionException | IllegalArgumentException e) {
             return fail(now, "Microsoft Entra did not issue a token: " + e.getMessage());

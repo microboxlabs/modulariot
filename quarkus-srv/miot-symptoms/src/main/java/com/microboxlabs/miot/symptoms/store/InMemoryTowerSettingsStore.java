@@ -29,6 +29,11 @@ public class InMemoryTowerSettingsStore implements TowerSettingsStore {
 
     @Override
     public void saveTelephonyProvider(String tenantCode, String provider, String updatedBy) {
+        rows.compute(tenantCode, (key, old) -> {
+            TowerSettings before = old == null ? TowerSettings.defaults(tenantCode) : old;
+            return new TowerSettings(tenantCode, before.operators(), before.shiftHours(), before.capacityPerShift(),
+                    updatedBy, java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC));
+        });
         if (provider == null) {
             telephony.remove(tenantCode);
         } else {

@@ -61,6 +61,10 @@ function sampleLabel(s: ScriptSample, lang: string): string {
 }
 
 type PreviewMode = "operator" | "voice";
+interface KeyedReply {
+  key: string;
+  reply: StepReply;
+}
 
 function Filled({
   text,
@@ -107,19 +111,23 @@ function Filled({
  */
 function ScriptPreview({
   step,
+  replies,
   ctx,
   hasSample,
   resultLabel,
   d,
 }: Readonly<{
   step: Step;
+  replies: readonly KeyedReply[];
   ctx: ScriptContext | undefined;
   hasSample: boolean;
   resultLabel: (value: string) => string;
   d: I18nRecord;
 }>) {
   const [mode, setMode] = useState<PreviewMode>("operator");
-  const replies = (step.replies ?? []).filter((r) => r.says.trim() || r.result);
+  const visibleReplies = replies.filter(
+    ({ reply }) => reply.says.trim() || reply.result
+  );
   const tab = (m: PreviewMode) =>
     `rounded px-2 py-0.5 text-xs ${mode === m ? "bg-white font-medium text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white" : "text-gray-600 dark:text-gray-300"}`;
   return (
@@ -169,10 +177,10 @@ function ScriptPreview({
               <Filled text={step.goal} ctx={ctx} hasSample={hasSample} d={d} />
             </p>
           )}
-          {replies.length > 0 && (
+          {visibleReplies.length > 0 && (
             <ul className="flex flex-col gap-1 text-xs">
-              {replies.map((r, i) => (
-                <li key={`reply-${i}`} className="flex gap-1">
+              {visibleReplies.map(({ key, reply: r }) => (
+                <li key={key} className="flex gap-1">
                   <span className="text-gray-500">→</span>
                   <span>
                     {tr("scriptReplyLine", d, {
@@ -213,10 +221,10 @@ function ScriptPreview({
             {tr("scriptVoiceResults", d)}
           </dt>
           <dd className="text-xs">
-            {replies.length === 0
+            {visibleReplies.length === 0
               ? tr("scriptNoReplies", d)
-              : replies.map((r, i) => (
-                  <div key={`voice-${i}`}>
+              : visibleReplies.map(({ key, reply: r }) => (
+                  <div key={key}>
                     <b>{resultLabel(r.result)}</b>:{" "}
                     {fillScriptText(r.says, ctx)}
                   </div>
@@ -366,7 +374,19 @@ export default function ScriptPanel({
   };
 
   const replies = step.replies ?? [];
-  const setReplies = (next: StepReply[]) => onChange({ replies: next });
+  const [replyIds, setReplyIds] = useState<string[]>(() =>
+    replies.map(() => crypto.randomUUID())
+  );
+  let keys = replyIds;
+  if (keys.length !== replies.length) {
+    keys = replies.map((_, i) => replyIds[i] ?? crypto.randomUUID());
+    setReplyIds(keys);
+  }
+  const rows = replies.map((reply, i) => ({ key: keys[i]!, reply }));
+  const setReplies = (next: KeyedReply[]) => {
+    setReplyIds(next.map((row) => row.key));
+    onChange({ replies: next.map((row) => row.reply) });
+  };
 
   return (
     <SettingsDrawerShell
@@ -451,18 +471,22 @@ export default function ScriptPanel({
                     {tr("scriptNoReplies", d)}
                   </p>
                 )}
-                {replies.map((r, i) => (
+                {rows.map(({ key, reply }) => (
                   <ReplyRow
-                    key={`reply-${i}`}
-                    reply={r}
+                    key={key}
+                    reply={reply}
                     results={results}
                     readOnly={readOnly}
                     d={d}
                     onChange={(next) =>
-                      setReplies(replies.map((x, j) => (j === i ? next : x)))
+                      setReplies(
+                        rows.map((row) =>
+                          row.key === key ? { key, reply: next } : row
+                        )
+                      )
                     }
                     onRemove={() =>
-                      setReplies(replies.filter((_, j) => j !== i))
+                      setReplies(rows.filter((row) => row.key !== key))
                     }
                   />
                 ))}
@@ -471,7 +495,13 @@ export default function ScriptPanel({
                     type="button"
                     className="flex items-center gap-1 self-start text-sm text-blue-600 hover:underline dark:text-blue-400"
                     onClick={() =>
-                      setReplies([...replies, { result: "", says: "" }])
+                      setReplies([
+                        ...rows,
+                        {
+                          key: crypto.randomUUID(),
+                          reply: { result: "", says: "" },
+                        },
+                      ])
                     }
                   >
                     <HiPlus className="h-4 w-4" />
@@ -483,6 +513,7 @@ export default function ScriptPanel({
             <div className="flex min-w-0 flex-col gap-4">
               <ScriptPreview
                 step={step}
+                replies={rows}
                 ctx={ctx}
                 hasSample={ctx !== undefined}
                 resultLabel={resultLabel}

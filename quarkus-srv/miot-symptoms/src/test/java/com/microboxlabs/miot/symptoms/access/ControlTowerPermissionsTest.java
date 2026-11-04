@@ -81,6 +81,7 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerSettingsResource.save", SETTINGS),
             Map.entry("OrgControlTowerTelephonyResource.get", VIEW),
             Map.entry("OrgControlTowerTelephonyResource.save", SETTINGS),
+            Map.entry("OrgControlTowerTelephonyResource.webRtcToken", TREAT),
             Map.entry("OrgControlTowerTreatmentsResource.listForSymptom", VIEW),
             Map.entry("OrgControlTowerTreatmentsResource.get", VIEW),
             Map.entry("OrgControlTowerTreatmentsResource.open", TREAT),

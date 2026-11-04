@@ -6,11 +6,14 @@
  * llamar" (see `contact-row.tsx`), then the message. There's no separate
  * "pick a method, then press start" — each method (phone / WhatsApp / Meet /
  * Teams) is its own call button, and all four are just channels for the same
- * live-call flow (none of them are real integrations here — WhatsApp
- * included, it's not a message-send step). Pressing one starts the call
- * directly; once live, the whole row is replaced by a single red "Marcar
- * como realizada" button with a small "✕" (Cancelar llamada) growing in
- * beside it.
+ * live-call flow (WhatsApp included, it's not a message-send step).
+ * Pressing one starts the call directly; once live, the whole row is
+ * replaced by a single red "Marcar como realizada" button with a small "✕"
+ * (Cancelar llamada) growing in beside it.
+ *
+ * With a Telnyx line, "phone" dials from the browser (`telnyx-call.ts`): the
+ * red button hangs up, and the call's end fills the duration, whether it was
+ * answered, and the provider's call id. Without one, it opens `tel:`.
  */
 
 import WhatsAppCallPermission from "./whatsapp-call-permission";
@@ -30,8 +33,18 @@ import {
 } from "./call-method";
 import type { TowerContactChannels } from "@/features/symptoms/control-tower/control-tower-api";
 import { phoneForMethod, type CallStats } from "./call-targets";
-import { channelLink } from "./channel-link";
+import { channelLink, phoneDigits } from "./channel-link";
 import ContactRow from "./contact-row";
+import {
+  startTelnyxCall,
+  type CallPhase,
+  type LiveCall,
+  type TelephonyCallResult,
+} from "./telnyx-call";
+import {
+  fetchWebRtcToken,
+  type TelephonyLine,
+} from "@/features/symptoms/control-tower/telephony-api";
 
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
@@ -54,9 +67,14 @@ export default function CallDialingStep({
   contactId,
   reason,
   goal,
+  line = null,
+  telephonyPending = false,
+  telephonyFailed = false,
   onCancel,
   onConfirm,
   onStartedChange,
+  dial = startTelnyxCall,
+  token = fetchWebRtcToken,
 }: Readonly<{
   dict: I18nRecord;
   /** The contact's call counts from the book; absent for the driver or a new number. */
@@ -75,11 +93,23 @@ export default function CallDialingStep({
   reason: string;
   /** The step's goal, filled with the case: what the call must obtain. */
   goal?: string;
+  /** The organization's telephony line; a Telnyx line places "phone" calls from the browser. */
+  line?: TelephonyLine | null;
+  telephonyPending?: boolean;
+  telephonyFailed?: boolean;
   onCancel: (elapsedSeconds: number) => void;
-  onConfirm: (elapsedSeconds: number, method: CallMethod) => void;
+  /** `result` is set when the provider placed the call and reported how it ended. */
+  onConfirm: (
+    elapsedSeconds: number,
+    method: CallMethod,
+    result?: TelephonyCallResult
+  ) => void;
   /** Fires the moment a method button is pressed (call goes live) — lets the
    *  panel header lock the back button and swap its title. */
   onStartedChange?: (started: boolean) => void;
+  /** Test seams: place the call and get the login. */
+  dial?: typeof startTelnyxCall;
+  token?: typeof fetchWebRtcToken;
 }>) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
   const { lang } = useParams<{ lang: string }>();
@@ -90,6 +120,19 @@ export default function CallDialingStep({
   const [showTimer, setShowTimer] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(0);
+  // A browser call through Telnyx: its phase, when it was answered, and the
+  // handle to hang it up. Null for a call timed by hand.
+  const [phase, setPhase] = useState<CallPhase | null>(null);
+  const [answeredAt, setAnsweredAt] = useState<number | null>(null);
+  const [dialError, setDialError] = useState<string | null>(null);
+  const [browserAttempt, setBrowserAttempt] = useState(false);
+  const [dialReady, setDialReady] = useState(false);
+  const liveRef = useRef<LiveCall | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const cancelledRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const onConfirmRef = useRef(onConfirm);
+  onConfirmRef.current = onConfirm;
 
   useEffect(() => {
     if (!started) return;
@@ -99,6 +142,74 @@ export default function CallDialingStep({
     }, 250);
     return () => clearInterval(id);
   }, [started]);
+
+  // Leaving the step ends a call still on the line.
+  useEffect(() => {
+    cancelledRef.current = false;
+    return () => {
+      cancelledRef.current = true;
+      abortRef.current?.abort();
+      liveRef.current?.hangup();
+    };
+  }, []);
+
+  const destination = phoneDigits(channels?.phone ?? contactPhone);
+  const viaTelnyx = (id: CallMethod) =>
+    id === "phone" && line?.provider === "TELNYX" && destination !== null;
+
+  async function placeTelnyxCall() {
+    cancelledRef.current = false;
+    abortRef.current = new AbortController();
+    setDialError(null);
+    setAnsweredAt(null);
+    setBrowserAttempt(true);
+    setDialReady(false);
+    setPhase("connecting");
+    try {
+      const login = await token();
+      if (cancelledRef.current) return;
+      liveRef.current = await dial({
+        token: login.token,
+        callerNumber: login.callerNumber,
+        destination: `+${destination}`,
+        remoteElement: audioRef.current,
+        signal: abortRef.current.signal,
+        onPhase: (next, at) => {
+          setPhase(next);
+          setAnsweredAt(at);
+        },
+        onEnd: (result) => {
+          liveRef.current = null;
+          if (!cancelledRef.current) {
+            if (!result.callId) {
+              setPhase(null);
+              setDialError(t("call_telnyx_failed"));
+              setStarted(false);
+              onStartedChange?.(false);
+              return;
+            }
+            onConfirmRef.current(result.durationSeconds, "phone", result);
+          }
+        },
+      });
+      setDialReady(true);
+      if (cancelledRef.current) liveRef.current?.hangup();
+    } catch (cause) {
+      if (cancelledRef.current) return;
+      setPhase(null);
+      setDialError(cause instanceof Error ? cause.message : String(cause));
+      setStarted(false);
+      onStartedChange?.(false);
+    }
+  }
+
+  // A Telnyx call counts from the answer; a call timed by hand from the press.
+  let shownSeconds = elapsed;
+  if (phase !== null)
+    shownSeconds =
+      answeredAt === null
+        ? 0
+        : Math.max(0, Math.floor((Date.now() - answeredAt) / 1000));
 
   // Both the cancel button and the timer mount at scale-0/opacity-0 first,
   // then flip a frame later so the transition actually plays instead of
@@ -118,6 +229,8 @@ export default function CallDialingStep({
 
   return (
     <BentoGrid>
+      {/* The callee's voice in a browser call. */}
+      <audio ref={audioRef} autoPlay className="hidden" />
       {/* Top quarter: the same static contact row as "a quién llamar",
           instead of a bespoke header — same card, just not clickable. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-100 dark:border-transparent dark:bg-gray-800/40">
@@ -126,7 +239,7 @@ export default function CallDialingStep({
             personName={contactName}
             roleLabel={contactRole}
             phone={phoneForMethod(
-              { phone: contactPhone ?? "", channels: channels },
+              { phone: contactPhone ?? "", channels },
               method
             )}
             stats={stats}
@@ -156,8 +269,13 @@ export default function CallDialingStep({
                   showTimer ? "scale-100 opacity-100" : "scale-75 opacity-0"
                 }`}
               >
-                {formatDuration(elapsed)}
+                {formatDuration(shownSeconds)}
               </p>
+              {phase !== null && phase !== "active" && (
+                <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+                  {t(`call_phase_${phase}`)}
+                </p>
+              )}
             </div>
           </div>
 
@@ -184,6 +302,25 @@ export default function CallDialingStep({
             )}
           </div>
         </div>
+
+        {dialError && (
+          <p
+            role="alert"
+            className="mx-4 mb-2 shrink-0 text-sm text-red-600 dark:text-red-400"
+          >
+            {t("call_telnyx_failed")}: {dialError}
+          </p>
+        )}
+        {(telephonyPending || telephonyFailed) && (
+          <p
+            role={telephonyFailed ? "alert" : "status"}
+            className="mx-4 mb-2 text-sm text-gray-500"
+          >
+            {telephonyFailed
+              ? t("call_telephony_load_failed")
+              : t("call_telephony_loading")}
+          </p>
+        )}
 
         {/* Inside the card, pinned to its bottom (last item in the column)
             instead of a separate actions row below the card. Before the call
@@ -214,9 +351,23 @@ export default function CallDialingStep({
                 <button
                   key={id}
                   type="button"
+                  disabled={
+                    id === "phone" && (telephonyPending || telephonyFailed)
+                  }
                   onClick={() => {
+                    if (viaTelnyx(id)) {
+                      setMethod(id);
+                      setStarted(true);
+                      onStartedChange?.(true);
+                      void placeTelnyxCall();
+                      return;
+                    }
                     // Opens the channel's app (dialer, WhatsApp chat with the
                     // script typed); the call is timed here either way.
+                    setBrowserAttempt(false);
+                    setPhase(null);
+                    setAnsweredAt(null);
+                    setDialError(null);
                     const link = channelLink(
                       id,
                       channels?.[id] ?? contactPhone,
@@ -242,7 +393,12 @@ export default function CallDialingStep({
             <>
               <button
                 type="button"
-                onClick={() => onConfirm(elapsed, method)}
+                onClick={() => {
+                  // Hanging up a browser call reports its end through onEnd.
+                  if (liveRef.current) liveRef.current.hangup();
+                  else if (!browserAttempt) onConfirm(elapsed, method);
+                }}
+                disabled={browserAttempt && !dialReady}
                 title={t("call_modal_confirm")}
                 aria-label={t("call_modal_confirm")}
                 className="flex h-14 w-14 items-center justify-center rounded-full bg-red-500 text-white shadow-sm transition-colors hover:bg-red-600"
@@ -251,7 +407,12 @@ export default function CallDialingStep({
               </button>
               <button
                 type="button"
-                onClick={() => onCancel(elapsed)}
+                onClick={() => {
+                  cancelledRef.current = true;
+                  abortRef.current?.abort();
+                  liveRef.current?.hangup();
+                  onCancel(elapsed);
+                }}
                 title={t("call_modal_cancel")}
                 aria-label={t("call_modal_cancel")}
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-700 shadow-sm transition-all duration-300 dark:bg-gray-700 dark:text-gray-200 ${

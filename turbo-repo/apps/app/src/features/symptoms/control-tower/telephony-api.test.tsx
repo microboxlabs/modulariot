@@ -2,7 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { saveTelephony, useTelephony } from "./telephony-api";
+import { fetchWebRtcToken, saveTelephony, useTelephony } from "./telephony-api";
 import { parseTelephonySetup } from "./telephony-api.types";
 
 const { request, mutate } = vi.hoisted(() => ({
@@ -76,5 +76,40 @@ describe("telephony configuration API boundary", () => {
       revalidate: false,
     });
     expect(() => parseTelephonySetup(null)).toThrow();
+  });
+  it("validates the operator token before giving it to the calling SDK", async () => {
+    const response = {
+      token: "synthetic-token",
+      callerNumber: "+12025550101",
+      expiresAt: "2026-11-05T10:00:00Z",
+    };
+    request.mockResolvedValue(response);
+    await expect(fetchWebRtcToken()).resolves.toEqual(response);
+    expect(request).toHaveBeenCalledWith("/tower/telephony/webrtc-token", {
+      method: "POST",
+    });
+  });
+
+  it.each([
+    null,
+    {},
+    {
+      token: "",
+      callerNumber: "+12025550101",
+      expiresAt: "2026-11-05T10:00:00Z",
+    },
+    {
+      token: "synthetic-token",
+      callerNumber: "not-a-number",
+      expiresAt: "2026-11-05T10:00:00Z",
+    },
+    {
+      token: "synthetic-token",
+      callerNumber: "+12025550101",
+      expiresAt: "invalid-date",
+    },
+  ])("rejects a malformed operator token response: %s", async (payload) => {
+    request.mockResolvedValue(payload);
+    await expect(fetchWebRtcToken()).rejects.toThrow();
   });
 });

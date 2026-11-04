@@ -4,7 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
+import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
+import com.microboxlabs.miot.core.telephony.WebRtcToken;
+import java.time.Instant;
 import com.microboxlabs.miot.core.telephony.TelephonyProvider;
 import com.microboxlabs.miot.symptoms.service.TelephonyChoiceService.TelephonyRequest;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
@@ -21,8 +25,31 @@ class TelephonyChoiceServiceTest {
             true);
 
     private final List<TelephonyLine> lines = new ArrayList<>();
+    private final List<String> issued = new ArrayList<>();
+    private final Telephony telephony = new Telephony() {
+        @Override
+        public List<TelephonyLine> lines(String tenantCode) {
+            return List.copyOf(lines);
+        }
+
+        @Override
+        public WebRtcToken webRtcToken(String tenantCode, String connectionId, String operator) {
+            issued.add(connectionId + " " + operator);
+            return new WebRtcToken("jwt", "+56900000000", Instant.EPOCH);
+        }
+    };
     private final TelephonyChoiceService service = new TelephonyChoiceService(new InMemoryTowerSettingsStore(),
-            tenant -> List.copyOf(lines), new AuditService(new InMemoryAuditStore()));
+            telephony, new AuditService(new InMemoryAuditStore()));
+
+    @Test
+    void aTokenIsIssuedOnTheTelnyxLineOnly() {
+        lines.addAll(List.of(TELNYX, TEAMS));
+        assertEquals("jwt", service.webRtcToken("acme", "ana@example.com").token());
+        assertEquals(List.of("t1 ana@example.com"), issued);
+
+        service.save("acme", "owner@example.com", new TelephonyRequest("TEAMS_PHONE"));
+        assertThrows(TelephonyUnavailableException.class, () -> service.webRtcToken("acme", "ana@example.com"));
+    }
 
     @Test
     void telnyxIsTheDefaultWhenBothAreConnected() {

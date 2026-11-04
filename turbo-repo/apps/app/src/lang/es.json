@@ -5405,6 +5405,7 @@
           "credential": "Credencial",
           "noCredential": "Sin credencial",
           "noCredentials": "No hay credenciales. Créalas en Ajustes › Credenciales.",
+          "testSavedConfigHint": "La prueba usa la conexión guardada. Guarda los cambios antes de probarlos.",
           "secretNotice": "Los secretos viven en la credencial, no aquí: esta conexión solo la referencia.",
           "postgrestHelp": "Después de guardar, pruébala y usa Funciones para elegir qué funciones pueden usar los dashboards.",
           "postgrestBaseUrlHelp": "La URL raíz de PostgREST, la que devuelve su descripción OpenAPI."
@@ -7632,7 +7633,15 @@
       "anyRole": "Cualquier rol",
       "tripCarrier": "transportista del viaje"
     },
-    "call_center_new_save_error": "No se pudo guardar el contacto en la libreta. La llamada sigue solo con este número."
+    "call_center_new_save_error": "No se pudo guardar el contacto en la libreta. La llamada sigue solo con este número.",
+    "call_phase_connecting": "Conectando…",
+    "call_phase_ringing": "Sonando…",
+    "call_phase_ended": "Llamada terminada",
+    "call_telnyx_failed": "No se pudo llamar desde el navegador",
+    "call_telephony_loading": "Cargando la configuración de telefonía…",
+    "call_telephony_load_failed": "No se pudo cargar la telefonía. Vuelve a abrir la llamada para reintentar.",
+    "call_telephony_answered": "contestada (registrado por la telefonía)",
+    "call_telephony_unanswered": "no contestada (registrado por la telefonía)"
   },
   "geographic_view": {
     "arrival_delay": "Retraso de llegada",

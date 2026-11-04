@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.telephony;
 
+import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
 import com.microboxlabs.miot.core.telephony.TelephonyProvider;
@@ -11,6 +12,7 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepos
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -22,17 +24,25 @@ public class IntegrationsTelephony implements Telephony {
 
     private final BiFunction<String, ProviderType, IntegrationConnection> connections;
     private final TelnyxWebRtcTokens telnyx;
+    private final TeamsCallRecords teams;
 
     @Inject
-    public IntegrationsTelephony(IntegrationConnectionRepository repository, TelnyxWebRtcTokens telnyx) {
-        this(repository::findActiveByProvider, telnyx);
+    public IntegrationsTelephony(IntegrationConnectionRepository repository, TelnyxWebRtcTokens telnyx,
+            TeamsCallRecords teams) {
+        this(repository::findActiveByProvider, telnyx, teams);
     }
 
     /** {@code connections}: the tenant's connection of a provider, or null. */
     public IntegrationsTelephony(BiFunction<String, ProviderType, IntegrationConnection> connections,
-            TelnyxWebRtcTokens telnyx) {
+            TelnyxWebRtcTokens telnyx, TeamsCallRecords teams) {
         this.connections = connections;
         this.telnyx = telnyx;
+        this.teams = teams;
+    }
+
+    @Override
+    public List<PstnCall> pstnCalls(String tenantCode, String connectionId, Instant from, Instant to) {
+        return teams.pstnCalls(tenantCode, connectionId, from, to);
     }
 
     @Override

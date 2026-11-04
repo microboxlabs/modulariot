@@ -154,4 +154,40 @@ public class InMemoryTreatmentStore implements TreatmentStore {
                 .filter(a -> a.kind() == ActionKind.CALL && a.contactId() != null)
                 .toList();
     }
+
+    @Override
+    public synchronized List<TreatmentAction> pendingTelephonyCalls(String tenantCode, String performedBy,
+            OffsetDateTime since) {
+        return actions.values().stream().flatMap(List::stream)
+                .filter(a -> a.tenantCode().equals(tenantCode) && a.kind() == ActionKind.CALL
+                        && performedBy.equals(a.performedBy()) && !a.performedAt().isBefore(since)
+                        && "PENDING".equals(telephonyStatus(a)))
+                .sorted(java.util.Comparator.comparing(TreatmentAction::performedAt)).limit(50).toList();
+    }
+
+    @Override
+    public synchronized Optional<TreatmentAction> updateCallResult(String tenantCode, String actionId,
+            Boolean answered, Integer durationSeconds, Map<String, Object> details) {
+        for (List<TreatmentAction> list : actions.values()) {
+            for (int i = 0; i < list.size(); i++) {
+                TreatmentAction a = list.get(i);
+                if (a.id().equals(actionId) && a.tenantCode().equals(tenantCode) && a.kind() == ActionKind.CALL) {
+                    TreatmentAction updated = new TreatmentAction(a.id(), a.treatmentId(), a.tenantCode(), a.seq(),
+                            a.kind(), a.contactId(), a.contactName(), a.contactRole(), a.contactPhone(), a.method(),
+                            a.outcomeKey(), a.outcomeLabel(), answered == null ? a.answered() : answered,
+                            durationSeconds == null ? a.durationSeconds() : durationSeconds, a.message(), a.note(),
+                            a.tags(), details == null ? Map.of() : Map.copyOf(details), a.performedBy(),
+                            a.performedAt());
+                    list.set(i, updated);
+                    return Optional.of(updated);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Object telephonyStatus(TreatmentAction a) {
+        Object telephony = a.details() == null ? null : a.details().get("telephony");
+        return telephony instanceof Map<?, ?> m ? m.get("status") : null;
+    }
 }

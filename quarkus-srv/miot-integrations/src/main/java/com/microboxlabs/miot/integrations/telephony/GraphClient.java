@@ -66,6 +66,24 @@ public class GraphClient {
         return http.send(request.build());
     }
 
+    /**
+     * Follows an {@code @odata.nextLink}. Only links on this client's Graph are followed, so the token
+     * never goes elsewhere.
+     *
+     * @throws IllegalArgumentException for a link on another host
+     */
+    public HttpResponse<String> next(Map<String, String> auth, String nextLink)
+            throws IOException, InterruptedException {
+        URI uri = URI.create(nextLink);
+        if (!trim(baseUrl.toString()).equals(uri.getScheme() + "://" + uri.getRawAuthority())) {
+            throw new IllegalArgumentException("Graph returned a next link on another host");
+        }
+        HttpRequest.Builder request = HttpRequest.newBuilder(uri).timeout(TelephonyHttp.TIMEOUT)
+                .header("Accept", "application/json").GET();
+        auth.forEach(request::header);
+        return http.send(request.build());
+    }
+
     private static String trim(String value) {
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }

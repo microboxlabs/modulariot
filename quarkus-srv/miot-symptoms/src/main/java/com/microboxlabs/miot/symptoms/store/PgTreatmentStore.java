@@ -92,6 +92,19 @@ public class PgTreatmentStore implements TreatmentStore {
             WHERE tenant_code = $1 AND treatment_id = ANY($2)
             ORDER BY array_position($2, treatment_id), seq""";
 
+    private static final String PENDING_CALLS = "SELECT " + ACTION_COLUMNS + """
+             FROM miot_symptoms.treatment_action
+            WHERE tenant_code = $1 AND kind = 'CALL' AND performed_by = $2 AND performed_at >= $3
+              AND details -> 'telephony' ->> 'status' = 'PENDING'
+            ORDER BY performed_at LIMIT 50""";
+
+    private static final String UPDATE_CALL = """
+            UPDATE miot_symptoms.treatment_action
+            SET answered = COALESCE($3, answered), duration_seconds = COALESCE($4, duration_seconds),
+                details = $5::jsonb
+            WHERE tenant_code = $1 AND id = $2 AND kind = 'CALL'
+            RETURNING\s""" + ACTION_COLUMNS;
+
     private static final String CONTACT_STATS = """
             SELECT contact_id,
                    MAX(performed_at) AS last_called_at,
@@ -288,5 +301,23 @@ public class PgTreatmentStore implements TreatmentStore {
                 r.getString("message"), r.getString("note"), PgJson.read(r, "tags", TAGS),
                 PgJson.read(r, "details", DETAILS), r.getString("performed_by"),
                 PgJson.time(r, "performed_at"));
+    }
+
+    @Override
+    public List<TreatmentAction> pendingTelephonyCalls(String tenantCode, String performedBy,
+            OffsetDateTime since) {
+        return actions(query(pool.get(), PENDING_CALLS, Tuple.of(tenantCode, performedBy, since)));
+    }
+
+    @Override
+    public Optional<TreatmentAction> updateCallResult(String tenantCode, String actionId, Boolean answered,
+            Integer durationSeconds, Map<String, Object> details) {
+        UUID id = parse(actionId);
+        if (id == null) {
+            return Optional.empty();
+        }
+        Tuple params = Tuple.tuple().addString(tenantCode).addUUID(id).addBoolean(answered)
+                .addInteger(durationSeconds).addString(PgJson.write(details == null ? Map.of() : details));
+        return actions(query(pool.get(), UPDATE_CALL, params)).stream().findFirst();
     }
 }

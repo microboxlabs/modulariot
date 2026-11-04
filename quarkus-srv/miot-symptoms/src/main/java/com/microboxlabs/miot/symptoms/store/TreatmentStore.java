@@ -66,4 +66,23 @@ public interface TreatmentStore {
 
     /** When an operator first took each of these cases; cases nobody took are left out. */
     Map<Long, OffsetDateTime> firstOpenedAt(String tenantCode, Collection<Long> symptomIds);
+
+    /**
+     * The operator's CALL actions since {@code since} whose telephony record is still pending
+     * ({@code details.telephony.status = PENDING}), oldest first, at most 50.
+     */
+    default List<TreatmentAction> pendingTelephonyCalls(String tenantCode, String performedBy,
+            OffsetDateTime since) {
+        throw new UnsupportedOperationException("pendingTelephonyCalls");
+    }
+
+    /**
+     * Fills a CALL action with what the telephony provider recorded. A null {@code answered} or
+     * {@code durationSeconds} keeps the stored value; {@code details} replaces the stored details.
+     * Works on a closed treatment too: the record arrives after the call.
+     */
+    default Optional<TreatmentAction> updateCallResult(String tenantCode, String actionId, Boolean answered,
+            Integer durationSeconds, Map<String, Object> details) {
+        throw new UnsupportedOperationException("updateCallResult");
+    }
 }

@@ -63,6 +63,7 @@ public class EngineCaseService {
     private static final String TO = "p_end_date_historic";
     private static final String DRIVER = "p_driver_id";
     private static final String CARRIER = "p_carrier_id";
+    private static final String CARRIER_TAX_ID = "carrier_tax_id";
     private static final String ORIGIN = "p_origin";
     private static final String DESTINATION = "p_destination";
     /**
@@ -468,7 +469,7 @@ public class EngineCaseService {
             return TripPeople.NONE;
         }
         return TripPeople.of(t.getString("driver_id"), t.getString("second_driver_id"),
-                t.getString("carrier_tax_id"));
+                t.getString(CARRIER_TAX_ID));
     }
 
     /** The most recent cases {@link #scriptSamples} offers. */
@@ -635,7 +636,7 @@ public class EngineCaseService {
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
             trip.put("carrier", t.getString("carrier_name"));
-            trip.put("carrier_tax_id", t.getString("carrier_tax_id"));
+            trip.put(CARRIER_TAX_ID, t.getString(CARRIER_TAX_ID));
             trip.put("driver_rut", t.getString("driver_id"));
             trip.put("second_driver_rut", t.getString("second_driver_id"));
             trip.put("origin", t.getString("origin_geofence_label"));

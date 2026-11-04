@@ -491,7 +491,7 @@ public class EngineCaseService {
         if (symptomName == null || symptomName.isBlank()) {
             throw new IllegalArgumentException("symptom is required");
         }
-        EngineCaseStore.CaseFilter filter = filter(Map.of(NAME, symptomName));
+        EngineCaseStore.CaseFilter filter = filter(Map.of(NAME, symptomName, TO, clock.instant().toString()));
         List<EngineCase> found = new ArrayList<>(store.list(tenantCode, filter));
         found.sort(java.util.Comparator
                 .comparing((EngineCase c) -> level != null && c.level() == level ? 0 : 1)
@@ -503,7 +503,7 @@ public class EngineCaseService {
             sample.put("asset_id", c.assetId());
             sample.put(ICU_CODE, c.level());
             sample.put("opened_at", c.openedAt().toString());
-            sample.set("context", context(tenantCode, c));
+            sample.set("context", context(tenantCode, find(tenantCode, c.symptomId())));
         });
         return out;
     }
@@ -566,9 +566,10 @@ public class EngineCaseService {
             entries.add(entry("NOTED", n.recordedAt()).put("eventType", n.eventType())
                     .put("description", n.description()));
         }
-        if (c.ignored() != null) {
-            EngineCase.Ignored h = c.ignored();
-            ObjectNode held = entry("HELD", h.since()).put("by", h.by()).put("untilTripEnd", h.untilTripEnd());
+        Instant until = c.closedAt() != null ? c.closedAt() : clock.instant();
+        for (EngineCase.Ignored h : store.holds(tenantCode, c, until)) {
+            Instant starts = h.since().isBefore(c.openedAt()) ? c.openedAt() : h.since();
+            ObjectNode held = entry("HELD", starts).put("by", h.by()).put("untilTripEnd", h.untilTripEnd());
             held.put("until", h.until() == null ? null : h.until().toString());
             entries.add(held);
         }
@@ -586,7 +587,7 @@ public class EngineCaseService {
         }
         ArrayNode out = JSON.arrayNode();
         entries.stream()
-                .sorted(java.util.Comparator.comparing((ObjectNode e) -> e.path("at").asText()))
+                .sorted(java.util.Comparator.comparing((ObjectNode e) -> Instant.parse(e.path("at").asText())))
                 .forEach(out::add);
         return out;
     }

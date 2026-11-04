@@ -146,8 +146,11 @@ public class TreatmentService {
 
     /** A call to a saved contact goes through a channel the contact has. Ad hoc contacts are not checked. */
     private static void requireChannel(Contact c, CallMethod method) {
+        if (method == null) {
+            throw new IllegalArgumentException("a CALL to a saved contact needs a method");
+        }
         List<CallMethod> methods = c.methods() == null ? List.of() : c.methods();
-        if (method != null && !methods.contains(method)) {
+        if (!methods.contains(method)) {
             String has = methods.isEmpty() ? "none" : String.join(", ", methods.stream().map(Enum::name).toList());
             throw new IllegalArgumentException("contact " + c.id() + " has no " + method + " channel; its channels: "
                     + has);

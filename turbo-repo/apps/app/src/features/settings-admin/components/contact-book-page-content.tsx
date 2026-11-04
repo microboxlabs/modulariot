@@ -33,7 +33,7 @@ import {
   useContactBookPages,
   type BookContact,
 } from "../contact-book/store";
-import { useContactBadges } from "../contact-book/taxonomy-store";
+import { ensureBadge, useContactBadges } from "../contact-book/taxonomy-store";
 import { useLoadMore } from "../contact-book/use-load-more";
 
 type ContactFilters = Record<"kind" | "role" | "company" | "tag", string>;
@@ -155,21 +155,28 @@ export default function ContactBookPageContent({
 
   // `?edit=<contact id>` opens that contact, for links such as the call panel's "Sin canales registrados".
   const [editId] = useState(() =>
-    typeof window === "undefined"
+    globalThis.window === undefined
       ? null
       : new URLSearchParams(window.location.search).get("edit")
   );
+  const editLoadError = tr("editLoadError", d);
   useEffect(() => {
     if (!editId) return;
+    let cancelled = false;
     controlTowerRequest<TowerContact>(`/contacts/${encodeURIComponent(editId)}`)
       .then((c) => {
-        setEditing(toBookContact(c, badges));
+        if (cancelled) return;
+        setEditing(toBookContact(c, (c.tags ?? []).map(ensureBadge)));
         setModalOpen(true);
       })
-      .catch(() => undefined);
-    // Opens once; later badge changes do not reopen it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editId]);
+      .catch(() => {
+        if (!cancelled)
+          ShowNotification({ type: "error", message: editLoadError });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editId, editLoadError]);
 
   const saveContact = async (contact: BookContact) => {
     try {

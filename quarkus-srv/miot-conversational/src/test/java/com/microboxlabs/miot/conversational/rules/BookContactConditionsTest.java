@@ -11,20 +11,20 @@ import org.junit.jupiter.api.Test;
 /** Operator steps name their people with the same contact conditions as a book audience. */
 class BookContactConditionsTest {
 
-    private static final String SUR = "761112228";
+    private static final String SUR = "000000030";
 
     private static Entry person(String id, String role, String companyRut, String nationalId) {
         return new Entry(id, id, role, List.of(), companyRut == null ? null : "Transportes Sur", companyRut, null,
-                false, null, "+56900000101", nationalId);
+                false, null, "+12025550101", nationalId);
     }
 
     private final BookContactConditions conditions = new BookContactConditions(tenant -> List.of(
-            person("ana", "Conductor", SUR, "123456785"),
-            person("beto", "Conductor", "769999999", "98765432K"),
+            person("ana", "Conductor", SUR, "000000019"),
+            person("beto", "Conductor", "000000050", "00000002K"),
             person("gerente", "Gerente de Seguridad", SUR, null),
             person("torre", "Jefe de Torre de Control", null, null)));
 
-    private static final Map<String, Object> TRIP = Map.of("driverRut", "123456785", "carrierRut", SUR);
+    private static final Map<String, Object> TRIP = Map.of("driverRut", "000000019", "carrierRut", SUR);
 
     @Test
     void findsTheTripsDriverTheCarriersRoleAndTheOrganizationsOwnPeople() {
@@ -35,6 +35,21 @@ class BookContactConditionsTest {
                 "contact.role == 'Jefe de Torre de Control' && contact.companyRut == ''"), TRIP);
 
         assertEquals(List.of(List.of("ana"), List.of("gerente"), List.of("ana", "gerente"), List.of("torre")), found);
+    }
+
+    @Test
+    void legacyDriverConditionsKeepBothDriversAndHandleMissingTripFields() {
+        String who = "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && contact.nationalId == "
+                + "event.data.driverRut) || (has(event.data.secondDriverRut) && contact.nationalId == "
+                + "event.data.secondDriverRut))";
+        BookContactConditions legacy = new BookContactConditions(tenant -> List.of(
+                person("ana", " conductor ", SUR, "000000019"),
+                person("beto", "CONDUCTOR", null, "00000002K")));
+        assertEquals(List.of(List.of("ana", "beto")), legacy.match("t", List.of(who),
+                Map.of("driverRut", "000000019", "secondDriverRut", "00000002K")));
+        assertEquals(List.of(List.of("beto")), legacy.match("t", List.of(who),
+                Map.of("secondDriverRut", "00000002K")));
+        assertEquals(List.of(List.of()), conditions.match("t", List.of(who), Map.of()));
     }
 
     @Test

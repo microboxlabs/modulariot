@@ -55,10 +55,10 @@ class TripContactsTest {
     void theTripsRutsAreNormalizedIntoEventData() {
         Recording evaluator = new Recording();
         TripContactsView view = service.tripContacts(TENANT,
-                TripPeople.of("12.345.678-5", "98.765.432-k", "76.111.222-8"),
+                TripPeople.of("00.000.001-9", "00.000.002-k", "00.000.003-0"),
                 List.of("contact.role == 'Conductor'", "contact.companyRut == event.data.carrierRut"), evaluator);
 
-        assertEquals(Map.of("driverRut", "123456785", "secondDriverRut", "98765432K", "carrierRut", "761112228"),
+        assertEquals(Map.of("driverRut", "000000019", "secondDriverRut", "00000002K", "carrierRut", "000000030"),
                 view.data());
         assertEquals(view.data(), evaluator.data);
         assertEquals(List.of(List.of("id-27"), List.of("id-43")), view.matches());
@@ -84,7 +84,11 @@ class TripContactsTest {
 
     @Test
     void tripPeopleDropsBlankAndRepeatedRuts() {
-        assertEquals(new TripPeople(List.of("1-9"), null), TripPeople.of(" 1-9 ", "1-9", "  "));
+        assertEquals(List.of("1-9"), TripPeople.of(" 1-9 ", "1-9", "  ").driverRuts());
+        assertEquals(Map.of("secondDriverRut", "00000002K"),
+                ContactService.tripData(TripPeople.of(null, "00.000.002-k", null)));
+        assertEquals(Map.of("driverRut", "19", "secondDriverRut", "19"),
+                ContactService.tripData(TripPeople.of("1-9", "1-9", null)));
         assertEquals(new TripPeople(List.of(), "76"), TripPeople.of(null, "", "76"));
     }
 }

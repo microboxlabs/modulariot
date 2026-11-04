@@ -233,6 +233,13 @@ public class PgEngineCases implements EngineCaseStore {
              LIMIT $3
             """;
 
+    private static final String HOLD_HISTORY = """
+            SELECT history.* FROM miot_symptoms.signal_transitions o
+              JOIN LATERAL (%s) history ON true
+             WHERE o.tenant_code = $1 AND o.id = $2 AND o.kind = 'OPENED' AND o.state = 'ACTIVE'
+             ORDER BY history.hold_at, history.hold_id
+            """.formatted(HoldSql.history("o"));
+
     /** Locks the case's OPENED row, so overlapping closes of one case run one after the other. */
     private static final String LOCK = """
             SELECT id FROM miot_symptoms.signal_transitions
@@ -414,6 +421,14 @@ public class PgEngineCases implements EngineCaseStore {
         PgIds.query(pool.get(), NOTES, Tuple.of(tenantCode, caseId, MAX_NOTES)).forEach(r -> out.add(
                 note(r.getOffsetDateTime("at").toInstant(), json(r.getString("context")))));
         out.sort(Comparator.comparing(CaseNote::at));
+        return out;
+    }
+
+    @Override
+    public List<EngineCase.Ignored> holds(String tenantCode, EngineCase engineCase, Instant until) {
+        List<EngineCase.Ignored> out = new ArrayList<>();
+        PgIds.query(pool.get(), HOLD_HISTORY, Tuple.of(tenantCode, engineCase.id(), utc(until)))
+                .forEach(r -> out.add(hold(r)));
         return out;
     }
 

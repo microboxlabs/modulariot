@@ -79,6 +79,7 @@ const draft: CallFormDraft = {
 
 function renderCall(
   saved = false,
+  resultadoId = draft.resultadoId,
   callTelephony: TelephonyCallResult | null = null
 ) {
   const closeMenu = vi.fn();
@@ -94,9 +95,11 @@ function renderCall(
       initialCallTargetName="Test contact"
       initialCallTargetPhone="+12025550100"
       initialCallTargetRole="Dispatcher"
-      initialDraft={{ ...draft, saved }}
+      initialDraft={{ ...draft, saved, resultadoId }}
       callDurationSeconds={30}
       callTelephony={callTelephony}
+      onMakeAnotherCall={vi.fn()}
+      onSwitchTreatment={vi.fn()}
     />
   );
   return closeMenu;
@@ -127,6 +130,7 @@ describe("engine call treatment form", () => {
         contactRole: "Dispatcher",
         durationSeconds: 30,
         note: "Synthetic call note",
+        answered: true,
       })
     );
     expect(api.requestTreatment).not.toHaveBeenCalled();
@@ -134,7 +138,7 @@ describe("engine call treatment form", () => {
 
   it("a browser call records the provider's result", async () => {
     const user = userEvent.setup();
-    const closeMenu = renderCall(false, {
+    const closeMenu = renderCall(false, draft.resultadoId, {
       provider: "TELNYX",
       answered: true,
       durationSeconds: 30,
@@ -166,7 +170,7 @@ describe("engine call treatment form", () => {
 
   it("a Teams call is saved pending and asks for its record later", async () => {
     const user = userEvent.setup();
-    const closeMenu = renderCall(false, {
+    const closeMenu = renderCall(false, draft.resultadoId, {
       provider: "TEAMS_PHONE",
       status: "PENDING",
       answered: false,
@@ -184,12 +188,27 @@ describe("engine call treatment form", () => {
     );
     await waitFor(() => expect(closeMenu).toHaveBeenCalledWith(false));
     const body = api.addTreatmentAction.mock.calls[0][1];
-    expect(body).not.toHaveProperty("answered");
     expect(body.details.telephony).toMatchObject({
       provider: "TEAMS_PHONE",
       status: "PENDING",
     });
     expect(api.scheduleTeamsReconcile).toHaveBeenCalledTimes(1);
+  });
+
+  it("records a no-answer result as a missed call", async () => {
+    const user = userEvent.setup();
+    renderCall(false, "result_no_answer");
+    await user.click(
+      screen.getByRole("button", {
+        name: es.symptoms.save_and_call_again,
+      })
+    );
+    await waitFor(() =>
+      expect(api.addTreatmentAction).toHaveBeenCalledWith(
+        "t-1",
+        expect.objectContaining({ answered: false })
+      )
+    );
   });
 
   it("keeps the form open on close failure and retries without a duplicate call action", async () => {

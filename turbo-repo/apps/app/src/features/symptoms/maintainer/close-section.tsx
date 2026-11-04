@@ -504,7 +504,7 @@ function entryText(e: CaseTimelineEntry, d: I18nRecord): string {
 /** Which rule wrote an entry, when one did. */
 function ruleOf(e: CaseTimelineEntry, d: I18nRecord): string | null {
   if (e.kind === "NOTED") return tr("fromNoteRule", d);
-  if (e.kind === "CLOSED") return tr("fromCloseRule", d);
+  if (e.kind === "CLOSED" && e.context != null) return tr("fromCloseRule", d);
   return null;
 }
 

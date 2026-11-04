@@ -20,7 +20,7 @@
  * duration.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
 import {
   contactsKey,
@@ -56,6 +56,8 @@ export type CallCenterReportedStep = CallCenterFlowStep | "calling";
  *  its place entirely), so nothing captured here can live in this
  *  component's own state — it has to survive one level up. */
 export type CallSnapshot = {
+  script?: CallScript | null;
+  defaultMessage?: string;
   contact: CallTarget | null;
   personName: string;
   role: string;
@@ -82,7 +84,13 @@ export default function PrototypeCallCenterFlow({
   onRepeatCallChange,
   formDraft,
   onFormDraftChange,
+  startedAt,
+  skippedTo,
+  onSkip,
 }: Readonly<{
+  startedAt: number;
+  skippedTo: number | null;
+  onSkip: (step: number) => void;
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   messageToCommunicate: string;
@@ -137,9 +145,6 @@ export default function PrototypeCallCenterFlow({
   const [callTelephony, setCallTelephony] =
     useState<TelephonyCallResult | null>(resumeSnapshot?.telephony ?? null);
   const { data: telephony } = useTelephony();
-  // Kept here so the due step's timing and a skip survive a call.
-  const [startedAt] = useState(() => Date.now());
-  const [skippedTo, setSkippedTo] = useState<number | null>(null);
 
   useEffect(() => {
     const reported: CallCenterReportedStep =
@@ -148,13 +153,19 @@ export default function PrototypeCallCenterFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, dialingStarted]);
 
-  const [activeScript, setActiveScript] = useState<CallScript | null>(null);
+  const defaultMessage = useRef(
+    resumeSnapshot?.defaultMessage ?? messageToCommunicate
+  );
+  const [activeScript, setActiveScript] = useState<CallScript | null>(
+    resumeSnapshot?.script ?? null
+  );
 
   const handleCall = (target: CallTarget, script?: CallScript) => {
+    if (!activeScript) defaultMessage.current = messageToCommunicate;
     // The step's script replaces the treatment's default message, so the
     // dialing step and the results form show what this step says.
     setActiveScript(script ?? null);
-    if (script?.message) setMessageToCommunicate(script.message);
+    setMessageToCommunicate(script?.message || defaultMessage.current);
     setActiveContact(target);
     setActivePersonName(target.personName);
     setActiveRole(target.role);
@@ -174,15 +185,22 @@ export default function PrototypeCallCenterFlow({
     method: CallMethod,
     result: TelephonyCallResult | null = null
   ) => {
+    const calledPhone =
+      method === "phone" || method === "whatsapp"
+        ? (activeContact?.channels?.[method] ?? activePhone)
+        : activePhone;
+    setActivePhone(calledPhone);
     setCallDurationSeconds(elapsedSeconds);
     setCallMethodUsed(method);
     setCallTelephony(result);
     onFormDraftChange?.(null);
     onCallConfirmed?.({
+      script: activeScript,
+      defaultMessage: defaultMessage.current,
       contact: activeContact,
       personName: activePersonName,
       role: activeRole,
-      phone: activePhone,
+      phone: calledPhone,
       allowedMethods: activeAllowedMethods,
       durationSeconds: elapsedSeconds,
       methodUsed: method,
@@ -215,7 +233,7 @@ export default function PrototypeCallCenterFlow({
             treatmentData={treatmentData}
             startedAt={startedAt}
             skippedTo={skippedTo}
-            onSkip={setSkippedTo}
+            onSkip={onSkip}
             onCall={handleCall}
           />
         </div>
@@ -228,6 +246,7 @@ export default function PrototypeCallCenterFlow({
           contactName={activePersonName}
           contactRole={activeRole}
           contactPhone={activePhone}
+          channels={activeContact?.channels}
           allowedMethods={activeAllowedMethods ?? []}
           contactId={activeContact?.contactId}
           reason={messageToCommunicate}

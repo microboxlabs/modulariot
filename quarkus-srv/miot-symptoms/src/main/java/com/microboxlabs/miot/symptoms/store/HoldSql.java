@@ -49,6 +49,15 @@ final class HoldSql {
                 + " LIMIT 1";
     }
 
+    /** Holds covering the case during its lifetime; $3 is its close time, or now for an open case. */
+    static String history(String o) {
+        return "SELECT t.id::text AS hold_id, a.performed_at AS hold_at, CASE WHEN " + TRIP_END
+                + " THEN NULL ELSE " + UNTIL + " END AS hold_until, " + TRIP_END + " AS hold_trip_end, " + SCOPE
+                + " AS hold_scope, a.performed_by AS hold_by" + covering(o)
+                + " AND a.performed_at < $3 AND (t.closed_at IS NULL OR t.closed_at > " + o + ".at)"
+                + " ORDER BY a.performed_at, t.id";
+    }
+
     /** When the latest hold that covered the case row {@code o} ended after it opened, as returned_at. */
     static String returned(String o) {
         return "SELECT max(t.closed_at) AS returned_at" + covering(o) + " AND t.status = 'CLOSED' AND t.closed_at > "

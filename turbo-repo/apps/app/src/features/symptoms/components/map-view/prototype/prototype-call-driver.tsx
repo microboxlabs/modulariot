@@ -353,6 +353,7 @@ export default function PrototypeCallDriver({
           contactRole: initialCallTargetRole || undefined,
           method: callMethodUsed ? toApiMethod(callMethodUsed) : undefined,
           outcomeLabel: resultadoLabel || undefined,
+          answered: resultadoId ? !sinRespuesta : undefined,
           durationSeconds: callDurationSeconds ?? undefined,
           ...(callTelephony
             ? {

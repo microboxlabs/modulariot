@@ -79,6 +79,29 @@ describe("close rows", () => {
     ).toBe("case.age_h >= 2 && case.level <= 2");
   });
 
+  it("writes no close rows as valid false CEL and reads them back", () => {
+    expect(compileCloseRows([])).toBe("false");
+    expect(parseCloseRows(compileCloseRows([]), FIELDS)).toEqual([]);
+    expect(parseCloseRows("(false)", FIELDS)).toEqual([]);
+  });
+
+  it("keeps thresholds that the form would round in CEL mode", () => {
+    expect(parseCloseRows("case.normal_s >= 0.0000001", FIELDS)).toBeNull();
+    expect(parseCloseRows("case.age_h >= 1.1234567", FIELDS)).toBeNull();
+    expect(parseCloseRows("case.normal_s >= 0.123456", FIELDS)).not.toBeNull();
+  });
+
+  it("keeps unknown conjuncts in CEL instead of dropping them", () => {
+    for (const rule of [
+      "signal.custom && case.closed_by_operator",
+      "signal.custom && case.normal_s >= 0",
+      "signal.custom && case.level <= 3",
+      "case.closed_by_operator && signal.custom",
+      "signal.custom && case.closed_by_operator || case.age_h >= 12",
+    ])
+      expect(parseCloseRows(rule, FIELDS)).toBeNull();
+  });
+
   it("is null for what the rows cannot say, and empty for no rule", () => {
     expect(
       parseCloseRows("case.normal_s >= 0 && case.age_h >= 1", FIELDS)

@@ -113,8 +113,12 @@ function unwrap(text: string): string {
   return t;
 }
 
-const toNumber = (s: string | undefined) =>
-  s === undefined ? null : Number(s);
+const decimal = (n: number) => String(Number(n.toFixed(6)));
+
+// A row edit recompiles every threshold. Keep values that would be rounded in CEL mode.
+function roundTrips(value: number, compiled: number): boolean {
+  return Number.isFinite(value) && Number(decimal(compiled)) === value;
+}
 
 function parseEventString(quoted: string): string | null {
   try {
@@ -127,9 +131,18 @@ function parseEventString(quoted: string): string | null {
 function parseWhen(term: string, fields: CloseFields): CloseWhen | null {
   if (OPERATOR.test(term)) return { kind: "operator" };
   const normal = NORMAL.exec(term);
-  if (normal) return { kind: "normal", minutes: toNumber(normal[1])! / 60 };
+  if (normal) {
+    const seconds = Number(normal[1]);
+    const minutes = seconds / 60;
+    return roundTrips(seconds, minutes * 60)
+      ? { kind: "normal", minutes }
+      : null;
+  }
   const age = AGE.exec(term);
-  if (age) return { kind: "age", hours: toNumber(age[1])! };
+  if (age) {
+    const hours = Number(age[1]);
+    return roundTrips(hours, hours) ? { kind: "age", hours } : null;
+  }
   const ended = TRIP_ENDED_NOT.exec(term) ?? TRIP_ENDED_EQ.exec(term);
   if (ended && ended[1] === fields.tripActive)
     return { kind: "tripEnded", path: ended[1] };
@@ -150,8 +163,10 @@ function parseCloseRow(part: string, fields: CloseFields): CloseRow | null {
   for (const term of terms.map(unwrap)) {
     const level = LEVEL.exec(term);
     if (level && maxLevel === null) maxLevel = Number(level[1]);
-    else if (when === null) when = parseWhen(term, fields);
-    else return null;
+    else if (when === null) {
+      when = parseWhen(term, fields);
+      if (when === null) return null;
+    } else return null;
   }
   return when ? { when, maxLevel } : null;
 }
@@ -162,7 +177,7 @@ export function parseCloseRows(
   fields: CloseFields
 ): CloseRow[] | null {
   const text = (rule ?? "").trim();
-  if (!text) return [];
+  if (!text || unwrap(text) === "false") return [];
   const parts = splitTop(text, "||");
   if (!parts) return null;
   const rows: CloseRow[] = [];
@@ -173,8 +188,6 @@ export function parseCloseRows(
   }
   return rows;
 }
-
-const decimal = (n: number) => String(Number(n.toFixed(6)));
 
 function compileWhen(when: CloseWhen): string {
   switch (when.kind) {
@@ -192,6 +205,7 @@ function compileWhen(when: CloseWhen): string {
 }
 
 export function compileCloseRows(rows: readonly CloseRow[]): string {
+  if (rows.length === 0) return "false";
   const parts = rows.map((r) => {
     const when = compileWhen(r.when);
     if (r.maxLevel === null) return when;

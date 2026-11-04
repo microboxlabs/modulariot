@@ -106,8 +106,8 @@ function targetText(
 
 /** What an empty step says. */
 function notInBookText(summary: WhoSummary | null, d: I18nRecord) {
-  if (summary?.driver && trip?.data.driverRut) return tr("driverNotInBook", d);
-  if (summary?.carrier && trip?.data.carrierRut)
+  if (summary?.driver) return tr("driverNotInBook", d);
+  if (summary?.carrier)
     return summary.role
       ? tr("carrierRoleNotInBook", d, { role: summary.role })
       : tr("carrierNotInBook", d);
@@ -120,8 +120,13 @@ function presetFor(
   trip: TowerTripContacts | undefined,
   carrierName: string | undefined
 ): NewContactPreset | undefined {
-  if (summary?.driver && trip?.data.driverRut)
-    return { role: DRIVER_ROLE, nationalId: trip?.data.driverRut };
+  const driverRut =
+    trip?.data.driverRut ??
+    (summary?.driverField === "either"
+      ? trip?.data.secondDriverRut
+      : undefined);
+  if (summary?.driver && driverRut)
+    return { role: DRIVER_ROLE, nationalId: driverRut };
   if (summary?.carrier && trip?.data.carrierRut)
     return {
       role: summary.role ?? "",
@@ -486,7 +491,10 @@ export default function CallCenterMenu({
   const response = level?.level.response;
   const steps = response?.operator ? (response.steps ?? NO_STEPS) : NO_STEPS;
   const conditions = useMemo(() => stepConditions(steps), [steps]);
-  const { data: tripView, mutate: refreshTrip } = useTripContacts(symptom?.id, conditions);
+  const { data: tripView, mutate: refreshTrip } = useTripContacts(
+    symptom?.id,
+    conditions
+  );
   const matches = tripView?.matches;
   const called = useMemo(
     () => calledInCase(treatments, driverIds(steps, matches ?? [])),

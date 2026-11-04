@@ -38,6 +38,21 @@ class BookContactConditionsTest {
     }
 
     @Test
+    void legacyDriverConditionsKeepBothDriversAndHandleMissingTripFields() {
+        String who = "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && contact.nationalId == "
+                + "event.data.driverRut) || (has(event.data.secondDriverRut) && contact.nationalId == "
+                + "event.data.secondDriverRut))";
+        BookContactConditions legacy = new BookContactConditions(tenant -> List.of(
+                person("ana", " conductor ", SUR, "000000019"),
+                person("beto", "CONDUCTOR", null, "00000002K")));
+        assertEquals(List.of(List.of("ana", "beto")), legacy.match("t", List.of(who),
+                Map.of("driverRut", "000000019", "secondDriverRut", "00000002K")));
+        assertEquals(List.of(List.of("beto")), legacy.match("t", List.of(who),
+                Map.of("secondDriverRut", "00000002K")));
+        assertEquals(List.of(List.of()), conditions.match("t", List.of(who), Map.of()));
+    }
+
+    @Test
     void aTripWithoutTheFieldOrABlankOrBrokenConditionFindsNobody() {
         List<List<String>> found = conditions.match("t", List.of(
                 "contact.nationalId == event.data.secondDriverRut", "", "contact.role == ("), TRIP);

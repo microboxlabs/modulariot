@@ -66,8 +66,8 @@ describe("stepConditions", () => {
         step(null, null, "'vip' in contact.tags"),
       ])
     ).toEqual([
-      "contact.role == 'Conductor' && contact.nationalId == event.data.driverRut",
-      "contact.role == 'Gerente de Seguridad' && contact.companyRut == event.data.carrierRut",
+      "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && contact.nationalId == event.data.secondDriverRut))",
+      "contact.roleKey == 'gerente de seguridad' && contact.companyRut == event.data.carrierRut",
       "'vip' in contact.tags",
     ]);
   });
@@ -91,6 +91,7 @@ describe("callPlan", () => {
       role: "Conductor",
       driver: true,
       carrier: false,
+      driverField: "either",
     });
     expect(ids(plan.others)).toEqual(["oc", "gs-norte", "torre", "torre2"]);
   });

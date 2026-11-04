@@ -102,6 +102,9 @@ export function callPlan(
   const grouped = new Set<string>();
   const groups = steps.map((step, index) => {
     const who = whoOf(step);
+    const summary = who ? summarizeWho(who) : null;
+    if (summary?.role && !summary.driver && !step.who?.trim())
+      summary.role = step.role?.trim() || summary.role;
     const ids = new Set(matches[index] ?? []);
     const members = targets.filter((t) => ids.has(t.id));
     for (const t of members) grouped.add(t.id);
@@ -109,7 +112,7 @@ export function callPlan(
       index,
       step,
       who,
-      summary: who ? summarizeWho(who) : null,
+      summary,
       targets: calledLast(members, called),
     };
   });

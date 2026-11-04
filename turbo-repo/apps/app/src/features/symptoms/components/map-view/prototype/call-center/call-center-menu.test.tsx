@@ -129,8 +129,8 @@ beforeEach(() => {
   // Stands in for the server's CEL evaluation of each step's condition.
   data.match = (c) => {
     if (c.includes("nationalId")) return ["ana"];
-    if (c.includes("Gerente de Seguridad")) return ["gs"];
-    if (c.includes("Jefe de Torre")) return ["torre"];
+    if (c.toLowerCase().includes("gerente de seguridad")) return ["gs"];
+    if (c.toLowerCase().includes("jefe de torre")) return ["torre"];
     return [];
   };
   data.treatments = undefined;

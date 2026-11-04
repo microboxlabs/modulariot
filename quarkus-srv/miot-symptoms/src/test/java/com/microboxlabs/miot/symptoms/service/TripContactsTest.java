@@ -84,7 +84,11 @@ class TripContactsTest {
 
     @Test
     void tripPeopleDropsBlankAndRepeatedRuts() {
-        assertEquals(new TripPeople(List.of("1-9"), null), TripPeople.of(" 1-9 ", "1-9", "  "));
+        assertEquals(List.of("1-9"), TripPeople.of(" 1-9 ", "1-9", "  ").driverRuts());
+        assertEquals(Map.of("secondDriverRut", "00000002K"),
+                ContactService.tripData(TripPeople.of(null, "00.000.002-k", null)));
+        assertEquals(Map.of("driverRut", "19", "secondDriverRut", "19"),
+                ContactService.tripData(TripPeople.of("1-9", "1-9", null)));
         assertEquals(new TripPeople(List.of(), "76"), TripPeople.of(null, "", "76"));
     }
 }

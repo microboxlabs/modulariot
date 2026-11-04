@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.core.selectable.SourceUnavailableException;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.ws.rs.core.Response;
@@ -31,9 +32,13 @@ abstract class ControlTowerResourceSupport extends OrgResourceSupport {
 
     @Override
     protected Response unmapped(RuntimeException e) {
-        return e instanceof RuleDescriptionService.UnavailableException
-                ? error(Response.Status.SERVICE_UNAVAILABLE, e.getMessage())
-                : super.unmapped(e);
+        if (e instanceof RuleDescriptionService.UnavailableException) {
+            return error(Response.Status.SERVICE_UNAVAILABLE, e.getMessage());
+        }
+        if (e instanceof SourceUnavailableException) {
+            return error(Response.Status.BAD_GATEWAY, e.getMessage());
+        }
+        return super.unmapped(e);
     }
 
     protected static long parseSymptomId(String raw) {

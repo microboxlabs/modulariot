@@ -349,6 +349,8 @@ export default function ScriptPanel({
     mutate: refreshSamples,
   } = useScriptSamples(open ? symptomName : null, icu);
   const [picked, setPicked] = useState(0);
+  if (samples?.length && picked >= samples.length)
+    setPicked(samples.length - 1);
   const sample = samples?.[Math.min(picked, samples.length - 1)];
   const ctx = sample?.context;
   const fields = useMemo(() => scriptFields(ctx, d), [ctx, d]);

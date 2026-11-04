@@ -105,4 +105,19 @@ class PlatformTemplatesTest {
         assertEquals(RulesFixture.TENANT, check.usedBy().get(0).tenantCode());
         assertNull(f.templates.get(RulesFixture.TENANT, "panic-check").usedBy().get(0).tenantCode());
     }
+    @Test
+    void theCanonicalPermissionTemplateCannotLoseItsAdmissionMarker() {
+        RulesFixture f = new RulesFixture();
+        String key = com.microboxlabs.miot.conversational.calling.CallPermissionService.TEMPLATE_KEY;
+        var valid = new TemplateRequest("Permission", "Hola {{nombre}}",
+                new ConvTemplate.WhatsApp(key, "es", List.of("nombre"), true), null);
+        f.templates.save(key, valid, "operator");
+        var unmarked = new TemplateRequest("Permission", "Hola {{nombre}}",
+                new ConvTemplate.WhatsApp(key, "es", List.of("nombre")), null);
+        var absent = new TemplateRequest("Permission", "Hola {{nombre}}", null, null);
+        assertThrows(IllegalArgumentException.class, () -> f.templates.save(key, unmarked, "operator"));
+        assertThrows(IllegalArgumentException.class, () -> f.templates.save(key, absent, "operator"));
+        org.junit.jupiter.api.Assertions.assertTrue(f.templates.platformGet(key).whatsapp().callPermission());
+    }
+
 }

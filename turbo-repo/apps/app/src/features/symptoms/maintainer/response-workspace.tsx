@@ -3,10 +3,16 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { CelField } from "./cel-editor";
-import LevelResponseDetail, { type LifecycleRules } from "./level-response";
+import type { LifecycleRules } from "./close-section";
+import LevelResponseDetail from "./level-response";
 import type { AudienceDicts } from "./level-steps";
 import { EMPTY_RESPONSE, levelOf, withLevel } from "./level-row";
-import type { Finding, LevelResponse, SymptomSpec } from "./maintainer-api";
+import type {
+  Finding,
+  LevelResponse,
+  Preview,
+  SymptomSpec,
+} from "./maintainer-api";
 import { problemsFor } from "./rule-problems";
 import { caseFields } from "./symptom-rule-sections";
 import { ICU_LEVELS } from "./symptom-labels";
@@ -161,6 +167,7 @@ export default function ResponseWorkspace({
   readOnly,
   icu,
   sourceFields = [],
+  preview,
   audience,
   d,
   onIcu,
@@ -178,6 +185,8 @@ export default function ResponseWorkspace({
   icu: number;
   /** The source's fields, which the close and note rules read besides the case. */
   sourceFields?: CelField[];
+  /** The rule's preview; its case moments are the { } mode's samples for the close and note rules. */
+  preview?: Preview;
   d: I18nRecord;
   onIcu: (icu: number) => void;
   onChange: (spec: SymptomSpec) => void;
@@ -194,6 +203,10 @@ export default function ResponseWorkspace({
     fields: [...caseFields(d), ...sourceFields],
     closeProblems: problemsFor(findings, "lifecycle.close", d),
     noteProblems: problemsFor(findings, "lifecycle.note", d),
+    samples: (preview?.cases ?? []).map((c) => ({
+      sample: c.sample,
+      label: trDynamic(`caseScenario_${c.scenario}`, d),
+    })),
     onChange: ({ close, note }) =>
       onChange({ ...spec, lifecycle: { ...lifecycle, close, note } }),
   };

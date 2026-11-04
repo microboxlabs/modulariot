@@ -547,6 +547,57 @@ public class EngineCaseService {
         return out;
     }
 
+    /**
+     * A case's life as one ordered list, for the response editor's timeline preview: {@code OPENED},
+     * {@code LEVEL_CHANGED}, {@code NOTED} (the note rule's entries), {@code HELD} (an "Ignorar condición" hold),
+     * {@code ACTION} (each operator action) and {@code CLOSED} with what the rules read when it closed. Entries at
+     * the same time keep that order.
+     */
+    public JsonNode timeline(String tenantCode, long symptomId, List<TreatmentView> treatments) {
+        EngineCase c = find(tenantCode, symptomId);
+        List<ObjectNode> entries = new ArrayList<>();
+        List<EngineCase.LevelStep> steps = c.levels();
+        entries.add(entry("OPENED", c.openedAt()).put("level", steps.isEmpty() ? c.level() : steps.get(0).level()));
+        for (int i = 1; i < steps.size(); i++) {
+            entries.add(entry("LEVEL_CHANGED", steps.get(i).at()).put("level", steps.get(i).level())
+                    .put("previousLevel", steps.get(i - 1).level()));
+        }
+        for (EngineCaseStore.CaseNote n : store.notes(tenantCode, c.id())) {
+            entries.add(entry("NOTED", n.recordedAt()).put("eventType", n.eventType())
+                    .put("description", n.description()));
+        }
+        if (c.ignored() != null) {
+            EngineCase.Ignored h = c.ignored();
+            ObjectNode held = entry("HELD", h.since()).put("by", h.by()).put("untilTripEnd", h.untilTripEnd());
+            held.put("until", h.until() == null ? null : h.until().toString());
+            entries.add(held);
+        }
+        for (TreatmentView t : treatments == null ? List.<TreatmentView>of() : treatments) {
+            for (TreatmentAction a : t.actions()) {
+                entries.add(entry("ACTION", a.performedAt().toInstant()).put("action", a.kind().name())
+                        .put("by", a.performedBy()).put("contact", a.contactName())
+                        .put("outcome", a.outcomeLabel()));
+            }
+        }
+        if (c.closedAt() != null) {
+            ObjectNode closed = entry("CLOSED", c.closedAt());
+            closed.set("context", c.closingContext() == null ? JSON.nullNode() : c.closingContext().deepCopy());
+            entries.add(closed);
+        }
+        ArrayNode out = JSON.arrayNode();
+        entries.stream()
+                .sorted(java.util.Comparator.comparing((ObjectNode e) -> e.path("at").asText()))
+                .forEach(out::add);
+        return out;
+    }
+
+    private static ObjectNode entry(String kind, Instant at) {
+        ObjectNode e = JSON.objectNode();
+        e.put("kind", kind);
+        e.put("at", at.toString());
+        return e;
+    }
+
     /** The treatment page's header: the case, and its trip when it had one. */
     public JsonNode header(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);

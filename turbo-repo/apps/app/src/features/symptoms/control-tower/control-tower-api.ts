@@ -272,6 +272,34 @@ export function useScriptSamples(
   );
 }
 
+/** One moment of an engine case's life, as `GET /map/symptoms/{id}/timeline` lists it. */
+export interface CaseTimelineEntry {
+  kind: "OPENED" | "LEVEL_CHANGED" | "NOTED" | "HELD" | "ACTION" | "CLOSED";
+  at: string;
+  level?: number;
+  previousLevel?: number;
+  /** NOTED: the GPS event type and the note's text. */
+  eventType?: string;
+  description?: string | null;
+  /** ACTION: CALL, IGNORE, INVALIDATE or NOTE. */
+  action?: string;
+  by?: string | null;
+  contact?: string | null;
+  outcome?: string | null;
+  /** CLOSED: what the rules read when the case closed. */
+  context?: unknown;
+}
+
+/** An engine case's life in time order; none for other cases. */
+export function useCaseTimeline(symptomId: number | null | undefined) {
+  return useSWR<CaseTimelineEntry[]>(
+    symptomId != null && symptomId < 0
+      ? `${BASE}/map/symptoms/${symptomId}/timeline`
+      : null,
+    fetcher
+  );
+}
+
 /** The context a script reads for one engine case (negative id); none for other cases. */
 export function useCaseContext(symptomId: number | null | undefined) {
   return useSWR<ScriptContext>(

@@ -834,6 +834,22 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void theTimelineListsTheCasesLifeInTimeOrder() {
+        store.add(at(12, "KLHH49", OPENED, OPENED.plusSeconds(3600)));
+        store.notes.put(12L, List.of(new EngineCaseStore.CaseNote(OPENED.plusSeconds(600), "main_power_reconnect",
+                "Volvió la energía", OPENED.plusSeconds(590))));
+
+        JsonNode timeline = service.timeline(TENANT, -12, List.of());
+
+        List<String> kinds = new ArrayList<>();
+        timeline.forEach(e -> kinds.add(e.path("kind").asText()));
+        assertEquals(List.of("OPENED", "NOTED", "CLOSED"), kinds);
+        assertEquals(4, timeline.get(0).path("level").asInt());
+        assertEquals("main_power_reconnect", timeline.get(1).path("eventType").asText());
+        assertEquals(OPENED.plusSeconds(3600).toString(), timeline.get(2).path("at").asText());
+    }
+
+    @Test
     void scriptSamplesPutTheLevelsCasesFirstThenTheNewest() {
         store.add(at(1, "OLD", OPENED.minusSeconds(600), null));
         store.add(at(2, "NEW", OPENED, null));

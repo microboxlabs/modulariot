@@ -275,6 +275,23 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     }
 
     @GET
+    @Path("/symptoms/{symptomId}/timeline")
+    @Operation(operationId = "getMapSymptomTimeline", summary = "An engine case's life as one ordered list",
+            description = "OPENED, LEVEL_CHANGED, NOTED, HELD, ACTION and CLOSED entries with their time, for the "
+                    + "response editor's timeline preview. 404 for other cases and for cases not the organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> symptomTimeline(@PathParam("organizationId") String organizationId,
+            @PathParam("symptomId") String symptomId) {
+        String tenant = tenantCode(organizationId);
+        if (!engineCase(symptomId)) {
+            return notFound();
+        }
+        long id = Long.parseLong(symptomId.trim());
+        return answer(() -> blocking(() -> cases.timeline(tenant, id, caseTreatments.listForSymptom(tenant, id))));
+    }
+
+    @GET
     @Path("/script-samples")
     @Operation(operationId = "getScriptSamples", summary = "Recent cases of a symptom, to write a script with",
             description = "Up to 10 of the symptom's newest engine cases, those at level first, each with the "

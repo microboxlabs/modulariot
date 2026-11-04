@@ -10,6 +10,10 @@ import {
 describe("telephony connections", () => {
   it("accepts E.164 with separators and rejects the rest", () => {
     expect(e164("+56 9 0000 0000")).toBe("+56900000000");
+    expect(e164("+683 4001")).toBe("+6834001");
+    expect(e164("+683400")).toBeNull();
+    expect(e164("+123456789012345")).toBe("+123456789012345");
+    expect(e164("+1234567890123456")).toBeNull();
     expect(e164("(+56) 9-0000-0000")).toBe("+56900000000");
     expect(e164("56900000000")).toBeNull();
     expect(e164("+0123")).toBeNull();

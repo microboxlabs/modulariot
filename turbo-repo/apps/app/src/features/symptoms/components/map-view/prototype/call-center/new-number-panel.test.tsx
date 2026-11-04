@@ -39,14 +39,14 @@ describe("canSubmitNewNumber", () => {
       false
     );
     expect(
-      canSubmitNewNumber({ phone: "+56 9 1234 5678", name: "" }, "call")
+      canSubmitNewNumber({ phone: "+1 202 555 0101", name: "" }, "call")
     ).toBe(true);
     expect(
-      canSubmitNewNumber({ phone: "+56 9 1234 5678", name: "" }, "callAndSave")
+      canSubmitNewNumber({ phone: "+1 202 555 0101", name: "" }, "callAndSave")
     ).toBe(false);
     expect(
       canSubmitNewNumber(
-        { phone: "+56 9 1234 5678", name: "Ana" },
+        { phone: "+1 202 555 0101", name: "Ana" },
         "callAndSave"
       )
     ).toBe(true);
@@ -55,11 +55,11 @@ describe("canSubmitNewNumber", () => {
 
 describe("draftFromQuery", () => {
   it("puts a number in the phone field and anything else in the name", () => {
-    expect(draftFromQuery(" 9 1234 5678 ")).toEqual({
-      phone: "+56912345678",
+    expect(draftFromQuery(" +1 202 555 0101 ")).toEqual({
+      phone: "+12025550101",
       name: "",
     });
-    expect(draftFromQuery("+54 9 11 2345 6789").phone).toBe("+5491123456789");
+    expect(draftFromQuery("+1 202 555 0102").phone).toBe("+12025550102");
     expect(draftFromQuery("Pedro")).toEqual({ phone: "", name: "Pedro" });
   });
 });
@@ -114,14 +114,15 @@ describe("CallCenterMenu — new number", () => {
     const onCall = renderMenu();
     await openPanel(user);
     expect(screen.getByRole("button", { name: "Solo llamar" })).toBeDisabled();
-    await user.type(screen.getByLabelText(PHONE), "912345678");
+    await user.click(screen.getByLabelText(PHONE));
+    await user.paste("+12025550101");
     await user.type(screen.getByLabelText(NAME), "Pedro");
     await user.click(screen.getByRole("button", { name: "Solo llamar" }));
 
     expect(onCall).toHaveBeenCalledWith(
       expect.objectContaining({
         personName: "Pedro",
-        phone: "+56 9 1234 5678",
+        phone: "+12025550101",
         contactId: undefined,
         methods: ["phone", "whatsapp"],
       })
@@ -133,7 +134,8 @@ describe("CallCenterMenu — new number", () => {
     const user = userEvent.setup();
     const onCall = renderMenu();
     await openPanel(user);
-    await user.type(screen.getByLabelText(PHONE), "912345678");
+    await user.click(screen.getByLabelText(PHONE));
+    await user.paste("+12025550101");
     expect(
       screen.getByRole("button", { name: "Llamar y guardar en la libreta" })
     ).toBeDisabled();
@@ -144,9 +146,9 @@ describe("CallCenterMenu — new number", () => {
 
     expect(api.createContact).toHaveBeenCalledWith({
       name: "Ana Soto",
-      phone: "+56912345678",
+      phone: "+12025550101",
       methods: ["PHONE", "WHATSAPP"],
-      channels: { phone: "+56912345678", whatsapp: "+56912345678" },
+      channels: { phone: "+12025550101", whatsapp: "+12025550101" },
       provisional: true,
     });
     await waitFor(() =>
@@ -155,7 +157,7 @@ describe("CallCenterMenu — new number", () => {
           id: "api-contact-1",
           contactId: "api-contact-1",
           personName: "Ana Soto",
-          phone: "+56 9 1234 5678",
+          phone: "+12025550101",
           methods: ["phone", "whatsapp"],
         })
       )
@@ -168,7 +170,8 @@ describe("CallCenterMenu — new number", () => {
     const user = userEvent.setup();
     const onCall = renderMenu();
     await openPanel(user);
-    await user.type(screen.getByLabelText(PHONE), "900000001");
+    await user.click(screen.getByLabelText(PHONE));
+    await user.paste("+12025550103");
     await user.type(screen.getByLabelText(NAME), "Persona Nueva");
     await user.click(
       screen.getByRole("button", { name: "Llamar y guardar en la libreta" })
@@ -219,16 +222,16 @@ describe("CallCenterMenu — new number", () => {
     const onCall = renderMenu();
     await user.type(
       screen.getByPlaceholderText(/Buscar en la libreta/),
-      "912345678"
+      "+12025550101"
     );
     await user.click(
-      screen.getByRole("button", { name: "Agregar «912345678»" })
+      screen.getByRole("button", { name: "Agregar «+12025550101»" })
     );
     await user.click(screen.getByRole("button", { name: "Solo llamar" }));
     expect(onCall).toHaveBeenCalledWith(
       expect.objectContaining({
-        personName: "+56 9 1234 5678",
-        phone: "+56 9 1234 5678",
+        personName: "+12025550101",
+        phone: "+12025550101",
       })
     );
   });

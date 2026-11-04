@@ -8,6 +8,7 @@
 
 import { useCallback, useMemo } from "react";
 import { mutate } from "swr";
+import { isValidPhone } from "@/features/common/components/phone-input/phone-input";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import {
   contactsKey,
@@ -60,7 +61,7 @@ export function contactMethods(c: TowerContact): CallMethod[] {
 
 /** The driver is reached by phone and WhatsApp when the trip has a number. */
 export function driverMethods(phone: string | null | undefined): CallMethod[] {
-  return /\d/.test(phone ?? "") ? ["phone", "whatsapp"] : [];
+  return isValidPhone(phone ?? "") ? ["phone", "whatsapp"] : [];
 }
 
 /** The call channel a step asks for; null when the step's channel is not a call (email). */
@@ -101,7 +102,7 @@ export function useCallTargets(
         contactId: c.id,
         personName: c.name,
         role: c.role ?? "",
-        phone: c.phone ?? "",
+        phone: c.phone || c.channels?.phone || c.channels?.whatsapp || "",
         methods: contactMethods(c),
         stats: {
           lastCallAt: c.lastCalledAt ? new Date(c.lastCalledAt) : null,

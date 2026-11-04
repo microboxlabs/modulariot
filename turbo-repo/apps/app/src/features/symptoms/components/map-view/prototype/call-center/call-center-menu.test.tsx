@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
@@ -11,10 +11,11 @@ const data = vi.hoisted(() => ({
   treatments: undefined as unknown,
   level: undefined as unknown,
   treatmentsId: undefined as unknown,
+  createContact: vi.fn(),
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
-  createContact: vi.fn(),
+  createContact: data.createContact,
   contactsKey: "contacts",
   useContacts: () => ({ data: data.contacts, isLoading: false }),
   useSymptomTreatments: (id: unknown) => {
@@ -37,7 +38,7 @@ const contact = (id: string, name: string, role: string, active = true) => ({
   id,
   name,
   role,
-  phone: "+56911112222",
+  phone: "+12025550101",
   methods: ["PHONE"],
   active,
   lastCalledAt: null,
@@ -47,7 +48,7 @@ const contact = (id: string, name: string, role: string, active = true) => ({
 
 const treatment = {
   symptom_info: { id: -7, name: "Exceso de velocidad", icu_code: 3 },
-  trip_info: { driver: "Ana Pérez", driver_contact: "+56933334444" },
+  trip_info: { driver: "Ana Pérez", driver_contact: "+12025550102" },
 } as unknown as TreatmentsGeneralResponseItem;
 
 const levelWith = (steps: unknown[]) => ({
@@ -83,6 +84,32 @@ beforeEach(() => {
 });
 
 describe("CallCenterMenu", () => {
+  it("keeps a newer call selection when an earlier contact save finishes", async () => {
+    let finishSave = () => {};
+    data.createContact.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSave = () =>
+            resolve(contact("new-contact", "Saved contact", ""));
+        })
+    );
+    const user = userEvent.setup();
+    const onCall = renderMenu();
+    await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+    await user.click(screen.getByLabelText("Número de teléfono"));
+    await user.paste("+12025550103");
+    await user.type(screen.getByLabelText("Nombre"), "Saved contact");
+    await user.click(
+      screen.getByRole("button", { name: "Llamar y guardar en la libreta" })
+    );
+    await user.click(screen.getByRole("button", { name: /Luis Soto/ }));
+    await act(async () => finishSave());
+    expect(onCall).toHaveBeenCalledTimes(1);
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({ contactId: "c1" })
+    );
+  });
+
   it("lists the level's steps with the contacts of each role", async () => {
     data.level = levelWith([
       {
@@ -133,7 +160,7 @@ describe("CallCenterMenu", () => {
       expect.objectContaining({
         contactId: "c1",
         role: "Transportista",
-        phone: "+56 9 1111 2222",
+        phone: "+12025550101",
         methods: ["phone"],
         stats: expect.objectContaining({ accepted: 2, denied: 1 }),
       })

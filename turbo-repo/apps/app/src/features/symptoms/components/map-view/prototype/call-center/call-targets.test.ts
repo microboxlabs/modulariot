@@ -23,14 +23,14 @@ describe("contactMethods", () => {
     );
     expect(
       contactMethods(
-        contact({ methods: ["PHONE", "WHATSAPP"], phone: "+56911112222" })
+        contact({ methods: ["PHONE", "WHATSAPP"], phone: "+12025550101" })
       )
     ).toEqual(["phone", "whatsapp"]);
     expect(
       contactMethods(
         contact({
           methods: ["WHATSAPP"],
-          channels: { whatsapp: "+56911112222" },
+          channels: { whatsapp: "+12025550101" },
         })
       )
     ).toEqual(["whatsapp"]);
@@ -53,7 +53,7 @@ describe("contactMethods", () => {
 
 describe("driverMethods", () => {
   it("offers phone and WhatsApp only with a number", () => {
-    expect(driverMethods("+56 9 3333 4444")).toEqual(["phone", "whatsapp"]);
+    expect(driverMethods("+1 202 555 0102")).toEqual(["phone", "whatsapp"]);
     expect(driverMethods("")).toEqual([]);
     expect(driverMethods(null)).toEqual([]);
     expect(driverMethods(undefined)).toEqual([]);

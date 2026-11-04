@@ -94,6 +94,31 @@ describe("CallDialingStep", () => {
     ).toBeNull();
   });
 
+  it("confirms the selected WhatsApp method", () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const confirm = vi.fn();
+    render(
+      <CallDialingStep
+        dict={dict}
+        contactName="Synthetic contact"
+        contactRole="Dispatcher"
+        channels={{ whatsapp: "+12025550102" }}
+        allowedMethods={["whatsapp"]}
+        reason=""
+        onCancel={vi.fn()}
+        onConfirm={confirm}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Llamada por WhatsApp" })
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+    );
+    expect(confirm).toHaveBeenCalledWith(expect.any(Number), "whatsapp");
+    open.mockRestore();
+  });
+
   it("says so when the contact has no channel, and links to edit it", () => {
     renderStep([], "c1");
     expect(screen.getByText("Sin canales registrados")).toBeTruthy();

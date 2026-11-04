@@ -861,6 +861,22 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void theTimelineIncludesTreatmentActionsAndTheirRecordedFields() {
+        store.add(at(12, "TEST-PLATE", OPENED, OPENED.plusSeconds(3600)));
+        JsonNode timeline = service.timeline(TENANT, -12, List.of(treatment(TreatmentStatus.CLOSED,
+                action(ActionKind.CALL, "Synthetic contact", "Answered", "On the way"))));
+
+        JsonNode call = timeline.get(1);
+        assertEquals("OPENED", timeline.get(0).path("kind").asText());
+        assertEquals("ACTION", call.path("kind").asText());
+        assertEquals(OPENED.toString(), call.path("at").asText());
+        assertEquals("CALL", call.path("action").asText());
+        assertEquals("operator@example.com", call.path("by").asText());
+        assertEquals("Synthetic contact", call.path("contact").asText());
+        assertEquals("Answered", call.path("outcome").asText());
+    }
+
+    @Test
     void theTimelineUsesHistoricalHoldsAndStartsPreexistingCoverageAtOpening() {
         InMemoryEngineCases history = new InMemoryEngineCases() {
             @Override

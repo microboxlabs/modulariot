@@ -58,7 +58,7 @@ const ADD =
 /** The close kinds the source can say: the event and trip ones need its fields. */
 function kindsFor(fields: CloseFields): CloseKind[] {
   const kinds: CloseKind[] = ["operator", "normal", "age"];
-  if (fields.tripActive) kinds.push("tripEnded");
+  if (fields.tripActive) kinds.push("tripInactive");
   if (fields.events) kinds.push("event");
   return kinds;
 }
@@ -71,7 +71,7 @@ function newWhen(kind: CloseKind, fields: CloseFields): CloseWhen {
       return { kind, minutes: 0 };
     case "age":
       return { kind, hours: 12 };
-    case "tripEnded":
+    case "tripInactive":
       return { kind, path: fields.tripActive ?? "" };
     case "event":
       return { kind, path: fields.events ?? "", eventType: "" };
@@ -84,6 +84,39 @@ function SectionLabel({ text, d }: Readonly<{ text: string; d: I18nRecord }>) {
       <span className={LABEL}>{text}</span>
       <span className="text-xs text-gray-400">· {tr("allLevels", d)}</span>
     </div>
+  );
+}
+
+function AgeValue({
+  when,
+  readOnly,
+  d,
+  onChange,
+}: Readonly<{
+  when: Extract<CloseWhen, { kind: "age" }>;
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (when: CloseWhen) => void;
+}>) {
+  const [draft, setDraft] = useState<number | null>(when.hours);
+  const [previous, setPrevious] = useState(when.hours);
+  if (previous !== when.hours) {
+    setPrevious(when.hours);
+    setDraft(when.hours);
+  }
+  return (
+    <PillNumber
+      ariaLabel={tr("closeKind.age", d)}
+      disabled={readOnly}
+      value={draft}
+      step="any"
+      unit="h"
+      onChange={(value) => {
+        setDraft(value);
+        if (value !== null && value > 0) onChange({ ...when, hours: value });
+      }}
+      onBlur={() => setDraft(when.hours)}
+    />
   );
 }
 
@@ -110,13 +143,7 @@ function WhenValue({
     );
   if (when.kind === "age")
     return (
-      <PillNumber
-        ariaLabel={tr("closeKind.age", d)}
-        disabled={readOnly}
-        value={when.hours}
-        unit="h"
-        onChange={(v) => onChange({ ...when, hours: Math.max(1, v ?? 1) })}
-      />
+      <AgeValue when={when} readOnly={readOnly} d={d} onChange={onChange} />
     );
   if (when.kind === "event")
     return (
@@ -517,6 +544,39 @@ function time(at: string, lang: string): string {
   });
 }
 
+function TimelineNotice({
+  sampleFailed,
+  entriesFailed,
+  empty,
+  onRetry,
+  d,
+}: Readonly<{
+  sampleFailed: boolean;
+  entriesFailed: boolean;
+  empty: boolean;
+  onRetry: () => void;
+  d: I18nRecord;
+}>) {
+  let message = tr("timelineHint", d);
+  if (empty) message = tr("timelineNone", d);
+  if (entriesFailed) message = tr("timelineEntriesError", d);
+  if (sampleFailed) message = tr("timelineSamplesError", d);
+  const failed = sampleFailed || entriesFailed;
+  return (
+    <p
+      role={failed ? "alert" : undefined}
+      className="text-xs text-gray-500 dark:text-gray-400"
+    >
+      {message}
+      {failed && (
+        <button type="button" className="ml-2 underline" onClick={onRetry}>
+          {tr("scriptRetrySamples", d)}
+        </button>
+      )}
+    </p>
+  );
+}
+
 /**
  * A real case of the symptom as its timeline reads, so the close and note
  * rules can be checked against what happened. The entries came from the rules
@@ -533,10 +593,18 @@ export function CaseTimelinePreview({
   lang?: string;
   d: I18nRecord;
 }>) {
-  const { data: samples } = useScriptSamples(symptomName, icu);
+  const {
+    data: samples,
+    error: sampleError,
+    mutate: refreshSamples,
+  } = useScriptSamples(symptomName, icu);
   const [picked, setPicked] = useState(0);
   const sample = samples?.[Math.min(picked, (samples?.length ?? 1) - 1)];
-  const { data: entries } = useCaseTimeline(sample?.symptom_id);
+  const {
+    data: entries,
+    error: entriesError,
+    mutate: refreshEntries,
+  } = useCaseTimeline(sample?.symptom_id);
   return (
     <section className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
       <div className="flex flex-wrap items-center gap-2">
@@ -556,11 +624,13 @@ export function CaseTimelinePreview({
           </Select>
         )}
       </div>
-      <p className="text-xs text-gray-500 dark:text-gray-400">
-        {samples && samples.length === 0
-          ? tr("timelineNone", d)
-          : tr("timelineHint", d)}
-      </p>
+      <TimelineNotice
+        sampleFailed={Boolean(sampleError)}
+        entriesFailed={Boolean(entriesError)}
+        empty={samples?.length === 0}
+        onRetry={() => void (sampleError ? refreshSamples() : refreshEntries())}
+        d={d}
+      />
       {entries && entries.length > 0 && (
         <ol aria-label={tr("timelineTitle", d)} className="flex flex-col gap-1">
           {entries.map((e, i) => {

@@ -1,30 +1,54 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import es from "@/lang/es.json";
 import {
   CaseTimelinePreview,
   CloseRules,
   type LifecycleRules,
 } from "./close-section";
 
-const stable = vi.hoisted(() => ({ types: { data: [] as unknown[] } }));
+const stable = vi.hoisted(() => ({
+  types: { data: [] as unknown[] },
+  sampleError: undefined as Error | undefined,
+  entriesError: undefined as Error | undefined,
+  retrySamples: vi.fn(),
+  retryEntries: vi.fn(),
+}));
+beforeEach(() => {
+  stable.sampleError = undefined;
+  stable.entriesError = undefined;
+  vi.clearAllMocks();
+});
 vi.mock(
   "@/features/symptoms/control-tower/control-tower-api",
   async (original) => ({
     ...(await original<object>()),
     useScriptSamples: () => ({
-      data: [
-        {
-          symptom_id: -1,
-          asset_id: "TEST-PLATE",
-          opened_at: "2026-01-01T00:00:00Z",
-        },
-      ],
+      data: stable.sampleError
+        ? undefined
+        : [
+            {
+              symptom_id: -1,
+              asset_id: "TEST-PLATE",
+              opened_at: "2026-01-01T00:00:00Z",
+            },
+          ],
+      error: stable.sampleError,
+      mutate: stable.retrySamples,
     }),
     useCaseTimeline: () => ({
-      data: [
-        { kind: "CLOSED", at: "2026-01-01T00:01:00Z", context: null },
-        { kind: "CLOSED", at: "2026-01-01T00:02:00Z", context: { case: {} } },
-      ],
+      data: stable.entriesError
+        ? undefined
+        : [
+            { kind: "CLOSED", at: "2026-01-01T00:01:00Z", context: null },
+            {
+              kind: "CLOSED",
+              at: "2026-01-01T00:02:00Z",
+              context: { case: {} },
+            },
+          ],
+      error: stable.entriesError,
+      mutate: stable.retryEntries,
     }),
   })
 );
@@ -41,7 +65,7 @@ const d = {
     operator: "Un operador lo cierra",
     normal: "Vuelve a la normalidad por",
     age: "Pasan",
-    tripEnded: "Termina el viaje",
+    tripInactive: "Sin viaje activo",
     event: "Llega el evento GPS",
   },
   closeLevelLabel: "Nivel",
@@ -84,6 +108,75 @@ function rules(patch: Partial<LifecycleRules> = {}): LifecycleRules {
 }
 
 describe("CloseRules", () => {
+  it("preserves a positive sub-hour age when editing", () => {
+    const r = rules({ close: "case.age_h >= 0.5" });
+    render(
+      <CloseRules
+        rules={r}
+        mode="form"
+        readOnly={false}
+        d={d}
+        onExpr={vi.fn()}
+      />
+    );
+    const hours = screen.getByLabelText<HTMLInputElement>("Pasan");
+    expect(hours.value).toBe("0.5");
+    expect(hours.step).toBe("any");
+    fireEvent.change(hours, { target: { value: "" } });
+    expect(hours.value).toBe("");
+    fireEvent.change(hours, { target: { value: "0" } });
+    expect(hours.value).toBe("0");
+    expect(r.onChange).not.toHaveBeenCalled();
+    fireEvent.change(hours, { target: { value: "0.25" } });
+    expect(r.onChange).toHaveBeenCalledWith({
+      close: "case.age_h >= 0.25",
+      note: null,
+    });
+  });
+
+  it.each(["", "0", "-1"])(
+    "does not replace an age threshold with invalid input %j",
+    (value) => {
+      const r = rules({ close: "case.age_h >= 0.5" });
+      render(
+        <CloseRules
+          rules={r}
+          mode="form"
+          readOnly={false}
+          d={d}
+          onExpr={vi.fn()}
+        />
+      );
+      fireEvent.change(screen.getByLabelText("Pasan"), { target: { value } });
+      expect(r.onChange).not.toHaveBeenCalled();
+      fireEvent.blur(screen.getByLabelText("Pasan"));
+      expect(screen.getByLabelText<HTMLInputElement>("Pasan").value).toBe(
+        "0.5"
+      );
+    }
+  );
+
+  it("names the trip predicate as current inactivity rather than a historical trip-end event", () => {
+    render(
+      <CloseRules
+        rules={rules({
+          close: "!signal.trip.active",
+          fields: [...FIELDS, { path: "signal.trip.active", detail: "" }],
+        })}
+        mode="form"
+        readOnly={false}
+        d={d}
+        onExpr={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByLabelText<HTMLSelectElement>("Cómo se cierra").value
+    ).toBe("tripInactive");
+    expect(
+      screen.getByRole("option", { name: "Sin viaje activo" })
+    ).toBeTruthy();
+  });
+
   it("shows the lost-signal close rule as two rows and writes a new row back as CEL", () => {
     const r = rules();
     render(
@@ -159,6 +252,38 @@ describe("CloseRules", () => {
 });
 
 describe("CaseTimelinePreview", () => {
+  const dict = es.pages.userSettings.symptomCatalog;
+  it("shows and retries a failed case lookup instead of an empty-case message", () => {
+    stable.sampleError = new Error("unavailable");
+    render(
+      <CaseTimelinePreview symptomName="Synthetic symptom" icu={4} d={dict} />
+    );
+    expect(screen.getByRole("alert").textContent).toContain(
+      dict.timelineSamplesError
+    );
+    expect(screen.queryByText(dict.timelineNone)).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: dict.scriptRetrySamples })
+    );
+    expect(stable.retrySamples).toHaveBeenCalledOnce();
+    expect(stable.retryEntries).not.toHaveBeenCalled();
+  });
+
+  it("shows and retries a failed timeline lookup", () => {
+    stable.entriesError = new Error("unavailable");
+    render(
+      <CaseTimelinePreview symptomName="Synthetic symptom" icu={4} d={dict} />
+    );
+    expect(screen.getByRole("alert").textContent).toContain(
+      dict.timelineEntriesError
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: dict.scriptRetrySamples })
+    );
+    expect(stable.retryEntries).toHaveBeenCalledOnce();
+    expect(stable.retrySamples).not.toHaveBeenCalled();
+  });
+
   it("attributes only closures with recorded rule context to the close rule", () => {
     render(
       <CaseTimelinePreview

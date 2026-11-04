@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.catalog.store.PgJson;
 import com.microboxlabs.miot.symptoms.domain.ActionKind;
 import com.microboxlabs.miot.symptoms.domain.AuditEvent;
 import com.microboxlabs.miot.symptoms.domain.CallMethod;
@@ -43,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -293,6 +295,63 @@ class PgTreatmentStoresTest {
     }
 
     @Test
+    void concurrentReconcilesClaimARecordOnceAndCannotOverwriteTheWinner() throws Exception {
+        String tenant = tenant();
+        Treatment treatment = treatments.insert(openTreatment(tenant, 10L, ACTOR)).treatment();
+        TreatmentAction first = treatments.addAction(pendingTelephonyCall(tenant, treatment.id()));
+        TreatmentAction second = treatments.addAction(pendingTelephonyCall(tenant, treatment.id()));
+        assertEquals("object", pool.preparedQuery("SELECT jsonb_typeof(details) AS shape"
+                        + " FROM miot_symptoms.treatment_action WHERE id = $1")
+                .execute(Tuple.of(UUID.fromString(first.id()))).await().atMost(WAIT).iterator().next().getString("shape"));
+        // Existing installations also have JSON strings containing the details object.
+        pool.preparedQuery("UPDATE miot_symptoms.treatment_action SET details = to_jsonb($2::text) WHERE id = $1")
+                .execute(Tuple.of(UUID.fromString(first.id()), PgJson.write(first.details())))
+                .await().atMost(WAIT);
+        assertEquals(2, treatments.pendingTelephonyCalls(tenant, ACTOR, OffsetDateTime.now().minusMinutes(1)).size());
+        Map<String, Object> recorded = Map.of("telephony", Map.of("provider", "TEAMS_PHONE", "status", "RECORDED",
+                "connectionId", "m1", "recordId", "r1"));
+        ExecutorService threads = Executors.newFixedThreadPool(2);
+        var barrier = new java.util.concurrent.CyclicBarrier(2);
+        List<TreatmentAction> winners = new ArrayList<>();
+        try {
+            var attempts = List.of(
+                    threads.submit(() -> {
+                        barrier.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                        return treatments.updateCallResult(tenant, first.id(), true, 61, recorded);
+                    }),
+                    threads.submit(() -> {
+                        barrier.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                        return treatments.updateCallResult(tenant, second.id(), true, 61, recorded);
+                    }));
+            for (var attempt : attempts) {
+                attempt.get().ifPresent(winners::add);
+            }
+        } finally {
+            threads.shutdown();
+        }
+        assertEquals(1, winners.size());
+        TreatmentAction winner = winners.get(0);
+        assertEquals(Set.of("r1"), treatments.recordedTelephonyRecordIds(tenant, "m1"));
+        assertTrue(treatments.recordedTelephonyRecordIds("foreign-tenant", "m1").isEmpty());
+        assertTrue(treatments.updateCallResult(tenant, winner.id(), null, null, first.details()).isEmpty());
+        TreatmentAction saved = treatments.listActions(tenant, List.of(treatment.id())).stream()
+                .filter(action -> action.id().equals(winner.id())).findFirst().orElseThrow();
+        assertEquals(true, saved.answered());
+        assertEquals(61, saved.durationSeconds());
+        assertEquals(recorded, saved.details());
+
+        String pendingId = winner.id().equals(first.id()) ? second.id() : first.id();
+        pool.preparedQuery("UPDATE miot_symptoms.treatment_action SET details = to_jsonb($2::text) WHERE id = $1")
+                .execute(Tuple.of(UUID.fromString(winner.id()), PgJson.write(recorded))).await().atMost(WAIT);
+        assertEquals(Set.of("r1"), treatments.recordedTelephonyRecordIds(tenant, "m1"));
+        assertTrue(treatments.updateCallResult(tenant, pendingId, true, 61, recorded).isEmpty());
+        Map<String, Object> anotherConnection = Map.of("telephony", Map.of("provider", "TEAMS_PHONE", "status",
+                "RECORDED", "connectionId", "m2", "recordId", "r1"));
+        assertTrue(treatments.updateCallResult(tenant, pendingId, false, 0, anotherConnection).isPresent());
+        assertEquals(Set.of("r1"), treatments.recordedTelephonyRecordIds(tenant, "m2"));
+    }
+
+    @Test
     void contactStatsCountSavedContactCallsOnly() {
         String tenant = tenant();
         Contact camila = contacts.insert(contact(tenant, "Camila"));
@@ -511,6 +570,12 @@ class PgTreatmentStoresTest {
         return new TreatmentAction(null, treatmentId, tenant, 0, ActionKind.CALL, contactId, "Contacto", "Rol",
                 "+56900000100", CallMethod.PHONE, "result_1", "Contesta", answered, 30, "mensaje", null, null,
                 null, ACTOR, at);
+    }
+
+    private static TreatmentAction pendingTelephonyCall(String tenant, String treatmentId) {
+        return new TreatmentAction(null, treatmentId, tenant, 0, ActionKind.CALL, null, "Contact", null,
+                "+56911111111", CallMethod.PHONE, null, null, null, 30, null, null, List.of(),
+                Map.of("telephony", Map.of("provider", "TEAMS_PHONE", "status", "PENDING")), ACTOR, null);
     }
 
     private static Contact contact(String tenant, String name) {

@@ -2,7 +2,12 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchWebRtcToken, saveTelephony, useTelephony } from "./telephony-api";
+import {
+  fetchWebRtcToken,
+  reconcileTeamsCalls,
+  saveTelephony,
+  useTelephony,
+} from "./telephony-api";
 import { parseTelephonySetup } from "./telephony-api.types";
 
 const { request, mutate } = vi.hoisted(() => ({
@@ -34,12 +39,12 @@ const line = {
 };
 const setup = { preferred: null, active: line, lines: [line] };
 
-describe("telephony configuration API boundary", () => {
-  beforeEach(() => {
-    request.mockReset();
-    mutate.mockReset();
-  });
+beforeEach(() => {
+  request.mockReset();
+  mutate.mockReset();
+});
 
+describe("telephony configuration API boundary", () => {
   it("loads a valid configuration with provider-controlled nullable fields", async () => {
     request.mockResolvedValue({ lines: [{ ...line, callerNumber: null }] });
     const { result } = renderHook(() => useTelephony(), { wrapper: Wrapper });
@@ -111,5 +116,27 @@ describe("telephony configuration API boundary", () => {
   ])("rejects a malformed operator token response: %s", async (payload) => {
     request.mockResolvedValue(payload);
     await expect(fetchWebRtcToken()).rejects.toThrow();
+  });
+});
+
+describe("Teams reconciliation API boundary", () => {
+  it("parses the complete reconciliation result", async () => {
+    const response = { checked: 3, recorded: 1, pending: 2 };
+    request.mockResolvedValue(response);
+    await expect(reconcileTeamsCalls()).resolves.toEqual(response);
+    expect(request).toHaveBeenCalledWith("/tower/telephony/reconcile", {
+      method: "POST",
+    });
+  });
+
+  it.each([
+    null,
+    {},
+    { checked: -1, recorded: 0, pending: 0 },
+    { checked: 1, recorded: "1", pending: 0 },
+    { checked: 1.5, recorded: 1, pending: 0 },
+  ])("rejects malformed reconciliation counts: %s", async (payload) => {
+    request.mockResolvedValue(payload);
+    await expect(reconcileTeamsCalls()).rejects.toThrow();
   });
 });

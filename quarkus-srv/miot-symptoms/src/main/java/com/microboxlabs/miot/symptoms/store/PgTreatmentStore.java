@@ -26,10 +26,12 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -42,6 +44,8 @@ public class PgTreatmentStore implements TreatmentStore {
     };
     private static final TypeReference<Map<String, Object>> DETAILS = new TypeReference<>() {
     };
+    private static final String DETAILS_JSON = detailsJson("details");
+    private static final String CLAIMED_DETAILS_JSON = detailsJson("claimed.details");
 
     private static final String TREATMENT_COLUMNS = """
             id, tenant_code, symptom_id, asset_id, trip_id, type, status, opened_by, opened_at, closed_by,
@@ -83,14 +87,49 @@ public class PgTreatmentStore implements TreatmentStore {
 
     private static final String INSERT_ACTION = "INSERT INTO miot_symptoms.treatment_action (" + ACTION_COLUMNS
             + """
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb,
-                $18::jsonb, $19, $20)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::text::jsonb,
+                $18::text::jsonb, $19, $20)
             RETURNING\s""" + ACTION_COLUMNS;
 
     private static final String SELECT_ACTIONS = "SELECT " + ACTION_COLUMNS + """
              FROM miot_symptoms.treatment_action
             WHERE tenant_code = $1 AND treatment_id = ANY($2)
             ORDER BY array_position($2, treatment_id), seq""";
+
+    private static final String PENDING_CALLS = "SELECT " + ACTION_COLUMNS + """
+             FROM miot_symptoms.treatment_action
+            WHERE tenant_code = $1 AND kind = 'CALL' AND performed_by = $2 AND performed_at >= $3
+              AND %s #>> '{telephony,status}' = 'PENDING'
+            ORDER BY performed_at LIMIT 50""".formatted(DETAILS_JSON);
+
+    private static final String UPDATE_CALL = """
+            UPDATE miot_symptoms.treatment_action
+            SET answered = $3, duration_seconds = COALESCE($4, duration_seconds),
+                details = $5::text::jsonb
+            WHERE tenant_code = $1 AND id = $2 AND kind = 'CALL'
+              AND %s #>> '{telephony,status}' = 'PENDING'
+              AND NOT EXISTS (
+                  SELECT 1 FROM miot_symptoms.treatment_action claimed
+                  WHERE claimed.tenant_code = $1 AND claimed.id <> $2 AND claimed.kind = 'CALL'
+                    AND %s #>> '{telephony,provider}' = 'TEAMS_PHONE'
+                    AND %s #>> '{telephony,status}' = 'RECORDED'
+                    AND %s #>> '{telephony,connectionId}' = $5::text::jsonb #>> '{telephony,connectionId}'
+                    AND %s #>> '{telephony,recordId}' = $5::text::jsonb #>> '{telephony,recordId}'
+              )
+            RETURNING\s""".formatted(DETAILS_JSON, CLAIMED_DETAILS_JSON, CLAIMED_DETAILS_JSON,
+                    CLAIMED_DETAILS_JSON, CLAIMED_DETAILS_JSON) + ACTION_COLUMNS;
+
+    private static final String LOCK_CALL_RECORDS =
+            "SELECT pg_advisory_xact_lock(hashtext('miot_symptoms.teams_records'), hashtext($1))";
+
+    private static final String RECORDED_CALLS = """
+            SELECT %s #>> '{telephony,recordId}' AS record_id FROM miot_symptoms.treatment_action
+            WHERE tenant_code = $1 AND kind = 'CALL'
+              AND %s #>> '{telephony,provider}' = 'TEAMS_PHONE'
+              AND %s #>> '{telephony,status}' = 'RECORDED'
+              AND %s #>> '{telephony,connectionId}' = $2
+              AND %s #>> '{telephony,recordId}' IS NOT NULL""".formatted(DETAILS_JSON, DETAILS_JSON, DETAILS_JSON,
+                    DETAILS_JSON, DETAILS_JSON);
 
     private static final String CONTACT_STATS = """
             SELECT contact_id,
@@ -109,6 +148,12 @@ public class PgTreatmentStore implements TreatmentStore {
             GROUP BY symptom_id""";
 
     private final Supplier<Pool> pool;
+
+    /** Older writers encoded JSON as a JSON string; new writes bind text before casting to jsonb. */
+    private static String detailsJson(String column) {
+        return "(CASE jsonb_typeof(" + column + ") WHEN 'string' THEN (" + column
+                + " #>> '{}')::jsonb ELSE " + column + " END)";
+    }
 
     @Inject
     PgTreatmentStore(Instance<Pool> pool) {
@@ -288,5 +333,37 @@ public class PgTreatmentStore implements TreatmentStore {
                 r.getString("message"), r.getString("note"), PgJson.read(r, "tags", TAGS),
                 PgJson.read(r, "details", DETAILS), r.getString("performed_by"),
                 PgJson.time(r, "performed_at"));
+    }
+
+    @Override
+    public List<TreatmentAction> pendingTelephonyCalls(String tenantCode, String performedBy,
+            OffsetDateTime since) {
+        return actions(query(pool.get(), PENDING_CALLS, Tuple.of(tenantCode, performedBy, since)));
+    }
+
+    @Override
+    public Optional<TreatmentAction> updateCallResult(String tenantCode, String actionId, Boolean answered,
+            Integer durationSeconds, Map<String, Object> details) {
+        UUID id = parse(actionId);
+        if (id == null) {
+            return Optional.empty();
+        }
+        Tuple params = Tuple.tuple().addString(tenantCode).addUUID(id).addBoolean(answered)
+                .addInteger(durationSeconds).addString(PgJson.write(details == null ? Map.of() : details));
+        // The update takes a fresh statement snapshot after the shared lock is acquired, so a
+        // concurrent request cannot claim the same record or replace a confirmed result with PENDING.
+        RowSet<Row> rows = pool.get().withTransaction(connection ->
+                connection.preparedQuery(LOCK_CALL_RECORDS).execute(Tuple.of(tenantCode))
+                        .flatMap(ignored -> connection.preparedQuery(UPDATE_CALL).execute(params)))
+                .await().atMost(QUERY_TIMEOUT);
+        return actions(rows).stream().findFirst();
+    }
+
+    @Override
+    public Set<String> recordedTelephonyRecordIds(String tenantCode, String connectionId) {
+        Set<String> ids = new HashSet<>();
+        query(pool.get(), RECORDED_CALLS, Tuple.of(tenantCode, connectionId))
+                .forEach(row -> ids.add(row.getString("record_id")));
+        return Set.copyOf(ids);
     }
 }

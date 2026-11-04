@@ -124,16 +124,19 @@ describe("/api/control-tower/[...path]", () => {
     );
   });
 
-  it("requests a browser login with the operator's session instead of the shared M2M token", async () => {
-    await POST(
-      req("http://x/app/api/control-tower/telephony/webrtc-token", {
-        method: "POST",
-      }),
-      ctx(["telephony", "webrtc-token"])
-    );
-    expect(forwardMock).toHaveBeenCalledWith(
-      "/api/v1/orgs/acme%20org/control-tower/telephony/webrtc-token",
-      { method: "POST", body: {}, sessionOnly: true }
-    );
-  });
+  it.each(["webrtc-token", "reconcile"])(
+    "uses the individual operator's session for telephony %s",
+    async (endpoint) => {
+      await POST(
+        req(`http://x/app/api/control-tower/telephony/${endpoint}`, {
+          method: "POST",
+        }),
+        ctx(["telephony", endpoint])
+      );
+      expect(forwardMock).toHaveBeenCalledWith(
+        `/api/v1/orgs/acme%20org/control-tower/telephony/${endpoint}`,
+        { method: "POST", body: {}, sessionOnly: true }
+      );
+    }
+  );
 });

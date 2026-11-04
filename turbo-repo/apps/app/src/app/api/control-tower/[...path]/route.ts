@@ -9,9 +9,11 @@ const proxy = orgApiProxy("control-tower", {
   // Template ownership and telephony logins require the individual user's
   // session; a shared service token cannot identify that operator.
   forward: (path, init) =>
-    ["/save-as-template", "/telephony/webrtc-token"].some((suffix) =>
-      path.split("?")[0].endsWith(suffix)
-    )
+    [
+      "/save-as-template",
+      "/telephony/webrtc-token",
+      "/telephony/reconcile",
+    ].some((suffix) => path.split("?")[0].endsWith(suffix))
       ? forwardToStreamhubModulith(path, { ...init, sessionOnly: true })
       : forwardToStreamhubModulith(path, init),
 });

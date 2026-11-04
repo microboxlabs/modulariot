@@ -33,9 +33,15 @@ import {
 } from "./call-method";
 import type { TowerContactChannels } from "@/features/symptoms/control-tower/control-tower-api";
 import { phoneForMethod, type CallStats } from "./call-targets";
-import { channelLink, phoneDigits } from "./channel-link";
+import {
+  channelLink,
+  openTeamsCall,
+  phoneDigits,
+  teamsCallLinks,
+} from "./channel-link";
 import ContactRow from "./contact-row";
 import {
+  pendingTeamsCall,
   startTelnyxCall,
   type CallPhase,
   type LiveCall,
@@ -75,6 +81,7 @@ export default function CallDialingStep({
   onStartedChange,
   dial = startTelnyxCall,
   token = fetchWebRtcToken,
+  openTeams = openTeamsCall,
 }: Readonly<{
   dict: I18nRecord;
   /** The contact's call counts from the book; absent for the driver or a new number. */
@@ -110,6 +117,7 @@ export default function CallDialingStep({
   /** Test seams: place the call and get the login. */
   dial?: typeof startTelnyxCall;
   token?: typeof fetchWebRtcToken;
+  openTeams?: (links: { app: string; web: string }) => void;
 }>) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
   const { lang } = useParams<{ lang: string }>();
@@ -156,6 +164,15 @@ export default function CallDialingStep({
   const destination = phoneDigits(channels?.phone ?? contactPhone);
   const viaTelnyx = (id: CallMethod) =>
     id === "phone" && line?.provider === "TELNYX" && destination !== null;
+  // With Teams Phone both "phone" and "teams" call the number from Teams.
+  const viaTeams = (id: CallMethod) =>
+    (id === "phone" || id === "teams") &&
+    line?.provider === "TEAMS_PHONE" &&
+    destination !== null;
+  const [teamsCall, setTeamsCall] = useState<{
+    startedAt: number;
+    connectionId: string;
+  } | null>(null);
 
   async function placeTelnyxCall() {
     cancelledRef.current = false;
@@ -355,6 +372,21 @@ export default function CallDialingStep({
                     id === "phone" && (telephonyPending || telephonyFailed)
                   }
                   onClick={() => {
+                    if (viaTeams(id) && line) {
+                      const links = teamsCallLinks(`+${destination}`);
+                      if (!links) return;
+                      openTeams(links);
+                      setBrowserAttempt(false);
+                      setPhase(null);
+                      setTeamsCall({
+                        startedAt: Date.now(),
+                        connectionId: line.connectionId,
+                      });
+                      setMethod(id);
+                      setStarted(true);
+                      onStartedChange?.(true);
+                      return;
+                    }
                     if (viaTelnyx(id)) {
                       setMethod(id);
                       setStarted(true);
@@ -396,6 +428,17 @@ export default function CallDialingStep({
                 onClick={() => {
                   // Hanging up a browser call reports its end through onEnd.
                   if (liveRef.current) liveRef.current.hangup();
+                  else if (teamsCall !== null)
+                    onConfirm(
+                      elapsed,
+                      method,
+                      pendingTeamsCall(
+                        `+${destination}`,
+                        teamsCall.startedAt,
+                        Date.now(),
+                        teamsCall.connectionId
+                      )
+                    );
                   else if (!browserAttempt) onConfirm(elapsed, method);
                 }}
                 disabled={browserAttempt && !dialReady}

@@ -5,6 +5,7 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
+import com.microboxlabs.miot.symptoms.service.TeamsCallReconciler;
 import com.microboxlabs.miot.symptoms.service.TelephonyChoiceService;
 import com.microboxlabs.miot.symptoms.service.TelephonyChoiceService.TelephonyRequest;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -40,6 +41,7 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
     private static final String ORG = "organizationId";
 
     private final TelephonyChoiceService telephony;
+    private final TeamsCallReconciler reconciler;
 
     @Inject
     public OrgControlTowerTelephonyResource(
@@ -47,9 +49,11 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            TelephonyChoiceService telephony) {
+            TelephonyChoiceService telephony,
+            TeamsCallReconciler reconciler) {
         super(tenantContext, organizationContext, roleService, identity);
         this.telephony = telephony;
+        this.reconciler = reconciler;
     }
 
     @GET
@@ -85,6 +89,19 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
         String actor = operator();
         return work(() -> Response.ok(telephony.webRtcToken(tenant, actor)).header("Cache-Control", "no-store")
                 .build());
+    }
+
+    @POST
+    @Path("/reconcile")
+    @Operation(operationId = "reconcileTeamsCalls",
+            summary = "Fill the signed-in operator's pending Teams calls from the Graph PSTN records; records arrive"
+                    + " late, so call again a few minutes later")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> reconcile(@PathParam(ORG) String organizationId) {
+        String tenant = tenantCode(organizationId);
+        String actor = operator();
+        return work(() -> Response.ok(reconciler.reconcile(tenant, actor)).build());
     }
 
     private String operator() {

@@ -47,7 +47,7 @@ class OrgControlTowerTelephonyResourceTest {
         };
         var service = new TelephonyChoiceService(new InMemoryTowerSettingsStore(), provider,
                 new AuditService(new InMemoryAuditStore()));
-        return new OrgControlTowerTelephonyResource(tenant, organization, null, null, service);
+        return new OrgControlTowerTelephonyResource(tenant, organization, null, null, service, null);
     }
 
     @Test
@@ -62,6 +62,7 @@ class OrgControlTowerTelephonyResourceTest {
     void rejectsTheSharedServiceIdentityBeforeIssuingALogin() {
         var anonymous = resource(null);
         assertThrows(ForbiddenException.class, () -> anonymous.webRtcToken("org-a"));
+        assertThrows(ForbiddenException.class, () -> anonymous.reconcile("org-a"));
         assertNull(issuedTo);
     }
 

@@ -24,20 +24,20 @@ class IntegrationsTelephonyTest {
                 ProviderType.TEAMS_PHONE, connection("m1", ProviderType.TEAMS_PHONE, ConnectionStatus.TEST_FAILED,
                         Map.of()));
         List<TelephonyLine> lines = new IntegrationsTelephony(
-                (tenant, provider) -> "acme".equals(tenant) ? stored.get(provider) : null, null).lines("acme");
+                (tenant, provider) -> "acme".equals(tenant) ? stored.get(provider) : null, null, null).lines("acme");
 
         assertEquals(2, lines.size());
         assertEquals(new TelephonyLine("t1", TelephonyProvider.TELNYX, "Line t1", "+56900000000", true), lines.get(0));
         assertEquals(TelephonyProvider.TEAMS_PHONE, lines.get(1).provider());
         assertFalse(lines.get(1).ready());
         assertNull(lines.get(1).callerNumber());
-        assertTrue(new IntegrationsTelephony((tenant, provider) -> "acme".equals(tenant) ? stored.get(provider) : null, null)
+        assertTrue(new IntegrationsTelephony((tenant, provider) -> "acme".equals(tenant) ? stored.get(provider) : null, null, null)
                 .lines("other-tenant").isEmpty());
     }
 
     @Test
     void noConnectionsNoLines() {
-        assertTrue(new IntegrationsTelephony((tenant, provider) -> null, null).lines("acme").isEmpty());
+        assertTrue(new IntegrationsTelephony((tenant, provider) -> null, null, null).lines("acme").isEmpty());
     }
 
     @Test

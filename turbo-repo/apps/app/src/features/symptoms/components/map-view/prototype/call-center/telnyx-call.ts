@@ -9,15 +9,19 @@ export type CallPhase = "connecting" | "ringing" | "active" | "ended";
 
 export interface TelephonyCallResult {
   provider: "TELNYX" | "TEAMS_PHONE";
+  /** PENDING: the provider's record is read later (Teams); `answered` is not known yet. */
+  status?: "RECORDED" | "PENDING";
   answered: boolean;
   durationSeconds: number;
   hangupCause: string | null;
   sipCode: number | null;
   /** Telnyx's call control id when it has one, else the SDK's call id. */
   callId: string | null;
+  connectionId?: string;
   /** E.164, as dialed. */
   calleeNumber: string;
   startedAt: string;
+  endedAt?: string;
 }
 
 /** What the CALL action keeps in `details.telephony`. */
@@ -26,12 +30,14 @@ export function telephonyDetails(
 ): Record<string, unknown> {
   return {
     provider: result.provider,
-    status: "RECORDED",
+    status: result.status ?? "RECORDED",
     callId: result.callId,
     hangupCause: result.hangupCause,
     sipCode: result.sipCode,
     calleeNumber: result.calleeNumber,
     startedAt: result.startedAt,
+    ...(result.connectionId ? { connectionId: result.connectionId } : {}),
+    ...(result.endedAt ? { endedAt: result.endedAt } : {}),
   };
 }
 
@@ -88,6 +94,28 @@ export interface LiveCall {
 const RINGING = new Set(["ringing", "early"]);
 const CONNECT_TIMEOUT_MS = 20_000;
 const ENDED = new Set(["hangup", "destroy", "purge"]);
+
+/** A Teams call timed by hand: Graph's call record fills it later. */
+export function pendingTeamsCall(
+  calleeNumber: string,
+  startedAtMs: number,
+  endedAtMs: number,
+  connectionId?: string
+): TelephonyCallResult {
+  return {
+    provider: "TEAMS_PHONE",
+    status: "PENDING",
+    answered: false,
+    durationSeconds: Math.max(0, Math.round((endedAtMs - startedAtMs) / 1000)),
+    hangupCause: null,
+    sipCode: null,
+    callId: null,
+    connectionId,
+    calleeNumber,
+    startedAt: new Date(startedAtMs).toISOString(),
+    endedAt: new Date(endedAtMs).toISOString(),
+  };
+}
 
 export async function startTelnyxCall({
   token,

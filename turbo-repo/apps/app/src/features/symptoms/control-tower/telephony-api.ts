@@ -15,6 +15,7 @@ import {
 import {
   parseTelephonySetup,
   parseWebRtcToken,
+  parseReconcileResult,
   type TelephonyProvider,
   type TelephonySetup,
 } from "./telephony-api.types";
@@ -49,5 +50,34 @@ export async function saveTelephony(provider: TelephonyProvider | null) {
 export async function fetchWebRtcToken() {
   return parseWebRtcToken(
     await request<unknown>(`${telephonyKey}/webrtc-token`, { method: "POST" })
+  );
+}
+
+export type { ReconcileResult } from "./telephony-api.types";
+
+/** Fills the signed-in operator's pending Teams calls from Graph's call records. */
+export async function reconcileTeamsCalls() {
+  return parseReconcileResult(
+    await request<unknown>(`${telephonyKey}/reconcile`, { method: "POST" })
+  );
+}
+
+/** Graph publishes PSTN records minutes after the call: ask again at these delays. */
+export const RECONCILE_DELAYS_MS = [2 * 60_000, 10 * 60_000];
+
+/**
+ * Retries the reconcile after a Teams call is saved. Runs outside any
+ * component, so it survives the panel closing. Each save gets its own
+ * retries, including calls saved while an earlier schedule is running.
+ */
+export function scheduleTeamsReconcile(
+  run: () => Promise<unknown> = reconcileTeamsCalls,
+  delays: readonly number[] = RECONCILE_DELAYS_MS,
+  timer: (cb: () => void, ms: number) => unknown = setTimeout
+) {
+  delays.forEach((ms) =>
+    timer(() => {
+      void run().catch(() => undefined);
+    }, ms)
   );
 }

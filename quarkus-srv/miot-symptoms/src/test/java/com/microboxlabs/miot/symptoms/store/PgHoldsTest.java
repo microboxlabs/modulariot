@@ -147,6 +147,30 @@ class PgHoldsTest {
     }
 
     @Test
+    void historyIncludesEndedScopedHoldsButExcludesHoldsOutsideTheCaseLifetime() {
+        UUID symptom = symptom("history");
+        UUID other = symptom("other-history");
+        long source = open(other, TRUCK, now.minusSeconds(900), 3, null);
+        long target = open(symptom, TRUCK, now.minusSeconds(600), 3, null);
+        String before = hold(source, now.minusSeconds(800), 60, "ALL", false);
+        end(before, now.minusSeconds(740));
+        String overlapping = hold(source, now.minusSeconds(700), 300, "ALL", false);
+        end(overlapping, now.minusSeconds(400));
+        String own = hold(target, now.minusSeconds(350), 100, "CASE", false);
+        end(own, now.minusSeconds(250));
+        String wrongSymptom = hold(source, now.minusSeconds(240), 60, "SYMPTOM", false);
+        end(wrongSymptom, now.minusSeconds(180));
+        cases.close(tenant, target, "operator@example.test", now.minusSeconds(100));
+        hold(source, now.minusSeconds(50), 300, "ALL", false);
+        EngineCase closed = cases.find(tenant, target).orElseThrow();
+
+        assertNotNull(closed.ignored(), "the current snapshot sees the later global hold");
+        assertEquals(List.of(overlapping, own), cases.holds(tenant, closed, closed.closedAt()).stream()
+                .map(EngineCase.Ignored::treatmentId).toList());
+        assertTrue(cases.holds("another-tenant", closed, closed.closedAt()).isEmpty());
+    }
+
+    @Test
     void aHeldCaseLeavesTheActiveListAndCountsAndShowsUnderIgnored() {
         UUID speeding = symptom("speeding");
         UUID stop = symptom("stop");

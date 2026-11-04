@@ -850,6 +850,27 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void theTimelineUsesHistoricalHoldsAndStartsPreexistingCoverageAtOpening() {
+        InMemoryEngineCases history = new InMemoryEngineCases() {
+            @Override
+            public List<EngineCase.Ignored> holds(String tenant, EngineCase c, Instant until) {
+                assertEquals(OPENED.plusSeconds(60), until);
+                return List.of(new EngineCase.Ignored("ended-hold", OPENED.minusSeconds(30),
+                        OPENED.plusSeconds(30), false, "ALL", "operator@example.test"));
+            }
+        };
+        history.add(at(12, "TEST-PLATE", OPENED, OPENED.plusSeconds(60)));
+        EngineCaseService historical = new EngineCaseService(history, (tenant, asset, definition) -> { },
+                t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+
+        JsonNode timeline = historical.timeline(TENANT, -12, List.of());
+
+        assertEquals("HELD", timeline.get(1).path("kind").asText());
+        assertEquals(OPENED.toString(), timeline.get(1).path("at").asText());
+        assertEquals("operator@example.test", timeline.get(1).path("by").asText());
+    }
+
+    @Test
     void theTimelineOrdersFractionalInstantsAndKeepsTiesStable() {
         store.add(at(12, "TEST-PLATE", OPENED, OPENED.plusMillis(100)));
         store.notes.put(12L, List.of(

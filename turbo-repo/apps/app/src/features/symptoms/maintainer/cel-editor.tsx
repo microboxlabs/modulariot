@@ -15,7 +15,7 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import { linter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
-import { Compartment, EditorState } from "@codemirror/state";
+import { Annotation, Compartment, EditorState } from "@codemirror/state";
 import {
   EditorView,
   keymap,
@@ -224,6 +224,8 @@ function fieldCompletions(
  * server's problems underlined where they are. The server checks the rule;
  * this component only edits it.
  */
+const externalValue = Annotation.define<boolean>();
+
 export default function CelEditor({
   value,
   onChange,
@@ -286,7 +288,11 @@ export default function CelEditor({
         },
       }),
       EditorView.updateListener.of((u) => {
-        if (u.docChanged) latest.current.onChange(u.state.doc.toString());
+        if (
+          u.docChanged &&
+          !u.transactions.some((t) => t.annotation(externalValue))
+        )
+          latest.current.onChange(u.state.doc.toString());
       }),
       EditorView.theme({
         "&": {
@@ -335,6 +341,7 @@ export default function CelEditor({
     if (v && value !== v.state.doc.toString()) {
       v.dispatch({
         changes: { from: 0, to: v.state.doc.length, insert: value },
+        annotations: externalValue.of(true),
       });
     }
   }, [value]);

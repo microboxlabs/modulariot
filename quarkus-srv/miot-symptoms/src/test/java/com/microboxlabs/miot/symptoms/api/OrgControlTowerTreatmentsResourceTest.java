@@ -150,7 +150,7 @@ class OrgControlTowerTreatmentsResourceTest {
 
     @Test
     void aCallOnAChannelTheContactLacksIsA400() {
-        Contact luis = contacts.insert(new Contact(null, TENANT, "Luis", "Transportista", "+56900000102",
+        Contact luis = contacts.insert(new Contact(null, TENANT, "Luis", "Transportista", "+12025550102",
                 List.of(CallMethod.PHONE), true, null, "ops@example.com", null, null));
         TreatmentView t = openTreatment(13);
 

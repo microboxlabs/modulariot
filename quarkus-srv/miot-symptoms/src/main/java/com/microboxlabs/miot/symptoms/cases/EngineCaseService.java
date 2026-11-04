@@ -491,7 +491,7 @@ public class EngineCaseService {
         if (symptomName == null || symptomName.isBlank()) {
             throw new IllegalArgumentException("symptom is required");
         }
-        EngineCaseStore.CaseFilter filter = filter(Map.of(NAME, symptomName));
+        EngineCaseStore.CaseFilter filter = filter(Map.of(NAME, symptomName, TO, clock.instant().toString()));
         List<EngineCase> found = new ArrayList<>(store.list(tenantCode, filter));
         found.sort(java.util.Comparator
                 .comparing((EngineCase c) -> level != null && c.level() == level ? 0 : 1)
@@ -503,7 +503,7 @@ public class EngineCaseService {
             sample.put("asset_id", c.assetId());
             sample.put(ICU_CODE, c.level());
             sample.put("opened_at", c.openedAt().toString());
-            sample.set("context", context(tenantCode, c));
+            sample.set("context", context(tenantCode, find(tenantCode, c.symptomId())));
         });
         return out;
     }

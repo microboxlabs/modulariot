@@ -17,6 +17,9 @@ import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
+import com.microboxlabs.miot.core.event.ContactConditions;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Comparator;
@@ -52,10 +55,21 @@ public class SymptomCatalogService {
     private final DataSourceService sources;
     private final AuditService audit;
 
+    @Inject
+    Instance<ContactConditions> contactConditions;
+
     public SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit) {
         this.store = store;
         this.sources = sources;
         this.audit = audit;
+    }
+
+    private Report checkSpec(SymptomSpec spec, DataSource source) {
+        Function<String, Optional<String>> problem = condition -> Optional.of("Contact conditions are unavailable");
+        if (contactConditions != null && contactConditions.isResolvable()) {
+            problem = contactConditions.get()::problem;
+        }
+        return SpecValidator.validate(spec, source, problem);
     }
 
     /**
@@ -165,7 +179,7 @@ public class SymptomCatalogService {
         }
         String title = name == null || name.isBlank() ? template.name() : name.trim();
         // Checked before anything is written, so a template that does not fit leaves no draft and takes no key.
-        Report report = SpecValidator.validate(template.spec(),
+        Report report = checkSpec(template.spec(),
                 sources.find(tenantCode, template.spec().source()).orElse(null));
         if (!report.publishable()) {
             throw new IllegalStateException("the template does not fit this organization's data source");
@@ -234,12 +248,12 @@ public class SymptomCatalogService {
         return new SymptomSpec.Level(l.icu(), l.applies(), l.when(), withoutTenantNotices(l.response()), l.ignore());
     }
 
-    private static SymptomSpec.Response withoutTenantNotices(SymptomSpec.Response r) {
+    static SymptomSpec.Response withoutTenantNotices(SymptomSpec.Response r) {
         List<SymptomSpec.Notice> notices = r.notices() == null ? null : r.notices().stream()
                 .map(n -> new SymptomSpec.Notice(n.when(), n.channel(), null, null, null))
                 .toList();
         return new SymptomSpec.Response(r.operator(), r.slaMinutes(), r.steps(), notices, r.evidence(),
-                r.ignorable(), r.escalateTo(), r.consequence(), r.escalateScope());
+                r.ignorable(), r.escalateTo(), r.consequence(), r.escalateScope(), r.escalateWho());
     }
 
     /** Creates a symptom under {@code key}, or the next free {@code key-N}, retrying when a concurrent copy wins. */
@@ -338,7 +352,7 @@ public class SymptomCatalogService {
         SymptomDefinition d = require(tenantCode, id);
         SymptomSpec checked = spec != null && !spec.isEmpty() ? spec : store.findDraft(tenantCode, id).map(SymptomVersion::spec)
                 .orElseThrow(() -> new NoSuchElementException("no draft to check"));
-        return SpecValidator.validate(effective(checked, d),
+        return checkSpec(effective(checked, d),
                 sources.find(tenantCode, sourceKey(checked, d)).orElse(null));
     }
 
@@ -395,7 +409,7 @@ public class SymptomCatalogService {
         SymptomSpec spec = v == null ? source.spec() : source.spec().withState(SymptomState.TEST);
         if (v != null) {
             // Checked before anything is written, so a copy that cannot be published leaves nothing behind.
-            Report report = SpecValidator.validate(spec,
+            Report report = checkSpec(spec,
                     sources.find(tenantCode, sourceKey(spec, from)).orElse(null));
             if (!report.publishable()) {
                 throw new IllegalStateException("version " + v + " does not pass its source's checks any more");
@@ -540,7 +554,7 @@ public class SymptomCatalogService {
         SymptomSpec spec = effective(draft, d);
         List<Change> changes = SpecDiff.changes(before, spec);
         VersionBump bump = SpecDiff.bump(changes);
-        Report report = SpecValidator.validate(spec, sources.find(tenantCode, sourceKey(spec, d)).orElse(null));
+        Report report = checkSpec(spec, sources.find(tenantCode, sourceKey(spec, d)).orElse(null));
         return new PublishPlan(changes, bump,
                 bump == null ? null : SpecDiff.next(detail.definition().currentVersion(), bump), report);
     }
@@ -560,7 +574,7 @@ public class SymptomCatalogService {
     /** The version in force has no errors against its own source and needs nothing the engine lacks. */
     private boolean activatable(String tenantCode, SymptomDetail detail) {
         SymptomSpec spec = detail.current().spec();
-        Report report = SpecValidator.validate(spec,
+        Report report = checkSpec(spec,
                 sources.find(tenantCode, sourceKey(spec, detail.definition())).orElse(null));
         return report.publishable() && !report.needsTestOnly();
     }

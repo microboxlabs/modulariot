@@ -16,6 +16,9 @@ import type { StepScope } from "../maintainer/maintainer-api";
 export const DRIVER_ROLE = "Conductor";
 /** The role older steps used for "the trip's carrier". */
 const LEGACY_CARRIER_ROLE = "Transportista";
+const LEGACY_DRIVER_WHO =
+  "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && contact.nationalId == event.data.secondDriverRut))";
+const ORG_ONLY = " && contact.companyRut == ''";
 
 /** The fields of `event.data` a step's condition can read: the case trip's RUTs. */
 export const TRIP_FIELDS: EventField[] = [
@@ -53,16 +56,19 @@ export function legacyWho(
     scope === "TRIP_CARRIER" ||
     (!scope && roleKey(r) === roleKey(LEGACY_CARRIER_ROLE));
   if (driver) {
-    clauses.push({ kind: "role", value: DRIVER_ROLE });
-    clauses.push({ kind: "nationalIdIs", field: "driverRut" });
+    return LEGACY_DRIVER_WHO;
   } else if (carrier) {
-    if (r && roleKey(r) !== roleKey(LEGACY_CARRIER_ROLE))
-      clauses.push({ kind: "role", value: r });
+    if (r && (scope || roleKey(r) !== roleKey(LEGACY_CARRIER_ROLE)))
+      clauses.push({ kind: "role", value: roleKey(r) });
     clauses.push({ kind: "companyRutIs", field: "carrierRut" });
   } else if (r) {
-    clauses.push({ kind: "role", value: r });
+    clauses.push({ kind: "role", value: roleKey(r) });
   }
-  return compileClauses(clauses);
+  const compiled = compileClauses(clauses).replace(
+    "contact.role ==",
+    "contact.roleKey =="
+  );
+  return !carrier && compiled ? compiled + ORG_ONLY : compiled;
 }
 
 /** A step's condition, read from its older role and scope when it has none. */
@@ -83,12 +89,34 @@ export interface WhoSummary {
   driver: boolean;
   /** The contact's company RUT is the trip carrier's. */
   carrier: boolean;
+  driverField?: "either";
 }
 
 /** Null when the condition says more than the clauses can (|| or other fields). */
 export function summarizeWho(who: string): WhoSummary | null {
-  const clauses = parseClauses(who);
-  if (!clauses) return null;
+  if (who === LEGACY_DRIVER_WHO)
+    return {
+      role: DRIVER_ROLE,
+      driver: true,
+      carrier: false,
+      driverField: "either",
+    };
+  const condition = who.endsWith(ORG_ONLY)
+    ? who.slice(0, -ORG_ONLY.length)
+    : who;
+  const readable = condition.startsWith("contact.roleKey ==")
+    ? condition.replace("contact.roleKey ==", "contact.role ==")
+    : condition;
+  const clauses = parseClauses(readable);
+  if (
+    !clauses ||
+    clauses.some(
+      (c) =>
+        (c.kind === "nationalIdIs" && c.field !== "driverRut") ||
+        (c.kind === "companyRutIs" && c.field !== "carrierRut")
+    )
+  )
+    return null;
   const role = clauses.find((c) => c.kind === "role");
   return {
     role: role && role.kind === "role" ? role.value || null : null,

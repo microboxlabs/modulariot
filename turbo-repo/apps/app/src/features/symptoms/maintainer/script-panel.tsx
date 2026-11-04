@@ -49,7 +49,7 @@ export function scriptFields(
   }));
 }
 
-/** "-680 · KLHH49 · L4 · 3 nov 18:52": a case to pick as the preview's data. */
+/** "-680 · TEST-PLATE · L4 · 3 nov 18:52": a case to pick as the preview's data. */
 function sampleLabel(s: ScriptSample, lang: string): string {
   const at = new Date(s.opened_at).toLocaleString(lang, {
     day: "numeric",

@@ -120,6 +120,7 @@ public final class Audiences {
         m.put("id", text(c.id()));
         m.put("name", text(c.name()));
         m.put("role", text(c.role()));
+        m.put("roleKey", text(c.role()).trim().toLowerCase(java.util.Locale.ROOT));
         m.put("tags", c.tags() == null ? List.of() : c.tags());
         m.put("company", text(c.company()));
         m.put("companyRut", text(c.companyRut()));

@@ -7,7 +7,7 @@
  * With no steps, the whole book. Clicking a row moves to dialing.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   HiChevronDown,
   HiChevronRight,
@@ -123,9 +123,14 @@ function presetFor(
   trip: TowerTripContacts | undefined,
   carrierName: string | undefined
 ): NewContactPreset | undefined {
-  if (summary?.driver)
-    return { role: DRIVER_ROLE, nationalId: trip?.data.driverRut };
-  if (summary?.carrier)
+  const driverRut =
+    trip?.data.driverRut ??
+    (summary?.driverField === "either"
+      ? trip?.data.secondDriverRut
+      : undefined);
+  if (summary?.driver && driverRut)
+    return { role: DRIVER_ROLE, nationalId: driverRut };
+  if (summary?.carrier && trip?.data.carrierRut)
     return {
       role: summary.role ?? "",
       companyRut: trip?.data.carrierRut,
@@ -257,12 +262,13 @@ function StepGroup({
 }>) {
   const carrierName = treatmentData?.trip_info?.carrier;
   const preset = presetFor(group.summary, trip, carrierName);
-  const script: CallScript | undefined = group.step.script?.trim()
-    ? {
-        message: fillScript(group.step.script, scriptContext),
-        goal: fillScript(group.step.goal ?? "", scriptContext),
-      }
-    : undefined;
+  const script: CallScript | undefined =
+    group.step.script?.trim() || group.step.goal?.trim()
+      ? {
+          message: fillScript(group.step.script ?? "", scriptContext),
+          goal: fillScript(group.step.goal ?? "", scriptContext),
+        }
+      : undefined;
   const { step, index } = group;
   const isDue = index === due;
   const [skipping, setSkipping] = useState(false);
@@ -287,12 +293,16 @@ function StepGroup({
         <span>{channelLabel(step.channel, d)}</span>
         <span className="w-12 text-right">{step.budgetMinutes ?? "—"} min</span>
       </div>
-      {isDue && step.script && (
+      {isDue && script && (
         <blockquote className="border-b border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
-          <span className="mb-1 block text-xs text-gray-500">
-            {tr("say", d)}
-          </span>
-          {fillScript(step.script, scriptContext)}
+          {script.message && (
+            <>
+              <span className="mb-1 block text-xs text-gray-500">
+                {tr("say", d)}
+              </span>
+              {script.message}
+            </>
+          )}
           {step.goal?.trim() && (
             <span className="mt-1 block text-xs text-gray-500">
               {tr("goal", d)}: {fillScript(step.goal, scriptContext)}
@@ -406,15 +416,17 @@ function OtherContacts({
           </h4>
         </button>
       )}
-      {open && (
+      {(!collapsible || open) && (
         <>
           <div className="flex shrink-0 items-stretch gap-1 border-b border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-800/60">
             <div className="relative min-w-0 flex-1">
               <HiOutlineSearch className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
               <input
                 className="w-full rounded-md border border-gray-300 bg-white py-1.5 pl-8 pr-2.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                placeholder={tr(
-                  "symptoms.call_center_contact_search_placeholder",
+                placeholder={trDynamic(
+                  collapsible
+                    ? "symptoms.call_center_other_search_placeholder"
+                    : "symptoms.call_center_contact_search_placeholder",
                   dict
                 )}
                 value={search}
@@ -507,11 +519,26 @@ export default function CallCenterMenu({
   );
   const elapsed = useElapsed(startedAt);
   const [addDraft, setAddDraft] = useState<NewNumberDraft | null>(null);
+  const callVersion = useRef(0);
+  useEffect(
+    () => () => {
+      callVersion.current += 1;
+    },
+    []
+  );
+  const selectTarget: OnCall = (target, script) => {
+    callVersion.current += 1;
+    if (script) onCall(target, script);
+    else onCall(target);
+  };
 
   const response = level?.level.response;
   const steps = response?.operator ? (response.steps ?? NO_STEPS) : NO_STEPS;
   const conditions = useMemo(() => stepConditions(steps), [steps]);
-  const { data: tripView } = useTripContacts(symptom?.id, conditions);
+  const { data: tripView, mutate: refreshTrip } = useTripContacts(
+    symptom?.id,
+    conditions
+  );
   const matches = tripView?.matches;
   const called = useMemo(
     () => calledInCase(treatments, driverIds(steps, matches ?? [])),
@@ -532,6 +559,7 @@ export default function CallCenterMenu({
     { phone, name, preset }: NewNumberDraft,
     action: NewNumberAction
   ) => {
+    const version = ++callVersion.current;
     const number = phone.trim();
     const personName = name.trim() || formatChileanPhone(number);
     setAddDraft(null);
@@ -542,16 +570,19 @@ export default function CallCenterMenu({
           phone: number,
           preset,
         });
-        onCall(newTarget(saved, personName, number));
+        void refreshTrip();
+        if (callVersion.current === version)
+          selectTarget(newTarget(saved, personName, number));
         return;
       } catch {
+        if (callVersion.current !== version) return;
         ShowNotification({
           type: "error",
           message: tr("symptoms.call_center_new_save_error", dict),
         });
       }
     }
-    onCall(newTarget(null, personName, number));
+    selectTarget(newTarget(null, personName, number));
   };
 
   return (
@@ -619,7 +650,7 @@ export default function CallCenterMenu({
               canSkip={due < steps.length - 1}
               dict={dict}
               d={d}
-              onCall={onCall}
+              onCall={selectTarget}
               onSkip={() => onSkip(due + 1)}
             />
           ))}
@@ -629,7 +660,7 @@ export default function CallCenterMenu({
             collapsible={steps.length > 0}
             dict={dict}
             d={d}
-            onCall={onCall}
+            onCall={selectTarget}
             onNewNumber={setAddDraft}
           />
         </div>

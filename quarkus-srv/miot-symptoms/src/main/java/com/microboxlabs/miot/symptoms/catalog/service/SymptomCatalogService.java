@@ -98,10 +98,7 @@ public class SymptomCatalogService {
     private static boolean resultExists(SelectableService selectables, String tenantCode, String result) {
         if (selectables == null) return true;
         try {
-            var list = selectables.get(tenantCode, "call_result");
-            var options = list.source().isStatic() ? list.options()
-                    : selectables.options(tenantCode, "call_result", result, List.of(), 200);
-            return options.stream().anyMatch(option -> result.equals(option.value()));
+            return selectables.contains(tenantCode, "call_result", result);
         } catch (NoSuchElementException missingList) {
             return false;
         }

@@ -19,7 +19,10 @@ vi.mock("@/app/api/utils/streamhub-modulith-proxy", () => ({
 import { DELETE, GET, POST } from "./route";
 
 const req = (url: string, init?: RequestInit) => {
-  const r = new Request(url, init) as unknown as import("next/server").NextRequest;
+  const r = new Request(
+    url,
+    init
+  ) as unknown as import("next/server").NextRequest;
   Object.defineProperty(r, "nextUrl", { value: new URL(url) });
   return r;
 };
@@ -28,12 +31,18 @@ const ctx = (path: string[]) => ({ params: Promise.resolve({ path }) });
 describe("/api/control-tower/[...path]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    scopeMock.mockResolvedValue({ resolved: true, scope: { activeOrg: { slug: "acme org" } } });
+    scopeMock.mockResolvedValue({
+      resolved: true,
+      scope: { activeOrg: { slug: "acme org" } },
+    });
     forwardMock.mockResolvedValue(NextResponse.json({ ok: true }));
   });
 
   it("forwards to the active organization's Control Tower path with the query", async () => {
-    await GET(req("http://x/app/api/control-tower/contacts?active=true"), ctx(["contacts"]));
+    await GET(
+      req("http://x/app/api/control-tower/contacts?active=true"),
+      ctx(["contacts"])
+    );
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme%20org/control-tower/contacts?active=true",
       { method: "GET", body: undefined }
@@ -53,7 +62,12 @@ describe("/api/control-tower/[...path]", () => {
       { method: "POST", body: { type: "CALL" } }
     );
 
-    await POST(req("http://x/app/api/control-tower/treatments/t1/close", { method: "POST" }), ctx(["treatments", "t1", "close"]));
+    await POST(
+      req("http://x/app/api/control-tower/treatments/t1/close", {
+        method: "POST",
+      }),
+      ctx(["treatments", "t1", "close"])
+    );
     expect(forwardMock).toHaveBeenLastCalledWith(
       "/api/v1/orgs/acme%20org/control-tower/treatments/t1/close",
       { method: "POST", body: {} }
@@ -61,7 +75,10 @@ describe("/api/control-tower/[...path]", () => {
   });
 
   it("never lets the browser pick the organization or climb the path", async () => {
-    const traversal = await DELETE(req("http://x/app/api/control-tower/x"), ctx(["..", "orgs"]));
+    const traversal = await DELETE(
+      req("http://x/app/api/control-tower/x"),
+      ctx(["..", "orgs"])
+    );
     expect(traversal.status).toBe(400);
     const empty = await GET(req("http://x/app/api/control-tower"), ctx([]));
     expect(empty.status).toBe(400);
@@ -70,27 +87,52 @@ describe("/api/control-tower/[...path]", () => {
 
   it("rejects malformed JSON and returns the scope failure as is", async () => {
     const bad = await POST(
-      req("http://x/app/api/control-tower/contacts", { method: "POST", body: "{nope" }),
+      req("http://x/app/api/control-tower/contacts", {
+        method: "POST",
+        body: "{nope",
+      }),
       ctx(["contacts"])
     );
     expect(bad.status).toBe(400);
 
-    scopeMock.mockResolvedValue({ resolved: false, response: NextResponse.json({}, { status: 403 }) });
-    const denied = await GET(req("http://x/app/api/control-tower/contacts"), ctx(["contacts"]));
+    scopeMock.mockResolvedValue({
+      resolved: false,
+      response: NextResponse.json({}, { status: 403 }),
+    });
+    const denied = await GET(
+      req("http://x/app/api/control-tower/contacts"),
+      ctx(["contacts"])
+    );
     expect(denied.status).toBe(403);
     expect(forwardMock).not.toHaveBeenCalled();
   });
 
   it("saves as template with the user's session only", async () => {
     await POST(
-      req("http://x/app/api/control-tower/symptom-definitions/abc/save-as-template", {
-        method: "POST",
-        body: "{}",
-      }),
+      req(
+        "http://x/app/api/control-tower/symptom-definitions/abc/save-as-template",
+        {
+          method: "POST",
+          body: "{}",
+        }
+      ),
       ctx(["symptom-definitions", "abc", "save-as-template"])
     );
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme%20org/control-tower/symptom-definitions/abc/save-as-template",
+      { method: "POST", body: {}, sessionOnly: true }
+    );
+  });
+
+  it("requests a browser login with the operator's session instead of the shared M2M token", async () => {
+    await POST(
+      req("http://x/app/api/control-tower/telephony/webrtc-token", {
+        method: "POST",
+      }),
+      ctx(["telephony", "webrtc-token"])
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/control-tower/telephony/webrtc-token",
       { method: "POST", body: {}, sessionOnly: true }
     );
   });

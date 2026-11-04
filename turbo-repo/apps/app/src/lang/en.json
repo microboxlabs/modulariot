@@ -7604,6 +7604,8 @@
     "call_phase_ringing": "Ringing…",
     "call_phase_ended": "Call ended",
     "call_telnyx_failed": "Could not call from the browser",
+    "call_telephony_loading": "Loading telephony settings…",
+    "call_telephony_load_failed": "Could not load telephony settings. Reopen the call to try again.",
     "call_telephony_answered": "answered (recorded by the telephony)",
     "call_telephony_unanswered": "not answered (recorded by the telephony)"
   },

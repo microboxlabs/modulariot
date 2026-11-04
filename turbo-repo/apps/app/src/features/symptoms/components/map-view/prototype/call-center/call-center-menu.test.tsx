@@ -13,6 +13,7 @@ const data = vi.hoisted(() => ({
   level: undefined as unknown,
   treatmentsId: undefined as unknown,
   createContact: vi.fn(),
+  refreshTrip: vi.fn(),
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
@@ -23,7 +24,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
     data.treatmentsId = id;
     return { data: data.treatments };
   },
-  useTripContacts: () => ({ data: data.trip }),
+  useTripContacts: () => ({ data: data.trip, mutate: data.refreshTrip }),
 }));
 
 vi.mock("swr", () => ({ mutate: vi.fn() }));
@@ -129,6 +130,14 @@ beforeEach(() => {
 });
 
 describe("CallCenterMenu", () => {
+  it("offers trip presets only once their RUT is available", () => {
+    data.trip = undefined;
+    data.level = levelWith([
+      { role: "Conductor", channel: "call", budgetMinutes: 2, script: null },
+    ]);
+    renderMenu();
+    expect(screen.queryByRole("button", { name: "Nuevo número" })).toBeNull();
+  });
   it("keeps a newer call selection when an earlier contact save finishes", async () => {
     let finishSave = () => {};
     data.createContact.mockImplementationOnce(
@@ -250,6 +259,7 @@ describe("CallCenterMenu", () => {
         nationalId: "000000019",
       })
     );
+    expect(data.refreshTrip).toHaveBeenCalled();
     await waitFor(() =>
       expect(onCall).toHaveBeenCalledWith(
         expect.objectContaining({ contactId: "new-contact" })

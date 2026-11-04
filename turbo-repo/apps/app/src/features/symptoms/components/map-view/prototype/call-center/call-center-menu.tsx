@@ -114,9 +114,9 @@ function presetFor(
   trip: TowerTripContacts | undefined,
   carrierName: string | undefined
 ): NewContactPreset | undefined {
-  if (target?.scope === "DRIVER")
-    return { role: DRIVER_ROLE, nationalId: trip?.driverRuts[0] };
-  if (target?.scope === "TRIP_CARRIER")
+  if (target?.scope === "DRIVER" && trip?.driverRuts[0])
+    return { role: DRIVER_ROLE, nationalId: trip.driverRuts[0] };
+  if (target?.scope === "TRIP_CARRIER" && trip?.carrierRut)
     return {
       role: target.role ?? "",
       companyRut: trip?.carrierRut ?? undefined,
@@ -463,7 +463,7 @@ export default function CallCenterMenu({
   // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
   const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
   const { data: treatments } = useSymptomTreatments(caseId);
-  const { data: tripView } = useTripContacts(caseId);
+  const { data: tripView, mutate: refreshTrip } = useTripContacts(caseId);
   const trip = useMemo(() => tripMatches(tripView), [tripView]);
   const called = useMemo(
     () => calledInCase(treatments, trip.drivers),
@@ -511,6 +511,7 @@ export default function CallCenterMenu({
           phone: number,
           preset,
         });
+        void refreshTrip();
         if (callVersion.current === version)
           selectTarget(newTarget(saved, personName, number));
         return;

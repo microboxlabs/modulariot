@@ -9,7 +9,12 @@ import java.util.List;
  * @param driverRuts the driver's RUT, then the second driver's, as the trip stores them
  * @param carrierRut the carrier company's tax id, or null
  */
-public record TripPeople(List<String> driverRuts, String carrierRut) {
+public record TripPeople(List<String> driverRuts, String carrierRut, String driverRut, String secondDriverRut) {
+
+    public TripPeople(List<String> driverRuts, String carrierRut) {
+        this(driverRuts, carrierRut, driverRuts.isEmpty() ? null : driverRuts.get(0),
+                driverRuts.size() > 1 ? driverRuts.get(1) : null);
+    }
 
     public static final TripPeople NONE = new TripPeople(List.of(), null);
 
@@ -20,6 +25,9 @@ public record TripPeople(List<String> driverRuts, String carrierRut) {
                 .map(String::trim)
                 .distinct()
                 .toList();
-        return new TripPeople(drivers, carrierRut == null || carrierRut.isBlank() ? null : carrierRut.trim());
+        return new TripPeople(drivers, clean(carrierRut), clean(driverRut), clean(secondDriverRut));
+    }
+    private static String clean(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

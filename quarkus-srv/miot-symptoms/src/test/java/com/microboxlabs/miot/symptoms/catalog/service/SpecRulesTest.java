@@ -19,6 +19,24 @@ import org.junit.jupiter.api.Test;
 class SpecRulesTest {
 
     @Test
+    void contactConditionsBlockPublicationWhenTheSharedEvaluatorRejectsThem() {
+        SymptomSpec base = Specs.speeding();
+        var response = new SymptomSpec.Response(true, 5,
+                List.of(new SymptomSpec.Step(null, "call", 2, null, null, "contact.role == (")),
+                List.of(), List.of(), false, null, false, null, "42");
+        var levels = new java.util.ArrayList<>(base.levels());
+        levels.set(3, new Level(4, true, levels.get(3).when(), response));
+        var asked = new java.util.ArrayList<String>();
+        Report report = SpecValidator.validate(Specs.withLevels(base, levels), Specs.gpsSignal(), condition -> {
+            asked.add(condition);
+            return java.util.Optional.of("Invalid condition");
+        });
+        assertFalse(report.publishable());
+        assertTrue(asked.containsAll(List.of("contact.role == (", "42")));
+        assertEquals(2, report.findings().stream().filter(f -> "contactConditionInvalid".equals(f.code())).count());
+    }
+
+    @Test
     void bumpFollowsWhatChanged() {
         SymptomSpec base = Specs.speeding();
 

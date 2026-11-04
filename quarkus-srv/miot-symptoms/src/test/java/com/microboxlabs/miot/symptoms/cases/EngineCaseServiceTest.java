@@ -820,14 +820,14 @@ class EngineCaseServiceTest {
 
     @Test
     void aScriptReadsTheCaseTheVehicleAndTheTripWithoutALiveTrip() {
-        store.add(engineCase(12, "KLHH49", 4, 0));
+        store.add(engineCase(12, "TEST-PLATE", 4, 0));
 
         JsonNode ctx = service.context(TENANT, -12);
 
         assertEquals("Botón de pánico", ctx.path("case").path("symptom").asText());
         assertEquals(4, ctx.path("case").path("level").asInt());
         assertEquals(-12, ctx.path("case").path("id").asLong());
-        assertEquals("KLHH49", ctx.path("vehicle").path("plate").asText());
+        assertEquals("TEST-PLATE", ctx.path("vehicle").path("plate").asText());
         assertEquals("T-1", ctx.path("trip").path("id").asText());
         assertFalse(ctx.path("trip").has("driver"), "no live trip, no driver");
         assertTrue(ctx.path("condition").isObject());
@@ -835,7 +835,7 @@ class EngineCaseServiceTest {
 
     @Test
     void theTimelineListsTheCasesLifeInTimeOrder() {
-        store.add(at(12, "KLHH49", OPENED, OPENED.plusSeconds(3600)));
+        store.add(at(12, "TEST-PLATE", OPENED, OPENED.plusSeconds(3600)));
         store.notes.put(12L, List.of(new EngineCaseStore.CaseNote(OPENED.plusSeconds(600), "main_power_reconnect",
                 "Volvió la energía", OPENED.plusSeconds(590))));
 
@@ -847,6 +847,43 @@ class EngineCaseServiceTest {
         assertEquals(4, timeline.get(0).path("level").asInt());
         assertEquals("main_power_reconnect", timeline.get(1).path("eventType").asText());
         assertEquals(OPENED.plusSeconds(3600).toString(), timeline.get(2).path("at").asText());
+    }
+
+    @Test
+    void theTimelineUsesHistoricalHoldsAndStartsPreexistingCoverageAtOpening() {
+        InMemoryEngineCases history = new InMemoryEngineCases() {
+            @Override
+            public List<EngineCase.Ignored> holds(String tenant, EngineCase c, Instant until) {
+                assertEquals(OPENED.plusSeconds(60), until);
+                return List.of(new EngineCase.Ignored("ended-hold", OPENED.minusSeconds(30),
+                        OPENED.plusSeconds(30), false, "ALL", "operator@example.test"));
+            }
+        };
+        history.add(at(12, "TEST-PLATE", OPENED, OPENED.plusSeconds(60)));
+        EngineCaseService historical = new EngineCaseService(history, (tenant, asset, definition) -> { },
+                t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+
+        JsonNode timeline = historical.timeline(TENANT, -12, List.of());
+
+        assertEquals("HELD", timeline.get(1).path("kind").asText());
+        assertEquals(OPENED.toString(), timeline.get(1).path("at").asText());
+        assertEquals("operator@example.test", timeline.get(1).path("by").asText());
+    }
+
+    @Test
+    void theTimelineOrdersFractionalInstantsAndKeepsTiesStable() {
+        store.add(at(12, "TEST-PLATE", OPENED, OPENED.plusMillis(100)));
+        store.notes.put(12L, List.of(
+                new EngineCaseStore.CaseNote(OPENED, "at-opening", null, OPENED),
+                new EngineCaseStore.CaseNote(OPENED.plusMillis(50), "later", null, OPENED.plusMillis(50))));
+
+        JsonNode timeline = service.timeline(TENANT, -12, List.of());
+
+        List<String> kinds = new ArrayList<>();
+        timeline.forEach(e -> kinds.add(e.path("kind").asText()));
+        assertEquals(List.of("OPENED", "NOTED", "NOTED", "CLOSED"), kinds);
+        assertEquals("at-opening", timeline.get(1).path("eventType").asText());
+        assertEquals(OPENED.plusMillis(50).toString(), timeline.get(2).path("at").asText());
     }
 
     @Test
@@ -863,6 +900,30 @@ class EngineCaseServiceTest {
         assertEquals("NEW", samples.get(1).path("context").path("vehicle").path("plate").asText());
         assertEquals(0, service.scriptSamples(TENANT, "Otro síntoma", null).size());
         assertThrows(IllegalArgumentException.class, () -> service.scriptSamples(TENANT, " ", null));
+    }
+
+    @Test
+    void scriptSamplesIncludeHistoryAndHydrateTheListProjection() {
+        InMemoryEngineCases projections = new InMemoryEngineCases() {
+            @Override
+            public List<EngineCase> list(String tenant, EngineCaseStore.CaseFilter filter) {
+                assertFalse(filter.openOnly(), "samples include closed and ignored history");
+                assertEquals(OPENED.plusSeconds(90), filter.to());
+                return super.list(tenant, filter).stream()
+                        .map(c -> c.withLevel(null, null, null, List.of())).toList();
+            }
+        };
+        JsonNode opening = new ObjectMapper().createObjectNode().put("speed", 80);
+        JsonNode reached = new ObjectMapper().createObjectNode().put("speed", 100);
+        projections.add(at(1, "HISTORY", OPENED, OPENED.plusSeconds(30))
+                .withLevel(opening, reached, "speed", List.of()));
+        EngineCaseService samples = new EngineCaseService(projections, (tenant, asset, definition) -> { },
+                t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+
+        JsonNode found = samples.scriptSamples(TENANT, "Botón de pánico", null);
+
+        assertEquals(1, found.size());
+        assertEquals(100, found.get(0).path("context").path("condition").path("speed").asInt());
     }
 
     @Test

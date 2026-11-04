@@ -60,6 +60,11 @@ public interface EngineCaseStore {
         return List.of();
     }
 
+    /** Historical holds whose coverage overlaps this case, including holds that have ended. */
+    default List<EngineCase.Ignored> holds(String tenantCode, EngineCase engineCase, Instant until) {
+        return List.of();
+    }
+
     int MAX_NOTES = 200;
 
     /**

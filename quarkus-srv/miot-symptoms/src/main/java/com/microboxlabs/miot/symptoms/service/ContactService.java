@@ -104,9 +104,8 @@ public class ContactService {
     /** {@code event.data} for a trip: driverRut, secondDriverRut and carrierRut, normalized, when the trip has them. */
     static Map<String, Object> tripData(TripPeople trip) {
         Map<String, Object> data = new LinkedHashMap<>();
-        List<String> drivers = trip.driverRuts();
-        putRut(data, "driverRut", drivers.isEmpty() ? null : drivers.get(0));
-        putRut(data, "secondDriverRut", drivers.size() > 1 ? drivers.get(1) : null);
+        putRut(data, "driverRut", trip.driverRut());
+        putRut(data, "secondDriverRut", trip.secondDriverRut());
         putRut(data, "carrierRut", trip.carrierRut());
         return data;
     }
@@ -367,7 +366,7 @@ public class ContactService {
         }
         String compact = phone.replaceAll("[\\s\\-()]", "");
         if (!E164.matcher(compact).matches()) {
-            throw new IllegalArgumentException("phone must be a full international number, e.g. +56912345678");
+            throw new IllegalArgumentException("phone must be a full international number, e.g. +12025550101");
         }
         return compact;
     }

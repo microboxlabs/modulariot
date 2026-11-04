@@ -30,6 +30,7 @@ import {
   CALL_METHOD_LABEL_KEYS,
   type CallMethod,
 } from "./call-method";
+import type { TowerContactChannels } from "@/features/symptoms/control-tower/control-tower-api";
 import type { CallStats } from "./call-targets";
 import { channelLink, phoneDigits } from "./channel-link";
 import ContactRow from "./contact-row";
@@ -60,6 +61,7 @@ export default function CallDialingStep({
   contactName,
   contactRole,
   contactPhone,
+  channels,
   allowedMethods,
   contactId,
   reason,
@@ -77,6 +79,7 @@ export default function CallDialingStep({
   contactName: string;
   contactRole: string;
   contactPhone?: string;
+  channels?: TowerContactChannels | null;
   /** The channels the contact can be reached on. Empty shows "Sin canales registrados". */
   allowedMethods: readonly CallMethod[];
   /** The contact book id, for the link to edit a contact with no channels. */
@@ -141,7 +144,7 @@ export default function CallDialingStep({
     };
   }, []);
 
-  const destination = phoneDigits(contactPhone);
+  const destination = phoneDigits(channels?.phone ?? contactPhone);
   const viaTelnyx = (id: CallMethod) =>
     id === "phone" && line?.provider === "TELNYX" && destination !== null;
 
@@ -207,7 +210,11 @@ export default function CallDialingStep({
           <ContactRow
             personName={contactName}
             roleLabel={contactRole}
-            phone={contactPhone}
+            phone={
+              started && (method === "phone" || method === "whatsapp")
+                ? (channels?.[method] ?? contactPhone)
+                : contactPhone
+            }
             stats={stats}
             pulsing={started}
             bgClassName="bg-white dark:bg-gray-800/40"
@@ -308,7 +315,11 @@ export default function CallDialingStep({
                     }
                     // Opens the channel's app (dialer, WhatsApp chat with the
                     // script typed); the call is timed here either way.
-                    const link = channelLink(id, contactPhone, reason);
+                    const link = channelLink(
+                      id,
+                      channels?.[id] ?? contactPhone,
+                      reason
+                    );
                     if (link?.startsWith("https://"))
                       window.open(link, "_blank", "noopener,noreferrer");
                     else if (link) window.location.href = link;

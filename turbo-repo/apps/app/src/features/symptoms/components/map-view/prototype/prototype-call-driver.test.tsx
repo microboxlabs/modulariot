@@ -72,7 +72,7 @@ const draft: CallFormDraft = {
   saved: false,
 };
 
-function renderCall(saved = false) {
+function renderCall(saved = false, resultadoId = draft.resultadoId) {
   const closeMenu = vi.fn();
   render(
     <PrototypeCallDriver
@@ -86,8 +86,10 @@ function renderCall(saved = false) {
       initialCallTargetName="Test contact"
       initialCallTargetPhone="+12025550100"
       initialCallTargetRole="Dispatcher"
-      initialDraft={{ ...draft, saved }}
+      initialDraft={{ ...draft, saved, resultadoId }}
       callDurationSeconds={30}
+      onMakeAnotherCall={vi.fn()}
+      onSwitchTreatment={vi.fn()}
     />
   );
   return closeMenu;
@@ -118,9 +120,26 @@ describe("engine call treatment form", () => {
         contactRole: "Dispatcher",
         durationSeconds: 30,
         note: "Synthetic call note",
+        answered: true,
       })
     );
     expect(api.requestTreatment).not.toHaveBeenCalled();
+  });
+
+  it("records a no-answer result as a missed call", async () => {
+    const user = userEvent.setup();
+    renderCall(false, "result_no_answer");
+    await user.click(
+      screen.getByRole("button", {
+        name: es.symptoms.save_and_call_again,
+      })
+    );
+    await waitFor(() =>
+      expect(api.addTreatmentAction).toHaveBeenCalledWith(
+        "t-1",
+        expect.objectContaining({ answered: false })
+      )
+    );
   });
 
   it("keeps the form open on close failure and retries without a duplicate call action", async () => {

@@ -78,7 +78,13 @@ export default function PrototypeCallCenterFlow({
   onRepeatCallChange,
   formDraft,
   onFormDraftChange,
+  startedAt,
+  skippedTo,
+  onSkip,
 }: Readonly<{
+  startedAt: number;
+  skippedTo: number | null;
+  onSkip: (step: number) => void;
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   messageToCommunicate: string;
@@ -130,9 +136,6 @@ export default function PrototypeCallCenterFlow({
   const [callMethodUsed, setCallMethodUsed] = useState<CallMethod | null>(
     resumeSnapshot?.methodUsed ?? null
   );
-  // Kept here so the due step's timing and a skip survive a call.
-  const [startedAt] = useState(() => Date.now());
-  const [skippedTo, setSkippedTo] = useState<number | null>(null);
 
   useEffect(() => {
     const reported: CallCenterReportedStep =
@@ -196,7 +199,7 @@ export default function PrototypeCallCenterFlow({
             treatmentData={treatmentData}
             startedAt={startedAt}
             skippedTo={skippedTo}
-            onSkip={setSkippedTo}
+            onSkip={onSkip}
             onCall={handleCall}
           />
         </div>

@@ -68,7 +68,7 @@ class TreatmentServiceTest {
 
     @Test
     void callActionCopiesTheContactAndFeedsStatistics() {
-        Contact camila = contacts.insert(new Contact(null, TENANT, "Camila", "Jefe de operaciones", "+56900000101",
+        Contact camila = contacts.insert(new Contact(null, TENANT, "Camila", "Jefe de operaciones", "+12025550101",
                 List.of(CallMethod.PHONE), true, null, ACTOR, null, null));
         String id = service.open(TENANT, ACTOR, 42L, open(TreatmentType.CALL)).treatment().id();
 
@@ -77,7 +77,7 @@ class TreatmentServiceTest {
 
         assertEquals(1, call.seq());
         assertEquals("Camila", call.contactName());
-        assertEquals("+56900000101", call.contactPhone());
+        assertEquals("+12025550101", call.contactPhone());
         assertEquals(List.of("call_tags_3"), call.tags());
         var stats = treatments.contactStats(TENANT);
         assertEquals(1, stats.size());
@@ -103,13 +103,18 @@ class TreatmentServiceTest {
 
     @Test
     void callToASavedContactNeedsOneOfItsChannels() {
-        Contact camila = contacts.insert(new Contact(null, TENANT, "Camila", "Jefe de operaciones", "+56900000101",
+        Contact camila = contacts.insert(new Contact(null, TENANT, "Camila", "Jefe de operaciones", "+12025550101",
                 List.of(CallMethod.PHONE), true, null, ACTOR, null, null));
         String id = service.open(TENANT, ACTOR, 42L, open(TreatmentType.CALL)).treatment().id();
 
+        AddActionRequest unsupported = call(camila.id(), null, CallMethod.WHATSAPP);
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
-                () -> service.addAction(TENANT, ACTOR, id, call(camila.id(), null, CallMethod.WHATSAPP)));
+                () -> service.addAction(TENANT, ACTOR, id, unsupported));
         assertEquals("contact " + camila.id() + " has no WHATSAPP channel; its channels: PHONE", e.getMessage());
+
+        AddActionRequest missingMethod = call(camila.id(), null, (CallMethod) null);
+        assertThrows(IllegalArgumentException.class,
+                () -> service.addAction(TENANT, ACTOR, id, missingMethod));
 
         assertEquals(CallMethod.PHONE, service.addAction(TENANT, ACTOR, id, call(camila.id(), null, true)).method());
         // The driver and a new number are not in the book: any channel is accepted.

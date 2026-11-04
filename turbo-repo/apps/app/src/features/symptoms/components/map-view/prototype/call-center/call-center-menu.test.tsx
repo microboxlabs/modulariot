@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
@@ -15,6 +15,7 @@ const data = vi.hoisted(() => ({
   level: undefined as unknown,
   treatmentsId: undefined as unknown,
   createContact: vi.fn(),
+  refreshTrip: vi.fn(),
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
@@ -26,6 +27,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
     return { data: data.treatments };
   },
   useTripContacts: (_id: unknown, conditions: string[]) => ({
+    mutate: data.refreshTrip,
     data: {
       data: data.tripData,
       matches: conditions.map((c) => data.match(c)),
@@ -45,7 +47,7 @@ vi.mock("@/features/notifications/notification", () => ({
 }));
 
 const dict = es as unknown as I18nRecord;
-const SUR = "761112228";
+const SUR = "000000030";
 
 const contact = (
   id: string,
@@ -58,7 +60,7 @@ const contact = (
   role,
   company: null,
   companyRut: null,
-  phone: "+56911112222",
+  phone: "+12025550101",
   methods: ["PHONE"],
   active: true,
   lastCalledAt: null,
@@ -72,7 +74,7 @@ const treatment = {
   trip_info: {
     // Shown in the case info; never used as a contact.
     driver: "Nombre en el viaje",
-    driver_contact: "+56933334444",
+    driver_contact: "+12025550102",
     carrier: "Transportes Sur",
   },
 } as unknown as TreatmentsGeneralResponseItem;
@@ -101,7 +103,8 @@ async function saveNewNumber(
   user: ReturnType<typeof userEvent.setup>,
   name: string
 ) {
-  await user.type(screen.getByLabelText("Número de teléfono"), "912345678");
+  await user.click(screen.getByLabelText("Número de teléfono"));
+  await user.paste("+12025550101");
   await user.type(screen.getByLabelText("Nombre"), name);
   await user.click(
     screen.getByRole("button", { name: "Llamar y guardar en la libreta" })
@@ -117,12 +120,12 @@ beforeEach(() => {
     }),
     contact("gs", "Gema Soto", "Gerente de Seguridad", { companyRut: SUR }),
     contact("gs-norte", "Nora Ruiz", "Gerente de Seguridad", {
-      companyRut: "769999999",
+      companyRut: "000000050",
     }),
     contact("torre", "Marta Díaz", "Jefe de Torre"),
     contact("off", "Inactivo", "Jefe de Torre", { active: false }),
   ];
-  data.tripData = { driverRut: "123456785", carrierRut: SUR };
+  data.tripData = { driverRut: "000000019", carrierRut: SUR };
   // Stands in for the server's CEL evaluation of each step's condition.
   data.match = (c) => {
     if (c.includes("nationalId")) return ["ana"];
@@ -138,6 +141,32 @@ beforeEach(() => {
 });
 
 describe("CallCenterMenu", () => {
+  it("keeps a newer call selection when an earlier contact save finishes", async () => {
+    let finishSave = () => {};
+    data.createContact.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSave = () =>
+            resolve(contact("new-contact", "Saved contact", ""));
+        })
+    );
+    const user = userEvent.setup();
+    const onCall = renderMenu();
+    await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+    await user.click(screen.getByLabelText("Número de teléfono"));
+    await user.paste("+12025550103");
+    await user.type(screen.getByLabelText("Nombre"), "Saved contact");
+    await user.click(
+      screen.getByRole("button", { name: "Llamar y guardar en la libreta" })
+    );
+    await user.click(screen.getByRole("button", { name: /Gema/ }));
+    await act(async () => finishSave());
+    expect(onCall).toHaveBeenCalledTimes(1);
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({ contactId: "gs" })
+    );
+  });
+
   it("lists each step with the book contacts its condition matches", async () => {
     data.level = levelWith([
       {
@@ -192,7 +221,7 @@ describe("CallCenterMenu", () => {
       expect.objectContaining({
         contactId: "gs",
         role: "Gerente de Seguridad",
-        phone: "+56 9 1111 2222",
+        phone: "+12025550101",
         methods: ["phone"],
         stats: expect.objectContaining({ accepted: 2, denied: 1 }),
       })
@@ -218,7 +247,7 @@ describe("CallCenterMenu", () => {
     ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Nuevo número" }));
     expect(
-      screen.getByText("Se guarda como Conductor con RUT 123456785")
+      screen.getByText("Se guarda como Conductor con RUT 000000019")
     ).toBeTruthy();
     await saveNewNumber(user, "Ana Nueva");
 
@@ -226,9 +255,10 @@ describe("CallCenterMenu", () => {
       expect.objectContaining({
         name: "Ana Nueva",
         role: "Conductor",
-        nationalId: "123456785",
+        nationalId: "000000019",
       })
     );
+    expect(data.refreshTrip).toHaveBeenCalled();
     await waitFor(() =>
       expect(onCall).toHaveBeenCalledWith(
         expect.objectContaining({ contactId: "new-contact" })
@@ -257,7 +287,7 @@ describe("CallCenterMenu", () => {
     await user.click(screen.getByRole("button", { name: "Nuevo número" }));
     expect(
       screen.getByText(
-        "Se guarda como Oficina Comercial de la empresa con RUT 761112228"
+        "Se guarda como Oficina Comercial de la empresa con RUT 000000030"
       )
     ).toBeTruthy();
     await saveNewNumber(user, "Omar");

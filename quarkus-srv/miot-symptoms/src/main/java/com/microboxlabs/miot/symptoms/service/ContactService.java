@@ -82,7 +82,7 @@ public class ContactService {
     public static final String DRIVER_ROLE = "Conductor";
 
     /**
-     * The book's people for a trip, by RUT only: active Conductor contacts whose national id is one of the trip's
+     * The book's people for a trip, by identifier and type: active Conductor contacts whose national id is one of the trip's
      * driver RUTs, and active contacts of any role whose company tax id is the trip carrier's.
      */
     public TripContactsView tripContacts(String tenantCode, TripPeople trip) {
@@ -92,6 +92,12 @@ public class ContactService {
                 .distinct()
                 .toList();
         String carrierRut = normalizeNationalId(trip.carrierRut());
+        String carrierType = DriverContactSync.companyTaxIdType(carrierRut);
+        Map<String, String> driverTypes = new LinkedHashMap<>();
+        for (String id : driverRuts) {
+            String type = DriverContactSync.nationalIdType(id, carrierRut);
+            if (type != null) driverTypes.put(id, type);
+        }
         List<String> drivers = new ArrayList<>();
         List<String> carriers = new ArrayList<>();
         if (!driverRuts.isEmpty() || carrierRut != null) {
@@ -99,15 +105,21 @@ public class ContactService {
                 if (!c.active()) {
                     continue;
                 }
-                if (hasRole(c, DRIVER_ROLE) && driverRuts.contains(normalizeNationalId(c.nationalId()))) {
+                if (matchesTripDriver(c, driverTypes)) {
                     drivers.add(c.id());
                 }
-                if (carrierRut != null && carrierRut.equals(normalizeNationalId(c.companyRut()))) {
+                if (carrierRut != null && carrierType != null && carrierType.equals(c.companyTaxIdType())
+                        && carrierRut.equals(normalizeNationalId(c.companyRut()))) {
                     carriers.add(c.id());
                 }
             }
         }
         return new TripContactsView(driverRuts, carrierRut, List.copyOf(drivers), List.copyOf(carriers));
+    }
+
+    private static boolean matchesTripDriver(Contact c, Map<String, String> types) {
+        String expected = types.get(normalizeNationalId(c.nationalId()));
+        return hasRole(c, DRIVER_ROLE) && expected != null && expected.equals(c.nationalIdType());
     }
 
     private static boolean hasRole(Contact c, String role) {

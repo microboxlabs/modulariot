@@ -74,7 +74,7 @@ function rolesOf(contacts: readonly TowerContact[]): BookRole[] {
   const byKey = new Map<string, BookRole>();
   for (const c of contacts) {
     const role = c.role?.trim();
-    if (!role || isDriverRole(role)) continue;
+    if (!role) continue;
     const key = roleKey(role);
     const entry = byKey.get(key) ?? { role, activeContacts: 0 };
     if (c.active) entry.activeContacts += 1;
@@ -83,17 +83,11 @@ function rolesOf(contacts: readonly TowerContact[]): BookRole[] {
   return [...byKey.values()].sort((a, b) => a.role.localeCompare(b.role, "es"));
 }
 
-/** The book's roles per scope. The driver's role is left out: the driver scope has none. */
+/** The book's roles per scope. Explicit ORG and carrier targets may use any registered role. */
 export function scopeRoles(contacts: readonly TowerContact[]): ScopeRoles {
   return {
     carrier: rolesOf(contacts.filter(isCarrierContact)),
-    org: rolesOf(
-      contacts.filter(
-        (c) =>
-          !isCarrierContact(c) &&
-          roleKey(c.role) !== roleKey(LEGACY_CARRIER_ROLE)
-      )
-    ),
+    org: rolesOf(contacts.filter((c) => !isCarrierContact(c))),
   };
 }
 

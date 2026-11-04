@@ -32,12 +32,23 @@ export interface CallTarget {
   personName: string;
   role: string;
   phone: string;
+  channels?: TowerContact["channels"];
   /** The contact's company and its tax id; absent for a carrier-less contact. */
   company?: string | null;
   companyRut?: string | null;
   /** The channels the target can be reached on. Empty means none. */
   methods: CallMethod[];
   stats: CallStats | null;
+}
+
+/** Phone number displayed and recorded for the selected channel. */
+export function phoneForMethod(
+  target: Pick<CallTarget, "phone" | "channels">,
+  method: CallMethod
+): string {
+  if (method === "phone" || method === "whatsapp")
+    return target.channels?.[method]?.trim() || target.phone;
+  return target.phone;
 }
 
 /** Older CALL actions to the driver have no contact id, only the role. */
@@ -71,6 +82,8 @@ export function stepMethod(
 export interface NewContactPreset {
   role: string;
   nationalId?: string;
+  nationalIdType?: string;
+  companyTaxIdType?: string;
   companyRut?: string;
   company?: string;
 }
@@ -95,6 +108,7 @@ export function useCallTargets() {
         personName: c.name,
         role: c.role ?? "",
         phone: c.phone || c.channels?.phone || c.channels?.whatsapp || "",
+        channels: c.channels,
         company: c.company,
         companyRut: c.companyRut ?? null,
         methods: contactMethods(c),
@@ -126,6 +140,8 @@ export function useCallTargets() {
         provisional: true,
         role: input.preset?.role || undefined,
         nationalId: input.preset?.nationalId || undefined,
+        nationalIdType: input.preset?.nationalIdType,
+        companyTaxIdType: input.preset?.companyTaxIdType,
         companyRut: input.preset?.companyRut || undefined,
         company: input.preset?.company || undefined,
       });

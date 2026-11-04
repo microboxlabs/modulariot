@@ -82,8 +82,12 @@ describe("scopeRoles", () => {
       contact({ role: "" }),
     ]);
     expect(roles.carrier).toEqual([
+      { role: "Conductor", activeContacts: 1 },
       { role: "Gerente de Seguridad", activeContacts: 2 },
     ]);
-    expect(roles.org).toEqual([{ role: "Jefe de Torre", activeContacts: 1 }]);
+    expect(roles.org).toEqual([
+      { role: "Jefe de Torre", activeContacts: 1 },
+      { role: "Transportista", activeContacts: 1 },
+    ]);
   });
 });

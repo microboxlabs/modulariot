@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class TripContactsTest {
 
     private static final String TENANT = "tenant-a";
-    private static final String SUR = "000000030";
+    private static final String SUR = "000000035";
 
     private InMemoryContactStore store;
     private ContactService service;
@@ -41,15 +41,15 @@ class TripContactsTest {
     @Test
     void findsBothDriversAndTheCarriersPeopleByRut() {
         String ana = add("Ana", "Conductor", "000000019", SUR, true);
-        String beto = add("Beto", " conductor ", "00000002K", SUR, true);
+        String beto = add("Beto", " conductor ", "000000027", SUR, true);
         String gerente = add("Gerente", "Gerente de Seguridad", null, SUR, true);
         add("Otro conductor", "Conductor", "000000049", "000000050", true);
         add("Inactivo", "Gerente de Seguridad", null, SUR, false);
 
         TripContactsView view = service.tripContacts(TENANT,
-                TripPeople.of("00.000.001-9", "00.000.002-k", "00.000.003-0"));
+                TripPeople.of("00.000.001-9", "00.000.002-7", "00.000.003-5"));
 
-        assertEquals(List.of("000000019", "00000002K"), view.driverRuts());
+        assertEquals(List.of("000000019", "000000027"), view.driverRuts());
         assertEquals(SUR, view.carrierRut());
         assertEquals(List.of(ana, beto), view.drivers());
         assertEquals(List.of(ana, beto, gerente), view.carrierContacts());
@@ -76,4 +76,21 @@ class TripContactsTest {
         assertEquals(new TripPeople(List.of("1-9"), null), TripPeople.of(" 1-9 ", "1-9", "  "));
         assertEquals(new TripPeople(List.of(), "76"), TripPeople.of(null, "", "76"));
     }
+    @Test
+    void identifierTypesDistinguishDniDriversAndRucCarriersFromEqualRutText() {
+        Contact dni = store.insert(new Contact(null, TENANT, "DNI driver", "Conductor", "+12025550101",
+                List.of(CallMethod.PHONE), true, null, "t", null, null, "12345674", "DNI", "Peru", null,
+                ContactChannels.NONE, List.of(), null, false, "20100000009", "RUC"));
+
+        TripContactsView view = service.tripContacts(TENANT, TripPeople.of("12345674", null, "20100000009"));
+        assertEquals(List.of(dni.id()), view.drivers());
+        assertEquals(List.of(dni.id()), view.carrierContacts());
+        store.update(new Contact(dni.id(), TENANT, "Other identifier", "Conductor", "+12025550102",
+                List.of(CallMethod.PHONE), true, null, "t", null, null, "12345674", "RUT", "Other", null,
+                ContactChannels.NONE, List.of(), null, false, "20100000009", "RUT"));
+        TripContactsView wrongType = service.tripContacts(TENANT, TripPeople.of("12345674", null, "20100000009"));
+        assertEquals(List.of(), wrongType.drivers());
+        assertEquals(List.of(), wrongType.carrierContacts());
+    }
+
 }

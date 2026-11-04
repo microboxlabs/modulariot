@@ -115,11 +115,16 @@ function presetFor(
   carrierName: string | undefined
 ): NewContactPreset | undefined {
   if (target?.scope === "DRIVER" && trip?.driverRuts[0])
-    return { role: DRIVER_ROLE, nationalId: trip.driverRuts[0] };
+    return {
+      role: DRIVER_ROLE,
+      nationalId: trip.driverRuts[0],
+      nationalIdType: /^\d{11}$/.test(trip.carrierRut ?? "") ? "DNI" : "RUT",
+    };
   if (target?.scope === "TRIP_CARRIER" && trip?.carrierRut)
     return {
       role: target.role ?? "",
       companyRut: trip?.carrierRut ?? undefined,
+      companyTaxIdType: /^\d{11}$/.test(trip.carrierRut) ? "RUC" : "RUT",
       company: carrierName?.trim() || undefined,
     };
   return undefined;
@@ -202,6 +207,7 @@ function StepGroup({
   elapsed,
   stepEnd,
   loading,
+  lookupFailed,
   called,
   treatmentData,
   trip,
@@ -217,6 +223,7 @@ function StepGroup({
   elapsed: number;
   stepEnd: number;
   loading: boolean;
+  lookupFailed: boolean;
   called: ReadonlyMap<string, Date>;
   treatmentData: TreatmentsGeneralResponseItem | null;
   /** The server's RUT lookup for the case's trip. */
@@ -273,10 +280,19 @@ function StepGroup({
           onCall={onCall}
         />
       ))}
+      {group.targets.length === 0 && loading && (
+        <p role="status" className="px-3 py-2 text-xs">
+          {tr("lookupPending", d)}
+        </p>
+      )}
       {group.targets.length === 0 && !loading && (
         <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
-          <p className="min-w-0 flex-1">{notInBookText(group.target, d)}</p>
-          {preset && (
+          <p className="min-w-0 flex-1">
+            {lookupFailed
+              ? tr("tripLookupError", d)
+              : notInBookText(group.target, d)}
+          </p>
+          {preset && !lookupFailed && (
             <button
               type="button"
               onClick={() => onNewNumber({ phone: "", name: "", preset })}
@@ -455,15 +471,22 @@ export default function CallCenterMenu({
 }>) {
   const d = (dict.symptoms as I18nRecord)?.ladder as I18nRecord;
   const symptom = treatmentData?.symptom_info;
-  const { data: level } = useLevelResponse(
-    symptom?.name ?? null,
-    symptom?.icu_code ?? null
-  );
+  const {
+    data: level,
+    error: levelError,
+    mutate: refreshLevel,
+  } = useLevelResponse(symptom?.name ?? null, symptom?.icu_code ?? null);
   const { targets, addContact, isLoading } = useCallTargets();
   // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
   const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
   const { data: treatments } = useSymptomTreatments(caseId);
-  const { data: tripView, mutate: refreshTrip } = useTripContacts(caseId);
+  const {
+    data: tripView,
+    mutate: refreshTrip,
+    isLoading: tripLoading,
+    error: tripError,
+  } = useTripContacts(caseId);
+  const levelFailed = Boolean(levelError && levelError.status !== 404);
   const trip = useMemo(() => tripMatches(tripView), [tripView]);
   const called = useMemo(
     () => calledInCase(treatments, trip.drivers),
@@ -571,8 +594,20 @@ export default function CallCenterMenu({
             onCancel={() => setAddDraft(null)}
           />
         )}
+        {levelFailed && (
+          <div role="alert" className="p-3 text-sm text-red-600">
+            <p>{tr("levelLookupError", d)}</p>
+            <button
+              type="button"
+              onClick={() => void refreshLevel()}
+              className="underline"
+            >
+              {tr("retryLookup", d)}
+            </button>
+          </div>
+        )}
         <div
-          className={`min-h-0 flex-1 flex-col overflow-y-auto ${addDraft ? "hidden" : "flex"}`}
+          className={`min-h-0 flex-1 flex-col overflow-y-auto ${addDraft || levelFailed ? "hidden" : "flex"}`}
         >
           {plan.groups.map((group) => (
             <StepGroup
@@ -583,7 +618,11 @@ export default function CallCenterMenu({
               due={due}
               elapsed={elapsed}
               stepEnd={stepEnd}
-              loading={isLoading}
+              loading={
+                isLoading ||
+                Boolean(tripLoading && group.target?.scope !== "ORG")
+              }
+              lookupFailed={Boolean(tripError && group.target?.scope !== "ORG")}
               called={called}
               treatmentData={treatmentData}
               canSkip={due < steps.length - 1}

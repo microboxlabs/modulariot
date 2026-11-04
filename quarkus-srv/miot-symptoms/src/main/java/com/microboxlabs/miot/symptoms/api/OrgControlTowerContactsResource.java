@@ -127,8 +127,8 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
     @GET
     @Path("/trip")
     @Operation(operationId = "getTripContacts", summary = "The book's people for a case's trip",
-            description = "Found by RUT only: active Conductor contacts whose national id is the trip driver's or "
-                    + "second driver's, and active Transportista contacts whose company tax id is the trip "
+            description = "Matched by identifier and expected identifier type: active Conductor contacts whose national id is the trip driver's or "
+                    + "second driver's, and active contacts of any role whose company tax id is the trip "
                     + "carrier's. Only engine cases (negative ids) have a trip to read; other cases answer empty "
                     + "lists. 404 when the engine case is not the organization's.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,

@@ -1,5 +1,7 @@
 "use client";
 
+import { phoneForMethod } from "./call-targets";
+
 /**
  * PROTOTYPE — debug variant of the "Llamar a…" menu entry. Same props as
  * `PrototypeCallDriver` (so `prototype-inline-form` can swap the two behind
@@ -160,6 +162,11 @@ export default function PrototypeCallCenterFlow({
   };
 
   const handleConfirmCall = (elapsedSeconds: number, method: CallMethod) => {
+    const selectedPhone = phoneForMethod(
+      { phone: activePhone, channels: activeContact?.channels },
+      method
+    );
+    setActivePhone(selectedPhone);
     setCallDurationSeconds(elapsedSeconds);
     setCallMethodUsed(method);
     onFormDraftChange?.(null);
@@ -167,7 +174,7 @@ export default function PrototypeCallCenterFlow({
       contact: activeContact,
       personName: activePersonName,
       role: activeRole,
-      phone: activePhone,
+      phone: selectedPhone,
       allowedMethods: activeAllowedMethods,
       durationSeconds: elapsedSeconds,
       methodUsed: method,
@@ -212,6 +219,7 @@ export default function PrototypeCallCenterFlow({
           contactName={activePersonName}
           contactRole={activeRole}
           contactPhone={activePhone}
+          contactChannels={activeContact?.channels}
           allowedMethods={activeAllowedMethods ?? []}
           contactId={activeContact?.contactId}
           reason={messageToCommunicate}

@@ -11,6 +11,10 @@ const data = vi.hoisted(() => ({
   treatments: undefined as unknown,
   trip: undefined as unknown,
   level: undefined as unknown,
+  levelError: undefined as { status: number } | undefined,
+  tripError: undefined as Error | undefined,
+  tripLoading: false,
+  refreshLevel: vi.fn(),
   treatmentsId: undefined as unknown,
   createContact: vi.fn(),
   refreshTrip: vi.fn(),
@@ -24,13 +28,22 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
     data.treatmentsId = id;
     return { data: data.treatments };
   },
-  useTripContacts: () => ({ data: data.trip, mutate: data.refreshTrip }),
+  useTripContacts: () => ({
+    data: data.trip,
+    mutate: data.refreshTrip,
+    isLoading: data.tripLoading,
+    error: data.tripError,
+  }),
 }));
 
 vi.mock("swr", () => ({ mutate: vi.fn() }));
 
 vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
-  useLevelResponse: () => ({ data: data.level }),
+  useLevelResponse: () => ({
+    data: data.level,
+    error: data.levelError,
+    mutate: data.refreshLevel,
+  }),
 }));
 
 vi.mock("@/features/notifications/notification", () => ({
@@ -103,6 +116,9 @@ async function saveNewNumber(
 }
 
 beforeEach(() => {
+  data.levelError = undefined;
+  data.tripError = undefined;
+  data.tripLoading = false;
   vi.clearAllMocks();
   data.contacts = [
     contact("ana", "Ana Pérez", "Conductor", {
@@ -224,7 +240,7 @@ describe("CallCenterMenu", () => {
     );
   });
 
-  it("says the trip driver is not in the book and adds them with the trip's RUT", async () => {
+  it("lets the operator choose the driver identity before saving", async () => {
     data.trip = {
       driverRuts: ["000000019"],
       carrierRut: SUR,
@@ -250,13 +266,20 @@ describe("CallCenterMenu", () => {
     expect(
       screen.getByText("Se guarda como Conductor con RUT 000000019")
     ).toBeTruthy();
+    await user.clear(
+      screen.getByRole("textbox", { name: "Identificación del conductor" })
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Identificación del conductor" }),
+      "000000027"
+    );
     await saveNewNumber(user, "Ana Nueva");
 
     expect(data.createContact).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Ana Nueva",
         role: "Conductor",
-        nationalId: "000000019",
+        nationalId: "000000027",
       })
     );
     expect(data.refreshTrip).toHaveBeenCalled();
@@ -331,4 +354,54 @@ describe("CallCenterMenu", () => {
     expect(screen.getByText("Gema Soto")).toBeTruthy();
     expect(screen.getByText("Marta Díaz")).toBeTruthy();
   });
+});
+
+it("distinguishes a pending trip lookup from an empty contact book", () => {
+  data.contacts = [];
+  data.trip = undefined;
+  data.tripLoading = true;
+  data.level = levelWith([
+    { role: "Conductor", scope: "DRIVER", channel: "call", budgetMinutes: 2 },
+  ]);
+  renderMenu();
+  expect(screen.getByText("Cargando contactos del viaje…")).toBeTruthy();
+  expect(
+    screen.queryByText("Conductor del viaje no está en la libreta.")
+  ).toBeNull();
+});
+
+it("shows a trip lookup failure without offering to save an unmatched driver", () => {
+  data.contacts = [];
+  data.trip = undefined;
+  data.tripError = new Error("network failed");
+  data.level = levelWith([
+    { role: "Conductor", scope: "DRIVER", channel: "call", budgetMinutes: 2 },
+  ]);
+  renderMenu();
+  expect(
+    screen.getByText(
+      "No se pudieron cargar los contactos del viaje. Inténtalo de nuevo."
+    )
+  ).toBeTruthy();
+  expect(
+    screen.queryByText("Conductor del viaje no está en la libreta.")
+  ).toBeNull();
+});
+
+it("shows a retry action when the calling order fails to load", async () => {
+  data.levelError = { status: 500 };
+  const user = userEvent.setup();
+  renderMenu();
+  expect(screen.getByRole("alert").textContent).toContain(
+    "No se pudo cargar el orden de llamadas."
+  );
+  await user.click(screen.getByRole("button", { name: "Reintentar" }));
+  expect(data.refreshLevel).toHaveBeenCalledOnce();
+});
+
+it("keeps the flat list when no symptom is in force (404)", () => {
+  data.levelError = { status: 404 };
+  renderMenu();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByText("Marta Díaz")).toBeTruthy();
 });

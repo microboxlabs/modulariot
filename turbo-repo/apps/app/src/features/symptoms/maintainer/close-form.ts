@@ -177,7 +177,7 @@ export function parseCloseRows(
   fields: CloseFields
 ): CloseRow[] | null {
   const text = (rule ?? "").trim();
-  if (!text) return [];
+  if (!text || unwrap(text) === "false") return [];
   const parts = splitTop(text, "||");
   if (!parts) return null;
   const rows: CloseRow[] = [];
@@ -205,6 +205,7 @@ function compileWhen(when: CloseWhen): string {
 }
 
 export function compileCloseRows(rows: readonly CloseRow[]): string {
+  if (rows.length === 0) return "false";
   const parts = rows.map((r) => {
     const when = compileWhen(r.when);
     if (r.maxLevel === null) return when;

@@ -79,6 +79,12 @@ describe("close rows", () => {
     ).toBe("case.age_h >= 2 && case.level <= 2");
   });
 
+  it("writes no close rows as valid false CEL and reads them back", () => {
+    expect(compileCloseRows([])).toBe("false");
+    expect(parseCloseRows(compileCloseRows([]), FIELDS)).toEqual([]);
+    expect(parseCloseRows("(false)", FIELDS)).toEqual([]);
+  });
+
   it("keeps thresholds that the form would round in CEL mode", () => {
     expect(parseCloseRows("case.normal_s >= 0.0000001", FIELDS)).toBeNull();
     expect(parseCloseRows("case.age_h >= 1.1234567", FIELDS)).toBeNull();

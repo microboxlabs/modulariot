@@ -3796,7 +3796,7 @@
           "operator": "Un operador lo cierra",
           "normal": "Vuelve a la normalidad por",
           "age": "Pasan desde que abrió",
-          "tripEnded": "Termina el viaje",
+          "tripInactive": "Sin viaje activo",
           "event": "Llega el evento GPS"
         },
         "closeLevelLabel": "Nivel",
@@ -3815,6 +3815,8 @@
         "timelineSample": "Caso de ejemplo",
         "timelineNone": "Este síntoma aún no tiene casos.",
         "timelineHint": "Un caso real de este síntoma, con las reglas que estaban publicadas cuando ocurrió.",
+        "timelineSamplesError": "No se pudieron cargar los casos recientes. Inténtalo de nuevo.",
+        "timelineEntriesError": "No se pudo cargar la línea de tiempo de este caso. Inténtalo de nuevo.",
         "timeline": {
           "OPENED": "Se abre · {level}",
           "LEVEL_CHANGED": "Pasa a {level}",

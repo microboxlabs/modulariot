@@ -87,7 +87,8 @@ class TelephonyChoiceServiceTest {
 
     @Test
     void anUnknownProviderIsRefused() {
+        var request = new TelephonyRequest("SKYPE");
         assertThrows(IllegalArgumentException.class,
-                () -> service.save("acme", "owner@example.com", new TelephonyRequest("SKYPE")));
+                () -> service.save("acme", "owner@example.com", request));
     }
 }

@@ -2,9 +2,9 @@
 
 /**
  * "A quién llamar": the level's operator steps in order, each with the
- * contacts of the book that have its role (the trip's driver for
- * "Conductor"). The rest of the book is under "Otros contactos". With no
- * steps, the driver and the whole book. Clicking a row moves to dialing.
+ * contacts of the book that meet its condition, as the server evaluates it
+ * with the case trip's RUTs. The rest of the book is under "Otros contactos".
+ * With no steps, the whole book. Clicking a row moves to dialing.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -20,8 +20,8 @@ import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   DRIVER_ROLE,
-  type StepTarget,
-} from "@/features/symptoms/control-tower/contact-roles";
+  type WhoSummary,
+} from "@/features/symptoms/control-tower/step-who";
 import {
   type TowerContact,
   type TowerTripContacts,
@@ -41,10 +41,11 @@ import {
   calledInCase,
   type CallGroup,
   callPlan,
+  driverIds,
   fillScript,
   matchesTarget,
   stepAt,
-  tripMatches,
+  stepConditions,
 } from "./call-plan";
 import {
   ALL_CALL_METHODS,
@@ -82,44 +83,49 @@ function clock(seconds: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-/** "Conductor del viaje", "<Rol> · <empresa transportista>" or "<Rol> · organización". */
+/**
+ * A step's heading: "Conductor del viaje", "<Rol> · <empresa transportista>",
+ * the role, or the condition itself when the clauses cannot say it.
+ */
 function targetText(
-  target: StepTarget | null,
+  who: string,
+  summary: WhoSummary | null,
   carrierName: string | undefined,
   d: I18nRecord
 ) {
-  if (!target) return tr("anyone", d);
-  if (target.scope === "DRIVER") return tr("driver", d);
-  if (target.scope === "TRIP_CARRIER")
+  if (!who.trim()) return tr("anyone", d);
+  if (!summary) return who;
+  if (summary.driver) return tr("driver", d);
+  if (summary.carrier)
     return tr("groupCarrier", d, {
-      role: target.role ?? tr("anyRole", d),
+      role: summary.role ?? tr("anyRole", d),
       company: carrierName?.trim() || tr("tripCarrier", d),
     });
-  return tr("groupOrg", d, { role: target.role ?? tr("anyone", d) });
+  return summary.role ?? who;
 }
 
 /** What an empty step says. */
-function notInBookText(target: StepTarget | null, d: I18nRecord) {
-  if (target?.scope === "DRIVER") return tr("driverNotInBook", d);
-  if (target?.scope === "TRIP_CARRIER")
-    return target.role
-      ? tr("carrierRoleNotInBook", d, { role: target.role })
+function notInBookText(summary: WhoSummary | null, d: I18nRecord) {
+  if (summary?.driver) return tr("driverNotInBook", d);
+  if (summary?.carrier)
+    return summary.role
+      ? tr("carrierRoleNotInBook", d, { role: summary.role })
       : tr("carrierNotInBook", d);
   return tr("noContacts", d);
 }
 
 /** The role and RUTs a contact created from an empty trip step starts with. */
 function presetFor(
-  target: StepTarget | null,
+  summary: WhoSummary | null,
   trip: TowerTripContacts | undefined,
   carrierName: string | undefined
 ): NewContactPreset | undefined {
-  if (target?.scope === "DRIVER")
-    return { role: DRIVER_ROLE, nationalId: trip?.driverRuts[0] };
-  if (target?.scope === "TRIP_CARRIER")
+  if (summary?.driver)
+    return { role: DRIVER_ROLE, nationalId: trip?.data.driverRut };
+  if (summary?.carrier)
     return {
-      role: target.role ?? "",
-      companyRut: trip?.carrierRut ?? undefined,
+      role: summary.role ?? "",
+      companyRut: trip?.data.carrierRut,
       company: carrierName?.trim() || undefined,
     };
   return undefined;
@@ -219,7 +225,7 @@ function StepGroup({
   loading: boolean;
   called: ReadonlyMap<string, Date>;
   treatmentData: TreatmentsGeneralResponseItem | null;
-  /** The server's RUT lookup for the case's trip. */
+  /** The server's answer for the steps' conditions, with the trip's RUTs. */
   trip: TowerTripContacts | undefined;
   canSkip: boolean;
   dict: I18nRecord;
@@ -229,7 +235,7 @@ function StepGroup({
   onNewNumber: (draft: NewNumberDraft) => void;
 }>) {
   const carrierName = treatmentData?.trip_info?.carrier;
-  const preset = presetFor(group.target, trip, carrierName);
+  const preset = presetFor(group.summary, trip, carrierName);
   const { step, index } = group;
   const isDue = index === due;
   const [skipping, setSkipping] = useState(false);
@@ -249,7 +255,7 @@ function StepGroup({
           {index + 1}
         </span>
         <span className="min-w-0 flex-1 truncate">
-          {targetText(group.target, carrierName, d)}
+          {targetText(group.who, group.summary, carrierName, d)}
         </span>
         <span>{channelLabel(step.channel, d)}</span>
         <span className="w-12 text-right">{step.budgetMinutes ?? "—"} min</span>
@@ -275,7 +281,7 @@ function StepGroup({
       ))}
       {group.targets.length === 0 && !loading && (
         <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
-          <p className="min-w-0 flex-1">{notInBookText(group.target, d)}</p>
+          <p className="min-w-0 flex-1">{notInBookText(group.summary, d)}</p>
           {preset && (
             <button
               type="button"
@@ -461,20 +467,21 @@ export default function CallCenterMenu({
   // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
   const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
   const { data: treatments } = useSymptomTreatments(caseId);
-  const { data: tripView } = useTripContacts(caseId);
-  const trip = useMemo(() => tripMatches(tripView), [tripView]);
-  const called = useMemo(
-    () => calledInCase(treatments, trip.drivers),
-    [treatments, trip]
-  );
   const elapsed = useElapsed(startedAt);
   const [addDraft, setAddDraft] = useState<NewNumberDraft | null>(null);
 
   const response = level?.level.response;
   const steps = response?.operator ? (response.steps ?? NO_STEPS) : NO_STEPS;
+  const conditions = useMemo(() => stepConditions(steps), [steps]);
+  const { data: tripView } = useTripContacts(symptom?.id, conditions);
+  const matches = tripView?.matches;
+  const called = useMemo(
+    () => calledInCase(treatments, driverIds(steps, matches ?? [])),
+    [treatments, steps, matches]
+  );
   const plan = useMemo(
-    () => callPlan(steps, targets, called, trip),
-    [steps, targets, called, trip]
+    () => callPlan(steps, targets, called, matches),
+    [steps, targets, called, matches]
   );
   const due =
     steps.length > 0 ? Math.max(stepAt(steps, elapsed), skippedTo ?? 0) : -1;
@@ -539,7 +546,8 @@ export default function CallCenterMenu({
             {tr("dueStep", d, {
               n: String(due + 1),
               role: targetText(
-                plan.groups[due]?.target ?? null,
+                plan.groups[due]?.who ?? "",
+                plan.groups[due]?.summary ?? null,
                 treatmentData?.trip_info?.carrier,
                 d
               ),

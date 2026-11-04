@@ -215,10 +215,13 @@ public final class SpecValidator {
     }
 
     /**
-     * A step says whom to contact when it names a role, or its scope is the driver or the trip's carrier (any of its
-     * contacts). An unknown scope does not.
+     * A step says whom to contact when it has a contact condition. An older step does when it names a role, or its
+     * scope is the driver or the trip's carrier (any of its contacts); an unknown scope does not.
      */
     static boolean saysWhom(SymptomSpec.Step step) {
+        if (step.hasWho()) {
+            return true;
+        }
         String scope = step.scope();
         if (scope != null && !scope.isBlank() && !SymptomSpec.Step.SCOPES.contains(scope)) {
             return false;

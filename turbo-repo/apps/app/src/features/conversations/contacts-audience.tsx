@@ -18,6 +18,7 @@ import {
   bookSuggestions,
   CLAUSE_KINDS,
   compileClauses,
+  isFieldClause,
   newClause,
   parseClauses,
   type ContactClause,
@@ -37,6 +38,7 @@ export function contactCelFields(fields: EventField[]): CelField[] {
     { path: "contact.tags", detail: "list" },
     { path: "contact.company", detail: "string" },
     { path: "contact.companyRut", detail: "string" },
+    { path: "contact.nationalId", detail: "string" },
     { path: "contact.position", detail: "string" },
     { path: "contact.member", detail: "bool" },
     { path: "contact.email", detail: "string" },
@@ -122,7 +124,7 @@ function ClauseRow({
           </option>
         ))}
       </Select>
-      {clause.kind === "companyRutIs" ? (
+      {isFieldClause(clause) ? (
         <Select
           aria-label={tr("contactClauseField", d)}
           className={`${FIELD} font-mono`}
@@ -207,7 +209,7 @@ export default function ContactsAudience({
               key={`${i}-${c.kind}`}
               clause={c}
               fields={fields}
-              suggestions={c.kind === "companyRutIs" ? [] : book[c.kind]}
+              suggestions={isFieldClause(c) ? [] : book[c.kind]}
               readOnly={readOnly}
               d={d}
               fieldDict={fieldDict}

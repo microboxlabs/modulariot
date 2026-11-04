@@ -3779,6 +3779,7 @@
         "closes": "Closes when",
         "restores": "restores {version}",
         "escalateTo": "if it runs out, tell",
+        "escalateToLabel": "When the SLA runs out, tell",
         "ignorable": "Can be ignored",
         "ignorableHint": "The operator may dismiss the case without handling it.",
         "consequence": "Counts in consequence management",
@@ -4470,7 +4471,8 @@
           "tag": "Has the tag",
           "role": "Their role is",
           "company": "Their company is",
-          "companyRutIs": "Their company's RUT is the one in"
+          "companyRutIs": "Their company's RUT is the one in",
+          "nationalIdIs": "Their own RUT is the one in"
         },
         "contactClausePlaceholder": {
           "tag": "carrier",

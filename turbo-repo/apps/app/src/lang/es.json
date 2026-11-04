@@ -3779,6 +3779,7 @@
         "closes": "Se cierra cuando",
         "restores": "vuelve a {version}",
         "escalateTo": "si vence, avisar a",
+        "escalateToLabel": "Si vence el SLA, avisar a",
         "ignorable": "Se puede ignorar",
         "ignorableHint": "El operador puede descartar el caso sin gestionarlo.",
         "consequence": "Cuenta en gestión por consecuencia",
@@ -4470,7 +4471,8 @@
           "tag": "Tiene la etiqueta",
           "role": "Su rol es",
           "company": "Su empresa es",
-          "companyRutIs": "El RUT de su empresa es el del campo"
+          "companyRutIs": "El RUT de su empresa es el del campo",
+          "nationalIdIs": "Su RUT es el del campo"
         },
         "contactClausePlaceholder": {
           "tag": "transportista",

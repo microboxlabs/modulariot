@@ -10,7 +10,10 @@ import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import com.microboxlabs.miot.symptoms.domain.ContactFilter;
 import com.microboxlabs.miot.symptoms.dto.ContactImportRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
+import com.microboxlabs.miot.symptoms.dto.TripContactsRequest;
 import com.microboxlabs.miot.symptoms.dto.TripPeople;
+import com.microboxlabs.miot.core.event.ContactConditions;
+import jakarta.enterprise.inject.Instance;
 import com.microboxlabs.miot.symptoms.service.ContactService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -47,6 +50,7 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
 
     private final ContactService contacts;
     private final EngineCaseService cases;
+    private final Instance<ContactConditions> conditions;
 
     @Inject
     public OrgControlTowerContactsResource(
@@ -55,10 +59,12 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             OrganizationRoleService roleService,
             SecurityIdentity identity,
             ContactService contacts,
-            EngineCaseService cases) {
+            EngineCaseService cases,
+            Instance<ContactConditions> conditions) {
         super(tenantContext, organizationContext, roleService, identity);
         this.contacts = contacts;
         this.cases = cases;
+        this.conditions = conditions;
     }
 
     @GET
@@ -124,23 +130,30 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
         };
     }
 
-    @GET
+    @POST
     @Path("/trip")
-    @Operation(operationId = "getTripContacts", summary = "The book's people for a case's trip",
-            description = "Found by RUT only: active Conductor contacts whose national id is the trip driver's or "
-                    + "second driver's, and active Transportista contacts whose company tax id is the trip "
-                    + "carrier's. Only engine cases (negative ids) have a trip to read; other cases answer empty "
-                    + "lists. 404 when the engine case is not the organization's.")
+    @Operation(operationId = "matchTripContacts", summary = "The book's people for each step of a case",
+            description = "Evaluates each contact condition (an operator step's who) against the active contacts, "
+                    + "with event.data holding the case trip's driverRut, secondDriverRut and carrierRut. Same CEL "
+                    + "and contact fields as a communication rule's book audience. Only engine cases (negative ids) "
+                    + "have a trip; for other cases event.data is empty. 404 when the engine case is not the "
+                    + "organization's; 503 when the communication rules component is off.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> trip(
             @PathParam("organizationId") String organizationId,
-            @QueryParam("symptomId") String symptomId) {
+            TripContactsRequest body) {
         String tenant = tenantCode(organizationId);
         return work(() -> {
-            long id = parseSymptomId(symptomId);
+            if (body == null) {
+                throw new IllegalArgumentException("body is required");
+            }
+            if (!conditions.isResolvable()) {
+                return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
+            }
+            long id = parseSymptomId(body.symptomId());
             TripPeople people = id < 0 ? cases.tripPeople(tenant, id) : TripPeople.NONE;
-            return Response.ok(contacts.tripContacts(tenant, people)).build();
+            return Response.ok(contacts.tripContacts(tenant, people, body.conditions(), conditions.get())).build();
         });
     }
 

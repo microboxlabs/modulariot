@@ -34,17 +34,19 @@ export type FieldOrigin =
   | "CALCULATED"
   | "CONNECTION";
 
-/** Where a step's role is looked up: the trip's driver, the trip's carrier, or the organization's own people. */
+/** Where an older step's role was looked up: the trip's driver, the trip's carrier, or the organization. */
 export type StepScope = "DRIVER" | "TRIP_CARRIER" | "ORG";
 
 export interface Step {
-  /** A contact book role. "Conductor" for DRIVER; empty for any contact of the trip's carrier. */
+  /** Older steps: a contact book role. Read through `whoOf`. */
   role: string | null;
   channel: string | null;
   budgetMinutes: number | null;
   script: string | null;
-  /** Absent in older steps; see `stepTarget`. */
+  /** Older steps: where `role` is looked up. Read through `whoOf`. */
   scope?: StepScope | null;
+  /** Who to contact: CEL over `contact` and `event`, as a communication rule's book audience. */
+  who?: string | null;
 }
 
 export interface Notice {
@@ -66,6 +68,8 @@ export interface LevelResponse {
   escalateTo?: string | null;
   /** Where `escalateTo` is looked up; absent in older specs. */
   escalateScope?: StepScope | null;
+  /** Who is told when the SLA runs out, as a step's `who`; older specs use `escalateTo`. */
+  escalateWho?: string | null;
   /** The case counts in consequence management. */
   consequence?: boolean;
 }

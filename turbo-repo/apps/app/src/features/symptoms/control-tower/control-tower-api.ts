@@ -116,14 +116,14 @@ export interface TowerContactFacets {
   members: { memberUserId: string; contactId: string }[];
 }
 
-/** The book's people for a case's trip, found by RUT on the server. */
+/** The book's people for each step of a case, as the server evaluated the steps' conditions. */
 export interface TowerTripContacts {
-  driverRuts: string[];
-  carrierRut: string | null;
-  /** Active Conductor contacts whose national id is a trip driver's RUT. */
-  drivers: string[];
-  /** Active contacts of any role whose company tax id is the trip carrier's. */
-  carrierContacts: string[];
+  /** `event.data` the conditions read: the trip's driverRut, secondDriverRut and carrierRut, when it has them. */
+  data: Partial<Record<"driverRut" | "secondDriverRut" | "carrierRut", string>>;
+  /** For each condition, in order, the ids of the active contacts that meet it. */
+  matches: string[][];
+  /** For each condition, its compile problem, or null. */
+  problems: (string | null)[];
 }
 
 /** Create or update body. On update, a field left out keeps its value and "" clears it. */
@@ -225,8 +225,7 @@ export const treatmentsKey = (symptomId: number | string) =>
   `${BASE}/symptoms/${symptomId}/treatments`;
 export const contactsKey = `${BASE}/contacts`;
 export const contactFacetsKey = `${BASE}/contacts/facets`;
-export const tripContactsKey = (symptomId: number | string) =>
-  `${BASE}/contacts/trip?symptomId=${encodeURIComponent(String(symptomId))}`;
+export const tripContactsPath = `${BASE}/contacts/trip`;
 export const CONTACT_PAGE_SIZE = 100;
 
 export function contactPageKey(
@@ -319,11 +318,24 @@ export function useContactPages(query: TowerContactQuery) {
   );
 }
 
-/** Only engine cases (negative ids) have a trip the server can read. */
-export function useTripContacts(symptomId: number | null | undefined) {
-  return useSWR<TowerTripContacts>(
-    symptomId != null && symptomId < 0 ? tripContactsKey(symptomId) : null,
-    fetcher
+/**
+ * The book's people for each condition (a step's `who`), with the case trip's
+ * RUTs as `event.data`. Other cases than engine ones (negative ids) have no
+ * trip, so a condition that reads it finds nobody.
+ */
+export function useTripContacts(
+  symptomId: number | null | undefined,
+  conditions: readonly string[]
+) {
+  const key =
+    symptomId != null && conditions.length > 0
+      ? ([tripContactsPath, String(symptomId), ...conditions] as const)
+      : null;
+  return useSWR<TowerTripContacts>(key, () =>
+    request<TowerTripContacts>(tripContactsPath, {
+      method: "POST",
+      body: { symptomId: String(symptomId), conditions },
+    })
   );
 }
 

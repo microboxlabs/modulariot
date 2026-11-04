@@ -174,6 +174,10 @@ class SpecRulesTest {
         assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step(" ", "call", 2, null, "ORG")));
         assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step(" ", "call", 2, null)));
         assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step("Jefe", "call", 2, null, "MOON")));
+        // A contact condition says whom on its own, whatever the older fields hold.
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step(null, "call", 2, null, null,
+                "contact.role == 'Conductor' && contact.nationalId == event.data.driverRut")));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step(null, "call", 2, null, null, "  ")));
     }
 
     @Test

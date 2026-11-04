@@ -129,6 +129,8 @@ public record SymptomSpec(
      * @param escalateTo    the role told when the SLA runs out (for example "Jefe de torre"), or null
      * @param consequence   the case counts in the consequence management of whoever caused it
      * @param escalateScope where {@code escalateTo} is looked up, one of {@link Step#SCOPES}; null in older specs
+     * @param escalateWho   who is told when the SLA runs out, as a contact condition like {@link Step#who()};
+     *                      null in older specs, which use {@code escalateTo} and {@code escalateScope}
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Response(
@@ -140,23 +142,32 @@ public record SymptomSpec(
             boolean ignorable,
             String escalateTo,
             boolean consequence,
-            String escalateScope) {
+            String escalateScope,
+            String escalateWho) {
 
         /** A response without escalation, outside consequence management. */
         public Response(boolean operator, Integer slaMinutes, List<Step> steps, List<Notice> notices,
                 List<String> evidence, boolean ignorable) {
-            this(operator, slaMinutes, steps, notices, evidence, ignorable, null, false, null);
+            this(operator, slaMinutes, steps, notices, evidence, ignorable, null, false, null, null);
         }
 
         /** A response whose escalation target has no scope. */
         public Response(boolean operator, Integer slaMinutes, List<Step> steps, List<Notice> notices,
                 List<String> evidence, boolean ignorable, String escalateTo, boolean consequence) {
-            this(operator, slaMinutes, steps, notices, evidence, ignorable, escalateTo, consequence, null);
+            this(operator, slaMinutes, steps, notices, evidence, ignorable, escalateTo, consequence, null, null);
+        }
+
+        /** A response whose escalation target is a scope and a role. */
+        public Response(boolean operator, Integer slaMinutes, List<Step> steps, List<Notice> notices,
+                List<String> evidence, boolean ignorable, String escalateTo, boolean consequence,
+                String escalateScope) {
+            this(operator, slaMinutes, steps, notices, evidence, ignorable, escalateTo, consequence, escalateScope,
+                    null);
         }
     }
 
     /**
-     * One step of the operator's ladder. The person to contact is a scope plus a role of the contact book.
+     * One step of the operator's ladder. The people to contact are the book's contacts that meet {@code who}.
      *
      * @param role          the contact book role (for example "Gerente de Seguridad"); for {@code DRIVER},
      *                      "Conductor"; for {@code TRIP_CARRIER}, blank means any contact of the carrier
@@ -166,9 +177,14 @@ public record SymptomSpec(
      * @param scope         {@code DRIVER} (the trip's driver), {@code TRIP_CARRIER} (people of the trip's
      *                      carrier) or {@code ORG} (the organization's own people); null in older specs, read from
      *                      the role by {@link #effectiveScope()}
+     * @param who           CEL over {@code contact} and {@code event}, the same as a "contacts from the book"
+     *                      audience of the communication rules; {@code event.data} has the trip's
+     *                      {@code driverRut}, {@code secondDriverRut} and {@code carrierRut}. Null in older specs,
+     *                      which use {@code role} and {@code scope}
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Step(String role, String channel, Integer budgetMinutes, String script, String scope) {
+    public record Step(String role, String channel, Integer budgetMinutes, String script, String scope,
+            String who) {
 
         public static final String DRIVER = "DRIVER";
         public static final String TRIP_CARRIER = "TRIP_CARRIER";
@@ -177,7 +193,17 @@ public record SymptomSpec(
 
         /** A step saved before steps had a scope. */
         public Step(String role, String channel, Integer budgetMinutes, String script) {
-            this(role, channel, budgetMinutes, script, null);
+            this(role, channel, budgetMinutes, script, null, null);
+        }
+
+        /** A step whose person is a scope plus a role. */
+        public Step(String role, String channel, Integer budgetMinutes, String script, String scope) {
+            this(role, channel, budgetMinutes, script, scope, null);
+        }
+
+        /** Whether the step names its people with a contact condition. */
+        public boolean hasWho() {
+            return who != null && !who.isBlank();
         }
 
         /** The scope, or for an older step: Conductor is the driver, Transportista any carrier contact, else ORG. */

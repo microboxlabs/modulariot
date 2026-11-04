@@ -127,6 +127,7 @@ public final class Audiences {
         m.put("member", c.member());
         m.put("email", text(c.email()));
         m.put("whatsapp", text(c.whatsapp()));
+        m.put("nationalId", text(c.nationalId()));
         return m;
     }
 

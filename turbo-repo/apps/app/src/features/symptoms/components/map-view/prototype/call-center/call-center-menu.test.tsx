@@ -9,7 +9,9 @@ import CallCenterMenu from "./call-center-menu";
 const data = vi.hoisted(() => ({
   contacts: [] as unknown[],
   treatments: undefined as unknown,
-  trip: undefined as unknown,
+  tripData: {} as Record<string, string>,
+  /** The server's answer for one step condition. */
+  match: (() => []) as (condition: string) => string[],
   level: undefined as unknown,
   treatmentsId: undefined as unknown,
   createContact: vi.fn(),
@@ -23,7 +25,13 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
     data.treatmentsId = id;
     return { data: data.treatments };
   },
-  useTripContacts: () => ({ data: data.trip }),
+  useTripContacts: (_id: unknown, conditions: string[]) => ({
+    data: {
+      data: data.tripData,
+      matches: conditions.map((c) => data.match(c)),
+      problems: conditions.map(() => null),
+    },
+  }),
 }));
 
 vi.mock("swr", () => ({ mutate: vi.fn() }));
@@ -114,11 +122,13 @@ beforeEach(() => {
     contact("torre", "Marta Díaz", "Jefe de Torre"),
     contact("off", "Inactivo", "Jefe de Torre", { active: false }),
   ];
-  data.trip = {
-    driverRuts: ["123456785"],
-    carrierRut: SUR,
-    drivers: ["ana"],
-    carrierContacts: ["ana", "gs"],
+  data.tripData = { driverRut: "123456785", carrierRut: SUR };
+  // Stands in for the server's CEL evaluation of each step's condition.
+  data.match = (c) => {
+    if (c.includes("nationalId")) return ["ana"];
+    if (c.includes("Gerente de Seguridad")) return ["gs"];
+    if (c.includes("Jefe de Torre")) return ["torre"];
+    return [];
   };
   data.treatments = undefined;
   data.level = undefined;
@@ -128,7 +138,7 @@ beforeEach(() => {
 });
 
 describe("CallCenterMenu", () => {
-  it("lists each step with the book contacts its scope and role resolve to", async () => {
+  it("lists each step with the book contacts its condition matches", async () => {
     data.level = levelWith([
       {
         role: "Conductor",
@@ -166,7 +176,8 @@ describe("CallCenterMenu", () => {
     expect(within(gema).getByText("No disponible por WhatsApp")).toBeTruthy();
     expect(screen.queryByText("Nora Ruiz")).toBeNull();
 
-    expect(screen.getByText("Jefe de Torre · organización")).toBeTruthy();
+    // The step heading and the contact's role.
+    expect(screen.getAllByText("Jefe de Torre")).toHaveLength(2);
     expect(screen.getByText("Marta Díaz")).toBeTruthy();
     expect(screen.queryByText("Inactivo")).toBeNull();
     expect(screen.getByText(/SLA \d+:\d\d/)).toBeTruthy();
@@ -189,12 +200,7 @@ describe("CallCenterMenu", () => {
   });
 
   it("says the trip driver is not in the book and adds them with the trip's RUT", async () => {
-    data.trip = {
-      driverRuts: ["123456785"],
-      carrierRut: SUR,
-      drivers: [],
-      carrierContacts: [],
-    };
+    data.match = () => [];
     data.level = levelWith([
       {
         role: "Conductor",

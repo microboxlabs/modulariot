@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.events;
 import com.microboxlabs.miot.core.event.ContactDirectory;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.ContactChannels;
+import com.microboxlabs.miot.symptoms.service.ContactService;
 import com.microboxlabs.miot.symptoms.store.ContactStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -31,6 +32,6 @@ public class BookContacts implements ContactDirectory {
         String whatsapp = ch.whatsapp() != null ? ch.whatsapp() : c.phone();
         return new Entry(c.id(), c.name(), c.role(), c.tags() == null ? List.of() : c.tags(), c.company(),
                 c.companyRut(), c.position(), c.memberUserId() != null && !c.memberUserId().isBlank(), ch.email(),
-                whatsapp);
+                whatsapp, ContactService.normalizeNationalId(c.nationalId()));
     }
 }

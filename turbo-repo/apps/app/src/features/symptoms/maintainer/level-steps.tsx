@@ -5,14 +5,10 @@ import { HiPencil, HiTrash } from "react-icons/hi";
 import SortableRows from "@/features/common/components/sortable-rows";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import {
-  type ScopeRoles,
-  storedTarget,
-  stepTarget,
-} from "../control-tower/contact-roles";
+import ContactsAudience from "@/features/conversations/contacts-audience";
+import { TRIP_FIELDS, whoOf } from "../control-tower/step-who";
 import { moveRow } from "./condition-form";
 import type { Step } from "./maintainer-api";
-import TargetPicker, { RoleWarning } from "./role-picker";
 import ScriptModal from "./script-modal";
 import { FIELD, FIELD_ERROR, FieldError } from "./ui/response-block";
 import Select from "./ui/select";
@@ -37,12 +33,56 @@ function scriptShown(script: string | null): string | null {
 }
 
 const errorClass = (error: string | undefined) => (error ? FIELD_ERROR : "");
+
+/**
+ * The dictionaries the "contacts from the book" condition reads: the
+ * Comunicaciones page's texts and the selectables field's.
+ */
+export interface AudienceDicts {
+  d: I18nRecord;
+  fieldDict: I18nRecord;
+}
+
+/**
+ * Who a step or the escalation contacts, with the communication rules'
+ * condition editor: clauses or CEL over `contact` and the trip's RUTs.
+ */
+export function WhoEditor({
+  who,
+  audience,
+  readOnly,
+  onChange,
+}: Readonly<{
+  who: string;
+  audience: AudienceDicts;
+  readOnly: boolean;
+  onChange: (who: string) => void;
+}>) {
+  return (
+    <ContactsAudience
+      condition={who}
+      fields={TRIP_FIELDS}
+      readOnly={readOnly}
+      d={audience.d}
+      fieldDict={audience.fieldDict}
+      onChange={onChange}
+    />
+  );
+}
+
+/** A step written from its condition only; the older role and scope are dropped. */
+export const withWho = (who: string): Partial<Step> => ({
+  who,
+  role: null,
+  scope: null,
+});
+
 function StepItem({
   step,
   index,
   count,
   errors,
-  roles,
+  audience,
   readOnly,
   d,
   handle,
@@ -54,7 +94,7 @@ function StepItem({
   index: number;
   count: number;
   errors: StepErrors[number] | undefined;
-  roles: ScopeRoles | undefined;
+  audience: AudienceDicts;
   readOnly: boolean;
   d: I18nRecord;
   /** The drag handle from SortableRows; none when the list cannot be reordered. */
@@ -65,83 +105,76 @@ function StepItem({
 }>) {
   const last = index === count - 1;
   const shown = scriptShown(step.script);
-  const target = stepTarget(step.role, step.scope);
   return (
     <div className="flex min-w-0 flex-col gap-1.5 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300">
       <div className="flex flex-wrap items-center gap-2">
         {handle}
-          <Select
-            aria-label={tr("stepChannel", d)}
-            className={FIELD}
-            disabled={readOnly}
-            value={step.channel ?? "call"}
-            onChange={(e) => onSet({ channel: e.target.value })}
-          >
-            {STEP_CHANNELS.map((c) => (
-              <option key={c.key} value={c.key}>
-                {trDynamic(c.label, d)}
-              </option>
-            ))}
-          </Select>
-          <span>{tr("stepTo", d)}</span>
-          <TargetPicker
-            label={tr("stepRole", d)}
-            className={FIELD}
-            error={errors?.contact ? FIELD_ERROR : undefined}
-            disabled={readOnly}
-            target={target}
-            roles={roles}
-            d={d}
-            onChange={(next) => onSet(storedTarget(next))}
-          />
-          <span>{last ? tr("stepWithin", d) : tr("stepIfNot", d)}</span>
-          <input
-            type="number"
-            min={1}
-            aria-label={tr("stepBudget", d)}
-            className={`${FIELD} w-16 ${errorClass(errors?.minutes)}`}
-            disabled={readOnly}
-            value={step.budgetMinutes ?? ""}
-            onChange={(e) =>
-              onSet({
-                budgetMinutes: e.target.value ? Number(e.target.value) : null,
-              })
-            }
-          />
-          <span>
-            {last ? "min" : tr("stepThen", d, { n: String(index + 2) })}
-          </span>
-          {!readOnly && (
-            <button
-              type="button"
-              aria-label={tr("removeStep", d)}
-              className="ml-auto text-gray-400 hover:text-red-500"
-              onClick={onRemove}
-            >
-              <HiTrash className="h-4 w-4" />
-            </button>
-          )}
-      </div>
-        <RoleWarning target={target} roles={roles} d={d} />
-        <FieldError text={errors?.contact} />
-        <FieldError text={errors?.minutes} />
-        <button
-          type="button"
-          className="flex items-center gap-1.5 self-start text-left text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
-          onClick={onScript}
+        <Select
+          aria-label={tr("stepChannel", d)}
+          className={FIELD}
+          disabled={readOnly}
+          value={step.channel ?? "call"}
+          onChange={(e) => onSet({ channel: e.target.value })}
         >
-          <HiPencil className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-gray-500 dark:text-gray-400">
-            {tr("stepScriptLabel", d)}
+          {STEP_CHANNELS.map((c) => (
+            <option key={c.key} value={c.key}>
+              {trDynamic(c.label, d)}
+            </option>
+          ))}
+        </Select>
+        <span>{last ? tr("stepWithin", d) : tr("stepIfNot", d)}</span>
+        <input
+          type="number"
+          min={1}
+          aria-label={tr("stepBudget", d)}
+          className={`${FIELD} w-16 ${errorClass(errors?.minutes)}`}
+          disabled={readOnly}
+          value={step.budgetMinutes ?? ""}
+          onChange={(e) =>
+            onSet({
+              budgetMinutes: e.target.value ? Number(e.target.value) : null,
+            })
+          }
+        />
+        <span>
+          {last ? "min" : tr("stepThen", d, { n: String(index + 2) })}
+        </span>
+        {!readOnly && (
+          <button
+            type="button"
+            aria-label={tr("removeStep", d)}
+            className="ml-auto text-gray-400 hover:text-red-500"
+            onClick={onRemove}
+          >
+            <HiTrash className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      <WhoEditor
+        who={whoOf(step)}
+        audience={audience}
+        readOnly={readOnly}
+        onChange={(who) => onSet(withWho(who))}
+      />
+      <FieldError text={errors?.contact} />
+      <FieldError text={errors?.minutes} />
+      <button
+        type="button"
+        className="flex items-center gap-1.5 self-start text-left text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+        onClick={onScript}
+      >
+        <HiPencil className="h-3.5 w-3.5 shrink-0" />
+        <span className="text-gray-500 dark:text-gray-400">
+          {tr("stepScriptLabel", d)}
+        </span>
+        {shown ? (
+          <span className="text-gray-700 dark:text-gray-300">{shown}</span>
+        ) : (
+          <span className="text-blue-600 dark:text-blue-400">
+            {tr("stepScriptWrite", d)}
           </span>
-          {shown ? (
-            <span className="text-gray-700 dark:text-gray-300">{shown}</span>
-          ) : (
-            <span className="text-blue-600 dark:text-blue-400">
-              {tr("stepScriptWrite", d)}
-            </span>
-          )}
-        </button>
+        )}
+      </button>
     </div>
   );
 }
@@ -183,7 +216,7 @@ export default function LevelSteps({
   steps,
   slaMinutes,
   errors = {},
-  roles,
+  audience,
   sample,
   readOnly,
   d,
@@ -192,8 +225,8 @@ export default function LevelSteps({
   steps: Step[];
   slaMinutes: number | null;
   errors?: StepErrors;
-  /** The contact book's roles per scope; undefined while they load. */
-  roles?: ScopeRoles;
+  /** The texts of the "contacts from the book" condition each step uses. */
+  audience: AudienceDicts;
   /** A source sample the script preview is filled from. */
   sample?: Record<string, unknown>;
   readOnly: boolean;
@@ -255,7 +288,7 @@ export default function LevelSteps({
                 index={i}
                 count={steps.length}
                 errors={errors[i]}
-                roles={roles}
+                audience={audience}
                 readOnly={readOnly}
                 d={d}
                 handle={handle}
@@ -274,7 +307,13 @@ export default function LevelSteps({
           onClick={() =>
             onChange([
               ...steps,
-              { role: "", channel: "call", budgetMinutes: 1, script: "" },
+              {
+                role: null,
+                who: "",
+                channel: "call",
+                budgetMinutes: 1,
+                script: "",
+              },
             ])
           }
         >

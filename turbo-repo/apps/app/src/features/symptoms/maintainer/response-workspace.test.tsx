@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { Finding, LevelResponse, SymptomSpec } from "./maintainer-api";
 import ResponseWorkspace, { firstResponseLevel } from "./response-workspace";
 
+const AUDIENCE = { d: {}, fieldDict: {} };
+
 vi.mock("next/image", () => ({
   default: (props: ImgHTMLAttributes<HTMLImageElement>) =>
     createElement("img", props),
@@ -92,6 +94,7 @@ const renderIt = (
 ) => {
   render(
     <ResponseWorkspace
+      audience={AUDIENCE}
       spec={spec}
       changedLevels={new Set()}
       findings={[STEP_ERROR]}
@@ -181,6 +184,7 @@ describe("ResponseWorkspace", () => {
     });
     const { unmount } = render(
       <ResponseWorkspace
+        audience={AUDIENCE}
         spec={SPEC}
         symptom={{
           key: "panic-button",

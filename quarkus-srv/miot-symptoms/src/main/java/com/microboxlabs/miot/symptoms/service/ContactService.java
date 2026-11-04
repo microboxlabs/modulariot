@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.service;
 
+import com.microboxlabs.miot.core.event.ContactConditions;
 import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.ContactCallStats;
@@ -81,37 +82,40 @@ public class ContactService {
     /** The role a trip's driver has in the book. */
     public static final String DRIVER_ROLE = "Conductor";
 
+    /** The most conditions one request may evaluate: a level's steps plus its escalation target. */
+    static final int MAX_CONDITIONS = 20;
+
     /**
-     * The book's people for a trip, by RUT only: active Conductor contacts whose national id is one of the trip's
-     * driver RUTs, and active contacts of any role whose company tax id is the trip carrier's.
+     * The book's people for each contact condition (an operator step's {@code who}), read with {@code event.data}
+     * set to the trip's normalized RUTs. The conditions are evaluated by the communication rules' evaluator, so a
+     * condition means the same in a step and in a rule's audience.
      */
-    public TripContactsView tripContacts(String tenantCode, TripPeople trip) {
-        List<String> driverRuts = trip.driverRuts().stream()
-                .map(ContactService::normalizeNationalId)
-                .filter(r -> r != null)
-                .distinct()
-                .toList();
-        String carrierRut = normalizeNationalId(trip.carrierRut());
-        List<String> drivers = new ArrayList<>();
-        List<String> carriers = new ArrayList<>();
-        if (!driverRuts.isEmpty() || carrierRut != null) {
-            for (Contact c : contacts.list(tenantCode, true)) {
-                if (!c.active()) {
-                    continue;
-                }
-                if (hasRole(c, DRIVER_ROLE) && driverRuts.contains(normalizeNationalId(c.nationalId()))) {
-                    drivers.add(c.id());
-                }
-                if (carrierRut != null && carrierRut.equals(normalizeNationalId(c.companyRut()))) {
-                    carriers.add(c.id());
-                }
-            }
+    public TripContactsView tripContacts(String tenantCode, TripPeople trip, List<String> conditions,
+            ContactConditions evaluator) {
+        List<String> given = conditions == null ? List.of() : conditions;
+        if (given.size() > MAX_CONDITIONS) {
+            throw new IllegalArgumentException("at most " + MAX_CONDITIONS + " conditions");
         }
-        return new TripContactsView(driverRuts, carrierRut, List.copyOf(drivers), List.copyOf(carriers));
+        Map<String, Object> data = tripData(trip);
+        List<String> problems = given.stream().map(c -> evaluator.problem(c).orElse(null)).toList();
+        return new TripContactsView(data, evaluator.match(tenantCode, given, data), problems);
     }
 
-    private static boolean hasRole(Contact c, String role) {
-        return c.role() != null && c.role().trim().equalsIgnoreCase(role);
+    /** {@code event.data} for a trip: driverRut, secondDriverRut and carrierRut, normalized, when the trip has them. */
+    static Map<String, Object> tripData(TripPeople trip) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        List<String> drivers = trip.driverRuts();
+        putRut(data, "driverRut", drivers.isEmpty() ? null : drivers.get(0));
+        putRut(data, "secondDriverRut", drivers.size() > 1 ? drivers.get(1) : null);
+        putRut(data, "carrierRut", trip.carrierRut());
+        return data;
+    }
+
+    private static void putRut(Map<String, Object> data, String key, String rut) {
+        String normalized = normalizeNationalId(rut);
+        if (normalized != null) {
+            data.put(key, normalized);
+        }
     }
 
     /** Up to {@code limit} contacts (100 by default) that pass {@code filter}, from {@code cursor} on. */

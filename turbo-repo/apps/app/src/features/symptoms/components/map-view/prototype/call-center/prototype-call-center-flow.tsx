@@ -33,7 +33,7 @@ import type { SelectedOption } from "@/features/symptoms/types/side-info";
 import PrototypeCallDriver, {
   type CallFormDraft,
 } from "../prototype-call-driver";
-import CallCenterMenu from "./call-center-menu";
+import CallCenterMenu, { type CallScript } from "./call-center-menu";
 import CallDialingStep from "./call-dialing-step";
 import type { CallMethod } from "./call-method";
 import type { CallTarget } from "./call-targets";
@@ -144,7 +144,13 @@ export default function PrototypeCallCenterFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, dialingStarted]);
 
-  const handleCall = (target: CallTarget) => {
+  const [activeScript, setActiveScript] = useState<CallScript | null>(null);
+
+  const handleCall = (target: CallTarget, script?: CallScript) => {
+    // The step's script replaces the treatment's default message, so the
+    // dialing step and the results form show what this step says.
+    setActiveScript(script ?? null);
+    if (script?.message) setMessageToCommunicate(script.message);
     setActiveContact(target);
     setActivePersonName(target.personName);
     setActiveRole(target.role);
@@ -215,6 +221,7 @@ export default function PrototypeCallCenterFlow({
           allowedMethods={activeAllowedMethods ?? []}
           contactId={activeContact?.contactId}
           reason={messageToCommunicate}
+          goal={activeScript?.goal}
           onCancel={handleCancelCall}
           onConfirm={handleConfirmCall}
           onStartedChange={setDialingStarted}

@@ -805,6 +805,17 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void tripPeoplePropagatesAReadFailureButAnAbsentTripIsEmpty() {
+        store.add(panic(12, "DEMO01"));
+        IllegalStateException failure = new IllegalStateException("database down");
+        EngineCaseService gpsDown = new EngineCaseService(store, (tenant, asset, definition) -> {
+        }, t -> { throw failure; }, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+
+        assertEquals(failure, assertThrows(IllegalStateException.class, () -> gpsDown.tripPeople(TENANT, -12)));
+        assertEquals(com.microboxlabs.miot.symptoms.dto.TripPeople.NONE, service.tripPeople(TENANT, -12));
+    }
+
+    @Test
     void theHeaderAnswersWhenTheTripCannotBeRead() {
         store.add(panic(12, "DEMO01"));
         EngineCaseService gpsDown = new EngineCaseService(store, (tenant, asset, definition) -> {

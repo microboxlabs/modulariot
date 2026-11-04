@@ -464,7 +464,7 @@ public class EngineCaseService {
     /** The RUTs of the case's live trip: drivers and carrier. Empty without a live trip. */
     public TripPeople tripPeople(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
-        Row t = c.tripId() == null ? null : trip(tenantCode, c);
+        Row t = c.tripId() == null ? null : trips.apply(Tuple.of(tenantCode, c.tripId(), c.assetId()));
         if (t == null) {
             return TripPeople.NONE;
         }

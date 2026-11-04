@@ -15,11 +15,7 @@ import {
 } from "@/features/symptoms/control-tower/step-who";
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
 import { fillScriptText } from "@/features/symptoms/maintainer/script-fill";
-import {
-  type CallTarget,
-  DRIVER_TARGET_ID,
-  targetIdOfAction,
-} from "./call-targets";
+import { type CallTarget, targetIdOfAction } from "./call-targets";
 
 export interface CallGroup {
   index: number;
@@ -39,13 +35,11 @@ export interface CallPlan {
 }
 
 /**
- * When each contact was last called in the case, by contact id. Older CALL
- * actions to the driver carry only the role: they count for each of the
- * trip's drivers.
+ * When each contact was last called in the case, by stable contact id.
+ * A legacy role-only call cannot identify a driver assigned later.
  */
 export function calledInCase(
-  treatments: readonly TowerTreatment[] | undefined,
-  drivers: ReadonlySet<string> = new Set()
+  treatments: readonly TowerTreatment[] | undefined
 ): Map<string, Date> {
   const out = new Map<string, Date>();
   const mark = (id: string, at: Date) => {
@@ -55,10 +49,9 @@ export function calledInCase(
   for (const t of treatments ?? []) {
     for (const action of t.actions) {
       const id = targetIdOfAction(action);
-      if (!id) continue;
+      if (!id || !action.contactId) continue;
       const at = new Date(action.performedAt);
-      if (id === DRIVER_TARGET_ID) for (const d of drivers) mark(d, at);
-      else mark(id, at);
+      mark(id, at);
     }
   }
   return out;

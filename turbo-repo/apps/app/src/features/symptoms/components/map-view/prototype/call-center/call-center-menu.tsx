@@ -41,7 +41,6 @@ import {
   calledInCase,
   type CallGroup,
   callPlan,
-  driverIds,
   fillScript,
   matchesTarget,
   stepAt,
@@ -487,7 +486,7 @@ export default function CallCenterMenu({
     error: levelError,
     mutate: refreshLevel,
   } = useLevelResponse(symptom?.name ?? null, symptom?.icu_code ?? null);
-  const { targets, addContact, isLoading } = useCallTargets();
+  const { targets, addContact, isLoading, error: bookError } = useCallTargets();
   const levelFailed = Boolean(levelError && levelError.status !== 404);
   // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
   const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
@@ -516,10 +515,7 @@ export default function CallCenterMenu({
     error: tripError,
   } = useTripContacts(symptom?.id, conditions);
   const matches = tripView?.matches;
-  const called = useMemo(
-    () => calledInCase(treatments, driverIds(steps, matches ?? [])),
-    [treatments, steps, matches]
-  );
+  const called = useMemo(() => calledInCase(treatments), [treatments]);
   const plan = useMemo(
     () => callPlan(steps, targets, called, matches),
     [steps, targets, called, matches]
@@ -632,7 +628,7 @@ export default function CallCenterMenu({
               elapsed={elapsed}
               stepEnd={stepEnd}
               loading={isLoading || Boolean(tripLoading)}
-              lookupFailed={Boolean(tripError)}
+              lookupFailed={Boolean(bookError || tripError)}
               called={called}
               treatmentData={treatmentData}
               canSkip={due < steps.length - 1}

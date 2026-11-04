@@ -93,11 +93,7 @@ public class ContactService {
                 .toList();
         String carrierRut = normalizeNationalId(trip.carrierRut());
         String carrierType = DriverContactSync.companyTaxIdType(carrierRut);
-        Map<String, String> driverTypes = new LinkedHashMap<>();
-        for (String id : driverRuts) {
-            String type = DriverContactSync.nationalIdType(id, carrierRut);
-            if (type != null) driverTypes.put(id, type);
-        }
+        Map<String, String> driverTypes = tripDriverTypes(driverRuts, carrierRut);
         List<String> drivers = new ArrayList<>();
         List<String> carriers = new ArrayList<>();
         if (!driverRuts.isEmpty() || carrierRut != null) {
@@ -114,6 +110,15 @@ public class ContactService {
             }
         }
         return new TripContactsView(driverRuts, carrierRut, List.copyOf(drivers), List.copyOf(carriers));
+    }
+
+    private static Map<String, String> tripDriverTypes(List<String> driverRuts, String carrierRut) {
+        Map<String, String> types = new LinkedHashMap<>();
+        for (String id : driverRuts) {
+            String type = DriverContactSync.nationalIdType(id, carrierRut);
+            if (type != null) types.put(id, type);
+        }
+        return types;
     }
 
     private static boolean matchesTripCarrier(Contact c, String carrierRut, String carrierType) {

@@ -23,8 +23,10 @@ import {
   type WhoSummary,
 } from "@/features/symptoms/control-tower/step-who";
 import {
+  type ScriptContext,
   type TowerContact,
   type TowerTripContacts,
+  useCaseContext,
   useSymptomTreatments,
   useTripContacts,
 } from "@/features/symptoms/control-tower/control-tower-api";
@@ -41,6 +43,7 @@ import {
   calledInCase,
   type CallGroup,
   callPlan,
+  contextOfTreatment,
   fillScript,
   matchesTarget,
   stepAt,
@@ -170,6 +173,7 @@ function TargetRow({
   target,
   calledAt,
   step,
+  script,
   dict,
   d,
   onCall,
@@ -178,9 +182,11 @@ function TargetRow({
   calledAt: Date | undefined;
   /** The step the row is listed under; absent under "Otros contactos". */
   step?: Step;
+  /** The step's script and goal, filled with the case; absent outside a step. */
+  script?: CallScript;
   dict: I18nRecord;
   d: I18nRecord;
-  onCall: (target: CallTarget) => void;
+  onCall: OnCall;
 }>) {
   const wanted = step ? stepMethod(step.channel) : null;
   const unavailable = wanted !== null && !target.methods.includes(wanted);
@@ -208,10 +214,23 @@ function TargetRow({
           ? tr("unavailableOn", d, { channel: channelLabel(step!.channel, d) })
           : undefined
       }
-      onClick={() => onCall({ ...target, phone })}
+      onClick={() =>
+        script
+          ? onCall({ ...target, phone }, script)
+          : onCall({ ...target, phone })
+      }
     />
   );
 }
+
+/** What the operator reads while calling: the step's message and goal, filled with the case. */
+export interface CallScript {
+  message: string;
+  goal: string;
+}
+
+export type OnCall = (target: CallTarget, script?: CallScript) => void;
+type NewCallDraft = NewNumberDraft & { script?: CallScript };
 
 function StepGroup({
   group,
@@ -222,6 +241,7 @@ function StepGroup({
   lookupFailed,
   called,
   treatmentData,
+  scriptContext,
   trip,
   canSkip,
   dict,
@@ -238,17 +258,26 @@ function StepGroup({
   lookupFailed: boolean;
   called: ReadonlyMap<string, Date>;
   treatmentData: TreatmentsGeneralResponseItem | null;
+  /** What the step's script reads: the case's context, or its trip info for a legacy case. */
+  scriptContext: ScriptContext;
   /** The server's answer for the steps' conditions, with the trip's RUTs. */
   trip: TowerTripContacts | undefined;
   canSkip: boolean;
   dict: I18nRecord;
   d: I18nRecord;
-  onCall: (target: CallTarget) => void;
+  onCall: OnCall;
   onSkip: () => void;
-  onNewNumber: (draft: NewNumberDraft) => void;
+  onNewNumber: (draft: NewCallDraft) => void;
 }>) {
   const carrierName = treatmentData?.trip_info?.carrier;
   const preset = presetFor(group.summary, trip, carrierName);
+  const script: CallScript | undefined =
+    group.step.script?.trim() || group.step.goal?.trim()
+      ? {
+          message: fillScript(group.step.script ?? "", scriptContext),
+          goal: fillScript(group.step.goal ?? "", scriptContext),
+        }
+      : undefined;
   const { step, index } = group;
   const isDue = index === due;
   const [skipping, setSkipping] = useState(false);
@@ -273,12 +302,21 @@ function StepGroup({
         <span>{channelLabel(step.channel, d)}</span>
         <span className="w-12 text-right">{step.budgetMinutes ?? "—"} min</span>
       </div>
-      {isDue && step.script && (
+      {isDue && script && (
         <blockquote className="border-b border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
-          <span className="mb-1 block text-xs text-gray-500">
-            {tr("say", d)}
-          </span>
-          {fillScript(step.script, treatmentData)}
+          {script.message && (
+            <>
+              <span className="mb-1 block text-xs text-gray-500">
+                {tr("say", d)}
+              </span>
+              {script.message}
+            </>
+          )}
+          {step.goal?.trim() && (
+            <span className="mt-1 block text-xs text-gray-500">
+              {tr("goal", d)}: {fillScript(step.goal, scriptContext)}
+            </span>
+          )}
         </blockquote>
       )}
       {group.targets.map((target) => (
@@ -287,6 +325,7 @@ function StepGroup({
           target={target}
           calledAt={called.get(target.id)}
           step={step}
+          script={script}
           dict={dict}
           d={d}
           onCall={onCall}
@@ -305,7 +344,9 @@ function StepGroup({
           {preset && !lookupFailed && (
             <button
               type="button"
-              onClick={() => onNewNumber({ phone: "", name: "", preset })}
+              onClick={() =>
+                onNewNumber({ phone: "", name: "", preset, script })
+              }
               className="flex shrink-0 items-center gap-1 font-medium text-blue-600 hover:underline dark:text-blue-400"
             >
               <HiPlus className="h-3.5 w-3.5" />
@@ -371,8 +412,8 @@ function OtherContacts({
   collapsible: boolean;
   dict: I18nRecord;
   d: I18nRecord;
-  onCall: (target: CallTarget) => void;
-  onNewNumber: (draft: NewNumberDraft) => void;
+  onCall: OnCall;
+  onNewNumber: (draft: NewCallDraft) => void;
 }>) {
   const [open, setOpen] = useState(!collapsible);
   const [search, setSearch] = useState("");
@@ -477,7 +518,7 @@ export default function CallCenterMenu({
   /** The step the operator skipped to, if any. */
   skippedTo: number | null;
   onSkip: (step: number) => void;
-  onCall: (target: CallTarget) => void;
+  onCall: OnCall;
 }>) {
   const d = (dict.symptoms as I18nRecord)?.ladder as I18nRecord;
   const symptom = treatmentData?.symptom_info;
@@ -491,8 +532,13 @@ export default function CallCenterMenu({
   // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
   const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
   const { data: treatments } = useSymptomTreatments(caseId);
+  const { data: caseContext } = useCaseContext(caseId);
+  const scriptContext = useMemo(
+    () => caseContext ?? contextOfTreatment(treatmentData),
+    [caseContext, treatmentData]
+  );
   const elapsed = useElapsed(startedAt);
-  const [addDraft, setAddDraft] = useState<NewNumberDraft | null>(null);
+  const [addDraft, setAddDraft] = useState<NewCallDraft | null>(null);
   const callVersion = useRef(0);
   useEffect(
     () => () => {
@@ -500,9 +546,10 @@ export default function CallCenterMenu({
     },
     []
   );
-  const selectTarget = (target: CallTarget) => {
+  const selectTarget: OnCall = (target, script) => {
     callVersion.current += 1;
-    onCall(target);
+    if (script) onCall(target, script);
+    else onCall(target);
   };
 
   const response = level?.level.response;
@@ -528,7 +575,7 @@ export default function CallCenterMenu({
   const sla = (response?.slaMinutes ?? 0) * 60;
 
   const handleNewNumber = async (
-    { phone, name, preset }: NewNumberDraft,
+    { phone, name, preset, script }: NewCallDraft,
     action: NewNumberAction
   ) => {
     const version = ++callVersion.current;
@@ -544,7 +591,7 @@ export default function CallCenterMenu({
         });
         void refreshTrip();
         if (callVersion.current === version)
-          selectTarget(newTarget(saved, personName, number));
+          selectTarget(newTarget(saved, personName, number), script);
         return;
       } catch {
         if (callVersion.current !== version) return;
@@ -554,7 +601,7 @@ export default function CallCenterMenu({
         });
       }
     }
-    selectTarget(newTarget(null, personName, number));
+    selectTarget(newTarget(null, personName, number), script);
   };
 
   return (
@@ -599,7 +646,12 @@ export default function CallCenterMenu({
           <NewNumberPanel
             dict={dict}
             initial={addDraft}
-            onSubmit={(draft, action) => void handleNewNumber(draft, action)}
+            onSubmit={(draft, action) =>
+              void handleNewNumber(
+                { ...draft, script: addDraft.script },
+                action
+              )
+            }
             onCancel={() => setAddDraft(null)}
           />
         )}
@@ -631,6 +683,7 @@ export default function CallCenterMenu({
               lookupFailed={Boolean(bookError || tripError)}
               called={called}
               treatmentData={treatmentData}
+              scriptContext={scriptContext}
               canSkip={due < steps.length - 1}
               dict={dict}
               d={d}

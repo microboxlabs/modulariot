@@ -20,6 +20,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import com.microboxlabs.miot.core.event.ContactConditions;
+import com.microboxlabs.miot.core.selectable.SelectableService;
+import java.util.function.BiPredicate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Comparator;
@@ -56,26 +58,50 @@ public class SymptomCatalogService {
     private final AuditService audit;
 
     private final Instance<ContactConditions> contactConditions;
+    private final BiPredicate<String, String> resultExists;
 
     public SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit) {
         this(store, sources, audit, null);
     }
 
-    @Inject
     public SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit,
             Instance<ContactConditions> contactConditions) {
+        this(store, sources, audit, contactConditions, (tenant, result) -> true);
+    }
+
+    @Inject
+    public SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit,
+            Instance<ContactConditions> contactConditions, SelectableService selectables) {
+        this(store, sources, audit, contactConditions,
+                (tenant, result) -> resultExists(selectables, tenant, result));
+    }
+
+    SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit,
+            Instance<ContactConditions> contactConditions, BiPredicate<String, String> resultExists) {
+        this.resultExists = resultExists;
         this.store = store;
         this.sources = sources;
         this.audit = audit;
         this.contactConditions = contactConditions;
     }
 
-    private Report checkSpec(SymptomSpec spec, DataSource source) {
+    private Report checkSpec(String tenantCode, SymptomSpec spec, DataSource source) {
         Function<String, Optional<String>> problem = condition -> Optional.of("Contact conditions are unavailable");
         if (contactConditions != null && contactConditions.isResolvable()) {
             problem = contactConditions.get()::problem;
         }
-        return SpecValidator.validate(spec, source, problem);
+        Map<String, Boolean> checked = new java.util.HashMap<>();
+        return SpecValidator.validate(spec, source, problem,
+                result -> checked.computeIfAbsent(result, code -> resultExists.test(tenantCode, code)));
+    }
+
+    private static boolean resultExists(SelectableService selectables, String tenantCode, String result) {
+        if (selectables == null) return true;
+        try {
+            return selectables.contains(tenantCode, "call_result", result);
+        } catch (NoSuchElementException missingList) {
+            return false;
+        }
     }
 
     /**
@@ -185,7 +211,7 @@ public class SymptomCatalogService {
         }
         String title = name == null || name.isBlank() ? template.name() : name.trim();
         // Checked before anything is written, so a template that does not fit leaves no draft and takes no key.
-        Report report = checkSpec(template.spec(),
+        Report report = checkSpec(tenantCode, template.spec(),
                 sources.find(tenantCode, template.spec().source()).orElse(null));
         if (!report.publishable()) {
             throw new IllegalStateException("the template does not fit this organization's data source");
@@ -358,7 +384,7 @@ public class SymptomCatalogService {
         SymptomDefinition d = require(tenantCode, id);
         SymptomSpec checked = spec != null && !spec.isEmpty() ? spec : store.findDraft(tenantCode, id).map(SymptomVersion::spec)
                 .orElseThrow(() -> new NoSuchElementException("no draft to check"));
-        return checkSpec(effective(checked, d),
+        return checkSpec(tenantCode, effective(checked, d),
                 sources.find(tenantCode, sourceKey(checked, d)).orElse(null));
     }
 
@@ -415,7 +441,7 @@ public class SymptomCatalogService {
         SymptomSpec spec = v == null ? source.spec() : source.spec().withState(SymptomState.TEST);
         if (v != null) {
             // Checked before anything is written, so a copy that cannot be published leaves nothing behind.
-            Report report = checkSpec(spec,
+            Report report = checkSpec(tenantCode, spec,
                     sources.find(tenantCode, sourceKey(spec, from)).orElse(null));
             if (!report.publishable()) {
                 throw new IllegalStateException("version " + v + " does not pass its source's checks any more");
@@ -560,7 +586,7 @@ public class SymptomCatalogService {
         SymptomSpec spec = effective(draft, d);
         List<Change> changes = SpecDiff.changes(before, spec);
         VersionBump bump = SpecDiff.bump(changes);
-        Report report = checkSpec(spec, sources.find(tenantCode, sourceKey(spec, d)).orElse(null));
+        Report report = checkSpec(tenantCode, spec, sources.find(tenantCode, sourceKey(spec, d)).orElse(null));
         return new PublishPlan(changes, bump,
                 bump == null ? null : SpecDiff.next(detail.definition().currentVersion(), bump), report);
     }
@@ -580,7 +606,7 @@ public class SymptomCatalogService {
     /** The version in force has no errors against its own source and needs nothing the engine lacks. */
     private boolean activatable(String tenantCode, SymptomDetail detail) {
         SymptomSpec spec = detail.current().spec();
-        Report report = checkSpec(spec,
+        Report report = checkSpec(tenantCode, spec,
                 sources.find(tenantCode, sourceKey(spec, detail.definition())).orElse(null));
         return report.publishable() && !report.needsTestOnly();
     }

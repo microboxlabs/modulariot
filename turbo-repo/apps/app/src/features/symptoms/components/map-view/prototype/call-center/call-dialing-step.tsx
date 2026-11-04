@@ -51,6 +51,7 @@ export default function CallDialingStep({
   allowedMethods,
   contactId,
   reason,
+  goal,
   onCancel,
   onConfirm,
   onStartedChange,
@@ -70,6 +71,8 @@ export default function CallDialingStep({
    *  shown here as a read-only "script to follow" while calling, not an
    *  editable field. */
   reason: string;
+  /** The step's goal, filled with the case: what the call must obtain. */
+  goal?: string;
   onCancel: (elapsedSeconds: number) => void;
   onConfirm: (elapsedSeconds: number, method: CallMethod) => void;
   /** Fires the moment a method button is pressed (call goes live) — lets the
@@ -162,6 +165,12 @@ export default function CallDialingStep({
                 </p>
               )}
             </div>
+            {goal?.trim() && (
+              <p className="shrink-0 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:bg-blue-900/20 dark:text-blue-100">
+                <span className="font-medium">{t("call_goal")}: </span>
+                {goal}
+              </p>
+            )}
           </div>
         </div>
 

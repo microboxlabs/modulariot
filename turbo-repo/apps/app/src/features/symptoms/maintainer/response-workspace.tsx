@@ -6,14 +6,8 @@ import type { CelField } from "./cel-editor";
 import LevelResponseDetail, { type LifecycleRules } from "./level-response";
 import type { AudienceDicts } from "./level-steps";
 import { EMPTY_RESPONSE, levelOf, withLevel } from "./level-row";
-import type {
-  Finding,
-  LevelResponse,
-  Preview,
-  SymptomSpec,
-} from "./maintainer-api";
+import type { Finding, LevelResponse, SymptomSpec } from "./maintainer-api";
 import { problemsFor } from "./rule-problems";
-import { useSourceSamples } from "./sample-tree";
 import { caseFields } from "./symptom-rule-sections";
 import { ICU_LEVELS } from "./symptom-labels";
 import { CHANGED_DOT } from "./ui/changed";
@@ -163,7 +157,6 @@ export default function ResponseWorkspace({
   spec,
   symptom,
   changedLevels,
-  preview,
   findings,
   readOnly,
   icu,
@@ -180,7 +173,6 @@ export default function ResponseWorkspace({
   symptom?: { key: string; name: string; rulesDict: I18nRecord };
   /** Levels that differ from the published version. */
   changedLevels: ReadonlySet<number>;
-  preview?: Preview;
   findings: Finding[] | undefined;
   readOnly: boolean;
   icu: number;
@@ -190,8 +182,6 @@ export default function ResponseWorkspace({
   onIcu: (icu: number) => void;
   onChange: (spec: SymptomSpec) => void;
 }>) {
-  // Step scripts are previewed with the first sample of the source.
-  const sample = useSourceSamples(preview, spec.source)[0]?.sample;
   const level = levelOf(spec, icu);
   const response = level.response ?? EMPTY_RESPONSE;
   const name = trDynamic(`levelName${icu}`, d);
@@ -265,7 +255,6 @@ export default function ResponseWorkspace({
             findings={(findings ?? []).filter(
               (f) => f.section === responseSection(icu)
             )}
-            sample={sample}
             symptom={symptom && { ...symptom, icu }}
             rules={rules}
             audience={audience}

@@ -425,7 +425,6 @@ export default function SymptomDetail({
                     ? new Set<number>()
                     : changedLevels(shownSpec, published)
                 }
-                preview={viewed ? undefined : (currentPreview ?? undefined)}
                 findings={viewed ? undefined : report?.findings}
                 readOnly={!canWrite || Boolean(viewed)}
                 icu={responseIcu}

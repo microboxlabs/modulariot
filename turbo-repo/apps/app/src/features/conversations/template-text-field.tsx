@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { HiCode, HiVariable } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { FIELD } from "@/features/symptoms/maintainer/ui/response-block";
 import type { EventField } from "./conversations-types";
 import { textVariables } from "./rule-model";
+import {
+  completeVariable,
+  matchingVariables,
+  type OpenVariable,
+  openVariable,
+} from "./variable-suggest";
 
 /** Puts text where a field's cursor is; what the variables panel calls on the last focused field. */
 export type Inserter = (text: string) => void;
@@ -87,6 +93,10 @@ export default function TemplateTextField({
   onFocusField?: (insert: Inserter) => () => void;
 }>) {
   const ref = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
+  const composing = useRef(false);
+  const changeRef = useRef(onChange);
+  changeRef.current = onChange;
+  const listId = useId();
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const unregister = useRef<(() => void) | undefined>(undefined);
@@ -109,13 +119,61 @@ export default function TemplateTextField({
     const start = el?.selectionStart ?? current.length;
     const end = el?.selectionEnd ?? current.length;
     const next = spliceSelection(current, start, end, insert, close);
-    onChange(next.value);
+    changeRef.current(next.value);
+    setOpen(null);
     requestAnimationFrame(() => {
       el?.focus();
       el?.setSelectionRange(next.caret, next.caret);
     });
   };
   const insertVariable: Inserter = (text) => apply(text);
+
+  // Typing `{{` offers the variables; arrows move, Enter or Tab picks, Escape closes.
+  const [open, setOpen] = useState<OpenVariable | null>(null);
+  const [active, setActive] = useState(0);
+  const suggestions = open ? matchingVariables(variables, open.query) : [];
+  const activeIndex = active < suggestions.length ? active : 0;
+  const track = () => {
+    const el = ref.current;
+    const caret = el?.selectionStart ?? null;
+    const next =
+      el && caret !== null && caret === el.selectionEnd
+        ? openVariable(el.value, caret)
+        : null;
+    setOpen(next);
+    if (next?.query !== open?.query) setActive(0);
+  };
+  const pick = (name: string) => {
+    const el = ref.current;
+    if (!el) return;
+    const caret = el.selectionStart ?? el.value.length;
+    const currentOpen =
+      caret === el.selectionEnd ? openVariable(el.value, caret) : null;
+    setOpen(null);
+    if (!currentOpen) return;
+    const next = completeVariable(el.value, currentOpen, caret, name);
+    changeRef.current(next.value);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(next.caret, next.caret);
+    });
+  };
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (composing.current || e.nativeEvent.isComposing) return;
+    if (!open || suggestions.length === 0) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const by = e.key === "ArrowDown" ? 1 : -1;
+      setActive((i) => (i + by + suggestions.length) % suggestions.length);
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      pick(suggestions[activeIndex]!.name);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(null);
+    }
+  };
 
   const used = textVariables(value);
   const Field = multiline ? "textarea" : "input";
@@ -216,12 +274,74 @@ export default function TemplateTextField({
           placeholder={placeholder}
           value={value}
           className={`${FIELD} block w-full !rounded-none !border-0 !bg-transparent px-3 py-2 leading-relaxed !ring-0 ${multiline ? "resize-y" : ""} ${mono ? "font-mono !text-xs" : ""}`}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            onChange(e.target.value);
+            track();
+          }}
+          onKeyDown={onKeyDown}
+          onCompositionStart={() => {
+            composing.current = true;
+          }}
+          onCompositionEnd={() => {
+            composing.current = false;
+          }}
+          onKeyUp={(e) => {
+            if (
+              [
+                "ArrowLeft",
+                "ArrowRight",
+                "Home",
+                "End",
+                "PageUp",
+                "PageDown",
+              ].includes(e.key)
+            )
+              track();
+          }}
+          onClick={track}
+          onBlur={() => setOpen(null)}
+          role={open && suggestions.length > 0 ? "combobox" : undefined}
+          aria-expanded={open && suggestions.length > 0 ? true : undefined}
+          aria-controls={open && suggestions.length > 0 ? listId : undefined}
+          aria-activedescendant={
+            open && suggestions.length > 0
+              ? `${listId}-option-${activeIndex}`
+              : undefined
+          }
           onFocus={() => {
             unregister.current?.();
             unregister.current = onFocusField?.(insertVariable);
           }}
         />
+        {!readOnly && open && suggestions.length > 0 && (
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label={tr("insertVariable", d)}
+            className="max-h-48 overflow-y-auto border-t border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-800"
+          >
+            {suggestions.map((v, i) => (
+              <li
+                key={v.name}
+                id={`${listId}-option-${i}`}
+                role="option"
+                aria-selected={i === activeIndex}
+                title={v.description ?? undefined}
+                className={`flex cursor-pointer items-baseline gap-2 rounded px-2 py-1 text-xs ${i === activeIndex ? "bg-blue-50 dark:bg-blue-900/30" : "hover:bg-gray-100 dark:hover:bg-gray-700"}`}
+                // Keep the caret in the field while picking.
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(v.name);
+                }}
+              >
+                <span className="shrink-0 font-mono text-gray-900 dark:text-white">{`{{${v.name}}}`}</span>
+                <span className="min-w-0 flex-1 truncate text-gray-500 dark:text-gray-400">
+                  {v.label}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       {(used.length > 0 || hint) && (
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">

@@ -10,7 +10,7 @@ import ContactsAudience from "@/features/conversations/contacts-audience";
 import { TRIP_FIELDS, whoOf } from "../control-tower/step-who";
 import { moveRow } from "./condition-form";
 import type { Step } from "./maintainer-api";
-import ScriptModal from "./script-modal";
+import ScriptPanel from "./script-panel";
 import { PillNumber, PillSelect } from "./ui/pill";
 import { FIELD_ERROR, FieldError } from "./ui/response-block";
 
@@ -210,7 +210,7 @@ export default function LevelSteps({
   slaMinutes,
   errors = {},
   audience,
-  sample,
+  cases,
   readOnly,
   d,
   onChange,
@@ -220,8 +220,8 @@ export default function LevelSteps({
   errors?: StepErrors;
   /** The texts of the "contacts from the book" condition each step uses. */
   audience: AudienceDicts;
-  /** A source sample the script preview is filled from. */
-  sample?: Record<string, unknown>;
+  /** The symptom and level whose recent cases fill the script's preview; absent for a template. */
+  cases?: { symptomName: string; icu: number };
   readOnly: boolean;
   d: I18nRecord;
   onChange: (steps: Step[]) => void;
@@ -315,14 +315,17 @@ export default function LevelSteps({
         </button>
       )}
       {editing !== null && editingStep && (
-        <ScriptModal
+        <ScriptPanel
+          key={keys[editing]}
           open
-          step={editing + 1}
-          script={editingStep.script ?? ""}
-          sample={sample}
+          index={editing}
+          step={editingStep}
+          symptomName={cases?.symptomName}
+          icu={cases?.icu}
           readOnly={readOnly}
           d={d}
-          onChange={(script) => set(editing, { script })}
+          templateDict={audience.d}
+          onChange={(patch) => set(editing, patch)}
           onClose={() => setEditing(null)}
         />
       )}

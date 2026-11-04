@@ -1,0 +1,135 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
+import { describe, expect, it, vi } from "vitest";
+import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
+import PrototypeCallCenterFlow, {
+  type CallSnapshot,
+} from "./prototype-call-center-flow";
+import type { CallScript } from "./call-center-menu";
+import type { CallTarget } from "./call-targets";
+
+const target = vi.hoisted<CallTarget>(() => ({
+  id: "contact-test",
+  personName: "Synthetic contact",
+  role: "Dispatcher",
+  phone: "+12025550101",
+  methods: ["phone"],
+  stats: null,
+}));
+
+vi.mock("./call-center-menu", () => ({
+  default: ({
+    onCall,
+  }: {
+    onCall: (target: CallTarget, script?: CallScript) => void;
+  }) => (
+    <>
+      <button
+        onClick={() =>
+          onCall(target, {
+            message: "Step message",
+            goal: "Step goal",
+          })
+        }
+      >
+        Step contact
+      </button>
+      <button onClick={() => onCall(target)}>Other contact</button>
+    </>
+  ),
+}));
+vi.mock("./call-dialing-step", () => ({
+  default: ({
+    reason,
+    goal,
+    onCancel,
+    onConfirm,
+  }: {
+    reason: string;
+    goal?: string;
+    onCancel: () => void;
+    onConfirm: (seconds: number, method: "phone") => void;
+  }) => (
+    <>
+      <p>{reason}</p>
+      <p>{goal}</p>
+      <button onClick={onCancel}>Cancel call</button>
+      <button onClick={() => onConfirm(1, "phone")}>Confirm call</button>
+    </>
+  ),
+}));
+vi.mock("../prototype-call-driver", () => ({
+  default: ({ onMakeAnotherCall }: { onMakeAnotherCall: () => void }) => (
+    <button onClick={onMakeAnotherCall}>Another call</button>
+  ),
+}));
+vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
+  contactsKey: "contacts",
+  treatmentsKey: () => "treatments",
+}));
+vi.mock("swr", () => ({ mutate: vi.fn() }));
+
+const request: TreatmentsRequest = {
+  asset_id: "test-asset",
+  assigned_to: "operator@example.test",
+  client_id: null,
+  status: "active",
+  symptom_id: "-1",
+  treatment_type: "",
+  treatment_id: null,
+  trip_id: "test-trip",
+};
+function Flow({
+  snapshot,
+  onConfirmed = vi.fn(),
+}: Readonly<{
+  snapshot?: CallSnapshot;
+  onConfirmed?: (snapshot: CallSnapshot) => void;
+}>) {
+  const [message, setMessage] = useState(
+    snapshot?.script?.message ?? "Default message"
+  );
+  return (
+    <PrototypeCallCenterFlow
+      dict={{}}
+      treatmentData={null}
+      messageToCommunicate={message}
+      setMessageToCommunicate={setMessage}
+      treatmentRequest={request}
+      setTreatmentRequest={vi.fn()}
+      setIsMenuOpen={vi.fn()}
+      startedAt={0}
+      skippedTo={null}
+      onSkip={vi.fn()}
+      resumeSnapshot={snapshot}
+      onCallConfirmed={onConfirmed}
+    />
+  );
+}
+
+describe("call step scripts", () => {
+  it("restores the default message when the next contact has no step script", () => {
+    render(<Flow />);
+    fireEvent.click(screen.getByText("Step contact"));
+    expect(screen.getByText("Step message")).toBeTruthy();
+    expect(screen.getByText("Step goal")).toBeTruthy();
+    fireEvent.click(screen.getByText("Cancel call"));
+    fireEvent.click(screen.getByText("Other contact"));
+    expect(screen.getByText("Default message")).toBeTruthy();
+    expect(screen.queryByText("Step goal")).toBeNull();
+  });
+
+  it("preserves the script and default across a completed-call remount", () => {
+    const confirmed = vi.fn();
+    const view = render(<Flow onConfirmed={confirmed} />);
+    fireEvent.click(screen.getByText("Step contact"));
+    fireEvent.click(screen.getByText("Confirm call"));
+    const snapshot = confirmed.mock.calls[0]?.[0] as CallSnapshot;
+    expect(snapshot.script?.goal).toBe("Step goal");
+    view.unmount();
+    render(<Flow snapshot={snapshot} />);
+    fireEvent.click(screen.getByText("Another call"));
+    fireEvent.click(screen.getByText("Other contact"));
+    expect(screen.getByText("Default message")).toBeTruthy();
+  });
+});

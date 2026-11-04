@@ -85,8 +85,14 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             Instance<TripGeofences> tripGeofences,
             Instance<SignalStates> signals,
             @ConfigProperty(name = "miot.symptoms.legacy.enabled", defaultValue = "true") boolean legacy) {
-        this(tenantContext, organizationContext, roleService, identity, map, treatments, cases, caseTreatments,
-                tripWindows, tripGeofences, signals, Clock.systemUTC(), legacy);
+        this(tenantContext, organizationContext, roleService, identity,
+                new MapServices(map, treatments, cases, caseTreatments, tripWindows, tripGeofences, signals),
+                Clock.systemUTC(), legacy);
+    }
+
+    record MapServices(ControlTowerMapService map, ControlTowerTreatmentService treatments,
+            EngineCaseService cases, TreatmentService caseTreatments, TripWindows tripWindows,
+            Instance<TripGeofences> tripGeofences, Instance<SignalStates> signals) {
     }
 
     OrgControlTowerMapResource(
@@ -94,24 +100,18 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            ControlTowerMapService map,
-            ControlTowerTreatmentService treatments,
-            EngineCaseService cases,
-            TreatmentService caseTreatments,
-            TripWindows tripWindows,
-            Instance<TripGeofences> tripGeofences,
-            Instance<SignalStates> signals,
+            MapServices services,
             Clock clock, boolean legacy) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
-        this.map = map;
-        this.treatments = treatments;
-        this.cases = cases;
-        this.caseTreatments = caseTreatments;
-        this.tripWindows = tripWindows;
-        this.tripGeofences = tripGeofences;
+        this.map = services.map();
+        this.treatments = services.treatments();
+        this.cases = services.cases();
+        this.caseTreatments = services.caseTreatments();
+        this.tripWindows = services.tripWindows();
+        this.tripGeofences = services.tripGeofences();
         this.legacy = legacy;
-        this.signals = signals;
+        this.signals = services.signals();
         this.clock = clock;
     }
 
@@ -255,6 +255,36 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             return notFound();
         }
         return answer(() -> treatments.treatment(clientIds(), symptomId));
+    }
+
+    @GET
+    @Path("/symptoms/{symptomId}/context")
+    @Operation(operationId = "getMapSymptomContext", summary = "What an operator step's script reads for a case",
+            description = "case, condition, trip and vehicle of an engine case (negative id); a script writes them "
+                    + "as {{trip.driver.name}}. 404 for other cases and for cases not the organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> symptomContext(@PathParam("organizationId") String organizationId,
+            @PathParam("symptomId") String symptomId) {
+        String tenant = tenantCode(organizationId);
+        if (!engineCase(symptomId)) {
+            return notFound();
+        }
+        long id = Long.parseLong(symptomId.trim());
+        return answer(() -> blocking(() -> cases.context(tenant, id)));
+    }
+
+    @GET
+    @Path("/script-samples")
+    @Operation(operationId = "getScriptSamples", summary = "Recent cases of a symptom, to write a script with",
+            description = "Up to 10 of the symptom's newest engine cases, those at level first, each with the "
+                    + "context a script reads (see getMapSymptomContext). 400 without symptom.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> scriptSamples(@PathParam("organizationId") String organizationId,
+            @QueryParam("symptom") String symptom, @QueryParam("level") Integer level) {
+        String tenant = tenantCode(organizationId);
+        return answer(() -> blocking(() -> cases.scriptSamples(tenant, symptom, level)));
     }
 
     @GET

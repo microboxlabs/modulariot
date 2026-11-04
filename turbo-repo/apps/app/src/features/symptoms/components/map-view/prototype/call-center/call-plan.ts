@@ -4,13 +4,17 @@
  */
 
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import type { TowerTreatment } from "@/features/symptoms/control-tower/control-tower-api";
+import type {
+  ScriptContext,
+  TowerTreatment,
+} from "@/features/symptoms/control-tower/control-tower-api";
 import {
   summarizeWho,
   whoOf,
   type WhoSummary,
 } from "@/features/symptoms/control-tower/step-who";
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
+import { fillScriptText } from "@/features/symptoms/maintainer/script-fill";
 import { type CallTarget, targetIdOfAction } from "./call-targets";
 
 export interface CallGroup {
@@ -128,21 +132,35 @@ export function matchesTarget(target: CallTarget, query: string): boolean {
   );
 }
 
-/** Fills a step's script with the case's values; unknown variables stay as written. */
+/**
+ * The script context of a case the server has none for (a legacy case), from
+ * the treatment page's trip info: the fields the older script names read.
+ */
+export function contextOfTreatment(
+  treatment: TreatmentsGeneralResponseItem | null
+): ScriptContext {
+  const trip = treatment?.trip_info;
+  return {
+    case: {
+      symptom: treatment?.symptom_info?.name,
+      level: treatment?.symptom_info?.icu_code,
+    },
+    vehicle: { plate: trip?.asset_id },
+    trip: {
+      origin: trip?.origin,
+      destination: trip?.destination,
+      driver: { name: trip?.driver, phone: trip?.driver_contact },
+      carrier: { name: trip?.carrier },
+    },
+  };
+}
+
+/** Fills a step's script with the case's context; unknown variables stay as written. */
 export function fillScript(
   script: string,
-  treatment: TreatmentsGeneralResponseItem | null
+  context: ScriptContext | undefined
 ): string {
-  const trip = treatment?.trip_info;
-  const values: Record<string, string | undefined> = {
-    conductor: trip?.driver,
-    patente: trip?.asset_id,
-    ruta: trip ? `${trip.origin} → ${trip.destination}` : undefined,
-  };
-  return script.replaceAll(
-    /\{\{\s*(\w+)\s*\}\}/g,
-    (all, name: string) => values[name] ?? all
-  );
+  return fillScriptText(script, context);
 }
 
 /** Which step is due after `elapsedSeconds`, by the steps' cumulative minutes. */

@@ -86,7 +86,7 @@ function Check({
 function OperatorBlock({
   response,
   findings,
-  sample,
+  cases,
   audience,
   readOnly,
   d,
@@ -94,7 +94,8 @@ function OperatorBlock({
 }: Readonly<{
   response: LevelResponse;
   findings: Finding[];
-  sample: Record<string, unknown> | undefined;
+  /** The symptom and level whose recent cases fill the script's preview. */
+  cases: { symptomName: string; icu: number } | undefined;
   audience: AudienceDicts;
   readOnly: boolean;
   d: I18nRecord;
@@ -166,7 +167,7 @@ function OperatorBlock({
             slaMinutes={response.slaMinutes}
             errors={stepErrors(findings, d)}
             audience={audience}
-            sample={sample}
+            cases={cases}
             readOnly={readOnly}
             d={d}
             onChange={(steps) => onChange({ steps })}
@@ -309,7 +310,6 @@ export interface ResponseSymptom {
 export default function LevelResponseDetail({
   response,
   findings,
-  sample,
   symptom,
   rules,
   audience,
@@ -326,7 +326,6 @@ export default function LevelResponseDetail({
   symptom?: ResponseSymptom;
   /** The findings of this level's response. */
   findings: Finding[];
-  sample: Record<string, unknown> | undefined;
   readOnly: boolean;
   d: I18nRecord;
   onChange: (patch: Partial<LevelResponse>) => void;
@@ -359,7 +358,9 @@ export default function LevelResponseDetail({
       <OperatorBlock
         response={response}
         findings={findings}
-        sample={sample}
+        cases={
+          symptom ? { symptomName: symptom.name, icu: symptom.icu } : undefined
+        }
         audience={audience}
         readOnly={readOnly}
         d={d}

@@ -22,7 +22,7 @@ import { phoneForMethod } from "./call-targets";
  * duration.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
 import {
   contactsKey,
@@ -35,7 +35,7 @@ import type { SelectedOption } from "@/features/symptoms/types/side-info";
 import PrototypeCallDriver, {
   type CallFormDraft,
 } from "../prototype-call-driver";
-import CallCenterMenu from "./call-center-menu";
+import CallCenterMenu, { type CallScript } from "./call-center-menu";
 import CallDialingStep from "./call-dialing-step";
 import type { CallMethod } from "./call-method";
 import type { CallTarget } from "./call-targets";
@@ -56,6 +56,8 @@ export type CallCenterReportedStep = CallCenterFlowStep | "calling";
  *  its place entirely), so nothing captured here can live in this
  *  component's own state — it has to survive one level up. */
 export type CallSnapshot = {
+  script?: CallScript | null;
+  defaultMessage?: string;
   contact: CallTarget | null;
   personName: string;
   role: string;
@@ -146,7 +148,19 @@ export default function PrototypeCallCenterFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, dialingStarted]);
 
-  const handleCall = (target: CallTarget) => {
+  const defaultMessage = useRef(
+    resumeSnapshot?.defaultMessage ?? messageToCommunicate
+  );
+  const [activeScript, setActiveScript] = useState<CallScript | null>(
+    resumeSnapshot?.script ?? null
+  );
+
+  const handleCall = (target: CallTarget, script?: CallScript) => {
+    if (!activeScript) defaultMessage.current = messageToCommunicate;
+    // The step's script replaces the treatment's default message, so the
+    // dialing step and the results form show what this step says.
+    setActiveScript(script ?? null);
+    setMessageToCommunicate(script?.message || defaultMessage.current);
     setActiveContact(target);
     setActivePersonName(target.personName);
     setActiveRole(target.role);
@@ -171,6 +185,8 @@ export default function PrototypeCallCenterFlow({
     setCallMethodUsed(method);
     onFormDraftChange?.(null);
     onCallConfirmed?.({
+      script: activeScript,
+      defaultMessage: defaultMessage.current,
       contact: activeContact,
       personName: activePersonName,
       role: activeRole,
@@ -223,6 +239,7 @@ export default function PrototypeCallCenterFlow({
           allowedMethods={activeAllowedMethods ?? []}
           contactId={activeContact?.contactId}
           reason={messageToCommunicate}
+          goal={activeScript?.goal}
           onCancel={handleCancelCall}
           onConfirm={handleConfirmCall}
           onStartedChange={setDialingStarted}

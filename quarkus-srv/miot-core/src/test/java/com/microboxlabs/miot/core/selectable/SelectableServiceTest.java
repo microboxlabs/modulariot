@@ -193,6 +193,33 @@ class SelectableServiceTest {
     }
 
     @Test
+    void exactMembershipChecksPastTheSuggestionLimitWithoutMatchingOnlyLabels() {
+        SelectableOptionSource source = new ListedSystemSource("test.results", Map.of(), Map.of()) {
+            @Override
+            protected List<SelectableOption> all(String tenantCode) {
+                if (!TENANT.equals(tenantCode)) return List.of();
+                List<SelectableOption> options = new ArrayList<>();
+                for (int i = 0; i < 250; i++) options.add(option("other_" + i, "valid"));
+                options.add(option("valid", "Exact result"));
+                return options;
+            }
+        };
+        SelectableService withSource = new SelectableService(new InMemorySelectableStore(), List.of(),
+                List.of(source), events::add);
+        SelectableRequest request = new SelectableRequest(Map.of("es", "Results"), null, SelectionMode.SINGLE,
+                null, null, SelectableSource.system("test.results"), List.of());
+        withSource.replace(TENANT, "o", "results", request);
+        withSource.replace("other-tenant", "o", "results", request);
+
+        assertFalse(values(withSource.options(TENANT, "results", "valid", null, 200)).contains("valid"));
+        assertTrue(withSource.contains(TENANT, "results", "valid"));
+        assertFalse(withSource.contains(TENANT, "results", "Exact result"));
+        assertFalse(withSource.contains("other-tenant", "results", "valid"));
+        assertTrue(service.contains(TENANT, "reason", "r_1"));
+        assertFalse(service.contains(TENANT, "reason", "missing"));
+    }
+
+    @Test
     void aSourceRefusesAConfigItCannotUseWhenTheListIsSaved() {
         SelectableOptionSource picky = new ListedSystemSource("test.picky", Map.of("es", "Exigente"), Map.of()) {
             @Override

@@ -7,6 +7,7 @@
  */
 
 import useSWR from "swr";
+import { z } from "zod/v3";
 import useSWRInfinite from "swr/infinite";
 
 export type TowerTreatmentType =
@@ -239,6 +240,75 @@ export function contactPageKey(
   params.set("limit", String(CONTACT_PAGE_SIZE));
   if (cursor) params.set("cursor", cursor);
   return `${BASE}/contacts/page?${params}`;
+}
+
+/* ---------- script context ---------- */
+
+/**
+ * What an operator step's script reads for a case: `case`, `condition`,
+ * `trip` and `vehicle`, written in a script as `{{trip.driver.name}}`.
+ */
+export type ScriptContext = Record<string, unknown>;
+
+/** A recent case of a symptom, with the context a script reads. */
+export interface ScriptSample {
+  symptom_id: number;
+  asset_id: string;
+  icu_code: number;
+  opened_at: string;
+  context: ScriptContext;
+}
+
+const scriptContextSchema = z
+  .object({
+    case: z.record(z.unknown()),
+    condition: z.record(z.unknown()),
+    trip: z.record(z.unknown()),
+    vehicle: z.record(z.unknown()),
+  })
+  .passthrough();
+const scriptSamplesSchema = z.array(
+  z
+    .object({
+      symptom_id: z.number().int(),
+      asset_id: z.string(),
+      icu_code: z.number().int(),
+      opened_at: z.string().datetime({ offset: true }),
+      context: scriptContextSchema,
+    })
+    .passthrough()
+);
+
+export function parseScriptContext(value: unknown): ScriptContext {
+  return scriptContextSchema.parse(value);
+}
+
+export function parseScriptSamples(value: unknown): ScriptSample[] {
+  return scriptSamplesSchema.parse(value);
+}
+
+/** The symptom's newest engine cases, those at `level` first, to write a script with real data. */
+export function useScriptSamples(
+  symptomName: string | null | undefined,
+  level: number | null | undefined
+) {
+  const params = new URLSearchParams();
+  if (symptomName) params.set("symptom", symptomName);
+  if (level != null) params.set("level", String(level));
+  return useSWR<ScriptSample[]>(
+    symptomName ? `${BASE}/map/script-samples?${params}` : null,
+    async (url: string) => parseScriptSamples(await fetcher(url))
+  );
+}
+
+/** The context a script reads for one engine case (negative id); none for other cases. */
+export function useCaseContext(symptomId: number | null | undefined) {
+  return useSWR<ScriptContext>(
+    symptomId != null && symptomId < 0
+      ? `${BASE}/map/symptoms/${symptomId}/context`
+      : null,
+    async (url: string) => parseScriptContext(await fetcher(url))
+  );
 }
 
 /* ---------- treatments ---------- */

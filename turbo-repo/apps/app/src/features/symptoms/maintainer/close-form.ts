@@ -67,6 +67,8 @@ export function splitTop(text: string, op: "||" | "&&"): string[] | null {
   let depth = 0;
   let quote: string | null = null;
   let start = 0;
+  const atTopLevelOperator = (index: number) =>
+    depth === 0 && text.startsWith(op, index);
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (quote) {
@@ -77,7 +79,7 @@ export function splitTop(text: string, op: "||" | "&&"): string[] | null {
     else if (ch === ")" || ch === "]") {
       depth--;
       if (depth < 0) return null;
-    } else if (depth === 0 && text.startsWith(op, i)) {
+    } else if (atTopLevelOperator(i)) {
       parts.push(text.slice(start, i).trim());
       start = i + op.length;
       i += op.length - 1;
@@ -144,7 +146,7 @@ function parseWhen(term: string, fields: CloseFields): CloseWhen | null {
     return roundTrips(hours, hours) ? { kind: "age", hours } : null;
   }
   const ended = TRIP_ENDED_NOT.exec(term) ?? TRIP_ENDED_EQ.exec(term);
-  if (ended && ended[1] === fields.tripActive)
+  if (ended?.[1] === fields.tripActive)
     return { kind: "tripEnded", path: ended[1] };
   const event = EVENT.exec(term);
   if (event) {

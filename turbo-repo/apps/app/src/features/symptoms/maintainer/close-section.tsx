@@ -557,9 +557,7 @@ export function CaseTimelinePreview({
         )}
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        {samples && samples.length === 0
-          ? tr("timelineNone", d)
-          : tr("timelineHint", d)}
+        {samples?.length === 0 ? tr("timelineNone", d) : tr("timelineHint", d)}
       </p>
       {entries && entries.length > 0 && (
         <ol aria-label={tr("timelineTitle", d)} className="flex flex-col gap-1">

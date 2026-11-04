@@ -2,6 +2,8 @@ package com.microboxlabs.miot.integrations.telephony;
 
 import com.microboxlabs.miot.integrations.telephony.TelephonyPlanDtos.Plan;
 import com.microboxlabs.miot.integrations.telephony.TelephonyPlanDtos.Subscription;
+import com.microboxlabs.miot.integrations.service.ManagedConnectionLock;
+import com.microboxlabs.miot.integrations.persistence.ManagedProvisioningTransaction;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
@@ -35,7 +37,7 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
     private static final String INSERT = "INSERT INTO " + T + " (" + COLUMNS + """
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
             ON CONFLICT DO NOTHING""";
-    private static final String UPDATE = "UPDATE " + T + """
+    private static final String UPDATE = "UPDATE " + T + " " + """
              SET tenant_code = $2, channel = $3, managed = $4, connection_id = $5, external_id = $6, case_ref = $7,
                  callee_number = $8, destination_type = $9, status = $10, answered_at = $11, seconds = $12,
                  billed_minutes = $13, provider_cost = $14, provider_currency = $15, source = $16, started_at = $17,
@@ -47,17 +49,17 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
     private static final String BUSY = "SELECT count(*) AS n FROM " + T
             + " WHERE connection_id = $1 AND started_at > $2 AND ended_at IS NULL AND status IN ('STARTED', 'ENDED')";
     private static final String EXPIRE = "UPDATE " + T
-            + " SET status = 'EXPIRED' WHERE status = 'STARTED' AND started_at < $1";
-    private static final String LATEST_CALLER = "SELECT tenant_code FROM " + T + """
-             WHERE managed AND channel = 'VOICE' AND regexp_replace(callee_number, '\\D', '', 'g') = $1
+            + " SET status = 'EXPIRED' WHERE status IN ('STARTED', 'ENDED') AND started_at < $1";
+    private static final String LATEST_CALLER = "SELECT tenant_code FROM " + T + " " + """
+             WHERE managed AND channel = 'VOICE' AND external_id IS NOT NULL AND source IS NOT NULL AND regexp_replace(callee_number, '\\D', '', 'g') = $1
                AND started_at > $2
              ORDER BY started_at DESC LIMIT 1""";
-    private static final String BILLED = "SELECT coalesce(sum(billed_minutes), 0) AS m FROM " + T + """
+    private static final String BILLED = "SELECT coalesce(sum(billed_minutes), 0) AS m FROM " + T + " " + """
              WHERE tenant_code = $1 AND managed AND channel = 'VOICE' AND status = 'CONFIRMED'
                AND started_at >= $2 AND started_at < $3""";
     private static final String ROWS = "SELECT " + COLUMNS + " FROM " + T
             + " WHERE tenant_code = $1 AND managed AND started_at >= $2 AND started_at < $3 ORDER BY started_at";
-    private static final String TENANTS = "SELECT tenant_code FROM " + T + """
+    private static final String TENANTS = "SELECT tenant_code FROM " + T + " " + """
              WHERE managed AND started_at >= $1 AND started_at < $2
             UNION SELECT tenant_code FROM miot_integrations.telephony_subscriptions
             ORDER BY 1""";
@@ -66,7 +68,7 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
                 (sip_username, tenant_code, credential_id, connection_id)
             VALUES ($1, $2, $3, $4) ON CONFLICT (sip_username) DO NOTHING""";
     private static final String TENANT_OF_SIP =
-            "SELECT tenant_code FROM miot_integrations.telephony_operator_credentials WHERE sip_username = $1";
+            "SELECT tenant_code FROM miot_integrations.telephony_operator_credentials WHERE sip_username = $1 AND connection_id = $2";
     private static final String PLAN_COLUMNS = """
             minutes_per_month, price_cl_mobile_usd, price_cl_landline_usd, price_other_usd, price_whatsapp_call_usd,
             price_whatsapp_template_usd, enforced, updated_by, updated_at""";
@@ -88,10 +90,21 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
                 updated_by = EXCLUDED.updated_by, updated_at = now()""";
 
     private final Supplier<Pool> pool;
+    private final ManagedConnectionLock lock;
 
     @Inject
-    public PgTelephonyUsageStore(Instance<Pool> pool) {
-        this.pool = pool::get;
+    public PgTelephonyUsageStore(Instance<Pool> pool, ManagedConnectionLock lock) {
+        this(pool::get, lock);
+    }
+
+    public PgTelephonyUsageStore(Supplier<Pool> pool, ManagedConnectionLock lock) {
+        this.pool = pool;
+        this.lock = lock;
+    }
+
+    @Override
+    public <T> T locked(String connectionId, Supplier<T> work) {
+        return lock.locked("telephony:" + connectionId, work);
     }
 
     @Override
@@ -156,8 +169,8 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
     }
 
     @Override
-    public Optional<String> tenantOfSip(String sipUsername) {
-        var it = run(TENANT_OF_SIP, Tuple.of(sipUsername)).iterator();
+    public Optional<String> tenantOfSip(String sipUsername, String sipConnectionId) {
+        var it = run(TENANT_OF_SIP, Tuple.of(sipUsername, sipConnectionId)).iterator();
         return it.hasNext() ? Optional.of(it.next().getString("tenant_code")) : Optional.empty();
     }
 
@@ -190,8 +203,8 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
         run(SAVE_SUBSCRIPTION, Tuple.tuple().addString(tenantCode).addInteger(monthlyMinutes).addString(actor));
     }
 
-    private RowSet<Row> run(String sql, Tuple params) {
-        return pool.get().preparedQuery(sql).execute(params).await().atMost(TIMEOUT);
+    protected RowSet<Row> run(String sql, Tuple params) {
+        return ManagedProvisioningTransaction.client(pool.get()).preparedQuery(sql).execute(params).await().atMost(TIMEOUT);
     }
 
     private static Optional<UsageRow> first(RowSet<Row> rows) {

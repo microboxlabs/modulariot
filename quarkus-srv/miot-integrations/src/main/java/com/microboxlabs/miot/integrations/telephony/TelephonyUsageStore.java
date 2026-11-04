@@ -10,6 +10,9 @@ import java.util.Optional;
 /** The telephony ledger, the plan and the operators' SIP logins. */
 public interface TelephonyUsageStore {
 
+    /** Serializes a line's read/modify/write transitions across all ledger writers. */
+    <T> T locked(String connectionId, java.util.function.Supplier<T> work);
+
     /** Inserts the row; a row with the same channel and external id is left as it is. */
     void insert(UsageRow row);
 
@@ -40,7 +43,7 @@ public interface TelephonyUsageStore {
 
     void saveCredential(String sipUsername, String tenantCode, String credentialId, String connectionId);
 
-    Optional<String> tenantOfSip(String sipUsername);
+    Optional<String> tenantOfSip(String sipUsername, String sipConnectionId);
 
     Plan plan();
 

@@ -91,45 +91,62 @@ public class IntegrationsTelephony implements Telephony {
                 .findFirst()
                 .orElseThrow(() -> new TelephonyUnavailableException("The organization has no Telnyx line"));
         String connectionTenant = line.managed() ? PlatformScope.TENANT : tenantCode;
-        if (line.managed()) {
-            plan.requireMinutes(tenantCode);
-        }
+        String callee = PhoneNumbers.e164(calleeNumber);
+        if (callee == null) throw new IllegalArgumentException("An E.164 callee is required");
         Instant now = clock.instant();
         IntegrationConnection connection = connections.apply(connectionTenant, ProviderType.TELNYX);
-        int limit = channelLimit(connection);
-        if (usage.busyChannels(connectionId, now.minus(HOLD)) >= limit) {
-            throw new TelephonyUnavailableException(TelephonyUnavailableException.CHANNELS_BUSY,
-                    "All " + limit + " channels of the line are in a call; try again in a moment");
-        }
-        TelnyxWebRtcTokens.Issued issued = telnyx.issueFor(connectionTenant, connectionId, tenantCode, operator);
-        if (issued.sipUsername() != null) {
-            usage.saveCredential(issued.sipUsername(), tenantCode, issued.credentialId(),
-                    metadata(connection, TelephonyKeys.SIP_CONNECTION_ID));
-        }
-        String callee = PhoneNumbers.e164(calleeNumber);
         String ref = UUID.randomUUID().toString();
-        usage.insert(new UsageRow(ref, tenantCode, UsageRow.VOICE, line.managed(), connectionId, null, caseRef,
-                callee, TelephonyPlanService.destinationType(callee), UsageRow.STARTED, null, null, null, null, null,
-                null, now, null, null));
+        usage.locked(connectionId, () -> {
+            if (line.managed()) plan.requireMinutes(tenantCode);
+            int limit = channelLimit(connection);
+            if (usage.busyChannels(connectionId, now.minus(HOLD)) >= limit) {
+                throw new TelephonyUnavailableException(TelephonyUnavailableException.CHANNELS_BUSY,
+                        "All " + limit + " channels of the line are in a call; try again in a moment");
+            }
+            usage.insert(new UsageRow(ref, tenantCode, UsageRow.VOICE, line.managed(), connectionId, null, caseRef,
+                    callee, TelephonyPlanService.destinationType(callee), UsageRow.STARTED, null, null, null, null,
+                    null, null, now, null, null));
+            return true;
+        });
+        TelnyxWebRtcTokens.Issued issued;
+        try {
+            issued = telnyx.issueFor(connectionTenant, connectionId, tenantCode, operator);
+            String sipConnection = metadata(connection, TelephonyKeys.SIP_CONNECTION_ID);
+            if (line.managed() && (issued.sipUsername() == null || sipConnection == null)) {
+                throw new TelephonyUnavailableException("The managed SIP login cannot be attributed");
+            }
+            if (issued.sipUsername() != null) {
+                usage.saveCredential(issued.sipUsername(), tenantCode, issued.credentialId(), sipConnection);
+                if (line.managed() && !usage.tenantOfSip(issued.sipUsername(), sipConnection).orElse("").equals(tenantCode)) {
+                    throw new TelephonyUnavailableException("The SIP login belongs to another organization");
+                }
+            }
+        } catch (RuntimeException failure) {
+            usage.locked(connectionId, () -> {
+                UsageRow row = usage.find(ref).orElseThrow();
+                if (UsageRow.STARTED.equals(row.status())) usage.update(row.retired());
+                return true;
+            });
+            throw failure;
+        }
         WebRtcToken token = issued.token();
         return new WebRtcToken(token.token(), token.callerNumber(), token.expiresAt(), ref);
     }
 
     @Override
     public void callEnded(String tenantCode, String callRef, String providerCallId) {
-        UsageRow r = usage.find(callRef).orElse(null);
-        if (r == null || !r.tenantCode().equals(tenantCode) || !UsageRow.STARTED.equals(r.status())) {
-            return;
-        }
-        String external = r.externalId();
-        if (external == null && providerCallId != null && !providerCallId.isBlank()
-                && usage.findByExternal(r.channel(), providerCallId).isEmpty()) {
-            external = providerCallId;
-        }
-        usage.update(new UsageRow(r.id(), r.tenantCode(), r.channel(), r.managed(), r.connectionId(), external,
-                r.caseRef(), r.calleeNumber(), r.destinationType(), UsageRow.ENDED, r.answeredAt(), r.seconds(),
-                r.billedMinutes(), r.providerCost(), r.providerCurrency(), r.source(), r.startedAt(), clock.instant(),
-                r.confirmedAt()));
+        UsageRow initial = usage.find(callRef).orElse(null);
+        if (initial == null || !initial.tenantCode().equals(tenantCode)) return;
+        usage.locked(initial.connectionId(), () -> {
+            UsageRow r = usage.find(callRef).orElseThrow();
+            if (!UsageRow.STARTED.equals(r.status())) return false;
+            // The browser only releases the reservation. Provider identifiers come from verified deliveries.
+            usage.update(new UsageRow(r.id(), r.tenantCode(), r.channel(), r.managed(), r.connectionId(), r.externalId(),
+                    r.caseRef(), r.calleeNumber(), r.destinationType(), UsageRow.ENDED, r.answeredAt(), r.seconds(),
+                    r.billedMinutes(), r.providerCost(), r.providerCurrency(), r.source(), r.startedAt(), clock.instant(),
+                    r.confirmedAt()));
+            return true;
+        });
     }
 
     @Override

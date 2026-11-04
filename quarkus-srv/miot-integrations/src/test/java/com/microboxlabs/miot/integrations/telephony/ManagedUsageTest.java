@@ -91,6 +91,8 @@ class ManagedUsageTest {
         started("00000000-0000-0000-0000-000000000004", "beta", "+56911111111", NOW.minusSeconds(600));
         started("00000000-0000-0000-0000-000000000005", "gamma", "+56922222222", NOW.minusSeconds(60));
 
+        events.apply("p1", event("call.hangup", "00000000-0000-0000-0000-000000000004", "v3:out",
+                NOW.minusSeconds(500).toString(), ",\"to\":\"+56911111111\""));
         TelnyxCallEvents.Outcome out = events.apply("p1", event("call.initiated", null, "v3:in", NOW.toString(),
                 ",\"direction\":\"incoming\",\"from\":\"+56 9 1111 1111\""));
         assertEquals("beta", out.routedTenant());
@@ -98,6 +100,53 @@ class ManagedUsageTest {
                 ",\"direction\":\"incoming\",\"from\":\"+56933333333\"")).routedTenant(), "the platform notice");
         assertNull(events.apply("p1", event("call.initiated", null, "v3:in3", NOW.plusSeconds(25 * 3600).toString(),
                 ",\"direction\":\"incoming\",\"from\":\"+56911111111\"")).routedTenant(), "older than 24 hours");
+    }
+
+    @Test
+    void lateAnswerRepairsWebhookDurationAndProviderDestinationWins() {
+        String ref = "00000000-0000-0000-0000-000000000030";
+        started(ref, "acme", "+56221111111", NOW.minusSeconds(120));
+        events.apply("p1", event("call.hangup", ref, "v3:late", NOW.toString(), ",\"to\":\"+51911111111\""));
+        events.apply("p1", event("call.answered", ref, "v3:late", NOW.minusSeconds(65).toString(), ""));
+        UsageRow row = usage.find(ref).orElseThrow();
+        assertEquals(65, row.seconds());
+        assertEquals(2, row.billedMinutes());
+        assertEquals("+51911111111", row.calleeNumber());
+        assertEquals(TelephonyPlanDtos.OTHER, row.destinationType());
+    }
+
+    @Test
+    void delayedWebhookUsesTheCdrRowWithoutDoubleBillingOrOverwritingIt() throws Exception {
+        String ref = "00000000-0000-0000-0000-000000000031";
+        started(ref, "acme", "+56221111111", NOW.minusSeconds(120));
+        usage.saveCredential("login", "acme", "cred", "sip-1");
+        TelnyxUsageReconciler reconciler = new TelnyxUsageReconciler(t -> null, null, null, usage,
+                new ObjectMapper(), clock, true);
+        assertEquals(TelnyxUsageReconciler.Applied.CREATED, reconciler.apply("p1", new ObjectMapper().readTree(
+                cdr("v3:canonical", "login", "sip-1", NOW.minusSeconds(61).toString(), 61, "0.2")), NOW));
+        events.apply("p1", event("call.hangup", ref, "v3:canonical", NOW.toString(), ",\"to\":\"+51911111111\""));
+        events.apply("p1", event("call.answered", ref, "v3:canonical", NOW.minusSeconds(1).toString(), ""));
+        assertEquals(UsageRow.EXPIRED, usage.find(ref).orElseThrow().status());
+        assertEquals(2, usage.billedMinutes("acme", NOW.minusSeconds(7200), NOW.plusSeconds(1)));
+        UsageRow canonical = usage.findByExternal(UsageRow.VOICE, "v3:canonical").orElseThrow();
+        assertEquals(61, canonical.seconds());
+        assertEquals(UsageRow.SOURCE_DETAIL_RECORD, canonical.source());
+        assertEquals("+56911111111", canonical.calleeNumber());
+    }
+
+    @Test
+    void cdrCannotMoveACaseToAnotherTenantOrUseAnotherSipConnection() throws Exception {
+        usage.saveCredential("login", "beta", "cred", "sip-1");
+        assertTrue(usage.tenantOfSip("login", "sip-other").isEmpty());
+        String ref = "00000000-0000-0000-0000-000000000032";
+        started(ref, "acme", "+56221111111", NOW.minusSeconds(120));
+        events.apply("p1", event("call.initiated", ref, "v3:conflict", NOW.toString(), ""));
+        TelnyxUsageReconciler reconciler = new TelnyxUsageReconciler(t -> null, null, null, usage,
+                new ObjectMapper(), clock, true);
+        assertEquals(TelnyxUsageReconciler.Applied.SKIPPED, reconciler.apply("p1", new ObjectMapper().readTree(
+                cdr("v3:conflict", "login", "sip-1", NOW.minusSeconds(61).toString(), 61, "0.2")), NOW));
+        assertEquals("acme", usage.find(ref).orElseThrow().tenantCode());
+        assertEquals(0, usage.billedMinutes("beta", NOW.minusSeconds(7200), NOW.plusSeconds(1)));
     }
 
     @Test
@@ -127,8 +176,8 @@ class ManagedUsageTest {
         String ref = "00000000-0000-0000-0000-000000000006";
         started(ref, "acme", "+56911111111", NOW.minusSeconds(3600));
         UsageRow ended = usage.find(ref).orElseThrow();
-        usage.update(new UsageRow(ref, "acme", UsageRow.VOICE, true, "p1", "v3:c6", null, "+56911111111",
-                TelephonyPlanDtos.CL_MOBILE, UsageRow.ENDED, null, null, null, null, null, null, ended.startedAt(),
+        usage.update(new UsageRow(ref, "acme", UsageRow.VOICE, true, "p1", "v3:c6", null, "+56221111111",
+                TelephonyPlanDtos.CL_LANDLINE, UsageRow.ENDED, null, null, null, null, null, null, ended.startedAt(),
                 NOW.minusSeconds(3500), null));
         StubHttp http = new StubHttp().reply("/v2/detail_records", 200, "{\"data\":["
                 + cdr("v3:c6", "gencred-acme", "sip-1", "2026-11-04T09:00:05Z", 95, "0.0123")
@@ -147,6 +196,8 @@ class ManagedUsageTest {
 
         assertEquals(new TelnyxUsageReconciler.Result(3, 1, 1, 1, 0), result);
         UsageRow confirmed = usage.find(ref).orElseThrow();
+        assertEquals("+56911111111", confirmed.calleeNumber(), "the actual provider destination replaces the declaration");
+        assertEquals(TelephonyPlanDtos.CL_MOBILE, confirmed.destinationType());
         assertEquals(95, confirmed.seconds());
         assertEquals(2, confirmed.billedMinutes());
         assertEquals(new BigDecimal("0.0123"), confirmed.providerCost());

@@ -121,6 +121,10 @@ public class TelnyxUsageReconciler {
                         default -> skipped++;
                     }
                 }
+                if (page == MAX_PAGES && page < body.path("meta").path("total_pages").asInt(1)) {
+                    LOG.errorf("Telnyx detail-record scan incomplete: %d pages available, only %d visited; usage may be missing",
+                            body.path("meta").path("total_pages").asInt(), MAX_PAGES);
+                }
                 if (page >= body.path("meta").path("total_pages").asInt(1)) {
                     break;
                 }
@@ -139,36 +143,42 @@ public class TelnyxUsageReconciler {
         // A record without a call control id is keyed by its own id, so it is still counted once.
         String callControlId = text(cdr, "call_control_id") != null ? text(cdr, "call_control_id")
                 : (text(cdr, "id") == null ? null : "cdr:" + text(cdr, "id"));
-        String tenant = usage.tenantOfSip(text(cdr, "auth_username")).orElse(null);
+        String tenant = usage.tenantOfSip(text(cdr, "auth_username"), text(cdr, "connection_id")).orElse(null);
         if (callControlId == null || tenant == null) {
             return Applied.SKIPPED;
         }
+        return usage.locked(connectionId, () -> applyLocked(connectionId, cdr, now, callControlId, tenant));
+    }
+
+    private Applied applyLocked(String connectionId, JsonNode cdr, Instant now, String callControlId, String tenant) {
         int seconds = text(cdr, "answered_at") == null ? 0 : Math.max(0, cdr.path("call_sec").asInt(0));
         BigDecimal cost = decimal(text(cdr, "cost"));
         String currency = text(cdr, "currency");
         Instant ended = time(text(cdr, "finished_at"));
+        Instant started = time(text(cdr, "started_at"));
+        Instant answered = time(text(cdr, "answered_at"));
+        String callee = PhoneNumbers.e164(plus(text(cdr, "cld")));
         UsageRow row = usage.findByExternal(UsageRow.VOICE, callControlId).orElse(null);
         if (row == null) {
-            String callee = PhoneNumbers.e164(plus(text(cdr, "cld")));
-            Instant started = time(text(cdr, "started_at"));
             UsageRow fresh = new UsageRow(UUID.randomUUID().toString(), tenant, UsageRow.VOICE, true, connectionId,
                     callControlId, null, callee, TelephonyPlanService.destinationType(callee), UsageRow.ENDED,
-                    time(text(cdr, "answered_at")), null, null, null, null, null, started == null ? now : started,
-                    ended, null);
+                    answered, null, null, null, null, null, started == null ? now : started, ended, null);
             usage.insert(fresh.confirmed(seconds, cost, currency, UsageRow.SOURCE_DETAIL_RECORD, ended, now));
             return Applied.CREATED;
         }
-        if (UsageRow.SOURCE_DETAIL_RECORD.equals(row.source())) {
+        if (!row.tenantCode().equals(tenant) || !connectionId.equals(row.connectionId())) {
+            LOG.warnf("Telnyx call %s has conflicting ledger ownership; refusing to move it between tenants", row.id());
             return Applied.SKIPPED;
         }
-        if (!row.tenantCode().equals(tenant)) {
-            LOG.warnf("Telnyx call %s: the SIP login's organization differs from the ledger's; using the login's",
-                    row.id());
-            row = new UsageRow(row.id(), tenant, row.channel(), row.managed(), row.connectionId(), row.externalId(),
-                    row.caseRef(), row.calleeNumber(), row.destinationType(), row.status(), row.answeredAt(),
-                    row.seconds(), row.billedMinutes(), row.providerCost(), row.providerCurrency(), row.source(),
-                    row.startedAt(), row.endedAt(), row.confirmedAt());
-        }
+        if (UsageRow.SOURCE_DETAIL_RECORD.equals(row.source())
+                && java.util.Objects.equals(row.calleeNumber(), callee)
+                && java.util.Objects.equals(row.answeredAt(), answered)
+                && (started == null || started.equals(row.startedAt()))
+                && java.util.Objects.equals(row.endedAt(), ended)
+                && java.util.Objects.equals(row.seconds(), seconds)
+                && (cost == null || (row.providerCost() != null && cost.compareTo(row.providerCost()) == 0
+                        && java.util.Objects.equals(row.providerCurrency(), currency)))) return Applied.SKIPPED;
+        row = row.providerData(callControlId, callee, started, answered, row.caseRef());
         usage.update(row.confirmed(seconds, cost, currency, UsageRow.SOURCE_DETAIL_RECORD, ended, now));
         return Applied.CONFIRMED;
     }

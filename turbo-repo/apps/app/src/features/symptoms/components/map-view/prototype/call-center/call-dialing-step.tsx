@@ -147,6 +147,7 @@ export default function CallDialingStep({
   const [dialReady, setDialReady] = useState(false);
   const liveRef = useRef<LiveCall | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const releaseRef = useRef<(() => void) | null>(null);
   const cancelledRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const onConfirmRef = useRef(onConfirm);
@@ -167,6 +168,7 @@ export default function CallDialingStep({
     return () => {
       cancelledRef.current = true;
       abortRef.current?.abort();
+      releaseRef.current?.();
       liveRef.current?.hangup();
     };
   }, []);
@@ -192,13 +194,25 @@ export default function CallDialingStep({
     setBrowserAttempt(true);
     setDialReady(false);
     setPhase("connecting");
+    let acquiredRef: string | null = null;
+    let released = false;
+    const release = (callId: string | null = null) => {
+      if (released || !acquiredRef) return;
+      released = true;
+      void endCall(acquiredRef, callId).catch(() => undefined);
+    };
+    releaseRef.current = release;
     try {
       const login = await token({
         calleeNumber: `+${destination}`,
         caseRef: caseRef ?? undefined,
       });
-      if (cancelledRef.current) return;
-      const callRef = login.callRef ?? null;
+      acquiredRef = login.callRef ?? null;
+      if (cancelledRef.current) {
+        release();
+        return;
+      }
+      const callRef = acquiredRef;
       liveRef.current = await dial({
         token: login.token,
         callerNumber: login.callerNumber,
@@ -212,8 +226,7 @@ export default function CallDialingStep({
         },
         onEnd: (result) => {
           liveRef.current = null;
-          if (callRef)
-            void endCall(callRef, result.callId).catch(() => undefined);
+          release(result.callId);
           if (!cancelledRef.current) {
             if (!result.callId) {
               setPhase(null);
@@ -229,6 +242,7 @@ export default function CallDialingStep({
       setDialReady(true);
       if (cancelledRef.current) liveRef.current?.hangup();
     } catch (cause) {
+      release();
       if (cancelledRef.current) return;
       setPhase(null);
       const code = cause instanceof ControlTowerError ? cause.code : undefined;
@@ -480,6 +494,7 @@ export default function CallDialingStep({
                 onClick={() => {
                   cancelledRef.current = true;
                   abortRef.current?.abort();
+                  releaseRef.current?.();
                   liveRef.current?.hangup();
                   onCancel(elapsed);
                 }}

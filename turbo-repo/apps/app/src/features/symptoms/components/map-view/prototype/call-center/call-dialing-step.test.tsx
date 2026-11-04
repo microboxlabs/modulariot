@@ -363,6 +363,65 @@ describe("CallDialingStep", () => {
       expect(endCall).toHaveBeenCalledWith("ref-1", "v3:control-1");
     });
 
+    it.each(["cancel-token", "sdk-failure"])(
+      "releases a reservation after %s",
+      async (failure) => {
+        let resolveToken!: (value: {
+          token: string;
+          callerNumber: string;
+          expiresAt: string;
+          callRef: string;
+        }) => void;
+        const token = vi.fn(
+          () =>
+            new Promise<{
+              token: string;
+              callerNumber: string;
+              expiresAt: string;
+              callRef: string;
+            }>((resolve) => {
+              resolveToken = resolve;
+            })
+        );
+        const endCall = vi.fn().mockResolvedValue(undefined);
+        const dial = vi.fn().mockRejectedValue(new Error("SDK unavailable"));
+        const { unmount } = render(
+          <CallDialingStep
+            dict={dict}
+            contactName="Luis"
+            contactRole="Transportista"
+            contactPhone="+56911111111"
+            allowedMethods={["phone"]}
+            reason=""
+            line={line}
+            dial={dial}
+            token={token}
+            endCall={endCall}
+            onCancel={vi.fn()}
+            onConfirm={vi.fn()}
+          />
+        );
+        fireEvent.click(
+          screen.getByRole("button", { name: "Llamada telefónica" })
+        );
+        if (failure === "cancel-token") unmount();
+        await act(async () =>
+          resolveToken({
+            token: "jwt",
+            callerNumber: "+56200000000",
+            expiresAt: "2026-11-05T10:00:00Z",
+            callRef: "late-ref",
+          })
+        );
+        await waitFor(() =>
+          expect(endCall).toHaveBeenCalledWith("late-ref", null)
+        );
+        if (failure === "sdk-failure") unmount();
+        expect(endCall).toHaveBeenCalledTimes(1);
+        expect(dial).toHaveBeenCalledTimes(failure === "sdk-failure" ? 1 : 0);
+      }
+    );
+
     it("says the minutes are used and offers the phone", async () => {
       render(
         <CallDialingStep

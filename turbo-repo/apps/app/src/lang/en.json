@@ -2058,6 +2058,7 @@
           "loadFailed": "Could not read the plan"
         },
         "telephonyTenants": {
+          "selectOrganization": "Select an organization",
           "title": "Organizations",
           "menuTitle": "Organizations",
           "menuHint": "Minutes used per organization",

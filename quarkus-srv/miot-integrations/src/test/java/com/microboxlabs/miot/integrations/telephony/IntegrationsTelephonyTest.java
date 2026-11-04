@@ -95,14 +95,14 @@ class IntegrationsTelephonyTest {
         assertEquals("+56911111111", row.calleeNumber());
         assertEquals(TelephonyPlanDtos.CL_MOBILE, row.destinationType());
         assertEquals("case-7", row.caseRef());
-        assertEquals("acme", usage.tenantOfSip("gencred-acme-1").orElseThrow());
+        assertEquals("acme", usage.tenantOfSip("gencred-acme-1", "sip-1").orElseThrow());
 
         telephony.callEnded("other", token.callRef(), "v3:control-1");
         assertEquals(UsageRow.STARTED, usage.find(token.callRef()).orElseThrow().status(), "another tenant's ref");
         telephony.callEnded("acme", token.callRef(), "v3:control-1");
         UsageRow ended = usage.find(token.callRef()).orElseThrow();
         assertEquals(UsageRow.ENDED, ended.status());
-        assertEquals("v3:control-1", ended.externalId());
+        assertNull(ended.externalId(), "browser IDs cannot bind a provider ledger row");
         assertNull(ended.billedMinutes(), "the browser's report is not billed");
     }
 
@@ -130,6 +130,15 @@ class IntegrationsTelephonyTest {
         TelephonyUnavailableException e = assertThrows(TelephonyUnavailableException.class,
                 () -> telephony.webRtcToken("acme", "t1", "luis@example.com", "+56922222222", null));
         assertEquals(TelephonyUnavailableException.CHANNELS_BUSY, e.code());
+    }
+
+    @Test
+    void failedTokenMintReleasesItsReservation() {
+        store(telnyx("t1", "acme", Map.of("sipConnectionId", "sip-1", "channelLimit", 1)));
+        http.reply("POST /v2/telephony_credentials/new-1/token", 500, "{}");
+        assertThrows(TelephonyUnavailableException.class,
+                () -> telephony.webRtcToken("acme", "t1", "ana@example.com", "+56911111111", null));
+        assertEquals(0, usage.busyChannels("t1", NOW.minusSeconds(10)));
     }
 
     @Test

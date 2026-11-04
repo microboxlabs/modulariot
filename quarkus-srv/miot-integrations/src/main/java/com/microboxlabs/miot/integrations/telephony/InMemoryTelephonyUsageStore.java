@@ -16,6 +16,11 @@ import java.util.TreeSet;
 /** Process-local {@link TelephonyUsageStore} for unit tests. Not a CDI bean. */
 public class InMemoryTelephonyUsageStore implements TelephonyUsageStore {
 
+    @Override
+    public synchronized <T> T locked(String connectionId, java.util.function.Supplier<T> work) {
+        return work.get();
+    }
+
     private final Map<String, UsageRow> rows = new LinkedHashMap<>();
     private final Map<String, String[]> credentials = new LinkedHashMap<>();
     private final Map<String, Subscription> subscriptions = new LinkedHashMap<>();
@@ -59,7 +64,7 @@ public class InMemoryTelephonyUsageStore implements TelephonyUsageStore {
     public synchronized int expireStarted(Instant before) {
         int n = 0;
         for (UsageRow r : List.copyOf(rows.values())) {
-            if (UsageRow.STARTED.equals(r.status()) && r.startedAt().isBefore(before)) {
+            if ((UsageRow.STARTED.equals(r.status()) || UsageRow.ENDED.equals(r.status())) && r.startedAt().isBefore(before)) {
                 rows.put(r.id(), new UsageRow(r.id(), r.tenantCode(), r.channel(), r.managed(), r.connectionId(),
                         r.externalId(), r.caseRef(), r.calleeNumber(), r.destinationType(), UsageRow.EXPIRED,
                         r.answeredAt(), r.seconds(), r.billedMinutes(), r.providerCost(), r.providerCurrency(),
@@ -73,7 +78,8 @@ public class InMemoryTelephonyUsageStore implements TelephonyUsageStore {
     @Override
     public synchronized Optional<String> latestCallerTenant(String calleeDigits, Instant since) {
         return rows.values().stream()
-                .filter(r -> r.managed() && UsageRow.VOICE.equals(r.channel()) && r.calleeNumber() != null
+                .filter(r -> r.managed() && UsageRow.VOICE.equals(r.channel()) && r.externalId() != null
+                        && r.source() != null && r.calleeNumber() != null
                         && r.calleeNumber().replaceAll("\\D", "").equals(calleeDigits) && r.startedAt().isAfter(since))
                 .max(Comparator.comparing(UsageRow::startedAt)).map(UsageRow::tenantCode);
     }
@@ -106,9 +112,9 @@ public class InMemoryTelephonyUsageStore implements TelephonyUsageStore {
     }
 
     @Override
-    public synchronized Optional<String> tenantOfSip(String sipUsername) {
+    public synchronized Optional<String> tenantOfSip(String sipUsername, String sipConnectionId) {
         String[] c = credentials.get(sipUsername);
-        return c == null ? Optional.empty() : Optional.of(c[0]);
+        return c == null || !Objects.equals(c[2], sipConnectionId) ? Optional.empty() : Optional.of(c[0]);
     }
 
     @Override

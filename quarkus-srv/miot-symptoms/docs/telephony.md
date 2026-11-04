@@ -83,16 +83,22 @@ A 404 or an empty list from Graph is treated as pending.
 
 ## Managed line: usage and billing
 
-Billing uses only what Telnyx reports. The browser's report frees the channel and gives the call id.
+Billing uses what Telnyx reports. The browser's report only frees the channel; its supplied call id is ignored. Verified webhooks and detail records bind provider ids, destinations and charges. Writers serialize per connection, and a detail record remains authoritative over later webhooks.
 
 | Step | What is stored in `miot_integrations` |
 | --- | --- |
 | Token issued | `telephony_operator_credentials`: the operator's SIP login and its organization. `telephony_usage`: a STARTED row, holding one channel. |
 | Telnyx webhook `call.answered`, `call.hangup` | The row is found by `client_state` (the row id, base64) and confirmed with the seconds from the answer to the hangup. |
 | Reconcile job, every 15 minutes | Detail records of the managed Credential Connection from the last 3 days. Each is charged to the organization that owns its `auth_username`, with `call_sec` (0 when not answered) and Telnyx's `cost`. |
-| STARTED for 2 hours with no news | EXPIRED; it frees its channel and is not charged. |
+| STARTED or ENDED for 2 hours with no provider confirmation | EXPIRED; it frees its channel and is not charged. |
 
 Each call is rounded up to a whole minute. Only CONFIRMED rows are charged.
+
+### Open enforcement and reconciliation blockers
+
+The issued WebRTC JWT is a reusable 24-hour login. The checks above admit token requests, but cannot enforce a quota or channel limit on every call made with an existing login. Managed calling needs provider-side per-call authorization or server-controlled origination before strict enforcement can be promised. A new call reference does not constrain a JWT.
+
+The fallback detail-record scan is bounded to 20 pages of the account's last three days. An incomplete scan is logged as an error; persistent progress over stable time windows is still required for accounts exceeding that volume. Do not rely on complete fallback billing at that scale.
 
 | Setting | Where |
 | --- | --- |

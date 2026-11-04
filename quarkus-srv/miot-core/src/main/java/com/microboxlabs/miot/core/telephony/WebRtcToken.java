@@ -3,7 +3,8 @@ package com.microboxlabs.miot.core.telephony;
 import java.time.Instant;
 
 /**
- * A short-lived login for the operator's browser phone, for one call.
+ * A reusable provider login for the operator's browser phone. The call reference tracks a reservation;
+ * it does not constrain how many calls the provider accepts with this login.
  *
  * @param token        the provider's JWT; give it only to the operator it was issued for
  * @param callerNumber the number callees see, in E.164

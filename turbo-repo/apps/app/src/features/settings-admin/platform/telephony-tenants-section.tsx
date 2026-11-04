@@ -9,6 +9,7 @@ import {
   ModalFooter,
   ModalHeader,
   Spinner,
+  Select,
   TextInput,
 } from "flowbite-react";
 import { toast } from "sonner";
@@ -20,6 +21,7 @@ import {
   usd,
   type OrgTelephonyUsage,
 } from "@/features/telephony/telephony-plan";
+import { usePlatformOrganizations } from "./use-platform-organizations";
 import { useTelephonyTenants } from "./use-telephony-plan";
 
 const SECTION =
@@ -36,7 +38,12 @@ export default function TelephonyTenantsSection({
   const [month, setMonth] = useState(() => currentMonth());
   const { organizations, isLoading, error, saveMinutes } =
     useTelephonyTenants(month);
-  const [editing, setEditing] = useState<OrgTelephonyUsage | null>(null);
+  const { organizations: allOrganizations } = usePlatformOrganizations(true);
+  const [selectedTenant, setSelectedTenant] = useState("");
+  const [editing, setEditing] = useState<{
+    tenantCode: string;
+    subscription: OrgTelephonyUsage["subscription"];
+  } | null>(null);
 
   return (
     <section className={SECTION}>
@@ -55,6 +62,32 @@ export default function TelephonyTenantsSection({
           value={month}
           onChange={(e) => e.target.value && setMonth(e.target.value)}
         />
+      </div>
+      <div className="mt-4 flex gap-2">
+        <Select
+          aria-label={tr("organization", dict)}
+          value={selectedTenant}
+          onChange={(e) => setSelectedTenant(e.target.value)}
+        >
+          <option value="">{tr("selectOrganization", dict)}</option>
+          {allOrganizations.map((org) => (
+            <option key={org.slug} value={org.slug}>
+              {org.name || org.slug}
+            </option>
+          ))}
+        </Select>
+        <Button
+          disabled={!selectedTenant}
+          onClick={() =>
+            setEditing(
+              organizations.find(
+                (org) => org.tenantCode === selectedTenant
+              ) ?? { tenantCode: selectedTenant, subscription: null }
+            )
+          }
+        >
+          {tr("editMinutes", dict)}
+        </Button>
       </div>
       {isLoading && <Spinner size="md" />}
       {error && (
@@ -119,7 +152,7 @@ function MinutesModal({
   onClose,
   onSave,
 }: Readonly<{
-  org: OrgTelephonyUsage;
+  org: { tenantCode: string; subscription: OrgTelephonyUsage["subscription"] };
   dict: I18nRecord;
   onClose: () => void;
   onSave: (minutes: number | null) => Promise<void>;

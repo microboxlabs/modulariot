@@ -11,7 +11,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.Base64;
-import java.util.Optional;
 import org.jboss.logging.Logger;
 
 /**
@@ -63,55 +62,48 @@ public class TelnyxCallEvents {
             LOG.infof("Telnyx inbound call routed to %s", tenant == null ? "the platform notice" : tenant);
             return new Outcome(event, null, null, tenant);
         }
-        Optional<UsageRow> found = row(text(p, "client_state"), callControlId);
-        if (found.isEmpty() || !connectionId.equals(found.get().connectionId())) {
+        return usage.locked(connectionId, () -> applyLocked(connectionId, event, p, at, callControlId));
+    }
+
+    private Outcome applyLocked(String connectionId, String event, JsonNode p, Instant at, String callControlId) {
+        if (callControlId == null) return new Outcome(event, null, null, null);
+        String ref = decode(text(p, "client_state"));
+        UsageRow token = ref == null ? null : usage.find(ref).orElse(null);
+        if (token != null && (!connectionId.equals(token.connectionId())
+                || !UsageRow.VOICE.equals(token.channel())
+                || (token.externalId() != null && !callControlId.equals(token.externalId())))) token = null;
+        UsageRow canonical = usage.findByExternal(UsageRow.VOICE, callControlId).orElse(null);
+        if (canonical != null && (!connectionId.equals(canonical.connectionId())
+                || (token != null && !canonical.tenantCode().equals(token.tenantCode())))) {
             return new Outcome(event, null, null, null);
         }
-        UsageRow r = found.get();
-        if (callControlId != null && r.externalId() == null
-                && usage.findByExternal(r.channel(), callControlId).isEmpty()) {
-            r = withExternal(r, callControlId);
+        UsageRow r = canonical != null ? canonical : token;
+        if (r == null) return new Outcome(event, null, null, null);
+        if (canonical != null && token != null && !canonical.id().equals(token.id())) {
+            usage.update(token.retired());
+            // Correlation may add a case reference, but never change provider-confirmed billing data.
+            if (r.caseRef() == null) r = r.providerData(r.externalId(), r.calleeNumber(), r.startedAt(),
+                    r.answeredAt(), token.caseRef());
         }
-        switch (event) {
-            case "call.answered" -> r = answered(r, at);
-            case "call.hangup" -> {
-                if (!UsageRow.CONFIRMED.equals(r.status())) {
-                    Instant end = time(text(p, "end_time")) != null ? time(text(p, "end_time")) : at;
-                    int seconds = r.answeredAt() == null || end == null ? 0
-                            : (int) Math.max(0, Duration.between(r.answeredAt(), end).toSeconds());
-                    r = r.confirmed(seconds, null, null, UsageRow.SOURCE_WEBHOOK, end, clock.instant());
-                }
+        if (!UsageRow.SOURCE_DETAIL_RECORD.equals(r.source())) {
+            String callee = PhoneNumbers.e164(text(p, "to"));
+            if (callee == null && r.externalId() != null) callee = r.calleeNumber();
+            r = r.providerData(callControlId, callee, time(text(p, "start_time")), r.answeredAt(), r.caseRef());
+            if ("call.answered".equals(event) && r.answeredAt() == null) {
+                r = r.providerData(callControlId, r.calleeNumber(), r.startedAt(), at, r.caseRef());
             }
-            default -> {
+            if ("call.hangup".equals(event) || ("call.answered".equals(event)
+                    && UsageRow.SOURCE_WEBHOOK.equals(r.source()) && r.endedAt() != null)) {
+                Instant end = "call.hangup".equals(event)
+                        ? (time(text(p, "end_time")) != null ? time(text(p, "end_time")) : at) : r.endedAt();
+                long elapsed = r.answeredAt() == null || end == null ? 0
+                        : Math.max(0, Duration.between(r.answeredAt(), end).toSeconds());
+                r = r.confirmed((int) Math.min(Integer.MAX_VALUE, elapsed), null, null,
+                        UsageRow.SOURCE_WEBHOOK, end, clock.instant());
             }
         }
         usage.update(r);
         return new Outcome(event, r.id(), r.status(), null);
-    }
-
-    private Optional<UsageRow> row(String clientState, String callControlId) {
-        String ref = decode(clientState);
-        Optional<UsageRow> byRef = ref == null ? Optional.empty() : usage.find(ref);
-        if (byRef.isPresent()) {
-            return byRef;
-        }
-        return callControlId == null ? Optional.empty() : usage.findByExternal(UsageRow.VOICE, callControlId);
-    }
-
-    private static UsageRow answered(UsageRow r, Instant at) {
-        if (r.answeredAt() != null) {
-            return r;
-        }
-        return new UsageRow(r.id(), r.tenantCode(), r.channel(), r.managed(), r.connectionId(), r.externalId(),
-                r.caseRef(), r.calleeNumber(), r.destinationType(), r.status(), at, r.seconds(), r.billedMinutes(),
-                r.providerCost(), r.providerCurrency(), r.source(), r.startedAt(), r.endedAt(), r.confirmedAt());
-    }
-
-    private static UsageRow withExternal(UsageRow r, String externalId) {
-        return new UsageRow(r.id(), r.tenantCode(), r.channel(), r.managed(), r.connectionId(), externalId,
-                r.caseRef(), r.calleeNumber(), r.destinationType(), r.status(), r.answeredAt(), r.seconds(),
-                r.billedMinutes(), r.providerCost(), r.providerCurrency(), r.source(), r.startedAt(), r.endedAt(),
-                r.confirmedAt());
     }
 
     /** {@code client_state} is base64 of the row id. */

@@ -124,14 +124,14 @@ describe("/api/control-tower/[...path]", () => {
     );
   });
 
-  it.each(["webrtc-token", "reconcile"])(
+  it.each(["webrtc-token", "reconcile", "calls/ref-1/ended"])(
     "uses the individual operator's session for telephony %s",
     async (endpoint) => {
       await POST(
         req(`http://x/app/api/control-tower/telephony/${endpoint}`, {
           method: "POST",
         }),
-        ctx(["telephony", endpoint])
+        ctx(["telephony", ...endpoint.split("/")])
       );
       expect(forwardMock).toHaveBeenCalledWith(
         `/api/v1/orgs/acme%20org/control-tower/telephony/${endpoint}`,

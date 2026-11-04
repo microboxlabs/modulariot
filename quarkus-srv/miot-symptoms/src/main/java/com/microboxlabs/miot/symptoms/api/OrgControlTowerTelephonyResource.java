@@ -98,6 +98,8 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
             } catch (TelephonyUnavailableException e) {
                 return Response.status(Response.Status.CONFLICT)
                         .entity(Map.of("error", e.getMessage(), "code", e.code())).build();
+            } catch (IllegalArgumentException e) {
+                return Response.status(Response.Status.BAD_REQUEST).entity(Map.of("error", e.getMessage())).build();
             }
         });
     }
@@ -111,6 +113,7 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
     public Uni<Response> callEnded(@PathParam(ORG) String organizationId, @PathParam("callRef") String callRef,
             CallEnded body) {
         String tenant = tenantCode(organizationId);
+        operator();
         return work(() -> {
             telephony.callEnded(tenant, callRef, body);
             return Response.noContent().build();

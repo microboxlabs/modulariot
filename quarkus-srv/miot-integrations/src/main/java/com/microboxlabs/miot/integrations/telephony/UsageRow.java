@@ -27,7 +27,18 @@ public record UsageRow(String id, String tenantCode, String channel, boolean man
 
     /** Each call is rounded up to a whole minute; 0 seconds is 0 minutes. */
     public static int billedMinutes(int seconds) {
-        return seconds <= 0 ? 0 : (seconds + 59) / 60;
+        return seconds <= 0 ? 0 : (int) ((seconds + 59L) / 60);
+    }
+
+    UsageRow retired() {
+        return new UsageRow(id, tenantCode, channel, managed, connectionId, null, caseRef, calleeNumber,
+                destinationType, EXPIRED, answeredAt, null, null, null, null, null, startedAt, endedAt, null);
+    }
+
+    UsageRow providerData(String externalId, String callee, Instant started, Instant answered, String caseRef) {
+        return new UsageRow(id, tenantCode, channel, managed, connectionId, externalId, caseRef, callee,
+                TelephonyPlanService.destinationType(callee), status, answered, seconds, billedMinutes,
+                providerCost, providerCurrency, source, started == null ? startedAt : started, endedAt, confirmedAt);
     }
 
     UsageRow confirmed(int seconds, BigDecimal cost, String currency, String source, Instant endedAt, Instant now) {

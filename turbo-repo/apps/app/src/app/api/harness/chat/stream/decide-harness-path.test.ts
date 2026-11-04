@@ -6,7 +6,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 
-const isModulithConfiguredMock = vi.fn();
+const { isModulithConfiguredMock } = vi.hoisted(() => ({
+  isModulithConfiguredMock: vi.fn(),
+}));
 
 vi.mock("@/lib/modulith-host", () => ({
   modulithHost: () => "https://modulith.example",
@@ -33,6 +35,8 @@ vi.mock("@/lib/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
+import { decideHarnessPath } from "./route";
+
 const tr: TrFn = (path) => path;
 
 function userMessage(content: string) {
@@ -43,7 +47,6 @@ describe("decideHarnessPath", () => {
   const originalFlag = process.env.ENABLE_STORYTELLING;
 
   beforeEach(() => {
-    vi.resetModules();
     isModulithConfiguredMock.mockReset();
   });
 
@@ -51,10 +54,9 @@ describe("decideHarnessPath", () => {
     process.env.ENABLE_STORYTELLING = originalFlag;
   });
 
-  it("does not intercept a real turn that mentions 'story' once the harness is configured", async () => {
+  it("does not intercept a real turn that mentions 'story' once the harness is configured", () => {
     process.env.ENABLE_STORYTELLING = "true";
     isModulithConfiguredMock.mockReturnValue(true);
-    const { decideHarnessPath } = await import("./route");
 
     const send = vi.fn();
     const decision = decideHarnessPath(
@@ -62,7 +64,7 @@ describe("decideHarnessPath", () => {
       userMessage("Can you tell me the story behind this alert?"),
       "run-1",
       "thread-1",
-      tr,
+      tr
     );
 
     expect(decision).toEqual({
@@ -72,13 +74,12 @@ describe("decideHarnessPath", () => {
     // Nothing should have been synthesized locally — this turn goes to the
     // real harness, driven by the caller once decideHarnessPath returns.
     expect(send).not.toHaveBeenCalledWith(
-      expect.objectContaining({ toolCallName: "create_story" }),
+      expect.objectContaining({ toolCallName: "create_story" })
     );
   });
 
-  it("sends a message that is only a file to the harness, with the file", async () => {
+  it("sends a message that is only a file to the harness, with the file", () => {
     isModulithConfiguredMock.mockReturnValue(true);
-    const { decideHarnessPath } = await import("./route");
 
     const send = vi.fn();
     const decision = decideHarnessPath(
@@ -99,7 +100,7 @@ describe("decideHarnessPath", () => {
       ],
       "run-1",
       "thread-1",
-      tr,
+      tr
     );
 
     expect(decision).toEqual({
@@ -110,16 +111,21 @@ describe("decideHarnessPath", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("never synthesizes a create_story card, even with the harness unconfigured", async () => {
+  it("never synthesizes a create_story card, even with the harness unconfigured", () => {
     process.env.ENABLE_STORYTELLING = "true";
     isModulithConfiguredMock.mockReturnValue(false);
-    const { decideHarnessPath } = await import("./route");
 
     const send = vi.fn();
-    decideHarnessPath(send, userMessage("create a story about the fleet"), "run-1", "thread-1", tr);
+    decideHarnessPath(
+      send,
+      userMessage("create a story about the fleet"),
+      "run-1",
+      "thread-1",
+      tr
+    );
 
     expect(send).not.toHaveBeenCalledWith(
-      expect.objectContaining({ toolCallName: "create_story" }),
+      expect.objectContaining({ toolCallName: "create_story" })
     );
   });
 });

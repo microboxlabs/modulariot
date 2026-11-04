@@ -64,6 +64,14 @@ public class EngineCaseService {
     private static final String DRIVER = "p_driver_id";
     private static final String CARRIER = "p_carrier_id";
     private static final String CARRIER_TAX_ID = "carrier_tax_id";
+    private static final String DRIVER_FIELD = "driver";
+    private static final String CARRIER_FIELD = "carrier";
+    private static final String ORIGIN_FIELD = "origin";
+    private static final String DESTINATION_FIELD = "destination";
+    private static final String DRIVER_ID = "driver_id";
+    private static final String SECOND_DRIVER_ID = "second_driver_id";
+    private static final String SYMPTOM_ID = "symptom_id";
+    private static final String TYPE_LOAD = "type_load";
     private static final String ORIGIN = "p_origin";
     private static final String DESTINATION = "p_destination";
     /**
@@ -433,10 +441,10 @@ public class EngineCaseService {
         r.put("sla_minutes", c.slaMinutes());
         r.put("recurrence_events", c.recurrence());
         EngineCase.TripDetails trip = c.trip();
-        r.put("driver", trip == null ? null : trip.driver());
-        r.put("carrier", trip == null ? null : trip.carrier());
-        r.put("origin", trip == null ? null : trip.origin());
-        r.put("destination", trip == null ? null : trip.destination());
+        r.put(DRIVER_FIELD, trip == null ? null : trip.driver());
+        r.put(CARRIER_FIELD, trip == null ? null : trip.carrier());
+        r.put(ORIGIN_FIELD, trip == null ? null : trip.origin());
+        r.put(DESTINATION_FIELD, trip == null ? null : trip.destination());
         putHold(r, c);
         return r;
     }
@@ -468,7 +476,7 @@ public class EngineCaseService {
         if (t == null) {
             return TripPeople.NONE;
         }
-        return TripPeople.of(t.getString("driver_id"), t.getString("second_driver_id"),
+        return TripPeople.of(t.getString(DRIVER_ID), t.getString(SECOND_DRIVER_ID),
                 t.getString(CARRIER_TAX_ID));
     }
 
@@ -500,8 +508,8 @@ public class EngineCaseService {
         ArrayNode out = JSON.arrayNode();
         found.stream().limit(MAX_SCRIPT_SAMPLES).forEach(c -> {
             ObjectNode sample = out.addObject();
-            sample.put("symptom_id", c.symptomId());
-            sample.put("asset_id", c.assetId());
+            sample.put(SYMPTOM_ID, c.symptomId());
+            sample.put(POSITION_ASSET_ID, c.assetId());
             sample.put(ICU_CODE, c.level());
             sample.put("opened_at", c.openedAt().toString());
             sample.set("context", context(tenantCode, find(tenantCode, c.symptomId())));
@@ -531,19 +539,19 @@ public class EngineCaseService {
         trip.put("code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
-            trip.put("origin", t.getString("origin_geofence_label"));
-            trip.put("destination", t.getString("destination_geofence_label"));
-            trip.put("load", t.getString("type_load"));
-            trip.putObject("driver")
+            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
+            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put("load", t.getString(TYPE_LOAD));
+            trip.putObject(DRIVER_FIELD)
                     .put("name", t.getString("driver_name"))
-                    .put("rut", t.getString("driver_id"))
+                    .put("rut", t.getString(DRIVER_ID))
                     .put("phone", t.getString("driver_contact_phone"));
             trip.putObject("secondDriver")
                     .put("name", t.getString("second_driver_name"))
-                    .put("rut", t.getString("second_driver_id"));
-            trip.putObject("carrier")
+                    .put("rut", t.getString(SECOND_DRIVER_ID));
+            trip.putObject(CARRIER_FIELD)
                     .put("name", t.getString("carrier_name"))
-                    .put("rut", t.getString("carrier_tax_id"));
+                    .put("rut", t.getString(CARRIER_TAX_ID));
         }
         return out;
     }
@@ -613,7 +621,7 @@ public class EngineCaseService {
         ObjectNode entry = out.putArray("timeline").addObject();
         entry.put(START, start);
         entry.put("end", end);
-        entry.put("symptom_id", c.symptomId());
+        entry.put(SYMPTOM_ID, c.symptomId());
         entry.put(SYMPTOM_NAME, c.name());
         ArrayNode levelAggs = entry.putArray(CONDITIONS_AGG);
         addLevelAggs(levelAggs, c, started, ended);
@@ -635,15 +643,15 @@ public class EngineCaseService {
         trip.put("trip_code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
-            trip.put("carrier", t.getString("carrier_name"));
+            trip.put(CARRIER_FIELD, t.getString("carrier_name"));
             trip.put(CARRIER_TAX_ID, t.getString(CARRIER_TAX_ID));
-            trip.put("driver_rut", t.getString("driver_id"));
-            trip.put("second_driver_rut", t.getString("second_driver_id"));
-            trip.put("origin", t.getString("origin_geofence_label"));
-            trip.put("destination", t.getString("destination_geofence_label"));
-            trip.put("driver", t.getString("driver_name"));
+            trip.put("driver_rut", t.getString(DRIVER_ID));
+            trip.put("second_driver_rut", t.getString(SECOND_DRIVER_ID));
+            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
+            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put(DRIVER_FIELD, t.getString("driver_name"));
             trip.put("driver2", t.getString("second_driver_name"));
-            trip.put("type_load", t.getString("type_load"));
+            trip.put(TYPE_LOAD, t.getString(TYPE_LOAD));
             trip.put("driver_contact", t.getString("driver_contact_phone"));
         }
         return out;
@@ -702,7 +710,7 @@ public class EngineCaseService {
         ObjectNode agg = aggs.addObject();
         agg.put(START, start);
         agg.put("end", end);
-        agg.put("symptom_id", c.symptomId());
+        agg.put(SYMPTOM_ID, c.symptomId());
         agg.put("is_symptom", 1);
         agg.put("type", c.name());
         agg.put("symptom_description", c.name());

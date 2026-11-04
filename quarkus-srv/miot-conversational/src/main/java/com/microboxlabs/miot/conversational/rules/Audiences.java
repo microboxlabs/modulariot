@@ -129,6 +129,8 @@ public final class Audiences {
         m.put("email", text(c.email()));
         m.put("whatsapp", text(c.whatsapp()));
         m.put("nationalId", text(c.nationalId()));
+        m.put("nationalIdType", text(c.nationalIdType()));
+        m.put("companyTaxIdType", text(c.companyTaxIdType()));
         return m;
     }
 

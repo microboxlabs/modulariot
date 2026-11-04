@@ -107,7 +107,19 @@ public class ContactService {
         putRut(data, "driverRut", trip.driverRut());
         putRut(data, "secondDriverRut", trip.secondDriverRut());
         putRut(data, "carrierRut", trip.carrierRut());
+        putType(data, "driverIdType", driverIdType(trip.driverRut(), trip.carrierRut()));
+        putType(data, "secondDriverIdType", driverIdType(trip.secondDriverRut(), trip.carrierRut()));
+        putType(data, "carrierIdType", DriverContactSync.companyTaxIdType(trip.carrierRut()));
         return data;
+    }
+
+    private static String driverIdType(String id, String carrier) {
+        String normalized = normalizeNationalId(id);
+        return normalized == null ? null : DriverContactSync.nationalIdType(normalized, carrier);
+    }
+
+    private static void putType(Map<String, Object> data, String key, String type) {
+        if (type != null) data.put(key, type);
     }
 
     private static void putRut(Map<String, Object> data, String key, String rut) {

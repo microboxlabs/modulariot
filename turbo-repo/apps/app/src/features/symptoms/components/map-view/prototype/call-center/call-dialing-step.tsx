@@ -29,7 +29,7 @@ import {
   type CallMethod,
 } from "./call-method";
 import type { TowerContactChannels } from "@/features/symptoms/control-tower/control-tower-api";
-import type { CallStats } from "./call-targets";
+import { phoneForMethod, type CallStats } from "./call-targets";
 import { channelLink } from "./channel-link";
 import ContactRow from "./contact-row";
 
@@ -125,11 +125,10 @@ export default function CallDialingStep({
           <ContactRow
             personName={contactName}
             roleLabel={contactRole}
-            phone={
-              started && (method === "phone" || method === "whatsapp")
-                ? (channels?.[method] ?? contactPhone)
-                : contactPhone
-            }
+            phone={phoneForMethod(
+              { phone: contactPhone ?? "", channels: channels },
+              method
+            )}
             stats={stats}
             pulsing={started}
             bgClassName="bg-white dark:bg-gray-800/40"

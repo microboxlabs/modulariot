@@ -87,10 +87,12 @@ public final class StubHttp implements TelephonyHttp {
 
             @Override
             public void onError(Throwable throwable) {
+                throw new IllegalStateException("Could not read the stub request body", throwable);
             }
 
             @Override
             public void onComplete() {
+                // onNext already collected the complete string body; there are no resources to release.
             }
         });
         return out.toString();

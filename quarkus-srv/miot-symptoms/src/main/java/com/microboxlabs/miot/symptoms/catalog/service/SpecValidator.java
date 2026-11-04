@@ -35,6 +35,7 @@ public final class SpecValidator {
     /** Distance from each threshold at which overlaps are tried, on both sides. */
     private static final double NEAR = 0.01;
     private static final String LEVELS = "levels";
+    private static final String LEVEL_SECTION_PREFIX = "levels.";
     private static final String ACTIVATION = "activation";
     private static final String MEASURE = "measure";
     private static final String HELD = "held_s";
@@ -153,7 +154,7 @@ public final class SpecValidator {
         for (SymptomSpec.Level level : spec.levels()) {
             SymptomSpec.Response response = level.response();
             if (response == null) continue;
-            String section = "levels." + level.icu() + ".response";
+            String section = LEVEL_SECTION_PREFIX + level.icu() + ".response";
             contactCondition(out, section, response.escalateWho(), check);
             if (response.steps() != null) {
                 for (SymptomSpec.Step step : response.steps()) {
@@ -190,7 +191,7 @@ public final class SpecValidator {
             if (!level.applies()) {
                 continue;
             }
-            String section = "levels." + level.icu();
+            String section = LEVEL_SECTION_PREFIX + level.icu();
             int before = out.size();
             rule(out, section, schema, level.when(), Expect.CONDITION);
             response(out, section + ".response", level.response());
@@ -352,7 +353,7 @@ public final class SpecValidator {
         for (Level level : levels) {
             // A rule that does not parse has its own error.
             if (level.applies() && RuleText.identifiers(level.when()).contains(MEASURE)) {
-                out.add(new Finding("levels." + level.icu(), Severity.ERROR, RuleMessage.of("measureMissing"), -1));
+                out.add(new Finding(LEVEL_SECTION_PREFIX + level.icu(), Severity.ERROR, RuleMessage.of("measureMissing"), -1));
             }
         }
     }

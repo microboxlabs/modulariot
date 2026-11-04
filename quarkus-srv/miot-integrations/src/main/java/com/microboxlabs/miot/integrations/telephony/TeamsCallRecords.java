@@ -6,6 +6,12 @@ import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
 import com.microboxlabs.miot.integrations.auth.AuthResolutionException;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthRegistry;
+import com.microboxlabs.miot.integrations.auth.CredentialAuthContext;
+import com.microboxlabs.miot.integrations.auth.oauth.OAuth2CredentialConfigs;
+import com.microboxlabs.miot.integrations.domain.AuthType;
+import com.microboxlabs.miot.integrations.net.OutboundUrlGuard;
+import java.net.URI;
+import java.util.function.Consumer;
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
@@ -39,6 +45,7 @@ public class TeamsCallRecords {
     private final CredentialAuthRegistry auth;
     private final GraphClient graph;
     private final ObjectMapper json;
+    private final Consumer<URI> tokenUrlGuard;
 
     @Inject
     public TeamsCallRecords(IntegrationConnectionRepository repository, IntegrationConnectionResolver resolver,
@@ -49,6 +56,14 @@ public class TeamsCallRecords {
     public TeamsCallRecords(BiFunction<String, String, IntegrationConnection> connections,
             BiFunction<String, IntegrationConnection, ResolvedConnection> resolver, CredentialAuthRegistry auth,
             GraphClient graph, ObjectMapper json) {
+        this(connections, resolver, auth, graph, json,
+                url -> OutboundUrlGuard.requirePublicHttpUrl(url, "tokenUrl"));
+    }
+
+    TeamsCallRecords(BiFunction<String, String, IntegrationConnection> connections,
+            BiFunction<String, IntegrationConnection, ResolvedConnection> resolver, CredentialAuthRegistry auth,
+            GraphClient graph, ObjectMapper json, Consumer<URI> tokenUrlGuard) {
+        this.tokenUrlGuard = tokenUrlGuard;
         this.connections = connections;
         this.resolver = resolver;
         this.auth = auth;
@@ -70,7 +85,13 @@ public class TeamsCallRecords {
         Map<String, String> headers;
         try {
             ResolvedConnection resolved = resolver.apply(tenantCode, connection);
-            headers = TeamsAppToken.headers(auth, resolved.authContext());
+            CredentialAuthContext context = resolved.authContext();
+            TeamsAppToken.problem(context.credentialType(), context.publicConfig()).ifPresent(problem -> {
+                throw new TelephonyUnavailableException(problem);
+            });
+            tokenUrlGuard.accept(OAuth2CredentialConfigs.tokenUrl(context.credentialType(), context.publicConfig()));
+            headers = TeamsAppToken.headers(auth, new CredentialAuthContext(AuthType.OAUTH2_CLIENT_CREDENTIALS,
+                    context.credentialType(), context.publicConfig(), context.secret()));
         } catch (ConnectionResolutionException | AuthResolutionException | IllegalStateException
                 | IllegalArgumentException e) {
             throw new TelephonyUnavailableException("Microsoft Entra did not issue a token: " + e.getMessage());

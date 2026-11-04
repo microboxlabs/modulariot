@@ -37,7 +37,7 @@ vi.mock("@/features/notifications/notification", () => ({
 }));
 
 const dict = es as unknown as I18nRecord;
-const SUR = "761112228";
+const SUR = "000000030";
 
 const contact = (
   id: string,
@@ -93,7 +93,8 @@ async function saveNewNumber(
   user: ReturnType<typeof userEvent.setup>,
   name: string
 ) {
-  await user.type(screen.getByLabelText("Número de teléfono"), "912345678");
+  await user.click(screen.getByLabelText("Número de teléfono"));
+  await user.paste("+12025550101");
   await user.type(screen.getByLabelText("Nombre"), name);
   await user.click(
     screen.getByRole("button", { name: "Llamar y guardar en la libreta" })
@@ -109,13 +110,13 @@ beforeEach(() => {
     }),
     contact("gs", "Gema Soto", "Gerente de Seguridad", { companyRut: SUR }),
     contact("gs-norte", "Nora Ruiz", "Gerente de Seguridad", {
-      companyRut: "769999999",
+      companyRut: "000000050",
     }),
     contact("torre", "Marta Díaz", "Jefe de Torre"),
     contact("off", "Inactivo", "Jefe de Torre", { active: false }),
   ];
   data.trip = {
-    driverRuts: ["123456785"],
+    driverRuts: ["000000019"],
     carrierRut: SUR,
     drivers: ["ana"],
     carrierContacts: ["ana", "gs"],
@@ -216,7 +217,7 @@ describe("CallCenterMenu", () => {
 
   it("says the trip driver is not in the book and adds them with the trip's RUT", async () => {
     data.trip = {
-      driverRuts: ["123456785"],
+      driverRuts: ["000000019"],
       carrierRut: SUR,
       drivers: [],
       carrierContacts: [],
@@ -238,7 +239,7 @@ describe("CallCenterMenu", () => {
     ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Nuevo número" }));
     expect(
-      screen.getByText("Se guarda como Conductor con RUT 123456785")
+      screen.getByText("Se guarda como Conductor con RUT 000000019")
     ).toBeTruthy();
     await saveNewNumber(user, "Ana Nueva");
 
@@ -246,7 +247,7 @@ describe("CallCenterMenu", () => {
       expect.objectContaining({
         name: "Ana Nueva",
         role: "Conductor",
-        nationalId: "123456785",
+        nationalId: "000000019",
       })
     );
     await waitFor(() =>
@@ -277,7 +278,7 @@ describe("CallCenterMenu", () => {
     await user.click(screen.getByRole("button", { name: "Nuevo número" }));
     expect(
       screen.getByText(
-        "Se guarda como Oficina Comercial de la empresa con RUT 761112228"
+        "Se guarda como Oficina Comercial de la empresa con RUT 000000030"
       )
     ).toBeTruthy();
     await saveNewNumber(user, "Omar");

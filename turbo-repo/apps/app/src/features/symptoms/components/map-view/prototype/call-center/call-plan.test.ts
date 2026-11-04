@@ -31,19 +31,19 @@ const target = (
   stats: null,
 });
 
-const SUR = "761112228";
+const SUR = "000000030";
 const TARGETS = [
   target("ana", "Conductor", "Ana", SUR),
   target("beto", "Conductor", "Beto", SUR),
   target("gs", "Gerente de Seguridad", "Gema", SUR),
   target("oc", "Oficina Comercial", "Omar", SUR),
-  target("gs-norte", "Gerente de Seguridad", "Nora", "769999999"),
+  target("gs-norte", "Gerente de Seguridad", "Nora", "000000050"),
   target("torre", "Jefe de Torre", "Tomás"),
   target("torre2", " jefe de torre ", "Teresa"),
 ];
 // What the server found for the trip by RUT.
 const TRIP = tripMatches({
-  driverRuts: ["123456785", "98765432K"],
+  driverRuts: ["000000019", "00000002K"],
   carrierRut: SUR,
   drivers: ["ana", "beto"],
   carrierContacts: ["ana", "beto", "gs", "oc"],
@@ -166,7 +166,7 @@ describe("matchesTarget", () => {
   it("matches name, role and phone digits", () => {
     const t = {
       ...target("c1", "Transportista", "Luis Soto"),
-      phone: "+56 9 1234 5678",
+      phone: "+12025550101",
     };
     expect(matchesTarget(t, "soto")).toBe(true);
     expect(matchesTarget(t, "transp")).toBe(true);

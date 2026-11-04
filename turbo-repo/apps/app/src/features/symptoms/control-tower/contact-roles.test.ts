@@ -68,14 +68,14 @@ const contact = (patch: Partial<TowerContact>): TowerContact =>
 describe("scopeRoles", () => {
   it("splits carrier people from the organization's own and counts active ones", () => {
     const roles = scopeRoles([
-      contact({ role: "Gerente de Seguridad", companyRut: "761112228" }),
-      contact({ role: " gerente de seguridad ", companyRut: "769999999" }),
+      contact({ role: "Gerente de Seguridad", companyRut: "000000030" }),
+      contact({ role: " gerente de seguridad ", companyRut: "000000050" }),
       contact({
         role: "Gerente de Seguridad",
-        companyRut: "761112228",
+        companyRut: "000000030",
         active: false,
       }),
-      contact({ role: "Conductor", companyRut: "761112228" }),
+      contact({ role: "Conductor", companyRut: "000000030" }),
       contact({ role: "Jefe de Torre" }),
       contact({ role: "Jefe de Torre", active: false }),
       contact({ role: "Transportista" }),

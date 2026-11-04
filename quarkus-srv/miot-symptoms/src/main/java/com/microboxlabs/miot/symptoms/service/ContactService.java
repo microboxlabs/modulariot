@@ -363,7 +363,7 @@ public class ContactService {
         }
         String compact = phone.replaceAll("[\\s\\-()]", "");
         if (!E164.matcher(compact).matches()) {
-            throw new IllegalArgumentException("phone must be a full international number, e.g. +56912345678");
+            throw new IllegalArgumentException("phone must be a full international number, e.g. +12025550101");
         }
         return compact;
     }

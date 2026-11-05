@@ -4442,17 +4442,8 @@
         "newRuleForLevel": "New rule for this level",
         "newRuleForLevelName": "{symptom} · {level}",
         "channelPreferred": "Preferred",
-        "telephonyTitle": "Telephony for \"Call\"",
-        "telephonySavesImmediately": "Changes save immediately, independently of the team settings.",
-        "telephonyAuto": "Automatic: Telnyx when connected, else Teams Phone",
-        "telephonyActive": "Selected connection",
-        "telephonyNone": "the phone's dialer (no telephony connection)",
-        "telephonyNotReady": "{name} did not pass its test; it is not used until it does.",
-        "telephonyConnections": "Set up in Connections",
-        "telephonyLoadFailed": "Could not read the telephony settings.",
-        "telephonySaveFailed": "Could not save the telephony settings.",
-        "telephonyManaged": "platform line",
-        "telephonyMonth": "This month: {used} of {quota} minutes · {pending} unconfirmed · {charge}"
+        "telephonyMoved": "The organization's telephony is chosen in Connections.",
+        "telephonyConnections": "Go to Connections"
       },
       "communications": {
         "title": "Communications",
@@ -5588,6 +5579,25 @@
         "webhookPublicKeyHelp": "In Telnyx: Account Settings › Keys & Credentials › Public Key. The modulith checks call webhooks with it.",
         "webhookUrl": "Webhook URL for the Credential Connection",
         "webhookUrlHelp": "Paste it in Telnyx as the connection's webhook. Shown after saving."
+      },
+      "telephonyChoice": {
+        "title": "Organization telephony",
+        "hint": "\"Call\" places calls through this line. The Teams button opens Microsoft Teams whenever there is an active Teams Phone connection.",
+        "platform": "Platform line (Telnyx)",
+        "ownTelnyx": "{name} (Telnyx)",
+        "teams": "{name} (Teams Phone)",
+        "notTested": "{name} (Teams Phone, not tested)",
+        "unset": "Not chosen",
+        "inUse": "In use: {line}",
+        "inUseNone": "In use: the phone's dialer (no active line)",
+        "unsetHint": "The organization has not chosen yet. Until then the line above is used.",
+        "notReady": "{name} did not pass its test. It is not used until it does.",
+        "month": "This month: {used} of {quota} minutes · {pending} unconfirmed · {charge}",
+        "saved": "Telephony saved.",
+        "saveFailed": "Could not save the telephony settings.",
+        "forbidden": "Only an owner or admin of the organization can change the telephony.",
+        "askTeams": "Use {name} as the organization's telephony?",
+        "askTeamsAction": "Use Teams Phone"
       }
     },
     "calendar": {
@@ -7699,7 +7709,8 @@
     "call_telephony_pending": "record pending: Teams publishes the duration and the result a few minutes later",
     "call_quota_exhausted": "The platform's call minutes of this month are used.",
     "call_channels_busy": "Every platform line is in a call. Try again in a moment.",
-    "call_use_phone": "Call with the phone"
+    "call_use_phone": "Call with the phone",
+    "call_teams_no_connection": "No Teams Phone connection"
   },
   "geographic_view": {
     "arrival_delay": "Arrival delay",

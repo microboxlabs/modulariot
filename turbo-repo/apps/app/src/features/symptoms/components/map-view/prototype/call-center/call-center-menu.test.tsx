@@ -41,6 +41,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   updateContact: data.updateContact,
   contactsKey: "contacts",
   contactFacetsKey: "contact-facets",
+  revalidateCase: vi.fn(),
   useContacts: () => ({
     data: data.contacts,
     isLoading: false,

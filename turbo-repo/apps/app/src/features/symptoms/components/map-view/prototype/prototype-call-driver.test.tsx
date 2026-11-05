@@ -18,6 +18,7 @@ const api = vi.hoisted(() => ({
   push: vi.fn(),
   notify: vi.fn(),
   scheduleTeamsReconcile: vi.fn(),
+  revalidateCase: vi.fn(),
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => api);

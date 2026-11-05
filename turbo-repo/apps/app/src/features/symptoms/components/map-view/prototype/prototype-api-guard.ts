@@ -26,6 +26,7 @@ import {
   addTreatmentAction,
   closeTreatment,
   openTreatment,
+  revalidateCase,
   type AddActionBody,
   type TowerActionKind,
   type TowerTreatmentType,
@@ -194,6 +195,7 @@ export async function guardedSkipStep(skip: StepSkip): Promise<void> {
       slaSince: skip.slaSince,
     },
   });
+  void revalidateCase(skip.symptomId);
 }
 
 /**
@@ -207,8 +209,11 @@ export async function guardedRequestTreatment(
   engine: EngineTreatmentOptions = {}
 ): Promise<TreatmentsRequest> {
   if (isPrototypeApiDisabled()) return payload;
-  if (isEngineCase(payload)) return saveEngineTreatment(payload, engine);
-  return requestTreatment(payload);
+  const saved = isEngineCase(payload)
+    ? await saveEngineTreatment(payload, engine)
+    : await requestTreatment(payload);
+  void revalidateCase(payload.symptom_id);
+  return saved;
 }
 
 /**
@@ -221,6 +226,7 @@ export async function guardedFinishTreatment(
 ): Promise<void> {
   if (isPrototypeApiDisabled() || !isEngineCase(payload)) return;
   await finishEngineTreatment(payload, progress);
+  void revalidateCase(payload.symptom_id);
 }
 
 /**
@@ -300,4 +306,5 @@ export async function guardedInvalidateSymptom({
     }),
   });
   if (!invalidateResponse.ok) throw new Error("Invalidate webhook failed");
+  void revalidateCase(treatmentRequest.symptom_id);
 }

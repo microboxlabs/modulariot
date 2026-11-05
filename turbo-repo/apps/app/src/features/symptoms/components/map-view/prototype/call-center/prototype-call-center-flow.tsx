@@ -26,7 +26,7 @@ import { useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
 import {
   contactsKey,
-  treatmentsKey,
+  revalidateCase,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
@@ -222,8 +222,7 @@ export default function PrototypeCallCenterFlow({
    *  cancelling a live call on the FIRST attempt doesn't set this, only
    *  actually finishing one call and choosing to start another does. */
   const handleMakeAnotherCall = () => {
-    const symptomId = treatmentData?.symptom_info?.id;
-    if (symptomId != null) void mutate(treatmentsKey(symptomId));
+    void revalidateCase(treatmentData?.symptom_info?.id);
     void mutate(contactsKey);
     onRepeatCallChange?.(true);
     handleCancelCall();

@@ -73,7 +73,7 @@ vi.mock("../prototype-call-driver", () => ({
 }));
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   contactsKey: "contacts",
-  treatmentsKey: () => "treatments",
+  revalidateCase: vi.fn(),
 }));
 vi.mock("swr", () => ({ mutate: vi.fn() }));
 const telephony = vi.hoisted(() => ({

@@ -134,3 +134,21 @@ describe("symptoms row opens the treatment", () => {
     expect(screen.getByRole("button", { name: "Tratar" })).toBeInTheDocument();
   });
 });
+
+describe("symptoms SLA badge", () => {
+  it("counts the SLA from the server's start, not from the opening", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-01T01:00:00Z"));
+    try {
+      renderRow({
+        ...row,
+        sla_minutes: 15,
+        date: "2026-01-01T00:00:00Z",
+        slaSince: "2026-01-01T00:55:00Z",
+      });
+      expect(screen.getByText(/10 min/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

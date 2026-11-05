@@ -23,11 +23,13 @@ function slaBadge(data: TableItemType, dict: I18nRecord) {
   // condition (`Conditions[...].bgColor` below), and a saturated row color —
   // red especially — could wash out same-colored text with no background of
   // its own to stand on.
-  let slaCell: { texto: string; color: "warning" | "success" | "failure" } | null =
-    null;
+  let slaCell: {
+    texto: string;
+    color: "warning" | "success" | "failure";
+  } | null = null;
   if (slaMin != null) {
-    // A case back from an "Ignorar condición" hold has a new SLA from then.
-    const slaStart = data.returnedAfterIgnoreAt ?? data.date;
+    // The server's SLA start: the case reached its level, or came back from a hold.
+    const slaStart = data.slaSince ?? data.returnedAfterIgnoreAt ?? data.date;
     const transc = (Date.now() - new Date(slaStart).getTime()) / 60000;
     const resto = slaMin - transc;
     const fmt = (m: number) =>
@@ -129,7 +131,10 @@ export default function TableItem({
               )}
               {data.returnedAfterIgnoreAt && (
                 <Badge color="warning" className="w-fit">
-                  {(dict.symptoms as I18nRecord).returned_after_ignore as string}
+                  {
+                    (dict.symptoms as I18nRecord)
+                      .returned_after_ignore as string
+                  }
                 </Badge>
               )}
             </div>
@@ -137,7 +142,9 @@ export default function TableItem({
         </TableCell>
         <TableCell className="text-xs text-nowrap">
           {occurrence > 1 ? (
-            <Badge color="purple" className="w-fit">×{occurrence}</Badge>
+            <Badge color="purple" className="w-fit">
+              ×{occurrence}
+            </Badge>
           ) : (
             <span className="text-gray-400">—</span>
           )}

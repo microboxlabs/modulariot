@@ -2,7 +2,9 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
 import com.microboxlabs.miot.symptoms.signal.GpsSignal;
@@ -336,6 +338,13 @@ public class EvaluatorStream {
         // Both consumers may share Redis. Neither close may expose an empty episode before installing its marker.
         lostSignal.forget(tenant, assetId, definitionId, marker);
         episodes.operatorClose(tenant, assetId, definitionId, marker);
+    }
+
+    /** Drops only the case the sweep closed, preserving a newer episode opened on another replica. */
+    public void forgetStale(StaleCase c) {
+        episodes.forgetStale(c.tenantCode(), c.assetId(), c.definitionId(),
+                c.test() ? SymptomState.TEST : SymptomState.ACTIVE, c.openedAt());
+        lostSignal.forgetStale(c);
     }
 
     /** Rechecks the latest condition evidence before releasing a hold, then restarts its level timers. */

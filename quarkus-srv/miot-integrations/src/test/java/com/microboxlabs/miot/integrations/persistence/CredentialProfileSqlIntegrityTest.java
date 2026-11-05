@@ -18,7 +18,7 @@ class CredentialProfileSqlIntegrityTest {
 
     private static final List<String> TENANT_SCOPED = List.of(
             "SELECT_BY_TENANT", "SELECT_BY_ID", "UPDATE_SECRET",
-            "UPDATE_PROFILE", "UPDATE_TEST_RESULT", "SOFT_DELETE");
+            "UPDATE_PROFILE", "UPDATE_PROFILE_IF_PROVIDER", "UPDATE_TEST_RESULT", "SOFT_DELETE");
 
     @Test
     void everyReadAndWriteIsScopedByTenant() throws Exception {
@@ -67,6 +67,14 @@ class CredentialProfileSqlIntegrityTest {
         assertTrue(
                 sql.contains("encrypted_secret_json = COALESCE($6::text, encrypted_secret_json)"),
                 "UPDATE_PROFILE must keep the stored ciphertext when none is bound:\n" + sql);
+    }
+
+    @Test
+    void legacyProviderEditsRequireTheAuthorizedProviderAndSecretVersion() throws Exception {
+        String sql = readStaticString("UPDATE_PROFILE_IF_PROVIDER");
+        assertTrue(sql.contains("public_config ->> 'provider' = $9"));
+        assertTrue(sql.contains("secret_version = $10"));
+        assertTrue(sql.contains("secret_version = CASE WHEN $6::text IS NULL THEN secret_version ELSE secret_version + 1 END"));
     }
 
     /**

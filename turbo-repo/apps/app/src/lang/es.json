@@ -2039,45 +2039,104 @@
         "telephonyPlan": {
           "title": "Plan de telefonía",
           "menuTitle": "Plan",
-          "menuHint": "Precios por minuto, minutos del mes y su aplicación",
-          "description": "Precios en US$ por minuto facturado (cada llamada se redondea al minuto) o por plantilla de WhatsApp. La línea de la plataforma es la conexión Telnyx del ámbito Plataforma, en Conexiones.",
+          "menuHint": "Minutos por defecto, precios y si se aplican",
+          "description": "Cuántos minutos incluye el plan cada mes y cuánto cuesta cada minuto según el destino. Solo cuentan las llamadas que Telnyx confirmó, cada una redondeada al minuto.",
+          "providerHint": "La línea es una conexión: Telnyx en Conexiones, en el ámbito Plataforma.",
           "fields": {
-            "minutesPerMonth": "Minutos por mes (por defecto)",
-            "clMobileUsd": "Chile móvil (US$/min)",
-            "clLandlineUsd": "Chile fijo (US$/min)",
-            "otherUsd": "Otros destinos (US$/min)",
-            "whatsappCallUsd": "Llamada WhatsApp (US$/min)",
-            "whatsappTemplateUsd": "Plantilla WhatsApp (US$ c/u)"
+            "minutesPerMonth": "Minutos mensuales por defecto",
+            "clMobileUsd": "Precio por minuto a móvil Chile (USD)",
+            "clLandlineUsd": "Precio por minuto a fijo Chile (USD)",
+            "otherUsd": "Precio por minuto a otros destinos (USD)",
+            "whatsappCallUsd": "Precio por minuto de llamada WhatsApp (USD)",
+            "whatsappTemplateUsd": "Precio por plantilla WhatsApp (USD)"
           },
           "enforced": "Aplicar los minutos",
-          "enforcedHelp": "Activo: una organización sin minutos no puede llamar por la línea de la plataforma y se le ofrece el teléfono. Inactivo: no se rechaza ninguna llamada; el uso se registra igual.",
-          "invalid": "Revisa los valores: deben ser números de 0 o más.",
+          "enforcedOn": "Una organización que agotó sus minutos no llama por la línea de la plataforma; se le ofrece el teléfono.",
+          "enforcedOff": "No se rechaza ninguna llamada. El uso igual se registra y se muestra.",
+          "countHelp": "Solo las llamadas por la línea de la plataforma consumen minutos. Las llamadas y plantillas de WhatsApp se cobran pero no consumen minutos.",
           "save": "Guardar",
-          "saved": "Plan guardado",
-          "saveFailed": "No se pudo guardar el plan",
-          "loadFailed": "No se pudo leer el plan"
+          "saving": "Guardando…",
+          "saved": "Se guardó el plan.",
+          "saveError": "No se pudo guardar.",
+          "loadError": "No se pudo cargar.",
+          "errors": {
+            "minutesPerMonth": "Los minutos deben ser un número entero mayor o igual a cero.",
+            "clMobileUsd": "El precio a móvil Chile debe ser un número mayor o igual a cero.",
+            "clLandlineUsd": "El precio a fijo Chile debe ser un número mayor o igual a cero.",
+            "otherUsd": "El precio a otros destinos debe ser un número mayor o igual a cero.",
+            "whatsappCallUsd": "El precio de llamada WhatsApp debe ser un número mayor o igual a cero.",
+            "whatsappTemplateUsd": "El precio por plantilla debe ser un número mayor o igual a cero."
+          }
         },
         "telephonyTenants": {
-          "selectOrganization": "Selecciona una organización",
-          "title": "Organizaciones",
           "menuTitle": "Organizaciones",
-          "menuHint": "Minutos usados por organización",
-          "description": "Llamadas por la línea de la plataforma y plantillas de WhatsApp enviadas por la cuenta de la plataforma. Solo cuentan las llamadas que Telnyx confirmó.",
-          "month": "Mes",
-          "empty": "Ninguna organización usó la telefonía de la plataforma este mes.",
-          "organization": "Organización",
-          "minutes": "Minutos",
-          "pending": "Sin confirmar",
-          "charge": "Cargo",
-          "providerCost": "Costo Telnyx",
-          "editMinutes": "Minutos",
-          "monthlyMinutes": "Minutos por mes",
-          "monthlyMinutesHelp": "Vacío usa los minutos del plan.",
+          "menuHint": "Uso y minutos de cada organización",
+          "search": "Buscar por nombre, identificador o RUT",
+          "assign": "Asignar minutos",
+          "kpi": {
+            "subscribed": "Con minutos propios",
+            "withUsage": "{count} con minutos propios o uso",
+            "minutes": "Minutos usados",
+            "calls": "{count} llamadas confirmadas",
+            "pending": "Sin confirmar",
+            "pendingHelp": "Llamadas que Telnyx aún no confirmó",
+            "margin": "Cobro del mes",
+            "providerCost": "Costo Telnyx: {cost}"
+          },
+          "columns": {
+            "organization": "Organización",
+            "quota": "Usados / minutos",
+            "calls": "Llamadas",
+            "pending": "Sin confirmar",
+            "providerCost": "Costo Telnyx",
+            "charge": "Cobro"
+          },
+          "fromPlan": "del plan",
+          "noSubscription": "Sin minutos propios",
+          "empty": "Ninguna organización tiene minutos propios ni uso en este mes.",
+          "noMatches": "Ninguna organización coincide con la búsqueda.",
+          "page": "Página {page} de {pages} · {count} organizaciones",
+          "previous": "Anterior",
+          "next": "Siguiente",
+          "edit": "Editar minutos",
           "save": "Guardar",
-          "saved": "Minutos guardados",
-          "saveFailed": "No se pudieron guardar los minutos",
-          "cancel": "Cancelar",
-          "loadFailed": "No se pudo leer el uso"
+          "saveError": "No se pudo guardar.",
+          "loadError": "No se pudo cargar el uso.",
+          "modal": {
+            "addTitle": "Asignar minutos",
+            "addSubtitle": "Da a una organización sus minutos de telefonía.",
+            "editTitle": "Editar minutos",
+            "organization": "Organización",
+            "searchOrganization": "Busca por nombre, identificador o RUT",
+            "alreadySubscribed": "Ya tiene minutos propios; edítalos en la tabla",
+            "noMatches": "Ninguna organización coincide.",
+            "refine": "{count} más; escribe para acotar.",
+            "pickFirst": "Elige una organización.",
+            "quota": "Minutos por mes",
+            "quotaPlaceholder": "Vacío: los del plan ({quota})",
+            "quotaHelp": "Solo cuentan las llamadas por la línea de la plataforma que Telnyx confirmó, cada una redondeada al minuto.",
+            "cancel": "Cancelar"
+          },
+          "errors": {
+            "quota": "Los minutos deben ser un número entero mayor o igual a cero, o quedar vacíos."
+          },
+          "filters": {
+            "subscription": "Minutos",
+            "subscribed": "Minutos propios",
+            "unsubscribed": "Minutos del plan",
+            "level": "Uso",
+            "levelOk": "Normal",
+            "levelAlert": "En alerta",
+            "levelExhausted": "Agotados",
+            "month": "Mes",
+            "sortLabel": "Ordenar",
+            "sort": {
+              "USAGE_DESC": "Más usados",
+              "NAME_ASC": "Nombre (A-Z)",
+              "COST_DESC": "Mayor costo",
+              "CHARGE_DESC": "Mayor cobro"
+            }
+          }
         }
       },
       "organizations": {
@@ -4442,17 +4501,8 @@
         "newRuleForLevel": "Nueva regla para este nivel",
         "newRuleForLevelName": "{symptom} · {level}",
         "channelPreferred": "Preferido",
-        "telephonyTitle": "Telefonía de \"Llamar a\"",
-        "telephonySavesImmediately": "Los cambios se guardan al elegir, independientemente de los ajustes del equipo.",
-        "telephonyAuto": "Automático: Telnyx si está conectado, si no Teams Phone",
-        "telephonyActive": "Conexión seleccionada",
-        "telephonyNone": "el marcador del teléfono (sin conexión de telefonía)",
-        "telephonyNotReady": "{name} no pasó su prueba; no se usa hasta que la pase.",
-        "telephonyConnections": "Configurar en Conexiones",
-        "telephonyLoadFailed": "No se pudo leer la telefonía.",
-        "telephonySaveFailed": "No se pudo guardar la telefonía.",
-        "telephonyManaged": "línea de la plataforma",
-        "telephonyMonth": "Este mes: {used} de {quota} minutos · {pending} sin confirmar · {charge}"
+        "telephonyMoved": "La telefonía de la organización se elige en Conexiones.",
+        "telephonyConnections": "Ir a Conexiones"
       },
       "communications": {
         "title": "Comunicaciones",
@@ -5090,6 +5140,55 @@
         "copy": "Copiar",
         "copied": "Copiado",
         "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo."
+      },
+      "telephony": {
+        "usage": {
+          "title": "Uso del mes",
+          "description": "Cada llamada por la línea de la plataforma cuenta para los minutos del mes (UTC), redondeada al minuto. Las llamadas y plantillas de WhatsApp se cobran pero no consumen minutos.",
+          "previousMonth": "Mes anterior",
+          "nextMonth": "Mes siguiente",
+          "loadError": "No se pudo cargar el uso de telefonía.",
+          "forbidden": "Solo un dueño de la organización puede ver el uso de telefonía.",
+          "quotaExhausted": "Minutos agotados. Las llamadas por la línea de la plataforma se rechazan hasta el próximo mes o hasta que se aumenten los minutos; se ofrece el teléfono.",
+          "notEnforced": "Los minutos aún no se aplican: no se rechaza ninguna llamada, pero el uso se registra.",
+          "ownTeams": "La organización llama por su Teams Phone. Esas llamadas las factura Microsoft y no se cuentan aquí. Aquí solo se muestran los minutos de la línea de la plataforma (Telnyx).",
+          "ownTelnyx": "La organización llama por su propia cuenta Telnyx. Esas llamadas las factura Telnyx a la organización y no se cuentan aquí. Aquí solo se muestran los minutos de la línea de la plataforma.",
+          "quota": {
+            "title": "Minutos",
+            "description": "Llamadas por la línea de la plataforma en el mes",
+            "unit": "minutos",
+            "remaining": "Quedan {count}",
+            "own": "minutos propios de la organización",
+            "fromPlan": "minutos del plan"
+          },
+          "calls": {
+            "title": "Llamadas",
+            "description": "Llamadas confirmadas, por la línea y por WhatsApp",
+            "pending": "{count} sin confirmar por Telnyx"
+          },
+          "charge": {
+            "title": "Cargo del plan",
+            "description": "Lo que se cobra a la organización según su plan",
+            "calls": "Llamadas",
+            "templates": "Plantillas WhatsApp",
+            "total": "Total del mes: {total}"
+          },
+          "byDestination": {
+            "title": "Por destino",
+            "empty": "Sin llamadas ni plantillas en este mes.",
+            "destination": "Destino",
+            "count": "Llamadas o envíos",
+            "minutes": "Minutos",
+            "charge": "Cobro"
+          },
+          "destinations": {
+            "CL_MOBILE": "Móvil Chile",
+            "CL_LANDLINE": "Fijo Chile",
+            "OTHER": "Otros destinos",
+            "WHATSAPP_CALL": "Llamada WhatsApp",
+            "WHATSAPP_TEMPLATE": "Plantilla WhatsApp"
+          }
+        }
       }
     },
     "integrationJobs": {
@@ -5585,9 +5684,28 @@
         "channelLimitHelp": "Cuántas llamadas puede haber a la vez en esta línea. Vacío: 10.",
         "channelLimitInvalid": "Las llamadas simultáneas deben ser un número entero mayor que 0.",
         "webhookPublicKey": "Clave pública de webhooks (opcional)",
-        "webhookPublicKeyHelp": "En Telnyx: Account Settings › Keys & Credentials › Public Key. Con ella el modulith verifica los webhooks de llamadas.",
+        "webhookPublicKeyHelp": "En Telnyx: Account Settings › Keys & Credentials › Public Key. Con ella ModularIoT verifica los webhooks de llamadas.",
         "webhookUrl": "URL de webhook para la Credential Connection",
         "webhookUrlHelp": "Pégala en Telnyx como webhook de la conexión. Se muestra después de guardar."
+      },
+      "telephonyChoice": {
+        "title": "Telefonía de la organización",
+        "hint": "Las llamadas de \"Llamar a\" salen por esta línea. El botón Teams abre Microsoft Teams siempre que haya una conexión Teams Phone activa.",
+        "platform": "Línea de la plataforma (Telnyx)",
+        "ownTelnyx": "{name} (Telnyx)",
+        "teams": "{name} (Teams Phone)",
+        "teamsUnavailable": "Teams Phone (sin conexión activa)",
+        "notTested": "{name} (Teams Phone, sin probar)",
+        "unset": "Sin elegir",
+        "inUse": "En uso: {line}",
+        "inUseNone": "En uso: el marcador del teléfono (sin línea activa)",
+        "unsetHint": "La organización aún no elige. Mientras tanto se usa la línea indicada.",
+        "notReady": "{name} no pasó su prueba. No se usa hasta que la pase.",
+        "saved": "Telefonía guardada.",
+        "saveFailed": "No se pudo guardar la telefonía.",
+        "forbidden": "Necesitas permiso para cambiar los ajustes de la Torre de control para cambiar la telefonía.",
+        "askTeams": "¿Usar {name} como telefonía de la organización?",
+        "askTeamsAction": "Usar Teams Phone"
       }
     },
     "calendar": {
@@ -7709,7 +7827,9 @@
     "call_telephony_pending": "registro pendiente: Teams publica la duración y el resultado unos minutos después",
     "call_quota_exhausted": "Se usaron los minutos de llamadas de la plataforma de este mes.",
     "call_channels_busy": "Todas las líneas de la plataforma están en una llamada. Intenta en un momento.",
-    "call_use_phone": "Llamar con el teléfono"
+    "call_use_phone": "Llamar con el teléfono",
+    "call_teams_no_connection": "Sin conexión Teams Phone",
+    "call_teams_no_number": "Este contacto necesita un número de teléfono con código de país para llamar por Teams Phone."
   },
   "geographic_view": {
     "arrival_delay": "Retraso de llegada",

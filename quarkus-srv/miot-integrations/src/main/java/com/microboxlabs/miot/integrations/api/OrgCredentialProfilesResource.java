@@ -8,6 +8,7 @@ import com.microboxlabs.miot.integrations.dto.CredentialTestRequest;
 import com.microboxlabs.miot.integrations.dto.UpdateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.service.CredentialInUseException;
 import com.microboxlabs.miot.integrations.service.CredentialProfileService;
+import com.microboxlabs.miot.integrations.service.PlatformOnlyCredentialException;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.smallrye.mutiny.Uni;
@@ -90,7 +91,7 @@ public class OrgCredentialProfilesResource {
                         .entity(service.create(tenant, actor, req))
                         .build();
             } catch (IllegalArgumentException e) {
-                return badRequest(e.getMessage());
+                return refused(e);
             }
         });
     }
@@ -147,7 +148,7 @@ public class OrgCredentialProfilesResource {
                         ? Response.status(Response.Status.NOT_FOUND).build()
                         : Response.ok(body).build();
             } catch (IllegalArgumentException e) {
-                return badRequest(e.getMessage());
+                return refused(e);
             }
         });
     }
@@ -188,6 +189,15 @@ public class OrgCredentialProfilesResource {
                     ? Response.status(Response.Status.NOT_FOUND).build()
                     : Response.ok(body).build();
         });
+    }
+
+    /** 403 for a provider only the platform may use, 400 for any other invalid request. */
+    private static Response refused(IllegalArgumentException e) {
+        if (!(e instanceof PlatformOnlyCredentialException)) return badRequest(e.getMessage());
+        return Response.status(Response.Status.FORBIDDEN)
+                .type(MediaType.APPLICATION_JSON)
+                .entity(Map.of("error", e.getMessage()))
+                .build();
     }
 
     private static Response badRequest(String message) {

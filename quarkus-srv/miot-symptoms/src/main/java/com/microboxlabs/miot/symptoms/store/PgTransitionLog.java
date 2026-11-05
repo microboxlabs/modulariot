@@ -16,6 +16,7 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -25,10 +26,27 @@ import java.util.function.Supplier;
  * yields the same change at the same time, which is skipped: one per symptom, vehicle and signal, and one note
  * ({@code NOTED}) besides. A change's
  * case is the latest OPENED row of its symptom, vehicle and state.
+ *
+ * <p>A stale catalog retries the batch before its episodes can be saved: an opening must use the symptom's
+ * current state, and a state-change closure must close an earlier state. A level change, note or close is
+ * skipped unless its case is the vehicle's latest case of that symptom, open and in the same state. So no row
+ * is written in a state other than its case's OPENED row, and a case closed after a state change closes once.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class PgTransitionLog implements TransitionLog {
+
+    /** State changes and sweeps wait for in-flight writes; vehicles still evaluate concurrently. */
+    private static final String LOCK_DEFINITION = """
+            SELECT id, state FROM miot_symptoms.symptom_definition
+             WHERE tenant_code = $1 AND id = $2 FOR SHARE
+            """;
+    /** The operator locks the same OPENED rows before closing a case. */
+    private static final String LOCK_CASES = """
+            SELECT id FROM miot_symptoms.signal_transitions
+             WHERE tenant_code = $1 AND definition_id = $2 AND asset_id = $3 AND kind = 'OPENED'
+             ORDER BY id FOR UPDATE
+            """;
 
     private static final String INSERT = """
             INSERT INTO miot_symptoms.signal_transitions
@@ -41,6 +59,18 @@ public class PgTransitionLog implements TransitionLog {
                 SELECT 1 FROM miot_symptoms.signal_transitions
                 WHERE definition_id = $2::uuid AND at = $7::timestamptz AND asset_id = $6::varchar
                   AND tenant_code = $1::varchar AND (kind = 'NOTED') = ($5::varchar = 'NOTED'))
+              AND ($5::varchar <> 'OPENED' OR NOT EXISTS (
+                SELECT 1 FROM miot_symptoms.symptom_definition d
+                WHERE d.tenant_code = $1::varchar AND d.id = $2::uuid AND d.state <> $4::varchar))
+              AND ($5::varchar IN ('OPENED', 'HELD') OR EXISTS (
+                SELECT 1 FROM (SELECT o.id, o.state FROM miot_symptoms.signal_transitions o
+                                WHERE o.tenant_code = $1::varchar AND o.definition_id = $2::uuid
+                                  AND o.asset_id = $6::varchar AND o.kind = 'OPENED'
+                                ORDER BY o.id DESC LIMIT 1) latest
+                WHERE latest.state = $4::varchar AND NOT EXISTS (
+                    SELECT 1 FROM miot_symptoms.signal_transitions c
+                    WHERE c.tenant_code = $1::varchar AND c.definition_id = $2::uuid AND c.asset_id = $6::varchar
+                      AND c.state = $4::varchar AND c.kind = 'CLOSED' AND c.id > latest.id)))
             ON CONFLICT DO NOTHING
             RETURNING id, CASE WHEN kind = 'OPENED' THEN id ELSE (
                 SELECT o.id FROM miot_symptoms.signal_transitions o
@@ -72,7 +102,19 @@ public class PgTransitionLog implements TransitionLog {
         }
         JsonObject json = context == null ? null : new JsonObject(context);
         return pool.get().withTransaction(conn -> {
-            Uni<List<Recorded>> chain = Uni.createFrom().item(new ArrayList<>());
+            Uni<Void> locks = Uni.createFrom().voidItem();
+            // Stable lock order also covers batches spanning more than one definition or vehicle.
+            for (Transition t : transitions.stream().sorted(Comparator
+                    .comparing((Transition t) -> t.definitionId().toString()).thenComparing(Transition::assetId))
+                    .toList()) {
+                locks = locks.flatMap(ignored -> conn.preparedQuery(LOCK_DEFINITION)
+                        .execute(Tuple.of(tenantCode, t.definitionId())))
+                        .invoke(rows -> checkCatalogState(t, rows))
+                        .flatMap(ignored -> conn.preparedQuery(LOCK_CASES)
+                                .execute(Tuple.of(tenantCode, t.definitionId(), t.assetId())))
+                        .replaceWithVoid();
+            }
+            Uni<List<Recorded>> chain = locks.map(ignored -> new ArrayList<>());
             for (Transition t : transitions) {
                 JsonObject own = t.detail() == null ? json : new JsonObject(t.detail());
                 chain = chain.flatMap(recorded -> conn.preparedQuery(INSERT).execute(params(tenantCode, t, place, own))
@@ -80,6 +122,18 @@ public class PgTransitionLog implements TransitionLog {
             }
             return chain;
         }).await().atMost(QUERY_TIMEOUT);
+    }
+
+    /** A cached catalog must retry without saving a phantom episode; a replay duplicate still returns normally. */
+    private static void checkCatalogState(Transition t, RowSet<Row> definitions) {
+        boolean stateChangeClose = t.kind() == Transition.Kind.CLOSED && t.detail() != null
+                && Transition.STATE_CHANGE_REASON.equals(t.detail().get("reason"));
+        for (Row d : definitions) {
+            boolean currentState = t.state().name().equals(d.getString("state"));
+            if ((t.kind() == Transition.Kind.OPENED && !currentState) || (stateChangeClose && currentState)) {
+                throw new IllegalStateException("Symptom state changed; retry with a fresh catalog");
+            }
+        }
     }
 
     private static List<Recorded> addRecorded(List<Recorded> recorded, RowSet<Row> rows, Transition transition) {

@@ -27,7 +27,9 @@ const entra: CredentialListItem = {
 
 function show(
   providerType: "TELNYX" | "TEAMS_PHONE" | undefined,
-  connection?: IntegrationConnection
+  connection?: IntegrationConnection,
+  onTestDraft?: React.ComponentProps<typeof ConnectionFormModal>["onTestDraft"],
+  onTest?: React.ComponentProps<typeof ConnectionFormModal>["onTest"]
 ) {
   const onSave = vi.fn().mockResolvedValue({});
   render(
@@ -39,6 +41,8 @@ function show(
       credentials={[telnyx, entra]}
       onClose={vi.fn()}
       onSave={onSave}
+      onTestDraft={onTestDraft}
+      onTest={onTest}
       saving={false}
       dict={dict}
     />
@@ -50,6 +54,56 @@ const type = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 describe("telephony connections", () => {
+  it("does not save Telnyx metadata without a credential", async () => {
+    const onSave = show("TELNYX");
+    type(dict.connection.form.name, "Telnyx");
+    type(dict.telephony.sipConnectionId, "sip-1");
+    type(dict.telephony.callerNumber, "+56900000000");
+    fireEvent.click(screen.getByRole("button", { name: dict.common.create }));
+    expect(
+      await screen.findByText(dict.telephony.credentialRequired)
+    ).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("labels an edited connection's test as testing the saved configuration", async () => {
+    const onTest = vi
+      .fn()
+      .mockResolvedValue({
+        success: true,
+        message: "OK",
+        testedAt: "2026-11-04T10:00:00Z",
+      });
+    show(
+      undefined,
+      {
+        id: "conn-1",
+        name: "Telnyx",
+        providerType: "TELNYX",
+        baseUrl: "https://api.telnyx.com",
+        credentialProfileId: telnyx.id,
+        status: "ACTIVE",
+        lastTestedAt: null,
+        lastTestResult: true,
+        templateId: null,
+        metadata: {
+          sipConnectionId: "saved-sip",
+          callerNumber: "+56900000000",
+        },
+      },
+      undefined,
+      onTest
+    );
+    type(dict.telephony.sipConnectionId, "unsaved-sip");
+    expect(
+      screen.getByText(dict.connection.form.testSavedConfigHint)
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: dict.connections.test })
+    );
+    await waitFor(() => expect(onTest).toHaveBeenCalledWith("conn-1"));
+  });
+
   it("clears the optional Teams caller ID while keeping unrelated metadata", async () => {
     const onSave = show(undefined, {
       id: "conn-1",
@@ -138,5 +192,45 @@ describe("telephony connections", () => {
         metadata: { note: "kept", defaultCallerId: "+56200000000" },
       })
     );
+  });
+  it("tests normalized Telnyx draft values before a connection exists", async () => {
+    const onTestDraft = vi.fn().mockResolvedValue({
+      success: true,
+      message: "OK",
+      testedAt: "2026-01-01T00:00:00Z",
+    });
+    show("TELNYX", undefined, onTestDraft);
+    type(dict.connection.form.name, "Telnyx");
+    type(dict.connection.form.credential, telnyx.id);
+    type(dict.telephony.sipConnectionId, "sip-1");
+    type(dict.telephony.callerNumber, "+56 9 0000 0000");
+    fireEvent.click(
+      screen.getByRole("button", { name: dict.connections.test })
+    );
+    await waitFor(() =>
+      expect(onTestDraft).toHaveBeenCalledWith({
+        name: "Telnyx",
+        providerType: "TELNYX",
+        baseUrl: "https://api.telnyx.com",
+        credentialProfileId: telnyx.id,
+        metadata: { sipConnectionId: "sip-1", callerNumber: "+56900000000" },
+      })
+    );
+  });
+
+  it("blocks an invalid caller number before invoking the draft tester", async () => {
+    const onTestDraft = vi.fn();
+    show("TELNYX", undefined, onTestDraft);
+    type(dict.connection.form.name, "Telnyx");
+    type(dict.connection.form.credential, telnyx.id);
+    type(dict.telephony.sipConnectionId, "sip-1");
+    type(dict.telephony.callerNumber, "0000");
+    fireEvent.click(
+      screen.getByRole("button", { name: dict.connections.test })
+    );
+    expect(
+      await screen.findByText(dict.telephony.callerNumberInvalid)
+    ).toBeInTheDocument();
+    expect(onTestDraft).not.toHaveBeenCalled();
   });
 });

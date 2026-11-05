@@ -31,6 +31,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
@@ -63,6 +64,17 @@ public class EngineCaseService {
     private static final String TO = "p_end_date_historic";
     private static final String DRIVER = "p_driver_id";
     private static final String CARRIER = "p_carrier_id";
+    private static final String CARRIER_TAX_ID = "carrier_tax_id";
+    private static final String CONTEXT_FIELD = "context";
+    private static final String LEVEL_FIELD = "level";
+    private static final String DRIVER_FIELD = "driver";
+    private static final String CARRIER_FIELD = "carrier";
+    private static final String ORIGIN_FIELD = "origin";
+    private static final String DESTINATION_FIELD = "destination";
+    private static final String DRIVER_ID = "driver_id";
+    private static final String SECOND_DRIVER_ID = "second_driver_id";
+    private static final String SYMPTOM_ID = "symptom_id";
+    private static final String TYPE_LOAD = "type_load";
     private static final String ORIGIN = "p_origin";
     private static final String DESTINATION = "p_destination";
     /**
@@ -199,6 +211,32 @@ public class EngineCaseService {
         }
     }
 
+    /**
+     * Without dates the list is the tower inbox: only the cases whose current level asks for an operator. With
+     * dates it is the history, which keeps every case.
+     */
+    static EngineCaseStore.CaseFilter inbox(EngineCaseStore.CaseFilter filter) {
+        return filter.openOnly() ? filter.forOperator() : filter;
+    }
+
+    /**
+     * The inbox's order, by criticality: the highest level first; within a level, the SLA that runs out soonest
+     * (overdue first, a level without SLA last); then the oldest arrival at the level; then the case id, so a
+     * refresh keeps the order.
+     */
+    static final Comparator<EngineCase> INBOX_ORDER = Comparator
+            .<EngineCase>comparingInt(EngineCase::level).reversed()
+            .thenComparing(EngineCase::slaDeadline, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(c -> c.levelAt() != null ? c.levelAt() : c.openedAt())
+            .thenComparingLong(EngineCase::id);
+
+    /** The store's cases for the list, in the inbox's order when it is the inbox. */
+    private List<EngineCase> listed(String tenantCode, EngineCaseStore.CaseFilter filter) {
+        EngineCaseStore.CaseFilter f = inbox(filter);
+        List<EngineCase> found = store.list(tenantCode, f);
+        return f.operatorOnly() ? found.stream().sorted(INBOX_ORDER).toList() : found;
+    }
+
     private static String text(Map<String, String> filters, String name) {
         String v = filters.get(name);
         return v == null || v.isBlank() ? null : v.trim();
@@ -227,10 +265,11 @@ public class EngineCaseService {
 
     /**
      * The page with the matching cases first; {@code page} null when the GPS database could not be read. A
-     * filtered page holds a trip's or a vehicle's few cases, so they come whole on page 1.
+     * filtered page holds a trip's or a vehicle's few cases, so they come whole on page 1. Without dates only the
+     * cases that need an operator ({@link #inbox}).
      */
     public JsonNode withCases(String tenantCode, Map<String, String> filters, JsonNode page) {
-        List<EngineCase> found = store.list(tenantCode, filter(filters));
+        List<EngineCase> found = listed(tenantCode, filter(filters));
         ObjectNode out = page != null && page.isObject() ? ((ObjectNode) page).deepCopy() : JSON.objectNode();
         ArrayNode rows = JSON.arrayNode();
         found.forEach(c -> rows.add(row(c)));
@@ -257,7 +296,8 @@ public class EngineCaseService {
     }
 
     /**
-     * The counts by condition with the open cases added, each once: under {@value #COUNTED_IGNORED} while a hold
+     * The counts by condition with the open cases that need an operator added, each once, so they match the inbox
+     * list: under {@value #COUNTED_IGNORED} while a hold
      * covers it, else under treatment while it has an open treatment, else at its level. {@code counts} is null when the GPS database could not be read; when the
      * open cases cannot be read, the GPS counts are answered alone.
      */
@@ -288,7 +328,8 @@ public class EngineCaseService {
 
     /**
      * One page of the symptom list from the cases alone, in the GPS database function's shape, with totals counted
-     * over the matching cases (at most the store's page of them).
+     * over the matching cases (at most the store's page of them). Without dates only the cases that need an
+     * operator ({@link #inbox}).
      *
      * @param filters already checked by {@code ControlTowerMapService.symptomFilters}
      */
@@ -297,7 +338,7 @@ public class EngineCaseService {
         if (Integer.valueOf(6).equals(filter.level())) {
             filter = filter.withOpenTreatment();
         }
-        List<EngineCase> found = store.list(tenantCode, filter);
+        List<EngineCase> found = listed(tenantCode, filter);
         int size = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
         int page = Math.max(1, number(filters.get(PAGE), 1));
         int pages = Math.max(1, Math.ceilDiv(found.size(), size));
@@ -430,12 +471,13 @@ public class EngineCaseService {
         r.put("duration_sec", Duration.between(c.openedAt(), until).toSeconds());
         r.put("treatment_count", c.treatments());
         r.put("sla_minutes", c.slaMinutes());
+        r.put("sla_since", c.slaStart().toString());
         r.put("recurrence_events", c.recurrence());
         EngineCase.TripDetails trip = c.trip();
-        r.put("driver", trip == null ? null : trip.driver());
-        r.put("carrier", trip == null ? null : trip.carrier());
-        r.put("origin", trip == null ? null : trip.origin());
-        r.put("destination", trip == null ? null : trip.destination());
+        r.put(DRIVER_FIELD, trip == null ? null : trip.driver());
+        r.put(CARRIER_FIELD, trip == null ? null : trip.carrier());
+        r.put(ORIGIN_FIELD, trip == null ? null : trip.origin());
+        r.put(DESTINATION_FIELD, trip == null ? null : trip.destination());
         putHold(r, c);
         return r;
     }
@@ -463,12 +505,12 @@ public class EngineCaseService {
     /** The RUTs of the case's live trip: drivers and carrier. Empty without a live trip. */
     public TripPeople tripPeople(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
-        Row t = c.tripId() == null ? null : trip(tenantCode, c);
+        Row t = c.tripId() == null ? null : trips.apply(Tuple.of(tenantCode, c.tripId(), c.assetId()));
         if (t == null) {
             return TripPeople.NONE;
         }
-        return TripPeople.of(t.getString("driver_id"), t.getString("second_driver_id"),
-                t.getString("carrier_tax_id"));
+        return TripPeople.of(t.getString(DRIVER_ID), t.getString(SECOND_DRIVER_ID),
+                t.getString(CARRIER_TAX_ID));
     }
 
     /** The most recent cases {@link #scriptSamples} offers. */
@@ -499,11 +541,11 @@ public class EngineCaseService {
         ArrayNode out = JSON.arrayNode();
         found.stream().limit(MAX_SCRIPT_SAMPLES).forEach(c -> {
             ObjectNode sample = out.addObject();
-            sample.put("symptom_id", c.symptomId());
-            sample.put("asset_id", c.assetId());
+            sample.put(SYMPTOM_ID, c.symptomId());
+            sample.put(POSITION_ASSET_ID, c.assetId());
             sample.put(ICU_CODE, c.level());
             sample.put("opened_at", c.openedAt().toString());
-            sample.set("context", context(tenantCode, find(tenantCode, c.symptomId())));
+            sample.set(CONTEXT_FIELD, context(tenantCode, find(tenantCode, c.symptomId())));
         });
         return out;
     }
@@ -514,7 +556,7 @@ public class EngineCaseService {
         kase.put("id", c.symptomId());
         kase.put("symptom", c.name());
         kase.put("family", c.family());
-        kase.put("level", c.level());
+        kase.put(LEVEL_FIELD, c.level());
         kase.put("levelName", condition(c.level()));
         kase.put("openedAt", c.openedAt().toString());
         kase.put("slaMinutes", c.slaMinutes());
@@ -530,19 +572,19 @@ public class EngineCaseService {
         trip.put("code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
-            trip.put("origin", t.getString("origin_geofence_label"));
-            trip.put("destination", t.getString("destination_geofence_label"));
-            trip.put("load", t.getString("type_load"));
-            trip.putObject("driver")
+            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
+            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put("load", t.getString(TYPE_LOAD));
+            trip.putObject(DRIVER_FIELD)
                     .put("name", t.getString("driver_name"))
-                    .put("rut", t.getString("driver_id"))
+                    .put("rut", t.getString(DRIVER_ID))
                     .put("phone", t.getString("driver_contact_phone"));
             trip.putObject("secondDriver")
                     .put("name", t.getString("second_driver_name"))
-                    .put("rut", t.getString("second_driver_id"));
-            trip.putObject("carrier")
+                    .put("rut", t.getString(SECOND_DRIVER_ID));
+            trip.putObject(CARRIER_FIELD)
                     .put("name", t.getString("carrier_name"))
-                    .put("rut", t.getString("carrier_tax_id"));
+                    .put("rut", t.getString(CARRIER_TAX_ID));
         }
         return out;
     }
@@ -557,14 +599,14 @@ public class EngineCaseService {
         EngineCase c = find(tenantCode, symptomId);
         List<ObjectNode> entries = new ArrayList<>();
         List<EngineCase.LevelStep> steps = c.levels();
-        entries.add(entry("OPENED", c.openedAt()).put("level", steps.isEmpty() ? c.level() : steps.get(0).level()));
+        entries.add(entry("OPENED", c.openedAt()).put(LEVEL_FIELD, steps.isEmpty() ? c.level() : steps.get(0).level()));
         for (int i = 1; i < steps.size(); i++) {
-            entries.add(entry("LEVEL_CHANGED", steps.get(i).at()).put("level", steps.get(i).level())
+            entries.add(entry("LEVEL_CHANGED", steps.get(i).at()).put(LEVEL_FIELD, steps.get(i).level())
                     .put("previousLevel", steps.get(i - 1).level()));
         }
         for (EngineCaseStore.CaseNote n : store.notes(tenantCode, c.id())) {
             entries.add(entry("NOTED", n.recordedAt()).put("eventType", n.eventType())
-                    .put("description", n.description()));
+                    .put(DESCRIPTION, n.description()));
         }
         Instant until = c.closedAt() != null ? c.closedAt() : clock.instant();
         for (EngineCase.Ignored h : store.holds(tenantCode, c, until)) {
@@ -573,16 +615,10 @@ public class EngineCaseService {
             held.put("until", h.until() == null ? null : h.until().toString());
             entries.add(held);
         }
-        for (TreatmentView t : treatments == null ? List.<TreatmentView>of() : treatments) {
-            for (TreatmentAction a : t.actions()) {
-                entries.add(entry("ACTION", a.performedAt().toInstant()).put("action", a.kind().name())
-                        .put("by", a.performedBy()).put("contact", a.contactName())
-                        .put("outcome", a.outcomeLabel()));
-            }
-        }
+        addTreatmentActions(entries, treatments);
         if (c.closedAt() != null) {
             ObjectNode closed = entry("CLOSED", c.closedAt());
-            closed.set("context", c.closingContext() == null ? JSON.nullNode() : c.closingContext().deepCopy());
+            closed.set(CONTEXT_FIELD, c.closingContext() == null ? JSON.nullNode() : c.closingContext().deepCopy());
             entries.add(closed);
         }
         ArrayNode out = JSON.arrayNode();
@@ -590,6 +626,16 @@ public class EngineCaseService {
                 .sorted(java.util.Comparator.comparing((ObjectNode e) -> Instant.parse(e.path("at").asText())))
                 .forEach(out::add);
         return out;
+    }
+
+    private static void addTreatmentActions(List<ObjectNode> entries, List<TreatmentView> treatments) {
+        for (TreatmentView t : treatments == null ? List.<TreatmentView>of() : treatments) {
+            for (TreatmentAction a : t.actions()) {
+                entries.add(entry("ACTION", a.performedAt().toInstant()).put("action", a.kind().name())
+                        .put("by", a.performedBy()).put("contact", a.contactName())
+                        .put("outcome", a.outcomeLabel()));
+            }
+        }
     }
 
     private static ObjectNode entry(String kind, Instant at) {
@@ -612,7 +658,7 @@ public class EngineCaseService {
         ObjectNode entry = out.putArray("timeline").addObject();
         entry.put(START, start);
         entry.put("end", end);
-        entry.put("symptom_id", c.symptomId());
+        entry.put(SYMPTOM_ID, c.symptomId());
         entry.put(SYMPTOM_NAME, c.name());
         ArrayNode levelAggs = entry.putArray(CONDITIONS_AGG);
         addLevelAggs(levelAggs, c, started, ended);
@@ -624,6 +670,7 @@ public class EngineCaseService {
         symptom.put(ICU_CODE, c.level());
         symptom.put(ICU_CONDITION, condition(c.level()));
         symptom.put("opened_at", c.openedAt().toString());
+        symptom.put("sla_since", c.slaStart().toString());
         symptom.put("started_at", start);
         symptom.put("duration_sec", Duration.between(started, ended).toSeconds());
         putHold(symptom, c);
@@ -634,15 +681,15 @@ public class EngineCaseService {
         trip.put("trip_code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
-            trip.put("carrier", t.getString("carrier_name"));
-            trip.put("carrier_tax_id", t.getString("carrier_tax_id"));
-            trip.put("driver_rut", t.getString("driver_id"));
-            trip.put("second_driver_rut", t.getString("second_driver_id"));
-            trip.put("origin", t.getString("origin_geofence_label"));
-            trip.put("destination", t.getString("destination_geofence_label"));
-            trip.put("driver", t.getString("driver_name"));
+            trip.put(CARRIER_FIELD, t.getString("carrier_name"));
+            trip.put(CARRIER_TAX_ID, t.getString(CARRIER_TAX_ID));
+            trip.put("driver_rut", t.getString(DRIVER_ID));
+            trip.put("second_driver_rut", t.getString(SECOND_DRIVER_ID));
+            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
+            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put(DRIVER_FIELD, t.getString("driver_name"));
             trip.put("driver2", t.getString("second_driver_name"));
-            trip.put("type_load", t.getString("type_load"));
+            trip.put(TYPE_LOAD, t.getString(TYPE_LOAD));
             trip.put("driver_contact", t.getString("driver_contact_phone"));
         }
         return out;
@@ -701,7 +748,7 @@ public class EngineCaseService {
         ObjectNode agg = aggs.addObject();
         agg.put(START, start);
         agg.put("end", end);
-        agg.put("symptom_id", c.symptomId());
+        agg.put(SYMPTOM_ID, c.symptomId());
         agg.put("is_symptom", 1);
         agg.put("type", c.name());
         agg.put("symptom_description", c.name());
@@ -756,7 +803,7 @@ public class EngineCaseService {
         reason.put(ICU_CODE, c.level());
         reason.put(ICU_CONDITION, condition(c.level()));
         reason.put("rule", c.levelRule());
-        reason.set("context", c.levelContext() == null ? JSON.nullNode() : c.levelContext().deepCopy());
+        reason.set(CONTEXT_FIELD, c.levelContext() == null ? JSON.nullNode() : c.levelContext().deepCopy());
         Instant lost = lostSince(c.openingContext());
         if (lost != null) {
             reason.put("lost_since", lost.toString());

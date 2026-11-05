@@ -69,6 +69,9 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
             VALUES ($1, $2, $3, $4) ON CONFLICT (sip_username) DO NOTHING""";
     private static final String TENANT_OF_SIP =
             "SELECT tenant_code FROM miot_integrations.telephony_operator_credentials WHERE sip_username = $1 AND connection_id = $2";
+    private static final String ADMISSIONS = "miot_integrations.telephony_call_admissions";
+    private static final String ADMISSION_COLUMNS = "SELECT call_ref, parked_call_id, target_state FROM " + ADMISSIONS;
+    private static final String CURSORS = "miot_integrations.telephony_reconcile_progress";
     private static final String PLAN_COLUMNS = """
             minutes_per_month, price_cl_mobile_usd, price_cl_landline_usd, price_other_usd, price_whatsapp_call_usd,
             price_whatsapp_template_usd, enforced, updated_by, updated_at""";
@@ -131,6 +134,57 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
     @Override
     public int busyChannels(String connectionId, Instant since) {
         return run(BUSY, Tuple.of(connectionId, utc(since))).iterator().next().getLong("n").intValue();
+    }
+
+    @Override
+    public Optional<CallAdmission> admission(String callRef) {
+        UUID ref = uuid(callRef);
+        return ref == null ? Optional.empty() : readAdmission(run(ADMISSION_COLUMNS + " WHERE call_ref = $1", Tuple.of(ref)));
+    }
+
+    @Override
+    public Optional<CallAdmission> admissionByTargetState(String targetState) {
+        UUID state = uuid(targetState);
+        return state == null ? Optional.empty() : readAdmission(run(ADMISSION_COLUMNS + " WHERE target_state = $1", Tuple.of(state)));
+    }
+
+    @Override
+    public Optional<CallAdmission> admissionByParkedCall(String parkedCallId) {
+        return readAdmission(run(ADMISSION_COLUMNS + " WHERE parked_call_id = $1", Tuple.of(parkedCallId)));
+    }
+
+    private static Optional<CallAdmission> readAdmission(RowSet<Row> result) {
+        var rows = result.iterator();
+        if (!rows.hasNext()) return Optional.empty();
+        Row row = rows.next();
+        return Optional.of(new CallAdmission(row.getUUID("call_ref").toString(), row.getString("parked_call_id"),
+                row.getUUID("target_state").toString()));
+    }
+
+    @Override
+    public void saveAdmission(CallAdmission admission) {
+        run("INSERT INTO " + ADMISSIONS + " (call_ref, parked_call_id, target_state) VALUES ($1, $2, $3)",
+                Tuple.of(UUID.fromString(admission.callRef()), admission.parkedCallId(), UUID.fromString(admission.targetState())));
+    }
+
+    @Override
+    public Optional<ReconcileCursor> reconcileCursor(String connectionId) {
+        var rows = run("SELECT next_page, started_at FROM " + CURSORS + " WHERE connection_id = $1", Tuple.of(connectionId)).iterator();
+        if (!rows.hasNext()) return Optional.empty();
+        Row row = rows.next();
+        return Optional.of(new ReconcileCursor(row.getInteger("next_page"), row.getOffsetDateTime("started_at").toInstant()));
+    }
+
+    @Override
+    public void saveReconcileCursor(String connectionId, ReconcileCursor cursor) {
+        run("INSERT INTO " + CURSORS + " (connection_id, next_page, started_at) VALUES ($1, $2, $3)"
+                + " ON CONFLICT (connection_id) DO UPDATE SET next_page = EXCLUDED.next_page, started_at = EXCLUDED.started_at",
+                Tuple.of(connectionId, cursor.nextPage(), utc(cursor.startedAt())));
+    }
+
+    @Override
+    public void clearReconcileCursor(String connectionId) {
+        run("DELETE FROM " + CURSORS + " WHERE connection_id = $1", Tuple.of(connectionId));
     }
 
     @Override

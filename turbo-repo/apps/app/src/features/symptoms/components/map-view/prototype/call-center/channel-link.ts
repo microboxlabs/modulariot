@@ -12,17 +12,32 @@ export function phoneDigits(phone: string | null | undefined): string | null {
   return digits.length >= 8 ? digits : null;
 }
 
+/**
+ * The number as a call dials it: `+` and the digits with the country code, or
+ * a short service number (`133`) as it is. Null when it is neither.
+ */
+export function dialNumber(phone: string | null | undefined): string | null {
+  const raw = (phone ?? "").trim();
+  const digits = phoneDigits(raw);
+  if (digits) return `+${digits}`;
+  return /^\d{3,4}$/.test(raw) ? raw : null;
+}
+
 export function channelLink(
   method: CallMethod,
   phone: string | null | undefined,
   message: string
 ): string | null {
+  if (method === "phone") {
+    const number = dialNumber(phone);
+    return number ? `tel:${number}` : null;
+  }
   const digits = phoneDigits(phone);
   if (!digits) return null;
-  if (method === "phone") return `tel:+${digits}`;
   if (method === "whatsapp") {
     const text = message.trim();
-    return `https://wa.me/${digits}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+    const query = text ? `?text=${encodeURIComponent(text)}` : "";
+    return `https://wa.me/${digits}${query}`;
   }
   return null;
 }

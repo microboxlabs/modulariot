@@ -137,14 +137,15 @@ class OrgControlTowerMapResourceTest {
             return Uni.createFrom().item(new IssuedToken("t", Instant.now().plusSeconds(3600)));
         }, url, () -> rpc);
         tenant.setEffectiveClientIds(List.of("client-a", "client-child"));
-        return new OrgControlTowerMapResource(tenant, org, new Roles(permissions), null, map,
+        return new OrgControlTowerMapResource(tenant, org, new Roles(permissions), null,
+                new OrgControlTowerMapResource.MapServices(map,
                 new ControlTowerTreatmentService(treatmentReads), new EngineCaseService(engineCases,
                         (t, a, d) -> { }, t -> null, java.time.Clock.systemUTC()),
                 new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments),
                         new AuditService(new InMemoryAuditStore())),
                 new TripWindows((tenantCode, trip, asset) -> moduleTrips.getOrDefault(trip + "/" + asset,
                         Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)),
-                geofences(tripGeofences), instance(signals), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC), legacy);
+                geofences(tripGeofences), instance(signals)), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC), legacy);
     }
 
     @SuppressWarnings("unchecked")
@@ -571,7 +572,7 @@ class OrgControlTowerMapResourceTest {
         JsonNode third = (JsonNode) call(subject.symptoms(ORG, query("p_page=3&p_page_size=5"))).getEntity();
 
         assertEquals(5, first.get("data").size());
-        assertEquals(-1, first.get("data").get(0).get("id").asLong());
+        assertEquals(-12, first.get("data").get(0).get("id").asLong(), "same level: the SLA that runs out first");
         assertEquals(12, first.get("total_rows").asInt());
         assertEquals(3, first.get("total_pages").asInt());
         assertEquals(1, first.get("page").asInt());
@@ -661,8 +662,10 @@ class OrgControlTowerMapResourceTest {
         JsonNode rows = ((JsonNode) call(engineOnly().symptoms(ORG, query("p_page_size=10"))).getEntity()).get("data");
 
         assertEquals(3, rows.size());
-        assertTrue(rows.get(2).get("driver").isNull());
-        assertTrue(rows.get(2).get("carrier").isNull());
+        JsonNode noTrip = rows.get(0);
+        assertEquals(-3, noTrip.get("id").asLong());
+        assertTrue(noTrip.get("driver").isNull());
+        assertTrue(noTrip.get("carrier").isNull());
     }
 
     @Test

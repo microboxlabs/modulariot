@@ -59,6 +59,31 @@ class CredentialProfileServiceTest {
     }
 
     @Test
+    void everySecretMutationInvalidatesLinkedPhoneLinesForTheSameTenantAndCredential() {
+        var service = service();
+        var created = service.create(TENANT, ACTOR, entraRequest("Telephony", "QA"));
+        var patch = new UpdateCredentialProfileRequest(null, null, null, Map.of("clientSecret", "new-secret"));
+        service.update(TENANT, ACTOR, created.id(), patch);
+        service.rotateSecret(TENANT, created.id(), Map.of("clientSecret", "rotated-secret"));
+        service.mergeSecret(TENANT, created.id(), Map.of("clientSecret", "merged-secret"));
+        assertEquals(3, connections.invalidations);
+        assertEquals(TENANT, connections.invalidatedTenant);
+        assertEquals(created.id(), connections.invalidatedCredential);
+    }
+
+    @Test
+    void onlyAChangedPublicConfigurationInvalidatesAnOtherwiseUnchangedCredential() {
+        var service = service();
+        var created = service.create(TENANT, ACTOR, entraRequest("Telephony", "QA"));
+        service.update(TENANT, ACTOR, created.id(), new UpdateCredentialProfileRequest("Renamed", null, ENTRA_CONFIG, null));
+        assertEquals(0, connections.invalidations);
+        var changed = new java.util.LinkedHashMap<>(ENTRA_CONFIG);
+        changed.put("clientId", "99999999-7777-8888-9999-000000000000");
+        service.update(TENANT, ACTOR, created.id(), new UpdateCredentialProfileRequest(null, null, changed, null));
+        assertEquals(1, connections.invalidations);
+    }
+
+    @Test
     void createsAnEntraCredentialWithTheActorAndTheDerivedAuthType() {
         CredentialProfileResponse created = service().create(TENANT, ACTOR, entraRequest("Partner API", "QA"));
 
@@ -544,6 +569,17 @@ class CredentialProfileServiceTest {
     private static class FakeConnections extends IntegrationConnectionRepository {
 
         final List<IntegrationConnection> rows = new ArrayList<>();
+        int invalidations;
+        String invalidatedTenant;
+        String invalidatedCredential;
+
+        @Override
+        public int invalidateTelephonyCredential(String tenantCode, String credentialProfileId) {
+            invalidations++;
+            invalidatedTenant = tenantCode;
+            invalidatedCredential = credentialProfileId;
+            return 0; // Production row filtering and readiness changes are exercised against PostgreSQL.
+        }
 
         FakeConnections() {
             super(null);
@@ -553,6 +589,7 @@ class CredentialProfileServiceTest {
         public List<IntegrationConnection> listByCredentialProfiles(
                 String tenantCode, Collection<String> credentialProfileIds) {
             return rows.stream()
+                    .filter(row -> tenantCode.equals(row.tenantCode()))
                     .filter(row -> credentialProfileIds.contains(row.credentialProfileId()))
                     .toList();
         }

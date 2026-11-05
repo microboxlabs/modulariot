@@ -44,13 +44,14 @@ class IntegrationsTelephonyTest {
             (tenant, id) -> byKey.values().stream().filter(c -> c.tenantCode().equals(tenant) && c.id().equals(id))
                     .findFirst().orElse(null),
             (tenant, c) -> new ResolvedConnection(c.id(), c.baseUrl(), c.metadata(), Map.of("token", "KEY_test")),
-            new TelnyxClient(http, API), new ObjectMapper(), clock);
+            new TelnyxClient(http, API), new ObjectMapper(), clock, "https://miot.test");
     private final IntegrationsTelephony telephony = new IntegrationsTelephony(
             (tenant, provider) -> byKey.get(tenant + "|" + provider), tokens, null, usage,
             new TelephonyPlanService(usage, clock), clock);
 
     private void store(IntegrationConnection c) {
         byKey.put(c.tenantCode() + "|" + c.providerType(), c);
+        http.reply("GET /v2/credential_connections", 200, TelnyxWebRtcTokensTest.parked(c.id()));
     }
 
     @Test
@@ -67,6 +68,12 @@ class IntegrationsTelephonyTest {
         assertEquals(TelephonyProvider.TEAMS_PHONE, lines.get(1).provider());
         assertFalse(lines.get(1).ready());
         assertNull(lines.get(1).callerNumber());
+    }
+
+    @Test
+    void anOrganizationCannotSeeAnotherOrganizationsOwnLine() {
+        store(telnyx("t1", "acme", Map.of("callerNumber", "+56900000000")));
+        assertTrue(telephony.lines("other-tenant").isEmpty());
     }
 
     @Test
@@ -151,6 +158,10 @@ class IntegrationsTelephonyTest {
     @Test
     void e164AcceptsSeparatorsOnly() {
         assertEquals("+56900000000", PhoneNumbers.e164("+56 (9) 0000-0000"));
+        assertEquals("+6834001", PhoneNumbers.e164("+683 4001"));
+        assertNull(PhoneNumbers.e164("+683400"));
+        assertEquals("+123456789012345", PhoneNumbers.e164("+123456789012345"));
+        assertNull(PhoneNumbers.e164("+1234567890123456"));
         assertNull(PhoneNumbers.e164("56900000000"));
         assertNull(PhoneNumbers.e164("+0123456789"));
         assertNull(PhoneNumbers.e164(null));

@@ -32,17 +32,28 @@ public class TelnyxCallEvents {
     private final InboundRouter inbound;
     private final ObjectMapper json;
     private final Clock clock;
+    private final TelnyxParkedCalls parked;
 
     @Inject
+    public TelnyxCallEvents(TelephonyUsageStore usage, InboundRouter inbound, ObjectMapper json, TelnyxParkedCalls parked) {
+        this(usage, inbound, json, Clock.systemUTC(), parked);
+    }
+
     public TelnyxCallEvents(TelephonyUsageStore usage, InboundRouter inbound, ObjectMapper json) {
-        this(usage, inbound, json, Clock.systemUTC());
+        this(usage, inbound, json, Clock.systemUTC(), null);
     }
 
     public TelnyxCallEvents(TelephonyUsageStore usage, InboundRouter inbound, ObjectMapper json, Clock clock) {
+        this(usage, inbound, json, clock, null);
+    }
+
+    public TelnyxCallEvents(TelephonyUsageStore usage, InboundRouter inbound, ObjectMapper json, Clock clock,
+            TelnyxParkedCalls parked) {
         this.usage = usage;
         this.inbound = inbound;
         this.json = json;
         this.clock = clock;
+        this.parked = parked;
     }
 
     /** {@code connectionId}: the connection the webhook URL names; rows of another connection are ignored. */
@@ -57,12 +68,22 @@ public class TelnyxCallEvents {
         JsonNode p = data.path("payload");
         Instant at = time(data.path("occurred_at").asText(null));
         String callControlId = text(p, "call_control_id");
+        if (parked != null) {
+            TelnyxParkedCalls.Handling handling = parked.handle(connectionId, event, p);
+            if (handling.handled()) return new Outcome(event, null, null, null);
+            if (handling.callRef() != null) {
+                p = p.deepCopy();
+                ((com.fasterxml.jackson.databind.node.ObjectNode) p).put("client_state",
+                        Base64.getEncoder().encodeToString(handling.callRef().getBytes(StandardCharsets.UTF_8)));
+            }
+        }
         if ("call.initiated".equals(event) && "incoming".equals(text(p, "direction"))) {
             String tenant = inbound.route(text(p, "from"), at).orElse(null);
             LOG.infof("Telnyx inbound call routed to %s", tenant == null ? "the platform notice" : tenant);
             return new Outcome(event, null, null, tenant);
         }
-        return usage.locked(connectionId, () -> applyLocked(connectionId, event, p, at, callControlId));
+        JsonNode payload = p;
+        return usage.locked(connectionId, () -> applyLocked(connectionId, event, payload, at, callControlId));
     }
 
     private Outcome applyLocked(String connectionId, String event, JsonNode p, Instant at, String callControlId) {

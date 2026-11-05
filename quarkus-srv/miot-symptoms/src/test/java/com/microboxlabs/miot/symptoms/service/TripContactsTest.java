@@ -58,7 +58,7 @@ class TripContactsTest {
                 TripPeople.of("00.000.001-9", "00.000.002-k", "00.000.003-0"),
                 List.of("contact.role == 'Conductor'", "contact.companyRut == event.data.carrierRut"), evaluator);
 
-        assertEquals(Map.of("driverRut", "000000019", "secondDriverRut", "00000002K", "carrierRut", "000000030"),
+        assertEquals(Map.of("driverRut", "000000019", "secondDriverRut", "00000002K", "carrierRut", "000000030", "driverIdType", "RUT"),
                 view.data());
         assertEquals(view.data(), evaluator.data);
         assertEquals(List.of(List.of("id-27"), List.of("id-43")), view.matches());
@@ -78,8 +78,9 @@ class TripContactsTest {
     @Test
     void tooManyConditionsAreRefused() {
         List<String> many = Collections.nCopies(ContactService.MAX_CONDITIONS + 1, "true");
+        Recording evaluator = new Recording();
         assertThrows(IllegalArgumentException.class,
-                () -> service.tripContacts(TENANT, TripPeople.NONE, many, new Recording()));
+                () -> service.tripContacts(TENANT, TripPeople.NONE, many, evaluator));
     }
 
     @Test
@@ -87,8 +88,14 @@ class TripContactsTest {
         assertEquals(List.of("1-9"), TripPeople.of(" 1-9 ", "1-9", "  ").driverRuts());
         assertEquals(Map.of("secondDriverRut", "00000002K"),
                 ContactService.tripData(TripPeople.of(null, "00.000.002-k", null)));
-        assertEquals(Map.of("driverRut", "19", "secondDriverRut", "19"),
+        assertEquals(Map.of("driverRut", "19", "secondDriverRut", "19", "driverIdType", "RUT", "secondDriverIdType", "RUT"),
                 ContactService.tripData(TripPeople.of("1-9", "1-9", null)));
         assertEquals(new TripPeople(List.of(), "76"), TripPeople.of(null, "", "76"));
     }
+    @Test
+    void tripDataPreservesExpectedIdentifierTypesForLegacyConditions() {
+        assertEquals(Map.of("driverRut", "12345674", "driverIdType", "DNI", "carrierRut", "20100000009", "carrierIdType", "RUC"),
+                ContactService.tripData(TripPeople.of("12345674", null, "20100000009")));
+    }
+
 }

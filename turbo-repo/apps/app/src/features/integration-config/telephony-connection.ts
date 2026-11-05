@@ -48,7 +48,7 @@ export const EMPTY_TELEPHONY: TelephonyValues = {
 /** The number without spaces, dots, dashes or parentheses, or null when it is not E.164. */
 export function e164(value: string): string | null {
   const compact = value.trim().replace(/[\s().-]/g, "");
-  return /^\+[1-9]\d{7,14}$/.test(compact) ? compact : null;
+  return /^\+[1-9]\d{6,14}$/.test(compact) ? compact : null;
 }
 
 export function telephonyValues(

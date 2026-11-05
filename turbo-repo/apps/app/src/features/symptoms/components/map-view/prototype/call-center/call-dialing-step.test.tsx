@@ -12,7 +12,28 @@ import CallDialingStep from "./call-dialing-step";
 import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
 import type { StartCallOptions, TelephonyCallResult } from "./telnyx-call";
 
+const { request } = vi.hoisted(() => ({
+  request: vi.fn().mockResolvedValue({
+    callingEnabled: false,
+    state: "NO_PERMISSION",
+    permission: "NONE",
+    canRequest: false,
+    expiresAt: null,
+    lastRequestAt: null,
+    refusal: "CALLING_DISABLED",
+    nextRequestAt: null,
+  }),
+}));
+
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
+// WhatsApp calling off: the permission row stays hidden.
+vi.mock(
+  "@/features/symptoms/control-tower/control-tower-api",
+  async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    controlTowerRequest: request,
+  })
+);
 
 const dict = es as unknown as I18nRecord;
 
@@ -35,6 +56,46 @@ function renderStep(
 }
 
 describe("CallDialingStep", () => {
+  it.each(["TELNYX", "TEAMS_PHONE"] as const)(
+    "keeps emergency calls recordable while %s is configured",
+    (provider) => {
+      const onConfirm = vi.fn();
+      const openTeams = vi.fn();
+      const token = vi.fn();
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Carabineros"
+          contactRole="Emergencias – Carabineros"
+          contactPhone="133"
+          allowedMethods={["phone"]}
+          reason=""
+          line={{
+            connectionId: "test",
+            provider,
+            name: "Central",
+            callerNumber: "+56900000000",
+            ready: true,
+          }}
+          telephonyFailed
+          openTeams={openTeams}
+          token={token}
+          onCancel={vi.fn()}
+          onConfirm={onConfirm}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada telefónica" })
+      );
+      expect(openTeams).not.toHaveBeenCalled();
+      expect(token).not.toHaveBeenCalled();
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+      );
+      expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "phone");
+    }
+  );
+
   it("opens the channel-specific WhatsApp recipient", () => {
     const open = vi.spyOn(window, "open").mockReturnValue(null);
     render(
@@ -61,6 +122,26 @@ describe("CallDialingStep", () => {
     open.mockRestore();
   });
 
+  it("displays the selected WhatsApp channel's number", () => {
+    render(
+      <CallDialingStep
+        dict={dict}
+        contactName="Luis"
+        contactRole="Conductor"
+        contactPhone="+12025550101"
+        channels={{ whatsapp: "+12025550103" }}
+        allowedMethods={["whatsapp"]}
+        reason=""
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Llamada por WhatsApp" })
+    );
+    expect(screen.getByText(/202.*555.*0103/)).toBeTruthy();
+    expect(screen.queryByText(/202.*555.*0101/)).toBeNull();
+  });
   it("offers only the contact's channels", () => {
     renderStep(["whatsapp"]);
     expect(
@@ -72,6 +153,31 @@ describe("CallDialingStep", () => {
     expect(
       screen.queryByRole("button", { name: "Llamada por Microsoft Teams" })
     ).toBeNull();
+  });
+
+  it("confirms the selected WhatsApp method", () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const confirm = vi.fn();
+    render(
+      <CallDialingStep
+        dict={dict}
+        contactName="Synthetic contact"
+        contactRole="Dispatcher"
+        channels={{ whatsapp: "+12025550102" }}
+        allowedMethods={["whatsapp"]}
+        reason=""
+        onCancel={vi.fn()}
+        onConfirm={confirm}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Llamada por WhatsApp" })
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+    );
+    expect(confirm).toHaveBeenCalledWith(expect.any(Number), "whatsapp");
+    open.mockRestore();
   });
 
   it("says so when the contact has no channel, and links to edit it", () => {
@@ -167,7 +273,7 @@ describe("CallDialingStep", () => {
       startedAt: "2026-11-04T10:00:00.000Z",
     };
 
-    function renderTelnyx() {
+    function renderTelnyx(contactPhone = "+56 9 1111 1111") {
       let options: StartCallOptions | null = null;
       const hangup = vi.fn(() => options?.onEnd(result));
       const dial = vi.fn(async (o: StartCallOptions) => {
@@ -185,7 +291,7 @@ describe("CallDialingStep", () => {
           dict={dict}
           contactName="Luis"
           contactRole="Transportista"
-          contactPhone="+56 9 1111 1111"
+          contactPhone={contactPhone}
           allowedMethods={["phone"]}
           reason=""
           line={line}
@@ -210,6 +316,22 @@ describe("CallDialingStep", () => {
       act(() => opts()?.onEnd(result));
       expect(onConfirm).toHaveBeenCalledWith(42, "phone", result);
     });
+
+    it.each(["133", "131", "132", "134"])(
+      "times a native emergency call to %s with a Telnyx line",
+      (number) => {
+        const { dial, token, onConfirm } = renderTelnyx(number);
+        fireEvent.click(
+          screen.getByRole("button", { name: "Llamada telefónica" })
+        );
+        expect(token).not.toHaveBeenCalled();
+        expect(dial).not.toHaveBeenCalled();
+        fireEvent.click(
+          screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+        );
+        expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "phone");
+      }
+    );
 
     it("the red button hangs up instead of timing by hand", async () => {
       const { dial, hangup, onConfirm } = renderTelnyx();
@@ -423,6 +545,12 @@ describe("CallDialingStep", () => {
     );
 
     it("says the minutes are used and offers the phone", async () => {
+      const onConfirm = vi.fn();
+      const token = vi
+        .fn()
+        .mockRejectedValue(
+          new ControlTowerError("used", 409, "telephony_quota_exhausted")
+        );
       render(
         <CallDialingStep
           dict={dict}
@@ -433,13 +561,9 @@ describe("CallDialingStep", () => {
           reason=""
           line={line}
           dial={vi.fn()}
-          token={vi
-            .fn()
-            .mockRejectedValue(
-              new ControlTowerError("used", 409, "telephony_quota_exhausted")
-            )}
+          token={token}
           onCancel={vi.fn()}
-          onConfirm={vi.fn()}
+          onConfirm={onConfirm}
         />
       );
       fireEvent.click(
@@ -451,6 +575,38 @@ describe("CallDialingStep", () => {
       expect(
         screen.getByRole("link", { name: es.symptoms.call_use_phone })
       ).toHaveAttribute("href", "tel:+56911111111");
+      fireEvent.click(
+        screen.getByRole("link", { name: es.symptoms.call_use_phone })
+      );
+      expect(screen.queryByRole("alert")).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+      );
+      expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "phone");
+      expect(token).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe("script blanks", () => {
+  it("shows the fields the case lacks in amber in the message and the goal", () => {
+    render(
+      <CallDialingStep
+        dict={dict}
+        contactName="Luis"
+        contactRole="Driver"
+        allowedMethods={["phone"]}
+        reason="Hola [nombre del conductor]"
+        reasonParts={[{ text: "Hola " }, { blank: "[nombre del conductor]" }]}
+        goal="Confirmar [patente]"
+        goalParts={[{ text: "Confirmar " }, { blank: "[patente]" }]}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+    expect(screen.getByText("[nombre del conductor]").className).toContain(
+      "text-amber-700"
+    );
+    expect(screen.getByText("[patente]").className).toContain("text-amber-700");
   });
 });

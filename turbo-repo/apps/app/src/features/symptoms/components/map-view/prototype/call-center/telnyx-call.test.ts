@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   startTelnyxCall,
   type SdkClient,
@@ -36,6 +36,55 @@ function fakeClient() {
 }
 
 describe("startTelnyxCall", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("fails and disconnects when the SDK never becomes ready", async () => {
+    vi.useFakeTimers();
+    const { client } = fakeClient();
+    const onEnd = vi.fn();
+    await startTelnyxCall({
+      token: "jwt",
+      callerNumber: "+56900000000",
+      destination: "+56911111111",
+      onPhase: vi.fn(),
+      onEnd,
+      sdk: async () => client,
+    });
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(onEnd).toHaveBeenCalledOnce();
+    expect(onEnd).toHaveBeenCalledWith(
+      expect.objectContaining({ callId: null, hangupCause: "CONNECT_TIMEOUT" })
+    );
+    expect(client.disconnect).toHaveBeenCalledOnce();
+    client.fire("telnyx.ready");
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(client.newCall).not.toHaveBeenCalled();
+    expect(onEnd).toHaveBeenCalledOnce();
+  });
+
+  it("clears the deadline for a ready client and cannot end a finished call twice", async () => {
+    vi.useFakeTimers();
+    const { client, update } = fakeClient();
+    const onEnd = vi.fn();
+    const live = await startTelnyxCall({
+      token: "jwt",
+      callerNumber: "+56900000000",
+      destination: "+56911111111",
+      onPhase: vi.fn(),
+      onEnd,
+      sdk: async () => client,
+    });
+    client.fire("telnyx.ready");
+    update("active");
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(onEnd).not.toHaveBeenCalled();
+    update("hangup");
+    live.hangup();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(onEnd).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("ignores another call's notifications on the shared SDK client", async () => {
     const { client, update } = fakeClient();
     const onEnd = vi.fn();

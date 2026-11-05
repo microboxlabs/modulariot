@@ -12,8 +12,8 @@ export type CloseWhen =
   | { kind: "operator" }
   | { kind: "normal"; minutes: number }
   | { kind: "age"; hours: number }
-  /** `path` is the source's trip-active field, such as `signal.trip.active`. */
-  | { kind: "tripEnded"; path: string }
+  /** No current active trip, including a vehicle that has never had one; this is not a historical trip-end event. */
+  | { kind: "tripInactive"; path: string }
   /** `path` is the source's event list, such as `signal.frame.events`. */
   | { kind: "event"; path: string; eventType: string };
 
@@ -67,6 +67,8 @@ export function splitTop(text: string, op: "||" | "&&"): string[] | null {
   let depth = 0;
   let quote: string | null = null;
   let start = 0;
+  const atTopLevelOperator = (index: number) =>
+    depth === 0 && text.startsWith(op, index);
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (quote) {
@@ -77,7 +79,7 @@ export function splitTop(text: string, op: "||" | "&&"): string[] | null {
     else if (ch === ")" || ch === "]") {
       depth--;
       if (depth < 0) return null;
-    } else if (depth === 0 && text.startsWith(op, i)) {
+    } else if (atTopLevelOperator(i)) {
       parts.push(text.slice(start, i).trim());
       start = i + op.length;
       i += op.length - 1;
@@ -144,8 +146,8 @@ function parseWhen(term: string, fields: CloseFields): CloseWhen | null {
     return roundTrips(hours, hours) ? { kind: "age", hours } : null;
   }
   const ended = TRIP_ENDED_NOT.exec(term) ?? TRIP_ENDED_EQ.exec(term);
-  if (ended && ended[1] === fields.tripActive)
-    return { kind: "tripEnded", path: ended[1] };
+  if (ended?.[1] === fields.tripActive)
+    return { kind: "tripInactive", path: ended[1] };
   const event = EVENT.exec(term);
   if (event) {
     const eventType = parseEventString(event[2] ?? "");
@@ -197,7 +199,7 @@ function compileWhen(when: CloseWhen): string {
       return `case.normal_s >= ${decimal(when.minutes * 60)}`;
     case "age":
       return `case.age_h >= ${decimal(when.hours)}`;
-    case "tripEnded":
+    case "tripInactive":
       return `!${when.path}`;
     case "event":
       return `${when.path}.exists(e, e.event_type == ${JSON.stringify(when.eventType)})`;
@@ -220,7 +222,7 @@ export function parseNoteRows(
   rule: string | null | undefined
 ): NoteRow[] | null {
   const text = (rule ?? "").trim();
-  if (!text) return [];
+  if (!text || unwrap(text) === "false") return [];
   const parts = splitTop(text, "||");
   if (!parts) return null;
   const rows: NoteRow[] = [];

@@ -60,9 +60,11 @@ class OrgControlTowerTelephonyResourceTest {
 
     @Test
     void rejectsTheSharedServiceIdentityBeforeIssuingALogin() {
-        assertThrows(ForbiddenException.class, () -> resource(null).webRtcToken("org-a", new TelephonyChoiceService.CallRequest("+56911111111", null)));
-        assertThrows(ForbiddenException.class, () -> resource(null).reconcile("org-a"));
-        assertThrows(ForbiddenException.class, () -> resource(null).callEnded("org-a", "ref", null));
+        var anonymous = resource(null);
+        var call = new TelephonyChoiceService.CallRequest("+56911111111", null);
+        assertThrows(ForbiddenException.class, () -> anonymous.webRtcToken("org-a", call));
+        assertThrows(ForbiddenException.class, () -> anonymous.reconcile("org-a"));
+        assertThrows(ForbiddenException.class, () -> anonymous.callEnded("org-a", "ref", null));
         assertNull(issuedTo);
     }
 

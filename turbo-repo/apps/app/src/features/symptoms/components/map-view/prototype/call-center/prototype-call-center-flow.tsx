@@ -1,5 +1,7 @@
 "use client";
 
+import { phoneForMethod } from "./call-targets";
+
 /**
  * PROTOTYPE — debug variant of the "Llamar a…" menu entry. Same props as
  * `PrototypeCallDriver` (so `prototype-inline-form` can swap the two behind
@@ -85,11 +87,9 @@ export default function PrototypeCallCenterFlow({
   onRepeatCallChange,
   formDraft,
   onFormDraftChange,
-  startedAt,
   skippedTo,
   onSkip,
 }: Readonly<{
-  startedAt: number;
   skippedTo: number | null;
   onSkip: (step: number) => void;
   dict: I18nRecord;
@@ -189,11 +189,11 @@ export default function PrototypeCallCenterFlow({
     method: CallMethod,
     result: TelephonyCallResult | null = null
   ) => {
-    const calledPhone =
-      method === "phone" || method === "whatsapp"
-        ? (activeContact?.channels?.[method] ?? activePhone)
-        : activePhone;
-    setActivePhone(calledPhone);
+    const selectedPhone = phoneForMethod(
+      { phone: activePhone, channels: activeContact?.channels },
+      method
+    );
+    setActivePhone(selectedPhone);
     setCallDurationSeconds(elapsedSeconds);
     setCallMethodUsed(method);
     setCallTelephony(result);
@@ -204,7 +204,7 @@ export default function PrototypeCallCenterFlow({
       contact: activeContact,
       personName: activePersonName,
       role: activeRole,
-      phone: calledPhone,
+      phone: selectedPhone,
       allowedMethods: activeAllowedMethods,
       durationSeconds: elapsedSeconds,
       methodUsed: method,
@@ -235,7 +235,6 @@ export default function PrototypeCallCenterFlow({
           <CallCenterMenu
             dict={dict}
             treatmentData={treatmentData}
-            startedAt={startedAt}
             skippedTo={skippedTo}
             onSkip={onSkip}
             onCall={handleCall}
@@ -254,7 +253,13 @@ export default function PrototypeCallCenterFlow({
           allowedMethods={activeAllowedMethods ?? []}
           contactId={activeContact?.contactId}
           reason={messageToCommunicate}
+          reasonParts={
+            activeScript?.message === messageToCommunicate
+              ? activeScript.messageParts
+              : undefined
+          }
           goal={activeScript?.goal}
+          goalParts={activeScript?.goalParts}
           line={providerCalls ? (telephony?.active ?? null) : null}
           telephonyPending={providerCalls && !telephony && !telephonyError}
           telephonyFailed={providerCalls && Boolean(telephonyError)}

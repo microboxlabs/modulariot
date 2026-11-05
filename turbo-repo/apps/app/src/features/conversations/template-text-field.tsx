@@ -93,6 +93,7 @@ export default function TemplateTextField({
   onFocusField?: (insert: Inserter) => () => void;
 }>) {
   const ref = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
+  const composing = useRef(false);
   const changeRef = useRef(onChange);
   changeRef.current = onChange;
   const listId = useId();
@@ -119,6 +120,7 @@ export default function TemplateTextField({
     const end = el?.selectionEnd ?? current.length;
     const next = spliceSelection(current, start, end, insert, close);
     changeRef.current(next.value);
+    setOpen(null);
     requestAnimationFrame(() => {
       el?.focus();
       el?.setSelectionRange(next.caret, next.caret);
@@ -130,6 +132,7 @@ export default function TemplateTextField({
   const [open, setOpen] = useState<OpenVariable | null>(null);
   const [active, setActive] = useState(0);
   const suggestions = open ? matchingVariables(variables, open.query) : [];
+  const activeIndex = active < suggestions.length ? active : 0;
   const track = () => {
     const el = ref.current;
     const caret = el?.selectionStart ?? null;
@@ -142,14 +145,13 @@ export default function TemplateTextField({
   };
   const pick = (name: string) => {
     const el = ref.current;
-    if (!el || !open) return;
-    const next = completeVariable(
-      el.value,
-      open,
-      el.selectionStart ?? el.value.length,
-      name
-    );
+    if (!el) return;
+    const caret = el.selectionStart ?? el.value.length;
+    const currentOpen =
+      caret === el.selectionEnd ? openVariable(el.value, caret) : null;
     setOpen(null);
+    if (!currentOpen) return;
+    const next = completeVariable(el.value, currentOpen, caret, name);
     changeRef.current(next.value);
     requestAnimationFrame(() => {
       el.focus();
@@ -157,6 +159,7 @@ export default function TemplateTextField({
     });
   };
   const onKeyDown = (e: React.KeyboardEvent) => {
+    if (composing.current || e.nativeEvent.isComposing) return;
     if (!open || suggestions.length === 0) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
@@ -164,7 +167,7 @@ export default function TemplateTextField({
       setActive((i) => (i + by + suggestions.length) % suggestions.length);
     } else if (e.key === "Enter" || e.key === "Tab") {
       e.preventDefault();
-      pick(suggestions[active]?.name ?? suggestions[0]!.name);
+      pick(suggestions[activeIndex]!.name);
     } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -276,14 +279,35 @@ export default function TemplateTextField({
             track();
           }}
           onKeyDown={onKeyDown}
+          onCompositionStart={() => {
+            composing.current = true;
+          }}
+          onCompositionEnd={() => {
+            composing.current = false;
+          }}
           onKeyUp={(e) => {
-            if (e.key === "ArrowLeft" || e.key === "ArrowRight") track();
+            if (
+              [
+                "ArrowLeft",
+                "ArrowRight",
+                "Home",
+                "End",
+                "PageUp",
+                "PageDown",
+              ].includes(e.key)
+            )
+              track();
           }}
           onClick={track}
           onBlur={() => setOpen(null)}
           role={open && suggestions.length > 0 ? "combobox" : undefined}
           aria-expanded={open && suggestions.length > 0 ? true : undefined}
           aria-controls={open && suggestions.length > 0 ? listId : undefined}
+          aria-activedescendant={
+            open && suggestions.length > 0
+              ? `${listId}-option-${activeIndex}`
+              : undefined
+          }
           onFocus={() => {
             unregister.current?.();
             unregister.current = onFocusField?.(insertVariable);
@@ -299,10 +323,11 @@ export default function TemplateTextField({
             {suggestions.map((v, i) => (
               <li
                 key={v.name}
+                id={`${listId}-option-${i}`}
                 role="option"
-                aria-selected={i === active}
+                aria-selected={i === activeIndex}
                 title={v.description ?? undefined}
-                className={`flex cursor-pointer items-baseline gap-2 rounded px-2 py-1 text-xs ${i === active ? "bg-blue-50 dark:bg-blue-900/30" : "hover:bg-gray-100 dark:hover:bg-gray-700"}`}
+                className={`flex cursor-pointer items-baseline gap-2 rounded px-2 py-1 text-xs ${i === activeIndex ? "bg-blue-50 dark:bg-blue-900/30" : "hover:bg-gray-100 dark:hover:bg-gray-700"}`}
                 // Keep the caret in the field while picking.
                 onMouseDown={(e) => {
                   e.preventDefault();

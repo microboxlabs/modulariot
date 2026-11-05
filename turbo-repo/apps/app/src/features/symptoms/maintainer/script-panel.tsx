@@ -18,8 +18,11 @@ import {
 } from "@/features/symptoms/control-tower/control-tower-api";
 import type { Step, StepReply } from "./maintainer-api";
 import {
+  blankLabel,
   contextLeaves,
-  fillScriptText,
+  type FieldLabels,
+  filledParts,
+  partsText,
   SCRIPT_PATHS,
   scriptParts,
   valueAt,
@@ -41,7 +44,7 @@ export function scriptFields(
   d: I18nRecord
 ): EventField[] {
   const leaves = contextLeaves(ctx);
-  const paths = leaves.length ? leaves.map((l) => l.path) : [...SCRIPT_PATHS];
+  const paths = [...new Set([...SCRIPT_PATHS, ...leaves.map((l) => l.path)])];
   return paths.map((path) => ({
     name: path,
     type: "string",
@@ -61,6 +64,10 @@ function sampleLabel(s: ScriptSample, lang: string): string {
 }
 
 type PreviewMode = "operator" | "voice";
+interface KeyedReply {
+  key: string;
+  reply: StepReply;
+}
 
 function Filled({
   text,
@@ -90,9 +97,9 @@ function Filled({
           <mark
             key={key}
             title={why}
-            className="rounded bg-amber-100 px-0.5 dark:bg-amber-900/40 dark:text-amber-200"
+            className="rounded bg-amber-100 px-0.5 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
           >
-            {`{{${part.variable}}}`}
+            {blankLabel(part.variable, d.scriptField as FieldLabels)}
           </mark>
         );
       })}
@@ -107,19 +114,29 @@ function Filled({
  */
 function ScriptPreview({
   step,
+  replies,
   ctx,
   hasSample,
+  failed,
+  onRetry,
   resultLabel,
   d,
 }: Readonly<{
   step: Step;
+  replies: readonly KeyedReply[];
   ctx: ScriptContext | undefined;
   hasSample: boolean;
+  failed: boolean;
+  onRetry: () => void;
   resultLabel: (value: string) => string;
   d: I18nRecord;
 }>) {
   const [mode, setMode] = useState<PreviewMode>("operator");
-  const replies = (step.replies ?? []).filter((r) => r.says.trim() || r.result);
+  const visibleReplies = replies.filter(
+    ({ reply }) => reply.says.trim() || reply.result
+  );
+  let sampleMessage = hasSample ? "scriptPreview" : "scriptNoSample";
+  if (failed) sampleMessage = "scriptSampleError";
   const tab = (m: PreviewMode) =>
     `rounded px-2 py-0.5 text-xs ${mode === m ? "bg-white font-medium text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white" : "text-gray-600 dark:text-gray-300"}`;
   return (
@@ -148,8 +165,16 @@ function ScriptPreview({
           ))}
         </div>
       </div>
-      <p className="text-xs text-gray-500 dark:text-gray-400">
-        {hasSample ? tr("scriptPreview", d) : tr("scriptNoSample", d)}
+      <p
+        role={failed ? "alert" : undefined}
+        className="text-xs text-gray-500 dark:text-gray-400"
+      >
+        {trDynamic(sampleMessage, d)}
+        {failed && (
+          <button type="button" className="ml-2 underline" onClick={onRetry}>
+            {tr("scriptRetrySamples", d)}
+          </button>
+        )}
       </p>
       {mode === "operator" ? (
         <div className="flex flex-col gap-2 text-sm text-gray-800 dark:text-gray-100">
@@ -169,14 +194,16 @@ function ScriptPreview({
               <Filled text={step.goal} ctx={ctx} hasSample={hasSample} d={d} />
             </p>
           )}
-          {replies.length > 0 && (
+          {visibleReplies.length > 0 && (
             <ul className="flex flex-col gap-1 text-xs">
-              {replies.map((r, i) => (
-                <li key={`reply-${i}`} className="flex gap-1">
+              {visibleReplies.map(({ key, reply: r }) => (
+                <li key={key} className="flex gap-1">
                   <span className="text-gray-500">→</span>
                   <span>
                     {tr("scriptReplyLine", d, {
-                      says: fillScriptText(r.says, ctx),
+                      says: partsText(
+                        filledParts(r.says, ctx, d.scriptField as FieldLabels)
+                      ),
                       result: resultLabel(r.result),
                     })}
                   </span>
@@ -213,12 +240,14 @@ function ScriptPreview({
             {tr("scriptVoiceResults", d)}
           </dt>
           <dd className="text-xs">
-            {replies.length === 0
+            {visibleReplies.length === 0
               ? tr("scriptNoReplies", d)
-              : replies.map((r, i) => (
-                  <div key={`voice-${i}`}>
+              : visibleReplies.map(({ key, reply: r }) => (
+                  <div key={key}>
                     <b>{resultLabel(r.result)}</b>:{" "}
-                    {fillScriptText(r.says, ctx)}
+                    {partsText(
+                      filledParts(r.says, ctx, d.scriptField as FieldLabels)
+                    )}
                   </div>
                 ))}
           </dd>
@@ -321,8 +350,14 @@ export default function ScriptPanel({
   onChange: (patch: Partial<Step>) => void;
   onClose: () => void;
 }>) {
-  const { data: samples } = useScriptSamples(open ? symptomName : null, icu);
+  const {
+    data: samples,
+    error: sampleError,
+    mutate: refreshSamples,
+  } = useScriptSamples(open ? symptomName : null, icu);
   const [picked, setPicked] = useState(0);
+  if (samples?.length && picked >= samples.length)
+    setPicked(samples.length - 1);
   const sample = samples?.[Math.min(picked, samples.length - 1)];
   const ctx = sample?.context;
   const fields = useMemo(() => scriptFields(ctx, d), [ctx, d]);
@@ -366,7 +401,19 @@ export default function ScriptPanel({
   };
 
   const replies = step.replies ?? [];
-  const setReplies = (next: StepReply[]) => onChange({ replies: next });
+  const [replyIds, setReplyIds] = useState<string[]>(() =>
+    replies.map(() => crypto.randomUUID())
+  );
+  let keys = replyIds;
+  if (keys.length !== replies.length) {
+    keys = replies.map((_, i) => replyIds[i] ?? crypto.randomUUID());
+    setReplyIds(keys);
+  }
+  const rows = replies.map((reply, i) => ({ key: keys[i]!, reply }));
+  const setReplies = (next: KeyedReply[]) => {
+    setReplyIds(next.map((row) => row.key));
+    onChange({ replies: next.map((row) => row.reply) });
+  };
 
   return (
     <SettingsDrawerShell
@@ -397,9 +444,11 @@ export default function ScriptPanel({
                 ))}
               </Select>
             ) : (
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("scriptNoCases", d)}
-              </span>
+              !sampleError && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {tr("scriptNoCases", d)}
+                </span>
+              )
             )}
           </div>
           <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -451,18 +500,22 @@ export default function ScriptPanel({
                     {tr("scriptNoReplies", d)}
                   </p>
                 )}
-                {replies.map((r, i) => (
+                {rows.map(({ key, reply }) => (
                   <ReplyRow
-                    key={`reply-${i}`}
-                    reply={r}
+                    key={key}
+                    reply={reply}
                     results={results}
                     readOnly={readOnly}
                     d={d}
                     onChange={(next) =>
-                      setReplies(replies.map((x, j) => (j === i ? next : x)))
+                      setReplies(
+                        rows.map((row) =>
+                          row.key === key ? { key, reply: next } : row
+                        )
+                      )
                     }
                     onRemove={() =>
-                      setReplies(replies.filter((_, j) => j !== i))
+                      setReplies(rows.filter((row) => row.key !== key))
                     }
                   />
                 ))}
@@ -471,7 +524,13 @@ export default function ScriptPanel({
                     type="button"
                     className="flex items-center gap-1 self-start text-sm text-blue-600 hover:underline dark:text-blue-400"
                     onClick={() =>
-                      setReplies([...replies, { result: "", says: "" }])
+                      setReplies([
+                        ...rows,
+                        {
+                          key: crypto.randomUUID(),
+                          reply: { result: "", says: "" },
+                        },
+                      ])
                     }
                   >
                     <HiPlus className="h-4 w-4" />
@@ -483,8 +542,11 @@ export default function ScriptPanel({
             <div className="flex min-w-0 flex-col gap-4">
               <ScriptPreview
                 step={step}
+                replies={rows}
                 ctx={ctx}
                 hasSample={ctx !== undefined}
+                failed={Boolean(sampleError)}
+                onRetry={() => void refreshSamples()}
                 resultLabel={resultLabel}
                 d={d}
               />

@@ -88,17 +88,25 @@ Billing uses what Telnyx reports. The browser's report only frees the channel; i
 | Step | What is stored in `miot_integrations` |
 | --- | --- |
 | Token issued | `telephony_operator_credentials`: the operator's SIP login and its organization. `telephony_usage`: a STARTED row, holding one channel. |
-| Telnyx webhook `call.answered`, `call.hangup` | The row is found by `client_state` (the row id, base64) and confirmed with the seconds from the answer to the hangup. |
+| Telnyx webhook `call.answered`, `call.hangup` | The private PSTN-leg `client_state` resolves the admission binding to its ledger row; seconds run from answer to hangup. |
 | Reconcile job, every 15 minutes | Detail records of the managed Credential Connection from the last 3 days. Each is charged to the organization that owns its `auth_username`, with `call_sec` (0 when not answered) and Telnyx's `cost`. |
 | STARTED or ENDED for 2 hours with no provider confirmation | EXPIRED; it frees its channel and is not charged. |
 
 Each call is rounded up to a whole minute. Only CONFIRMED rows are charged.
 
-### Open enforcement and reconciliation blockers
+### Per-call admission and resumable reconciliation
 
-The issued WebRTC JWT is a reusable 24-hour login. The checks above admit token requests, but cannot enforce a quota or channel limit on every call made with an existing login. Managed calling needs provider-side per-call authorization or server-controlled origination before strict enforcement can be promised. A new call reference does not constrain a JWT.
+The WebRTC JWT remains a reusable 24-hour login, but its Credential Connection must park outbound calls. Set `MIOT_INTEGRATIONS_TELEPHONY_WEBHOOK_BASE_URL` to the public HTTPS modulith origin. Before issuing any JWT the server verifies that the provider connection is active, has `outbound.call_parking_enabled: true`, uses webhook API version `2` at exactly `<origin>/webhooks/telnyx/{connectionId}`, and disables inbound SIP URI calling with `sip_uri_calling_preference: disabled`. A missing or different configuration refuses the token.
 
-The fallback detail-record scan is bounded to 20 pages of the account's last three days. An incomplete scan is logged as an error; persistent progress over stable time windows is still required for accounts exceeding that volume. Do not rely on complete fallback billing at that scale.
+**Admission remains blocked for production certification:** [Telnyx documents that emergency calls bypass parking](https://support.telnyx.com/en/articles/4351104-sip-connection-settings). Parking therefore protects ordinary PSTN calls but does not establish admission for every route available to this reusable JWT. A verified provider restriction covering those routes, or a different authentication/calling architecture, is still required. These changes have not been exercised against a real Telnyx account.
+
+On the signed parked-leg webhook the server consumes one unused reservation, rechecks quota and the line's current channel limit, and transfers the leg to the reservation's stored destination using its API key. Reservations must be consumed within five minutes. A second SDK call cannot reuse one. The transfer has a stable command ID for retries and a private target-leg state, never returned to the browser, so only the PSTN leg supplies billable answer/hangup events. A browser end report cannot release an admitted channel; provider events or the bounded provider call duration release it.
+
+The fallback detail-record scan visits at most 20 pages per run and persists its next page in PostgreSQL. Restarts and other replicas continue that cursor under a shared lock. Pages use descending `started_at`, so new records enter before the cursor and may cause safe duplicate processing rather than skipping unvisited records. The lookback expands by the elapsed scan duration rounded up to days, retaining the original window with either rolling or calendar-day provider semantics. HTTP failures and malformed pagination retain the failed page. Incomplete results and logs include `nextPage`. A completed scan clears the cursor and starts a fresh three-day pass next time to revisit late records and costs.
+
+Migration `V0.6.41` adds the admission bindings and reconciliation cursor. Previously applied migrations remain unchanged. Before enabling production calling, configure parking and the signed webhook on Telnyx, set the public origin above, and test an allowed call, a second SDK call with the same JWT, quota/channel refusal, hangup, and CDR reconciliation against the actual provider.
+
+Provider contracts: [parked credential connections](https://developers.telnyx.com/docs/voice/webrtc/auth/credential-connections), [server-side transfer](https://developers.telnyx.com/api-reference/call-commands/transfer-call), [detail record pagination](https://developers.telnyx.com/api-reference/detail-records/search-detail-records).
 
 | Setting | Where |
 | --- | --- |

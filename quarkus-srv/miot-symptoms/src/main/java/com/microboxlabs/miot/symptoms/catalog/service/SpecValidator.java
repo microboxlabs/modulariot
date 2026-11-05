@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -35,6 +36,8 @@ public final class SpecValidator {
     /** Distance from each threshold at which overlaps are tried, on both sides. */
     private static final double NEAR = 0.01;
     private static final String LEVELS = "levels";
+    private static final String LEVEL_SECTION_PREFIX = "levels.";
+    private static final String RESPONSE_SUFFIX = ".response";
     private static final String ACTIVATION = "activation";
     private static final String MEASURE = "measure";
     private static final String HELD = "held_s";
@@ -108,6 +111,11 @@ public final class SpecValidator {
 
     public static Report validate(SymptomSpec spec, DataSource source,
             Function<String, Optional<String>> contactProblem) {
+        return validate(spec, source, contactProblem, result -> true);
+    }
+
+    public static Report validate(SymptomSpec spec, DataSource source,
+            Function<String, Optional<String>> contactProblem, Predicate<String> knownResult) {
         List<Finding> out = new ArrayList<>();
         if (source == null) {
             out.add(new Finding("source", Severity.ERROR, RuleMessage.of("sourceMissing"), -1));
@@ -136,6 +144,7 @@ public final class SpecValidator {
             }
         }
         contactConditions(out, spec, contactProblem);
+        replyResults(out, spec, knownResult);
         recurrence(out, spec.recurrence());
         engineSupport(out, source, spec);
         if (spec.family() != null && spec.family().codePointCount(0, spec.family().length()) > MAX_FAMILY) {
@@ -147,13 +156,43 @@ public final class SpecValidator {
         return new Report(out);
     }
 
+    private static void replyResults(List<Finding> out, SymptomSpec spec, Predicate<String> knownResult) {
+        if (spec.levels() == null) return;
+        for (Level level : spec.levels()) {
+            if (level.applies() && level.response() != null) {
+                stepReplyResults(out, LEVEL_SECTION_PREFIX + level.icu() + RESPONSE_SUFFIX,
+                        level.response().steps(), knownResult);
+            }
+        }
+    }
+
+    private static void stepReplyResults(List<Finding> out, String section, List<SymptomSpec.Step> steps,
+            Predicate<String> knownResult) {
+        if (steps == null) return;
+        for (int i = 0; i < steps.size(); i++) {
+            checkReplies(out, section, i + 1, steps.get(i).replies(), knownResult);
+        }
+    }
+
+    private static void checkReplies(List<Finding> out, String section, int step,
+            List<SymptomSpec.Step.Reply> replies, Predicate<String> knownResult) {
+        if (replies == null) return;
+        for (SymptomSpec.Step.Reply reply : replies) {
+            String result = reply == null ? null : reply.result();
+            if (result == null || result.isBlank() || !knownResult.test(result)) {
+                out.add(new Finding(section, Severity.ERROR,
+                        RuleMessage.of("stepReplyInvalidResult", "n", step, "result", result == null ? "" : result), -1));
+            }
+        }
+    }
+
     private static void contactConditions(List<Finding> out, SymptomSpec spec,
             Function<String, Optional<String>> check) {
         if (spec.levels() == null) return;
         for (SymptomSpec.Level level : spec.levels()) {
             SymptomSpec.Response response = level.response();
             if (response == null) continue;
-            String section = "levels." + level.icu() + ".response";
+            String section = LEVEL_SECTION_PREFIX + level.icu() + RESPONSE_SUFFIX;
             contactCondition(out, section, response.escalateWho(), check);
             if (response.steps() != null) {
                 for (SymptomSpec.Step step : response.steps()) {
@@ -190,10 +229,10 @@ public final class SpecValidator {
             if (!level.applies()) {
                 continue;
             }
-            String section = "levels." + level.icu();
+            String section = LEVEL_SECTION_PREFIX + level.icu();
             int before = out.size();
             rule(out, section, schema, level.when(), Expect.CONDITION);
-            response(out, section + ".response", level.response());
+            response(out, section + RESPONSE_SUFFIX, level.response());
             ignore(out, section + ".ignore", level.ignore());
             if (out.size() == before) {
                 valid.add(level);
@@ -352,7 +391,7 @@ public final class SpecValidator {
         for (Level level : levels) {
             // A rule that does not parse has its own error.
             if (level.applies() && RuleText.identifiers(level.when()).contains(MEASURE)) {
-                out.add(new Finding("levels." + level.icu(), Severity.ERROR, RuleMessage.of("measureMissing"), -1));
+                out.add(new Finding(LEVEL_SECTION_PREFIX + level.icu(), Severity.ERROR, RuleMessage.of("measureMissing"), -1));
             }
         }
     }

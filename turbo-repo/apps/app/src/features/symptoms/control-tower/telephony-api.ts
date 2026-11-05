@@ -12,43 +12,36 @@ import {
   controlTowerRequest as request,
 } from "./control-tower-api";
 
-export type TelephonyProvider = "TELNYX" | "TEAMS_PHONE";
-
-export interface TelephonyLine {
-  connectionId: string;
-  provider: TelephonyProvider;
-  name: string;
-  /** E.164, or null when the provider decides. */
-  callerNumber: string | null;
-  /** Whether the connection's last test passed. */
-  ready: boolean;
-  /** The platform's shared line, charged per minute. */
-  managed?: boolean;
-}
-
-export interface TelephonySetup {
-  /** What the organization chose; null lets the server pick (Telnyx first). */
-  preferred: TelephonyProvider | null;
-  /** The line calls use now; null opens the phone's dialer. */
-  active: TelephonyLine | null;
-  lines: TelephonyLine[];
-}
+import {
+  parseTelephonySetup,
+  parseWebRtcToken,
+  parseReconcileResult,
+  type TelephonyProvider,
+  type TelephonySetup,
+} from "./telephony-api.types";
+export type {
+  TelephonyProvider,
+  TelephonyLine,
+  TelephonySetup,
+} from "./telephony-api.types";
 
 export const telephonyKey = `${CONTROL_TOWER_BASE}/telephony`;
 
 export function useTelephony(enabled = true) {
   return useSWR<TelephonySetup>(
     enabled ? telephonyKey : null,
-    (path: string) => request<TelephonySetup>(path),
+    async (path: string) => parseTelephonySetup(await request<unknown>(path)),
     { revalidateOnFocus: false, shouldRetryOnError: false }
   );
 }
 
 export async function saveTelephony(provider: TelephonyProvider | null) {
-  const saved = await request<TelephonySetup>(telephonyKey, {
-    method: "PUT",
-    body: { provider },
-  });
+  const saved = parseTelephonySetup(
+    await request<unknown>(telephonyKey, {
+      method: "PUT",
+      body: { provider },
+    })
+  );
   await mutate(telephonyKey, saved, { revalidate: false });
   return saved;
 }
@@ -57,19 +50,16 @@ export async function saveTelephony(provider: TelephonyProvider | null) {
 export const QUOTA_EXHAUSTED = "telephony_quota_exhausted";
 export const CHANNELS_BUSY = "telephony_channels_busy";
 
-/**
- * Asks for a Telnyx WebRTC login for the signed-in operator, for one call.
- * `callRef` is the call's usage row; the call carries it as client state.
- */
-export function fetchWebRtcToken(
+/** Reserves a managed call and requests the operator's reusable Telnyx login. */
+export async function fetchWebRtcToken(
   call: { calleeNumber?: string; caseRef?: string } = {}
 ) {
-  return request<{
-    token: string;
-    callerNumber: string;
-    expiresAt: string;
-    callRef?: string | null;
-  }>(`${telephonyKey}/webrtc-token`, { method: "POST", body: call });
+  return parseWebRtcToken(
+    await request<unknown>(`${telephonyKey}/webrtc-token`, {
+      method: "POST",
+      body: call,
+    })
+  );
 }
 
 /** The browser's call ended; frees its channel. Telnyx still gives the billed seconds. */
@@ -83,17 +73,13 @@ export function reportCallEnded(
   );
 }
 
-export interface ReconcileResult {
-  checked: number;
-  recorded: number;
-  pending: number;
-}
+export type { ReconcileResult } from "./telephony-api.types";
 
 /** Fills the signed-in operator's pending Teams calls from Graph's call records. */
-export function reconcileTeamsCalls() {
-  return request<ReconcileResult>(`${telephonyKey}/reconcile`, {
-    method: "POST",
-  });
+export async function reconcileTeamsCalls() {
+  return parseReconcileResult(
+    await request<unknown>(`${telephonyKey}/reconcile`, { method: "POST" })
+  );
 }
 
 /** Graph publishes PSTN records minutes after the call: ask again at these delays. */

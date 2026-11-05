@@ -45,6 +45,24 @@ public interface TelephonyUsageStore {
 
     Optional<String> tenantOfSip(String sipUsername, String sipConnectionId);
 
+    Optional<CallAdmission> admission(String callRef);
+
+    Optional<CallAdmission> admissionByTargetState(String targetState);
+
+    Optional<CallAdmission> admissionByParkedCall(String parkedCallId);
+
+    /** Called under the line lock. A reservation can authorize only one parked leg. */
+    void saveAdmission(CallAdmission admission);
+
+    record ReconcileCursor(int nextPage, Instant startedAt) {
+    }
+
+    Optional<ReconcileCursor> reconcileCursor(String connectionId);
+
+    void saveReconcileCursor(String connectionId, ReconcileCursor cursor);
+
+    void clearReconcileCursor(String connectionId);
+
     Plan plan();
 
     Plan setPlan(Plan plan, String actor);

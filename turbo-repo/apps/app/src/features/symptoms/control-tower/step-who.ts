@@ -17,7 +17,9 @@ export const DRIVER_ROLE = "Conductor";
 /** The role older steps used for "the trip's carrier". */
 const LEGACY_CARRIER_ROLE = "Transportista";
 const LEGACY_DRIVER_WHO =
-  "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && contact.nationalId == event.data.secondDriverRut))";
+  "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && has(event.data.driverIdType) && contact.nationalIdType == event.data.driverIdType && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && has(event.data.secondDriverIdType) && contact.nationalIdType == event.data.secondDriverIdType && contact.nationalId == event.data.secondDriverRut))";
+const CARRIER_TYPE =
+  " && has(event.data.carrierIdType) && contact.companyTaxIdType == event.data.carrierIdType";
 const ORG_ONLY = " && contact.companyRut == ''";
 
 /** The fields of `event.data` a step's condition can read: the case trip's RUTs. */
@@ -68,7 +70,8 @@ export function legacyWho(
     "contact.role ==",
     "contact.roleKey =="
   );
-  return !carrier && compiled ? compiled + ORG_ONLY : compiled;
+  if (carrier && compiled) return compiled + CARRIER_TYPE;
+  return compiled ? compiled + ORG_ONLY : compiled;
 }
 
 /** A step's condition, read from its older role and scope when it has none. */
@@ -101,9 +104,12 @@ export function summarizeWho(who: string): WhoSummary | null {
       carrier: false,
       driverField: "either",
     };
-  const condition = who.endsWith(ORG_ONLY)
-    ? who.slice(0, -ORG_ONLY.length)
+  const withoutType = who.endsWith(CARRIER_TYPE)
+    ? who.slice(0, -CARRIER_TYPE.length)
     : who;
+  const condition = withoutType.endsWith(ORG_ONLY)
+    ? withoutType.slice(0, -ORG_ONLY.length)
+    : withoutType;
   const readable = condition.startsWith("contact.roleKey ==")
     ? condition.replace("contact.roleKey ==", "contact.role ==")
     : condition;
@@ -119,7 +125,7 @@ export function summarizeWho(who: string): WhoSummary | null {
     return null;
   const role = clauses.find((c) => c.kind === "role");
   return {
-    role: role && role.kind === "role" ? role.value || null : null,
+    role: role?.kind === "role" ? role.value || null : null,
     driver: clauses.some((c) => c.kind === "nationalIdIs"),
     carrier: clauses.some((c) => c.kind === "companyRutIs"),
   };

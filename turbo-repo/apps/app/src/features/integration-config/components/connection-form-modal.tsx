@@ -75,28 +75,17 @@ const DEFAULTS: ConnectionFormData = {
   ...EMPTY_TELEPHONY,
 };
 
-/**
- * Create/edit form for a connection — one instance of a template.
- *
- * Only what varies per instance is editable: the endpoint and the credential. The
- * contract comes from the template and is shown read-only, because changing it would
- * change the payload under the bindings already mapped against it.
- */
-export function ConnectionFormModal({
-  show,
+function nativeConnectionSettings({
   connection,
   template,
   providerType,
   credentials,
-  onClose,
-  onSave,
-  onDelete,
-  onTest,
-  onTestDraft,
-  saving,
-  dict,
-}: Readonly<ConnectionFormModalProps>) {
-  const isEdit = connection !== undefined;
+}: Readonly<
+  Pick<
+    ConnectionFormModalProps,
+    "connection" | "template" | "providerType" | "credentials"
+  >
+>) {
   const isPostgrest =
     !template && (providerType ?? connection?.providerType) === "POSTGREST";
   const isBigQuery =
@@ -121,6 +110,51 @@ export function ConnectionFormModal({
     choices = credentials.filter(
       (c) => c.typeId === TELEPHONY_CREDENTIAL_TYPES[telephony]
     );
+  return {
+    isPostgrest,
+    isBigQuery,
+    telephony,
+    nativeKind,
+    fixedBaseUrl,
+    choices,
+  };
+}
+
+/**
+ * Create/edit form for a connection — one instance of a template.
+ *
+ * Only what varies per instance is editable: the endpoint and the credential. The
+ * contract comes from the template and is shown read-only, because changing it would
+ * change the payload under the bindings already mapped against it.
+ */
+export function ConnectionFormModal({
+  show,
+  connection,
+  template,
+  providerType,
+  credentials,
+  onClose,
+  onSave,
+  onDelete,
+  onTest,
+  onTestDraft,
+  saving,
+  dict,
+}: Readonly<ConnectionFormModalProps>) {
+  const isEdit = connection !== undefined;
+  const {
+    isPostgrest,
+    isBigQuery,
+    telephony,
+    nativeKind,
+    fixedBaseUrl,
+    choices,
+  } = nativeConnectionSettings({
+    connection,
+    template,
+    providerType,
+    credentials,
+  });
   const [error, setError] = useState<Error | null>(null);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(
     null
@@ -422,16 +456,23 @@ export function ConnectionFormModal({
         {/* Creating tests the form values without storing anything; editing tests the
           saved connection and records the result on it. */}
         {canTest && (
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              color="light"
-              disabled={testing || saving}
-              onClick={handleTest}
-            >
-              {testing ? <Spinner size="sm" /> : tr("connections.test", dict)}
-            </Button>
-            {testResult && <TestResultLine result={testResult} dict={dict} />}
+          <div className="flex flex-col gap-2">
+            {connection && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {tr("connection.form.testSavedConfigHint", dict)}
+              </p>
+            )}
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                color="light"
+                disabled={testing || saving}
+                onClick={handleTest}
+              >
+                {testing ? <Spinner size="sm" /> : tr("connections.test", dict)}
+              </Button>
+              {testResult && <TestResultLine result={testResult} dict={dict} />}
+            </div>
           </div>
         )}
 

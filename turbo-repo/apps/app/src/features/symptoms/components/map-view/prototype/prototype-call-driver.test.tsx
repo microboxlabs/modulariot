@@ -80,7 +80,8 @@ const draft: CallFormDraft = {
 function renderCall(
   saved = false,
   resultadoId = draft.resultadoId,
-  callTelephony: TelephonyCallResult | null = null
+  callTelephony: TelephonyCallResult | null = null,
+  person = { name: "Test contact", phone: "+12025550100", role: "Dispatcher" }
 ) {
   const closeMenu = vi.fn();
   render(
@@ -92,9 +93,9 @@ function renderCall(
       treatmentRequest={request}
       setTreatmentRequest={vi.fn()}
       setIsMenuOpen={closeMenu}
-      initialCallTargetName="Test contact"
-      initialCallTargetPhone="+12025550100"
-      initialCallTargetRole="Dispatcher"
+      initialCallTargetName={person.name}
+      initialCallTargetPhone={person.phone}
+      initialCallTargetRole={person.role}
       initialDraft={{ ...draft, saved, resultadoId }}
       callDurationSeconds={30}
       callTelephony={callTelephony}
@@ -113,6 +114,92 @@ beforeEach(() => {
 });
 
 describe("engine call treatment form", () => {
+  it.each([
+    ["Carabineros", "133"],
+    ["Ambulancia (SAMU)", "131"],
+    ["Bomberos", "132"],
+    ["PDI", "134"],
+  ])(
+    "records the emergency call to %s as a CALL action",
+    async (name, phone) => {
+      const user = userEvent.setup();
+      renderCall(false, draft.resultadoId, null, {
+        name,
+        phone,
+        role: `Emergencias – ${name}`,
+      });
+      await user.click(
+        screen.getByRole("button", { name: es.symptoms.save_treatment })
+      );
+      await waitFor(() =>
+        expect(api.addTreatmentAction).toHaveBeenCalledWith(
+          "t-1",
+          expect.objectContaining({
+            kind: "CALL",
+            contactName: name,
+            contactPhone: phone,
+            contactRole: `Emergencias – ${name}`,
+            durationSeconds: 30,
+          })
+        )
+      );
+    }
+  );
+
+  it.each([
+    {
+      answered: false,
+      selected: "result_corrected",
+      button: "save_treatment",
+      expected: "call_telephony_unanswered",
+    },
+    {
+      answered: true,
+      selected: "result_no_answer",
+      button: "save_and_call_again",
+      expected: "call_telephony_answered",
+    },
+    {
+      answered: true,
+      selected: "result_corrected",
+      button: "save_treatment",
+      expected: "result_corrected",
+    },
+    {
+      answered: false,
+      selected: "result_no_answer",
+      button: "save_and_call_again",
+      expected: "result_no_answer",
+    },
+  ] as const)(
+    "saves a consistent provider outcome: $selected / $answered / $button",
+    async ({ answered, selected, button, expected }) => {
+      const user = userEvent.setup();
+      renderCall(false, selected, {
+        provider: "TELNYX",
+        answered,
+        durationSeconds: answered ? 30 : 0,
+        hangupCause: null,
+        sipCode: null,
+        callId: "provider-call",
+        calleeNumber: "+12025550100",
+        startedAt: "2026-11-04T10:00:00Z",
+      });
+      await user.click(
+        screen.getByRole("button", { name: es.symptoms[button] })
+      );
+      await waitFor(() =>
+        expect(api.addTreatmentAction).toHaveBeenCalledWith(
+          "t-1",
+          expect.objectContaining({
+            answered,
+            outcomeLabel: es.symptoms[expected],
+          })
+        )
+      );
+    }
+  );
+
   it("records the selected person's identity and number rather than the role picker", async () => {
     const user = userEvent.setup();
     const closeMenu = renderCall();

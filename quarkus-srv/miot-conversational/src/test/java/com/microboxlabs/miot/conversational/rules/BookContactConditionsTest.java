@@ -61,4 +61,15 @@ class BookContactConditionsTest {
         assertTrue(conditions.problem("contact.role == (").isPresent());
         assertTrue(conditions.problem("contact.role == 'Conductor'").isEmpty());
     }
+    @Test
+    void legacyIdentifierTypeGuardsKeepDniAndRucContactsDistinctFromRut() {
+        BookContactConditions typed = new BookContactConditions(tenant -> List.of(
+                new Entry("dni", "DNI", "Conductor", List.of(), "Peru", "20100000009", null, false, null, null, "12345674", "DNI", "RUC"),
+                new Entry("rut", "RUT", "Conductor", List.of(), "Other", "20100000009", null, false, null, null, "12345674", "RUT", "RUT")));
+        assertEquals(List.of(List.of("dni"), List.of("dni")), typed.match("t", List.of(
+                "contact.nationalId == event.data.driverRut && contact.nationalIdType == event.data.driverIdType",
+                "contact.companyRut == event.data.carrierRut && contact.companyTaxIdType == event.data.carrierIdType"),
+                Map.of("driverRut", "12345674", "driverIdType", "DNI", "carrierRut", "20100000009", "carrierIdType", "RUC")));
+    }
+
 }

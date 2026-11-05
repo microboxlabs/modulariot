@@ -67,8 +67,8 @@ describe("stepConditions", () => {
         step(null, null, "'vip' in contact.tags"),
       ])
     ).toEqual([
-      "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && contact.nationalId == event.data.secondDriverRut))",
-      "contact.roleKey == 'gerente de seguridad' && contact.companyRut == event.data.carrierRut",
+      "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && has(event.data.driverIdType) && contact.nationalIdType == event.data.driverIdType && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && has(event.data.secondDriverIdType) && contact.nationalIdType == event.data.secondDriverIdType && contact.nationalId == event.data.secondDriverRut))",
+      "contact.roleKey == 'gerente de seguridad' && contact.companyRut == event.data.carrierRut && has(event.data.carrierIdType) && contact.companyTaxIdType == event.data.carrierIdType",
       "'vip' in contact.tags",
     ]);
   });
@@ -150,7 +150,7 @@ const action = (patch: Partial<TowerAction>): TowerAction =>
   }) as TowerAction;
 
 describe("calledInCase", () => {
-  it("keeps the latest CALL per contact, and counts older driver calls for each trip driver", () => {
+  it("keeps explicit contact calls and does not attribute a role-only call to current drivers", () => {
     const treatments = [
       {
         actions: [
@@ -164,8 +164,8 @@ describe("calledInCase", () => {
         ],
       },
     ] as TowerTreatment[];
-    const called = calledInCase(treatments, new Set(["ana", "beto"]));
-    expect([...called.keys()].sort()).toEqual(["ana", "beto", "gs"]);
+    const called = calledInCase(treatments);
+    expect([...called.keys()].sort()).toEqual(["gs"]);
     expect(called.get("gs")?.toISOString()).toBe("2026-11-03T10:09:00.000Z");
     expect(calledInCase(treatments).has("ana")).toBe(false);
     expect(calledInCase(undefined).size).toBe(0);

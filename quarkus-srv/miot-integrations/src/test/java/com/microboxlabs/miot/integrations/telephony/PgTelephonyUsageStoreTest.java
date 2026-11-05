@@ -32,7 +32,8 @@ class PgTelephonyUsageStoreTest {
         String schema = "cert_voice_" + UUID.randomUUID().toString().replace("-", "");
         try {
             pool.query("CREATE SCHEMA " + schema).execute().await().indefinitely();
-            for (String migration : new String[]{"V0.6.39__telephony_usage.sql", "V0.6.40__telephony_destination_width.sql"}) {
+            for (String migration : new String[]{"V0.6.39__telephony_usage.sql", "V0.6.40__telephony_destination_width.sql",
+                    "V0.6.41__telephony_admissions_and_reconcile_progress.sql"}) {
                 try (var resource = getClass().getResourceAsStream("/db/migration/integrations/" + migration)) {
                     assertNotNull(resource);
                     pool.query(new String(resource.readAllBytes(), StandardCharsets.UTF_8).replace("miot_integrations", schema))
@@ -79,6 +80,19 @@ class PgTelephonyUsageStoreTest {
             store.saveCredential("login", "acme", "cred", "sip-1");
             assertTrue(store.tenantOfSip("login", "sip-other").isEmpty());
             assertEquals("acme", store.tenantOfSip("login", "sip-1").orElseThrow());
+            CallAdmission admission = new CallAdmission(ref, "sdk-1", UUID.randomUUID().toString());
+            store.saveAdmission(admission);
+            assertEquals(admission, store.admission(ref).orElseThrow());
+            assertEquals(admission, store.admissionByParkedCall("sdk-1").orElseThrow());
+            assertEquals(admission, store.admissionByTargetState(admission.targetState()).orElseThrow());
+            assertThrows(RuntimeException.class, () -> store.saveAdmission(new CallAdmission(ref, "sdk-2", UUID.randomUUID().toString())));
+            var cursor = new TelephonyUsageStore.ReconcileCursor(21, now);
+            store.saveReconcileCursor("p1", cursor);
+            assertEquals(cursor, store.reconcileCursor("p1").orElseThrow());
+            store.saveReconcileCursor("p1", new TelephonyUsageStore.ReconcileCursor(41, now));
+            assertEquals(41, store.reconcileCursor("p1").orElseThrow().nextPage());
+            store.clearReconcileCursor("p1");
+            assertTrue(store.reconcileCursor("p1").isEmpty());
         } finally {
             pool.query("DROP SCHEMA " + schema + " CASCADE").execute().await().indefinitely();
             pool.closeAndAwait(); vertx.closeAndAwait();

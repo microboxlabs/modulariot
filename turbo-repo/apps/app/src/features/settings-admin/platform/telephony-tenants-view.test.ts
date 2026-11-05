@@ -76,10 +76,35 @@ describe("telephony tenant rows", () => {
       calls: 3,
     });
     expect(rows[1]).toMatchObject({
-      slug: "client-acme",
+      slug: "acme",
+      tenantCode: "client-acme",
       displayName: "Transportes Acme",
       subscribed: true,
     });
+  });
+
+  it("finds the organization by its slug when billing uses its client ID", () => {
+    const rows = telephonyTenantRows(
+      [usage("client-acme", 50, 10)],
+      [{ ...ORGS[0]!, displayName: "Transportes del Sur" }]
+    );
+    expect(
+      visibleTelephonyRows(
+        rows,
+        { ...NO_TELEPHONY_FILTERS, query: "acme" },
+        "NAME_ASC"
+      )
+    ).toHaveLength(1);
+  });
+
+  it("preserves unknown provider costs instead of reporting free usage", () => {
+    const rows = telephonyTenantRows([usage("a", 50, 10)], []);
+    expect(telephonyTotals(rows).providerCostUsd).toBeNull();
+    expect(telephonyTotals([]).providerCostUsd).toBe(0);
+    expect(
+      telephonyTotals([...rows, { ...rows[0]!, providerCostUsd: 2 }])
+        .providerCostUsd
+    ).toBe(2);
   });
 
   it("totals minutes, calls and pending, and filters exhausted organizations", () => {

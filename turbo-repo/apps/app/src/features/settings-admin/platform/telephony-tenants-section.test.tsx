@@ -153,11 +153,24 @@ describe("telephony organizations", () => {
     state.usage = [{ ...acmeUsage(), tenantCode: "c-acme" }];
     const user = userEvent.setup();
     renderSection();
+    const row = screen.getByText("Transportes Acme").closest("tr")!;
+    expect(within(row).getByText("acme")).toBeInTheDocument();
+    expect(within(row).queryByText("c-acme")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: dict.edit }));
     await user.click(screen.getByRole("button", { name: dict.save }));
     await waitFor(() =>
       expect(state.saveMinutes).toHaveBeenCalledWith("c-acme", 500)
     );
+  });
+
+  it("shows unknown Telnyx costs in the KPI as unavailable", () => {
+    const organization = acmeUsage();
+    organization.usage.providerCost = null;
+    state.usage = [organization];
+    renderSection();
+    expect(
+      screen.getByText(dict.kpi.providerCost.replace("{cost}", "—"))
+    ).toBeInTheDocument();
   });
 
   it("edits a row's minutes; empty goes back to the plan's", async () => {

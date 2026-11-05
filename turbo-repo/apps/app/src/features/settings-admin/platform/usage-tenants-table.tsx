@@ -58,7 +58,7 @@ export default function UsageTenantsTable({
   children,
 }: Readonly<{
   kpis: ReactNode;
-  charge: { total: number; providerCost: number };
+  charge: { total: number; providerCost: number | null };
   columnKeys: readonly string[];
   isLoading: boolean;
   failed: boolean;

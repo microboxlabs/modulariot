@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { Spinner } from "flowbite-react";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import MonthPicker from "./month-picker";
 import UsageNotice from "./usage-notice";
 
@@ -8,27 +10,20 @@ import UsageNotice from "./usage-notice";
  * loading and error states, then the notices and cards.
  */
 export default function UsageMonthSection({
-  title,
-  description,
+  dict,
   month,
   onMonth,
   lang,
-  previousLabel,
-  nextLabel,
   isLoading,
   error,
   children,
 }: Readonly<{
-  title: string;
-  description: string;
+  dict: I18nRecord;
   month: string;
   onMonth: (month: string) => void;
   lang: string;
-  previousLabel: string;
-  nextLabel: string;
   isLoading: boolean;
-  /** The message to show, or null. */
-  error: string | null;
+  error: { status: number } | null;
   children: ReactNode;
 }>) {
   return (
@@ -36,23 +31,27 @@ export default function UsageMonthSection({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {title}
+            {tr("title", dict)}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {description}
+            {tr("description", dict)}
           </p>
         </div>
         <MonthPicker
           month={month}
           onMonth={onMonth}
           lang={lang}
-          previousLabel={previousLabel}
-          nextLabel={nextLabel}
+          previousLabel={tr("previousMonth", dict)}
+          nextLabel={tr("nextMonth", dict)}
         />
       </div>
 
       {isLoading && <Spinner size="md" />}
-      {error && <UsageNotice tone="error">{error}</UsageNotice>}
+      {error && (
+        <UsageNotice tone="error">
+          {error.status === 403 ? tr("forbidden", dict) : tr("loadError", dict)}
+        </UsageNotice>
+      )}
       {!isLoading && !error && children}
     </section>
   );

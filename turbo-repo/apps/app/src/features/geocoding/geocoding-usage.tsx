@@ -199,22 +199,14 @@ export default function GeocodingUsage({
     [data]
   );
 
-  let errorText: string | null = null;
-  if (error) {
-    errorText = error.status === 403 ? tr("forbidden", d) : tr("loadError", d);
-  }
-
   return (
     <UsageMonthSection
-      title={tr("title", d)}
-      description={tr("description", d)}
+      dict={d}
       month={month}
       onMonth={setMonth}
       lang={lang}
-      previousLabel={tr("previousMonth", d)}
-      nextLabel={tr("nextMonth", d)}
       isLoading={isLoading}
-      error={errorText}
+      error={error}
     >
       {data && <Notices data={data} d={d} />}
       {data && (

@@ -64,7 +64,10 @@ export default function TelephonyTenantsSection({
   onAssignDone,
 }: TelephonyTenantsSectionProps) {
   const [page, setPage] = useState(1);
-  const editor = useUsageQuotaEditor<UsageQuotaTarget>(assigning, onAssignDone);
+  const editor = useUsageQuotaEditor<UsageQuotaTarget & { tenantCode: string }>(
+    assigning,
+    onAssignDone
+  );
 
   const { plan } = useTelephonyPlan();
   const {
@@ -88,7 +91,7 @@ export default function TelephonyTenantsSection({
   const orgs = useMemo(() => switcherOrgs(organizations), [organizations]);
   const ownMinutes = useMemo(() => {
     const assigned = new Set(
-      rows.filter((r) => r.subscribed).map((r) => r.slug)
+      rows.filter((r) => r.subscribed).map((r) => r.tenantCode)
     );
     for (const org of organizations) {
       if (assigned.has(org.tenantClientId)) assigned.add(org.slug);
@@ -155,7 +158,7 @@ export default function TelephonyTenantsSection({
       >
         {current.rows.map((row) => (
           <UsageTenantTableRow
-            key={row.slug}
+            key={row.tenantCode}
             row={row}
             alertPct={TELEPHONY_ALERT_PCT}
             quotaWithoutSubscription
@@ -164,6 +167,7 @@ export default function TelephonyTenantsSection({
             onEdit={() =>
               editor.open({
                 slug: row.slug,
+                tenantCode: row.tenantCode,
                 name: row.displayName,
                 ownQuota: row.ownQuota,
               })
@@ -190,7 +194,7 @@ export default function TelephonyTenantsSection({
         onClose={editor.close}
         onSave={async (organization, minutes) => {
           const tenantCode =
-            editor.editing?.slug ??
+            editor.editing?.tenantCode ??
             organizations.find((org) => org.slug === organization)
               ?.tenantClientId ??
             organization;

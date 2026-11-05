@@ -15,6 +15,8 @@ import {
 
 /** One organization's row in the platform's telephony table. Used and quota are minutes. */
 export interface TelephonyTenantRow extends UsageTenantRow {
+  /** Billing identity, separate from the organization's display/search slug. */
+  tenantCode: string;
   /** Confirmed calls, on the line and by WhatsApp. */
   calls: number;
   /** Calls Telnyx has not confirmed yet. */
@@ -39,7 +41,7 @@ export function telephonyTenantRows(
     const ownQuota = u.subscription?.monthlyMinutes ?? null;
     return {
       ...orgNamed(bySlug, u.tenantCode),
-      slug: u.tenantCode,
+      tenantCode: u.tenantCode,
       ownQuota,
       quota: u.usage.quotaMinutes,
       subscribed: ownQuota !== null,
@@ -59,7 +61,7 @@ export interface TelephonyTotals {
   minutes: number;
   calls: number;
   pending: number;
-  providerCostUsd: number;
+  providerCostUsd: number | null;
   chargeUsd: number;
 }
 
@@ -68,12 +70,16 @@ export function telephonyTotals(
 ): TelephonyTotals {
   const sum = (f: (r: TelephonyTenantRow) => number) =>
     rows.reduce((s, r) => s + f(r), 0);
+  const providerCostUsd =
+    rows.length > 0 && rows.every((r) => r.providerCostUsd === null)
+      ? null
+      : sum((r) => r.providerCostUsd ?? 0);
   return {
     ownMinutes: rows.filter((r) => r.subscribed).length,
     minutes: sum((r) => r.used),
     calls: sum((r) => r.calls),
     pending: sum((r) => r.pending),
-    providerCostUsd: sum((r) => r.providerCostUsd ?? 0),
+    providerCostUsd,
     chargeUsd: sum((r) => r.chargeUsd ?? 0),
   };
 }

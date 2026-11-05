@@ -50,7 +50,7 @@ describe("telephony plan", () => {
     render(<TelephonyPlanSection dict={dict} />);
     await user.clear(screen.getByLabelText(dict.fields.otherUsd));
     await user.click(screen.getByRole("button", { name: dict.save }));
-    expect(screen.getByText(dict.errors.otherUsd)).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(dict.errors.otherUsd);
     expect(state.save).not.toHaveBeenCalled();
   });
 

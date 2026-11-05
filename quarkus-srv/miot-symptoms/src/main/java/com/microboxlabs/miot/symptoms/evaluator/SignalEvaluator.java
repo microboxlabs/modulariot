@@ -465,11 +465,6 @@ public class SignalEvaluator {
 
     /** The {@code case} object the lifecycle reads. */
     private static Map<String, Object> caseFields(Instant conditionSince, Instant normalSince, Instant openedAt,
-            int level, Instant at) {
-        return caseFields(conditionSince, normalSince, openedAt, level, at, false);
-    }
-
-    private static Map<String, Object> caseFields(Instant conditionSince, Instant normalSince, Instant openedAt,
             int level, Instant at, Instant offTripSince) {
         return caseFields(conditionSince, normalSince, openedAt, level, at, false, offTripSince);
     }

@@ -2,7 +2,6 @@ package com.microboxlabs.miot.symptoms.evaluator.evals;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.evaluator.evals.EvalTraces.Fixture;
@@ -20,7 +19,6 @@ class OffHoursCatalogImpactTest {
     @Test
     void theTemplateOnTheSameTripsAsProduction() {
         Fixture fixture = EvalTraces.fixture("off-hours-driving", "production-traces.json");
-        DataSource source = EvalTraces.source(fixture);
         List<Trace> traces = fixture.traces();
         SymptomSpec template = SeedTemplates.get("off-hours-driving").spec();
 

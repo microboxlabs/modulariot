@@ -45,7 +45,10 @@ export function celField(f: SourceField, d: I18nRecord): CelField {
     type: f.type,
     unit: f.unit,
     detail: originLabel(f.origin, d) || undefined,
-    description: named ? f.label : undefined,
+    description:
+      [named ? f.label : undefined, f.description]
+        .filter(Boolean)
+        .join(" — ") || undefined,
   };
 }
 

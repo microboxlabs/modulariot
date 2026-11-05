@@ -168,11 +168,13 @@ export function completionContext(text: string) {
   const field = last?.quoted && !last.closed ? comparedField(parts) : null;
   // CEL takes either quote; the value is escaped for the one in use.
   const quote = last?.text[0];
+  const delimiterLength =
+    quote && last?.text.startsWith(quote.repeat(3)) ? 3 : 1;
   const quoted =
     field && last && (quote === '"' || quote === "'")
       ? {
           path: resolved(field, variables),
-          typed: last.text.slice(1),
+          typed: last.text.slice(delimiterLength),
           quote: quote as '"' | "'",
         }
       : null;

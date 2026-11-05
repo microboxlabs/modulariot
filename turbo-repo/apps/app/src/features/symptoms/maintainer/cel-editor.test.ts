@@ -2,6 +2,7 @@ import { CompletionContext } from "@codemirror/autocomplete";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { type CelField, completions, fieldAt, fieldDetail } from "./cel-editor";
+import { completionContext } from "./cel-completion-context";
 
 const FIELDS: CelField[] = [
   { path: "signal.trip.active", type: "bool" },
@@ -44,6 +45,23 @@ function offered(doc: string): string[] {
 }
 
 describe("CEL completions", () => {
+  it.each(['"', "'"])(
+    "keeps the full triple-%s delimiter when completing a value",
+    (quote) => {
+      const prefix = `signal.frame.events.exists(e, e.event_type == ${quote.repeat(3)}`;
+      const doc = `${prefix}gp`;
+      const state = EditorState.create({ doc });
+      const result = completions(
+        () => FIELDS,
+        () => VALUES
+      )(new CompletionContext(state, doc.length, true));
+      expect(completionContext(doc).quoted?.typed).toBe("gp");
+      expect(result?.from).toBe(prefix.length);
+      expect(
+        result?.options.find((o) => o.label === "gps_jamming")?.apply
+      ).toBe("gps_jamming");
+    }
+  );
   it("escapes event codes when inserting them into a CEL literal", () => {
     const doc = 'signal.frame.events.exists(e, e.event_type == "';
     const state = EditorState.create({ doc });

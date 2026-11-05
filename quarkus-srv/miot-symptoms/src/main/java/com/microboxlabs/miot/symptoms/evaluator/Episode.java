@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,6 +21,7 @@ import java.util.UUID;
  * @param openedAt       when the case opened, or null when no case is open
  * @param level          the case's level; with no case open, 0, or the level of an opening a hold keeps back
  * @param maxMeasure     the highest measure since the case opened
+ * @param state          the state of the open case, or null before it was recorded or with no case open
  * @param offTripSince   first observed off-trip signal while the case is open, reset by an active trip
  */
 @RegisterForReflection
@@ -35,6 +37,7 @@ public record Episode(
         Instant openedAt,
         int level,
         double maxMeasure,
+        SymptomState state,
         String closedOnTrip,
         Instant closedOnTripAt,
         Instant offTripSince) {
@@ -48,7 +51,7 @@ public record Episode(
             Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
             double maxMeasure) {
         this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
-                openedAt, level, maxMeasure, null, null, null);
+                openedAt, level, maxMeasure, null, null, null, null);
     }
 
     @SuppressWarnings("java:S107")
@@ -56,7 +59,7 @@ public record Episode(
             Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
             double maxMeasure, Instant offTripSince) {
         this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
-                openedAt, level, maxMeasure, null, null, offTripSince);
+                openedAt, level, maxMeasure, null, null, null, offTripSince);
     }
 
     @SuppressWarnings("java:S107")
@@ -64,7 +67,37 @@ public record Episode(
             Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
             double maxMeasure, String closedOnTrip, Instant closedOnTripAt) {
         this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
-                openedAt, level, maxMeasure, closedOnTrip, closedOnTripAt, null);
+                openedAt, level, maxMeasure, null, closedOnTrip, closedOnTripAt, null);
+    }
+
+    /** An episode with its case state, before off-trip evidence is available. */
+    @SuppressWarnings("java:S107")
+    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
+            Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
+            double maxMeasure, SymptomState state) {
+        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
+                openedAt, level, maxMeasure, state, null, null, null);
+    }
+
+    @SuppressWarnings("java:S107")
+    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
+            Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
+            double maxMeasure, SymptomState state, Instant offTripSince) {
+        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
+                openedAt, level, maxMeasure, state, null, null, offTripSince);
+    }
+
+    @SuppressWarnings("java:S107")
+    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
+            Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
+            double maxMeasure, String closedOnTrip, Instant closedOnTripAt, Instant offTripSince) {
+        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
+                openedAt, level, maxMeasure, null, closedOnTrip, closedOnTripAt, offTripSince);
+    }
+
+    /** A marker written before its close timestamp was recorded. */
+    public static Episode closedOnTrip(UUID definitionId, String assetId, String tripId) {
+        return closedOnTrip(definitionId, assetId, tripId, null);
     }
 
     /** Nothing running, but an operator closed the symptom's case on this trip at {@code at}. */

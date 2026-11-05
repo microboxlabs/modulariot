@@ -3,9 +3,10 @@ package com.microboxlabs.miot.symptoms.signal;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The GPS database's geofences per client, for {@code signal.geo}. A zone of type {@value #AUTHORIZED} is
@@ -34,17 +35,18 @@ public class Zones {
         }
     }
 
-    private volatile Map<String, List<Zone>> byClient;
+    private final AtomicReference<Map<String, List<Zone>>> byClient = new AtomicReference<>();
 
     /** Replaces every client's zones. */
     public void load(List<Zone> zones) {
-        Map<String, List<Zone>> next = new ConcurrentHashMap<>();
+        Map<String, List<Zone>> next = new HashMap<>();
         zones.forEach(z -> next.computeIfAbsent(z.clientId(), k -> new ArrayList<>()).add(z));
-        byClient = next;
+        next.replaceAll((client, loaded) -> List.copyOf(loaded));
+        byClient.set(Map.copyOf(next));
     }
 
     public int size() {
-        Map<String, List<Zone>> loaded = byClient;
+        Map<String, List<Zone>> loaded = byClient.get();
         return loaded == null ? 0 : loaded.values().stream().mapToInt(List::size).sum();
     }
 
@@ -53,7 +55,7 @@ public class Zones {
      * places the point outside every authorized zone.
      */
     public GpsSignal.Geo at(String clientId, double lon, double lat) {
-        Map<String, List<Zone>> loaded = byClient;
+        Map<String, List<Zone>> loaded = byClient.get();
         if (loaded == null) {
             return null;
         }

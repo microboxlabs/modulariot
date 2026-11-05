@@ -106,7 +106,7 @@ public class SignalStream {
             """;
 
     /** The GPS database's geofences as GeoJSON, read in full: a few hundred rows. */
-    private static final String ZONES = """
+    private static final String ZONES_SQL = """
             SELECT client_id, geofence_id, properties ->> 'geofence_type' AS geofence_type,
                    ST_AsGeoJSON(coordinates::geometry) AS shape
               FROM geofences WHERE coordinates IS NOT NULL
@@ -191,7 +191,7 @@ public class SignalStream {
         if (!gps.configured()) {
             return Uni.createFrom().item(List.of());
         }
-        return gps.readPool().query(ZONES).execute().map(rows -> {
+        return gps.readPool().query(ZONES_SQL).execute().map(rows -> {
             List<Zones.Zone> z = new ArrayList<>();
             rows.forEach(r -> {
                 Zones.Zone zone = r.getString("shape") == null ? null : Zones.zone(r.getString("client_id"),

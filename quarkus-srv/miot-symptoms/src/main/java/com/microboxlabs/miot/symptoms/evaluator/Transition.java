@@ -34,6 +34,9 @@ public record Transition(
         this(kind, definitionId, version, state, assetId, at, level, previousLevel, measure, null);
     }
 
+    /** Why a case closed when its symptom changed state, kept in the CLOSED row's context. */
+    public static final String STATE_CHANGE_REASON = "cambio de estado del síntoma";
+
     public enum Kind {
         OPENED,
         LEVEL_CHANGED,

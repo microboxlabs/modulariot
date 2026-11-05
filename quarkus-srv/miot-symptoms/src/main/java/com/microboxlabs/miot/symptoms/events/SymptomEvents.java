@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.events;
 import com.microboxlabs.miot.core.event.EventContext;
 import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
@@ -95,7 +96,15 @@ public class SymptomEvents {
         Name n = name(tenantCode, c.definitionId());
         publish(SymptomEventCatalog.CLOSED, tenantCode, at, new SymptomCaseData(c.symptomId(), c.definitionId(),
                 c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(), null, null,
-                c.latitude(), c.longitude(), c.speedKmh(), actor, null, null, null, null), false);
+                c.latitude(), c.longitude(), c.speedKmh(), actor, null, null, null, null), c.test());
+    }
+
+    /** The case closed because its symptom changed state; no operator closed it. */
+    public void closedByStateChange(String tenantCode, EngineCaseStore.StaleCase c, Instant at) {
+        Name n = name(tenantCode, c.definitionId());
+        publish(SymptomEventCatalog.CLOSED, tenantCode, at, new SymptomCaseData(c.symptomId(), c.definitionId(),
+                c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(), null, null,
+                c.latitude(), c.longitude(), c.speedKmh(), null, null, null, null, null), c.test());
     }
 
     /** Cancellation signal for pending notification rules on each case covered by an ignore hold. */

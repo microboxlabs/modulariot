@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   Auth0M2MCredentialSchema,
   buildAuth0TokenUrl,
+  CREDENTIAL_TYPES,
+  type CredentialTypeId,
+  pickerCredentialTypes,
   usagePath,
 } from "./credential.types";
 
@@ -87,5 +90,39 @@ describe("Auth0M2MCredentialSchema", () => {
     expect(result.error.issues[0]?.message).toBe(
       "validation.auth0DomainRequired"
     );
+  });
+});
+
+describe("pickerCredentialTypes", () => {
+  const ids = (platformScope: boolean) =>
+    pickerCredentialTypes(platformScope).map((type) => type.id);
+
+  it("offers the geocoding providers only in the platform scope", () => {
+    expect(ids(true)).toEqual(
+      expect.arrayContaining(["MAPBOX", "GOOGLE_MAPS"])
+    );
+    expect(ids(false)).not.toContain("MAPBOX");
+    expect(ids(false)).not.toContain("GOOGLE_MAPS");
+  });
+
+  it("puts unavailable types last, keeping catalog order within each group", () => {
+    const catalog = CREDENTIAL_TYPES.map((type) => type.id);
+    const inCatalogOrder = (list: CredentialTypeId[]) =>
+      list.every(
+        (id, i) => i === 0 || catalog.indexOf(list[i - 1]) < catalog.indexOf(id)
+      );
+    for (const platformScope of [true, false]) {
+      const types = pickerCredentialTypes(platformScope);
+      const available = types.filter((type) => type.available).map((t) => t.id);
+      const unavailable = types
+        .filter((type) => !type.available)
+        .map((t) => t.id);
+      expect(types.map((type) => type.id)).toEqual([
+        ...available,
+        ...unavailable,
+      ]);
+      expect(unavailable).toEqual(["API_KEY", "BASIC_AUTH"]);
+      expect(inCatalogOrder(available)).toBe(true);
+    }
   });
 });

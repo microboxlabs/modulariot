@@ -69,6 +69,19 @@ class ZoneTemplatesParityTest {
     }
 
     @Test
+    void riskZoneStopsBeginOneSecondAfterSix() {
+        Map<String, Object> base = Map.of("trip", Map.of("active", true),
+                "derived", Map.of("moving", false), "geo", Map.of("risk_zone", true), "local_hour", 6);
+        Map<String, Object> six = new LinkedHashMap<>(base);
+        six.put("local_minutes", 360.0);
+        Map<String, Object> after = new LinkedHashMap<>(base);
+        after.put("local_minutes", 360.0 + 1.0 / 60.0);
+        assertEquals(List.of(EvalTraces.transition("OPENED", 1, 0, 1)),
+                EvalTraces.replay(SeedTemplates.get("risk-zone-stop").spec(), GPS,
+                        List.of(new Signal(0, Map.of("signal", six)), new Signal(1, Map.of("signal", after)))));
+    }
+
+    @Test
     void nightRiskStayMatchesProductionOnEveryTrip() {
         assertEquals(List.of(), differing("night-risk-stay", "night-risk-stay", false));
     }

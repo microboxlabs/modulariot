@@ -10,6 +10,8 @@ import { canSubmitNewNumber, draftFromQuery } from "./new-number-panel";
 const api = vi.hoisted(() => ({
   createContact: vi.fn(),
   mutate: vi.fn(),
+  // One object for every render.
+  access: { can: () => false },
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
@@ -18,10 +20,12 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   useContacts: () => ({ data: [], error: undefined, isLoading: false }),
   useSymptomTreatments: () => ({ data: undefined }),
   useCaseContext: () => ({ data: undefined }),
+  useCaseTimeline: () => ({ data: undefined }),
   useTripContacts: () => ({ data: undefined, mutate: api.mutate }),
 }));
 
 vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
+  useControlTowerAccess: () => api.access,
   useLevelResponse: () => ({ data: undefined }),
 }));
 
@@ -86,7 +90,6 @@ describe("CallCenterMenu — new number", () => {
       <CallCenterMenu
         dict={dict}
         treatmentData={null}
-        startedAt={Date.now()}
         skippedTo={null}
         onSkip={vi.fn()}
         onCall={onCall}

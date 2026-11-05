@@ -39,6 +39,7 @@ import CallCenterMenu, { type CallScript } from "./call-center-menu";
 import CallDialingStep from "./call-dialing-step";
 import type { TelephonyCallResult } from "./telnyx-call";
 import { useTelephony } from "@/features/symptoms/control-tower/telephony-api";
+import { readyTeamsLine } from "@/features/symptoms/control-tower/telephony-api.types";
 import type { CallMethod } from "./call-method";
 import type { CallTarget } from "./call-targets";
 import { isEngineCase } from "../prototype-api-guard";
@@ -258,6 +259,7 @@ export default function PrototypeCallCenterFlow({
           reason={messageToCommunicate}
           goal={activeScript?.goal}
           line={providerCalls ? (telephony?.active ?? null) : null}
+          teamsLine={providerCalls ? readyTeamsLine(telephony) : null}
           telephonyPending={providerCalls && !telephony && !telephonyError}
           telephonyFailed={providerCalls && Boolean(telephonyError)}
           caseRef={

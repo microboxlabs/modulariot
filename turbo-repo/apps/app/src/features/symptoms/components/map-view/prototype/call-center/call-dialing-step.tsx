@@ -14,6 +14,10 @@
  * With a Telnyx line, "phone" dials from the browser (`telnyx-call.ts`): the
  * red button hangs up, and the call's end fills the duration, whether it was
  * answered, and the provider's call id. Without one, it opens `tel:`.
+ *
+ * "teams" opens Microsoft Teams whenever the organization has a tested Teams
+ * Phone connection, whatever its main line. Without one nothing opens, so the
+ * step shows "Sin conexión Teams Phone" instead of a timer.
  */
 
 import WhatsAppCallPermission from "./whatsapp-call-permission";
@@ -78,6 +82,7 @@ export default function CallDialingStep({
   reason,
   goal,
   line = null,
+  teamsLine = null,
   telephonyPending = false,
   telephonyFailed = false,
   onCancel,
@@ -108,6 +113,8 @@ export default function CallDialingStep({
   goal?: string;
   /** The organization's telephony line; a Telnyx line places "phone" calls from the browser. */
   line?: TelephonyLine | null;
+  /** The organization's tested TEAMS_PHONE line, used by "teams" even when `line` is Telnyx. */
+  teamsLine?: TelephonyLine | null;
   telephonyPending?: boolean;
   telephonyFailed?: boolean;
   onCancel: (elapsedSeconds: number) => void;
@@ -177,11 +184,17 @@ export default function CallDialingStep({
   const destination = phoneDigits(channels?.phone ?? contactPhone);
   const viaTelnyx = (id: CallMethod) =>
     id === "phone" && line?.provider === "TELNYX" && destination !== null;
-  // With Teams Phone both "phone" and "teams" call the number from Teams.
-  const viaTeams = (id: CallMethod) =>
-    (id === "phone" || id === "teams") &&
-    line?.provider === "TEAMS_PHONE" &&
-    destination !== null;
+  // "teams" calls from Teams on any Teams Phone line; "phone" only when Teams
+  // Phone is the main line.
+  const teamsVia = (id: CallMethod): TelephonyLine | null => {
+    if (destination === null) return null;
+    if (id === "phone" && line?.provider === "TEAMS_PHONE") return line;
+    if (id !== "teams") return null;
+    if (line?.provider === "TEAMS_PHONE") return line;
+    return teamsLine?.provider === "TEAMS_PHONE" ? teamsLine : null;
+  };
+  // A "teams" press with no Teams Phone line opens nothing.
+  const [noTeams, setNoTeams] = useState(false);
   const [teamsCall, setTeamsCall] = useState<{
     startedAt: number;
     connectionId: string;
@@ -317,13 +330,22 @@ export default function CallDialingStep({
             }`}
           >
             <div className="overflow-hidden">
-              <p
-                className={`font-mono text-xl font-semibold tabular-nums text-gray-900 transition-all duration-300 dark:text-white ${
-                  showTimer ? "scale-100 opacity-100" : "scale-75 opacity-0"
-                }`}
-              >
-                {formatDuration(shownSeconds)}
-              </p>
+              {noTeams ? (
+                <p
+                  role="status"
+                  className="text-sm font-medium text-amber-700 dark:text-amber-400"
+                >
+                  {t("call_teams_no_connection")}
+                </p>
+              ) : (
+                <p
+                  className={`font-mono text-xl font-semibold tabular-nums text-gray-900 transition-all duration-300 dark:text-white ${
+                    showTimer ? "scale-100 opacity-100" : "scale-75 opacity-0"
+                  }`}
+                >
+                  {formatDuration(shownSeconds)}
+                </p>
+              )}
               {phase !== null && phase !== "active" && (
                 <p className="text-center text-xs text-gray-500 dark:text-gray-400">
                   {t(`call_phase_${phase}`)}
@@ -422,15 +444,17 @@ export default function CallDialingStep({
                     id === "phone" && (telephonyPending || telephonyFailed)
                   }
                   onClick={() => {
-                    if (viaTeams(id) && line) {
+                    const viaTeams = teamsVia(id);
+                    if (viaTeams) {
                       const links = teamsCallLinks(`+${destination}`);
                       if (!links) return;
                       openTeams(links);
                       setBrowserAttempt(false);
                       setPhase(null);
+                      setNoTeams(false);
                       setTeamsCall({
                         startedAt: Date.now(),
-                        connectionId: line.connectionId,
+                        connectionId: viaTeams.connectionId,
                       });
                       setMethod(id);
                       setStarted(true);
@@ -450,6 +474,7 @@ export default function CallDialingStep({
                     setPhase(null);
                     setAnsweredAt(null);
                     setDialError(null);
+                    setNoTeams(id === "teams");
                     const link = channelLink(
                       id,
                       channels?.[id] ?? contactPhone,

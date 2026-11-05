@@ -364,6 +364,118 @@ describe("CallDialingStep", () => {
     );
   });
 
+  describe("the Teams button with Telnyx as the main line", () => {
+    const telnyx = {
+      connectionId: "p1",
+      provider: "TELNYX" as const,
+      name: "Plataforma",
+      callerNumber: "+56200000000",
+      ready: true,
+      managed: true,
+    };
+    const teamsLine = {
+      connectionId: "m1",
+      provider: "TEAMS_PHONE" as const,
+      name: "Teams",
+      callerNumber: null,
+      ready: true,
+    };
+
+    function renderTeams(teams: typeof teamsLine | null) {
+      const openTeams = vi.fn();
+      const onConfirm = vi.fn();
+      const dial = vi.fn();
+      const token = vi.fn();
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Luis"
+          contactRole="Transportista"
+          channels={{ phone: "+56 9 2222 2222" }}
+          allowedMethods={["phone", "teams"]}
+          reason=""
+          line={telnyx}
+          teamsLine={teams}
+          openTeams={openTeams}
+          dial={dial}
+          token={token}
+          onCancel={vi.fn()}
+          onConfirm={onConfirm}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada por Microsoft Teams" })
+      );
+      return { openTeams, onConfirm, dial, token };
+    }
+
+    it("opens Teams and saves the call on the Teams Phone connection", () => {
+      const { openTeams, onConfirm, token } = renderTeams(teamsLine);
+      expect(openTeams).toHaveBeenCalledWith({
+        app: "msteams:/l/call/0/0?users=4:+56922222222",
+        web: "https://teams.microsoft.com/l/call/0/0?users=4:+56922222222",
+      });
+      expect(token).not.toHaveBeenCalled();
+      expect(
+        screen.queryByText(es.symptoms.call_teams_no_connection)
+      ).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+      );
+      expect(onConfirm).toHaveBeenCalledWith(
+        expect.any(Number),
+        "teams",
+        expect.objectContaining({
+          provider: "TEAMS_PHONE",
+          status: "PENDING",
+          connectionId: "m1",
+        })
+      );
+    });
+
+    it("without a Teams Phone connection opens nothing and says so instead of a timer", () => {
+      const { openTeams, onConfirm, token } = renderTeams(null);
+      expect(openTeams).not.toHaveBeenCalled();
+      expect(token).not.toHaveBeenCalled();
+      expect(screen.getByRole("status")).toHaveTextContent(
+        es.symptoms.call_teams_no_connection
+      );
+      expect(screen.queryByText("00:00")).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+      );
+      expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "teams");
+    });
+
+    it("keeps the phone button on Telnyx", async () => {
+      const openTeams = vi.fn();
+      const token = vi.fn().mockRejectedValue(new Error("Synthetic stop"));
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Luis"
+          contactRole="Transportista"
+          channels={{ phone: "+56 9 2222 2222" }}
+          allowedMethods={["phone", "teams"]}
+          reason=""
+          line={telnyx}
+          teamsLine={teamsLine}
+          openTeams={openTeams}
+          token={token}
+          onCancel={vi.fn()}
+          onConfirm={vi.fn()}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: es.symptoms.call_center_method_phone,
+        })
+      );
+      await waitFor(() => expect(token).toHaveBeenCalled());
+      expect(openTeams).not.toHaveBeenCalled();
+    });
+  });
+
   describe("on the managed line", () => {
     const line = {
       connectionId: "p1",

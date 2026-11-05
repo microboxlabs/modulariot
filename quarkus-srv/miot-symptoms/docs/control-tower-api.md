@@ -201,6 +201,10 @@ applies to every organization of the deployment. The app reads the same env name
 | `GET /map/summary` | GPS database | Same shape. Symptom items count the open cases by level; the services and fleet items and `stable_condition` have no case equivalent and are 0 |
 | `GET /map/symptoms/{id}`, `/signals`, `/positions` with a positive id | GPS database symptom | 404 |
 
+**The inbox lists only cases that need an operator.** Without `from` and `to`, `GET /map/symptoms` and `GET /map/conditions` keep the open cases whose current level has `response.operator: true` in the published version the case runs on. A level with `operator: false`, or without a response, stays out; the case enters when it escalates to a level with `operator: true` and leaves when it goes back down. The history (with `from` and `to`), the map positions and a case's own endpoints keep every case.
+
+**Inbox order.** The inbox comes ordered by criticality: highest level first (código negro, then 3, 2, 1). Within a level, the SLA that runs out soonest goes first, so overdue cases are at the top; a level without SLA goes last. Then the oldest arrival at the level, then the case id. The SLA runs from when the case reached its level, or from its return from a hold if later; each row carries that start as `sla_since`. Paging follows this order, and the 200-case limit keeps the most critical. The history keeps its own order (newest first).
+
 In engine-only mode, `p_icu_code=6` selects cases with an open treatment, independently of their severity.
 The store applies this predicate before its 200-case limit.
 

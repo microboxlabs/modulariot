@@ -7245,6 +7245,7 @@
     "maximum_continuous_driving": "Conducción máxima continua",
     "double_driver_rotation_check": "Cambio doble conductor",
     "diagnose": "Tratar",
+    "open_treatment": "Abrir el tratamiento de {plate}",
     "search": "Buscar",
     "seconds": "segundos",
     "sec": "seg",

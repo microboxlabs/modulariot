@@ -42,7 +42,10 @@ export const SpotlightRow = memo(function SpotlightRow({
   }, [isSelected]);
 
   const ItemIcon = item.icon ?? HiArrowRight;
-  const isHarness = item.kind === "harness" || item.kind === "harness-goto";
+  const isHarness =
+    item.kind === "harness" ||
+    item.kind === "harness-goto" ||
+    item.kind === "harness-continue";
   const useAmberAccent = accentHover || isHarness;
 
   const iconClass = isHarness ? "text-white" : "text-gray-500 dark:text-gray-400";
@@ -71,7 +74,9 @@ export const SpotlightRow = memo(function SpotlightRow({
             {item.sublabel}
           </span>
         )}
-        <span className={`truncate text-sm ${getLabelClass(item.kind === "harness-goto", isHarness)}`}>
+        <span
+          className={`truncate text-sm ${getLabelClass(item.kind === "harness-goto" || item.kind === "harness-continue", isHarness)}`}
+        >
           {item.label}
         </span>
       </div>

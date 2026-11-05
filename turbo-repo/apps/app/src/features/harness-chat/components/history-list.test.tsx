@@ -11,6 +11,7 @@ const stored: Session = {
   createdAt: Date.parse("2026-09-01T10:00:00Z"),
   title: "Lane review",
   initialMessage: null,
+  initialConversation: null,
   owned: true,
   sharedWith: [],
   titleEdited: false,

@@ -1,7 +1,11 @@
+import type { PendingHarnessConversation } from "./context/harness-chat-context";
 import type { Session } from "./harness-chat-types";
 import type { StoredThread } from "./harness-thread-store";
 
-export function createSession(initialMessage: string | null = null): Session {
+export function createSession(
+  initialMessage: string | null = null,
+  initialConversation: PendingHarnessConversation | null = null
+): Session {
   return {
     // A UUID, not any id: it is stored as the thread's primary key and sent to
     // the harness as the conversation id.
@@ -9,6 +13,7 @@ export function createSession(initialMessage: string | null = null): Session {
     createdAt: Date.now(),
     title: null,
     initialMessage,
+    initialConversation,
     owned: true,
     sharedWith: [],
     titleEdited: false,
@@ -34,6 +39,7 @@ export function toSession(thread: StoredThread): Session {
     createdAt: Date.parse(thread.lastMessageAt ?? thread.createdAt),
     title: thread.title,
     initialMessage: null,
+    initialConversation: null,
     owned: thread.owned,
     sharedWith: thread.sharedWith ?? [],
     titleEdited: thread.titleEdited ?? false,

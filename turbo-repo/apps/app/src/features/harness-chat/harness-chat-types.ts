@@ -1,8 +1,13 @@
+import type { PendingHarnessConversation } from "./context/harness-chat-context";
+
 export type Session = {
   id: string;
   createdAt: number;
   title: string | null;
   initialMessage: string | null;
+  /** A prior question + answer to seed the thread with (no auto-send) — see
+   * `PendingHarnessConversation`. */
+  initialConversation: PendingHarnessConversation | null;
   /** False for a thread someone else owns and shared with this user: readable,
    * but not theirs to rename, share on, or delete. */
   owned: boolean;

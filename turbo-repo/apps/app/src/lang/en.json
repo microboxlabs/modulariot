@@ -5585,7 +5585,7 @@
         "channelLimitHelp": "How many calls the line can carry at once. Empty: 10.",
         "channelLimitInvalid": "Simultaneous calls must be a whole number above 0.",
         "webhookPublicKey": "Webhook public key (optional)",
-        "webhookPublicKeyHelp": "In Telnyx: Account Settings › Keys & Credentials › Public Key. The modulith checks call webhooks with it.",
+        "webhookPublicKeyHelp": "In Telnyx: Account Settings › Keys & Credentials › Public Key. ModularIoT checks call webhooks with it.",
         "webhookUrl": "Webhook URL for the Credential Connection",
         "webhookUrlHelp": "Paste it in Telnyx as the connection's webhook. Shown after saving."
       }

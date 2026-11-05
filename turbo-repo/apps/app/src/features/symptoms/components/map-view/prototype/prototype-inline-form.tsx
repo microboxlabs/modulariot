@@ -160,15 +160,18 @@ export default function PrototypeInlineForm({
   }, [selectedOption]);
 
   // The native "leave site?" prompt covers what in-app back-button locking
-  // can't: a reload (F5), closing the tab, or typing a new URL.
+  // can't: a reload (F5), closing the tab, or typing a new URL. A live call
+  // survives a reload in the call session (a browser call warns there), so
+  // only the unsaved results form warns here.
+  const warnOnLeave = isCallDriverDebugFlow && callFlowStep === "form";
   useEffect(() => {
-    if (!backLocked) return;
+    if (!warnOnLeave) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [backLocked]);
+  }, [warnOnLeave]);
 
   const handleCallFlowStepChange = (step: CallCenterReportedStep) => {
     setCallFlowStep(step);

@@ -43,11 +43,7 @@ import {
   type LiveCall,
 } from "./telnyx-call";
 
-export type {
-  ActiveCall,
-  CallContext,
-  CallStatus,
-} from "./call-session-store";
+export type { ActiveCall, CallContext, CallStatus } from "./call-session-store";
 
 export interface StartCall {
   key: string;
@@ -364,7 +360,8 @@ export function CallSessionProvider({
         release();
         if (eng.cancelled) return;
         if (engine.current === eng) engine.current = null;
-        const code = cause instanceof ControlTowerError ? cause.code : undefined;
+        const code =
+          cause instanceof ControlTowerError ? cause.code : undefined;
         patch(id, {
           status: "failed",
           phase: null,

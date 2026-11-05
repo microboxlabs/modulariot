@@ -443,7 +443,10 @@ export default function CallDialingStep({
             confirm/cancel pair. */}
         <div className="flex w-full shrink-0 flex-row items-center justify-center gap-3 p-4 pt-0!">
           {dropped && (
-            <div role="alert" className="flex flex-col items-center gap-2 text-sm">
+            <div
+              role="alert"
+              className="flex flex-col items-center gap-2 text-sm"
+            >
               <p className="text-amber-700 dark:text-amber-400">
                 {t("call_dropped_on_reload")} ·{" "}
                 <span className="font-mono tabular-nums">

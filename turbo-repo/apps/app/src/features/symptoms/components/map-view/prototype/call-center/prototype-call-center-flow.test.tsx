@@ -7,7 +7,12 @@ import PrototypeCallCenterFlow, {
 } from "./prototype-call-center-flow";
 import type { CallScript } from "./call-center-menu";
 import type { CallTarget } from "./call-targets";
-import { CallSessionProvider } from "./call-session";
+import {
+  CallSessionProvider,
+  useCallSession,
+  type CallSession,
+} from "./call-session";
+import { act } from "@testing-library/react";
 import type { ReactElement } from "react";
 
 const render = (ui: ReactElement) =>
@@ -191,5 +196,56 @@ describe("call step scripts", () => {
     fireEvent.click(screen.getByText("Another call"));
     fireEvent.click(screen.getByText("Other contact"));
     expect(screen.getByText("Default message")).toBeTruthy();
+  });
+});
+
+describe("the call session", () => {
+  let session: CallSession | null = null;
+  function Probe() {
+    session = useCallSession();
+    return null;
+  }
+  function Host({ show }: Readonly<{ show: boolean }>) {
+    return (
+      <>
+        <Probe />
+        {show && <Flow />}
+      </>
+    );
+  }
+  const startCall = () =>
+    act(() => {
+      session?.startManual({
+        key: ":contact-test",
+        context: {
+          caseId: null,
+          target,
+          script: { message: "Step message", goal: "Step goal" },
+          defaultMessage: "Default message",
+          message: "Step message",
+        },
+        contactName: target.personName,
+        contactRole: target.role,
+        method: "phone",
+      });
+    });
+
+  it("reopens the dialing step of the case's open call", () => {
+    const view = render(<Host show={false} />);
+    startCall();
+    view.rerender(<Host show />);
+    expect(screen.getByText("Step message")).toBeTruthy();
+    expect(screen.getByText("Step goal")).toBeTruthy();
+    expect(screen.queryByText("Step contact")).toBeNull();
+  });
+
+  it("opens the results form for a call that ended elsewhere", () => {
+    const view = render(<Host show={false} />);
+    startCall();
+    act(() => session?.confirm());
+    view.rerender(<Host show />);
+    expect(screen.getByText("Another call")).toBeTruthy();
+    fireEvent.click(screen.getByText("Another call"));
+    expect(session?.call).toBeNull();
   });
 });

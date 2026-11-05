@@ -64,15 +64,13 @@ export function OtherCallNotice({
   );
 }
 
-function statusText(
-  call: ActiveCall,
-  t: (k: string) => string
-): string | null {
+function statusText(call: ActiveCall, t: (k: string) => string): string | null {
   if (call.status === "ended") return t("call_ended_pending");
   if (call.status === "dropped") return t("call_dropped_on_reload");
   if (call.status === "failed") return t("call_failed_short");
   if (call.notice) return t(call.notice);
-  if (call.phase && call.phase !== "active") return t(`call_phase_${call.phase}`);
+  if (call.phase && call.phase !== "active")
+    return t(`call_phase_${call.phase}`);
   return null;
 }
 
@@ -193,7 +191,9 @@ export default function CallBar({ dict }: Readonly<{ dict: I18nRecord }>) {
       >
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white ${
-            call.status === "live" ? "animate-pulse bg-green-500" : "bg-amber-500"
+            call.status === "live"
+              ? "animate-pulse bg-green-500"
+              : "bg-amber-500"
           }`}
         >
           <Icon className="h-3.5 w-3.5" />

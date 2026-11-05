@@ -216,9 +216,7 @@ export default function PrototypeCallCenterFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, dialingStarted]);
 
-  const defaultMessage = useRef(
-    resume?.defaultMessage ?? messageToCommunicate
-  );
+  const defaultMessage = useRef(resume?.defaultMessage ?? messageToCommunicate);
   const [activeScript, setActiveScript] = useState<CallScript | null>(
     resume?.script ?? null
   );

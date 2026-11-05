@@ -25,7 +25,7 @@ export default function ContactRow({
   pulsing,
   recentlyCalled,
   justCalledLabel,
-  bgClassName = "bg-gray-50 dark:bg-gray-800/40",
+  bgClassName = "bg-white dark:bg-gray-800",
   methods,
   methodLabels,
   unavailableNote,
@@ -71,7 +71,7 @@ export default function ContactRow({
 
   const className = `flex w-full items-center justify-between gap-3 border-b border-gray-200 px-3 py-2.5 text-left dark:border-gray-700 ${bgClassName} ${
     interactive
-      ? "cursor-pointer transition-colors hover:bg-white dark:hover:bg-gray-700"
+      ? "cursor-pointer transition-colors hover:bg-gray-50 focus:outline-none focus-visible:bg-gray-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 dark:hover:bg-gray-700 dark:focus-visible:bg-gray-700"
       : ""
   }`;
 

@@ -88,11 +88,9 @@ export default function PrototypeCallCenterFlow({
   onRepeatCallChange,
   formDraft,
   onFormDraftChange,
-  startedAt,
   skippedTo,
   onSkip,
 }: Readonly<{
-  startedAt: number;
   skippedTo: number | null;
   onSkip: (step: number) => void;
   dict: I18nRecord;
@@ -238,7 +236,6 @@ export default function PrototypeCallCenterFlow({
           <CallCenterMenu
             dict={dict}
             treatmentData={treatmentData}
-            startedAt={startedAt}
             skippedTo={skippedTo}
             onSkip={onSkip}
             onCall={handleCall}
@@ -257,7 +254,13 @@ export default function PrototypeCallCenterFlow({
           allowedMethods={activeAllowedMethods ?? []}
           contactId={activeContact?.contactId}
           reason={messageToCommunicate}
+          reasonParts={
+            activeScript?.message === messageToCommunicate
+              ? activeScript.messageParts
+              : undefined
+          }
           goal={activeScript?.goal}
+          goalParts={activeScript?.goalParts}
           line={providerCalls ? (telephony?.active ?? null) : null}
           teamsLine={providerCalls ? readyTeamsLine(telephony) : null}
           telephonyPending={providerCalls && !telephony && !telephonyError}

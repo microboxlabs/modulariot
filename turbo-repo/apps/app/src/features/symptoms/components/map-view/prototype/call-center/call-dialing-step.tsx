@@ -40,9 +40,11 @@ import { phoneForMethod, type CallStats } from "./call-targets";
 import {
   channelLink,
   openTeamsCall,
-  phoneDigits,
+  dialNumber,
   teamsCallLinks,
 } from "./channel-link";
+import type { FilledPart } from "@/features/symptoms/maintainer/script-fill";
+import ScriptText from "@/features/symptoms/maintainer/script-text";
 import ContactRow from "./contact-row";
 import {
   pendingTeamsCall,
@@ -80,7 +82,9 @@ export default function CallDialingStep({
   allowedMethods,
   contactId,
   reason,
+  reasonParts,
   goal,
+  goalParts,
   line = null,
   teamsLine = null,
   telephonyPending = false,
@@ -111,6 +115,9 @@ export default function CallDialingStep({
   reason: string;
   /** The step's goal, filled with the case: what the call must obtain. */
   goal?: string;
+  /** The message and goal in parts, when they come from a step's script: blanks show in amber. */
+  reasonParts?: FilledPart[];
+  goalParts?: FilledPart[];
   /** The organization's telephony line; a Telnyx line places "phone" calls from the browser. */
   line?: TelephonyLine | null;
   /** The organization's tested TEAMS_PHONE line, used by "teams" even when `line` is Telnyx. */
@@ -181,13 +188,19 @@ export default function CallDialingStep({
     };
   }, []);
 
-  const destination = phoneDigits(channels?.phone ?? contactPhone);
+  const destination = dialNumber(channels?.phone ?? contactPhone);
+  // Provider token/admission APIs require E.164. Service numbers use the
+  // native phone in the same timed call and CALL-result flow.
+  const serviceNumber = destination !== null && !destination.startsWith("+");
   const viaTelnyx = (id: CallMethod) =>
-    id === "phone" && line?.provider === "TELNYX" && destination !== null;
+    id === "phone" &&
+    line?.provider === "TELNYX" &&
+    destination !== null &&
+    !serviceNumber;
   // "teams" calls from Teams on any Teams Phone line; "phone" only when Teams
   // Phone is the main line.
   const teamsVia = (id: CallMethod): TelephonyLine | null => {
-    if (destination === null) return null;
+    if (destination === null || serviceNumber) return null;
     if (id === "phone" && line?.provider === "TEAMS_PHONE") return line;
     if (id !== "teams") return null;
     if (line?.provider === "TEAMS_PHONE") return line;
@@ -199,6 +212,18 @@ export default function CallDialingStep({
     startedAt: number;
     connectionId: string;
   } | null>(null);
+
+  function startManualCall(id: CallMethod) {
+    setBrowserAttempt(false);
+    setTeamsCall(null);
+    setPhase(null);
+    setAnsweredAt(null);
+    setDialError(null);
+    setRefusal(null);
+    setMethod(id);
+    setStarted(true);
+    onStartedChange?.(true);
+  }
 
   async function placeTelnyxCall() {
     cancelledRef.current = false;
@@ -218,7 +243,7 @@ export default function CallDialingStep({
     releaseRef.current = release;
     try {
       const login = await token({
-        calleeNumber: `+${destination}`,
+        calleeNumber: destination ?? "",
         caseRef: caseRef ?? undefined,
       });
       acquiredRef = login.callRef ?? null;
@@ -230,7 +255,7 @@ export default function CallDialingStep({
       liveRef.current = await dial({
         token: login.token,
         callerNumber: login.callerNumber,
-        destination: `+${destination}`,
+        destination: destination ?? "",
         remoteElement: audioRef.current,
         clientState: callRef ? btoa(callRef) : undefined,
         signal: abortRef.current.signal,
@@ -361,7 +386,14 @@ export default function CallDialingStep({
             <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/60">
               {reason ? (
                 <p className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
-                  {reason}
+                  {reasonParts ? (
+                    <ScriptText
+                      parts={reasonParts}
+                      title={t("call_script_blank_hint")}
+                    />
+                  ) : (
+                    reason
+                  )}
                 </p>
               ) : (
                 <p className="text-sm italic text-gray-400 dark:text-gray-500">
@@ -372,7 +404,14 @@ export default function CallDialingStep({
             {goal?.trim() && (
               <p className="shrink-0 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:bg-blue-900/20 dark:text-blue-100">
                 <span className="font-medium">{t("call_goal")}: </span>
-                {goal}
+                {goalParts ? (
+                  <ScriptText
+                    parts={goalParts}
+                    title={t("call_script_blank_hint")}
+                  />
+                ) : (
+                  goal
+                )}
               </p>
             )}
           </div>
@@ -392,7 +431,8 @@ export default function CallDialingStep({
             )}
             {destination && (
               <a
-                href={`tel:+${destination}`}
+                href={`tel:${destination}`}
+                onClick={() => startManualCall("phone")}
                 className="font-medium text-blue-600 hover:underline dark:text-blue-400"
               >
                 {t("call_use_phone")}
@@ -441,12 +481,14 @@ export default function CallDialingStep({
                   key={id}
                   type="button"
                   disabled={
-                    id === "phone" && (telephonyPending || telephonyFailed)
+                    id === "phone" &&
+                    !serviceNumber &&
+                    (telephonyPending || telephonyFailed)
                   }
                   onClick={() => {
                     const viaTeams = teamsVia(id);
                     if (viaTeams) {
-                      const links = teamsCallLinks(`+${destination}`);
+                      const links = teamsCallLinks(destination);
                       if (!links) return;
                       openTeams(links);
                       setBrowserAttempt(false);
@@ -470,10 +512,6 @@ export default function CallDialingStep({
                     }
                     // Opens the channel's app (dialer, WhatsApp chat with the
                     // script typed); the call is timed here either way.
-                    setBrowserAttempt(false);
-                    setPhase(null);
-                    setAnsweredAt(null);
-                    setDialError(null);
                     setNoTeams(id === "teams");
                     const link = channelLink(
                       id,
@@ -483,9 +521,7 @@ export default function CallDialingStep({
                     if (link?.startsWith("https://"))
                       window.open(link, "_blank", "noopener,noreferrer");
                     else if (link) window.location.href = link;
-                    setMethod(id);
-                    setStarted(true);
-                    onStartedChange?.(true);
+                    startManualCall(id);
                   }}
                   title={label}
                   aria-label={label}
@@ -508,7 +544,7 @@ export default function CallDialingStep({
                       elapsed,
                       method,
                       pendingTeamsCall(
-                        `+${destination}`,
+                        destination ?? "",
                         teamsCall.startedAt,
                         Date.now(),
                         teamsCall.connectionId

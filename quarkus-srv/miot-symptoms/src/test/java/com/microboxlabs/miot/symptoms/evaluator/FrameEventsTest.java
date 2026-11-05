@@ -159,6 +159,21 @@ class FrameEventsTest {
     }
 
     @Test
+    void aBufferedOlderTripCannotClearTheCurrentTripsCloseMarker() {
+        UUID id = publish("case.condition_s >= 0 && !case.closed_on_trip", "case.closed_by_operator", null);
+        stream.evaluate(signal("2026-01-02T12:00:00Z", "gps_jamming", "T-2"));
+        stream.forget(TENANT, "V1", id, "T-2");
+        Episode marker = episodes.load(TENANT, "V1").find(TENANT, "V1", id).orElseThrow();
+
+        stream.evaluate(signal("2026-01-01T12:00:00Z", "gps_jamming", "T-1"));
+        assertEquals(marker, episodes.load(TENANT, "V1").find(TENANT, "V1", id).orElseThrow());
+        stream.evaluate(signal("2026-01-02T12:01:00Z", "gps_jamming", "T-2"));
+        assertEquals(List.of(Transition.Kind.OPENED), kinds());
+        stream.evaluate(signal("2026-01-03T12:00:00Z", "gps_jamming", "T-3"));
+        assertEquals(List.of(Transition.Kind.OPENED, Transition.Kind.OPENED), kinds());
+    }
+
+    @Test
     void theNoteRuleWritesATimelineEntryWithTheEventAndTheCaseStaysOpen() {
         publish("case.closed_by_operator", RECONNECT);
         stream.evaluate(signal("2026-01-01T12:00:00Z", "main_power_disconnect"));

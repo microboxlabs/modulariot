@@ -24,6 +24,8 @@ class RedisEpisodesTest {
 
     private static final Duration WAIT = Duration.ofSeconds(5);
     private static final String ASSET = "episode-test-" + UUID.randomUUID();
+    private static final String CLOSE_ASSET = ASSET + "-close";
+    private static final String FORGET_ASSET = ASSET + "-forget";
     private static Vertx vertx;
     private static Redis client;
     private static RedisAPI redis;
@@ -40,7 +42,9 @@ class RedisEpisodesTest {
     static void tearDown() {
         if (redis != null) {
             redis.del(List.of(RedisEpisodes.key("tenant-a", ASSET), RedisEpisodes.key("tenant-b", ASSET),
-                    RedisEpisodes.tenantsKey(ASSET))).await().atMost(WAIT);
+                    RedisEpisodes.tenantsKey(ASSET), RedisEpisodes.key("tenant-a", CLOSE_ASSET),
+                    RedisEpisodes.tenantsKey(CLOSE_ASSET), RedisEpisodes.key("tenant-a", FORGET_ASSET),
+                    RedisEpisodes.tenantsKey(FORGET_ASSET))).await().atMost(WAIT);
         }
         if (client != null) {
             client.close();
@@ -78,5 +82,17 @@ class RedisEpisodesTest {
         redis.del(List.of(RedisEpisodes.key("tenant-b", ASSET))).await().atMost(WAIT);
         resumed.save(resumed.load("tenant-b", ASSET));
         assertTrue(resumed.tenantsWithEpisodes(ASSET).isEmpty());
+    }
+
+    @Test
+    void anOperatorMarkerRejectsStaleWritesAndDeletesAcrossRepositories() {
+        EpisodeRepositoryConcurrencyTest.assertMarkerProtectsSnapshots(
+                new RedisEpisodes(redis, Duration.ofDays(7)), new RedisEpisodes(redis, Duration.ofDays(7)), CLOSE_ASSET);
+    }
+
+    @Test
+    void anOperatorCloseWithoutATripRejectsStaleReopeningAcrossRepositories() {
+        EpisodeRepositoryConcurrencyTest.assertUnmarkedCloseProtectsSnapshot(
+                new RedisEpisodes(redis, Duration.ofDays(7)), new RedisEpisodes(redis, Duration.ofDays(7)), FORGET_ASSET);
     }
 }

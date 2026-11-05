@@ -248,9 +248,9 @@ class EvaluatorStreamTest {
         List<String> args = RedisEpisodes.saveArgs(state, java.time.Duration.ofDays(7));
 
         assertEquals(List.of("2", "symptoms:ep:" + DEMO + ":DEMO01", "symptoms:ep-tenants:DEMO01", "604800",
-                "2", "1", DEMO), args.subList(1, 8));
+                "2", "1", DEMO, "0"), args.subList(1, 9));
         assertEquals("ep:" + gone, args.get(args.size() - 1));
-        assertEquals(13, args.size());
+        assertEquals(14, args.size());
     }
 
     @Test
@@ -275,6 +275,11 @@ class EvaluatorStreamTest {
             @Override
             public void forget(String tenantCode, String assetId, java.util.UUID definitionId) {
                 memory.forget(tenantCode, assetId, definitionId);
+            }
+
+            @Override
+            public void operatorClose(String tenantCode, String assetId, java.util.UUID definitionId, Episode marker) {
+                memory.operatorClose(tenantCode, assetId, definitionId, marker);
             }
         };
         EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog,

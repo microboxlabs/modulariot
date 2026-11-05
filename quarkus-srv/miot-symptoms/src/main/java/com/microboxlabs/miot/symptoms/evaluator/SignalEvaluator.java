@@ -218,6 +218,10 @@ public class SignalEvaluator {
     /** A buffered event may open a case, but must not leave partial hold-time state behind. */
     private List<Transition> lateOpening(String tenantCode, String assetId, Instant at, Map<String, Object> root,
             CompiledSymptom s, Optional<Episode> before) {
+        // A buffered frame cannot prove the vehicle has left the newer trip an operator closed a case on.
+        if (before.map(Episode::closedOnTrip).filter(trip -> !trip.equals(tripId(root))).isPresent()) {
+            return List.of();
+        }
         if (!s.opensOnEvents() || !condition(s.activation(), root, "activation")) {
             return List.of();
         }

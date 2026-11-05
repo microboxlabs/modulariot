@@ -1,11 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import { useMemo, useState, type SVGProps } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  HiOutlineChartBar,
+  HiOutlineClipboardList,
+  HiOutlinePhone,
+  HiOutlineUserGroup,
+} from "react-icons/hi";
+import SectionMenu, {
+  type SectionMenuEntry,
+} from "@/features/common/components/section-menu";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
+import {
+  OrgTelephonyChoice,
+  OrgTelephonyUsage,
+} from "@/features/telephony/org-telephony-choice";
 import { channelGroupLabel, SymptomCard, SymptomRow } from "./catalog-card";
 import {
   type CatalogFilterKey,
@@ -17,7 +31,7 @@ import {
 import { levelName } from "./catalog-format";
 import CatalogStats from "./catalog-stats";
 import CreateSymptomModal from "./create-symptom-modal";
-import TeamSettingsModal from "./team-settings-modal";
+import TeamSettings from "./team-settings";
 import {
   importEngineRules,
   refreshSymptoms,
@@ -29,8 +43,7 @@ import {
 } from "./maintainer-api";
 import { familyLabel, stateLabel } from "./symptom-labels";
 import { isTemplateScope, useSymptomScope } from "./symptom-scope";
-import { MUTED, Tile } from "./ui/card";
-import FilterStrip from "@/features/common/components/filter-strip";
+import { MUTED } from "./ui/card";
 import LayoutToggle, {
   type CatalogLayout,
 } from "@/features/common/components/layout-toggle";
@@ -75,10 +88,52 @@ function passes(
   return true;
 }
 
+export type SymptomsSection = "catalog" | "team" | "telephony" | "usage";
+const SECTIONS: readonly SymptomsSection[] = [
+  "catalog",
+  "team",
+  "telephony",
+  "usage",
+];
+
+/** The section in `?section=`; Síntomas when absent or unknown. */
+export function symptomsSectionOf(params: URLSearchParams): SymptomsSection {
+  const value = params.get("section");
+  return SECTIONS.find((s) => s === value) ?? "catalog";
+}
+
+/** The scales of the page header. */
+function SymptomsIcon(props: Readonly<SVGProps<SVGSVGElement>>) {
+  return (
+    <svg
+      aria-hidden
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+      {...props}
+    >
+      <path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0L7 7Zm10 0-3 7a3 3 0 0 0 6 0l-3-7Z" />
+    </svg>
+  );
+}
+
+const SECTION_ICONS: Record<
+  SymptomsSection,
+  SectionMenuEntry<SymptomsSection>["icon"]
+> = {
+  catalog: HiOutlineClipboardList,
+  team: HiOutlineUserGroup,
+  telephony: HiOutlinePhone,
+  usage: HiOutlineChartBar,
+};
+
 /**
- * Settings › Síntomas: every symptom of the organization, with its levels, who
- * acts and how much it fires. Under the platform scope, the symptom templates:
- * no state, stats or engine import.
+ * Settings › Síntomas, laid out like Viajes: a menu of sections beside the chosen one.
+ * Catálogo: every symptom of the organization, with its levels, who acts and how much
+ * it fires. Torre de Control: the operator team, the organization's telephony line and
+ * the month's telephony usage, each shown only to who can use it. Under the platform
+ * scope, only the symptom templates: no state, stats, engine import or Torre de Control.
  */
 export default function SymptomCatalog({
   dict,
@@ -93,18 +148,33 @@ export default function SymptomCatalog({
 }>) {
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
   const scope = useSymptomScope();
   const template = isTemplateScope(scope);
   const { data, error, isLoading } = useSymptomDefinitions();
   const { data: stats } = useSymptomStats(!template);
   const { data: families } = useSymptomFamilies();
-  const { canMaintain } = useControlTowerAccess();
+  const { canMaintain, can } = useControlTowerAccess();
   const { isPlatformOwner } = useIsPlatformOwner();
+  const { activeOrg } = useOrgScopes();
   const isOwner = template ? isPlatformOwner : canMaintain;
+  // Who may use each section: the same checks as the API behind it.
+  const allowed: Record<SymptomsSection, boolean> = {
+    catalog: true,
+    team: !template && canMaintain,
+    telephony: !template && can("controltower:settings.update"),
+    usage:
+      !template &&
+      (isPlatformOwner ||
+        activeOrg?.role === "OWNER" ||
+        activeOrg?.role === "PLATFORM_OWNER"),
+  };
+  const asked = symptomsSectionOf(params);
+  const section = allowed[asked] ? asked : "catalog";
   const [filters, setFilters] = useState<Filters>(EMPTY);
   const [layout, setLayout] = useState<CatalogLayout>("cards");
   const [creating, setCreating] = useState(false);
-  const [editingTeam, setEditingTeam] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importNote, setImportNote] = useState<string | null>(null);
 
@@ -167,6 +237,25 @@ export default function SymptomCatalog({
     });
   }
 
+  const onSection = (next: SymptomsSection) => {
+    const query = new URLSearchParams(params.toString());
+    if (next === "catalog") query.delete("section");
+    else query.set("section", next);
+    const qs = query.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+  const md = d?.menu as I18nRecord;
+  const sections: SectionMenuEntry<SymptomsSection>[] = SECTIONS.filter(
+    (id) => allowed[id]
+  ).map((id) => ({
+    id,
+    label: tr(`sections.${id}.label`, md),
+    description: tr(`sections.${id}.description`, md),
+    icon: SECTION_ICONS[id],
+    group: id === "catalog" ? tr("groups.catalog", md) : tr("groups.tower", md),
+  }));
+  const telephonyDict = (dict?.telephony as I18nRecord) ?? {};
+
   const runImport = async () => {
     setImporting(true);
     try {
@@ -186,18 +275,18 @@ export default function SymptomCatalog({
   };
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={dict?.breadcrumb as I18nRecord}
-          lang={lang}
-          path={["user", "settings", "symptomCatalog"]}
-          disableLinks
-        />
-      </div>
-
-      <FilterStrip>
-        {filterDefs.map((f) => (
+    <SettingsPageShell
+      breadcrumbDict={dict?.breadcrumb as I18nRecord}
+      lang={lang}
+      path={["user", "settings", "symptomCatalog"]}
+      icon={SymptomsIcon}
+      title={template ? tr("templatesTitle", d) : tr("title", d)}
+      description={
+        template ? tr("templatesDescription", d) : tr("description", d)
+      }
+      filters={
+        section === "catalog" &&
+        filterDefs.map((f) => (
           <FilterChip
             key={f.key}
             label={f.label}
@@ -206,122 +295,87 @@ export default function SymptomCatalog({
             allLabel={tr("filterAll", d)}
             onChange={(v) => setFilters({ ...filters, [f.key]: v })}
           />
-        ))}
-      </FilterStrip>
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-10 pt-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Tile>
-              <svg
-                aria-hidden
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                viewBox="0 0 24 24"
+        ))
+      }
+      actions={
+        section === "catalog" && (
+          <div className="flex shrink-0 items-center gap-2">
+            <LayoutToggle
+              layout={layout}
+              labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
+              onLayout={setLayout}
+            />
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
               >
-                <path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0L7 7Zm10 0-3 7a3 3 0 0 0 6 0l-3-7Z" />
-              </svg>
-            </Tile>
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {template ? tr("templatesTitle", d) : tr("title", d)}
-              </h1>
-              <p className={`text-sm ${MUTED}`}>
-                {template
-                  ? tr("templatesDescription", d)
-                  : tr("description", d)}
-              </p>
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              <LayoutToggle
-                layout={layout}
-                labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
-                onLayout={setLayout}
-              />
-              {isOwner && (
-                <button
-                  type="button"
-                  onClick={() => setCreating(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
-                >
-                  ＋ {template ? tr("newTemplate", d) : tr("newSymptom", d)}
-                </button>
-              )}
-            </div>
+                ＋ {template ? tr("newTemplate", d) : tr("newSymptom", d)}
+              </button>
+            )}
           </div>
-
-          {!template && (
-            <CatalogStats
-              loading={isLoading}
-              all={all}
-              stats={stats}
+        )
+      }
+    >
+      {/* Below md the menu and the detail stack and scroll together; from md only the detail scrolls. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 max-md:overflow-y-auto md:grid-cols-[320px_1fr]">
+        <SectionMenu
+          title={tr("title", md)}
+          sections={sections}
+          selected={section}
+          onSelect={onSection}
+        />
+        <div className="-m-1 flex min-h-0 flex-col gap-4 p-1 md:overflow-y-auto">
+          {section === "team" && <TeamSettings d={d} lang={lang} />}
+          {section === "telephony" && (
+            <OrgTelephonyChoice dict={telephonyDict.choice as I18nRecord} />
+          )}
+          {section === "usage" && (
+            <OrgTelephonyUsage
+              dict={telephonyDict.usage as I18nRecord}
+              orgSlug={activeOrg?.slug ?? null}
               lang={lang}
-              d={d}
-              onFilter={(key, value) =>
-                setFilters({ ...filters, [key]: value })
-              }
-              onOpen={open}
-              onEditTeam={isOwner ? () => setEditingTeam(true) : undefined}
             />
           )}
-
-          <p
-            role="status"
-            aria-live="polite"
-            className="text-sm text-gray-600 dark:text-gray-300"
-          >
-            {importNote}
-          </p>
-          {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">
-              {tr("loadFailed", d)}
-            </p>
-          )}
-          {!isLoading && !error && shown.length === 0 && (
-            <p className={`py-10 text-center text-sm ${MUTED}`}>
-              {all.length === 0 ? noneYet : tr("emptyFiltered", d)}
-            </p>
-          )}
-
-          {layout === "cards" ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-              {shown.map((s) => (
-                <SymptomCard
-                  key={s.definition.id}
-                  s={s}
-                  family={family(s.definition.family)}
-                  week={weekOf(s.definition.id)}
+          {section === "catalog" && (
+            <>
+              {!template && (
+                <CatalogStats
+                  loading={isLoading}
+                  all={all}
+                  stats={stats}
                   lang={lang}
                   d={d}
-                  rootDict={rootDict}
-                  onOpen={() => open(s.definition.id)}
+                  onFilter={(key, value) =>
+                    setFilters({ ...filters, [key]: value })
+                  }
+                  onOpen={open}
                 />
-              ))}
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-              <table className="w-full text-left text-xs text-gray-600 dark:text-gray-300">
-                <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-900 dark:text-gray-400">
-                  <tr>
-                    <th className="px-4 py-2">{tr("colSymptom", d)}</th>
-                    <th className="px-4 py-2">{tr("colScale", d)}</th>
-                    <th className="px-4 py-2">{tr("filterWho", d)}</th>
-                    {!template && (
-                      <th className="px-4 py-2">{tr("filterState", d)}</th>
-                    )}
-                    <th className="px-4 py-2">{tr("colVersion", d)}</th>
-                    {!template && (
-                      <th className="px-4 py-2 text-right">
-                        {tr("colPerWeek", d)}
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
+              )}
+
+              <p
+                role="status"
+                aria-live="polite"
+                className="text-sm text-gray-600 dark:text-gray-300"
+              >
+                {importNote}
+              </p>
+              {error && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {tr("loadFailed", d)}
+                </p>
+              )}
+              {!isLoading && !error && shown.length === 0 && (
+                <p className={`py-10 text-center text-sm ${MUTED}`}>
+                  {all.length === 0 ? noneYet : tr("emptyFiltered", d)}
+                </p>
+              )}
+
+              {layout === "cards" ? (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
                   {shown.map((s) => (
-                    <SymptomRow
+                    <SymptomCard
                       key={s.definition.id}
                       s={s}
                       family={family(s.definition.family)}
@@ -332,16 +386,48 @@ export default function SymptomCatalog({
                       onOpen={() => open(s.definition.id)}
                     />
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                  <table className="w-full text-left text-xs text-gray-600 dark:text-gray-300">
+                    <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                      <tr>
+                        <th className="px-4 py-2">{tr("colSymptom", d)}</th>
+                        <th className="px-4 py-2">{tr("colScale", d)}</th>
+                        <th className="px-4 py-2">{tr("filterWho", d)}</th>
+                        {!template && (
+                          <th className="px-4 py-2">{tr("filterState", d)}</th>
+                        )}
+                        <th className="px-4 py-2">{tr("colVersion", d)}</th>
+                        {!template && (
+                          <th className="px-4 py-2 text-right">
+                            {tr("colPerWeek", d)}
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shown.map((s) => (
+                        <SymptomRow
+                          key={s.definition.id}
+                          s={s}
+                          family={family(s.definition.family)}
+                          week={weekOf(s.definition.id)}
+                          lang={lang}
+                          d={d}
+                          rootDict={rootDict}
+                          onOpen={() => open(s.definition.id)}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {editingTeam && (
-        <TeamSettingsModal d={d} onClose={() => setEditingTeam(false)} />
-      )}
       <CreateSymptomModal
         open={creating}
         d={d}
@@ -360,6 +446,6 @@ export default function SymptomCatalog({
           open(created.definition.id);
         }}
       />
-    </div>
+    </SettingsPageShell>
   );
 }

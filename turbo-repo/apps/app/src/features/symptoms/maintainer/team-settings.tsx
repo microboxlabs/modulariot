@@ -1,19 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Button,
-  Label,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  TextInput,
-} from "flowbite-react";
+import { Button, Label, TextInput } from "flowbite-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { telephonySettingsHref } from "@/features/telephony/telephony-settings";
 import { ControlTowerError } from "../control-tower/control-tower-api";
 import { saveTowerTeam, useTowerTeam, type TowerTeam } from "./maintainer-api";
 import { MUTED } from "./ui/card";
@@ -36,68 +28,74 @@ export function parseCount(raw: string, min: number, max: number) {
 const text = (n: number | null) => (n == null ? "" : String(n));
 
 /**
- * The operator team used by the operator load card: operators, shift length,
- * cases a shift can handle. The form waits for the saved team, so a save never
- * starts from blanks.
+ * Settings › Síntomas › Equipo: the operator team used by the operator load
+ * card: operators, shift length, cases a shift can handle. The form waits for
+ * the saved team, so a save never starts from blanks.
  */
-export default function TeamSettingsModal({
+export default function TeamSettings({
   d,
-  onClose,
+  lang,
 }: Readonly<{
   d: I18nRecord;
-  onClose: () => void;
+  lang: string;
 }>) {
   const { data: team, error } = useTowerTeam(true);
   return (
-    <Modal show size="md" onClose={onClose} dismissible>
-      <ModalHeader>{tr("teamTitle", d)}</ModalHeader>
+    <section className="flex max-w-3xl flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      <h2 className="font-semibold text-gray-900 dark:text-white">
+        {tr("teamTitle", d)}
+      </h2>
       {team ? (
-        <TeamForm team={team} d={d} onClose={onClose} />
+        <TeamForm team={team} d={d} />
       ) : (
-        <ModalBody>
-          <p
-            role={error ? "alert" : "status"}
-            className={`text-sm ${error ? "text-red-600 dark:text-red-400" : MUTED}`}
-          >
-            {error ? tr("teamLoadFailed", d) : tr("loading", d)}
-          </p>
-        </ModalBody>
+        <p
+          role={error ? "alert" : "status"}
+          className={`text-sm ${error ? "text-red-600 dark:text-red-400" : MUTED}`}
+        >
+          {error ? tr("teamLoadFailed", d) : tr("loading", d)}
+        </p>
       )}
-    </Modal>
+      <TelephonyLink d={d} lang={lang} />
+    </section>
   );
 }
 
 function TeamForm({
   team,
   d,
-  onClose,
 }: Readonly<{
   team: TowerTeam;
   d: I18nRecord;
-  onClose: () => void;
 }>) {
   const [operators, setOperators] = useState(text(team.operators));
   const [shiftHours, setShiftHours] = useState(String(team.shiftHours));
   const [capacity, setCapacity] = useState(text(team.capacityPerShift));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const ops = parseCount(operators, 0, MAX_OPERATORS);
   const hours = parseCount(shiftHours, 1, 24);
   const cap = parseCount(capacity, 0, MAX_CAPACITY);
   const valid = ops.ok && hours.ok && hours.value != null && cap.ok;
 
+  const edit = (setValue: (v: string) => void) => (v: string) => {
+    setSaved(false);
+    setValue(v);
+  };
+
   const save = async () => {
     if (!ops.ok || !hours.ok || hours.value == null || !cap.ok) return;
     setBusy(true);
     setError(null);
+    setSaved(false);
     try {
       await saveTowerTeam({
         operators: ops.value,
         shiftHours: hours.value,
         capacityPerShift: cap.value,
       });
-      onClose();
+      setSaved(true);
     } catch (e) {
       setError(
         e instanceof ControlTowerError && e.status === 403
@@ -122,11 +120,12 @@ function TeamForm({
       <TextInput
         id={id}
         inputMode="numeric"
+        className="max-w-xs"
         value={value}
         color={ok ? undefined : "failure"}
         aria-invalid={!ok}
         aria-describedby={`${id}-hint`}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => edit(setValue)(e.target.value)}
       />
       <p
         id={`${id}-hint`}
@@ -138,67 +137,69 @@ function TeamForm({
   );
 
   return (
-    <>
-      <ModalBody>
-        <div className="flex flex-col gap-4">
-          <p className={`text-sm ${MUTED}`}>{tr("teamIntro", d)}</p>
-          {field(
-            "team-operators",
-            tr("teamOperators", d),
-            tr("teamOperatorsHint", d),
-            operators,
-            setOperators,
-            ops.ok
-          )}
-          {field(
-            "team-shift",
-            tr("teamShiftHours", d),
-            tr("teamShiftHoursHint", d),
-            shiftHours,
-            setShiftHours,
-            hours.ok && hours.value != null
-          )}
-          {field(
-            "team-capacity",
-            tr("teamCapacity", d),
-            tr("teamCapacityHint", d),
-            capacity,
-            setCapacity,
-            cap.ok
-          )}
-          {error && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {error}
-            </p>
-          )}
-        </div>
-        <TelephonyLink d={d} />
-      </ModalBody>
-      <ModalFooter className="justify-end">
-        <Button color="alternative" onClick={onClose}>
-          {tr("cancel", d)}
-        </Button>
-        <Button disabled={busy || !valid} onClick={() => void save()}>
+    <div className="flex flex-col gap-4">
+      <p className={`text-sm ${MUTED}`}>{tr("teamIntro", d)}</p>
+      {field(
+        "team-operators",
+        tr("teamOperators", d),
+        tr("teamOperatorsHint", d),
+        operators,
+        setOperators,
+        ops.ok
+      )}
+      {field(
+        "team-shift",
+        tr("teamShiftHours", d),
+        tr("teamShiftHoursHint", d),
+        shiftHours,
+        setShiftHours,
+        hours.ok && hours.value != null
+      )}
+      {field(
+        "team-capacity",
+        tr("teamCapacity", d),
+        tr("teamCapacityHint", d),
+        capacity,
+        setCapacity,
+        cap.ok
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+      <div className="flex items-center gap-3">
+        <Button
+          size="sm"
+          color="blue"
+          disabled={busy || !valid}
+          onClick={() => void save()}
+        >
           {tr("save", d)}
         </Button>
-      </ModalFooter>
-    </>
+        <output className={`text-sm ${MUTED}`}>
+          {saved ? tr("teamSaved", d) : null}
+        </output>
+      </div>
+    </div>
   );
 }
 
-/** The organization's telephony is chosen in Conexiones; the modal only links there. */
-export function TelephonyLink({ d }: Readonly<{ d: I18nRecord }>) {
-  const { lang } = useParams<{ lang: string }>();
+/** The organization's telephony is chosen in its own section; Equipo links there. */
+export function TelephonyLink({
+  d,
+  lang,
+}: Readonly<{ d: I18nRecord; lang: string }>) {
   return (
     <p
-      className={`mt-4 border-t border-gray-200 pt-4 text-xs dark:border-gray-700 ${MUTED}`}
+      className={`border-t border-gray-200 pt-4 text-xs dark:border-gray-700 ${MUTED}`}
     >
       {tr("telephonyMoved", d)}{" "}
       <Link
-        href={`/${lang}/users/settings/connections`}
+        href={telephonySettingsHref(lang)}
         className="font-medium text-blue-600 hover:underline dark:text-blue-400"
       >
-        {tr("telephonyConnections", d)}
+        {tr("telephonyGo", d)}
       </Link>
     </p>
   );

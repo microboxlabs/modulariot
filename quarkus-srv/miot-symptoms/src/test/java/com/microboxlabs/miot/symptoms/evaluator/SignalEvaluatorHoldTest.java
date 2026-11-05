@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
 import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator.Result;
 import java.time.Instant;
@@ -103,6 +104,17 @@ class SignalEvaluatorHoldTest {
         at(10, 80);
         List<Transition> closed = evaluator.finishHold(TENANT, TRUCK, T0.plusSeconds(135), symptoms);
         assertEquals(List.of("CLOSED"), closed.stream().map(t -> t.kind().name()).toList());
+    }
+
+    @Test
+    void holdExpiryReadsTheRetainedOffTripTimer() {
+        var base = Specs.speeding();
+        var spec = new SymptomSpec(base.source(), base.activation(), base.measure(), base.levels(),
+                new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.off_trip_s >= 1200"), null);
+        var symptom = CompiledSymptom.compile(SPEEDING, "1.0.0", SymptomState.ACTIVE, spec, Specs.gpsSignal());
+        store.save(TENANT, new Episode(SPEEDING, "1.0.0", TRUCK, null, null, T0, Map.of(), T0, T0, 2, 5, null, T0));
+        var closed = evaluator.finishHold(TENANT, TRUCK, T0.plusSeconds(1200), List.of(symptom));
+        assertEquals(List.of(Transition.Kind.CLOSED), closed.stream().map(Transition::kind).toList());
     }
 
     @Test

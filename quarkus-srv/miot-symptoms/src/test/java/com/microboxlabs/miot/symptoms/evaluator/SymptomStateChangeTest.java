@@ -138,8 +138,22 @@ class SymptomStateChangeTest {
     }
 
     @Test
+    void finishingAHoldKeepsBothTheCaseStateAndOffTripEvidence() {
+        Instant offTrip = T0.minusSeconds(30);
+        store.save(TENANT, new Episode(SPEEDING, "1.0.0", TRUCK, T0, T0, null, Map.of(), T0, T0, 2, 10,
+                SymptomState.TEST, offTrip));
+
+        assertTrue(evaluator.finishHold(TENANT, TRUCK, T0.plusSeconds(30), List.of(inTest)).isEmpty());
+
+        Episode kept = store.find(TENANT, TRUCK, SPEEDING).orElseThrow();
+        assertEquals(SymptomState.TEST, kept.state());
+        assertEquals(offTrip, kept.offTripSince());
+    }
+
+    @Test
     void anEpisodeKeepsItsStateInRedisAndOneWrittenBeforeStillLoads() {
-        Episode e = new Episode(SPEEDING, "1.0.0", TRUCK, T0, T0, null, Map.of(), T0, T0, 2, 10, SymptomState.TEST);
+        Episode e = new Episode(SPEEDING, "1.0.0", TRUCK, T0, T0, null, Map.of(), T0, T0, 2, 10,
+                SymptomState.TEST, T0.minusSeconds(30));
         assertEquals(e, RedisEpisodes.read(RedisEpisodes.write(e)));
 
         String before = RedisEpisodes.write(new Episode(SPEEDING, "1.0.0", TRUCK, T0, T0, null, Map.of(), T0, T0, 2,

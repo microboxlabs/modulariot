@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,59 @@ class EngineCaseServiceTest {
     private static EngineCase at(long id, String asset, Instant opened, Instant closed) {
         return new EngineCase(id, PANIC, "0.1.0", "Botón de pánico", "emergencies", asset, opened, 4, null,
                 -33.4489, -70.6693, 0.0, closed, 0, 2, null);
+    }
+
+    @Test
+    void theInboxListsOnlyCasesWhoseLevelAsksForAnOperator() {
+        store.operatorLevels.put(PANIC, Set.of(2, 3, 4));
+        store.add(engineCase(12, "DEMO01", 1, 0));
+        store.add(engineCase(13, "DEMO02", 3, 0));
+
+        JsonNode page = service.casesPage(TENANT, Map.of());
+        assertEquals(List.of(-13L), ids(page));
+        assertEquals(1, page.path("total_rows").asInt());
+        assertEquals(List.of(-13L), ids(service.withCases(TENANT, Map.of(), null)));
+        JsonNode counts = service.caseCounts(TENANT, null, null);
+        assertEquals(1, counts.path("Critical condition").asInt());
+        assertFalse(counts.has("Under Observation"), "the counts match the list");
+    }
+
+    @Test
+    void aCaseEntersTheInboxWhenItEscalatesAndLeavesWhenItGoesBackDown() {
+        store.operatorLevels.put(PANIC, Set.of(2, 3, 4));
+        store.add(engineCase(12, "DEMO01", 1, 0));
+        assertTrue(ids(service.casesPage(TENANT, Map.of())).isEmpty());
+
+        store.changeLevel(12, 2);
+        assertEquals(List.of(-12L), ids(service.casesPage(TENANT, Map.of())));
+        assertEquals(1, service.caseCounts(TENANT, null, null).path("Compromised condition").asInt());
+
+        store.changeLevel(12, 1);
+        assertTrue(ids(service.casesPage(TENANT, Map.of())).isEmpty());
+        assertTrue(service.caseCounts(TENANT, null, null).isEmpty());
+    }
+
+    @Test
+    void anUnderTreatmentCaseBackAtALevelWithoutOperatorLeavesTheInbox() {
+        store.operatorLevels.put(PANIC, Set.of(3));
+        store.add(engineCase(12, "DEMO01", 1, 1));
+
+        assertTrue(ids(service.casesPage(TENANT, Map.of("p_icu_code", "6"))).isEmpty());
+        assertFalse(service.caseCounts(TENANT, null, null).has("Under Treatment"));
+    }
+
+    @Test
+    void theHistoryKeepsCasesThatNeverAskedForAnOperator() {
+        store.operatorLevels.put(PANIC, Set.of());
+        store.add(engineCase(12, "DEMO01", 1, 0));
+
+        assertEquals(List.of(-12L), ids(service.casesPage(TENANT, Map.of(
+                "p_start_date_historic", "2026-10-22T00:00:00Z", "p_end_date_historic", "2026-10-23T00:00:00Z"))));
+        assertEquals(1, service.caseCounts(TENANT, "2026-10-22T00:00:00Z", "2026-10-23T00:00:00Z")
+                .path("Under Observation").asInt());
+        assertEquals(1, service.withCaseLevels(TENANT, new ObjectMapper().createArrayNode()
+                .add(new ObjectMapper().createObjectNode().put("asset_id", "DEMO01")))
+                .get(0).path("symptoms_condition").asInt(), "the map still shows it");
     }
 
     @Test

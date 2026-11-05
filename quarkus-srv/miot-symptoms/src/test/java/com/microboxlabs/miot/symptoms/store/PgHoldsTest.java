@@ -146,6 +146,51 @@ class PgHoldsTest {
         return cases.openCounts(tenant).stream().mapToLong(EngineCaseStore.OpenCount::count).sum();
     }
 
+    private List<Long> inboxIds() {
+        return cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator()).stream().map(EngineCase::id)
+                .sorted().toList();
+    }
+
+    private long inboxCounted() {
+        return cases.towerCounts(tenant).active().stream().mapToLong(EngineCaseStore.OpenCount::count).sum();
+    }
+
+    private void changeLevel(UUID symptom, String asset, Instant at, int level, int previous) {
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, symptom, "1.0.0", SymptomState.ACTIVE, asset,
+                at, level, previous, 30)), NOWHERE);
+    }
+
+    @Test
+    void theInboxFollowsTheOperatorFlagOfTheCurrentLevel() {
+        UUID speeding = symptom("inbox-speeding");
+        long quiet = open(speeding, TRUCK, now.minusSeconds(600), 1, null);
+        long loud = open(speeding, "DEMO02", now.minusSeconds(500), 3, null);
+
+        assertEquals(List.of(loud), inboxIds(), "level 1 has operator false");
+        assertEquals(1, inboxCounted());
+        assertEquals(List.of(quiet, loud), openIds(), "without the flag every open case is listed");
+        assertTrue(cases.list(tenant, new EngineCaseStore.CaseFilter(null, null, null, null,
+                now.minusSeconds(3600), now).forOperator()).stream().anyMatch(c -> c.id() == loud));
+
+        changeLevel(speeding, TRUCK, now.minusSeconds(300), 3, 1);
+        assertEquals(List.of(quiet, loud), inboxIds(), "escalated to a level with operator true");
+        assertEquals(2, inboxCounted());
+
+        changeLevel(speeding, TRUCK, now.minusSeconds(100), 1, 3);
+        assertEquals(List.of(loud), inboxIds(), "back down to operator false");
+        assertEquals(1, inboxCounted());
+        assertEquals(2, cases.openLevels(tenant).size(), "the map keeps both");
+    }
+
+    @Test
+    void aLevelMissingFromTheVersionIsNotInTheInbox() {
+        UUID speeding = symptom("inbox-unknown-level");
+        open(speeding, TRUCK, now.minusSeconds(600), 2, null);
+
+        assertTrue(inboxIds().isEmpty());
+        assertEquals(0, inboxCounted());
+    }
+
     @Test
     void historyIncludesEndedScopedHoldsButExcludesHoldsOutsideTheCaseLifetime() {
         UUID symptom = symptom("history");

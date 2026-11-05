@@ -210,6 +210,14 @@ public class EngineCaseService {
         }
     }
 
+    /**
+     * Without dates the list is the tower inbox: only the cases whose current level asks for an operator. With
+     * dates it is the history, which keeps every case.
+     */
+    static EngineCaseStore.CaseFilter inbox(EngineCaseStore.CaseFilter filter) {
+        return filter.openOnly() ? filter.forOperator() : filter;
+    }
+
     private static String text(Map<String, String> filters, String name) {
         String v = filters.get(name);
         return v == null || v.isBlank() ? null : v.trim();
@@ -238,10 +246,11 @@ public class EngineCaseService {
 
     /**
      * The page with the matching cases first; {@code page} null when the GPS database could not be read. A
-     * filtered page holds a trip's or a vehicle's few cases, so they come whole on page 1.
+     * filtered page holds a trip's or a vehicle's few cases, so they come whole on page 1. Without dates only the
+     * cases that need an operator ({@link #inbox}).
      */
     public JsonNode withCases(String tenantCode, Map<String, String> filters, JsonNode page) {
-        List<EngineCase> found = store.list(tenantCode, filter(filters));
+        List<EngineCase> found = store.list(tenantCode, inbox(filter(filters)));
         ObjectNode out = page != null && page.isObject() ? ((ObjectNode) page).deepCopy() : JSON.objectNode();
         ArrayNode rows = JSON.arrayNode();
         found.forEach(c -> rows.add(row(c)));
@@ -268,7 +277,8 @@ public class EngineCaseService {
     }
 
     /**
-     * The counts by condition with the open cases added, each once: under {@value #COUNTED_IGNORED} while a hold
+     * The counts by condition with the open cases that need an operator added, each once, so they match the inbox
+     * list: under {@value #COUNTED_IGNORED} while a hold
      * covers it, else under treatment while it has an open treatment, else at its level. {@code counts} is null when the GPS database could not be read; when the
      * open cases cannot be read, the GPS counts are answered alone.
      */
@@ -299,7 +309,8 @@ public class EngineCaseService {
 
     /**
      * One page of the symptom list from the cases alone, in the GPS database function's shape, with totals counted
-     * over the matching cases (at most the store's page of them).
+     * over the matching cases (at most the store's page of them). Without dates only the cases that need an
+     * operator ({@link #inbox}).
      *
      * @param filters already checked by {@code ControlTowerMapService.symptomFilters}
      */
@@ -308,7 +319,7 @@ public class EngineCaseService {
         if (Integer.valueOf(6).equals(filter.level())) {
             filter = filter.withOpenTreatment();
         }
-        List<EngineCase> found = store.list(tenantCode, filter);
+        List<EngineCase> found = store.list(tenantCode, inbox(filter));
         int size = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
         int page = Math.max(1, number(filters.get(PAGE), 1));
         int pages = Math.max(1, Math.ceilDiv(found.size(), size));

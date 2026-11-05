@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { prisma } from "@modulariot/db";
 import { auth } from "@/lib/auth";
 import { auth0Client } from "@/lib/api/auth0";

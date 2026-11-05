@@ -44,3 +44,6 @@ nb-configuration.xml
 # TLS Certificates
 .certs/
 # Quarkus CI trigger
+
+# fs content store (miot.content.fs.root)
+data/content/

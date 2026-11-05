@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { HiArrowRight } from "react-icons/hi";
 import type { SpotlightItem } from "./types";
-import type { CanAccessFn } from "./navigate-actions";
+import type { CanAccess } from "@/features/auth/hooks/use-permissions";
 
 interface PagefindResultData {
   url: string;
@@ -11,7 +11,9 @@ interface PagefindResultData {
 }
 
 interface PagefindInstance {
-  search: (query: string) => Promise<{ results: Array<{ data(): Promise<PagefindResultData> }> }>;
+  search: (
+    query: string
+  ) => Promise<{ results: Array<{ data(): Promise<PagefindResultData> }> }>;
 }
 
 // Singleton — load once across all hook instances.
@@ -26,7 +28,9 @@ async function loadPagefind(): Promise<PagefindInstance | null> {
   if (pagefindSingleton) return pagefindSingleton;
   if (loadPromise) return loadPromise;
 
-  loadPromise = (import(/* webpackIgnore: true */ PAGEFIND_PATH) as Promise<PagefindInstance>)
+  loadPromise = (
+    import(/* webpackIgnore: true */ PAGEFIND_PATH) as Promise<PagefindInstance>
+  )
     .then((pf) => {
       pagefindSingleton = pf;
       return pf;
@@ -49,7 +53,10 @@ export function norm(str: string): string {
     .replace(/[¿¡]/g, "");
 }
 
-function fuzzyFallback(navigateItems: SpotlightItem[], query: string): SpotlightItem[] {
+function fuzzyFallback(
+  navigateItems: SpotlightItem[],
+  query: string
+): SpotlightItem[] {
   if (!query.trim()) return [];
   const q = norm(query.trim());
   const result: SpotlightItem[] = [];
@@ -67,7 +74,7 @@ function fuzzyFallback(navigateItems: SpotlightItem[], query: string): Spotlight
     if (item.sublabel && !seenGroups.has(item.sublabel)) {
       seenGroups.add(item.sublabel);
       const header = navigateItems.find(
-        (i) => i.isGroupHeader && i.label === item.sublabel,
+        (i) => i.isGroupHeader && i.label === item.sublabel
       );
       if (header) result.push(header);
     }
@@ -78,24 +85,32 @@ function fuzzyFallback(navigateItems: SpotlightItem[], query: string): Spotlight
   return result;
 }
 
+function splitMeta(value: string | undefined): string[] {
+  return value?.split(",").filter(Boolean) ?? [];
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────────────
 export function usePagefindSearch(
   query: string,
   navigateItems: SpotlightItem[],
-  canAccess: CanAccessFn,
+  canAccess: CanAccess,
   onNavigate: (href: string) => void,
+  /** Narrows the indexed pages further, e.g. to those the platform scope has. */
+  allowUrl?: (url: string) => boolean
 ): SpotlightItem[] {
   const [pagefind, setPagefind] = useState<PagefindInstance | null>(null);
   const [results, setResults] = useState<SpotlightItem[]>([]);
 
   // Refs keep these values current without them being effect dependencies.
   // navigateItems/canAccess/onNavigate can have unstable references (e.g.
-  // canAccess rebuilds when userGroups returns a new [] before SWR resolves),
+  // canAccess rebuilds when the permissions load),
   // so putting them in deps would cause the effect to rerun on every render,
   // firing setResults and resetting selection via the auto-select in the parent.
   const navigateItemsRef = useRef(navigateItems);
   const canAccessRef = useRef(canAccess);
   const onNavigateRef = useRef(onNavigate);
+  const allowUrlRef = useRef(allowUrl);
+  allowUrlRef.current = allowUrl;
   navigateItemsRef.current = navigateItems;
   canAccessRef.current = canAccess;
   onNavigateRef.current = onNavigate;
@@ -129,7 +144,7 @@ export function usePagefindSearch(
       .search(query)
       .then(async ({ results: raw }) => {
         const dataList = await Promise.all(
-          raw.slice(0, 15).map((r) => r.data()),
+          raw.slice(0, 15).map((r) => r.data())
         );
 
         if (cancelled) return;
@@ -140,9 +155,11 @@ export function usePagefindSearch(
         for (const data of dataList) {
           const { meta } = data;
 
-          const reqGroups = meta.requiredGroups?.split(",").filter(Boolean) ?? [];
-          const blkGroups = meta.blockedGroups?.split(",").filter(Boolean) ?? [];
-          if (!canAccessRef.current(reqGroups, blkGroups)) continue;
+          const rule = {
+            requiredPermissions: splitMeta(meta.requiredPermissions),
+          };
+          if (!canAccessRef.current(rule)) continue;
+          if (allowUrlRef.current && !allowUrlRef.current(data.url)) continue;
 
           // Re-insert group header when a new parent is encountered
           if (meta.parent && meta.parentId && !seenParents.has(meta.parentId)) {

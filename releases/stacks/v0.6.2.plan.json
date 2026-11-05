@@ -1,0 +1,80 @@
+{
+  "stack_version": "0.6.2",
+  "stack_tag": "miot-stack@v0.6.2",
+  "milestone": "MIOT-0.6.2",
+  "pull_requests": [
+    {
+      "number": 2308,
+      "title": "feat(places): serve the organization's geofences from the modulith",
+      "source_issues": [
+        {
+          "number": 2309,
+          "title": "feat(places): serve the organization's geofences from the modulith"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".github/workflows/quarkus.yml",
+    "quarkus-srv/miot-cli/pom.xml",
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-places/pom.xml",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/access/PlacesAccessCatalog.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/api/OrgGeofencesResource.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/dto/GeofenceView.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/service/GeofenceOrganizationScope.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/service/GeofenceService.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/store/GeofenceStore.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/store/GeofencesUnavailableException.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/store/GpsGeofenceStore.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/core/gps/PlacesTestGpsDatabase.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/places/access/PlacesPermissionsTest.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/places/access/PlacesReadCompatibilityTest.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/places/api/OrgGeofencesResourceTest.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/places/dto/GeofenceViewTest.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/places/service/GeofenceOrganizationScopeTest.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/places/service/GeofenceServiceTest.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/places/store/GpsGeofenceStoreTest.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/places/store/PgGpsGeofenceStoreTest.java",
+    "quarkus-srv/pom.xml",
+    "quarkus-srv/start.sh",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/src/app/api/places/geofences/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/places/geofences/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/pgrest-client.ts",
+    "turbo-repo/apps/app/src/features/places/data/streamhub-geofences.test.ts",
+    "turbo-repo/apps/app/src/features/places/data/streamhub-geofences.ts",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.2",
+      "tag": "app@v0.6.2"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.6.1",
+      "version": "0.6.1",
+      "tag": "docs@v0.6.1"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.6.1",
+      "version": "0.6.1",
+      "tag": "web@v0.6.1"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.40",
+      "version": "0.5.41",
+      "tag": "modulith@v0.5.41"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.14",
+      "version": "0.1.14",
+      "tag": "harness@v0.1.14"
+    }
+  }
+}

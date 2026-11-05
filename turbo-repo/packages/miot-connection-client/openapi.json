@@ -64,14 +64,6 @@
           }
         }
       },
-      "AddMemberRequest" : {
-        "type" : "object",
-        "properties" : {
-          "personId" : {
-            "type" : "string"
-          }
-        }
-      },
       "AdditionalInfo" : {
         "type" : "object",
         "description" : "Additional information about the event",
@@ -1345,74 +1337,6 @@
                   }
                 }
               }
-            }
-          }
-        },
-        "security" : [ {
-          "oidc" : [ ]
-        } ]
-      },
-      "post" : {
-        "summary" : "Add a person to an organization's Alfresco group",
-        "tags" : [ "Organization Members" ],
-        "parameters" : [ {
-          "name" : "organizationId",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/AddMemberRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : { }
-            }
-          },
-          "400" : {
-            "description" : "Bad Request"
-          }
-        },
-        "security" : [ {
-          "oidc" : [ ]
-        } ]
-      }
-    },
-    "/api/v1/orgs/{organizationId}/members/{personId}" : {
-      "delete" : {
-        "summary" : "Remove a person from an organization's Alfresco group",
-        "tags" : [ "Organization Members" ],
-        "parameters" : [ {
-          "name" : "organizationId",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "personId",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : { }
             }
           }
         },

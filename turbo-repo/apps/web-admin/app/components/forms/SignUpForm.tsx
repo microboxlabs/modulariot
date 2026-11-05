@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { z } from 'zod/v3'
 import { Button, TextInput, Alert, HelperText } from 'flowbite-react'
 import { Mail, Lock, User } from 'lucide-react'
 import { useRouter } from 'next/navigation'

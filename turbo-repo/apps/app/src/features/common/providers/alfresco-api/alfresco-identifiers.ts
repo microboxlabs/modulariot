@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 
 /** Alfresco node IDs are UUIDs or well-known aliases like -root-, -my-, -shared-. */
 export const alfrescoNodeIdSchema = z

@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
-import com.microboxlabs.miot.symptoms.catalog.service.TemplateService;
+import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.evaluator.evals.EvalTraces.Fixture;
 import com.microboxlabs.miot.symptoms.evaluator.evals.EvalTraces.Trace;
 import java.util.List;
@@ -23,7 +23,7 @@ class SpeedCatalogImpactTest {
         Fixture fixture = EvalTraces.fixture("speed", "production-traces.json");
         DataSource source = EvalTraces.source(fixture);
         List<Trace> traces = fixture.traces();
-        SymptomSpec template = new TemplateService().get("speeding").spec();
+        SymptomSpec template = SeedTemplates.get("speeding").spec();
 
         CaseImpact production = CaseImpact.of(traces.stream().map(Trace::expected).toList());
         CaseImpact catalog = CaseImpact.of(traces.stream()

@@ -4,7 +4,7 @@ import { prisma } from "./db"
 import Credentials from "next-auth/providers/credentials"
 import Google from "next-auth/providers/google"
 import GitHub from "next-auth/providers/github"
-import { z } from "zod"
+import { z } from "zod/v3"
 import { PrismaClient } from "@prisma/client"
 
 const LoginSchema = z.object({

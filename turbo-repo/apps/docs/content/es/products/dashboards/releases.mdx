@@ -7,7 +7,7 @@ Dashboards sigue [Versionado Semántico](https://semver.org). Mientras las versi
 | Paquete | Versión | Publicada |
 | --- | --- | --- |
 | [`@microboxlabs/miot-dashboard-contract`](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract) | 0.6.0 | 2026-10-05 |
-| [`@microboxlabs/miot-dashboard-server`](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) | 0.7.0 | 2026-10-06 |
+| [`@microboxlabs/miot-dashboard-server`](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) | 0.8.0 | 2026-10-15 |
 | [`@microboxlabs/miot-dashboard-ui`](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui) | 0.1.0 | 2026-10-05 |
 | Chart de Helm `miot-dashboard-server` | 0.1.2 | 2026-09-20 |
 
@@ -15,6 +15,7 @@ Dashboards sigue [Versionado Semántico](https://semver.org). Mientras las versi
 
 | Servidor | Contrato | UI | Notas |
 | --- | --- | --- | --- |
+| 0.8.x | 0.6.x | 0.1.x | Verificación de tickets por http en una red privada |
 | 0.7.x | 0.6.x | 0.1.x | Roles desde grupos |
 | 0.6.x | 0.6.x | 0.1.x | Catálogo de consultas, opciones de filtro dinámicas, orden en la barra lateral |
 | 0.5.x | 0.5.x | — | Verificación de creación por ámbito |
@@ -22,6 +23,12 @@ Dashboards sigue [Versionado Semántico](https://semver.org). Mientras las versi
 | 0.3.x | 0.3.x | — | Ejecución de consultas portable |
 
 Actualice el contrato, luego el servidor y luego la UI. Vea [Actualizaciones y respaldos](/es/products/dashboards/deployment/upgrades).
+
+## 0.8.0 — 2026-10-15
+
+Agregado:
+
+- Servidor: `MIOT_DASHBOARD_TICKET_ALLOW_HTTP=true` acepta una URL de verificación de tickets `http://`, para un emisor en la misma red privada, como un servicio del clúster. Los tickets viajan entonces sin cifrar por esa red. Ver [Configuración](/es/products/dashboards/reference/configuration).
 
 ## 0.7.0 — 2026-10-06
 

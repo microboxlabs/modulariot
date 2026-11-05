@@ -23,7 +23,7 @@ export default async function StoryDetailRoute({ params }: StoryRouteParams) {
   const decodedId = decodeURIComponent(id);
 
   return (
-    <RouteGuard path="/storytelling" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/storytelling">
       {/* outline-none: Next's App Router focuses this segment's root on a
           client-side navigation (for scroll/a11y bookkeeping, not as a real
           keyboard tab-stop) — reaching this page by a router.push

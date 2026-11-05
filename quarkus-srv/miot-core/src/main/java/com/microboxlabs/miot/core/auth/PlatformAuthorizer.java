@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.auth;
 
+import com.microboxlabs.miot.core.iam.model.IamUser;
 import com.microboxlabs.miot.core.model.PlatformRoleAssignment;
 import com.microboxlabs.miot.core.permission.PlatformRoleDefinition;
 import io.quarkus.hibernate.reactive.panache.Panache;
@@ -84,14 +85,30 @@ public class PlatformAuthorizer {
                                 new ForbiddenException("Platform owner role required")));
     }
 
-    /** Does not throw when the caller is not an owner — for reporting held roles. */
+    /**
+     * Does not throw when the caller is not an owner — for reporting held roles. A user whose account is not
+     * ACTIVE is no owner, as {@code /me/scopes} treats them. A configured owner stays one when the database
+     * cannot be read: that is the break-glass case.
+     */
     public Uni<Boolean> isPlatformOwner(String email) {
         if (email == null) {
             return Uni.createFrom().item(false);
         }
         if (isOwner(bootstrapOwners, email)) {
-            return Uni.createFrom().item(true);
+            return accountActive(email).onFailure().recoverWithItem(true);
         }
+        return hasOwnerAssignment(email).flatMap(assigned -> Boolean.TRUE.equals(assigned)
+                ? accountActive(email)
+                : Uni.createFrom().item(false));
+    }
+
+    /** False only for a known user whose status is not ACTIVE; an email with no user is not disabled. */
+    protected Uni<Boolean> accountActive(String email) {
+        return Panache.withSession(() -> IamUser.findByEmail(email))
+                .map(user -> user == null || "ACTIVE".equals(user.status));
+    }
+
+    protected Uni<Boolean> hasOwnerAssignment(String email) {
         return Panache.withSession(() -> PlatformRoleAssignment.hasAssignment(
                 PlatformRoleDefinition.OWNER.roleCode(), normalize(email)));
     }

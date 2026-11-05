@@ -19,6 +19,13 @@ export function displayRut(rut: string): string {
   return `${groupThousands(normalized.slice(0, -1))}-${normalized.slice(-1)}`;
 }
 
+/** A RUT as it is typed, always shown with dots and dash; at most 9 characters, K only as check digit. */
+export function maskRut(typed: string): string {
+  const chars = typed.toUpperCase().replaceAll(/[^0-9K]/g, "");
+  const body = chars.slice(0, -1).replaceAll("K", "");
+  return displayRut(`${body}${chars.slice(-1)}`.slice(0, 9));
+}
+
 /** "11111111" → "11.111.111". */
 function groupThousands(digits: string): string {
   if (!/^\d+$/.test(digits)) return digits;

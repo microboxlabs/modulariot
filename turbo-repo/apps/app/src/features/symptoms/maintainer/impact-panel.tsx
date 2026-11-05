@@ -98,7 +98,7 @@ function Rows({
   return (
     <div className="flex flex-col gap-2 text-sm">
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        {tr("impactWindow", d)}
+        {tr("impactWindow", d, { n: String(stats.windowDays) })}
       </p>
       <ul className="flex flex-col gap-1.5">
         {ICU_LEVELS.map(({ icu }) => {
@@ -133,7 +133,7 @@ function Rows({
         </span>
       </p>
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        {tr("impactNote", d)}
+        {tr("impactNote", d, { n: String(stats.windowDays) })}
       </p>
       {activationChanged(spec, published) && (
         <p className="text-xs text-amber-700 dark:text-amber-300">

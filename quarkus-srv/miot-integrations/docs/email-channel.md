@@ -46,13 +46,4 @@ The test checks the sender, then calls `GET /domains` with the key. It sends no 
 
 ## Platform sender
 
-Organizations without their own connection send through the platform sender. A platform owner sets it in Settings › Platform, or through the API:
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /api/v1/platform/mail` | The sender, its key preview and last test |
-| `PUT /api/v1/platform/mail` | `{"from", "apiKey"}`. The key is required the first time; blank keeps it |
-| `POST /api/v1/platform/mail/test` | Check the key with Resend |
-| `DELETE /api/v1/platform/mail` | Remove the sender and its key |
-
-It is stored as a `RESEND` connection under the reserved tenant code `_platform`.
+Organizations without their own connection send through the platform sender. It is a `RESEND` connection of the platform scope (tenant `_platform`). A platform owner sets it in Comunicaciones › Correo with "Plataforma" selected, through the same endpoints an organization uses for its own sender (`/api/v1/orgs/_platform/integrations/...`).

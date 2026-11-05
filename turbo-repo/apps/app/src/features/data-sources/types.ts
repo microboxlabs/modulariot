@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 
 export type AuthMethod = "TOKEN" | "OAUTH";
 
@@ -111,10 +111,19 @@ export const UpdateDataSourceSchema = z.object({
   // OAuth auth
   clientId: z.string().optional(),
   clientSecret: z.string().optional(),
-  tokenUrl: z.union([z.string().url("validation.tokenUrlInvalid"), z.literal("")]).optional(),
+  tokenUrl: z
+    .union([z.string().url("validation.tokenUrlInvalid"), z.literal("")])
+    .optional(),
   scope: z.string().max(500).optional().nullable(),
   audience: z.string().max(500).optional().nullable(),
   tokenRequestFormat: z.enum(["form", "json"]).optional(),
+});
+
+/** The editor always sends its visible fields; the API's patch schema also accepts partial updates. */
+export const EditDataSourceFormSchema = UpdateDataSourceSchema.extend({
+  ...baseFields,
+  scope: z.string().max(500).optional(),
+  audience: z.string().max(500).optional(),
 });
 
 export type CreateDataSourceInput = z.infer<typeof CreateDataSourceSchema>;

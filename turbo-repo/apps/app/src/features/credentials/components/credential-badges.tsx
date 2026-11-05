@@ -3,15 +3,11 @@
 import { Badge } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import {
-  isBuiltInEnvironment,
-} from "../credential.types";
+import { isBuiltInEnvironment } from "../credential.types";
 
 /**
- * Badges here are deliberately monochrome: a row already carries a brand logo,
- * and a rainbow of status pills next to it turns every row into noise. The
- * chips share one grey ground and differ only in text weight and shade —
- * except a failed test, the single state that warrants an accent.
+ * Chips share one grey ground. A test result is the exception: connected is green and
+ * failed is red, the same colours the other settings catalogs use for state.
  */
 const CHIP = "bg-gray-100 dark:bg-gray-700";
 
@@ -79,15 +75,14 @@ export function CredentialTestBadge({
   const label = lastTestResult
     ? tr("badge.connected", dict)
     : tr("badge.failed", dict);
-  // A failure is the one state someone has to act on, so it keeps an accent.
   const tone = lastTestResult
-    ? "text-gray-600 dark:text-gray-300"
-    : "text-red-600 dark:text-red-400";
+    ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+    : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400";
   const badge = (
     <Badge
       color="gray"
       size="xs"
-      className={`${CHIP} ${tone}`}
+      className={tone}
       title={compact ? new Date(lastTestedAt).toLocaleString() : undefined}
     >
       {label}

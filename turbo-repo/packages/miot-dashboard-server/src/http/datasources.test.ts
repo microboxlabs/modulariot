@@ -366,6 +366,12 @@ describe("the serialization gate", () => {
         { method: "POST", path: `${DS}/missing/test`, user: "alice" },
       ],
       credentials: [{ method: "GET", path: CRED, user: "alice" }],
+      querySources: "answers source labels and projects, never credentials",
+      querySourceSchema: "answers BigQuery metadata, never the token",
+      queryPlans: "answers saved SQL, never credentials",
+      queryPlan: "answers saved SQL, never credentials",
+      queryEstimate: "answers BigQuery's estimate, never the token",
+      queryPreview: "answers query rows, never the token",
       credential: [
         ...Object.entries(WRITES).map(([kind, body]) => ({
           method: "PUT",

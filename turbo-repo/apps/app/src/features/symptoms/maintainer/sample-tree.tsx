@@ -42,7 +42,15 @@ export function useSourceSamples(
 ): Preview["samples"] {
   const [cached, setCached] = useState(preview);
   if (preview && preview !== cached) setCached(preview);
-  return cached?.source === source ? cached.samples : [];
+  return cached && cached.source === source ? cached.samples : [];
+}
+
+/** The first sample that opens a case, so the preview starts where the rule holds; else the first. */
+export function firstOpening(samples: Preview["samples"]): number {
+  return Math.max(
+    0,
+    samples.findIndex((s) => s.activates === true)
+  );
 }
 
 /** "LDKF17 · Ruta 5 Norte · 21:31": plate, route and time of the sample, when it has them. */
@@ -122,11 +130,16 @@ function Leaf({
   );
 }
 
+/** Top-level objects start open and nested ones closed; a click flips that. */
+function isOpen(path: string, flipped: ReadonlySet<string>): boolean {
+  return path.includes(".") === flipped.has(path);
+}
+
 function Node({
   name,
   path,
   value,
-  collapsed,
+  flipped,
   notInEngine,
   readOnly,
   d,
@@ -135,13 +148,13 @@ function Node({
   name: string;
   path: string;
   value: Json;
-  collapsed: ReadonlySet<string>;
+  flipped: ReadonlySet<string>;
   notInEngine: ReadonlySet<string>;
   readOnly: boolean;
   d: I18nRecord;
   onToggle: (path: string) => void;
 }>) {
-  const open = !collapsed.has(path);
+  const open = isOpen(path, flipped);
   return (
     <div>
       <button
@@ -160,7 +173,7 @@ function Node({
           <Entries
             value={value}
             path={path}
-            collapsed={collapsed}
+            flipped={flipped}
             notInEngine={notInEngine}
             readOnly={readOnly}
             d={d}
@@ -175,7 +188,7 @@ function Node({
 function Entries({
   value,
   path,
-  collapsed,
+  flipped,
   notInEngine,
   readOnly,
   d,
@@ -183,7 +196,7 @@ function Entries({
 }: Readonly<{
   value: Json;
   path: string;
-  collapsed: ReadonlySet<string>;
+  flipped: ReadonlySet<string>;
   notInEngine: ReadonlySet<string>;
   readOnly: boolean;
   d: I18nRecord;
@@ -199,7 +212,7 @@ function Entries({
             name={name}
             path={child}
             value={v}
-            collapsed={collapsed}
+            flipped={flipped}
             notInEngine={notInEngine}
             readOnly={readOnly}
             d={d}
@@ -222,8 +235,9 @@ function Entries({
 }
 
 /**
- * One sample of the source as a tree, with ‹ › to change sample. Click a field
- * to insert its path where the rule was being edited, or drag it into the rule.
+ * One sample of the source as a tree, with ‹ › to change sample. Nested
+ * objects start closed. Click a field to insert its path where the rule was
+ * being edited, or drag it into the rule.
  */
 export default function SampleTree({
   samples,
@@ -244,55 +258,68 @@ export default function SampleTree({
   d: I18nRecord;
   onIndex: (index: number) => void;
 }>) {
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const [flipped, setFlipped] = useState<ReadonlySet<string>>(new Set());
   const sample = samples[index];
   if (!sample) return null;
+  // held_s is not a field of the source: the engine computes it per level, so it is shown, not inserted.
+  const { held_s: held, ...fields } = sample;
   const position = tr("sampleOf", d, {
     n: String(index + 1),
     total: String(samples.length),
   });
   const toggle = (path: string) =>
-    setCollapsed((prev) => {
+    setFlipped((prev) => {
       const next = new Set(prev);
       if (next.has(path)) next.delete(path);
       else next.add(path);
       return next;
     });
+  // On wide screens the tree fills its grid row, sized by the rule beside it, and scrolls inside.
   return (
-    <div className="flex max-h-80 flex-col rounded-lg border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-end gap-2 border-b border-gray-200 px-2 py-1.5 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">
-        <button
-          type="button"
-          aria-label={tr("previousSample", d)}
-          className={navClass}
-          disabled={index === 0}
-          onClick={() => onIndex(index - 1)}
-        >
-          ‹
-        </button>
-        <span title={position}>
-          {labels?.[index] ?? sampleLabel(sample) ?? position}
-        </span>
-        <button
-          type="button"
-          aria-label={tr("nextSample", d)}
-          className={navClass}
-          disabled={index === samples.length - 1}
-          onClick={() => onIndex(index + 1)}
-        >
-          ›
-        </button>
-      </div>
-      <div className="overflow-auto p-2 font-mono text-xs">
-        <Entries
-          value={sample}
-          path=""
-          collapsed={collapsed}
-          notInEngine={notInEngine}
-          readOnly={readOnly}
-          d={d}
-          onToggle={toggle}
-        />
+    <div className="relative lg:min-h-80">
+      <div className="flex max-h-80 flex-col rounded-lg border border-gray-200 lg:absolute lg:inset-0 lg:max-h-none dark:border-gray-700">
+        <div className="flex items-center justify-end gap-2 border-b border-gray-200 px-2 py-1.5 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">
+          {typeof held === "number" && (
+            <span
+              className="mr-auto rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
+              title={tr("sampleHeldHelp", d)}
+            >
+              {tr("sampleHeld", d, { seconds: String(held) })}
+            </span>
+          )}
+          <button
+            type="button"
+            aria-label={tr("previousSample", d)}
+            className={navClass}
+            disabled={index === 0}
+            onClick={() => onIndex(index - 1)}
+          >
+            ‹
+          </button>
+          <span title={position}>
+            {labels?.[index] ?? sampleLabel(sample) ?? position}
+          </span>
+          <button
+            type="button"
+            aria-label={tr("nextSample", d)}
+            className={navClass}
+            disabled={index === samples.length - 1}
+            onClick={() => onIndex(index + 1)}
+          >
+            ›
+          </button>
+        </div>
+        <div className="overflow-auto p-2 font-mono text-xs">
+          <Entries
+            value={fields}
+            path=""
+            flipped={flipped}
+            notInEngine={notInEngine}
+            readOnly={readOnly}
+            d={d}
+            onToggle={toggle}
+          />
+        </div>
       </div>
     </div>
   );

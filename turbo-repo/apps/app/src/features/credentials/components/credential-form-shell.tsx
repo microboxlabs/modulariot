@@ -17,7 +17,7 @@ import type {
   CredentialFormState,
   CredentialModalProps,
 } from "../use-credential-form";
-import { CredentialTypeLogo } from "./credential-type-logo";
+import { BrandLogo } from "@/features/common/components/brand-logo";
 import { EnvironmentSelect } from "./environment-select";
 import {
   credentialSubmitLabel,
@@ -106,8 +106,10 @@ export function CredentialFormShell<T extends CredentialBaseFields>({
       }
       subtitle={trDynamic(chrome.subtitleKey, dict)}
       icon={
-        <CredentialTypeLogo
+        <BrandLogo
           logo={type?.logo}
+          icon={type?.icon}
+          keyline={type?.keyline}
           alt={trDynamic(chrome.logoAltKey, dict)}
           size={40}
         />

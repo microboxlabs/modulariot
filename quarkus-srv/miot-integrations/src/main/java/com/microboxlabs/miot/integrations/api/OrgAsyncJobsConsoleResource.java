@@ -5,12 +5,15 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
 import com.microboxlabs.miot.integrations.domain.JobLedgerFacets;
 import com.microboxlabs.miot.integrations.domain.JobQuery;
+import com.microboxlabs.miot.integrations.events.JobEventBus;
 import com.microboxlabs.miot.integrations.events.JobEventEmitter;
 import com.microboxlabs.miot.integrations.service.AsyncJobService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
+import io.vertx.core.json.JsonObject;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
@@ -29,6 +32,7 @@ import java.util.function.Supplier;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.resteasy.reactive.RestStreamElementType;
 
 /**
  * Read/babysit surface of the integration outbox for the web job console.
@@ -61,17 +65,20 @@ public class OrgAsyncJobsConsoleResource {
     private final OrganizationContext organizationContext;
     private final AsyncJobService service;
     private final JobEventEmitter eventEmitter;
+    private final JobEventBus eventBus;
 
     @Inject
     public OrgAsyncJobsConsoleResource(
             TenantContext tenantContext,
             OrganizationContext organizationContext,
             AsyncJobService service,
-            JobEventEmitter eventEmitter) {
+            JobEventEmitter eventEmitter,
+            JobEventBus eventBus) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
         this.service = service;
         this.eventEmitter = eventEmitter;
+        this.eventBus = eventBus;
     }
 
     @GET
@@ -141,8 +148,17 @@ public class OrgAsyncJobsConsoleResource {
                     "executors", facets.executors(),
                     "tenantId", tenant,
                     "eventType", JobEventEmitter.EVENT_TYPE,
-                    "liveEventsConfigured", eventEmitter.isConfigured())).build();
+                    "liveEventsConfigured", eventEmitter.isLive())).build();
         });
+    }
+
+    @GET
+    @Path("/events")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    @RestStreamElementType(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Server-sent events: a frame for each job transition of the org, and a ping every 25 seconds")
+    public Multi<JsonObject> events(@PathParam("organizationId") String organizationId) {
+        return eventBus.stream(tenantCode(organizationId));
     }
 
     @GET

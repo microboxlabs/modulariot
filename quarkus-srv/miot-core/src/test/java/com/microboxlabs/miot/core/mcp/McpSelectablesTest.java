@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 
 import com.microboxlabs.miot.core.auth.StubAlfrescoMembershipClient;
+import com.microboxlabs.miot.core.auth.TestMembers;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -43,13 +44,15 @@ class McpSelectablesTest {
     @BeforeEach
     void seedOrg() throws SQLException {
         try (Connection c = ds.getConnection(); var st = c.prepareStatement(
-                "INSERT INTO miot_core.organizations (slug, name, alfresco_group_id, tenant_client_id, active)"
-                        + " VALUES (?, ?, ?, ?, true)")) {
+                "INSERT INTO miot_core.organizations "
+                        + "(slug, name, alfresco_group_id, tenant_client_id, active, membership_source)"
+                        + " VALUES (?, ?, ?, ?, true, 'NATIVE')")) {
             st.setString(1, ORG_SLUG);
             st.setString(2, "MCP Test Org");
             st.setString(3, "GROUP_mcp_test");
             st.setString(4, ORG_TENANT);
             st.executeUpdate();
+            TestMembers.addMember(c, ORG_SLUG, StubAlfrescoMembershipClient.MEMBER_EMAIL, "OWNER");
         }
     }
 

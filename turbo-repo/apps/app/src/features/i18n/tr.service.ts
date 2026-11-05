@@ -33,7 +33,8 @@ function translate(
   }
 
   return Object.entries(params ?? {}).reduce(
-    (acc, [key, value]) => acc.replace(`{${key}}`, value),
+    // A function replacement, so "$&" or "$'" in a value is not read as a pattern.
+    (acc, [key, value]) => acc.replace(`{${key}}`, () => value),
     value as string
   );
 }

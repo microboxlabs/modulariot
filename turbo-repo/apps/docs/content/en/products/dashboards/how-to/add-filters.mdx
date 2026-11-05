@@ -20,16 +20,18 @@ A date range filter with key `date_range` provides `date_range_from` and `date_r
 2. Open the settings menu (the gear) and choose **Filter Bar**.
 3. Select **Add filter**.
 4. Fill in:
-   - **Filter key**: the name queries use, such as `vehicle`. Unique in the dashboard.
+   - **Filter type**: **Text Search**, **Date Range** or **Select**.
    - **Display label**: what viewers read, such as `Vehicle`.
-   - **Control type**: text, date range or selection.
-5. Apply the filters. The dashboard saves on its own.
+   - **Parameter key**: the name queries use, such as `vehicle`. Unique in the dashboard. If left empty, it is derived from the label.
+5. Select **Save** in the panel. The dashboard saves on its own.
 
 Then bind the filter to a query parameter in **Saved queries**:
 
 ```json
 { "vehicle_id": { "kind": "filter", "key": "vehicle", "omitWhenEmpty": true } }
 ```
+
+`omitWhenEmpty` leaves the parameter out while the filter is empty. Use it with PostgREST functions. With BigQuery, use `"defaultValue": ""`: a BigQuery query fails when a parameter is missing. Examples in [Queries for widgets](/en/products/dashboards/tutorials/queries-for-widgets#filters-as-parameters).
 
 <Callout type="warning">
 Renaming a filter key does not update the queries that read it. Update their bindings in the same edit.
@@ -39,15 +41,17 @@ Renaming a filter key does not update the queries that read it. Update their bin
 
 A selection filter gets its options in one of two ways.
 
-**Static options.** Type each option's label and value. Use this for short lists that rarely change, such as `Open`, `Closed`.
+**Manual (typed by hand).** With **Add option**, type each option's **Label** and **Value**. Use this for short lists that rarely change, such as `Open`, `Closed`.
 
-**From a saved query.** Choose **Options source**, then:
+**From a saved query.** In **Options source**, choose the saved query by its **Result name**, then:
 
 | Field | Meaning |
 | --- | --- |
 | Saved query | The result that holds the options |
 | **Value column** | The column whose value the filter sends |
-| **Label column (optional)** | The column viewers read. Defaults to the value column. |
+| **Label column** | The column viewers read. **Same as value** if you do not choose one |
+
+Columns appear after the query has run once. If the list is empty, wait for the dashboard to load and open **Filter Bar** again.
 
 Options from a query are de-duplicated and refresh with the query. The filter makes no extra request: it reads a result the dashboard already loads.
 

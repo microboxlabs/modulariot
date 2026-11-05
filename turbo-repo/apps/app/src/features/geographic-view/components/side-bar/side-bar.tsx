@@ -15,10 +15,16 @@ export default function SideBar({
   dict,
   mapPositionsResume,
   mapPositions,
+  open,
+  onOpenChange,
+  hideToggle = false,
 }: {
   dict: I18nRecord;
   mapPositionsResume: MapPositionResume;
   mapPositions: MapPosition[];
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideToggle?: boolean;
 }) {
   const inner_menu = React.useMemo(
     () => [
@@ -40,7 +46,12 @@ export default function SideBar({
     [dict, mapPositionsResume]
   );
 
-  const [open, set_open] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = open ?? internalOpen;
+  const setIsOpen = (next: boolean) => {
+    onOpenChange?.(next);
+    if (open === undefined) setInternalOpen(next);
+  };
   const [openned_menu, set_openned_menu] = useState(0);
   const [component, set_component] = useState(
     inner_menu[openned_menu].component
@@ -53,20 +64,22 @@ export default function SideBar({
   return (
     <div className=" h-full gap-[14px] flex flex-col z-50">
       <div className="h-full flex justify-end ">
-        <MapButton
-          main_color="m-5 bg-white dark:bg-gray-800"
-          button_color="bg-white dark:bg-gray-800"
-          icon={HiChevronLeft}
-          text={open ? tr("common.close", dict) : tr("common.open", dict)}
-          open_to_left={true}
-          onClick={() => set_open(!open)}
-          activated={open}
-        />
+        {!hideToggle && (
+          <MapButton
+            main_color="m-5 bg-white dark:bg-gray-800"
+            button_color="bg-white dark:bg-gray-800"
+            icon={HiChevronLeft}
+            text={isOpen ? tr("common.close", dict) : tr("common.open", dict)}
+            open_to_left={true}
+            onClick={() => setIsOpen(!isOpen)}
+            activated={isOpen}
+          />
+        )}
         <div
-          className={`z-50 bg-white dark:bg-gray-800 pointer-events-auto flex flex-column overflow-hidden justify-center transition-all duration-500 ease-in-out ${open ? "w-[400px]" : "w-0"} h-100%`}
+          className={`z-50 bg-white dark:bg-gray-800 pointer-events-auto flex flex-column overflow-hidden justify-center transition-all duration-500 ease-in-out ${isOpen ? "w-[400px]" : "w-0"} h-100%`}
         >
           <div
-            className={`w-full flex flex-col gap-3 items-center p-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
+            className={`w-full flex flex-col gap-3 items-center p-4 transition-all duration-500 ease-in-out ${isOpen ? "opacity-100" : "opacity-0"}`}
           >
             <ButtonGroup>
               {inner_menu.map((menu, i) => (

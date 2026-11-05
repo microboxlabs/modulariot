@@ -32,6 +32,15 @@ public class PgTowerSettingsStore implements TowerSettingsStore {
                 updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at
             RETURNING\s""" + COLUMNS;
 
+    private static final String SELECT_TELEPHONY =
+            "SELECT telephony_provider FROM miot_symptoms.tower_settings WHERE tenant_code = $1";
+
+    private static final String UPSERT_TELEPHONY = """
+            INSERT INTO miot_symptoms.tower_settings (tenant_code, telephony_provider, updated_by, updated_at)
+            VALUES ($1, $2, $3, now())
+            ON CONFLICT (tenant_code) DO UPDATE SET telephony_provider = EXCLUDED.telephony_provider,
+                updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at""";
+
     private final Supplier<Pool> pool;
 
     @Inject
@@ -59,5 +68,16 @@ public class PgTowerSettingsStore implements TowerSettingsStore {
     private static TowerSettings settings(Row r) {
         return new TowerSettings(r.getString("tenant_code"), r.getInteger("operators"), r.getInteger("shift_hours"),
                 r.getInteger("capacity_per_shift"), r.getString("updated_by"), r.getOffsetDateTime("updated_at"));
+    }
+
+    @Override
+    public Optional<String> telephonyProvider(String tenantCode) {
+        RowIterator<Row> rows = query(pool.get(), SELECT_TELEPHONY, Tuple.of(tenantCode)).iterator();
+        return rows.hasNext() ? Optional.ofNullable(rows.next().getString("telephony_provider")) : Optional.empty();
+    }
+
+    @Override
+    public void saveTelephonyProvider(String tenantCode, String provider, String updatedBy) {
+        query(pool.get(), UPSERT_TELEPHONY, Tuple.of(tenantCode, provider, updatedBy));
     }
 }

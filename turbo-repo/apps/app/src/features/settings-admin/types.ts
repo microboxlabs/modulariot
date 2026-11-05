@@ -17,31 +17,12 @@ export interface ActiveOrg extends OrgSummary {
 export interface OrgMember {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string | null;
 }
-
-export interface OrganizationPermission {
-  enabled: boolean;
-  permissionCode: string;
-  roleCode: string;
-  assigneeIds: string[];
-}
-
-export interface SetOrganizationPermission {
-  enabled: boolean;
-  assigneeIds: string[];
-}
-
-export type ContentReviewPermission = OrganizationPermission;
-export type SetContentReviewPermission = SetOrganizationPermission;
 
 export interface OrganizationRole {
   roleCode: string;
-  assigneeIds: string[];
-}
-
-export interface SetOrganizationRole {
   assigneeIds: string[];
 }

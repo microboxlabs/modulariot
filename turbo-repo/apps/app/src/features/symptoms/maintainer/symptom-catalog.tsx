@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import { channelGroupLabel, SymptomCard, SymptomRow } from "./catalog-card";
 import {
   type CatalogFilterKey,
@@ -27,12 +28,16 @@ import {
   type SymptomSummary,
 } from "./maintainer-api";
 import { familyLabel, stateLabel } from "./symptom-labels";
+import { isTemplateScope, useSymptomScope } from "./symptom-scope";
 import { MUTED, Tile } from "./ui/card";
+import FilterStrip from "@/features/common/components/filter-strip";
+import LayoutToggle, {
+  type CatalogLayout,
+} from "@/features/common/components/layout-toggle";
 import { FilterChip } from "./ui/filter-chip";
 import { STATES } from "./ui/state";
 
 type Filters = Record<CatalogFilterKey, string>;
-type Layout = "cards" | "list";
 
 const EMPTY: Filters = {
   family: "",
@@ -70,7 +75,11 @@ function passes(
   return true;
 }
 
-/** Settings › Síntomas: every symptom of the organization, with its levels, who acts and how much it fires. */
+/**
+ * Settings › Síntomas: every symptom of the organization, with its levels, who
+ * acts and how much it fires. Under the platform scope, the symptom templates:
+ * no state, stats or engine import.
+ */
 export default function SymptomCatalog({
   dict,
   rootDict,
@@ -84,12 +93,16 @@ export default function SymptomCatalog({
 }>) {
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
+  const scope = useSymptomScope();
+  const template = isTemplateScope(scope);
   const { data, error, isLoading } = useSymptomDefinitions();
-  const { data: stats } = useSymptomStats();
+  const { data: stats } = useSymptomStats(!template);
   const { data: families } = useSymptomFamilies();
-  const { canMaintain: isOwner } = useControlTowerAccess();
+  const { canMaintain } = useControlTowerAccess();
+  const { isPlatformOwner } = useIsPlatformOwner();
+  const isOwner = template ? isPlatformOwner : canMaintain;
   const [filters, setFilters] = useState<Filters>(EMPTY);
-  const [layout, setLayout] = useState<Layout>("cards");
+  const [layout, setLayout] = useState<CatalogLayout>("cards");
   const [creating, setCreating] = useState(false);
   const [editingTeam, setEditingTeam] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -98,6 +111,7 @@ export default function SymptomCatalog({
   const all = useMemo(() => data ?? [], [data]);
   const family = (value: string | null) => familyLabel(value, families, lang);
   const shown = all.filter((s) => passes(s, filters, d, family));
+  const noneYet = template ? tr("templatesEmpty", d) : tr("empty", d);
   const weekOf = useMemo(() => {
     const byId = new Map(
       (stats?.symptoms ?? []).map((x) => [x.definitionId, x.week])
@@ -105,8 +119,7 @@ export default function SymptomCatalog({
     // No entry: the engine credited no cases to this symptom.
     return (id: string) => byId.get(id) ?? null;
   }, [stats]);
-  const open = (id: string) =>
-    router.push(`/${lang}/users/settings/symptoms/${id}`);
+  const open = (id: string) => router.push(`/${lang}${scope.pages}/${id}`);
 
   const filterDefs: {
     key: CatalogFilterKey;
@@ -120,11 +133,15 @@ export default function SymptomCatalog({
         ...new Set(all.map((s) => family(s.definition.family)).filter(Boolean)),
       ],
     },
-    {
-      key: "state",
-      label: tr("filterState", d),
-      options: [...STATES].reverse().map((s) => stateLabel(s, d)),
-    },
+    ...(template
+      ? []
+      : [
+          {
+            key: "state" as const,
+            label: tr("filterState", d),
+            options: [...STATES].reverse().map((s) => stateLabel(s, d)),
+          },
+        ]),
     {
       key: "level",
       label: tr("filterLevel", d),
@@ -179,7 +196,7 @@ export default function SymptomCatalog({
         />
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-900">
+      <FilterStrip>
         {filterDefs.map((f) => (
           <FilterChip
             key={f.key}
@@ -190,7 +207,7 @@ export default function SymptomCatalog({
             onChange={(v) => setFilters({ ...filters, [f.key]: v })}
           />
         ))}
-      </div>
+      </FilterStrip>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-10 pt-4">
@@ -209,50 +226,46 @@ export default function SymptomCatalog({
             </Tile>
             <div>
               <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {tr("title", d)}
+                {template ? tr("templatesTitle", d) : tr("title", d)}
               </h1>
-              <p className={`text-sm ${MUTED}`}>{tr("description", d)}</p>
+              <p className={`text-sm ${MUTED}`}>
+                {template
+                  ? tr("templatesDescription", d)
+                  : tr("description", d)}
+              </p>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <div className="flex rounded-lg border border-gray-300 p-0.5 dark:border-gray-600">
-                {(["cards", "list"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    aria-pressed={layout === v}
-                    onClick={() => setLayout(v)}
-                    className={`rounded-md px-2.5 py-1 text-xs ${
-                      layout === v
-                        ? "bg-gray-100 font-medium text-gray-900 dark:bg-gray-700 dark:text-white"
-                        : MUTED
-                    }`}
-                  >
-                    {v === "cards" ? tr("viewCards", d) : tr("viewList", d)}
-                  </button>
-                ))}
-              </div>
+              <LayoutToggle
+                layout={layout}
+                labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
+                onLayout={setLayout}
+              />
               {isOwner && (
                 <button
                   type="button"
                   onClick={() => setCreating(true)}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
                 >
-                  ＋ {tr("newSymptom", d)}
+                  ＋ {template ? tr("newTemplate", d) : tr("newSymptom", d)}
                 </button>
               )}
             </div>
           </div>
 
-          <CatalogStats
-            loading={isLoading}
-            all={all}
-            stats={stats}
-            lang={lang}
-            d={d}
-            onFilter={(key, value) => setFilters({ ...filters, [key]: value })}
-            onOpen={open}
-            onEditTeam={isOwner ? () => setEditingTeam(true) : undefined}
-          />
+          {!template && (
+            <CatalogStats
+              loading={isLoading}
+              all={all}
+              stats={stats}
+              lang={lang}
+              d={d}
+              onFilter={(key, value) =>
+                setFilters({ ...filters, [key]: value })
+              }
+              onOpen={open}
+              onEditTeam={isOwner ? () => setEditingTeam(true) : undefined}
+            />
+          )}
 
           <p
             role="status"
@@ -268,7 +281,7 @@ export default function SymptomCatalog({
           )}
           {!isLoading && !error && shown.length === 0 && (
             <p className={`py-10 text-center text-sm ${MUTED}`}>
-              {all.length === 0 ? tr("empty", d) : tr("emptyFiltered", d)}
+              {all.length === 0 ? noneYet : tr("emptyFiltered", d)}
             </p>
           )}
 
@@ -295,11 +308,15 @@ export default function SymptomCatalog({
                     <th className="px-4 py-2">{tr("colSymptom", d)}</th>
                     <th className="px-4 py-2">{tr("colScale", d)}</th>
                     <th className="px-4 py-2">{tr("filterWho", d)}</th>
-                    <th className="px-4 py-2">{tr("filterState", d)}</th>
+                    {!template && (
+                      <th className="px-4 py-2">{tr("filterState", d)}</th>
+                    )}
                     <th className="px-4 py-2">{tr("colVersion", d)}</th>
-                    <th className="px-4 py-2 text-right">
-                      {tr("colPerWeek", d)}
-                    </th>
+                    {!template && (
+                      <th className="px-4 py-2 text-right">
+                        {tr("colPerWeek", d)}
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -331,6 +348,7 @@ export default function SymptomCatalog({
         rootDict={rootDict}
         lang={lang}
         harnessEnabled={harnessEnabled}
+        blankOnly={template}
         importing={importing}
         onImport={() => {
           setCreating(false);

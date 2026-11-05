@@ -26,7 +26,7 @@ describe("toggleRecurrence", () => {
       count: 5,
       days: 30,
       raiseLevels: 2,
-      entity: "conductor",
+      entity: "driver",
     };
     const off = toggleRecurrence(custom, false);
     expect(off).toEqual({ ...custom, enabled: false });

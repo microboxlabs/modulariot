@@ -2,7 +2,8 @@
 
 import React, { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { HiCheck, HiChevronDown } from "react-icons/hi2";
+import { Checkbox } from "flowbite-react";
+import { HiCheck, HiChevronDown, HiXMark } from "react-icons/hi2";
 
 export type MultiSelectOption = {
   value: string;
@@ -26,6 +27,9 @@ interface BrandedMultiSelectProps {
    *  filled by an automated pass) — replaces, rather than layers onto, the
    *  default so there's never two conflicting `border-*` utilities at once. */
   borderClassName?: string;
+  /** When given, the list opens with this row to clear the whole selection
+   *  (shown only while something is selected). Off by default. */
+  clearLabel?: string;
 }
 
 const SIZES = {
@@ -60,6 +64,7 @@ export default function BrandedMultiSelect({
   emptyLabel,
   size = "md",
   borderClassName = "border-gray-300 dark:border-gray-600",
+  clearLabel,
 }: Readonly<BrandedMultiSelectProps>) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0, upward: false });
@@ -191,6 +196,16 @@ export default function BrandedMultiSelect({
             }}
             className="overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700"
           >
+          {clearLabel && selectedValues.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onSelectionChange([])}
+              className={`flex w-full items-center gap-2 border-b border-rose-100 bg-rose-50 text-left font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-300 dark:hover:bg-rose-900/40 ${s.option} ${s.label}`}
+            >
+              <HiXMark className="h-4 w-4 shrink-0" />
+              {clearLabel}
+            </button>
+          )}
           {options.map((option) => {
             const isSelected = selectedValues.includes(option.value);
             return (
@@ -208,12 +223,13 @@ export default function BrandedMultiSelect({
                 aria-selected={isSelected}
                 tabIndex={0}
               >
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={isSelected}
                   onChange={() => {}} // the row handles it
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 pointer-events-none focus:ring-blue-500 dark:border-gray-500 dark:bg-gray-800"
+                  color="blue"
+                  className="mt-0.5 shrink-0 pointer-events-none"
                   tabIndex={-1}
+                  aria-hidden
                 />
                 <div className="min-w-0 flex-1">
                   <p className={`font-medium text-gray-900 dark:text-gray-100 ${s.label}`}>

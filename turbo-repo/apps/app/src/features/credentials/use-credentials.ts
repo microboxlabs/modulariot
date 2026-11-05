@@ -40,7 +40,7 @@ export function useCredentials(orgSlug: string | null) {
   const [actionLoading, setActionLoading] = useState(false);
 
   const run = useCallback(
-    async <T,>(action: (slug: string) => Promise<T>): Promise<T> => {
+    async <T>(action: (slug: string) => Promise<T>): Promise<T> => {
       if (!orgSlug) {
         throw new Error("No organization is selected");
       }
@@ -56,8 +56,9 @@ export function useCredentials(orgSlug: string | null) {
 
   const create = useCallback(
     async (typeId: CredentialTypeId, form: CredentialFormData) => {
-      await run((slug) => createCredential(slug, typeId, form));
+      const created = await run((slug) => createCredential(slug, typeId, form));
       await mutate();
+      return created;
     },
     [run, mutate]
   );

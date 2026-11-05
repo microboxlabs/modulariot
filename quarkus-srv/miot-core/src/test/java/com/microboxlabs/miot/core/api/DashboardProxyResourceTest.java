@@ -10,6 +10,7 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import com.microboxlabs.miot.core.auth.DashboardProxyTestProfile;
 import com.microboxlabs.miot.core.auth.DashboardProxyTestProfile.DashboardWireMock;
 import com.microboxlabs.miot.core.auth.StubAlfrescoMembershipClient;
+import com.microboxlabs.miot.core.auth.TestMembers;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -111,13 +112,14 @@ class DashboardProxyResourceTest {
             throws SQLException {
         try (Connection c = ds.getConnection(); var st = c.prepareStatement(
                 "INSERT INTO miot_core.organizations "
-                        + "(slug, name, alfresco_group_id, tenant_client_id, active) "
-                        + "VALUES (?, ?, ?, ?, true)")) {
+                        + "(slug, name, alfresco_group_id, tenant_client_id, active, membership_source) "
+                        + "VALUES (?, ?, ?, ?, true, 'NATIVE')")) {
             st.setString(1, slug);
             st.setString(2, slug);
             st.setString(3, groupId);
             st.setString(4, tenantClientId);
             st.executeUpdate();
+            TestMembers.addMember(c, slug, StubAlfrescoMembershipClient.MEMBER_EMAIL, "OWNER");
         }
     }
 

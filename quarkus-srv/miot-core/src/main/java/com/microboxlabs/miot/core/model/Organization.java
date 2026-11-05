@@ -61,9 +61,12 @@ public class Organization extends PanacheEntityBase {
     @Column(nullable = false)
     public boolean active = true;
 
-    /** Where membership comes from: ALFRESCO (the org's Alfresco group) or NATIVE (the modulith's memberships). */
+    /**
+     * NATIVE once members come from the modulith's memberships; ALFRESCO until {@code NativeMembershipMigration} has
+     * imported the organization's Alfresco group. Nothing else reads it.
+     */
     @Column(name = "membership_source", nullable = false)
-    public String membershipSource = "ALFRESCO";
+    public String membershipSource = "NATIVE";
 
     // --- Named finders (avoids static access via inherited PanacheEntityBase) ---
 
@@ -87,6 +90,11 @@ public class Organization extends PanacheEntityBase {
 
     public static Uni<List<Organization>> listAllActive() {
         return find("active = true").list();
+    }
+
+    /** Active top-level organizations whose members have not been moved off Alfresco yet. */
+    public static Uni<List<Organization>> listAlfrescoMembership() {
+        return find("parent is null and active = true and membershipSource = 'ALFRESCO' order by id").list();
     }
 
     /** Every active organization with its parent loaded, by slug. */

@@ -7,6 +7,8 @@ import { HiChartPie, HiTrash } from "react-icons/hi";
 interface DashboardCardProps {
   slug: string;
   name: string;
+  /** Where the card opens; a legacy dashboard under /home by default. */
+  href?: string;
   onDelete?: () => void;
   deleteTitle?: string;
 }
@@ -14,6 +16,7 @@ interface DashboardCardProps {
 export function DashboardCard({
   slug,
   name,
+  href,
   onDelete,
   deleteTitle,
 }: Readonly<DashboardCardProps>) {
@@ -22,7 +25,7 @@ export function DashboardCard({
   return (
     <div className="group relative flex flex-col items-start rounded-lg border border-gray-200 bg-white p-5 text-left transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
       <Link
-        href={`/${params.lang}/home/${slug}`}
+        href={href ?? `/${params.lang}/home/${slug}`}
         className="absolute inset-0 z-0"
         aria-label={name}
       />

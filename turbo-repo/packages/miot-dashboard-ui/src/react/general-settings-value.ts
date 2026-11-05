@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { refreshIntervalSchema } from "@microboxlabs/miot-dashboard-contract/schema";
 import type { RefreshInterval } from "@microboxlabs/miot-dashboard-contract/document";
 export interface DashboardGeneralSettingsValue {

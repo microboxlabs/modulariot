@@ -24,10 +24,7 @@ export default async function HarnessSettingsPage({ params }: ParamsWithLang) {
     ?.userSettings as I18nRecord;
 
   return (
-    <RouteGuard
-      path="/users/settings/harness"
-      fallbackPath={`/${lang}/shipping`}
-    >
+    <RouteGuard path="/users/settings/harness">
       <HarnessPageContent dict={userSettings} lang={lang} />
     </RouteGuard>
   );

@@ -11,6 +11,7 @@ import {
   parseClose,
   parseOpen,
 } from "./lifecycle-form";
+import Select from "./ui/select";
 
 type Lifecycle = {
   open: string | null;
@@ -21,7 +22,7 @@ type Lifecycle = {
 const selectClass =
   "rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
 const labelClass =
-  "text-xs font-semibold uppercase tracking-wide text-gray-500";
+  "text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400";
 
 /** What a case starts from when its open or close kind changes. */
 const DEFAULT_OPEN_SECONDS = 30;
@@ -41,7 +42,7 @@ function OpenRow({
 }>) {
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <select
+      <Select
         aria-label={tr("opens", d)}
         className={selectClass}
         disabled={readOnly}
@@ -56,7 +57,7 @@ function OpenRow({
       >
         <option value="instant">{tr("openInstant", d)}</option>
         <option value="sustained">{tr("openSustained", d)}</option>
-      </select>
+      </Select>
       {open.kind === "sustained" && (
         <NumberValue
           value={open.seconds}
@@ -90,7 +91,7 @@ function CloseRow({
 }>) {
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <select
+      <Select
         aria-label={tr("closes", d)}
         className={selectClass}
         disabled={readOnly}
@@ -100,7 +101,7 @@ function CloseRow({
         <option value="normal">{tr("closeNormal", d)}</option>
         <option value="operator">{tr("closeOperator", d)}</option>
         <option value="expire">{tr("closeExpire", d)}</option>
-      </select>
+      </Select>
       {close.kind === "normal" && (
         <NumberValue
           value={close.minutes}
@@ -138,7 +139,7 @@ export function LevelDownSelect({
   onChange: (levelDown: boolean) => void;
 }>) {
   return (
-    <select
+    <Select
       aria-label={tr("levelGoesDown", d)}
       className={selectClass}
       disabled={readOnly}
@@ -147,7 +148,7 @@ export function LevelDownSelect({
     >
       <option value="never">{tr("downNever", d)}</option>
       <option value="follow">{tr("downFollow", d)}</option>
-    </select>
+    </Select>
   );
 }
 

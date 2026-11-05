@@ -33,7 +33,6 @@ const ALLOW_PREFIXES = [
   "/gemelo", // decisión Erick: gemelo SÍ en v1, filtrado al tenant (server-side)
   "/gxc",
   "/collaborators-management",
-  "/fleet-management",
   "/capacity", // Capacity Desk (capacity-core C2): su capacidad, su agenda
   "/users/settings", // su organización; los items de plataforma se niegan abajo
 ];

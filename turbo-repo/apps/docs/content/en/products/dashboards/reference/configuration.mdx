@@ -60,6 +60,7 @@ Set exactly one key source. JWT verification needs the `jose` package.
 | --- | --- | --- |
 | `MIOT_DASHBOARD_TICKET_HEADER` | none | Required. Request header carrying the ticket. |
 | `MIOT_DASHBOARD_TICKET_VALIDATE_URL` | none | Required. The issuer's check endpoint, using `{ticket}` or `{ticketBase64}` |
+| `MIOT_DASHBOARD_TICKET_ALLOW_HTTP` | `false` | Accept an `http://` check endpoint on a private network |
 | `MIOT_DASHBOARD_TICKET_VALIDATE_METHOD` | `GET` | `GET` or `POST`. `POST` when presenting in the body. |
 | `MIOT_DASHBOARD_TICKET_USER_PATH` | none | Required. Dotted path to the user ID in the answer |
 | `MIOT_DASHBOARD_TICKET_SCHEME` | none | Prefix to strip, for a header like `Ticket <value>` |

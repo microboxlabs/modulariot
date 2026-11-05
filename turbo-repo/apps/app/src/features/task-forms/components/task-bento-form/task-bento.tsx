@@ -19,7 +19,6 @@ import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-
 export async function TaskBentoForm({
   task,
   lang,
-  userGroups,
   active = true,
 }: ExtendedTaskViewProps) {
   const [_dict, dictionary] = await getDictionary(
@@ -34,7 +33,6 @@ export async function TaskBentoForm({
           <Bento
             lang={lang ?? defaultLocale}
             task={task as TaskResponse}
-            userGroups={userGroups}
             dict={dictionary}
             msg={dictionary.pages.transportValidationForm}
             active={active}
@@ -56,7 +54,6 @@ export async function TaskBentoForm({
         <Bento
           lang={lang ?? defaultLocale}
           task={task as TaskResponse}
-          userGroups={userGroups}
           dict={dictionary}
           msg={dictionary.pages.shippingDetailsTaskForm}
           active={active}
@@ -69,7 +66,6 @@ export async function TaskBentoForm({
         <Bento
           lang={lang ?? defaultLocale}
           task={task as TaskResponse}
-          userGroups={userGroups}
           dict={dictionary}
           msg={dictionary.pages.transportValidationForm}
           active={active}
@@ -80,7 +76,6 @@ export async function TaskBentoForm({
         <Bento
           lang={lang ?? defaultLocale}
           task={task as TaskResponse}
-          userGroups={userGroups}
           dict={dictionary}
           msg={dictionary.pages.transportValidationForm}
           active={active}

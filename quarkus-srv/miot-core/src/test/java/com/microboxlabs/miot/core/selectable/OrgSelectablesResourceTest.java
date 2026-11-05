@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.not;
 
 import com.microboxlabs.miot.core.auth.PlatformTestProfile;
 import com.microboxlabs.miot.core.auth.StubAlfrescoMembershipClient;
+import com.microboxlabs.miot.core.auth.TestMembers;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -23,9 +24,8 @@ import org.junit.jupiter.api.Test;
 /**
  * The selectables security contract end to end: the organization filter, the
  * owner gate on writes, and the JSON 400/404 mapping, none of which the service
- * unit tests reach. The stub makes {@link StubAlfrescoMembershipClient#MEMBER_EMAIL}
- * a member of every organization; it is the recorded owner of {@link #OWNED}
- * only, so the same user is a plain member of {@link #NOT_OWNED}.
+ * unit tests reach. {@link StubAlfrescoMembershipClient#MEMBER_EMAIL} owns
+ * {@link #OWNED} and is a plain member of {@link #NOT_OWNED}.
  */
 @QuarkusTest
 @TestProfile(PlatformTestProfile.class)
@@ -140,26 +140,16 @@ class OrgSelectablesResourceTest {
     private void insertOrganization(String slug, String owner) throws SQLException {
         try (Connection c = ds.getConnection()) {
             try (var st = c.prepareStatement("INSERT INTO miot_core.organizations "
-                    + "(slug, name, alfresco_group_id, tenant_client_id, active) VALUES (?, ?, ?, ?, true)")) {
+                    + "(slug, name, alfresco_group_id, tenant_client_id, active, membership_source) "
+                    + "VALUES (?, ?, ?, ?, true, 'NATIVE')")) {
                 st.setString(1, slug);
                 st.setString(2, slug);
                 st.setString(3, "GROUP_" + slug.replace('-', '_'));
                 st.setString(4, slug + "-tenant");
                 st.executeUpdate();
             }
-            try (var st = c.prepareStatement(
-                    "INSERT INTO miot_iam.iam_user (email) VALUES (lower(?)) ON CONFLICT DO NOTHING")) {
-                st.setString(1, owner);
-                st.executeUpdate();
-            }
-            try (var st = c.prepareStatement("INSERT INTO miot_iam.iam_membership "
-                    + "(organization_id, user_id, base_role) SELECT o.id, u.id, 'OWNER' "
-                    + "FROM miot_core.organizations o, miot_iam.iam_user u "
-                    + "WHERE o.slug = ? AND lower(u.email) = lower(?)")) {
-                st.setString(1, slug);
-                st.setString(2, owner);
-                st.executeUpdate();
-            }
+            TestMembers.addMember(c, slug, owner, "OWNER");
+            TestMembers.addMember(c, slug, MEMBER, "MEMBER");
         }
     }
 

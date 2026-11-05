@@ -22,13 +22,11 @@ export default async function IntegrationConnectionsPage({
     ?.breadcrumb as I18nRecord;
 
   return (
-    <RouteGuard
-      path="/users/settings/connections"
-      fallbackPath={`/${lang}/shipping`}
-    >
+    <RouteGuard path="/users/settings/connections">
       <IntegrationConfigPageContent
         dict={dict ?? {}}
         breadcrumbDict={breadcrumbDict ?? {}}
+        rootDict={dictionary as unknown as I18nRecord}
         lang={lang}
       />
     </RouteGuard>

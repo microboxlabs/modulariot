@@ -248,6 +248,37 @@ describe("credentials data service", () => {
     expect(created.typeId).toBe("RESEND");
   });
 
+  it("sends only the WhatsApp keys that were filled in", async () => {
+    const fetchMock = stubFetch({ body: apiCredential() });
+
+    await updateCredential(ORG, "cred-1", {
+      name: "WhatsApp",
+      environment: "PRODUCTION",
+      token: "",
+      appSecret: " signing ",
+      verifyToken: "",
+      provider: "whatsapp",
+    });
+
+    expect(bodyOf(fetchMock)).toMatchObject({
+      secretConfig: { app_secret: "signing" },
+    });
+  });
+
+  it("ignores webhook keys on a credential that is not WhatsApp", async () => {
+    const fetchMock = stubFetch({ body: apiCredential() });
+
+    await updateCredential(ORG, "cred-1", {
+      name: "Resend",
+      environment: "PRODUCTION",
+      token: "",
+      appSecret: "signing",
+      provider: "resend",
+    });
+
+    expect(bodyOf(fetchMock)).not.toHaveProperty("secretConfig");
+  });
+
   /**
    * The edit form cannot show a stored secret, so it submits an empty one. Sending that
    * through would overwrite a working credential with nothing.

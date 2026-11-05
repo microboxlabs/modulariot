@@ -78,7 +78,6 @@ export function toOrganizationRequest(
         slug,
         name,
         ...(tenantClientId ? { tenantClientId } : {}),
-        membershipSource: "NATIVE",
       },
       ownerEmail,
     },

@@ -18,6 +18,7 @@ import {
   WhatsAppConnectionSchema,
   WhatsAppEditSchema,
   type WhatsAppFormData,
+  type WhatsAppEditFormData,
 } from "./whatsapp.types";
 
 interface WhatsAppConnectionModalProps {
@@ -40,6 +41,8 @@ const DEFAULTS: WhatsAppFormData = {
   token: "",
   testModeEnabled: false,
   testRecipients: "",
+  appSecret: "",
+  verifyToken: "",
 };
 
 export function WhatsAppConnectionModal({
@@ -60,7 +63,7 @@ export function WhatsAppConnectionModal({
     control,
     watch,
     formState: { errors },
-  } = useForm<WhatsAppFormData>({
+  } = useForm<WhatsAppEditFormData>({
     resolver: zodResolver(
       isEdit ? WhatsAppEditSchema : WhatsAppConnectionSchema
     ),
@@ -70,7 +73,7 @@ export function WhatsAppConnectionModal({
   const testModeEnabled = watch("testModeEnabled");
 
   // Initialize only when the modal opens (false → true). See useSettingsModalFormOpenReset.
-  useSettingsModalFormOpenReset({
+  useSettingsModalFormOpenReset<WhatsAppEditFormData>({
     show,
     isEdit,
     initial,
@@ -91,7 +94,9 @@ export function WhatsAppConnectionModal({
       submitLabel={submitLabel}
       isProcessing={loading}
       error={error}
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit((data) =>
+        onSubmit({ ...data, token: data.token ?? "" })
+      )}
       size="2xl"
       showCancelButton
       cancelLabel={chrome.cancelLabel}
@@ -179,6 +184,45 @@ export function WhatsAppConnectionModal({
             color={errors.token ? "failure" : undefined}
           />
         </SettingsFormField>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <SettingsFormField
+            id="wa-app-secret"
+            label={tr("modal.appSecret", dict)}
+          >
+            <TextInput
+              id="wa-app-secret"
+              type="password"
+              placeholder={
+                isEdit
+                  ? tr("modal.keepPlaceholder", dict)
+                  : tr("modal.appSecretPlaceholder", dict)
+              }
+              autoComplete="off"
+              {...register("appSecret")}
+            />
+          </SettingsFormField>
+
+          <SettingsFormField
+            id="wa-verify-token"
+            label={tr("modal.verifyToken", dict)}
+          >
+            <TextInput
+              id="wa-verify-token"
+              type="password"
+              placeholder={
+                isEdit
+                  ? tr("modal.keepPlaceholder", dict)
+                  : tr("modal.verifyTokenPlaceholder", dict)
+              }
+              autoComplete="off"
+              {...register("verifyToken")}
+            />
+          </SettingsFormField>
+        </div>
+        <p className="-mt-2 text-xs text-gray-500 dark:text-gray-400">
+          {tr("modal.webhookHelp", dict)}
+        </p>
 
         <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
           <Controller

@@ -117,13 +117,12 @@ type SidebarItem = {
   items?: SidebarItem[];
   badge?: string;
   totals: Record<string, number | string>;
-  requiredGroups?: string[];
-  blockedGroups?: string[];
+  requiredPermissions?: string[];
   dynamicItemsSource?: string;  // clave en el dynamicMap del proveedor
 };
 ```
 
-`requiredGroups` y `blockedGroups` son evaluados por `SidebarItem` en tiempo de renderizado para mostrar u ocultar secciones según las membresías de grupo del usuario actual.
+`requiredPermissions` lista permisos IAM, por ejemplo `["admin:livestreams.view"]`. El menú muestra la entrada cuando el usuario tiene al menos uno de ellos en la organización activa. Una entrada sin `requiredPermissions` se muestra a todos los usuarios.
 
 ## Enfoque de Pruebas
 

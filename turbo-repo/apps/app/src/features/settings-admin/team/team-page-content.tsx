@@ -10,10 +10,9 @@ import {
   HiOutlineUserGroup,
   HiUserAdd,
 } from "react-icons/hi";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
 import FormModal from "@/features/common/components/form-modal/form-modal";
-import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
 import { TabButtons } from "@/features/common/components/tab-buttons/tab-buttons";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -31,7 +30,7 @@ import {
 import { TeamInvitationsTab } from "./team-invitations-tab";
 import { TeamKeysTab } from "./team-keys-tab";
 import { TeamMembersTab } from "./team-members-tab";
-import { inviteLinkOf, invitesAllowed } from "./team-model";
+import { inviteLinkOf, teamActions } from "./team-model";
 import { TeamRolesTab } from "./team-roles-tab";
 import { TeamTeamsTab } from "./team-teams-tab";
 import type { BaseRole, Invitation, TeamMember } from "./team.types";
@@ -81,19 +80,7 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
   const { data: session } = useSession();
   const { can } = useMyAccess();
   const team = useTeam();
-  // Alfresco decides who belongs to an ALFRESCO organization: no invites or removals here.
-  const fromAlfresco = team.data?.membershipSource === "ALFRESCO";
-  // Wait for the membership source: an ALFRESCO organization cannot invite.
-  const nativeMembers = team.data?.membershipSource === "NATIVE";
-  const canInvite = invitesAllowed(can, team.data?.membershipSource);
-  // Pending invitations can still be resent or revoked while members load.
-  const canManageInvitations = can("members:invite") && !fromAlfresco;
-  const canEditInvitationEmail = can("org:update") && !fromAlfresco;
-  const allowed = {
-    canUpdate: can("members:update"),
-    canRemove: can("members:remove") && nativeMembers,
-    canManageOwners: can("owners:manage"),
-  };
+  const { canInvite, canEditInvitationEmail, ...allowed } = teamActions(can);
   const teamsAllowed = {
     canManage: can("teams:manage"),
     canBind: allowed.canUpdate,
@@ -148,55 +135,41 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
   };
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={breadcrumbDict}
-          lang={lang}
-          path={["user", "settings", "team"]}
-          disableLinks
-        />
-      </div>
-
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-10 dark:bg-gray-900">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <IconTile icon={HiOutlineUserGroup} />
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {tr("title", d)}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {tr("description", d)}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {canEditInvitationEmail && (
-              <Button
-                as={Link}
-                href={`/${lang}/users/settings/team/invitation-email`}
-                color="alternative"
-                size="sm"
-              >
-                <HiOutlineTemplate className="mr-1.5 h-4 w-4" />
-                {tr("invitationEmail", d)}
-              </Button>
-            )}
-            {canInvite && (
-              <Button
-                as={Link}
-                href={`/${lang}/users/settings/team/invite`}
-                color="blue"
-                size="sm"
-              >
-                <HiUserAdd className="mr-1.5 h-4 w-4" />
-                {tr("invite", d)}
-              </Button>
-            )}
-          </div>
+    <SettingsPageShell
+      breadcrumbDict={breadcrumbDict}
+      lang={lang}
+      path={["user", "settings", "team"]}
+      icon={HiOutlineUserGroup}
+      title={tr("title", d)}
+      description={tr("description", d)}
+      actions={
+        <div className="flex flex-wrap gap-2">
+          {canEditInvitationEmail && (
+            <Button
+              as={Link}
+              href={`/${lang}/users/settings/team/invitation-email`}
+              color="alternative"
+              size="sm"
+            >
+              <HiOutlineTemplate className="mr-1.5 h-4 w-4" />
+              {tr("invitationEmail", d)}
+            </Button>
+          )}
+          {canInvite && (
+            <Button
+              as={Link}
+              href={`/${lang}/users/settings/team/invite`}
+              color="blue"
+              size="sm"
+            >
+              <HiUserAdd className="mr-1.5 h-4 w-4" />
+              {tr("invite", d)}
+            </Button>
+          )}
         </div>
-
+      }
+    >
+      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-4">
         <TabButtons<Tab>
           pill
           className="max-w-2xl"
@@ -219,9 +192,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
           </Alert>
         )}
         {team.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
-        {fromAlfresco && tab === "members" && (
-          <Alert color="gray">{tr("alfrescoNote", d)}</Alert>
-        )}
         {team.isLoading && <Spinner className="mx-auto" />}
 
         {tab === "members" && team.data && (
@@ -240,7 +210,7 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
           <TeamInvitationsTab
             invitations={invitations.data ?? []}
             roles={roles}
-            canInvite={canManageInvitations}
+            canInvite={canInvite}
             lang={lang}
             d={d}
             onResend={onResend}
@@ -284,6 +254,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
         variant="danger"
         {...confirmTexts(confirm, d)}
       />
-    </div>
+    </SettingsPageShell>
   );
 }

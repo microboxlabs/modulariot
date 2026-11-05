@@ -1,0 +1,8 @@
+[
+  {"key": "communication_families", "name": {"es": "Familias de comunicaciones", "en": "Communication families"}, "description": {"es": "Grupos de las reglas de Comunicaciones. Cada regla pertenece a una familia.", "en": "Groups of the communication rules. Each rule belongs to one family."}, "mode": "SINGLE", "options": [
+    {"value": "symptoms", "label": {"es": "Síntomas", "en": "Symptoms"}},
+    {"value": "trips", "label": {"es": "Viajes", "en": "Trips"}},
+    {"value": "emergencies", "label": {"es": "Emergencias", "en": "Emergencies"}},
+    {"value": "operations", "label": {"es": "Operación", "en": "Operations"}}
+  ]}
+]

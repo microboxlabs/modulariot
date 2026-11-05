@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 /**
- * One field a rule can read, such as {@code signal.gps.speed_kmh}.
+ * One field a rule can read, such as {@code signal.frame.gps.speed}.
  *
  * @param type            number, bool, text, list, duration, time or zone
  * @param origin          where the value comes from, or null when not confirmed

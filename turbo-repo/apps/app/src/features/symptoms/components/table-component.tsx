@@ -95,13 +95,6 @@ export default function SymptomsTable({
         "",
       ];
 
-  // Recurrencia derivada en la vista (demo): mismas patente+síntoma en la página
-  const recuento: Record<string, number> = {};
-  (tableData?.data ?? []).forEach((it) => {
-    const k = `${it.licensePlate}|${it.alertType}`;
-    recuento[k] = (recuento[k] ?? 0) + 1;
-  });
-
   const content = [
     ...(tableData && tableData.data
       ? tableData.data.map((item) => (
@@ -110,9 +103,6 @@ export default function SymptomsTable({
             data={item}
             dict={dict}
             compact={compact}
-            recurrenceCount={
-              recuento[`${item.licensePlate}|${item.alertType}`] ?? 1
-            }
           />
         ))
       : []),

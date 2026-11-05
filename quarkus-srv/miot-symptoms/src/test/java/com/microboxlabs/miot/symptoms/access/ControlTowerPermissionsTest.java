@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.access;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,6 +16,7 @@ import com.microboxlabs.miot.symptoms.api.OrgControlTowerAuditResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerContactsResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerMapResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerSettingsResource;
+import com.microboxlabs.miot.symptoms.api.OrgControlTowerTelephonyResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerTreatmentsResource;
 import com.microboxlabs.miot.symptoms.api.OrgDataSourcesResource;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource;
@@ -37,7 +39,7 @@ class ControlTowerPermissionsTest {
 
     private static final List<Class<?>> RESOURCES = List.of(OrgControlTowerAuditResource.class,
             OrgControlTowerContactsResource.class, OrgControlTowerMapResource.class, OrgControlTowerSettingsResource.class,
-            OrgControlTowerTreatmentsResource.class, OrgDataSourcesResource.class,
+            OrgControlTowerTelephonyResource.class, OrgControlTowerTreatmentsResource.class, OrgDataSourcesResource.class,
             OrgSymptomDefinitionsResource.class, OrgSymptomFamiliesResource.class);
 
     private static final String VIEW = ControlTowerAccessCatalog.VIEW;
@@ -47,11 +49,15 @@ class ControlTowerPermissionsTest {
     private static final String EDIT = ControlTowerAccessCatalog.SYMPTOM_EDIT;
     private static final String PUBLISH = ControlTowerAccessCatalog.SYMPTOM_PUBLISH;
     private static final String SETTINGS = ControlTowerAccessCatalog.SETTINGS_UPDATE;
+    private static final String PLACES = ControlTowerAccessCatalog.PLACES_EDIT;
 
     /** Every endpoint and the permission it needs. A new endpoint without an entry here fails the test. */
     private static final Map<String, String> EXPECTED = new TreeMap<>(Map.ofEntries(
             Map.entry("OrgControlTowerAuditResource.list", VIEW),
             Map.entry("OrgControlTowerContactsResource.list", VIEW),
+            Map.entry("OrgControlTowerContactsResource.page", VIEW),
+            Map.entry("OrgControlTowerContactsResource.trip", VIEW),
+            Map.entry("OrgControlTowerContactsResource.facets", VIEW),
             Map.entry("OrgControlTowerContactsResource.get", VIEW),
             Map.entry("OrgControlTowerContactsResource.create", CONTACT_WRITE),
             Map.entry("OrgControlTowerContactsResource.importContacts", CONTACT_WRITE),
@@ -61,16 +67,33 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerMapResource.summary", VIEW),
             Map.entry("OrgControlTowerMapResource.conditions", VIEW),
             Map.entry("OrgControlTowerMapResource.symptoms", VIEW),
+            Map.entry("OrgControlTowerMapResource.symptom", VIEW),
+            Map.entry("OrgControlTowerMapResource.symptomContext", VIEW),
+            Map.entry("OrgControlTowerMapResource.symptomTimeline", VIEW),
+            Map.entry("OrgControlTowerMapResource.scriptSamples", VIEW),
+            Map.entry("OrgControlTowerMapResource.symptomSignals", VIEW),
+            Map.entry("OrgControlTowerMapResource.symptomPositions", VIEW),
+            Map.entry("OrgControlTowerMapResource.tripGeofences", VIEW + " | trips:view"),
+            Map.entry("OrgControlTowerMapResource.tripPositions", VIEW),
+            Map.entry("OrgControlTowerMapResource.assetPositions", VIEW),
+            Map.entry("OrgControlTowerMapResource.assetSignal", VIEW),
             Map.entry("OrgControlTowerSettingsResource.get", VIEW),
             Map.entry("OrgControlTowerSettingsResource.save", SETTINGS),
+            Map.entry("OrgControlTowerTelephonyResource.get", VIEW),
+            Map.entry("OrgControlTowerTelephonyResource.save", SETTINGS),
+            Map.entry("OrgControlTowerTelephonyResource.webRtcToken", TREAT),
+            Map.entry("OrgControlTowerTelephonyResource.reconcile", TREAT),
+            Map.entry("OrgControlTowerTelephonyResource.callEnded", TREAT),
             Map.entry("OrgControlTowerTreatmentsResource.listForSymptom", VIEW),
             Map.entry("OrgControlTowerTreatmentsResource.get", VIEW),
             Map.entry("OrgControlTowerTreatmentsResource.open", TREAT),
             Map.entry("OrgControlTowerTreatmentsResource.addAction", TREAT),
             Map.entry("OrgControlTowerTreatmentsResource.close", TREAT),
+            Map.entry("OrgControlTowerTreatmentsResource.resume", TREAT),
             Map.entry("OrgControlTowerTreatmentsResource.cancel", TREAT),
             Map.entry("OrgDataSourcesResource.list", VIEW),
             Map.entry("OrgDataSourcesResource.get", VIEW),
+            Map.entry("OrgDataSourcesResource.eventTypes", VIEW),
             Map.entry("OrgSymptomDefinitionsResource.stats", VIEW),
             Map.entry("OrgSymptomDefinitionsResource.describe", VIEW),
             Map.entry("OrgSymptomDefinitionsResource.list", VIEW),
@@ -90,6 +113,7 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgSymptomDefinitionsResource.fork", EDIT),
             Map.entry("OrgSymptomDefinitionsResource.publish", PUBLISH),
             Map.entry("OrgSymptomDefinitionsResource.rollback", PUBLISH),
+            Map.entry("OrgSymptomDefinitionsResource.saveAsTemplate", VIEW),
             Map.entry("OrgSymptomDefinitionsResource.setState", PUBLISH),
             Map.entry("OrgSymptomFamiliesResource.list", VIEW)));
 
@@ -106,8 +130,8 @@ class ControlTowerPermissionsTest {
                 assertNotNull(allowed, name + " has no @PermissionsAllowed");
                 assertEquals(OrgPermission.class, allowed.permission(), name);
                 assertArrayEquals(new String[] {"organizationId"}, allowed.params(), name);
-                assertEquals(1, allowed.value().length, name);
-                actual.put(name, allowed.value()[0]);
+                assertFalse(allowed.inclusive(), name + " unexpectedly requires all listed permissions");
+                actual.put(name, String.join(" | ", allowed.value()));
             }
         }
         assertEquals(EXPECTED, actual);
@@ -126,18 +150,37 @@ class ControlTowerPermissionsTest {
                 SETTINGS)));
     }
 
+    /** Disabled until the places editor ships, see {@link ControlTowerAccessCatalog#PLACES_EDIT}. */
     @Test
-    void anAlfrescoMemberWithoutARoleOperatesAsBefore() {
+    void placesEditIsDisabled() {
         AccessRegistry registry = new AccessRegistry(List.of(new CoreAccessCatalog(), new ControlTowerAccessCatalog()));
+        assertTrue(registry.permissions().stream().noneMatch(p -> p.key().equals(PLACES)), "not declared");
+        for (String role : List.of(ControlTowerAccessCatalog.VIEWER, ControlTowerAccessCatalog.OPERATOR,
+                ControlTowerAccessCatalog.MAINTAINER)) {
+            assertTrue(!grant(registry, role).contains(PLACES), role);
+        }
+        for (BaseRole base : BaseRole.values()) {
+            Set<String> granted = AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
+                    new AccessRules.Facts(base, false, Set.of()), registry).permissions();
+            assertTrue(!granted.contains(PLACES), base.name());
+        }
+    }
+
+    @Test
+    void theOrganizationsOwnClientOperatesWithoutARole() {
+        AccessRegistry registry = new AccessRegistry(List.of(new CoreAccessCatalog(), new ControlTowerAccessCatalog()));
+        Set<String> client = AccessRules.resolve(1L, "acme", Caller.client("acme-client"),
+                new AccessRules.Facts(null, true, Set.of()), registry).permissions();
+        assertTrue(client.contains(TREAT));
+        assertTrue(!client.contains(EDIT));
         Set<String> member = AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
-                new AccessRules.Facts(false, null, true, false, false, Set.of(), null), registry).permissions();
-        assertTrue(member.contains(TREAT));
-        assertTrue(!member.contains(EDIT));
+                new AccessRules.Facts(BaseRole.MEMBER, false, Set.of()), registry).permissions();
+        assertTrue(!member.contains(TREAT), "a member without a role gets no default");
     }
 
     private static Set<String> grant(AccessRegistry registry, String role) {
         return AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
-                new AccessRules.Facts(true, BaseRole.MEMBER, false, false, false, Set.of(role), null), registry)
+                new AccessRules.Facts(BaseRole.MEMBER, false, Set.of(role)), registry)
                 .permissions();
     }
 

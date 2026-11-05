@@ -11,21 +11,34 @@ import dev.cel.common.CelValidationException;
 import dev.cel.common.CelValidationResult;
 import dev.cel.common.types.CelType;
 import dev.cel.common.types.CelTypeProvider;
+import dev.cel.common.types.ListType;
+import dev.cel.common.types.OptionalType;
 import dev.cel.common.types.SimpleType;
 import dev.cel.common.types.StructType;
 import dev.cel.common.types.StructTypeReference;
+import dev.cel.extensions.CelOptionalLibrary;
+import dev.cel.parser.CelStandardMacro;
 import dev.cel.runtime.CelEvaluationException;
 import dev.cel.runtime.CelRuntime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Checks and evaluates symptom rules written in CEL. The schema's field
  * types become CEL types, so unknown fields and wrong types are rejected
- * before a rule runs. Messages are in Spanish, for the symptom owner.
+ * before a rule runs. A field the source may leave out is read with
+ * {@code .?}, which gives an optional, and compared with {@link #CONSTANTS}:
+ * {@code signal.frame.?sensors.?panic_button == TRUE}. {@code has()} also
+ * tests an optional field. A field of type {@value #OBJECTS} is a list of
+ * objects whose fields are the paths under it, read with the list macros:
+ * {@code signal.frame.events.exists(e, e.event_type == "gps_jamming")}.
+ * Messages are in Spanish, for the symptom owner.
  */
 public final class RuleLanguage {
 
@@ -35,9 +48,18 @@ public final class RuleLanguage {
         NUMBER
     }
 
+    /** The field type of a list of objects; its element's fields are the paths under it. */
+    public static final String OBJECTS = "objects";
+
     private static final CelOptions OPTIONS = CelOptions.current()
             .enableHeterogeneousNumericComparisons(true)
             .build();
+
+    /** Optional values every rule can compare a {@code .?} read with. */
+    public static final Map<String, Object> CONSTANTS = Map.of(
+            "NONE", Optional.empty(),
+            "TRUE", Optional.of(true),
+            "FALSE", Optional.of(false));
 
     private static final int MAX_COMPILERS = 256;
 
@@ -54,23 +76,25 @@ public final class RuleLanguage {
 
     public static RuleCheck check(RuleSchema schema, String expression, Expect expect) {
         if (expression == null || expression.isBlank()) {
-            return RuleCheck.failed(new RuleIssue(0, "La expresión está vacía.", ""));
+            return RuleCheck.failed(new RuleIssue(0, RuleMessage.of("ruleEmpty"), ""));
         }
-        CelValidationResult result = cel(schema).compile(expression);
+        Compiled compiled = compile(cel(schema), expression);
+        CelValidationResult result = compiled.result();
         if (result.hasError()) {
+            EqualityLiterals literals = compiled.literals();
             List<RuleIssue> issues = result.getAllIssues().stream()
                     .filter(issue -> issue.getSeverity() == CelIssue.Severity.ERROR)
-                    .map(issue -> new RuleIssue(offset(expression, issue), RuleMessages.plain(issue.getMessage()),
-                            issue.getMessage()))
+                    .map(issue -> new RuleIssue(literals.original(offset(literals.text(), issue)),
+                            RuleMessages.plain(issue.getMessage()), issue.getMessage()))
                     .toList();
             return RuleCheck.failed(issues);
         }
         CelType type = resultType(result);
         if (expect == Expect.CONDITION && type != SimpleType.BOOL) {
-            return RuleCheck.failed(new RuleIssue(0, "La condición debe dar sí o no.", type.name()));
+            return RuleCheck.failed(new RuleIssue(0, RuleMessage.of("ruleNotCondition"), type.name()));
         }
         if (expect == Expect.NUMBER && type != SimpleType.DOUBLE && type != SimpleType.INT) {
-            return RuleCheck.failed(new RuleIssue(0, "La medida debe dar un número.", type.name()));
+            return RuleCheck.failed(new RuleIssue(0, RuleMessage.of("ruleNotNumber"), type.name()));
         }
         return RuleCheck.passed(type.name());
     }
@@ -83,22 +107,22 @@ public final class RuleLanguage {
     /** Compiles a rule once, to run it on many samples. */
     public static PreparedRule prepare(RuleSchema schema, String expression) {
         Cel cel = cel(schema);
-        CelValidationResult result = cel.compile(expression == null ? "" : expression);
+        CelValidationResult result = compile(cel, expression == null ? "" : expression).result();
         if (result.hasError()) {
-            String error = RuleMessages.plain(result.getAllIssues().get(0).getMessage());
+            String error = RuleMessages.plain(result.getAllIssues().get(0).getMessage()).spanish();
             return variables -> RuleResult.failed(error);
         }
         try {
             CelRuntime.Program program = cel.createProgram(result.getAst());
             return variables -> {
                 try {
-                    return RuleResult.of(program.eval(doubles(variables)));
+                    return RuleResult.of(program.eval(withConstants(doubles(variables))));
                 } catch (CelEvaluationException e) {
-                    return RuleResult.failed(RuleMessages.plain(e.getMessage()));
+                    return RuleResult.failed(RuleMessages.plain(e.getMessage()).spanish());
                 }
             };
         } catch (CelEvaluationException | CelValidationException e) {
-            String error = RuleMessages.plain(e.getMessage());
+            String error = RuleMessages.plain(e.getMessage()).spanish();
             return variables -> RuleResult.failed(error);
         }
     }
@@ -113,13 +137,50 @@ public final class RuleLanguage {
     @SuppressWarnings("unchecked")
     static Map<String, Object> doubles(Map<String, Object> values) {
         Map<String, Object> out = new LinkedHashMap<>();
-        values.forEach((k, v) -> out.put(k, switch (v) {
+        values.forEach((k, v) -> out.put(k, doubleValue(v)));
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object doubleValue(Object v) {
+        return switch (v) {
             case Map<?, ?> m -> doubles((Map<String, Object>) m);
+            case List<?> l -> l.stream().map(RuleLanguage::doubleValue).toList();
             case Double d -> d;
             case Number n -> n.doubleValue();
             case null, default -> v;
-        }));
+        };
+    }
+
+    private static Map<String, Object> withConstants(Map<String, Object> variables) {
+        Map<String, Object> out = new LinkedHashMap<>(CONSTANTS);
+        out.putAll(variables);
         return out;
+    }
+
+    /** The compiled rule and the text CEL saw. */
+    private record Compiled(CelValidationResult result, EqualityLiterals literals) {
+    }
+
+    /**
+     * Compiles the rule as written; when that fails, again with the integers
+     * written as doubles where CEL rejected their == or != (see
+     * {@link EqualityLiterals}). Comparisons that compiled keep their integers.
+     */
+    private static Compiled compile(Cel cel, String expression) {
+        CelValidationResult asWritten = cel.compile(expression);
+        if (!asWritten.hasError()) {
+            return new Compiled(asWritten, new EqualityLiterals(expression, List.of()));
+        }
+        Set<Integer> failed = asWritten.getAllIssues().stream()
+                .filter(issue -> issue.getSeverity() == CelIssue.Severity.ERROR)
+                .map(issue -> offset(expression, issue))
+                .collect(Collectors.toSet());
+        EqualityLiterals literals = EqualityLiterals.of(expression, failed::contains);
+        if (literals.inserted().isEmpty()) {
+            return new Compiled(asWritten, literals);
+        }
+        return new Compiled(cel.compile(literals.text()), literals);
     }
 
     /** Offset in the whole rule of an issue CEL reports as line and column. */
@@ -156,15 +217,25 @@ public final class RuleLanguage {
         structs.put(typeName(schema.root()), new LinkedHashMap<>());
         schema.fields().forEach((path, type) -> {
             String[] parts = path.split("\\.");
+            structs.computeIfAbsent(typeName(parts[0]), k -> new LinkedHashMap<>());
             StringBuilder parent = new StringBuilder(parts[0]);
             for (int i = 1; i < parts.length; i++) {
                 String parentType = typeName(parent.toString());
                 structs.computeIfAbsent(parentType, k -> new LinkedHashMap<>());
                 parent.append('.').append(parts[i]);
-                CelType child = i == parts.length - 1
-                        ? scalar(type)
-                        : StructTypeReference.create(typeName(parent.toString()));
+                String childPath = parent.toString();
+                CelType child;
+                if (OBJECTS.equals(schema.fields().get(childPath))) {
+                    child = ListType.create(StructTypeReference.create(typeName(childPath)));
+                } else if (i == parts.length - 1) {
+                    child = scalar(type);
+                } else {
+                    child = StructTypeReference.create(typeName(childPath));
+                }
                 structs.get(parentType).putIfAbsent(parts[i], child);
+            }
+            if (OBJECTS.equals(type)) {
+                structs.computeIfAbsent(typeName(path), k -> new LinkedHashMap<>());
             }
         });
         List<CelType> types = new ArrayList<>();
@@ -173,6 +244,10 @@ public final class RuleLanguage {
         ImmutableList<CelType> all = ImmutableList.copyOf(types);
         var builder = CelFactory.standardCelBuilder()
                 .setOptions(OPTIONS)
+                .setStandardMacros(CelStandardMacro.HAS, CelStandardMacro.ALL, CelStandardMacro.EXISTS,
+                        CelStandardMacro.EXISTS_ONE, CelStandardMacro.MAP, CelStandardMacro.FILTER)
+                .addCompilerLibraries(CelOptionalLibrary.INSTANCE)
+                .addRuntimeLibraries(CelOptionalLibrary.INSTANCE)
                 .setTypeProvider(new CelTypeProvider() {
                     @Override
                     public ImmutableCollection<CelType> types() {
@@ -183,8 +258,15 @@ public final class RuleLanguage {
                     public Optional<CelType> findType(String name) {
                         return all.stream().filter(t -> t.name().equals(name)).findFirst();
                     }
-                })
-                .addVar(schema.root(), StructTypeReference.create(typeName(schema.root())));
+                });
+        // A lifecycle rule reads the case and the source: every root of the schema's paths is a variable.
+        Set<String> roots = new LinkedHashSet<>();
+        roots.add(schema.root());
+        schema.fields().keySet().forEach(path -> roots.add(path.split("\\.")[0]));
+        roots.forEach(r -> builder.addVar(r, StructTypeReference.create(typeName(r))));
+        builder.addVar("NONE", OptionalType.create(SimpleType.DYN))
+                .addVar("TRUE", OptionalType.create(SimpleType.BOOL))
+                .addVar("FALSE", OptionalType.create(SimpleType.BOOL));
         schema.extras().forEach((name, type) -> builder.addVar(name, scalar(type)));
         return builder.build();
     }

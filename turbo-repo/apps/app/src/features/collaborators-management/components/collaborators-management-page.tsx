@@ -68,7 +68,7 @@ export default function CollaboratorsManagementPage({
   // URL-driven filters from the navbar searchbar (see navegation_params.ts
   // entry for `collaborators-management`). KPIs stay based on the
   // unfiltered list so they always show totals; only the grid below
-  // reflects the filter. Mirrors the fleet-management page pattern.
+  // reflects the filter.
   //
   // `name` matches `collaborator.name` (case-insensitive substring).
   // `rut` matches `collaborator.department` because that's where the
@@ -103,8 +103,7 @@ export default function CollaboratorsManagementPage({
   // Card click → full page navigation to the driver detail route. Prefer
   // `externalId` (the backend cod_driver) so the detail page hits the
   // real pgrest RPC; fall back to the numeric list `id` for mock rows
-  // that don't carry a cod_driver. Mirrors fleet-management's per-vehicle
-  // full-page navigation pattern.
+  // that don't carry a cod_driver.
   const handleSelectCollaborator = useCallback(
     (id: string) => {
       const target = collaborators.find((c) => c.id === id);

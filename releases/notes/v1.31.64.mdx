@@ -1,0 +1,36 @@
+# 🔔 Release Notes v1.31.64 — ModularIoT
+
+### Fecha: 18/10/2026
+
+**Objetivo**: Mejorar la disponibilidad de la página de tratamiento de síntomas en entornos que usan Modulith sin PostgREST, AVL ni Alfresco. La actualización conserva el comportamiento existente cuando esos servicios están configurados.
+
+## 🐛 Correcciones
+
+- **🐛 Acceso a la página de tratamiento sin servicios externos**
+  - **Impacto**: La página redirigía a 404 cuando faltaban las configuraciones de PostgREST y AVL; las plantillas dependían de Alfresco.
+  - **Solución**: La aplicación recurre a Modulith para obtener la cabecera del síntoma, sus señales y las posiciones del viaje. Sin Alfresco, la ruta de plantillas devuelve una lista vacía. Los síntomas fuera de los clientes GPS de la organización responden 404. *(Integración OSS — MIOT-0.5.65)*
+
+## 📊 Beneficios
+
+- Permite abrir páginas de tratamiento en instalaciones que solo utilizan Modulith.
+- Mantiene disponibles la cabecera, el mapa de señales y el recorrido del viaje sin PostgREST ni AVL.
+- Respeta el alcance de los clientes GPS de cada organización.
+- Evita errores por configuración ausente de Alfresco al solicitar plantillas.
+- Conserva el comportamiento actual en entornos que siguen usando los servicios anteriores.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.65`
+- **App**: `app@v0.5.65` — con cambios.
+- **Docs**: `docs@v0.5.64` — sin cambios.
+- **Web**: `web@v0.5.64` — sin cambios.
+- **Modulith**: `modulith@v0.5.38` — con cambios.
+- **Harness**: `harness@v0.1.13` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión hace que el flujo de tratamiento sea más adaptable a instalaciones basadas en Modulith, reduciendo su dependencia de servicios externos para consultar la información del síntoma y del viaje.
+
+El soporte para las configuraciones existentes se mantiene, mientras que las instalaciones sin Alfresco pueden continuar sin errores al solicitar plantillas.

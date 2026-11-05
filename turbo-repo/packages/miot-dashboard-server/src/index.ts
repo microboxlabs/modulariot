@@ -56,6 +56,15 @@ export type {
   DataSourceStore,
 } from "./seams/datasources";
 
+// ---- Seam: query authoring ----
+export type {
+  AuthoringRequest,
+  QueryAuthoring,
+  QueryPlanContent,
+  QueryPlanStore,
+  SourceAccess,
+} from "./seams/authoring";
+
 // ---- Seam: audit ----
 export {
   noopAuditSink,

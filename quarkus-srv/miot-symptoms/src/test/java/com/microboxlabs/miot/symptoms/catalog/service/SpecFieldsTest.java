@@ -20,6 +20,13 @@ import org.junit.jupiter.api.Test;
 /** Escalation, consequence management, level down and the recurrence entity. */
 class SpecFieldsTest {
 
+    @Test
+    void savingATemplateKeepsItsContactConditionEscalation() {
+        Response response = new Response(true, 5, List.of(), List.of(), List.of(), false,
+                null, false, null, "contact.role == 'Supervisor'");
+        assertEquals(response.escalateWho(), SymptomCatalogService.withoutTenantNotices(response).escalateWho());
+    }
+
     private static SymptomSpec withLevel4(SymptomSpec s, Response response) {
         List<Level> levels = new ArrayList<>(s.levels());
         Level l4 = levels.get(3);
@@ -85,12 +92,29 @@ class SpecFieldsTest {
                 {"source":"gps_signal","activation":"signal.trip.active",
                  "levels":[{"icu":4,"applies":true,"when":"true",
                    "response":{"operator":true,"slaMinutes":5,"steps":[],"notices":[],"evidence":[],"ignorable":false}}],
-                 "lifecycle":{"open":"caso.condicion_s >= 0","close":"caso.normal_s >= 120"},
+                 "lifecycle":{"open":"case.condition_s >= 0","close":"case.normal_s >= 120"},
                  "recurrence":{"enabled":true,"count":20,"days":7,"raiseLevels":1}}""";
         SymptomSpec spec = new ObjectMapper().readValue(json, SymptomSpec.class);
         assertNull(spec.levels().get(0).response().escalateTo());
         assertFalse(spec.levels().get(0).response().consequence());
         assertFalse(spec.lifecycle().levelDown());
         assertNull(spec.recurrence().entity(), "read as per vehicle");
+    }
+
+    @Test
+    void stepsAndEscalationKeepTheirScope() throws Exception {
+        String json = """
+                {"operator":true,"slaMinutes":5,"ignorable":false,"escalateTo":"Gerente de Seguridad",
+                 "escalateScope":"TRIP_CARRIER","steps":[
+                   {"role":"Conductor","channel":"call","budgetMinutes":2},
+                   {"role":"Gerente de Seguridad","channel":"call","budgetMinutes":3,"scope":"TRIP_CARRIER"}]}""";
+        ObjectMapper mapper = new ObjectMapper();
+        SymptomSpec.Response r = mapper.readValue(json, SymptomSpec.Response.class);
+        assertNull(r.steps().get(0).scope());
+        assertEquals("DRIVER", r.steps().get(0).effectiveScope());
+        assertEquals("TRIP_CARRIER", r.steps().get(1).scope());
+        assertEquals("TRIP_CARRIER", r.escalateScope());
+        SymptomSpec.Response again = mapper.readValue(mapper.writeValueAsString(r), SymptomSpec.Response.class);
+        assertEquals(r, again);
     }
 }

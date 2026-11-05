@@ -3,9 +3,13 @@
 import { Button, ButtonGroup, Textarea, TextInput } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BrandedMultiSelect from "@/features/task-forms/components/task-confirm-modal/branded-multi-select";
-import { guardedRequestTreatment } from "./prototype-api-guard";
+import {
+  guardedFinishTreatment,
+  guardedRequestTreatment,
+  type EngineTreatmentProgress,
+} from "./prototype-api-guard";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
 import { useRouter } from "next/navigation";
@@ -28,13 +32,18 @@ import {
   fillTextarea,
 } from "./prototype-form-kit";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
-import { mockCallStatsForId } from "./call-center/mock-contact-data";
+import { type CallStats, toApiMethod } from "./call-center/call-targets";
 import {
   CALL_METHOD_ICONS,
   CALL_METHOD_LABEL_KEYS,
   type CallMethod,
 } from "./call-center/call-method";
 import CallStatsBadges from "./call-center/call-stats-badges";
+import {
+  telephonyDetails,
+  type TelephonyCallResult,
+} from "./call-center/telnyx-call";
+import { scheduleTeamsReconcile } from "@/features/symptoms/control-tower/telephony-api";
 import CallSwitchDropdown from "./call-center/call-switch-dropdown";
 
 /** Fixed content, not a Selectable — "call result" used to be a plain,
@@ -159,6 +168,20 @@ function callTreatmentTexts({
  * look. "Who to call" is convention-first-option = the driver, and "call
  * result"'s last two options are treated as "no answer".
  */
+/** Preserve an agreed operator result; use a neutral provider result for a conflict. */
+function callOutcomeLabel(
+  call: TelephonyCallResult | null,
+  operatorResult: string,
+  noAnswer: boolean,
+  t: (key: string) => string
+) {
+  if (call?.provider !== "TELNYX") return operatorResult;
+  if (operatorResult && call.answered !== noAnswer) return operatorResult;
+  return t(
+    call.answered ? "call_telephony_answered" : "call_telephony_unanswered"
+  );
+}
+
 function isNoAnswer(options: ReadonlyArray<{ id: string }>, id: string) {
   return options.length >= 2 && options.slice(-2).some((o) => o.id === id);
 }
@@ -175,9 +198,12 @@ export default function PrototypeCallDriver({
   initialCallTargetName,
   initialCallTargetRole,
   initialCallTargetPhone,
+  initialCallTargetContactId,
+  initialCallTargetStats = null,
   callMethodUsed,
   aiAssistEnabled = false,
   callDurationSeconds = null,
+  callTelephony = null,
   onMakeAnotherCall,
   onSwitchTreatment,
   initialDraft = null,
@@ -202,6 +228,10 @@ export default function PrototypeCallDriver({
   /** Debug call-center flow: that contact's phone number, shown alongside
    *  the name in the "who was called" readout. */
   initialCallTargetPhone?: string;
+  /** The contact book id of the person called; absent for the driver or an unsaved number. */
+  initialCallTargetContactId?: string;
+  /** The called contact's counts from the book. */
+  initialCallTargetStats?: CallStats | null;
   /** Debug call-center flow: which channel the call went through. */
   callMethodUsed?: CallMethod;
   /** Debug call-center flow: the call already happened (reason + duration are
@@ -210,6 +240,8 @@ export default function PrototypeCallDriver({
   aiAssistEnabled?: boolean;
   /** Debug call-center flow: elapsed time from the live-call step. */
   callDurationSeconds?: number | null;
+  /** What the telephony provider reported for the call; null when it was timed by hand. */
+  callTelephony?: TelephonyCallResult | null;
   /** Debug call-center flow only: discards this call and sends the operator
    *  back to "who to call" instead of the static "Llamar por Teams" action —
    *  present only when there's a contacts step to go back to. Wired to the
@@ -267,6 +299,9 @@ export default function PrototypeCallDriver({
   // True once this call's request has gone out and nothing has been edited
   // since — a plain revisit (switch away and back) then can't re-send it.
   const [saved, setSaved] = useState(initialDraft?.saved ?? false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitting = useRef(false);
+  const engineProgress = useRef<EngineTreatmentProgress>({});
   const markEdited = () => setSaved(false);
 
   // Convention: the first "who to call" option is the driver.
@@ -280,6 +315,12 @@ export default function PrototypeCallDriver({
   const resultadoLabel =
     resultOptions.find((o) => o.id === resultadoId)?.name ?? "";
   const sinRespuesta = isNoAnswer(resultOptions, resultadoId);
+  const savedOutcomeLabel = callOutcomeLabel(
+    callTelephony,
+    resultadoLabel,
+    sinRespuesta,
+    t
+  );
 
   const telefonoLlamada = esConductor
     ? (treatmentData?.trip_info?.driver_contact ?? "")
@@ -309,56 +350,107 @@ export default function PrototypeCallDriver({
   // Shared by both "Finalizar Tratamiento" and "Guardar y hacer otra
   // llamada" — the only difference between them is what happens after the
   // request resolves (leave the panel vs. go back to "who to call").
-  const saveTreatment = () =>
-    guardedRequestTreatment({
-      ...treatmentRequest,
-      ...callTreatmentTexts({
-        targetLabel,
-        targetPhone,
-        esConductor,
-        resultadoLabel,
-        notaLlamada,
-        callDurationSeconds,
-      }),
+  const saveTreatment = (finish: boolean) =>
+    guardedRequestTreatment(
+      {
+        ...treatmentRequest,
+        ...callTreatmentTexts({
+          targetLabel,
+          targetPhone,
+          esConductor,
+          resultadoLabel: savedOutcomeLabel,
+          notaLlamada,
+          callDurationSeconds,
+        }),
+      },
+      {
+        finish,
+        progress: engineProgress.current,
+        action: {
+          contactId: initialCallTargetContactId,
+          contactName: initialCallTargetName || targetLabel || "Conductor",
+          contactPhone: initialCallTargetPhone || telefonoLlamada || undefined,
+          contactRole: initialCallTargetRole || undefined,
+          method: callMethodUsed ? toApiMethod(callMethodUsed) : undefined,
+          outcomeLabel: savedOutcomeLabel || undefined,
+          answered: resultadoId ? !sinRespuesta : undefined,
+          durationSeconds: callDurationSeconds ?? undefined,
+          ...(callTelephony
+            ? {
+                // A pending (Teams) call gets its result from Graph later.
+                answered:
+                  callTelephony.status === "PENDING"
+                    ? undefined
+                    : callTelephony.answered,
+                details: { telephony: telephonyDetails(callTelephony) },
+              }
+            : {}),
+          note: notaLlamada.trim() || undefined,
+        },
+      }
+    ).then((response) => {
+      // Graph publishes a Teams call's record minutes later.
+      if (callTelephony?.status === "PENDING") scheduleTeamsReconcile();
+      return response;
     });
 
   const skipSave = saved;
 
   const handleSave = async () => {
-    if (!skipSave) {
-      const response = await saveTreatment();
-      setTreatmentRequest({
-        ...treatmentRequest,
-        treatment_id: response.treatment_id,
-      });
-      ShowNotification({ type: "success", message: t("treatment_saved") });
+    if (submitting.current) return;
+    submitting.current = true;
+    setIsSubmitting(true);
+    try {
+      if (skipSave) {
+        await guardedFinishTreatment(treatmentRequest, engineProgress.current);
+      } else {
+        const response = await saveTreatment(true);
+        setTreatmentRequest({
+          ...treatmentRequest,
+          treatment_id: response.treatment_id,
+        });
+        ShowNotification({ type: "success", message: t("treatment_saved") });
+      }
+      setIsMenuOpen(false);
+      router.push("/symptoms");
+    } catch {
+      ShowNotification({ type: "error", message: t("treatment_save_error") });
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
     }
-
-    setIsMenuOpen(false);
-    router.push("/symptoms");
   };
 
   const handleSaveAndCallAgain = async () => {
-    if (!skipSave) {
-      const response = await saveTreatment();
-      setTreatmentRequest({
-        ...treatmentRequest,
-        treatment_id: response.treatment_id,
-      });
-      ShowNotification({ type: "success", message: t("treatment_saved") });
-      // Reported explicitly: this component unmounts right after, before an
-      // effect could carry `saved: true` upward.
-      onDraftChange?.({
-        selectedTagIds,
-        callTargetId,
-        targetPhone,
-        resultadoId,
-        notaLlamada,
-        saved: true,
-      });
+    if (submitting.current) return;
+    submitting.current = true;
+    setIsSubmitting(true);
+    try {
+      if (!skipSave) {
+        const response = await saveTreatment(false);
+        setTreatmentRequest({
+          ...treatmentRequest,
+          treatment_id: response.treatment_id,
+        });
+        ShowNotification({ type: "success", message: t("treatment_saved") });
+        // Reported explicitly: this component unmounts right after, before an
+        // effect could carry `saved: true` upward.
+        onDraftChange?.({
+          selectedTagIds,
+          callTargetId,
+          targetPhone,
+          resultadoId,
+          notaLlamada,
+          saved: true,
+        });
+      }
+      onMakeAnotherCall?.();
+    } catch {
+      ShowNotification({ type: "error", message: t("treatment_save_error") });
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
     }
-
-    onMakeAnotherCall?.();
   };
 
   /* ---------- shared field fragments ---------- */
@@ -370,9 +462,7 @@ export default function PrototypeCallDriver({
   const CalledMethodIcon = callMethodUsed
     ? CALL_METHOD_ICONS[callMethodUsed]
     : null;
-  const calledStats = initialCallTargetId
-    ? mockCallStatsForId(initialCallTargetId)
-    : null;
+  const calledStats = initialCallTargetStats;
 
   const whoToCallFields = initialCallTargetName ? (
     <div className="flex items-center gap-3">
@@ -464,6 +554,7 @@ export default function PrototypeCallDriver({
         <p className="rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-light text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
           {t("call_duration_recorded")}:{" "}
           {formatCallDuration(callDurationSeconds)}
+          {callTelephony && ` · ${t(telephonyLabelKey(callTelephony))}`}
         </p>
       )}
       <div>
@@ -534,12 +625,14 @@ export default function PrototypeCallDriver({
           onSaveAndCallAgain={handleSaveAndCallAgain}
           onSwitchOption={onSwitchTreatment}
           disableSwitchOptions={sinRespuesta}
-          disabled={noteEmpty}
+          disabled={
+            noteEmpty || isSubmitting || !!engineProgress.current.pendingClose
+          }
         />
       ) : (
         <Button
           color="light"
-          disabled={noteEmpty}
+          disabled={noteEmpty || isSubmitting}
           className="h-10 flex-1 rounded-r-none whitespace-nowrap"
           onClick={() => sendTeamsCall(telefonoLlamada)}
         >
@@ -550,7 +643,7 @@ export default function PrototypeCallDriver({
       )}
       <Button
         color={sinRespuesta ? "light" : "blue"}
-        disabled={sinRespuesta || noteEmpty}
+        disabled={sinRespuesta || noteEmpty || isSubmitting}
         className="h-10 flex-1 rounded-l-none whitespace-nowrap transition-colors duration-300"
         onClick={handleSave}
       >
@@ -613,4 +706,12 @@ export default function PrototypeCallDriver({
       <StickyActions>{actions}</StickyActions>
     </BentoGrid>
   );
+}
+
+/** How the results form describes what the telephony reported. */
+function telephonyLabelKey(result: TelephonyCallResult): string {
+  if (result.status === "PENDING") return "call_telephony_pending";
+  return result.answered
+    ? "call_telephony_answered"
+    : "call_telephony_unanswered";
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { z } from "zod";
+import { z } from "zod/v3";
 import type {
   CredentialListItem,
   CredentialTestResult,

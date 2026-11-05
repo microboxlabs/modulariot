@@ -1,6 +1,6 @@
 "use client";
 import { useMemo } from "react";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { createWidgetRegistry } from "../core/widget-registry";
 import { createTemplateEngine } from "../templates";
 import { StackedStat } from "./stacked-stat";

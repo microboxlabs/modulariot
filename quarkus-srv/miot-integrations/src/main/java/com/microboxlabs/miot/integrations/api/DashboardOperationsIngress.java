@@ -52,6 +52,7 @@ public class DashboardOperationsIngress {
 
     private static boolean matches(RoutingContext context) {
         String path = context.normalizedPath();
+        if (path.startsWith(DashboardAuthoringResource.PATH + "/")) return true;
         return PATH.equals(path) || (PATH + "/").equals(path)
                 || (PATH + "/resolve").equals(path) || (PATH + "/resolve/").equals(path)
                 || (PATH + "/catalog").equals(path) || (PATH + "/catalog/").equals(path);

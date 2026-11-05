@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import { NextResponse } from "next/server";
 import path from "node:path";
+import { getReleaseNotesAudience } from "@/features/layout/lib/release-notes-audience";
 
 type BuildComponentInfo = {
   changed?: boolean;
@@ -61,6 +62,7 @@ type RawBuildComponentInfo = BuildComponentInfo & {
 type RawBuildInfo = Partial<BuildInfo> & {
   release_version?: string;
   release_notes_version?: string;
+  platform_release_notes_version?: string;
   stack_tag?: string;
   git_sha?: string;
   short_sha?: string;
@@ -147,7 +149,10 @@ function normalizeBuildInfo(raw: RawBuildInfo): BuildInfo {
     product: raw.product ?? "ModularIoT",
     channel: raw.channel ?? "release",
     releaseVersion: raw.releaseVersion ?? raw.release_version ?? "unknown",
-    releaseNotesVersion: raw.releaseNotesVersion ?? raw.release_notes_version,
+    releaseNotesVersion:
+      getReleaseNotesAudience() === "platform"
+        ? raw.platform_release_notes_version
+        : (raw.releaseNotesVersion ?? raw.release_notes_version),
     stackTag: raw.stackTag ?? raw.stack_tag,
     gitSha: raw.gitSha ?? raw.git_sha,
     shortSha: raw.shortSha ?? raw.short_sha,
@@ -261,7 +266,11 @@ function buildInfoFromEnv(): BuildInfo {
     product: "ModularIoT",
     channel,
     releaseVersion,
-    releaseNotesVersion: optionalEnv("RELEASE_NOTES_VERSION"),
+    releaseNotesVersion: optionalEnv(
+      getReleaseNotesAudience() === "platform"
+        ? "PLATFORM_RELEASE_NOTES_VERSION"
+        : "RELEASE_NOTES_VERSION"
+    ),
     stackTag: optionalEnv("STACK_TAG"),
     gitSha: optionalEnv("GIT_SHA"),
     shortSha,
@@ -290,19 +299,15 @@ function hasRuntimeBuildInfoEnv(): boolean {
 }
 
 export async function GET() {
-  const fromJson = parseBuildInfoJson();
-  if (fromJson) {
-    return NextResponse.json(fromJson);
-  }
-
-  if (hasRuntimeBuildInfoEnv()) {
-    return NextResponse.json(buildInfoFromEnv());
-  }
-
   const fromPackage = readPackagedBuildInfo();
-  if (fromPackage) {
-    return NextResponse.json(fromPackage);
+  const runtimeInfo = parseBuildInfoJson();
+  const fromEnv = hasRuntimeBuildInfoEnv() ? buildInfoFromEnv() : null;
+  const info = runtimeInfo ?? fromEnv ?? fromPackage ?? buildInfoFromEnv();
+  if (
+    !info.releaseNotesVersion &&
+    fromPackage?.releaseVersion === info.releaseVersion
+  ) {
+    info.releaseNotesVersion = fromPackage.releaseNotesVersion;
   }
-
-  return NextResponse.json(buildInfoFromEnv());
+  return NextResponse.json(info);
 }

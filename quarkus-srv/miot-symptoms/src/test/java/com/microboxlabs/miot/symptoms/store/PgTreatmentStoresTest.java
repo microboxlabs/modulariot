@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.catalog.store.PgJson;
 import com.microboxlabs.miot.symptoms.domain.ActionKind;
 import com.microboxlabs.miot.symptoms.domain.AuditEvent;
 import com.microboxlabs.miot.symptoms.domain.CallMethod;
@@ -43,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -80,7 +82,9 @@ class PgTreatmentStoresTest {
         pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
         for (String file : List.of("V0.8.0__create_symptoms_catalog.sql",
                 "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql",
-                "V0.8.3__create_tower_settings.sql")) {
+                "V0.8.3__create_tower_settings.sql", "V0.12.1__contact_company_rut.sql",
+                "V0.12.2__contact_company_tax_id_type.sql", "V0.12.3__contact_member_unique.sql",
+                "V0.12.16__tower_settings_telephony.sql")) {
             try (InputStream in = PgTreatmentStoresTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -91,6 +95,31 @@ class PgTreatmentStoresTest {
     static void close() {
         pool.close().await().atMost(WAIT);
         vertx.close().await().atMost(WAIT);
+    }
+
+    @Test
+    void aSyncUpdateCannotOverwriteAnEditCommittedAfterItsRead() {
+        String tenant = tenant();
+        Contact read = contacts.insert(new Contact(null, tenant, "Juan", null, null, List.of(), true, null,
+                "fleet-sync", null, null));
+        Contact staleFill = new Contact(read.id(), tenant, read.name(), "Conductor", "+56912345678",
+                List.of(CallMethod.PHONE), false, read.notes(), read.createdBy(), read.createdAt(), read.updatedAt());
+        pool.preparedQuery("""
+                UPDATE miot_symptoms.contact SET name = 'Alice edit', role = 'Dispatcher', phone = '+56999999999',
+                    notes = 'Keep me', company = 'Other carrier', tags = '["vip"]'::jsonb,
+                    channels = '{"email":"alice@example.com"}'::jsonb, updated_at = updated_at + interval '1 second'
+                WHERE tenant_code = $1 AND id = $2
+                """).execute(Tuple.of(tenant, UUID.fromString(read.id())))
+                .await().atMost(WAIT);
+        Contact edited = contacts.find(tenant, read.id()).orElseThrow();
+
+        assertTrue(contacts.updateIfUnchanged(staleFill, read.updatedAt()).isEmpty());
+        assertEquals(edited, contacts.find(tenant, read.id()).orElseThrow(), "all of the person's fields survive");
+        assertTrue(contacts.updateIfUnchanged(staleFill, null).isEmpty());
+        assertTrue(contacts.updateIfUnchanged(new Contact(read.id(), tenant(), "Other tenant", null, null,
+                List.of(), false, null, "fleet-sync", null, null), edited.updatedAt()).isEmpty());
+        assertTrue(contacts.updateIfUnchanged(edited, edited.updatedAt()).isPresent(),
+                "a fresh version can still be updated");
     }
 
     @Test
@@ -157,6 +186,16 @@ class PgTreatmentStoresTest {
         assertTrue(settings.find("other-tenant-" + tenant).isEmpty());
         TowerSettings badShift = new TowerSettings(tenant, 1, 0, 1, ACTOR, now);
         assertThrows(RuntimeException.class, () -> settings.save(badShift), "the table checks the shift length");
+
+        settings.saveTelephonyProvider(tenant, "TEAMS_PHONE", ACTOR);
+        assertEquals(Optional.of("TEAMS_PHONE"), settings.telephonyProvider(tenant));
+        assertEquals(12, settings.find(tenant).orElseThrow().shiftHours(), "the operator team is kept");
+        settings.saveTelephonyProvider(tenant, null, ACTOR);
+        assertTrue(settings.telephonyProvider(tenant).isEmpty());
+        String fresh = tenant();
+        settings.saveTelephonyProvider(fresh, "TELNYX", ACTOR);
+        assertEquals(8, settings.find(fresh).orElseThrow().shiftHours(), "a new row gets the default shift");
+        assertThrows(RuntimeException.class, () -> settings.saveTelephonyProvider(fresh, "SKYPE", ACTOR));
     }
 
     @Test
@@ -256,6 +295,63 @@ class PgTreatmentStoresTest {
     }
 
     @Test
+    void concurrentReconcilesClaimARecordOnceAndCannotOverwriteTheWinner() throws Exception {
+        String tenant = tenant();
+        Treatment treatment = treatments.insert(openTreatment(tenant, 10L, ACTOR)).treatment();
+        TreatmentAction first = treatments.addAction(pendingTelephonyCall(tenant, treatment.id()));
+        TreatmentAction second = treatments.addAction(pendingTelephonyCall(tenant, treatment.id()));
+        assertEquals("object", pool.preparedQuery("SELECT jsonb_typeof(details) AS shape"
+                        + " FROM miot_symptoms.treatment_action WHERE id = $1")
+                .execute(Tuple.of(UUID.fromString(first.id()))).await().atMost(WAIT).iterator().next().getString("shape"));
+        // Existing installations also have JSON strings containing the details object.
+        pool.preparedQuery("UPDATE miot_symptoms.treatment_action SET details = to_jsonb($2::text) WHERE id = $1")
+                .execute(Tuple.of(UUID.fromString(first.id()), PgJson.write(first.details())))
+                .await().atMost(WAIT);
+        assertEquals(2, treatments.pendingTelephonyCalls(tenant, ACTOR, OffsetDateTime.now().minusMinutes(1)).size());
+        Map<String, Object> recorded = Map.of("telephony", Map.of("provider", "TEAMS_PHONE", "status", "RECORDED",
+                "connectionId", "m1", "recordId", "r1"));
+        ExecutorService threads = Executors.newFixedThreadPool(2);
+        var barrier = new java.util.concurrent.CyclicBarrier(2);
+        List<TreatmentAction> winners = new ArrayList<>();
+        try {
+            var attempts = List.of(
+                    threads.submit(() -> {
+                        barrier.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                        return treatments.updateCallResult(tenant, first.id(), true, 61, recorded);
+                    }),
+                    threads.submit(() -> {
+                        barrier.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                        return treatments.updateCallResult(tenant, second.id(), true, 61, recorded);
+                    }));
+            for (var attempt : attempts) {
+                attempt.get().ifPresent(winners::add);
+            }
+        } finally {
+            threads.shutdown();
+        }
+        assertEquals(1, winners.size());
+        TreatmentAction winner = winners.get(0);
+        assertEquals(Set.of("r1"), treatments.recordedTelephonyRecordIds(tenant, "m1"));
+        assertTrue(treatments.recordedTelephonyRecordIds("foreign-tenant", "m1").isEmpty());
+        assertTrue(treatments.updateCallResult(tenant, winner.id(), null, null, first.details()).isEmpty());
+        TreatmentAction saved = treatments.listActions(tenant, List.of(treatment.id())).stream()
+                .filter(action -> action.id().equals(winner.id())).findFirst().orElseThrow();
+        assertEquals(true, saved.answered());
+        assertEquals(61, saved.durationSeconds());
+        assertEquals(recorded, saved.details());
+
+        String pendingId = winner.id().equals(first.id()) ? second.id() : first.id();
+        pool.preparedQuery("UPDATE miot_symptoms.treatment_action SET details = to_jsonb($2::text) WHERE id = $1")
+                .execute(Tuple.of(UUID.fromString(winner.id()), PgJson.write(recorded))).await().atMost(WAIT);
+        assertEquals(Set.of("r1"), treatments.recordedTelephonyRecordIds(tenant, "m1"));
+        assertTrue(treatments.updateCallResult(tenant, pendingId, true, 61, recorded).isEmpty());
+        Map<String, Object> anotherConnection = Map.of("telephony", Map.of("provider", "TEAMS_PHONE", "status",
+                "RECORDED", "connectionId", "m2", "recordId", "r1"));
+        assertTrue(treatments.updateCallResult(tenant, pendingId, false, 0, anotherConnection).isPresent());
+        assertEquals(Set.of("r1"), treatments.recordedTelephonyRecordIds(tenant, "m2"));
+    }
+
+    @Test
     void contactStatsCountSavedContactCallsOnly() {
         String tenant = tenant();
         Contact camila = contacts.insert(contact(tenant, "Camila"));
@@ -275,6 +371,8 @@ class PgTreatmentStoresTest {
         assertEquals(2, stats.size());
         assertEquals(new ContactCallStats(camila.id(), base.plusMinutes(2), 1, 1), stats.get(camila.id()));
         assertEquals(new ContactCallStats(ignacio.id(), base, 0, 1), stats.get(ignacio.id()));
+        assertEquals(List.of(stats.get(camila.id())), treatments.contactStats(tenant, List.of(camila.id())));
+        assertTrue(treatments.contactStats(tenant, List.of()).isEmpty());
         assertTrue(treatments.contactStats("other-tenant").isEmpty());
         TreatmentAction badContact = call(tenant, t.id(), "not-a-uuid", true, base);
         assertThrows(IllegalArgumentException.class, () -> treatments.addAction(badContact));
@@ -316,12 +414,14 @@ class PgTreatmentStoresTest {
     @Test
     void contactBookFieldsRoundTripAndNationalIdIsUniquePerTenant() {
         String tenant = tenant();
-        ContactChannels channels = new ContactChannels("+56900000111", "+56900000112", "persona@example.com", null);
+        ContactChannels channels = new ContactChannels("+56900000111", "+56900000112", "persona@example.com", null,
+                "messages@example.invalid");
         Contact saved = contacts.insert(bookContact(tenant, "Persona Uno", "111111111", channels));
 
         assertEquals("111111111", saved.nationalId());
         assertEquals("RUT", saved.nationalIdType());
         assertEquals("Empresa Ejemplo", saved.company());
+        assertEquals("761112228", saved.companyRut());
         assertEquals("Supervisor", saved.position());
         assertEquals(channels, saved.channels());
         assertEquals(List.of("transporte", "turno noche"), saved.tags());
@@ -333,7 +433,8 @@ class PgTreatmentStoresTest {
 
         Contact sameId = bookContact(tenant, "Persona Dos", "111111111", ContactChannels.NONE);
         assertThrows(DuplicateNationalIdException.class, () -> contacts.insert(sameId));
-        Contact other = contacts.insert(bookContact(tenant, "Persona Dos", "222222222", ContactChannels.NONE));
+        Contact other = contacts.insert(bookContact(tenant, "Persona Dos", "222222222", ContactChannels.NONE,
+                "member-2"));
         Contact otherTenant = contacts.insert(bookContact("tenant-" + UUID.randomUUID(), "Persona Uno", "111111111",
                 ContactChannels.NONE));
         assertEquals("111111111", otherTenant.nationalId(), "the same id is fine in another tenant");
@@ -471,15 +572,26 @@ class PgTreatmentStoresTest {
                 null, ACTOR, at);
     }
 
+    private static TreatmentAction pendingTelephonyCall(String tenant, String treatmentId) {
+        return new TreatmentAction(null, treatmentId, tenant, 0, ActionKind.CALL, null, "Contact", null,
+                "+56911111111", CallMethod.PHONE, null, null, null, 30, null, null, List.of(),
+                Map.of("telephony", Map.of("provider", "TEAMS_PHONE", "status", "PENDING")), ACTOR, null);
+    }
+
     private static Contact contact(String tenant, String name) {
         return new Contact(null, tenant, name, "Jefe de operaciones", "+56900000101",
                 List.of(CallMethod.PHONE, CallMethod.WHATSAPP), true, "nota", ACTOR, null, null);
     }
 
     private static Contact bookContact(String tenant, String name, String nationalId, ContactChannels channels) {
+        return bookContact(tenant, name, nationalId, channels, "member-1");
+    }
+
+    private static Contact bookContact(String tenant, String name, String nationalId, ContactChannels channels,
+            String memberUserId) {
         return new Contact(null, tenant, name, null, channels.phone(), List.of(CallMethod.PHONE), true, null, ACTOR,
                 null, null, nationalId, "RUT", "Empresa Ejemplo", "Supervisor", channels,
-                List.of("transporte", "turno noche"), "member-1", true);
+                List.of("transporte", "turno noche"), memberUserId, true, "761112228");
     }
 
     private static AuditEvent event(String tenant, String action, String entityType, String entityId, Long symptom) {

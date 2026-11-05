@@ -17,7 +17,7 @@ import {
   type CredentialTypeDescriptor,
   type CredentialTypeId,
 } from "../credential.types";
-import { CredentialTypeLogo } from "./credential-type-logo";
+import { BrandLogo } from "@/features/common/components/brand-logo";
 
 interface CredentialTypePickerModalProps {
   readonly show: boolean;
@@ -113,8 +113,10 @@ function CredentialTypeOption({
       className={`${base} ${type.available ? enabled : disabled}`}
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center">
-        <CredentialTypeLogo
+        <BrandLogo
           logo={type.logo}
+          icon={type.icon}
+          keyline={type.keyline}
           alt={trDynamic(type.nameKey, dict)}
           size={40}
         />

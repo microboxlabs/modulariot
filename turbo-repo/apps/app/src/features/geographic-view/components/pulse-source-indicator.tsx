@@ -32,7 +32,7 @@ export function PulseSourceLegend({
       </span>
       {showStops && (
         <span className="inline-flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500 ring-1 ring-white" />
+          <span className="h-2.5 w-2.5 rounded-full border-2 border-blue-600 bg-white ring-1 ring-white" />
           {tr("geographic_view.stopped_pulse", dict)}
         </span>
       )}

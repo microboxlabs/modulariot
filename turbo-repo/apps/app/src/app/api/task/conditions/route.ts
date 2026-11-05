@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { legacySymptomsEnabled } from "@/app/api/utils/control-tower-map";
 import {
   AuthToken,
   AuthTokenConfig,
@@ -27,6 +28,10 @@ export async function GET(req: NextRequest) {
 
   if (!tripId) {
     return NextResponse.json("Trip ID is required", { status: 400 });
+  }
+  // The GPS database's symptoms of a trip; none where only the evaluator's show.
+  if (!legacySymptomsEnabled()) {
+    return NextResponse.json([]);
   }
 
   try {

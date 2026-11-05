@@ -8,6 +8,30 @@ import {
   getSignalDescription,
   hasAppSignalDetail,
 } from "../../utils/pulse-source";
+import { LATE_FRAME_S } from "@/features/geographic-view/utils/frame-delays";
+
+/** A delay in seconds as "45 s", "12 min" or "2 h 5 min". */
+export function formatDelay(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s} s`;
+  const minutes = Math.round(s / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const rest = minutes % 60;
+  return rest
+    ? `${Math.floor(minutes / 60)} h ${rest} min`
+    : `${minutes / 60} h`;
+}
+/**
+ * The symptom's title: the legacy key `dict.symptoms[NAME]` when there is one,
+ * else the name itself, as the evaluator's symptoms ("Pérdida de señal") are
+ * named by their organization.
+ */
+export function symptomTitle(name: string, dict: I18nRecord): string {
+  const symptoms = dict.symptoms as I18nRecord | undefined;
+  const translated = symptoms?.[name.toUpperCase()];
+  return typeof translated === "string" && translated ? translated : name;
+}
+
 export type PulseListType = {
   elements: number[];
   description: DescriptionProps;
@@ -26,8 +50,23 @@ export type PulseType = {
     timestamp: string;
     signal_description?: string | null;
     signal_detail?: "app" | "gps" | "unknown" | null;
+    /** The symptom whose interval holds this frame, if any. */
+    symptom_name?: string | null;
+    /** That symptom's level at the frame's time. The popup shows it; the dot keeps its own color. */
+    symptom_level?: number | null;
+    /** Seconds between the GPS time and the arrival, or null if unknown. */
+    delay_s?: number | null;
+    /** "Sin señal · hace N min" when this is the newest frame of an offline vehicle. */
+    signal_label?: string | null;
   };
 };
+
+type PinLevel = keyof typeof pin_conditions;
+
+/** The level the popup shows: the symptom's level at the frame when known, else the dot's own code. */
+export function pulseLevel(p: PulseType["properties"]): PinLevel {
+  return String(p.symptom_level ?? p.icu_code ?? 0) as PinLevel;
+}
 
 export default function PulseTooltip({
   object,
@@ -49,11 +88,7 @@ export default function PulseTooltip({
       <div className="bg-white dark:bg-gray-800 px-3 pb-3 rounded-lg">
         {object.description.symptom_name != undefined && (
           <div className="text-m text-gray-600 dark:text-gray-300 font-light">
-            {
-              (dict.symptoms as I18nRecord)[
-                object.description.symptom_name.toUpperCase() as keyof typeof dict.symptoms
-              ] as string
-            }
+            {symptomTitle(object.description.symptom_name, dict)}
           </div>
         )}
         {object.description.zone_names != undefined && (
@@ -243,6 +278,7 @@ export default function PulseTooltip({
   }
 
   if ("asset_id" in object.properties) {
+    const level = pulseLevel(object.properties);
     return (
       <div className="bg-white dark:bg-gray-800 px-3 pb-3 rounded-lg">
         <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -250,30 +286,36 @@ export default function PulseTooltip({
           {object?.properties.asset_id}
         </div>
         <hr className="my-2 border-gray-200 dark:border-gray-700" />
-        {object?.properties.icu_code &&
-        object?.properties.icu_code != 0 &&
-        pin_conditions[
-          object?.properties.icu_code as unknown as keyof typeof pin_conditions
-        ] != undefined ? (
+        {object.properties.signal_label && (
+          <div data-signal-offline>
+            <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg text-sm">
+              <span className="text-gray-600 dark:text-gray-300">
+                {(dict.geographic_view as I18nRecord).signal_status as string}:
+              </span>
+              <span className="font-medium text-gray-700 dark:text-gray-200">
+                {object.properties.signal_label}
+              </span>
+            </div>
+            <hr className="my-2 border-gray-200 dark:border-gray-700" />
+          </div>
+        )}
+        {level !== "0" && pin_conditions[level] !== undefined ? (
           <div>
+            {object.properties.symptom_name && (
+              <div className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+                {symptomTitle(object.properties.symptom_name, dict)}
+              </div>
+            )}
             <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
               <ConditionIcon
-                condition={
-                  pin_conditions[
-                    object?.properties
-                      .icu_code as unknown as keyof typeof pin_conditions
-                  ].icon
-                }
+                condition={pin_conditions[level].icon}
                 dict={dict}
                 size="w-6 h-6"
               />
               <div className="text-sm text-gray-600 dark:text-gray-300">
                 {
                   (dict.symptoms as I18nRecord)[
-                    pin_conditions[
-                      object?.properties
-                        .icu_code as unknown as keyof typeof pin_conditions
-                    ].label as string
+                    pin_conditions[level].label as string
                   ] as string
                 }
               </div>
@@ -304,6 +346,16 @@ export default function PulseTooltip({
             />
           )}
         </div>
+        {typeof object.properties.delay_s === "number" && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {(dict.geographic_view as I18nRecord).arrival_delay as string}:{" "}
+            <span
+              className={`font-light ${object.properties.delay_s >= LATE_FRAME_S ? "font-medium text-gray-700 dark:text-gray-200" : ""}`}
+            >
+              {formatDelay(object.properties.delay_s)}
+            </span>
+          </div>
+        )}
         <hr className="my-2 border-gray-200 dark:border-gray-700" />
         <div className="text-sm text-gray-600 dark:text-gray-300">
           {(dict.geographic_view as I18nRecord).speed as string}:{" "}

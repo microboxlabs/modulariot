@@ -110,8 +110,6 @@ response = requests.post(
     headers={
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
-        "X-Request-Id": "id-solicitud-unico",
-        "X-Request-Timestamp": "1705315800"
     },
     json={"asset_id": "A123", "timestamp": "2024-01-15T10:30:00Z"}
 )

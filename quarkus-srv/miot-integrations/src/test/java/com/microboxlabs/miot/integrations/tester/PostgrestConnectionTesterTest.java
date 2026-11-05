@@ -105,4 +105,24 @@ class PostgrestConnectionTesterTest {
         assertTrue(tester.supports(ProviderType.POSTGREST));
         assertFalse(tester.supports(ProviderType.CUSTOM_HTTP));
     }
+
+    @Test
+    void passesADraftOnItsDescriptionWithoutProbingAFunction() {
+        var draft = new IntegrationConnection(IntegrationConnection.DRAFT_ID, "ACME", "Data", ProviderType.POSTGREST,
+                URI.create("https://data.example"), "profile", ConnectionStatus.DRAFT, null, null, Map.of());
+        var tester = new PostgrestConnectionTester(new PostgrestCatalog(null, null, null, null) {
+            @Override
+            public OperationInvocationResult fetchSpec(IntegrationConnection connection) {
+                return SPEC;
+            }
+
+            @Override
+            public Probe probe(IntegrationConnection connection) {
+                throw new AssertionError("a draft has no imported function to probe");
+            }
+        });
+        var result = tester.test(draft, credential(), null);
+        assertTrue(result.success());
+        assertTrue(result.message().contains("2 functions"), result.message());
+    }
 }

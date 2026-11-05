@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState, type SubmitEvent } from "react";
-import Link from "next/link";
+import { useMemo, useState } from "react";
+import { HiPlus } from "react-icons/hi";
 import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import { useRouter } from "next/navigation";
 import useSWR, { SWRConfig } from "swr";
 import { useDashboardAutosave } from "@microboxlabs/miot-dashboard-ui/react";
 import { useSession } from "next-auth/react";
-import { Button, TextInput } from "flowbite-react";
+import { Button } from "flowbite-react";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -23,6 +23,9 @@ import { ServerDashboardQueries } from "./server-dashboard-queries";
 import { DashboardView } from "./dashboard-view";
 import type { DashboardSettingsHost } from "./dashboard-settings-dropdown/dashboard-settings-dropdown";
 import { ServerDashboardPermissions } from "./server-dashboard-permissions";
+import { ServerCreateDashboardModal } from "./server-create-dashboard-modal";
+import { DashboardLandingHero } from "./dashboard-landing/dashboard-landing-hero";
+import { DashboardCard } from "./dashboard-landing/dashboard-card";
 
 type Props = { lang: string; slug?: string; dictionary: I18nRecord };
 const EMPTY_QUERIES: NonNullable<typeof DEFAULT_STORAGE.queries> = [];
@@ -93,69 +96,63 @@ function ServerDashboardList({
     revalidateOnMount: true,
   });
   const canCreate = !scopeError && !checkingScope && scope?.canCreate === true;
-  const [slug, setSlug] = useState("");
   const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState(false);
   const router = useRouter();
   const t = (key: string) => tr(`dashboard.server.${key}`, dictionary);
-  async function create(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!canCreate || creating || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(slug))
-      return;
-    setCreating(true);
-    setCreateError(false);
-    try {
-      await client.save(
-        slug,
-        { ...DEFAULT_STORAGE, name: t("newName") },
-        '"0"'
-      );
-      router.push(`/${lang}/dashboards/${encodeURIComponent(slug)}`);
-    } catch {
-      setCreateError(true);
-    } finally {
-      setCreating(false);
-    }
-  }
   return (
-    <section className="space-y-6 p-6">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
-      <p className="text-sm text-gray-500">{t("parallel")}</p>
+    <div className="flex h-full w-full flex-col items-center overflow-y-auto px-4 py-16">
+      <DashboardLandingHero dict={dictionary} />
       {canCreate && (
-        <form onSubmit={create} className="flex max-w-lg gap-3">
-          <TextInput
-            aria-label={t("slug")}
-            placeholder={t("slug")}
-            value={slug}
-            onChange={(event) => setSlug(event.target.value)}
-            pattern="[a-z0-9][a-z0-9-]{0,79}"
-            required
-            maxLength={80}
-            disabled={creating}
-          />
-          <Button type="submit" disabled={creating}>
-            {t("create")}
-          </Button>
-        </form>
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          className="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+        >
+          <HiPlus className="mr-2 h-4 w-4" />
+          {tr("dashboard.landing.cta", dictionary)}
+        </button>
       )}
-      {(error || scopeError || createError) && (
-        <p role="alert">{t(createError ? "createError" : "loadError")}</p>
-      )}
-      {isLoading && <output>{t("loading")}</output>}
-      {data?.length === 0 && <p>{t("empty")}</p>}
-      <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {data?.map((dashboard) => (
-          <li key={dashboard.slug}>
-            <Link
-              className="block rounded-lg border p-5 hover:bg-gray-50 dark:hover:bg-gray-800"
-              href={`/${lang}/dashboards/${encodeURIComponent(dashboard.slug)}`}
-            >
-              {dashboard.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
+      <ServerCreateDashboardModal
+        isOpen={creating && canCreate}
+        onClose={() => setCreating(false)}
+        onCreated={(slug) =>
+          router.push(`/${lang}/dashboards/${encodeURIComponent(slug)}`)
+        }
+        client={client}
+        existingSlugs={data?.map((d) => d.slug) ?? []}
+        dict={dictionary}
+      />
+      <div className="mt-12 w-full max-w-3xl">
+        {(error || scopeError) && (
+          <p role="alert" className="py-4 text-center text-sm text-red-600">
+            {t("loadError")}
+          </p>
+        )}
+        {isLoading && (
+          <output className="flex justify-center py-8">
+            <span className="sr-only">{t("loading")}</span>
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+          </output>
+        )}
+        {data?.length === 0 && (
+          <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+            {t("empty")}
+          </p>
+        )}
+        {!!data?.length && (
+          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {data.map((dashboard) => (
+              <DashboardCard
+                key={dashboard.slug}
+                slug={dashboard.slug}
+                name={dashboard.name}
+                href={`/${lang}/dashboards/${encodeURIComponent(dashboard.slug)}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -183,7 +180,9 @@ function ServerDashboardEditor({
   useDashboardAutosave({
     ...document,
     enabled:
-      document.capabilities?.canEdit === true && !document.readOnly && !removing,
+      document.capabilities?.canEdit === true &&
+      !document.readOnly &&
+      !removing,
   });
   async function reload() {
     if (!document.dirty || globalThis.confirm(t("discard")))

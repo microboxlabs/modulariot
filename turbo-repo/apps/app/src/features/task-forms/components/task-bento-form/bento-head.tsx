@@ -46,7 +46,6 @@ export default function BentoHead({
   enableActions,
   show_horeference = true,
   show_go_to_bento = false,
-  userGroups = [],
 }: {
   readonly task: TaskResponse;
   readonly dict: I18nRecord;
@@ -56,7 +55,6 @@ export default function BentoHead({
   readonly enableActions: boolean;
   readonly show_horeference?: boolean;
   readonly show_go_to_bento?: boolean;
-  readonly userGroups?: string[];
 }) {
   const task_name_identifier =
     taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessFormsV2];
@@ -109,7 +107,6 @@ export default function BentoHead({
           <TaskOwnerDisplay
             taskId={task.id}
             takenBy={task.takenBy ?? null}
-            userGroups={userGroups}
             dict={dict.bento as Record<string, string>}
           />
         </div>

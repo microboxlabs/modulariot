@@ -1,0 +1,38 @@
+# 🔔 Release Notes v1.31.63 — ModularIoT
+
+### Fecha: 16/10/2026
+
+**Objetivo**: Mejorar la tabla de síntomas del Control Tower con datos de SLA y recurrencia calculados en la base de datos. Esta versión también corrige el conteo de eventos anteriores y ordena las migraciones para evitar versiones duplicadas.
+
+## 🚀 Evolutivos
+
+- **📍 SLA y recurrencia en la tabla de síntomas**
+  - **Datos por evento**: `api_modular_symptoms_table` incorpora `sla_minutes`, con el SLA declarado para el síntoma y nivel ICU, y `recurrence_events`, con los eventos anteriores del mismo tipo. Los valores son `null` cuando no hay una declaración de SLA o el registro no tiene viaje.
+  - **Integración con Control Tower**: La tabla usa esos valores en sus columnas de SLA y recurrencia, en lugar de estimar el SLA en el frontend o contar filas de la página actual. El cálculo respeta la paginación y usa `id DESC` para desempatar el orden.
+  - **Integración OSS — MIOT-0.5.64**: El cambio se refleja en la tabla de síntomas del Control Tower.
+
+## 📊 Beneficios
+
+- 🚀 La tabla muestra el SLA declarado para cada síntoma y nivel ICU.
+- 📊 La recurrencia considera solo eventos anteriores del mismo tipo, no los posteriores ni el evento actual.
+- 🔗 La interfaz obtiene ambos valores de la función de base de datos.
+- 🧭 Los resultados de recurrencia no dependen de las filas visibles en la página actual.
+- 🛠️ Los registros sin viaje o sin SLA declarado se identifican con valores `null`.
+- 🧱 La firma de la función se mantiene intacta y los campos se añaden por fila.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.64`
+- **App**: `app@v0.5.64` — con cambios
+- **Docs**: `docs@v0.5.64` — con cambios
+- **Web**: `web@v0.5.64` — con cambios
+- **Modulith**: `modulith@v0.5.37` — sin cambios
+- **Harness**: `harness@v0.1.13` — sin cambios
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión centraliza en la base de datos los datos de SLA y recurrencia que presenta la tabla de síntomas, haciendo que sus columnas reflejen los valores de la función y no estimaciones calculadas en la página.
+
+El ajuste del conteo y la organización de las migraciones consolidan la semántica de recurrencia y evitan duplicar la versión de una migración.

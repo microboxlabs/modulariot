@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { tryCatch } from "@/utils/tryCatch";
 import { getSympthomTemplate } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { SympthomTemplateResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -19,6 +20,15 @@ export async function GET(request: Request) {
       status: 400,
     });
   }
+  // Without the ECM there are no templates: the form starts empty.
+  if (!process.env.ECM_API_URL) {
+    const empty: SympthomTemplateResponse = {
+      data: { icuCode, name: "", conditionName, message: "" },
+      success: false,
+    };
+    return NextResponse.json(empty);
+  }
+
   const response = await tryCatch(
     getSympthomTemplate(session, serviceCode, conditionName, icuCode)
   );

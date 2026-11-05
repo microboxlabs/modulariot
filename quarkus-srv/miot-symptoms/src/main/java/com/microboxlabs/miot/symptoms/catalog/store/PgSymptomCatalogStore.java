@@ -36,8 +36,8 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
 
     private static final String DEFINITION_COLUMNS = """
             id, tenant_code, symptom_key, name, family, icon, description, source_key, engine_rule_id,
-            template_key, forked_from_version_id, state, current_version, created_by, created_at,
-            updated_by, updated_at""";
+            template_key, template_version, forked_from_version_id, state, current_version, created_by,
+            created_at, updated_by, updated_at""";
 
     private static final String SELECT = "SELECT ";
 
@@ -46,7 +46,7 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
 
     private static final String INSERT_DEFINITION = "INSERT INTO miot_symptoms.symptom_definition ("
             + DEFINITION_COLUMNS + """
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
             RETURNING\s""" + DEFINITION_COLUMNS;
 
     private static final String UPDATE_DEFINITION = """
@@ -132,7 +132,8 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
         Tuple params = Tuple.tuple()
                 .addUUID(d.id()).addString(d.tenantCode()).addString(d.key()).addString(d.name())
                 .addString(d.family()).addString(d.icon()).addString(d.description()).addString(d.sourceKey())
-                .addInteger(d.engineRuleId()).addString(d.templateKey()).addUUID(d.forkedFromVersionId())
+                .addInteger(d.engineRuleId()).addString(d.templateKey()).addString(d.templateVersion())
+                .addUUID(d.forkedFromVersionId())
                 .addString(d.state().name()).addString(d.currentVersion())
                 .addString(d.createdBy()).addOffsetDateTime(d.createdAt())
                 .addString(d.updatedBy()).addOffsetDateTime(d.updatedAt());
@@ -257,8 +258,9 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
                 r.getUUID("id"), r.getString("tenant_code"), r.getString("symptom_key"), r.getString("name"),
                 r.getString("family"), r.getString("icon"), r.getString("description"),
                 r.getString("source_key"), r.getInteger("engine_rule_id"), r.getString("template_key"),
-                r.getUUID("forked_from_version_id"), SymptomState.valueOf(r.getString("state")),
-                r.getString("current_version"), r.getString("created_by"), PgJson.time(r, "created_at"),
+                r.getString("template_version"), r.getUUID("forked_from_version_id"),
+                SymptomState.valueOf(r.getString("state")), r.getString("current_version"),
+                r.getString("created_by"), PgJson.time(r, "created_at"),
                 r.getString("updated_by"), PgJson.time(r, "updated_at"))).toList();
     }
 

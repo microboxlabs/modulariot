@@ -20,6 +20,9 @@ export type AuditAction =
   | "datasource.list"
   | "datasource.query"
   | "datasource.write"
+  | "query.author.read"
+  | "query.author.run"
+  | "query.author.write"
   | "embed.token.issue"
   | "embed.token.redeem";
 

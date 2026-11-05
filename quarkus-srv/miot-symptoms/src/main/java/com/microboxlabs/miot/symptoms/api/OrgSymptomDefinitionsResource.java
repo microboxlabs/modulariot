@@ -4,6 +4,8 @@ import io.quarkus.security.PermissionsAllowed;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
+import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
@@ -26,6 +28,7 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
@@ -64,6 +67,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     private final RuleDescriptionService descriptions;
     private final TemplateService templates;
     private final SymptomStatsService stats;
+    private final PlatformAuthorizer platform;
 
     /**
      * Publishes the draft. {@code bump} may raise the computed bump; {@code state} overrides the draft's, which
@@ -86,6 +90,13 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     }
 
     /**
+     * {@code version} defaults to the version in force, else the draft; without {@code templateKey} a new template
+     * is created, named {@code name} or like the symptom.
+     */
+    public record SaveAsTemplateRequest(String version, String templateKey, String name) {
+    }
+
+    /**
      * One rule to describe. {@code section}: activation, measure, levels.1-4, lifecycle.open, lifecycle.close,
      * or a whole section: levels (the measure and one line per level) or lifecycle ("abre: ...\ncierra: ...").
      */
@@ -103,7 +114,8 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             EngineImportService importer,
             RuleDescriptionService descriptions,
             TemplateService templates,
-            SymptomStatsService stats) {
+            SymptomStatsService stats,
+            PlatformAuthorizer platform) {
         super(tenantContext, organizationContext, roleService, identity);
         this.catalog = catalog;
         this.previews = previews;
@@ -111,6 +123,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
         this.descriptions = descriptions;
         this.templates = templates;
         this.stats = stats;
+        this.platform = platform;
     }
 
     @GET
@@ -152,7 +165,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     @PermissionsAllowed(value = ControlTowerAccessCatalog.SYMPTOM_EDIT, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> importEngine(@PathParam(ORG) String organizationId) {
-        String tenant = tenantCode(organizationId);
+        String tenant = organizationOnly(tenantCode(organizationId));
         String actor = actor();
         return work(() -> Response.ok(importer.importRules(tenant, actor)).build());
     }
@@ -183,7 +196,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     @PermissionsAllowed(value = ControlTowerAccessCatalog.SYMPTOM_EDIT, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> fromTemplate(@PathParam(ORG) String organizationId, FromTemplateRequest body) {
-        String tenant = tenantCode(organizationId);
+        String tenant = organizationOnly(tenantCode(organizationId));
         String actor = actor();
         return work(() -> {
             if (body == null || body.templateKey() == null || body.templateKey().isBlank()) {
@@ -214,7 +227,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             params = "organizationId")
     public Uni<Response> levelResponse(@PathParam(ORG) String organizationId, @QueryParam("symptom") String symptom,
             @QueryParam("icu") int icu) {
-        String tenant = tenantCode(organizationId);
+        String tenant = organizationOnly(tenantCode(organizationId));
         return work(() -> Response.ok(catalog.responseFor(tenant, symptom, icu)).build());
     }
 
@@ -313,8 +326,10 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
         String tenant = tenantCode(organizationId);
         String actor = actor();
         PublishRequest req = body == null ? new PublishRequest(null, null, null) : body;
+        // A template has no state; organizations choose one when they copy it.
+        SymptomState state = PlatformScope.TENANT.equals(tenant) ? null : req.state();
         return work(() -> Response.ok(
-                catalog.publish(tenant, actor, uuid(id), req.reason(), req.bump(), req.state())).build());
+                catalog.publish(tenant, actor, uuid(id), req.reason(), req.bump(), state)).build());
     }
 
     @POST
@@ -351,6 +366,20 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
         });
     }
 
+    @POST
+    @Path("/{id}/save-as-template")
+    @Operation(operationId = "saveSymptomAsTemplate",
+            summary = "Save a version of this symptom as a platform template's draft. Platform owners only")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> saveAsTemplate(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
+            SaveAsTemplateRequest body) {
+        String tenant = organizationOnly(tenantCode(organizationId));
+        SaveAsTemplateRequest req = body == null ? new SaveAsTemplateRequest(null, null, null) : body;
+        return platform.requirePlatformOwner().flatMap(actor -> work(() -> Response.ok(catalog.saveAsTemplate(
+                tenant, actor, uuid(id), req.version(), req.templateKey(), req.name())).build()));
+    }
+
     @PUT
     @Path("/{id}/state")
     @Operation(operationId = "setSymptomState", summary = "Turn a symptom OFF, to TEST, or ACTIVE")
@@ -358,7 +387,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             params = "organizationId")
     public Uni<Response> setState(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
             StateRequest body) {
-        String tenant = tenantCode(organizationId);
+        String tenant = organizationOnly(tenantCode(organizationId));
         String actor = actor();
         return work(() -> {
             if (body == null || body.state() == null) {
@@ -391,4 +420,13 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             throw new IllegalArgumentException("id must be a UUID");
         }
     }
+
+    /** The tenant, unless it is the platform's: these endpoints are about an organization's own symptoms. */
+    private static String organizationOnly(String tenant) {
+        if (PlatformScope.TENANT.equals(tenant)) {
+            throw new NotFoundException("Not available in the platform scope");
+        }
+        return tenant;
+    }
+
 }

@@ -5,6 +5,7 @@ import com.microboxlabs.miot.integrations.domain.CredentialProfile;
 import com.microboxlabs.miot.integrations.domain.CredentialType;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.SqlClient;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -58,6 +59,14 @@ public class CredentialProfileRepository {
             RETURNING
             """ + COLUMNS;
 
+    private static final String UPDATE_SECRET_IF_VERSION = """
+            UPDATE miot_integrations.credential_profiles
+            SET encrypted_secret_json = $3, secret_preview = $4,
+                secret_version = secret_version + 1, updated_at = now()
+            WHERE tenant_code = $1 AND id = $2 AND active AND secret_version = $5
+            RETURNING
+            """ + COLUMNS;
+
     // Partial update: a null parameter leaves the column unchanged (explicit ::casts so
     // the NULL binds keep their type in the prepared statement). The secret is rotated
     // only when a new ciphertext is supplied — a blank secret on the form means "keep the
@@ -73,6 +82,20 @@ public class CredentialProfileRepository {
                 updated_by = COALESCE($8::text, updated_by),
                 updated_at = now()
             WHERE tenant_code = $1 AND id = $2 AND active
+            RETURNING
+            """ + COLUMNS;
+
+    private static final String UPDATE_PROFILE_IF_VERSION = """
+            UPDATE miot_integrations.credential_profiles
+            SET display_name = COALESCE($3::text, display_name),
+                environment = COALESCE($4::text, environment),
+                public_config = COALESCE($5::jsonb, public_config),
+                encrypted_secret_json = $6,
+                secret_preview = $7,
+                secret_version = secret_version + 1,
+                updated_by = COALESCE($8::text, updated_by),
+                updated_at = now()
+            WHERE tenant_code = $1 AND id = $2 AND active AND secret_version = $9
             RETURNING
             """ + COLUMNS;
 
@@ -130,6 +153,18 @@ public class CredentialProfileRepository {
                 .await().indefinitely());
     }
 
+    /** Compare-and-set a merged secret so concurrent key rotations cannot overwrite each other. */
+    public CredentialProfile updateSecretIfVersion(
+            String tenantCode, String id, int expectedVersion, String encryptedSecretJson, String secretPreview) {
+        UUID profileId = toUuid(id);
+        if (profileId == null) {
+            return null;
+        }
+        return first(client().preparedQuery(UPDATE_SECRET_IF_VERSION)
+                .execute(Tuple.of(tenantCode, profileId, encryptedSecretJson, secretPreview, expectedVersion))
+                .await().indefinitely());
+    }
+
     /**
      * Partial update. Every parameter except the identifiers is optional; a null leaves
      * the column as it was. {@code encryptedSecretJson} is the only trigger for a secret
@@ -142,16 +177,29 @@ public class CredentialProfileRepository {
         if (profileId == null) {
             return null;
         }
-        Tuple tuple = Tuple.tuple()
+        return first(client().preparedQuery(UPDATE_PROFILE).execute(updateTuple(params)).await().indefinitely());
+    }
+
+    /** Compare-and-set a profile edit that includes a secret rotation. */
+    public CredentialProfile updateIfVersion(UpdateCredentialProfileParams params, int expectedVersion) {
+        UUID profileId = toUuid(params.id());
+        if (profileId == null) {
+            return null;
+        }
+        return first(client().preparedQuery(UPDATE_PROFILE_IF_VERSION)
+                .execute(updateTuple(params).addInteger(expectedVersion)).await().indefinitely());
+    }
+
+    private static Tuple updateTuple(UpdateCredentialProfileParams params) {
+        return Tuple.tuple()
                 .addString(params.tenantCode())
-                .addUUID(profileId)
+                .addUUID(UUID.fromString(params.id()))
                 .addString(params.displayName())
                 .addString(params.environment())
                 .addValue(params.publicConfig() == null ? null : new JsonObject(params.publicConfig()))
                 .addString(params.encryptedSecretJson())
                 .addString(params.secretPreview())
                 .addString(params.updatedBy());
-        return first(client().preparedQuery(UPDATE_PROFILE).execute(tuple).await().indefinitely());
     }
 
     public CredentialProfile updateTestResult(
@@ -199,8 +247,8 @@ public class CredentialProfileRepository {
                 .iterator().next());
     }
 
-    private Pool client() {
-        return clientInstance.get();
+    private SqlClient client() {
+        return ManagedProvisioningTransaction.client(clientInstance.get());
     }
 
     private CredentialProfile first(RowSet<Row> rows) {

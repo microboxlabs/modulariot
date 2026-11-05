@@ -101,19 +101,6 @@ const where_is_my_load_params: ParamType[] = [
   setParam("expeditionNumber", "text"),
 ];
 
-function fleet_params(searchbarDict: I18nRecord): ParamType[] {
-  return [
-    setParam("licensePlate", "text"),
-    setParam("client", "text"),
-    setParam("state", "selector", [
-      { value: "active", label: tr("stateActive", searchbarDict) },
-      { value: "maintenance", label: tr("stateMaintenance", searchbarDict) },
-      { value: "alert", label: tr("stateAlert", searchbarDict) },
-      { value: "inactive", label: tr("stateInactive", searchbarDict) },
-    ]),
-  ];
-}
-
 const collaborators_management_params: ParamType[] = [
   setParam("name", "text"),
   setParam("rut", "text"),
@@ -159,7 +146,6 @@ function setParam(
 export function getNavegationParams(dict: I18nRecord, size: number) {
   const searchbarDict = dict.searchbar as I18nRecord;
   const kanban = kanban_params(searchbarDict);
-  const fleet = fleet_params(searchbarDict);
   const calendar = calendar_params(searchbarDict);
   const storytelling = storytelling_params(dict.storytelling as I18nRecord);
 
@@ -172,6 +158,11 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
     // Synthetic key — see `resolveSection` in section-filter-bar-controller.
     // Not a path segment, so `/calendar` (the landing page) stays bar-less.
     "calendar-planning": getParamsFixed(calendar, dict),
+    "trips-board": getParamsFixed([setParam("q", "text")], dict),
+    "trips-finished": getParamsFixed(
+      [setParam("q", "text"), setParam("date_range", "date_range")],
+      dict
+    ),
     "where-is-my-load": getParamsFixed(
       where_is_my_load_params,
       dict,
@@ -180,7 +171,6 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
     ),
     symptoms: getParamsFixed(symptoms_params, dict),
     "geographic-view": getParamsFixed([setParam("licensePlate", "text")], dict),
-    "fleet-management": getParamsFixed(fleet, dict),
     "collaborators-management": getParamsFixed(
       collaborators_management_params,
       dict,
@@ -212,8 +202,7 @@ function getParamsFixed(
       },
       unique,
       options: typeof param === "string" ? undefined : param.options,
-      defaultValue:
-        typeof param === "string" ? undefined : param.defaultValue,
+      defaultValue: typeof param === "string" ? undefined : param.defaultValue,
     };
   });
 }

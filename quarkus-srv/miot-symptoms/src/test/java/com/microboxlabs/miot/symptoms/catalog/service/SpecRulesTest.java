@@ -7,14 +7,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Report;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SpecRulesTest {
+
+    @Test
+    void contactConditionsBlockPublicationWhenTheSharedEvaluatorRejectsThem() {
+        SymptomSpec base = Specs.speeding();
+        var response = new SymptomSpec.Response(true, 5,
+                List.of(new SymptomSpec.Step(null, "call", 2, null, null, "contact.role == (")),
+                List.of(), List.of(), false, null, false, null, "42");
+        var levels = new java.util.ArrayList<>(base.levels());
+        levels.set(3, new Level(4, true, levels.get(3).when(), response));
+        var asked = new java.util.ArrayList<String>();
+        Report report = SpecValidator.validate(Specs.withLevels(base, levels), Specs.gpsSignal(), condition -> {
+            asked.add(condition);
+            return java.util.Optional.of("Invalid condition");
+        });
+        assertFalse(report.publishable());
+        assertTrue(asked.containsAll(List.of("contact.role == (", "42")));
+        assertEquals(2, report.findings().stream().filter(f -> "contactConditionInvalid".equals(f.code())).count());
+    }
 
     @Test
     void bumpFollowsWhatChanged() {
@@ -22,7 +42,7 @@ class SpecRulesTest {
 
         assertNull(SpecDiff.bump(SpecDiff.changes(base, Specs.speeding())));
         assertEquals(VersionBump.MAJOR, SpecDiff.bump(SpecDiff.changes(base,
-                Specs.with(base, Specs.ACTIVATION + " && signal.gps.speed_kmh > 10"))));
+                Specs.with(base, Specs.ACTIVATION + " && signal.frame.gps.speed > 10"))));
         assertNull(SpecDiff.bump(SpecDiff.changes(base, Specs.with(base, "  " + Specs.ACTIVATION.replace(" && ",
                 "\n && ")))), "whitespace is not a change");
         assertNull(SpecDiff.bump(SpecDiff.changes(base, Specs.with(base, Specs.ACTIVATION.replace(" && ", "&&")))),
@@ -31,8 +51,8 @@ class SpecRulesTest {
         assertEquals(VersionBump.MAJOR, SpecDiff.bump(SpecDiff.changes(zone,
                 Specs.with(base, "signal.geo.zone == \"North  Yard\""))), "spaces inside a string are a change");
 
-        List<Level> raised = Specs.levels("medida > 0 && medida < 5", "medida >= 5 && medida < 11",
-                "medida >= 11 && medida < 25", "medida >= 25 && sostenido_s >= 60");
+        List<Level> raised = Specs.levels("measure > 0 && measure < 5", "measure >= 5 && measure < 11",
+                "measure >= 11 && measure < 25", "measure >= 25 && held_s >= 60");
         assertEquals(VersionBump.MINOR, SpecDiff.bump(SpecDiff.changes(base, Specs.withLevels(base, raised))));
 
         List<Level> newSla = List.of(base.levels().get(0), base.levels().get(1), base.levels().get(2),
@@ -68,8 +88,8 @@ class SpecRulesTest {
 
     @Test
     void overlappingLevelsAreAnError() {
-        SymptomSpec overlap = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11", "medida >= 21 && sostenido_s >= 60"));
+        SymptomSpec overlap = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11", "measure >= 21 && held_s >= 60"));
 
         Report report = SpecValidator.validate(overlap, Specs.gpsSignal());
 
@@ -80,22 +100,38 @@ class SpecRulesTest {
 
     @Test
     void overlapsAreFoundBeyondAnyFixedRange() {
-        SymptomSpec high = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida > 500", "medida > 500"));
+        SymptomSpec high = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure > 500", "measure > 500"));
 
         assertFalse(SpecValidator.validate(high, Specs.gpsSignal()).publishable());
     }
 
     @Test
     void levelRulesCountForEngineSupportButStringsDoNot() {
-        SymptomSpec levelField = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11 && medida < 21",
-                "medida >= 21 && signal.derived.speed_avg_5m > 90.0"));
+        SymptomSpec levelField = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11 && measure < 21",
+                "measure >= 21 && signal.derived.speed_avg_5m > 90.0"));
         assertTrue(SpecValidator.validate(levelField, Specs.gpsSignal()).needsTestOnly());
 
         SymptomSpec inText = Specs.with(Specs.speeding(),
                 Specs.ACTIVATION + " && signal.vehicle.weight_category != \"signal.derived.speed_avg_5m\"");
         assertFalse(SpecValidator.validate(inText, Specs.gpsSignal()).needsTestOnly());
+    }
+
+    @Test
+    void lifecycleRulesCannotActivateUnsupportedFields() {
+        String unsupported = "signal.derived.speed_avg_5m > 90";
+        for (SymptomSpec.Lifecycle lifecycle : List.of(
+                new SymptomSpec.Lifecycle(unsupported, "false"),
+                new SymptomSpec.Lifecycle("true", unsupported),
+                new SymptomSpec.Lifecycle("true", "false", false, unsupported))) {
+            SymptomSpec base = Specs.speeding();
+            SymptomSpec spec = new SymptomSpec(base.source(), base.activation(), base.measure(), base.levels(),
+                    lifecycle, null).withState(SymptomState.ACTIVE);
+            Report report = SpecValidator.validate(spec, Specs.gpsSignal());
+            assertTrue(report.needsTestOnly());
+            assertFalse(report.publishable());
+        }
     }
 
     @Test
@@ -122,10 +158,11 @@ class SpecRulesTest {
     void operatorLevelsNeedAnSla() {
         SymptomSpec noSla = Specs.withLevels(Specs.speeding(), List.of(
                 new Level(1, false, null, null), new Level(2, false, null, null), new Level(3, false, null, null),
-                new Level(4, true, "medida >= 21", Specs.response(true, null))));
+                new Level(4, true, "measure >= 21", Specs.response(true, null))));
 
-        assertEquals("Si interviene un operador, el nivel necesita un SLA.",
-                SpecValidator.validate(noSla, Specs.gpsSignal()).findings().get(0).message());
+        SpecValidator.Finding finding = SpecValidator.validate(noSla, Specs.gpsSignal()).findings().get(0);
+        assertEquals("Si interviene un operador, el nivel necesita un SLA.", finding.message());
+        assertEquals("levels.4.response", finding.section());
     }
 
     @Test
@@ -135,12 +172,101 @@ class SpecRulesTest {
                 new SymptomSpec.Step(" ", "call", 0, "Hola")), List.of(), List.of(), true);
         SymptomSpec spec = Specs.withLevels(Specs.speeding(), List.of(
                 new Level(1, false, null, null), new Level(2, false, null, null), new Level(3, false, null, null),
-                new Level(4, true, "medida >= 21", withSteps)));
+                new Level(4, true, "measure >= 21", withSteps)));
 
         List<String> messages = SpecValidator.validate(spec, Specs.gpsSignal()).findings().stream()
                 .map(SpecValidator.Finding::message).toList();
 
         assertEquals(List.of("El paso 2 no dice a quién contactar.", "El paso 2 necesita minutos."), messages);
+    }
+
+
+    @Test
+    void aStepSaysWhomByScopeOrRole() {
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("Conductor", "call", 2, null)));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step(null, "call", 2, null, "DRIVER")));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("", "call", 2, null, "TRIP_CARRIER")));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("Gerente de Seguridad", "call", 2, null,
+                "TRIP_CARRIER")));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("Jefe de torre", "call", 2, null, "ORG")));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step(" ", "call", 2, null, "ORG")));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step(" ", "call", 2, null)));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step("Jefe", "call", 2, null, "MOON")));
+        // A contact condition says whom on its own, whatever the older fields hold.
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step(null, "call", 2, null, null,
+                "contact.role == 'Conductor' && contact.nationalId == event.data.driverRut")));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step(null, "call", 2, null, null, "  ")));
+    }
+
+    @Test
+    void anOlderStepReadsItsScopeFromTheRole() {
+        assertEquals("DRIVER", new SymptomSpec.Step("conductor", "call", 2, null).effectiveScope());
+        assertEquals("TRIP_CARRIER", new SymptomSpec.Step(" Transportista ", "call", 2, null).effectiveScope());
+        assertEquals("ORG", new SymptomSpec.Step("Jefe de torre", "call", 2, null).effectiveScope());
+        assertEquals("ORG", new SymptomSpec.Step(null, "call", 2, null).effectiveScope());
+        assertEquals("TRIP_CARRIER",
+                new SymptomSpec.Step("Gerente de Seguridad", "call", 2, null, "TRIP_CARRIER").effectiveScope());
+    }
+    @Test
+    void findingsCarryACodeAndItsParametersForTheApp() throws Exception {
+        SymptomSpec.Response withSteps = new SymptomSpec.Response(true, 5, List.of(
+                new SymptomSpec.Step(" ", "call", 2, null)), List.of(), List.of(), true);
+        SymptomSpec spec = Specs.withLevels(Specs.speeding(), List.of(
+                new Level(1, false, null, null), new Level(2, false, null, null), new Level(3, false, null, null),
+                new Level(4, true, "measure >= 21", withSteps)));
+
+        SpecValidator.Finding finding = SpecValidator.validate(spec, Specs.gpsSignal()).findings().get(0);
+        Map<?, ?> json = new ObjectMapper().readValue(new ObjectMapper().writeValueAsString(finding), Map.class);
+
+        assertEquals("stepNoContact", json.get("code"));
+        assertEquals(Map.of("n", "1"), json.get("params"));
+        assertEquals("El paso 1 no dice a quién contactar.", json.get("message"));
+        assertEquals("levels.4.response", json.get("section"));
+        assertFalse(json.containsKey("text"));
+    }
+
+    @Test
+    void aBlankMeasureIsNoMeasure() {
+        SymptomSpec speeding = Specs.speeding();
+        SymptomSpec blank = new SymptomSpec(speeding.source(), speeding.activation(),
+                new SymptomSpec.Measure("  ", "Tiempo en viaje", "min"), List.of(
+                        new Level(1, false, null, null), new Level(2, false, null, null),
+                        new Level(3, false, null, null), new Level(4, true, "held_s >= 60", null)),
+                speeding.lifecycle(), speeding.recurrence());
+
+        assertNull(blank.measure());
+        assertTrue(SpecValidator.validate(blank, Specs.gpsSignal()).findings().stream()
+                .noneMatch(f -> f.section().equals("measure")));
+    }
+
+    @Test
+    void aLevelOnTheMeasureNeedsAMeasure() {
+        SymptomSpec speeding = Specs.speeding();
+        SymptomSpec noMeasure = new SymptomSpec(speeding.source(), speeding.activation(), null, List.of(
+                new Level(1, true, "measure >= 3", null), new Level(2, false, "measure > 0", null),
+                new Level(3, true, "size(\"measure\") == 7 && held_s >= 30", null),
+                new Level(4, true, "held_s >= 60", null)),
+                speeding.lifecycle(), speeding.recurrence());
+
+        List<SpecValidator.Finding> missing = SpecValidator.validate(noMeasure, Specs.gpsSignal()).findings()
+                .stream().filter(f -> f.code().equals("measureMissing")).toList();
+
+        assertEquals(List.of("levels.1"), missing.stream().map(SpecValidator.Finding::section).toList());
+    }
+
+    @Test
+    void overlappingLevelsAreNamedByNumber() {
+        SymptomSpec spec = Specs.withLevels(Specs.speeding(), List.of(
+                new Level(1, false, null, null), new Level(2, false, null, null),
+                new Level(3, true, "measure >= 10", null), new Level(4, true, "measure >= 20", null)));
+
+        SpecValidator.Finding overlap = SpecValidator.validate(spec, Specs.gpsSignal()).findings().stream()
+                .filter(f -> f.code().equals("levelsOverlap")).findFirst().orElseThrow();
+
+        assertEquals("3", overlap.params().get("levelA"));
+        assertEquals("4", overlap.params().get("levelB"));
+        assertTrue(overlap.message().startsWith("Crítica y Código negro se solapan"));
+        assertFalse(Double.parseDouble(overlap.params().get("held")) < 0, "a case never held a negative time");
     }
 
     @Test

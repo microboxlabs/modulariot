@@ -40,6 +40,10 @@ public class OrganizationModule extends PanacheEntityBase {
 
     // --- Named finders ---
 
+    public static Uni<List<OrganizationModule>> listAllEnabled() {
+        return find("enabled = true").list();
+    }
+
     public static Uni<List<OrganizationModule>> findByOrganization(Long organizationId) {
         return find("id.organizationId = ?1", organizationId).list();
     }

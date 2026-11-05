@@ -9,7 +9,8 @@ import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
  * user's session token is forwarded so the modulith checks membership and
  * records the actor. `allowRoot` lets a request with no path segments reach
  * the resource itself, for APIs that list at their root. `forward` picks the
- * modulith: the coordinator one by default.
+ * modulith: the coordinator one by default. `segment` widens what a path
+ * segment may hold; each segment is re-encoded before it is forwarded.
  */
 type Params = { params: Promise<{ path?: string[] }> };
 
@@ -25,11 +26,12 @@ export function orgApiProxy(
   {
     allowRoot = false,
     forward: send = forwardToQuarkus,
-  }: { allowRoot?: boolean; forward?: Forward } = {}
+    segment = SEGMENT,
+  }: { allowRoot?: boolean; forward?: Forward; segment?: RegExp } = {}
 ) {
   async function forward(req: NextRequest, { params }: Params, method: string) {
     const path = (await params).path ?? [];
-    if ((!allowRoot && !path.length) || !path.every((s) => SEGMENT.test(s))) {
+    if ((!allowRoot && !path.length) || !path.every((s) => segment.test(s))) {
       return NextResponse.json({ error: "Invalid path" }, { status: 400 });
     }
     const scope = await resolveTenantScope();
@@ -53,7 +55,9 @@ export function orgApiProxy(
     }
 
     const org = encodeURIComponent(scope.scope.activeOrg.slug);
-    const suffix = path.length ? `/${path.join("/")}` : "";
+    const suffix = path.length
+      ? `/${path.map((s) => encodeURIComponent(s)).join("/")}`
+      : "";
     return send(
       `/api/v1/orgs/${org}/${resource}${suffix}${req.nextUrl.search}`,
       { method, body }

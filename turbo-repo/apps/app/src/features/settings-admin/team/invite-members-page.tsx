@@ -31,7 +31,6 @@ import {
   pendingInvitationEmails,
   useAccessCatalog,
   useMyAccess,
-  useTeam,
 } from "./team-api";
 import {
   BASE_ROLES,
@@ -40,7 +39,6 @@ import {
   invalidEmails,
   inviteAll,
   inviteLinkOf,
-  invitesAllowed,
   type InviteOutcome,
   NON_OWNER_ROLES,
   parseEmails,
@@ -73,17 +71,14 @@ export default function InviteMembersPage({
 }: InviteMembersPageProps) {
   const d = dict?.team as I18nRecord;
   const { access, accessError, can } = useMyAccess();
-  const team = useTeam();
   const { data: catalog, error } = useAccessCatalog();
   const teamPath = `/${lang}/users/settings/team`;
   const [links, setLinks] = useState<InviteLink[] | null>(null);
   const [savedWithoutLink, setSavedWithoutLink] = useState<string[]>([]);
   const [formKey, setFormKey] = useState(0);
 
-  const fromAlfresco = team.data?.membershipSource === "ALFRESCO";
-  const allowed = invitesAllowed(can, team.data?.membershipSource);
-  const loading =
-    (!catalog && !error) || team.isLoading || (!access && !accessError);
+  const allowed = can("members:invite");
+  const loading = (!catalog && !error) || (!access && !accessError);
 
   return (
     <DetailShell
@@ -93,13 +88,11 @@ export default function InviteMembersPage({
       backLabel={tr("backToTeam", d)}
     >
       {loading && <Spinner className="mx-auto" />}
-      {(error || team.error || accessError) && (
+      {(error || accessError) && (
         <Alert color="gray">{tr("loadFailed", d)}</Alert>
       )}
-      {!loading && team.data && access && !allowed && (
-        <Alert color="gray">
-          {fromAlfresco ? tr("alfrescoNote", d) : tr("inviteNotAllowed", d)}
-        </Alert>
+      {!loading && access && !allowed && (
+        <Alert color="gray">{tr("inviteNotAllowed", d)}</Alert>
       )}
       {catalog && allowed && !links && (
         <InviteForm

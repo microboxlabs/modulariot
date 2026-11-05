@@ -67,9 +67,18 @@ describe("ClauseBreakdown", () => {
         ],
         activates: false,
       }),
-      sample({ clauses: [] }),
+      sample({ clauses: [], activates: false }),
     ],
   };
+
+  it("starts on the first sample that opens a case", () => {
+    const later: Preview = {
+      ...preview,
+      samples: [preview.samples[1] as SamplePreview, sample({ clauses: [] })],
+    };
+    render(<ClauseBreakdown preview={later} d={d} />);
+    expect(screen.getByText("Muestra 2 de 2")).toBeTruthy();
+  });
 
   it("shows each condition with its result and values, sample by sample", () => {
     render(<ClauseBreakdown preview={preview} d={d} />);

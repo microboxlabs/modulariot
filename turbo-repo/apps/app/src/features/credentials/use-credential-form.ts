@@ -8,7 +8,7 @@ import {
   type UseFormReturn,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ZodType } from "zod";
+import type { ZodType } from "zod/v3";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type {
   CredentialListItem,

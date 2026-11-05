@@ -1,8 +1,25 @@
 import { ruleKey } from "../condition-form";
 
-/** Amber mark on a field whose value differs from the published version. */
+/*
+ * Marks for what the draft changes against the published version, on the
+ * gray ramp: the status colors (blue, green, amber, rose) keep their meaning.
+ * Cards are gray-200 and hover gray-100, so these are a step darker.
+ */
+
+/** A field whose value differs from the published version. */
 export const CHANGED =
-  "!border-amber-400 !bg-amber-50 dark:!border-amber-500 dark:!bg-amber-500/15";
+  "!border-gray-500 !bg-gray-100 dark:!border-gray-400 dark:!bg-gray-700";
+
+/** A section card that differs. */
+export const CHANGED_CARD = "!border-gray-400 dark:!border-gray-500";
+
+/** A full-width row that differs: a tint and a bar on its left edge. */
+export const CHANGED_ROW =
+  "bg-gray-100 shadow-[inset_3px_0_0] shadow-gray-500 dark:bg-gray-700/40 dark:shadow-gray-400";
+
+/** The bar of unpublished changes at the bottom of the sheet. */
+export const CHANGED_BAR = "border-gray-400 dark:border-gray-500";
+export const CHANGED_DOT = "bg-gray-500 dark:bg-gray-400";
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -15,9 +32,16 @@ const RULE_PATH =
 const join = (path: string, key: string | number) =>
   path ? `${path}.${key}` : String(key);
 
+/** Missing, null, false and [] are one value: the editor writes defaults an older version lacks. */
+const unset = (v: unknown) =>
+  v === undefined ||
+  v === null ||
+  v === false ||
+  (Array.isArray(v) && v.length === 0);
+
 /** Adds to `out` every path under which `a` and `b` differ. */
 function walk(a: unknown, b: unknown, path: string, out: Set<string>) {
-  if ((a ?? null) === (b ?? null)) return;
+  if (a === b || (unset(a) && unset(b))) return;
   if (
     typeof a === "string" &&
     typeof b === "string" &&

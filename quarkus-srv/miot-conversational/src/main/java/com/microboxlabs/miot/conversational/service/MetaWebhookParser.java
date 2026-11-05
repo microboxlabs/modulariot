@@ -18,22 +18,27 @@ import java.util.List;
  * recognize yields no events rather than throwing, so the webhook always acks and Meta is never
  * pushed into a retry storm by a parse error. Pure + static — unit-tested directly.
  */
-final class MetaWebhookParser {
+public final class MetaWebhookParser {
 
+    private static final String TIMESTAMP = "timestamp";
     private static final String ID = "id";
     private static final String MIME_TYPE = "mime_type";
     private static final String CAPTION = "caption";
     private static final String FILENAME = "filename";
+    private static final String INTERACTIVE = "interactive";
+    private static final String CALL_PERMISSION_REPLY = "call_permission_reply";
 
     private MetaWebhookParser() {
     }
 
-    static ParsedWebhook parse(byte[] rawBody) {
+    public static ParsedWebhook parse(byte[] rawBody) {
         List<InboundMessage> messages = new ArrayList<>();
         List<StatusUpdate> statuses = new ArrayList<>();
+        List<CallPermissionReply> replies = new ArrayList<>();
+        List<CallEvent> calls = new ArrayList<>();
         JsonObject root = readRoot(rawBody);
         if (root == null) {
-            return new ParsedWebhook(messages, statuses);
+            return new ParsedWebhook(messages, statuses, replies, calls);
         }
         JsonArray entries = root.getJsonArray("entry");
         for (int e = 0; entries != null && e < entries.size(); e++) {
@@ -44,10 +49,11 @@ final class MetaWebhookParser {
                 JsonObject value = change == null ? null : change.getJsonObject("value");
                 if (value != null) {
                     parseValue(value, messages, statuses);
+                    parseCalling(value, replies, calls);
                 }
             }
         }
-        return new ParsedWebhook(messages, statuses);
+        return new ParsedWebhook(messages, statuses, replies, calls);
     }
 
     private static JsonObject readRoot(byte[] rawBody) {
@@ -82,6 +88,86 @@ final class MetaWebhookParser {
         }
     }
 
+    /** Call permission replies (from {@code messages}) and {@code calls} events. */
+    private static void parseCalling(JsonObject value, List<CallPermissionReply> replies, List<CallEvent> calls) {
+        JsonObject metadata = value.getJsonObject("metadata");
+        String phoneNumberId = metadata == null ? null : metadata.getString("phone_number_id");
+        JsonArray msgs = value.getJsonArray("messages");
+        for (int i = 0; msgs != null && i < msgs.size(); i++) {
+            CallPermissionReply reply = toCallPermissionReply(msgs.getJsonObject(i), phoneNumberId);
+            if (reply != null) {
+                replies.add(reply);
+            }
+        }
+        JsonArray events = value.getJsonArray("calls");
+        for (int i = 0; events != null && i < events.size(); i++) {
+            CallEvent call = toCallEvent(events.getJsonObject(i), phoneNumberId);
+            if (call != null) {
+                calls.add(call);
+            }
+        }
+    }
+
+    private static JsonObject callPermissionReply(JsonObject m) {
+        if (m == null || m.getString(ID) == null || !INTERACTIVE.equals(m.getString("type"))) {
+            return null;
+        }
+        JsonObject interactive = m.getJsonObject(INTERACTIVE);
+        if (interactive == null || !CALL_PERMISSION_REPLY.equals(interactive.getString("type"))) {
+            return null;
+        }
+        return interactive.getJsonObject(CALL_PERMISSION_REPLY);
+    }
+
+    private static CallPermissionReply toCallPermissionReply(JsonObject m, String phoneNumberId) {
+        JsonObject reply = callPermissionReply(m);
+        String from = m == null ? null : toE164(m.getString("from"));
+        if (reply == null || from == null) {
+            return null;
+        }
+        return new CallPermissionReply(
+                phoneNumberId,
+                from,
+                m.getString(ID),
+                nestedString(m, "context", ID),
+                "accept".equalsIgnoreCase(reply.getString("response")),
+                isTrue(reply.getValue("is_permanent")),
+                epochSecondsToOffset(stringOf(reply.getValue("expiration_timestamp"))),
+                reply.getString("response_source"),
+                epochSecondsToOffset(m.getString(TIMESTAMP)));
+    }
+
+    private static CallEvent toCallEvent(JsonObject c, String phoneNumberId) {
+        if (c == null || c.getString(ID) == null) {
+            return null;
+        }
+        String direction = c.getString("direction");
+        boolean business = CallEvent.BUSINESS_INITIATED.equalsIgnoreCase(direction);
+        String contact = toE164(c.getString(business ? "to" : "from"));
+        boolean connected = c.getValue("start_time") != null || positive(c.getValue("duration"));
+        return new CallEvent(phoneNumberId, c.getString(ID), contact, c.getString("event"), direction,
+                c.getString("status"), connected, epochSecondsToOffset(stringOf(c.getValue(TIMESTAMP))));
+    }
+
+    private static boolean positive(Object value) {
+        if (value instanceof Number n) {
+            return n.longValue() > 0;
+        }
+        try {
+            return value != null && Long.parseLong(value.toString().trim()) > 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private static boolean isTrue(Object value) {
+        return value != null && "true".equalsIgnoreCase(value.toString());
+    }
+
+    private static String stringOf(Object value) {
+        return value == null ? null : value.toString();
+    }
+
     private static String firstContactName(JsonArray contacts) {
         if (contacts == null || contacts.isEmpty()) {
             return null;
@@ -92,8 +178,17 @@ final class MetaWebhookParser {
     }
 
     private static InboundMessage toInboundMessage(JsonObject m, String phoneNumberId, String contactName) {
-        MessageType type = mapType(m.getString("type"));
-        MessageContent content = extractContent(m, type);
+        ButtonReply button = buttonReply(m);
+        JsonObject permission = callPermissionReply(m);
+        MessageType type = button != null || permission != null ? MessageType.TEXT : mapType(m.getString("type"));
+        MessageContent content;
+        if (permission != null) {
+            content = new MessageContent(permissionText(permission), null, null, null);
+        } else if (button != null) {
+            content = new MessageContent(button.text(), null, null, null);
+        } else {
+            content = extractContent(m, type);
+        }
         return new InboundMessage(
                 phoneNumberId,
                 toE164(m.getString("from")),
@@ -104,7 +199,47 @@ final class MetaWebhookParser {
                 content.mediaRef(),
                 content.mediaMime(),
                 content.mediaFileName(),
-                epochSecondsToOffset(m.getString("timestamp")));
+                epochSecondsToOffset(m.getString(TIMESTAMP)),
+                nestedString(m, "context", ID),
+                button == null ? null : button.payload());
+    }
+
+    /**
+     * A quick-reply tap on a template ({@code type: button}, {@code button.payload/text}) or an
+     * interactive reply ({@code type: interactive}, {@code button_reply} or {@code list_reply}
+     * with {@code id/title}). Null for any other message.
+     */
+    private static ButtonReply buttonReply(JsonObject m) {
+        String type = m.getString("type");
+        if ("button".equals(type)) {
+            JsonObject button = m.getJsonObject("button");
+            return button == null ? null : new ButtonReply(button.getString("payload"), button.getString("text"));
+        }
+        if (INTERACTIVE.equals(type)) {
+            JsonObject interactive = m.getJsonObject(INTERACTIVE);
+            if (interactive == null) {
+                return null;
+            }
+            JsonObject reply = interactive.getJsonObject("button_reply");
+            if (reply == null) {
+                reply = interactive.getJsonObject("list_reply");
+            }
+            return reply == null ? null : new ButtonReply(reply.getString(ID), reply.getString("title"));
+        }
+        return null;
+    }
+
+    private record ButtonReply(String payload, String text) {
+    }
+
+    /** What the conversation shows for a call permission reply. */
+    static String permissionText(JsonObject reply) {
+        if (!"accept".equalsIgnoreCase(reply.getString("response"))) {
+            return "Permiso de llamada rechazado";
+        }
+        return isTrue(reply.getValue("is_permanent"))
+                ? "Permiso de llamada aceptado (permanente)"
+                : "Permiso de llamada aceptado (temporal)";
     }
 
     /** Pulls body/media fields for a message by type; absent keys read as null. */
@@ -152,7 +287,7 @@ final class MetaWebhookParser {
                 status,
                 toE164(s.getString("recipient_id")),
                 firstError(s.getJsonArray("errors")),
-                epochSecondsToOffset(s.getString("timestamp")));
+                epochSecondsToOffset(s.getString(TIMESTAMP)));
     }
 
     private static String firstError(JsonArray errors) {
@@ -219,7 +354,7 @@ final class MetaWebhookParser {
         }
         try {
             return OffsetDateTime.ofInstant(Instant.ofEpochSecond(Long.parseLong(epochSeconds.trim())), ZoneOffset.UTC);
-        } catch (NumberFormatException notEpoch) {
+        } catch (NumberFormatException | java.time.DateTimeException notEpoch) {
             return null;
         }
     }

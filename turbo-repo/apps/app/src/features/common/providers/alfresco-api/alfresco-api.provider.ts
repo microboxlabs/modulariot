@@ -43,7 +43,7 @@ import type { FetcherError } from "../fetcher.types";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
 import type { Session } from "next-auth";
 import { createManagedLogger, logError } from "@/lib/logger";
-import { z } from "zod";
+import { z } from "zod/v3";
 import {
   alfrescoNodeIdSchema,
   normalizeAlfrescoTaskId,

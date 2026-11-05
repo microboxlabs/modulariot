@@ -38,6 +38,8 @@ export interface SelectableFieldProps {
   readonly parentName?: string;
   readonly id?: string;
   readonly disabled?: boolean;
+  /** The height of the editors' small fields, for a row of inline selects. */
+  readonly compact?: boolean;
 }
 
 /** Tracks the element's width, so the floating list lines up with the whole field. */
@@ -101,6 +103,7 @@ export default function SelectableField({
   parentName,
   id,
   disabled,
+  compact = false,
 }: SelectableFieldProps) {
   const [query, setQuery] = useState("");
   const [search] = useDebounce(query, 250);
@@ -147,7 +150,11 @@ export default function SelectableField({
     >
       <div
         ref={frame}
-        className="relative flex min-h-[42px] w-full flex-wrap items-center gap-1 rounded-lg border border-gray-300 bg-gray-50 py-1 pl-1.5 pr-14 text-sm focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+        className={`relative flex w-full flex-wrap items-center gap-1 border border-gray-300 pl-1.5 pr-14 text-sm focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-gray-600 ${
+          compact
+            ? "rounded-md bg-white dark:bg-gray-900"
+            : "min-h-[42px] rounded-lg bg-gray-50 py-1 dark:bg-gray-700"
+        }`}
       >
         {multiple &&
           value.map((v) => (

@@ -41,18 +41,18 @@ public class ResendEmailSender {
         try {
             connection = resolver.resolve(tenantCode, ProviderType.RESEND);
         } catch (ConnectionResolutionException e) {
-            return SendResult.failed(0, e.getMessage());
+            return SendResult.failedPermanently(e.getMessage());
         }
         String apiKey = connection.secretString(TOKEN);
         if (apiKey == null || apiKey.isBlank()) {
-            return SendResult.failed(0, "The RESEND connection's credential has no API key");
+            return SendResult.failedPermanently("The RESEND connection's credential has no API key");
         }
         String from = message.from() != null ? message.from() : connection.metadataString(FROM);
         if (!validSender(from)) {
-            return SendResult.failed(0, "The RESEND connection has no valid sender (metadata.from)");
+            return SendResult.failedPermanently("The RESEND connection has no valid sender (metadata.from)");
         }
         if (!client.serves(connection.baseUrl())) {
-            return SendResult.failed(0, "The RESEND connection must use " + client.baseUrl());
+            return SendResult.failedPermanently("The RESEND connection must use " + client.baseUrl());
         }
         return client.send(apiKey, message.withFrom(from), idempotencyKey);
     }

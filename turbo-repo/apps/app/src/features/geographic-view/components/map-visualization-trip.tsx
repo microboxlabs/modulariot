@@ -2,24 +2,35 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import { FlyToInterpolator, LinearInterpolator } from "deck.gl";
-import type { PickingInfo } from "@deck.gl/core";
+import {
+  FlyToInterpolator,
+  type Layer,
+  LineLayer,
+  LinearInterpolator,
+  ScatterplotLayer,
+} from "deck.gl";
+import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./layers/pin_layer";
 import { PulsePinLayer } from "./layers/pulse";
 import { MapPosition, PulseProps } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
-import wkx, { Geometry } from "wkx";
+import type { Geometry } from "geojson";
+import {
+  geofenceGeometry,
+  geofencePinPosition,
+} from "../utils/geofence-geometry";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
 import { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
-import MapTooltip from "./map-tooltip";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import MapTooltip from "./map-tooltip";
 import PulseTooltip, {
   PulseListType,
   PulseType,
 } from "./tooltips/pulse-tooltip";
 import ToolBar from "./tool-bar/tool-bar";
+import type { GeofencesMode } from "./tool-bar/geofences-mode-selector";
 // import MapStyleSelector from "./map-style-selector";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 // import MapButton from "./map-button";
@@ -27,13 +38,27 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { ConditionsAgg } from "@/features/symptoms/types/timeline";
 import ImageSelector from "./image-viewer/image-selector";
 import { useTimelapse } from "../hooks/use-timelapse";
+import { useAssetSignal } from "../hooks/use-asset-signal";
+import { isNewestFrame, isOffline, offlineLabel } from "../utils/signal-state";
+import { pulseWithSignal } from "../utils/signal-tooltip";
 import { logger } from "@/lib/logger";
 import { tr } from "@/features/i18n/tr.service";
 import PulseRange from "./tool-bar/pulse-range";
 import MapVisualization from "@/features/map-visualization/map-visualization";
 import { MapRef } from "react-map-gl";
 import {
-  center_in_bounds,
+  PlaceBadgeTooltip,
+  PlacesEditorOverlays,
+  type GeocercaExterna,
+  PlacesMapLayers,
+  hayBorrador,
+  usePlacesEnMapa,
+} from "@/features/places";
+import PlacesFloatingOverlay from "./places-overlay/places-floating-overlay";
+import PlacesToggle from "./places-overlay/places-toggle";
+import MapControlsFrame from "./map-controls-frame";
+import { usePermisoEditorLugares } from "../profiles/places-permission";
+import {
   flyTo,
   panTo,
   toLngLat,
@@ -41,12 +66,28 @@ import {
 } from "@/features/map-visualization/map-view-utils";
 import { haversineKm, type LngLat } from "@/features/calendar/utils/distance";
 import {
-  ringCentroid,
   estimateEtaHours,
   formatEtaHours,
+  ringCentroid,
 } from "../utils/vehicle-origin";
-import { countPulseSources, isDarkMapStyle } from "../utils/pulse-source";
+import {
+  countPulseSources,
+  filterVisiblePulses,
+  isDarkMapStyle,
+} from "../utils/pulse-source";
 import { PulseSourceLegend } from "./pulse-source-indicator";
+import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
+import {
+  type CaseSpan,
+  pointLevel,
+} from "@/features/symptoms/model/level-reason";
+import {
+  dashSegments,
+  frameDelay,
+  hasFramePosition,
+  isLate,
+  silenceGap,
+} from "../utils/frame-delays";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -62,7 +103,7 @@ type Zone = {
   location_type: any;
   id: string;
   name: string;
-  location: string;
+  location: string | GeoJSON.Geometry;
 };
 
 type GeofenceData = {
@@ -132,6 +173,57 @@ function applySelectionCardPosition(
   }
 }
 
+const NO_SPANS: CaseSpan[] = [];
+
+/** The silence connection and late-frame rings, independent of the other map layers. */
+function frameDelayLayers(
+  positions: MapPosition[],
+  lostSince: string | null,
+  showAppSignalDetail: boolean
+): Layer[] {
+  const layers: Layer[] = [];
+  const gap = silenceGap(positions, lostSince);
+  if (gap) {
+    layers.push(
+      new LineLayer({
+        id: "silence-gap",
+        data: dashSegments(gap.from, gap.to),
+        getSourcePosition: (d) => d.from,
+        getTargetPosition: (d) => d.to,
+        getColor: [255, 255, 255, 230],
+        getWidth: 3,
+        widthUnits: "pixels",
+        parameters: { depthCompare: "always" },
+      })
+    );
+  }
+  // A hidden app pulse must not leave its late-frame dot behind.
+  const late = filterVisiblePulses(positions, showAppSignalDetail)
+    .filter(hasFramePosition)
+    .filter(isLate);
+  if (late.length) {
+    layers.push(
+      new ScatterplotLayer<MapPosition>({
+        id: "late-frames",
+        data: late,
+        getPosition: (d) => [d.longitude, d.latitude],
+        // A late frame is drawn as a gray dot with a white border over its blue
+        // dot (Tailwind gray-400): lateness is context, not an alarm.
+        getRadius: 6,
+        radiusUnits: "pixels",
+        filled: true,
+        getFillColor: [156, 163, 175, 255],
+        stroked: true,
+        getLineColor: [255, 255, 255, 255],
+        getLineWidth: 2,
+        lineWidthUnits: "pixels",
+        parameters: { depthCompare: "always" },
+      })
+    );
+  }
+  return layers;
+}
+
 // The map is tilted, so below this zoom the scroll wheel can pull the camera
 // to the map's edge or to latitude 0, far from the trip.
 const TRIP_MAP_MIN_ZOOM = 2;
@@ -151,7 +243,20 @@ type MapVisualizationProps = {
   minimized?: boolean;
   licensePlate?: string | null;
   showAppSignalDetailDefault?: boolean;
+  /**
+   * Avisa al abrir o cerrar Lugares: la página puede ocultar lo que tiene al
+   * lado (la línea de tiempo, el visor multimedia) para darle todo el ancho.
+   */
+  onLugaresChange?: (abierto: boolean) => void;
+  /** Where a case without a trip opened, marked on the map. */
+  casePoint?: CasePoint | null;
+  /** The page's symptom intervals: its frames take the symptom's level color. */
+  caseSpans?: CaseSpan[];
+  /** A lost signal's last frame before the silence: the silence is drawn dashed. */
+  lostSince?: string | null;
 };
+
+export type CasePoint = { longitude: number; latitude: number };
 
 type GeometryFeature = {
   type: string;
@@ -163,6 +268,138 @@ type GeometryFeatureProperties = {
   id: string;
   name: string;
 };
+
+/** Píldora de arriba al centro del mapa de viaje (aviso o distancia). */
+const PILDORA_VIAJE =
+  "flex items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs text-gray-900 shadow dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100";
+
+/** "Cargando" o "sin datos" del viaje, en el lugar de la distancia. */
+function EstadoDelViaje({
+  dict,
+  cargando,
+}: Readonly<{ dict: I18nRecord; cargando: boolean }>) {
+  return (
+    <div data-estado-viaje className={PILDORA_VIAJE}>
+      {cargando ? (
+        <Spinner size="sm" />
+      ) : (
+        <span className="text-gray-500 dark:text-gray-400">
+          {tr("geographic_view.no_data_found", dict)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Distancia del vehículo al origen y cuánto le falta (ETA). */
+function DistanciaAlOrigen({
+  dict,
+  km,
+  etaHoras,
+}: Readonly<{ dict: I18nRecord; km: number; etaHoras: number | null }>) {
+  return (
+    <div className={PILDORA_VIAJE}>
+      <span className="flex items-center gap-1">
+        <span className="font-semibold">
+          {tr("geographic_view.distance_to_origin", dict)}:
+        </span>
+        <span>
+          {km.toFixed(1)} {tr("geographic_view.km", dict)}
+        </span>
+      </span>
+      <span className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
+      <span className="flex items-center gap-1">
+        <span className="font-semibold">
+          {tr("geographic_view.eta_to_origin", dict)}:
+        </span>
+        <span>{etaHoras == null ? "—" : formatEtaHours(etaHoras)}</span>
+      </span>
+    </div>
+  );
+}
+
+/** El mismo margen que el marco de controles (p-5): 20 px. */
+const MARGEN_CONTROLES_PX = 20;
+
+/** Papel de una geocerca del viaje según su location_type (1 origen, 2 destino). */
+function papelGeocerca(locationType: unknown, dict: I18nRecord): string {
+  if (locationType === 1)
+    return tr("geographic_view.trip_geofences.origin", dict);
+  if (locationType === 2)
+    return tr("geographic_view.trip_geofences.destination", dict);
+  return tr("geographic_view.trip_geofences.other", dict);
+}
+
+/** El anillo exterior de un polígono (o del primero de un multipolígono). */
+function anilloExterior(geometry: {
+  type?: string;
+  coordinates?: unknown;
+}): LngLat[] | null {
+  const c = geometry.coordinates;
+  if (!Array.isArray(c)) return null;
+  if (geometry.type === "Polygon") return (c[0] as LngLat[]) ?? null;
+  if (geometry.type === "MultiPolygon")
+    return ((c[0] as LngLat[][] | undefined)?.[0] as LngLat[]) ?? null;
+  return null;
+}
+
+/** [lat, lon] para ir a la geocerca: centro del anillo o el punto mismo. */
+export function anclaDeGeometria(geometry: {
+  type?: string;
+  coordinates?: unknown;
+}): [number, number] | null {
+  const c = geometry.coordinates;
+  if (geometry.type === "Point" && Array.isArray(c)) {
+    const [lng, lat] = c as number[];
+    return typeof lat === "number" && typeof lng === "number"
+      ? [lat, lng]
+      : null;
+  }
+  const anillo = anilloExterior(geometry);
+  const centro = anillo ? ringCentroid(anillo) : null;
+  return centro ? [centro[1], centro[0]] : null;
+}
+
+/** Las geocercas del viaje como filas de solo lectura para la lista. */
+function geocercasDelViaje(
+  features: GeometryFeature[],
+  dict: I18nRecord
+): GeocercaExterna[] {
+  return features.flatMap((f, i) => {
+    const ancla = anclaDeGeometria(
+      f.geometry as unknown as { type?: string; coordinates?: unknown }
+    );
+    if (!ancla) return [];
+    const props = f.properties as {
+      id?: string;
+      name?: string;
+      location_type?: unknown;
+    };
+    const papel = papelGeocerca(props.location_type, dict);
+    return [
+      {
+        id: String(props.id ?? `viaje-${i}`),
+        nombre: props.name || papel,
+        detalle: papel,
+        ancla,
+      },
+    ];
+  });
+}
+
+/**
+ * Las capas de deck.gl en orden de dibujo (la última queda encima). Los
+ * nombres de las geocercas van bajo lo del viaje (pulsos, vehículo, banderas)
+ * salvo con el editor de Lugares abierto: ahí se pregunta por las geocercas,
+ * así que sus nombres pasan encima de todo.
+ */
+export function capasDelMapa(
+  delViaje: LayersList,
+  nombres: LayersList,
+  editando: boolean
+): LayersList {
+  return editando ? [...delViaje, ...nombres] : [...nombres, ...delViaje];
+}
 
 export default function MapVisualizationTrip({
   tripId,
@@ -176,6 +413,10 @@ export default function MapVisualizationTrip({
   minimized = false,
   licensePlate,
   showAppSignalDetailDefault = false,
+  onLugaresChange,
+  casePoint = null,
+  caseSpans = NO_SPANS,
+  lostSince = null,
 }: MapVisualizationProps) {
   const pinSelectionCardToCorner = !minimized;
   const [rotation, _] = useState(0);
@@ -190,6 +431,64 @@ export default function MapVisualizationTrip({
   const [pictures_list, setPicturesList] = useState<string[]>([]);
 
   const mapRef = useRef<MapRef>(null);
+
+  // Lugares (para probar): el mismo editor de la vista geográfica, con su
+  // botón; sin el permiso "Editor de lugares" es de solo lectura
+  const puedeEditarLugares = usePermisoEditorLugares();
+  const [lugaresAbierto, setLugaresAbierto] = useState(false);
+  const editandoLugares = lugaresAbierto;
+  const cambiarLugares = (abierto: boolean) => {
+    setLugaresAbierto(abierto);
+    onLugaresChange?.(abierto);
+  };
+  const [zoom, setZoom] = useState(2);
+  const alCambioZoom = (z: number) => {
+    const next = Math.round((z || 2) * 10) / 10;
+    setZoom((prev) => (prev === next ? prev : next));
+  };
+  const [showStops, setShowStops] = useState(true);
+  // qué geocercas se ven (botón "geocercas" de la barra de herramientas):
+  // todas, solo las del viaje (por defecto) o ninguna
+  const [geofencesMode, setGeofencesMode] = useState<GeofencesMode>("trip");
+  const [showPulse, setShowPulse] = useState(true);
+  const [showAppSignalDetail, setShowAppSignalDetail] = useState(
+    showAppSignalDetailDefault
+  );
+  const showGeofences = geofencesMode !== "none";
+  // las de Lugares, solo de lectura sobre el viaje, van con "todas"; con el
+  // editor abierto se ven siempre (son lo que se edita)
+  const verGeocercas = geofencesMode === "all" || editandoLugares;
+  const lugares = usePlacesEnMapa(mapRef, {
+    editando: editandoLugares,
+    verGeocercas,
+    puedeEditar: puedeEditarLugares,
+    // los trayectos se dibujan (y llevan badge) solo con Lugares abierto
+    nombres: { geocercas: verGeocercas, trayectos: editandoLugares },
+    mapStyle,
+    zoom,
+    ambito: "viaje",
+  });
+  // tras recargar con un lugar o trayecto a medio editar: reabrir Lugares
+  // (el editor retoma el borrador al abrirse)
+  const borradorRevisado = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !lugares.ws.storageScope ||
+      !puedeEditarLugares ||
+      borradorRevisado.current === lugares.ws.storageScope
+    )
+      return;
+    borradorRevisado.current = lugares.ws.storageScope;
+    if (!lugaresAbierto && hayBorrador("viaje", lugares.ws.storageScope))
+      cambiarLugares(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeEditarLugares, lugares.ws.storageScope]);
+
+  // cerrar Lugares con cambios sin guardar: igual que el ✕ del formulario
+  const alternarLugares = () => {
+    if (!lugaresAbierto) cambiarLugares(true);
+    else lugares.ws.pedirSalir(() => cambiarLugares(false));
+  };
 
   const { timelapse } = useTimelapse(
     licensePlate ?? null,
@@ -214,13 +513,6 @@ export default function MapVisualizationTrip({
     }
   }, [positions?.length]);
 
-  const [showStops, setShowStops] = useState(true);
-  const [showGeofences, setShowGeofences] = useState(true);
-  const [showPulse, setShowPulse] = useState(true);
-  const [showAppSignalDetail, setShowAppSignalDetail] = useState(
-    showAppSignalDetailDefault
-  );
-
   // Follow mode: while the camera toggle is on, keep the vehicle centered
   // whenever its displayed position changes, without changing the zoom.
   useEffect(() => {
@@ -234,13 +526,35 @@ export default function MapVisualizationTrip({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera_movement, displayPosition]);
 
+  const caseLng = casePoint?.longitude;
+  const caseLat = casePoint?.latitude;
+  const [mapReady, setMapReady] = useState(false);
+
+  // Fits the track, or flies to its single position or to the case point.
+  // Waits for the map, so data that arrives first is not lost.
   useEffect(() => {
-    if (mapRef.current) {
-      center_in_bounds(positions || [], mapRef.current, isLoading);
+    if (!mapRef.current || isLoading) return;
+    const point =
+      caseLng != null && caseLat != null
+        ? { longitude: caseLng, latitude: caseLat }
+        : null;
+    const camera = tripCamera(positions, point);
+    if (camera?.kind === "bounds") {
+      mapRef.current.fitBounds(camera.bounds, {
+        padding: BOUNDS_PADDING,
+        duration: 1000,
+        maxZoom: camera.maxZoom,
+        pitch: camera.pitch,
+        bearing: camera.bearing,
+      });
+    } else if (camera?.kind === "point") {
+      flyTo(mapRef.current, camera.target, camera.zoom);
     }
-  }, [positions]);
+  }, [positions, isLoading, caseLng, caseLat, mapReady]);
 
   useEffect(() => {
+    // A case without a trip is framed by its point and its track instead.
+    if (caseLng != null) return;
     const first = filteredLocationData?.features[0];
     const coordinates = first
       ? toLngLat(first.longitude, first.latitude)
@@ -248,7 +562,17 @@ export default function MapVisualizationTrip({
     if (coordinates && mapRef.current) {
       flyTo(mapRef.current, coordinates, 6.5);
     }
-  }, [filteredLocationData]);
+  }, [filteredLocationData, caseLng]);
+
+  // The detector's state of the vehicle: its newest position turns gray and
+  // carries "Sin señal · hace N min" while the signal does not arrive.
+  const newestIndex = (positions?.length ?? 0) - 1;
+  const newest = positions?.at(-1);
+  const signal = useAssetSignal(newest?.assetid, newest?.timestamp);
+  const offline =
+    !!newest && isOffline(signal) && isNewestFrame(newest.timestamp, signal);
+  const offlineText = offline ? offlineLabel(signal, dict) : null;
+  const pinOffline = offline && displayPosition === newestIndex;
 
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
@@ -256,6 +580,7 @@ export default function MapVisualizationTrip({
       type: "FeatureCollection",
       features:
         positions?.map((item: MapPosition, index: number) => {
+          const symptom = pointLevel(item.timestamp, caseSpans);
           return {
             type: "Feature",
             geometry: {
@@ -264,7 +589,10 @@ export default function MapVisualizationTrip({
             },
             properties: {
               id: index,
+              // Frames stay blue; selecting a symptom rings its frames. The level only shows in the popup.
               icu_code: 0,
+              symptom_level: symptom?.level ?? null,
+              symptom_name: symptom?.name ?? null,
               asset_id: item.assetid,
               rotation: item.heading * (180 / Math.PI),
               latitude: item.latitude,
@@ -273,19 +601,20 @@ export default function MapVisualizationTrip({
               timestamp: item.timestamp,
               signal_description: item.signal_description,
               signal_detail: item.signal_detail,
+              delay_s: frameDelay(item),
+              offline: offline && index === newestIndex,
+              signal_label:
+                offline && index === newestIndex ? offlineText : null,
             },
           };
         }) || [],
     }),
-    [positions]
+    [positions, caseSpans, offline, newestIndex, offlineText]
   );
 
-  useEffect(() => {
-    if (!filteredLocationData || !positions) return;
-
-    // Create a set of matching position indices
+  // A refreshed description must not reopen a dismissed popup or reset a selected frame.
+  const matchingPulseKey = useMemo(() => {
     const matchingIndices = new Set<number>();
-
     if (filteredLocationData && positions) {
       filteredLocationData.features.forEach((filteredItem) => {
         // Find matching position index
@@ -300,25 +629,41 @@ export default function MapVisualizationTrip({
       });
     }
 
-    setSelectedPulse(Array.from(matchingIndices));
+    return Array.from(matchingIndices).join(",");
+  }, [filteredLocationData, positions]);
 
-    if (matchingIndices.size > 0) {
-      const matchingPositions = positions.filter((_position, index) =>
-        matchingIndices.has(index)
+  useEffect(() => {
+    const indices = matchingPulseKey
+      ? matchingPulseKey.split(",").map(Number)
+      : [];
+    setSelectedPulse(indices);
+
+    // A case without a trip has one opening point, not a span of signals to
+    // summarise, so its popup waits for the user to pick a pulse.
+    if (indices.length > 0 && caseLng == null) {
+      const selected = new Set(indices);
+      const sourceCounts = countPulseSources(
+        (positions ?? []).filter((_position, index) => selected.has(index))
       );
-      const sourceCounts = countPulseSources(matchingPositions);
       setHoverInfo({
         x: pinSelectionCardToCorner ? SELECTION_CARD_INSET : 10,
         y: pinSelectionCardToCorner ? SELECTION_CARD_INSET : 10,
         object: {
-          elements: Array.from(matchingIndices),
-          description: filteredLocationData?.description,
+          elements: indices,
+          description: {},
           appCount: sourceCounts.app,
           gpsCount: sourceCounts.gps,
         },
       } as PickingInfo<PulseListType>);
     }
-  }, [filteredLocationData, positions, pinSelectionCardToCorner]);
+    // `positions` stays out: a refresh with the same matches must not reopen the card.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    matchingPulseKey,
+    caseLng,
+    selectedTreatmentIndex?.symptom_id,
+    pinSelectionCardToCorner,
+  ]);
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
@@ -334,13 +679,11 @@ export default function MapVisualizationTrip({
       const features = geofence_data?.data
         ?.filter((item: GeofenceData) => item.zone.location !== null)
         .map((item: GeofenceData) => {
-          const wkbHexString = item.zone.location;
-          const wkbBuffer = Buffer.from(wkbHexString, "hex");
-          const geometry = wkx.Geometry.parse(wkbBuffer);
+          const geometry = geofenceGeometry(item.zone.location);
 
           return {
             type: "Feature",
-            geometry: geometry.toGeoJSON(),
+            geometry,
             properties: {
               id: item.zone.id,
               name: item.zone.name,
@@ -360,6 +703,16 @@ export default function MapVisualizationTrip({
     }
   }, [geofence_data]);
 
+  // las geocercas del viaje, como sección de solo lectura en Lugares: la
+  // misma lista en todo mapa de viaje (síntomas y bento)
+  const geocercasViaje = React.useMemo(
+    () => ({
+      titulo: tr("geographic_view.trip_geofences.title", dict),
+      items: geocercasDelViaje(processedGeofence?.features ?? [], dict),
+    }),
+    [processedGeofence, dict]
+  );
+
   // Distance + rough ETA from the current vehicle position to the ORIGIN
   // geofence centroid (location_type === 1). The origin/end flags themselves
   // are drawn by GeofencePinLayer; this surfaces "how far is the vehicle from
@@ -368,15 +721,7 @@ export default function MapVisualizationTrip({
     const origin = processedGeofence?.features.find(
       (f) => (f.properties as { location_type?: number }).location_type === 1
     );
-    const geometry = origin?.geometry as
-      | { type?: string; coordinates?: LngLat[][] }
-      | undefined;
-    // Only a Polygon's outer ring is a list of [lng,lat] tuples; a Point or
-    // MultiPolygon (or malformed payload) would make ringCentroid throw.
-    if (geometry?.type !== "Polygon") return null;
-    const ring = geometry.coordinates?.[0];
-    if (!Array.isArray(ring)) return null;
-    return ringCentroid(ring);
+    return origin ? geofencePinPosition(origin.geometry) : null;
   }, [processedGeofence]);
 
   const vehicle =
@@ -498,6 +843,8 @@ export default function MapVisualizationTrip({
                   timestamp: info.object?.timestamp,
                   signal_description: info.object?.signal_description,
                   signal_detail: info.object?.signal_detail,
+                  delay_s: frameDelay(info.object),
+                  signal_label: pinOffline ? offlineText : null,
                 },
               },
             };
@@ -512,6 +859,8 @@ export default function MapVisualizationTrip({
               zoomToVehicle(mapRef.current, target);
             }
           },
+          offline: pinOffline,
+          label: pinOffline ? offlineText : null,
           updateTriggers: {
             data: positions,
           },
@@ -519,8 +868,35 @@ export default function MapVisualizationTrip({
       );
     }
 
+    if (showPulse && positions?.length) {
+      baseLayers.push(
+        ...frameDelayLayers(positions, lostSince, showAppSignalDetail)
+      );
+    }
+
+    if (caseLng != null && caseLat != null) {
+      baseLayers.push(
+        new ScatterplotLayer<CasePoint>({
+          id: "case-point",
+          data: [{ longitude: caseLng, latitude: caseLat }],
+          getPosition: (d) => [d.longitude, d.latitude],
+          getRadius: 9,
+          radiusUnits: "pixels",
+          getFillColor: [220, 38, 38, 230],
+          getLineColor: [255, 255, 255, 255],
+          getLineWidth: 3,
+          lineWidthUnits: "pixels",
+          stroked: true,
+          parameters: { depthCompare: "always" },
+        })
+      );
+    }
+
     return baseLayers;
   }, [
+    caseLng,
+    caseLat,
+    lostSince,
     geoJson,
     positions,
     processedGeofence,
@@ -535,144 +911,192 @@ export default function MapVisualizationTrip({
     showAppSignalDetail,
     isDarkMap,
     pinSelectionCardToCorner,
+    pinOffline,
+    offlineText,
   ]);
 
-  return (
-    <div className="h-full w-full relative overflow-hidden">
-      {(pictures_list.length > 0 || timelapse) && !minimized ? (
-        <div className="z-[700] absolute top-0 left-0 h-full pointer-events-none">
-          <ImageSelector
-            images={pictures_list}
-            dictionary={dict}
-            timelapse={timelapse}
-          />
-        </div>
-      ) : null}
-      <div className="z-[700] absolute bottom-0 left-0 right-0 w-full pointer-events-none">
-        <ToolBar
-          dictionary={dict}
-          positions={positions ?? []}
-          display_position={{
-            displayPosition,
-            setDisplayPosition,
-          }}
-          selected_style={{
-            selectedStyle: mapStyle,
-            setSelectedStyle: setMapStyle,
-          }}
-          camera_movement={{
-            camera_movement,
-            setCameraMovement,
-          }}
-          show_stops={{
-            showStops,
-            setShowStops,
-          }}
-          show_geofences={{
-            showGeofences,
-            setShowGeofences,
-          }}
-          show_pulse={{
-            showPulse,
-            setShowPulse,
-          }}
-          show_app_signal_detail={{
-            showAppSignalDetail,
-            setShowAppSignalDetail,
-          }}
-          timelineComponent={
-            <PulseRange
-              positions={positions ?? []}
-              displayPosition={displayPosition}
-              setDisplayPosition={setDisplayPosition}
-            />
-          }
-        />
-      </div>
-      <MapVisualization
-        mapStyle={
-          mapStyle as
-            | "satellite"
-            | "streets"
-            | "dark"
-            | "light"
-            | "outdoors"
-            | "hybrid"
-        }
-        layers={layers}
-        isLoading={false}
-        mapRef={mapRef}
-        onZoomChange={() => {}}
-        minZoom={TRIP_MAP_MIN_ZOOM}
-      />
-      {positions && positions.length > 0 && (
-        <div className="absolute right-2 top-2 z-[600]">
-          <PulseSourceLegend
-            dict={dict}
-            showStops={showStops}
-            isDarkMap={isDarkMap}
-          />
-        </div>
-      )}
-      {hoverInfo && (
-        <MapTooltip
-          start_right={true}
-          start_bottom={pinSelectionCardToCorner}
-          left={pinSelectionCardToCorner ? SELECTION_CARD_INSET : hoverInfo.x}
-          top={pinSelectionCardToCorner ? SELECTION_CARD_INSET : hoverInfo.y}
-          setHoverInfo={setHoverInfo}
-          onExitAction={() => {
-            setSelectedPulse([]);
-            if (setSelectedTreatment && setSelectedTreatmentIndex) {
-              setSelectedTreatment(null);
-              setSelectedTreatmentIndex(null);
-            }
-          }}
-        >
-          <PulseTooltip
-            object={hoverInfo.object as PulseListType | PulseType}
-            dict={dict}
-          />
-        </MapTooltip>
-      )}
+  /** Al cerrar la tarjeta de pulsos: soltar lo seleccionado. */
+  const cerrarPulsos = () => {
+    setSelectedPulse([]);
+    if (setSelectedTreatment && setSelectedTreatmentIndex) {
+      setSelectedTreatment(null);
+      setSelectedTreatmentIndex(null);
+    }
+  };
 
-      <div className="absolute right-0 top-5 bg-white dark:bg-gray-800 rounded-l-full border-r border-y border-gray-400 dark:border-gray-700">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-full p-2">
-            <Spinner />
-          </div>
-        ) : !isLoading && positions?.length === 0 ? (
-          <div className="flex items-center justify-center h-full p-2">
-            <p className="text-gray-500 dark:text-gray-400 font-light">
-              {tr("geographic_view.no_data_found", dict)}
-            </p>
+  return (
+    // el mapa y, a su lado, la barra de Lugares (no encima): al abrirla el
+    // mapa se angosta y sus controles se mueven con su borde
+    <div className="flex h-full w-full overflow-hidden">
+      <div className="relative h-full min-w-0 flex-1 overflow-hidden">
+        {(pictures_list.length > 0 || timelapse) && !minimized ? (
+          <div className="z-[700] absolute top-0 left-0 h-full pointer-events-none">
+            <ImageSelector
+              images={pictures_list}
+              dictionary={dict}
+              timelapse={timelapse}
+            />
           </div>
         ) : null}
-      </div>
-
-      {!minimized && distanceToOriginKm != null && (
-        <div className="pointer-events-none absolute left-1/2 top-2 z-[600] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs text-gray-900 shadow dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100">
-          <span className="flex items-center gap-1">
-            <span className="font-semibold">
-              {tr("geographic_view.distance_to_origin", dict)}:
-            </span>
-            <span>
-              {distanceToOriginKm.toFixed(1)} {tr("geographic_view.km", dict)}
-            </span>
-          </span>
-          <span className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
-          <span className="flex items-center gap-1">
-            <span className="font-semibold">
-              {tr("geographic_view.eta_to_origin", dict)}:
-            </span>
-            <span>
-              {etaToOriginHours == null
-                ? "—"
-                : formatEtaHours(etaToOriginHours)}
-            </span>
-          </span>
+        <div className="z-[700] absolute bottom-0 left-0 right-0 w-full pointer-events-none">
+          <ToolBar
+            dictionary={dict}
+            positions={positions ?? []}
+            display_position={{
+              displayPosition,
+              setDisplayPosition,
+            }}
+            selected_style={{
+              selectedStyle: mapStyle,
+              setSelectedStyle: setMapStyle,
+            }}
+            camera_movement={{
+              camera_movement,
+              setCameraMovement,
+            }}
+            show_stops={{
+              showStops,
+              setShowStops,
+            }}
+            geofences_mode={{
+              geofencesMode,
+              setGeofencesMode,
+            }}
+            show_pulse={{
+              showPulse,
+              setShowPulse,
+            }}
+            show_app_signal_detail={{
+              showAppSignalDetail,
+              setShowAppSignalDetail,
+            }}
+            timelineComponent={
+              <PulseRange
+                positions={positions ?? []}
+                displayPosition={displayPosition}
+                setDisplayPosition={setDisplayPosition}
+              />
+            }
+          />
         </div>
-      )}
+        <MapVisualization
+          mapStyle={
+            mapStyle as
+              | "satellite"
+              | "streets"
+              | "dark"
+              | "light"
+              | "outdoors"
+              | "hybrid"
+          }
+          layers={capasDelMapa(
+            layers,
+            verGeocercas ? lugares.capasNombres : [],
+            editandoLugares
+          )}
+          isLoading={false}
+          mapRef={mapRef}
+          // con la barra de Lugares al lado, el borde que la toca va recto
+          rounded={editandoLugares ? "left" : true}
+          onZoomChange={alCambioZoom}
+          minZoom={TRIP_MAP_MIN_ZOOM}
+          onMapLoad={() => setMapReady(true)}
+          {...lugares.propsMapa}
+        >
+          {verGeocercas && (
+            <PlacesMapLayers ws={lugares.ws} vistaGeneral={!editandoLugares} />
+          )}
+        </MapVisualization>
+
+        {/* resumen de los pulsos elegidos: arrastrable, abre a la izquierda
+            (20 px, como los demás controles) y centrada en el alto */}
+        {hoverInfo && (
+          <MapTooltip
+            start_right={pinSelectionCardToCorner}
+            start_bottom={pinSelectionCardToCorner}
+            left={
+              pinSelectionCardToCorner
+                ? SELECTION_CARD_INSET
+                : MARGEN_CONTROLES_PX
+            }
+            top={
+              pinSelectionCardToCorner
+                ? SELECTION_CARD_INSET
+                : MARGEN_CONTROLES_PX
+            }
+            centrarVertical={!pinSelectionCardToCorner}
+            setHoverInfo={setHoverInfo}
+            onExitAction={cerrarPulsos}
+          >
+            <PulseTooltip
+              object={pulseWithSignal(
+                hoverInfo.object as PulseListType | PulseType,
+                newest?.assetid,
+                signal,
+                dict,
+                filteredLocationData?.description
+              )}
+              dict={dict}
+            />
+          </MapTooltip>
+        )}
+        {/* mismos 20 px de margen que la barra de herramientas de abajo (p-5) */}
+        <MapControlsFrame
+          className="z-[760]"
+          topCenter={
+            // un solo lugar arriba al centro: mientras carga o no hay datos,
+            // el aviso; con datos, la distancia y el ETA al origen
+            isLoading || showsNoData(isLoading, positions, casePoint) ? (
+              <EstadoDelViaje dict={dict} cargando={isLoading} />
+            ) : (
+              !minimized &&
+              distanceToOriginKm != null && (
+                <DistanciaAlOrigen
+                  dict={dict}
+                  km={distanceToOriginKm}
+                  etaHoras={etaToOriginHours}
+                />
+              )
+            )
+          }
+          topRight={
+            <>
+              <PlacesToggle
+                dict={dict}
+                abierto={lugaresAbierto}
+                onCambiar={alternarLugares}
+              />
+              {positions && positions.length > 0 && (
+                <PulseSourceLegend
+                  dict={dict}
+                  showStops={showStops}
+                  isDarkMap={isDarkMap}
+                />
+              )}
+            </>
+          }
+        />
+        {/* geocercas solo de lectura: nombre y categorías bajo el mouse */}
+        {!editandoLugares && lugares.ws.tooltipBadge && (
+          <PlaceBadgeTooltip
+            badge={lugares.ws.tooltipBadge.badge}
+            x={lugares.ws.tooltipBadge.x}
+            y={lugares.ws.tooltipBadge.y}
+          />
+        )}
+        {/* menús y barras de dibujo de Lugares: sobre el mapa */}
+        {editandoLugares && (
+          <div className="contents [&>*]:z-[750]">
+            <PlacesEditorOverlays ws={lugares.ws} dict={dict} />
+          </div>
+        )}
+      </div>
+      <PlacesFloatingOverlay
+        dict={dict}
+        ws={lugares.ws}
+        show={editandoLugares}
+        externas={geocercasViaje}
+      />
     </div>
   );
 }

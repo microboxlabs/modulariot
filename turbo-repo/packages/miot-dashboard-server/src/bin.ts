@@ -29,7 +29,15 @@ import {
   readServerConfig,
   type ServerConfig,
 } from "./server/config";
-import { openDataSources } from "./server/open-datasources";
+import {
+  openDataSources,
+  type OpenedDataSources,
+} from "./server/open-datasources";
+import {
+  createLocalQueryAuthoring,
+  createLocalQueryOperations,
+} from "./authoring/local";
+import { createSqlQueryPlanStore } from "./store/sql/query-plans";
 import { createRefusalLog } from "./server/refusal-log";
 import { startSweepSchedule } from "./server/sweep-schedule";
 import { seedDashboards } from "./server/seed";
@@ -280,6 +288,39 @@ function warnAboutStartupConfig(
   }
 }
 
+/** Select local saved-query services only when no host operations are configured. */
+function buildQueryServices(
+  operations: Awaited<ReturnType<typeof loadConfiguredOperations>>,
+  data: OpenedDataSources,
+  driver: SqlDriver | undefined,
+) {
+  const local =
+    operations === undefined && data.dataSources && data.credentials && driver
+      ? createLocalQueryAuthoring({
+          dataSources: data.dataSources,
+          credentials: data.credentials,
+          plans: createSqlQueryPlanStore(driver),
+        })
+      : undefined;
+  const queryOperations =
+    operations ??
+    (local ? createLocalQueryOperations({ authoring: local }) : undefined);
+  const authoring = operations?.queryAuthoring ?? local;
+  let describe = "off";
+  if (authoring)
+    describe = local ? "on, saved here" : "on, from the operations module";
+  return {
+    describe,
+    options: {
+      ...(queryOperations ? { queries: { operations: queryOperations } } : {}),
+      ...(queryOperations?.queryCatalog
+        ? { queryCatalog: queryOperations.queryCatalog }
+        : {}),
+      ...(authoring ? { authoring } : {}),
+    },
+  };
+}
+
 async function main(): Promise<void> {
   const config = readServerConfig(process.env);
   const operations = await loadConfiguredOperations(config);
@@ -329,16 +370,16 @@ async function main(): Promise<void> {
   log({ level: "info", msg: "scopes", membership: scopes.describe });
   log({ level: "info", msg: "datasources", state: data.describe });
 
+  const queryServices = buildQueryServices(operations, data, assembled.driver);
+  log({ level: "info", msg: "query authoring", state: queryServices.describe });
+
   const running = await serve({
     policy: createAllowedGroupsPolicy(),
     identity: auth.identity,
     tenants: tenants.tenants,
     scopes: scopes.scopes,
     store: assembled.store,
-    ...(operations ? { queries: { operations } } : {}),
-    ...(operations?.queryCatalog
-      ? { queryCatalog: operations.queryCatalog }
-      : {}),
+    ...queryServices.options,
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,

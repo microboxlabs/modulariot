@@ -3,7 +3,7 @@ export type { QueryCatalogConnection, QueryCatalogOperation } from "./client/que
 import { DashboardApiError } from "./client/error";
 export { DashboardApiError } from "./client/error";
 import { appendRoute, pathSegment, validateEndpoint } from "./client/routes";
-import { z } from "zod";
+import { z } from "zod/v3";
 import {
   dashboardConfigSchema,
   dashboardQueryValueSchema,

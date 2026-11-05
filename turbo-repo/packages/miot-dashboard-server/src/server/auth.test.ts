@@ -254,6 +254,7 @@ const ticketConfig = (
   header: "x-ticket",
   scheme: undefined,
   url: TICKET_URL,
+  allowHttp: false,
   method: "GET",
   present: {
     kind: "header",
@@ -317,6 +318,37 @@ describe("buildIdentityResolver: tickets", () => {
         ticket: ticketConfig({ url: "http://emitter.test/x" }),
       }),
     ).rejects.toThrowError(ConfigError);
+  });
+
+  it("validates over plain http when the configuration allows it", async () => {
+    const seen: string[] = [];
+    const { identity } = await buildIdentityResolver(
+      {
+        kind: "verified",
+        jwt: undefined,
+        ticket: ticketConfig({
+          url: "http://emitter.internal/tickets/-me-",
+          allowHttp: true,
+        }),
+      },
+      {
+        fetchImpl: ((input: unknown) => {
+          seen.push(String(input));
+          return emitterAnswering(200, { entry: { id: "ana" } })(
+            input as Parameters<typeof fetch>[0],
+          );
+        }) as typeof fetch,
+      },
+    );
+
+    await expect(
+      identity.resolve(
+        new Request("https://server.test/", {
+          headers: { "x-ticket": "TICKET_1" },
+        }),
+      ),
+    ).resolves.toMatchObject({ userId: "ana" });
+    expect(seen).toEqual(["http://emitter.internal/tickets/-me-"]);
   });
 
   it("accepts a token or a ticket when both are configured", async () => {

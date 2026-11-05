@@ -18,7 +18,7 @@ on:
         required: true
 
 env:
-  NODE_VERSION: "24"
+  NODE_VERSION: "24.22.1"
   PACKAGE_NAME: "@microboxlabs/miot-dashboard-ui"
   PACKAGE_DIR: "packages/miot-dashboard-ui"
   TAG_PREFIX: "miot-dashboard-ui@v"

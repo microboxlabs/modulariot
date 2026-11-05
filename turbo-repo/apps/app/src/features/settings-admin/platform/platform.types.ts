@@ -48,14 +48,28 @@ export const PLATFORM_OWNER_ROLE = "PLATFORM_OWNER";
 export type LogoVariant = "light" | "dark";
 
 /** The panels Settings > Platform offers in its left-hand menu. */
-export type PlatformSection =
-  | "branding"
-  | "superusers"
-  | "models"
-  | "mail"
-  | "templates"
-  | "plan"
-  | "usage";
+export const PLATFORM_SECTIONS = [
+  "branding",
+  "superusers",
+  "models",
+  "vehicleImages",
+  "geocodingPlan",
+  "geocodingTenants",
+  "telephonyPlan",
+  "telephonyTenants",
+  "sharing",
+  "templates",
+  "plan",
+  "usage",
+] as const;
+
+export type PlatformSection = (typeof PLATFORM_SECTIONS)[number];
+
+/** The section in `?section=`; Marca when absent or unknown. */
+export function platformSectionOf(params: URLSearchParams): PlatformSection {
+  const value = params.get("section");
+  return PLATFORM_SECTIONS.find((s) => s === value) ?? "branding";
+}
 
 /** The providers the harness can call. Mirrors `ModelProviderService.KNOWN`. */
 export const MODEL_PROVIDERS = [
@@ -135,7 +149,6 @@ export interface CreatePlatformOrganization {
   slug: string;
   name: string;
   tenantClientId?: string;
-  membershipSource: "NATIVE";
 }
 
 /** Mirrors `PlatformAuth0ClientsResource.Auth0ClientView`. */
@@ -162,8 +175,6 @@ export interface PlatformOrganizationListItem {
   name: string;
   displayName: string | null;
   tenantClientId: string;
-  /** In effect for this organization: its top-level organization's, or NATIVE on a native deployment. */
-  membershipSource: "NATIVE" | "ALFRESCO";
   taxId: string | null;
   /** Null for a top-level organization. */
   parentSlug: string | null;
@@ -174,4 +185,84 @@ export interface SetHarnessPlan {
   seatPriceUsd: number;
   tokensPerSeat: number;
   yearlyDiscountPct: number;
+}
+
+/** Read from the GPS data, not declared: its client sends signals, or creates trips. */
+export type DataShareOrgRole = "SENDER" | "OPERATOR";
+
+/** `assetCount` counts the organization's own assets, never the ones it receives. */
+export interface DataShareOrg {
+  slug: string;
+  name: string;
+  roles: DataShareOrgRole[];
+  assetCount: number;
+}
+
+/** An asset an organization can share, with what its signal reports about it. */
+export interface DataShareAsset {
+  id: string;
+  /** The signal's free-text `type`. */
+  kind: string;
+  /** The signal's free-text `owner`; empty when the sender leaves it out. */
+  owner: string;
+  lastSeen: string | null;
+}
+
+/**
+ * - `ALL`: every asset of the source, including later ones.
+ * - `FILTER`: the source's assets that match `filter`, including later ones.
+ * - `ASSETS`: only `assetIds`.
+ */
+export type DataShareScope = "ALL" | "FILTER" | "ASSETS";
+
+/** An empty list matches everything; the two lists combine with AND. */
+export interface DataShareFilter {
+  owners: string[];
+  kinds: string[];
+}
+
+/** Who created the share: a platform owner, or an integration the platform set up. */
+export type DataShareOrigin = "MANUAL" | "TRIP" | "ACCREDITATION";
+
+export type DataShareStatus = "ACTIVE" | "SCHEDULED" | "EXPIRED" | "REVOKED";
+
+export interface DataShare {
+  id: string;
+  sourceOrg: string;
+  targetOrg: string;
+  scope: DataShareScope;
+  /** Only for `FILTER`. */
+  filter: DataShareFilter | null;
+  /** Only for `ASSETS`. */
+  assetIds: string[];
+  /** Assets the share covers today, as the server counts them; null for revoked and expired shares. */
+  assetCount: number | null;
+  origin: DataShareOrigin;
+  status: DataShareStatus;
+  validFrom: string;
+  /** Null: no end date. */
+  validTo: string | null;
+  note: string | null;
+  createdBy: string;
+  createdAt: string;
+  revokedAt: string | null;
+  revokedBy: string | null;
+}
+
+export interface CreateDataShare {
+  sourceOrg: string;
+  targetOrg: string;
+  scope: DataShareScope;
+  filter: DataShareFilter | null;
+  assetIds: string[];
+  validFrom: string;
+  validTo: string | null;
+  note: string | null;
+}
+
+export interface DataSharingFigures {
+  active: number;
+  organizations: number;
+  assets: number;
+  endingSoon: number;
 }

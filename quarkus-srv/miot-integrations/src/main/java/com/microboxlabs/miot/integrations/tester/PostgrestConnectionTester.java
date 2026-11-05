@@ -53,6 +53,11 @@ public class PostgrestConnectionTester implements ConnectionTester {
         }
         int functions = countFunctions(result.body());
         if (functions < 0) return fail(now, "The base URL did not return a PostgREST OpenAPI description");
+        if (connection.isDraft()) {
+            // Nothing is imported before saving, so the credential check waits for the first function.
+            return new ConnectionTestResponse(true, now, "PostgREST OK — " + functions
+                    + " functions published. After saving, import one and test again to check the credential");
+        }
         PostgrestCatalog.Probe probe;
         try {
             probe = catalog.probe(connection);

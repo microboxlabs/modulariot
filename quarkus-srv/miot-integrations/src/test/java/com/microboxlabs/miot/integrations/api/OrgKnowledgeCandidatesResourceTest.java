@@ -94,7 +94,7 @@ class OrgKnowledgeCandidatesResourceTest {
         private final boolean allowed;
 
         FixedPermissionService(boolean allowed) {
-            super(null, null, null);
+            super(null, null);
             this.allowed = allowed;
         }
 

@@ -95,7 +95,6 @@ class TeamApiTest {
                 .then().statusCode(200).body("$", empty());
         given().header("Authorization", bearer(OWNER)).when().get(BASE + "/members")
                 .then().statusCode(200)
-                .body("membershipSource", is("NATIVE"))
                 .body("members.email", containsInAnyOrder(OWNER, ADMIN, NEWCOMER));
     }
 
@@ -133,6 +132,17 @@ class TeamApiTest {
                 .then().statusCode(204);
         given().header("Authorization", bearer(ADMIN)).when().get(BASE + "/members")
                 .then().statusCode(403);
+    }
+
+    @Test
+    void theRosterListsIamMembers() {
+        String roster = "/api/v1/orgs/" + ORG + "/members";
+        given().header("Authorization", bearer(ADMIN)).when().get(roster)
+                .then().statusCode(200)
+                .body("id", containsInAnyOrder(OWNER, ADMIN))
+                .body("email", containsInAnyOrder(OWNER, ADMIN));
+        given().header("Authorization", bearer(ADMIN)).when().get(roster + "?maxItems=1")
+                .then().statusCode(200).body("$", hasSize(1));
     }
 
     @Test

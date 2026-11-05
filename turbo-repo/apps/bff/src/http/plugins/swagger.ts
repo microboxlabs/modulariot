@@ -69,14 +69,7 @@ async function plugin(server: FastifyInstance, opts: any) {
       docExpansion: "full",
       deepLinking: false,
     },
-    uiHooks: {
-    //   onRequest: server.auth([server.basicAuth]),
-      preHandler: function (request, reply, next) {
-        next();
-      },
-    },
     staticCSP: true,
-    transformStaticCSP: (header) => header,
   });
 }
 

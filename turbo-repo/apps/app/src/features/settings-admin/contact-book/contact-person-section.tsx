@@ -1,14 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { TextInput } from "flowbite-react";
-import { HiArrowLeft, HiCheck, HiOutlineSearch, HiUserAdd, HiXCircle } from "react-icons/hi";
+import {
+  HiArrowLeft,
+  HiCheck,
+  HiOutlineSearch,
+  HiUserAdd,
+} from "react-icons/hi";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { OrgMember } from "../types";
+import IdField from "./id-field";
+import {
+  COMPANY_ID_TYPES,
+  displayId,
+  guessCompanyIdType,
+  PERSON_ID_TYPES,
+  type IdType,
+} from "./tax-id";
+import type { CompanyOption } from "./store";
 import ContactOrganizationSection from "./contact-organization-section";
-import { inputValidationColor } from "./input-validation";
 import { normalizeLabel } from "./taxonomy-store";
 
 export const SECTION_INPUT_CLASS =
@@ -26,27 +38,43 @@ export interface PersonDraft {
   orgMemberId?: string;
   /** Full name: the member's name, or typed for an external contact. */
   name: string;
-  /** Only typed for an external contact. */
+  /** Only typed for an external contact: the document's number, and its type. */
   rut: string;
+  rutType?: IdType;
 }
 
+/** The member's name; the email when the directory has none. */
+const NO_IDS: ReadonlySet<string> = new Set();
+
 export function memberName(member: OrgMember): string {
-  return member.displayName || `${member.firstName} ${member.lastName}`.trim() || member.email;
+  const full = [member.firstName, member.lastName]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+  return member.displayName?.trim() || full || member.email;
 }
 
 function MemberRow({
   member,
   selected,
+  takenLabel,
   onPick,
-}: Readonly<{ member: OrgMember; selected: boolean; onPick: () => void }>) {
-  const tone = selected
-    ? "bg-blue-50 dark:bg-blue-500/10"
-    : "hover:bg-gray-50 dark:hover:bg-gray-700/50";
+}: Readonly<{
+  member: OrgMember;
+  selected: boolean;
+  /** Set when another contact of the book is this member: the row can't be picked. */
+  takenLabel?: string;
+  onPick: () => void;
+}>) {
+  let tone = "hover:bg-gray-50 dark:hover:bg-gray-700/50";
+  if (selected) tone = "bg-blue-50 dark:bg-blue-500/10";
+  else if (takenLabel) tone = "cursor-not-allowed opacity-60";
   return (
     <li>
       <button
         type="button"
         aria-pressed={selected}
+        disabled={Boolean(takenLabel)}
         onClick={onPick}
         className={`flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors ${tone}`}
       >
@@ -55,9 +83,18 @@ function MemberRow({
           <span className="block truncate text-sm font-medium text-gray-900 dark:text-white">
             {memberName(member)}
           </span>
-          <span className="block truncate text-xs text-gray-500 dark:text-gray-400">{member.email}</span>
+          <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
+            {member.email}
+          </span>
         </span>
-        {selected && <HiCheck className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />}
+        {takenLabel && (
+          <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+            {takenLabel}
+          </span>
+        )}
+        {selected && (
+          <HiCheck className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+        )}
       </button>
     </li>
   );
@@ -67,18 +104,22 @@ function OrgMemberList({
   members,
   isLoading,
   selectedId,
+  takenIds,
   onPick,
   d,
 }: Readonly<{
   members: readonly OrgMember[];
   isLoading: boolean;
   selectedId?: string;
+  takenIds: ReadonlySet<string>;
   onPick: (m: OrgMember) => void;
   d: I18nRecord;
 }>) {
   const [query, setQuery] = useState("");
   const key = normalizeLabel(query);
-  const shown = members.filter((m) => !key || normalizeLabel(`${memberName(m)} ${m.email}`).includes(key));
+  const shown = members.filter(
+    (m) => !key || normalizeLabel(`${memberName(m)} ${m.email}`).includes(key)
+  );
   let emptyText = "";
   if (isLoading) emptyText = tr("orgLoading", d);
   else if (shown.length === 0) emptyText = tr("orgEmpty", d);
@@ -96,10 +137,22 @@ function OrgMemberList({
         />
       </div>
       <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-        {emptyText && <p className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">{emptyText}</p>}
+        {emptyText && (
+          <p className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+            {emptyText}
+          </p>
+        )}
         <ul className="max-h-40 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-700">
           {shown.map((m) => (
-            <MemberRow key={m.id} member={m} selected={selectedId === m.id} onPick={() => onPick(m)} />
+            <MemberRow
+              key={m.id}
+              member={m}
+              selected={selectedId === m.id}
+              takenLabel={
+                takenIds.has(m.id) ? tr("memberInBook", d) : undefined
+              }
+              onPick={() => onPick(m)}
+            />
           ))}
         </ul>
       </div>
@@ -120,7 +173,12 @@ export default function ContactPersonSection({
   rutInvalid,
   organization,
   onOrganizationChange,
+  companyRut,
+  companyRutType = "RUT",
+  onCompanyRutChange,
+  companyRutInvalid,
   organizations,
+  takenMemberIds = NO_IDS,
   d,
 }: Readonly<{
   value: PersonDraft;
@@ -131,8 +189,15 @@ export default function ContactPersonSection({
   /** The outside contact's organization (API `company`); "" for none. */
   organization: string;
   onOrganizationChange: (next: string) => void;
-  /** The organizations already used in the book, offered to pick from. */
-  organizations: readonly string[];
+  /** The organization's tax id; "" for none. */
+  companyRut: string;
+  companyRutType?: IdType;
+  onCompanyRutChange: (next: string, type: IdType) => void;
+  companyRutInvalid: boolean;
+  /** The companies already used in the book, offered to pick from. */
+  organizations: readonly CompanyOption[];
+  /** Members other contacts of the book were created from. */
+  takenMemberIds?: ReadonlySet<string>;
   d: I18nRecord;
 }>) {
   if (value.source === "org") {
@@ -142,7 +207,10 @@ export default function ContactPersonSection({
           members={members}
           isLoading={membersLoading}
           selectedId={value.orgMemberId}
-          onPick={(m) => onChange({ ...value, orgMemberId: m.id, name: memberName(m) })}
+          takenIds={takenMemberIds}
+          onPick={(m) =>
+            onChange({ ...value, orgMemberId: m.id, name: memberName(m) })
+          }
           d={d}
         />
         <button
@@ -167,30 +235,37 @@ export default function ContactPersonSection({
           onChange={(e) => onChange({ ...value, name: e.target.value })}
         />
       </label>
-      <label className="flex flex-col gap-1">
-        <span className={LABEL_CLASS}>{tr("rutLabel", d)}</span>
-        <TextInput
-          color={inputValidationColor(value.rut, !rutInvalid)}
-          placeholder="12.345.678-5"
-          value={value.rut}
-          onChange={(e) => onChange({ ...value, rut: e.target.value })}
-        />
-      </label>
-      {rutInvalid && (
-        <p className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400">
-          <HiXCircle className="h-3.5 w-3.5" />
-          {tr("rutInvalid", d)}
-        </p>
-      )}
+      <IdField
+        label={tr("rutLabel", d)}
+        types={PERSON_ID_TYPES}
+        type={value.rutType ?? "RUT"}
+        value={value.rut}
+        invalid={rutInvalid}
+        onChange={(rutType, rut) => onChange({ ...value, rut, rutType })}
+        d={d}
+      />
       <div className="flex flex-col gap-1">
         <span className={LABEL_CLASS}>{tr("companyLabel", d)}</span>
         <ContactOrganizationSection
           value={organization}
-          onChange={onOrganizationChange}
+          onChange={(company, rut, taxIdType) => {
+            onOrganizationChange(company);
+            const type = taxIdType ?? (rut ? guessCompanyIdType(rut) : "RUT");
+            onCompanyRutChange(rut ? displayId(type, rut) : "", type);
+          }}
           organizations={organizations}
           d={d}
         />
       </div>
+      <IdField
+        label={tr("companyRutLabel", d)}
+        types={COMPANY_ID_TYPES}
+        type={companyRutType}
+        value={companyRut}
+        invalid={companyRutInvalid}
+        onChange={(type, rut) => onCompanyRutChange(rut, type)}
+        d={d}
+      />
       <button
         type="button"
         onClick={() => onChange({ source: "org", name: "", rut: "" })}

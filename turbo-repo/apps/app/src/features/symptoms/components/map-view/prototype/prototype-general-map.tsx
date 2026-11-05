@@ -2,23 +2,31 @@
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
-import { Card } from "flowbite-react";
+import { Badge, Card } from "flowbite-react";
 import Image from "next/image";
 import PrototypeSideInfo from "./prototype-side-info";
-import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
+import MapVisualizationTrip, {
+  type CasePoint,
+} from "@/features/geographic-view/components/map-visualization-trip";
+import type { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
+import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
+import { chipText } from "./header-chip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../../hooks/use-treatments-general";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
 import { titles } from "../../../types/symptom-titles";
 import TagManager from "../../tag-manager";
+import IgnoredHoldCell from "../../ignored-hold-cell";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import { ConditionsAgg } from "../../../types/timeline";
 import type { SelectedOption } from "../../../types/side-info";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
+import { lugaresLayout } from "../lugares-layout";
+import { caseSpans as spansOf } from "@/features/symptoms/model/level-reason";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -34,6 +42,21 @@ function isSelectedOption(value: string | null): value is SelectedOption {
   return !!value && (MENU_OPTIONS as string[]).includes(value);
 }
 
+function titleCase(value: string | null | undefined): string {
+  return (
+    value?.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()) ?? ""
+  );
+}
+
+function firstPoint(
+  location: TreatmentsLocationResponseItem | null | undefined
+): CasePoint | null {
+  const feature = location?.features?.[0];
+  return feature?.longitude != null && feature?.latitude != null
+    ? { longitude: feature.longitude, latitude: feature.latitude }
+    : null;
+}
+
 function panelWidths(
   isFormOpen: boolean,
   isCallDriver: boolean,
@@ -44,6 +67,10 @@ function panelWidths(
   return isCallFormStep
     ? { side: "50%", map: "50%" }
     : { side: "33.3333%", map: "66.6667%" };
+}
+
+function contextRowClass(show: boolean): string {
+  return show ? "grid-rows-[1fr]" : "grid-rows-[0fr]";
 }
 
 /**
@@ -72,7 +99,8 @@ export default function PrototypeGeneralMap({
   const searchParams = useSearchParams();
   const { positions, error, isLoading } = useTripPositions(
     tripId ?? "",
-    assetId ?? ""
+    assetId ?? "",
+    id
   );
 
   const {
@@ -124,11 +152,13 @@ export default function PrototypeGeneralMap({
   const isCallFormStep = callFlowStep === "form" || callFlowStep === null;
   // Past forms open as a fixed modal, so the side panel stays at its
   // resting width instead of morphing over the map.
-  const { side: sideWidth, map: mapWidth } = panelWidths(
+  const anchos = panelWidths(
     pastFormsEnabled ? false : isFormOpen,
     isCallDriver,
     isCallFormStep
   );
+  const [lugaresAbierto, setLugaresAbierto] = useState(false);
+  const layout = lugaresLayout(lugaresAbierto, anchos);
 
   const [selectedTreatment, setSelectedTreatment] =
     useState<TreatmentsGeneralResponseItem | null>(null);
@@ -154,13 +184,20 @@ export default function PrototypeGeneralMap({
     isLoading: _locationLoading,
   } = useTreatmentsLocation(
     selectedTreatment?.trip_info?.trip_id ?? "",
-    //format the first letter of each word in uppercase
-    selectedTreatmentIndex?.type
-      ?.toString()
-      .toLowerCase()
-      .replace(/\b\w/g, (char) => char.toUpperCase()) ?? "",
+    titleCase(selectedTreatmentIndex?.type?.toString()),
     selectedTreatmentIndex?.symptom_id?.toString() ?? ""
   );
+
+  // A case without a trip keeps its opening point on the map, whichever
+  // timeline entry or pulse is selected.
+  const tripless = !tripId && isEngineCaseId(id);
+  const { data: caseLocation } = useTreatmentsLocation(
+    "",
+    tripless ? titleCase(treatmentData?.symptom_info?.name) : "",
+    id
+  );
+  const casePoint = tripless ? firstPoint(caseLocation) : null;
+  const caseSpans = useMemo(() => spansOf(treatmentData), [treatmentData]);
 
   useEffect(() => {
     if (errorTreatments) {
@@ -169,6 +206,8 @@ export default function PrototypeGeneralMap({
   }, [errorTreatments, router]);
 
   if (errorTreatments) return null;
+  const symptomsDict = dict.symptoms as I18nRecord;
+  const tripInfo = treatmentData?.trip_info;
   return (
     <>
       <div
@@ -230,95 +269,85 @@ export default function PrototypeGeneralMap({
                 tag_style="bg-transparent border-gray-300 dark:border-gray-500 dark:text-white"
                 tags={[
                   {
-                    text: treatmentData?.symptom_info?.icu_code ? (
-                      ((dict.symptoms as I18nRecord)[
-                        titles[
-                          treatmentData?.symptom_info?.icu_code.toString() as keyof typeof titles
-                        ].title
-                      ] as string)
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
+                    text: chipText(
+                      loading,
+                      treatmentData?.symptom_info?.icu_code
+                        ? (symptomsDict[
+                            titles[
+                              treatmentData.symptom_info.icu_code.toString() as keyof typeof titles
+                            ]?.title
+                          ] as string)
+                        : null
                     ),
                   },
                   {
-                    text: treatmentData?.trip_info?.asset_id ? (
-                      ((dict.symptoms as I18nRecord).license_plate as string) +
-                      ": " +
-                      treatmentData?.trip_info?.asset_id
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
+                    text: chipText(
+                      loading,
+                      treatmentData?.trip_info?.asset_id ?? assetId,
+                      symptomsDict.license_plate as string
                     ),
                     icon: <FaTruck className="text-gray-900 dark:text-white" />,
                   },
                   {
-                    text:
-                      treatmentData?.trip_info?.origin &&
-                      treatmentData?.trip_info?.destination ? (
-                        ((dict.symptoms as I18nRecord).route as string) +
-                        ": " +
-                        treatmentData?.trip_info?.origin +
-                        " - " +
-                        treatmentData?.trip_info?.destination
-                      ) : (
-                        <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                          ejemplo
-                        </div>
-                      ),
+                    text: chipText(
+                      loading,
+                      tripInfo?.origin && tripInfo?.destination
+                        ? `${tripInfo.origin} - ${tripInfo.destination}`
+                        : null,
+                      symptomsDict.route as string
+                    ),
                     icon: (
                       <FaMapPin className="text-gray-900 dark:text-white" />
                     ),
                   },
                   {
-                    text: treatmentData?.trip_info?.driver ? (
-                      treatmentData?.trip_info?.driver
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
-                    ),
+                    text: chipText(loading, tripInfo?.driver),
                     icon: <FaUser className="text-gray-900 dark:text-white" />,
                   },
                   {
-                    text:
-                      treatmentData?.trip_info?.driver2 ??
-                      treatmentData?.trip_info?.driver2,
+                    text: tripInfo?.driver2,
                     icon: <FaUser className="text-gray-900 dark:text-white" />,
                   },
                   {
-                    text: treatmentData?.trip_info?.trip_id ? (
-                      "Trip id: " + treatmentData?.trip_info?.trip_id
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
+                    text: chipText(
+                      loading,
+                      tripInfo?.trip_code?.trim() || tripInfo?.trip_id,
+                      symptomsDict.trip as string
                     ),
                   },
                   {
-                    text: treatmentData?.trip_info?.carrier ? (
-                      ((dict.symptoms as I18nRecord).transporter as string) +
-                      ": " +
-                      treatmentData?.trip_info?.carrier
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
+                    text: chipText(
+                      loading,
+                      tripInfo?.carrier,
+                      symptomsDict.transporter as string
                     ),
                   },
                 ]}
               />
             </div>
+            {treatmentData?.symptom_info?.ignored && (
+              <IgnoredHoldCell
+                info={treatmentData.symptom_info.ignored}
+                dict={dict as I18nRecord}
+              />
+            )}
+            {!treatmentData?.symptom_info?.ignored &&
+              treatmentData?.symptom_info?.returned_after_ignore_at && (
+                <Badge color="warning" className="w-fit whitespace-nowrap">
+                  {symptomsDict.returned_after_ignore as string}
+                </Badge>
+              )}
           </div>
         </Card>
       </div>
-      <div className="flex flex-row gap-2 w-full h-full px-2 pb-2 overflow-hidden">
-        {/* Side information — grows when the inline form opens */}
+      <div className="flex flex-row w-full h-full px-2 pb-2 overflow-hidden">
+        {/* Side information — grows when the inline form opens; folds away
+            while Lugares is open on the map */}
         <div
-          className="h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-[width] duration-500 ease-in-out"
-          style={{ width: sideWidth }}
+          className="h-full rounded-lg shadow-md border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-500 ease-in-out"
+          style={layout.sideStyle}
+          aria-hidden={lugaresAbierto}
+          inert={lugaresAbierto}
         >
           <PrototypeSideInfo
             dict={dict}
@@ -338,7 +367,7 @@ export default function PrototypeGeneralMap({
             makes room for the symptom-context row below it when that's showing. */}
         <div
           className="flex h-full flex-col gap-2 transition-[width] duration-500 ease-in-out"
-          style={{ width: mapWidth }}
+          style={{ width: layout.mapWidth }}
         >
           <div className="min-h-0 flex-1 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
             <MapVisualizationTrip
@@ -353,6 +382,10 @@ export default function PrototypeGeneralMap({
               setSelectedTreatmentIndex={setSelectedTreatmentIndex}
               licensePlate={treatmentData?.trip_info?.asset_id ?? null}
               showAppSignalDetailDefault={false}
+              onLugaresChange={setLugaresAbierto}
+              casePoint={casePoint}
+              caseSpans={caseSpans}
+              lostSince={treatmentData?.level_reason?.lost_since ?? null}
             />
           </div>
           {/* Keeps the symptom being called about visible without flipping
@@ -362,13 +395,9 @@ export default function PrototypeGeneralMap({
               pushes the map up; the grid-rows trick animates smoothly between
               0 and its natural height without a fixed height to guess at. */}
           <div
-            className={`grid shrink-0 transition-[grid-template-rows] duration-500 ease-in-out ${
-              isFormOpen &&
-              selectedOption === "call_driver" &&
-              selectedTreatmentIndex
-                ? "grid-rows-[1fr]"
-                : "grid-rows-[0fr]"
-            }`}
+            className={`grid shrink-0 transition-[grid-template-rows] duration-500 ease-in-out ${contextRowClass(
+              isFormOpen && isCallDriver && !!selectedTreatmentIndex
+            )}`}
           >
             <div className="overflow-hidden">
               {selectedTreatmentIndex && (

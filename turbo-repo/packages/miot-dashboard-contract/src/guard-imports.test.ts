@@ -6,6 +6,7 @@ import { specifiersIn } from "../scripts/guard-imports.mjs";
 describe("the import guard's specifier extraction", () => {
   it.each([
     ['import { z } from "zod";', "zod"],
+    ['import { z } from "zod/v3";', "zod/v3"],
     ["export { a } from './document';", "./document"],
     ['import "node:fs";', "node:fs"],
     ['const m = await import("node:path");', "node:path"],

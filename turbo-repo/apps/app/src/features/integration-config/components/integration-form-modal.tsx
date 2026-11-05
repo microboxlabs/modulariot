@@ -4,6 +4,10 @@ import { HiTrash } from "react-icons/hi";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import {
+  BrandLogo,
+  type BrandLogoSources,
+} from "@/features/common/components/brand-logo";
 import { ModalGlyph } from "./modal-glyph";
 
 interface IntegrationFormModalProps {
@@ -14,12 +18,15 @@ interface IntegrationFormModalProps {
   readonly subtitle: string;
   /** Leading mark, rendered inside the shared glyph frame. */
   readonly glyph: React.ReactNode;
+  /** A built-in provider's logo (BigQuery, PostgREST — both drawn on the round keyline), shown at 40px in place of the glyph. */
+  readonly logo?: BrandLogoSources;
   readonly onClose: () => void;
   /** Delete this record — surfaced in the header when editing one. */
   readonly onDelete?: () => void;
   readonly onSubmit: () => void;
   readonly error: Error | null;
   readonly saving: boolean;
+  readonly busy?: boolean;
   readonly dict: I18nRecord;
   readonly children: React.ReactNode;
 }
@@ -37,11 +44,13 @@ export function IntegrationFormModal({
   title,
   subtitle,
   glyph,
+  logo,
   onClose,
   onDelete,
   onSubmit,
   error,
   saving,
+  busy = false,
   dict,
   children,
 }: Readonly<IntegrationFormModalProps>) {
@@ -61,12 +70,19 @@ export function IntegrationFormModal({
       size="3xl"
       title={title}
       subtitle={subtitle}
-      icon={<ModalGlyph>{glyph}</ModalGlyph>}
+      icon={
+        logo ? (
+          <BrandLogo logo={logo} alt={title} keyline="circle" size={40} />
+        ) : (
+          <ModalGlyph>{glyph}</ModalGlyph>
+        )
+      }
       headerActions={
         isEdit && onDelete ? (
           <button
             type="button"
             onClick={onDelete}
+            disabled={saving || busy}
             aria-label={tr("common.delete", dict)}
             title={tr("common.delete", dict)}
             className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
@@ -76,7 +92,7 @@ export function IntegrationFormModal({
         ) : null
       }
       submitLabel={submitLabel}
-      isProcessing={saving}
+      isProcessing={saving || busy}
       error={error}
       onSubmit={onSubmit}
       showCancelButton

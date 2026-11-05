@@ -1,0 +1,521 @@
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import es from "@/lang/es.json";
+import CallCenterMenu from "./call-center-menu";
+
+const data = vi.hoisted(() => ({
+  contacts: [] as unknown[],
+  treatments: undefined as unknown,
+  tripData: {} as Record<string, string>,
+  /** The server's answer for one step condition. */
+  match: (() => []) as (condition: string) => string[],
+  level: undefined as unknown,
+  levelError: undefined as { status: number } | undefined,
+  tripError: undefined as Error | undefined,
+  bookError: undefined as Error | undefined,
+  tripLoading: false,
+  refreshLevel: vi.fn(),
+  treatmentsId: undefined as unknown,
+  createContact: vi.fn(),
+  refreshTrip: vi.fn(),
+}));
+
+vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
+  createContact: data.createContact,
+  contactsKey: "contacts",
+  useContacts: () => ({
+    data: data.contacts,
+    isLoading: false,
+    error: data.bookError,
+  }),
+  useSymptomTreatments: (id: unknown) => {
+    data.treatmentsId = id;
+    return { data: data.treatments };
+  },
+  useCaseContext: () => ({ data: undefined }),
+  useTripContacts: (_id: unknown, conditions: string[]) => ({
+    mutate: data.refreshTrip,
+    isLoading: data.tripLoading,
+    error: data.tripError,
+    data: {
+      data: data.tripData,
+      matches: conditions.map((c) => data.match(c)),
+      problems: conditions.map(() => null),
+    },
+  }),
+}));
+
+vi.mock("swr", () => ({ mutate: vi.fn() }));
+
+vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
+  useLevelResponse: () => ({
+    data: data.level,
+    error: data.levelError,
+    mutate: data.refreshLevel,
+  }),
+}));
+
+vi.mock("@/features/notifications/notification", () => ({
+  ShowNotification: vi.fn(),
+}));
+
+const dict = es as unknown as I18nRecord;
+const SUR = "000000030";
+
+const contact = (
+  id: string,
+  name: string,
+  role: string,
+  patch: Record<string, unknown> = {}
+) => ({
+  id,
+  name,
+  role,
+  company: null,
+  companyRut: null,
+  phone: "+12025550101",
+  methods: ["PHONE"],
+  active: true,
+  lastCalledAt: null,
+  answered: 2,
+  missed: 1,
+  ...patch,
+});
+
+const treatment = {
+  symptom_info: { id: -7, name: "Exceso de velocidad", icu_code: 3 },
+  trip_info: {
+    // Shown in the case info; never used as a contact.
+    driver: "Nombre en el viaje",
+    driver_contact: "+12025550102",
+    carrier: "Transportes Sur",
+  },
+} as unknown as TreatmentsGeneralResponseItem;
+
+const levelWith = (steps: unknown[]) => ({
+  version: 4,
+  level: { response: { operator: true, slaMinutes: 10, steps } },
+});
+
+function renderMenu() {
+  const onCall = vi.fn();
+  render(
+    <CallCenterMenu
+      dict={dict}
+      treatmentData={treatment}
+      startedAt={Date.now()}
+      skippedTo={null}
+      onSkip={vi.fn()}
+      onCall={onCall}
+    />
+  );
+  return onCall;
+}
+
+async function saveNewNumber(
+  user: ReturnType<typeof userEvent.setup>,
+  name: string
+) {
+  await user.click(screen.getByLabelText("Número de teléfono"));
+  await user.paste("+12025550101");
+  await user.type(screen.getByLabelText("Nombre"), name);
+  await user.click(
+    screen.getByRole("button", { name: "Llamar y guardar en la libreta" })
+  );
+}
+
+beforeEach(() => {
+  data.levelError = undefined;
+  data.tripError = undefined;
+  data.bookError = undefined;
+  data.tripLoading = false;
+  vi.clearAllMocks();
+  data.contacts = [
+    contact("ana", "Ana Pérez", "Conductor", {
+      companyRut: SUR,
+      methods: ["PHONE", "WHATSAPP"],
+    }),
+    contact("gs", "Gema Soto", "Gerente de Seguridad", { companyRut: SUR }),
+    contact("gs-norte", "Nora Ruiz", "Gerente de Seguridad", {
+      companyRut: "000000050",
+    }),
+    contact("torre", "Marta Díaz", "Jefe de Torre"),
+    contact("off", "Inactivo", "Jefe de Torre", { active: false }),
+  ];
+  data.tripData = { driverRut: "000000019", carrierRut: SUR };
+  // Stands in for the server's CEL evaluation of each step's condition.
+  data.match = (c) => {
+    if (c.includes("nationalId")) return ["ana"];
+    if (c.toLowerCase().includes("gerente de seguridad")) return ["gs"];
+    if (c.toLowerCase().includes("jefe de torre")) return ["torre"];
+    return [];
+  };
+  data.treatments = undefined;
+  data.level = undefined;
+  data.createContact.mockImplementation(
+    async (body: Record<string, unknown>) => ({ ...body, id: "new-contact" })
+  );
+});
+
+describe("CallCenterMenu", () => {
+  it.each(["call", "callAndSave"])(
+    "keeps the due step script when a new number is used (%s)",
+    async (action) => {
+      data.contacts = [];
+      data.level = levelWith([
+        {
+          role: "Conductor",
+          channel: "call",
+          budgetMinutes: 2,
+          script: "Step message",
+          goal: "Step goal",
+        },
+      ]);
+      const user = userEvent.setup();
+      const onCall = renderMenu();
+      await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+      await user.click(screen.getByLabelText("Número de teléfono"));
+      await user.paste("+12025550101");
+      await user.type(screen.getByLabelText("Nombre"), "Synthetic contact");
+      await user.click(
+        screen.getByRole("button", {
+          name:
+            action === "call"
+              ? es.symptoms.call_center_new_call_only
+              : es.symptoms.call_center_new_call_and_save,
+        })
+      );
+      await waitFor(() =>
+        expect(onCall).toHaveBeenCalledWith(expect.anything(), {
+          message: "Step message",
+          goal: "Step goal",
+        })
+      );
+    }
+  );
+
+  it("hands the step's script and goal, filled with the case, to the call", async () => {
+    data.level = levelWith([
+      {
+        role: null,
+        who: "contact.role == 'Conductor' && contact.nationalId == event.data.driverRut",
+        channel: "call",
+        budgetMinutes: 2,
+        script: "Hola {{conductor}}, ¿dónde va el camión?",
+        goal: "Saber dónde va {{patente}}",
+      },
+    ]);
+    const user = userEvent.setup();
+    const onCall = renderMenu();
+
+    await user.click(screen.getByRole("button", { name: /Ana Pérez/ }));
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({ contactId: "ana" }),
+      {
+        message: "Hola Nombre en el viaje, ¿dónde va el camión?",
+        goal: "Saber dónde va {{patente}}",
+      }
+    );
+  });
+
+  it("keeps separate contact channel addresses when selecting a target", async () => {
+    data.contacts = [
+      contact("synthetic", "Synthetic contact", "Dispatcher", {
+        methods: ["PHONE", "WHATSAPP"],
+        channels: { phone: "+12025550101", whatsapp: "+12025550102" },
+      }),
+    ];
+    const onCall = renderMenu();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: /Synthetic contact/ }));
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channels: { phone: "+12025550101", whatsapp: "+12025550102" },
+      })
+    );
+  });
+
+  it("shows a goal even when the step has no message", () => {
+    data.level = levelWith([
+      {
+        role: "Conductor",
+        channel: "call",
+        budgetMinutes: 2,
+        goal: "Goal without a message",
+      },
+    ]);
+    renderMenu();
+    expect(screen.getByText(/Goal without a message/)).toBeTruthy();
+  });
+
+  it("keeps a newer call selection when an earlier contact save finishes", async () => {
+    let finishSave = () => {};
+    data.createContact.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSave = () =>
+            resolve(contact("new-contact", "Saved contact", ""));
+        })
+    );
+    const user = userEvent.setup();
+    const onCall = renderMenu();
+    await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+    await user.click(screen.getByLabelText("Número de teléfono"));
+    await user.paste("+12025550103");
+    await user.type(screen.getByLabelText("Nombre"), "Saved contact");
+    await user.click(
+      screen.getByRole("button", { name: "Llamar y guardar en la libreta" })
+    );
+    await user.click(screen.getByRole("button", { name: /Gema/ }));
+    await act(async () => finishSave());
+    expect(onCall).toHaveBeenCalledTimes(1);
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({ contactId: "gs" })
+    );
+  });
+
+  it("lists each step with the book contacts its condition matches", async () => {
+    data.level = levelWith([
+      {
+        role: "Conductor",
+        scope: "DRIVER",
+        channel: "call",
+        budgetMinutes: 2,
+        script: null,
+      },
+      {
+        role: "Gerente de Seguridad",
+        scope: "TRIP_CARRIER",
+        channel: "whatsapp",
+        budgetMinutes: 3,
+        script: null,
+      },
+      {
+        role: "Jefe de Torre",
+        channel: "call",
+        budgetMinutes: 3,
+        script: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    const onCall = renderMenu();
+
+    const due = document.querySelector('[aria-current="step"]') as HTMLElement;
+    expect(within(due).getByText("Conductor del viaje")).toBeTruthy();
+    expect(within(due).getByRole("button", { name: /Ana Pérez/ })).toBeTruthy();
+    expect(within(due).getByLabelText("Llamada por WhatsApp")).toBeTruthy();
+
+    expect(
+      screen.getByText("Gerente de Seguridad · Transportes Sur")
+    ).toBeTruthy();
+    const gema = screen.getByRole("button", { name: /Gema Soto/ });
+    expect(within(gema).getByText("No disponible por WhatsApp")).toBeTruthy();
+    expect(screen.queryByText("Nora Ruiz")).toBeNull();
+
+    // The step heading and the contact's role.
+    expect(screen.getAllByText("Jefe de Torre")).toHaveLength(2);
+    expect(screen.getByText("Marta Díaz")).toBeTruthy();
+    expect(screen.queryByText("Inactivo")).toBeNull();
+    expect(screen.getByText(/SLA \d+:\d\d/)).toBeTruthy();
+
+    await user.click(
+      screen.getByRole("button", { name: "Otros contactos (1)" })
+    );
+    expect(screen.getByText("Nora Ruiz")).toBeTruthy();
+
+    await user.click(gema);
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contactId: "gs",
+        role: "Gerente de Seguridad",
+        phone: "+12025550101",
+        methods: ["phone"],
+        stats: expect.objectContaining({ accepted: 2, denied: 1 }),
+      })
+    );
+  });
+
+  it("says the trip driver is not in the book and adds them with the trip's RUT", async () => {
+    data.match = () => [];
+    data.level = levelWith([
+      {
+        role: "Conductor",
+        scope: "DRIVER",
+        channel: "call",
+        budgetMinutes: 2,
+        script: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    const onCall = renderMenu();
+
+    expect(
+      screen.getByText("Conductor del viaje no está en la libreta.")
+    ).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+    expect(
+      screen.getByText("Se guarda como Conductor con RUT 000000019")
+    ).toBeTruthy();
+    await user.clear(
+      screen.getByRole("textbox", { name: "Identificación del conductor" })
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Identificación del conductor" }),
+      "000000027"
+    );
+    await saveNewNumber(user, "Ana Nueva");
+
+    expect(data.createContact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Ana Nueva",
+        role: "Conductor",
+        nationalId: "000000027",
+      })
+    );
+    expect(data.refreshTrip).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(onCall).toHaveBeenCalledWith(
+        expect.objectContaining({ contactId: "new-contact" })
+      )
+    );
+  });
+
+  it("names the missing carrier role and pre-fills it with the company RUT", async () => {
+    data.level = levelWith([
+      {
+        role: "Oficina Comercial",
+        scope: "TRIP_CARRIER",
+        channel: "call",
+        budgetMinutes: 2,
+        script: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    renderMenu();
+
+    expect(
+      screen.getByText(
+        "Oficina Comercial del transportista del viaje no está en la libreta."
+      )
+    ).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+    expect(
+      screen.getByText(
+        "Se guarda como Oficina Comercial de la empresa con RUT 000000030"
+      )
+    ).toBeTruthy();
+    await saveNewNumber(user, "Omar");
+    expect(data.createContact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "Oficina Comercial",
+        companyRut: SUR,
+        company: "Transportes Sur",
+      })
+    );
+  });
+
+  it("marks a contact already called in this case by contact id", () => {
+    data.level = levelWith([
+      { role: "Conductor", channel: "call", budgetMinutes: 2, script: null },
+    ]);
+    data.treatments = [
+      {
+        actions: [
+          {
+            kind: "CALL",
+            contactId: "ana",
+            contactRole: "Conductor",
+            performedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    ];
+    renderMenu();
+    expect(data.treatmentsId).toBe(-7);
+    expect(screen.getByText(es.symptoms.call_center_just_called)).toBeTruthy();
+  });
+
+  it("shows the whole book when the level has no steps", () => {
+    renderMenu();
+    expect(
+      screen.queryByRole("button", { name: /Otros contactos/ })
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: /Ana Pérez/ })).toBeTruthy();
+    expect(screen.getByText("Gema Soto")).toBeTruthy();
+    expect(screen.getByText("Marta Díaz")).toBeTruthy();
+  });
+});
+
+it("distinguishes a pending trip lookup from an empty contact book", () => {
+  data.contacts = [];
+  data.tripData = {};
+  data.match = () => [];
+  data.tripLoading = true;
+  data.level = levelWith([
+    { role: "Conductor", scope: "DRIVER", channel: "call", budgetMinutes: 2 },
+  ]);
+  renderMenu();
+  expect(screen.getByText("Cargando contactos del viaje…")).toBeTruthy();
+  expect(
+    screen.queryByText("Conductor del viaje no está en la libreta.")
+  ).toBeNull();
+});
+
+it("shows a trip lookup failure without offering to save an unmatched driver", () => {
+  data.contacts = [];
+  data.tripData = {};
+  data.match = () => [];
+  data.tripError = new Error("network failed");
+  data.level = levelWith([
+    { role: "Conductor", scope: "DRIVER", channel: "call", budgetMinutes: 2 },
+  ]);
+  renderMenu();
+  expect(
+    screen.getByText(
+      "No se pudieron cargar los contactos del viaje. Inténtalo de nuevo."
+    )
+  ).toBeTruthy();
+  expect(
+    screen.queryByText("Conductor del viaje no está en la libreta.")
+  ).toBeNull();
+});
+
+it("shows a book request failure instead of claiming the trip driver is absent", () => {
+  data.contacts = [];
+  data.bookError = new Error("book unavailable");
+  data.level = levelWith([
+    { role: "Conductor", scope: "DRIVER", channel: "call", budgetMinutes: 2 },
+  ]);
+  renderMenu();
+  expect(
+    screen.getByText(
+      "No se pudieron cargar los contactos del viaje. Inténtalo de nuevo."
+    )
+  ).toBeTruthy();
+  expect(
+    screen.queryByText("Conductor del viaje no está en la libreta.")
+  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "Nuevo número" })).toBeNull();
+});
+
+it("shows a retry action when the calling order fails to load", async () => {
+  data.levelError = { status: 500 };
+  const user = userEvent.setup();
+  renderMenu();
+  expect(screen.getByRole("alert").textContent).toContain(
+    "No se pudo cargar el orden de llamadas."
+  );
+  await user.click(screen.getByRole("button", { name: "Reintentar" }));
+  expect(data.refreshLevel).toHaveBeenCalledOnce();
+});
+
+it("keeps the flat list when no symptom is in force (404)", () => {
+  data.levelError = { status: 404 };
+  renderMenu();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByText("Marta Díaz")).toBeTruthy();
+});

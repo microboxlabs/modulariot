@@ -6,9 +6,8 @@ Single Quarkus monorepo that produces one container image containing all Modular
 
 ```
 miot-core/            Shared foundation (config, models, auth, messaging, persistence)
-miot-resource-core/   Shared SDK (entity events, KPI interfaces, resolution, Alfresco client, metrics)
-miot-fleet/           Fleet directory (vehicles, trucks, trailers, carriers)
-miot-driver/          Driver directory (lifecycle, documents, compliance, scoring)
+miot-content-gcs/     Content store driver for Google Cloud Storage (gcs://)
+miot-fleet/           Fleet component (fleet directory)
 miot-tracking/        Asset tracking (GPS ingestion via Pulsar)
 miot-symptoms/        Symptoms dispatcher (CDC → RouteTable → process_symptoms_* / webhook)
 miot-gateway/         Routing gateway (body-aware traffic forking, canary splits) → README
@@ -20,7 +19,7 @@ miot-cli/             Application entrypoint
 
 - **Quarkus 3.x** — CDI conditional activation, Kubernetes-native
 - **Java 21**
-- **PostgreSQL** — Schema-per-component via Flyway (`miot_core`, `miot_resource`, `miot_fleet`, `miot_driver`, `miot_tracking`, `miot_integrations`)
+- **PostgreSQL** — Schema-per-component via Flyway (`miot_core`, `miot_tracking`, `miot_integrations`, `miot_conversational`)
 - **Hibernate Reactive + Panache**
 - **Vert.x EventBus** — In-process inter-component messaging
 - **Micrometer + Prometheus** — Per-client metrics with `client_id` tags
@@ -37,8 +36,6 @@ miot-cli/             Application entrypoint
 
 # Start specific components
 ./start.sh fleet            # fleet only
-./start.sh driver           # driver only
-./start.sh fleet driver     # fleet + driver
 ./start.sh gateway          # gateway only (no DB required)
 ./start.sh integrations     # integration connections and credential profiles
 ./start.sh symptoms         # symptoms dispatcher (RouteTable + Pulsar; GPS optional for readiness)
@@ -63,7 +60,6 @@ miot.component.all.enabled=true
 
 # Individual overrides — defaults to master switch value
 miot.component.fleet.enabled=true
-miot.component.driver.enabled=true
 miot.component.tracking.enabled=true
 miot.component.symptoms.enabled=true
 miot.component.gateway.enabled=true
@@ -82,7 +78,7 @@ MIOT_COMPONENT_GATEWAY_ENABLED=true
 MIOT_COMPONENT_INTEGRATIONS_ENABLED=true
 ```
 
-Only the schemas for enabled DB-backed components are created by Flyway. Starting with `./start.sh fleet` will create `miot_core`, `miot_resource`, and `miot_fleet` schemas — but not `miot_driver`. Starting with `./start.sh integrations` creates `miot_core`, `miot_resource`, and `miot_integrations`. The gateway component requires no database.
+Only the schemas for enabled DB-backed components are created by Flyway. Starting with `./start.sh integrations` creates `miot_core` and `miot_integrations`. The gateway component requires no database.
 
 ## Database
 
@@ -90,24 +86,49 @@ Each component owns its schema. Migrations run via Flyway at startup, filtered b
 
 ```
 miot-core/src/main/resources/db/migration/core/             # tenants, assets (always)
-miot-resource-core/src/main/resources/db/migration/resource/ # entity events, scores, sync cursors, links, profiles (always)
-miot-fleet/src/main/resources/db/migration/fleet/            # vehicles, trips, trucks, trailers, carriers
-miot-driver/src/main/resources/db/migration/driver/          # drivers
 miot-tracking/src/main/resources/db/migration/tracking/      # asset data, client maps, metrics, latest snapshot functions
 miot-integrations/src/main/resources/db/migration/integrations/ # credential profiles, connections, operations, test/audit events
 ```
 
-Migration version ranges are reserved per component so subset deployments can include only the active module locations while Flyway still has stable ordering:
+Migration version ranges are reserved per component so subset deployments can include only the active module locations while Flyway still has stable ordering. Take a new migration's version from its component's range, not from the highest version on trunk:
 
 | Component | Schema | Migration range |
 |-----------|--------|-----------------|
 | Core | `miot_core` | `V0.1.x` |
-| Fleet | `miot_fleet` | `V0.2.x` |
-| Resource Core | `miot_resource` | `V0.3.x` |
-| Driver | `miot_driver` | `V0.4.x` |
+| Retired (Alfresco fleet directory, resource core, drivers) | `miot_resource`, `miot_driver` | `V0.2.x`–`V0.4.x`, do not reuse |
 | Tracking | `miot_tracking` | `V0.5.x` |
 | Integrations | `miot_integrations` | `V0.6.x` |
-| Symptoms | — (uses StreamHub `prod_iot_gps`, no local schema) | — |
+| Conversational | `miot_conversational` | `V0.7.x` up to `V0.7.1`, then `V0.11.x` |
+| Symptoms | `miot_symptoms` (also reads StreamHub `prod_iot_gps`) | `V0.8.x` up to `V0.8.5`, then `V0.12.x` |
+| Fleet | `miot_fleet` (reads StreamHub `prod_iot_gps` for signals and trips) | `V0.9.x` |
+| Trips | `miot_trips` | `V0.10.x` |
+
+These migrations sit outside their component's range. They are applied, so they keep their versions; do not reuse them:
+
+| Component | Versions |
+|-----------|----------|
+| Symptoms | `V0.9.2`, `V0.9.3`, `V0.9.4`, `V0.9.5`, `V0.9.7` |
+| Conversational | `V0.9.6`, `V0.9.8`, `V0.10.1`, `V0.10.2` |
+
+Conversational continues at `V0.11.x` and Symptoms at `V0.12.x`, for the same reason. Conversational's schema changed in `V0.9.6`, and a new database applies migrations in version order, so a `V0.7.x` migration that touches what `V0.9.6` created fails there. A migration must sort after every migration it depends on, whatever its component's range.
+
+## Content store
+
+Modules keep files (photos, signed documents) through `ContentService` in `miot-core`. Each file has a row in `miot_core.content`; modules store its id. The bytes go to the driver set by `miot.content.store`. A file is read by the driver of its URL scheme, so files written before a store change stay readable.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `MIOT_CONTENT_STORE` | `fs` | Driver for new files: `fs` or `gcs` |
+| `MIOT_CONTENT_FS_ROOT` | `data/content` | Directory of the `fs` driver (a volume in Kubernetes) |
+| `MIOT_CONTENT_GCS_BUCKET` | — | Bucket of the `gcs` driver. Credentials come from workload identity or `GOOGLE_APPLICATION_CREDENTIALS` |
+| `MIOT_CONTENT_MAX_BYTES` | `20971520` | Largest accepted file |
+| `MIOT_CONTENT_TYPES` | `image/jpeg,image/png,image/webp,image/heic,application/pdf` | Accepted types. The first bytes must match the declared type |
+
+A file that no record took within 24 hours (`miot.content.unowned-grace`) is deleted every hour.
+
+The cleanup locks each selected row until its bytes have been deleted, and keeps failed deletions for a later run. Uploads inside a `PgTx` transaction register file removal on transaction or savepoint rollback.
+
+The filesystem root is a trusted service directory. New `fs://.content-...` URLs name direct files under that root; URL components are never used as parent directories. Older hierarchical URLs require `SecureDirectoryStream` support (available on the Linux default provider), and fail closed on providers without it. File reads do not follow symbolic links.
 
 ## API Documentation
 
@@ -116,17 +137,17 @@ When running in dev mode, Swagger UI is available at:
 - **Swagger UI**: http://localhost:8180/q/swagger-ui/
 - **OpenAPI spec**: http://localhost:8180/q/openapi
 
-Endpoints are grouped by component tag (Fleet, Drivers, Asset Tracking, Integration Connections). Only enabled components appear in the spec.
+Endpoints are grouped by component tag (Asset Tracking, Integration Connections, Control Tower). Only enabled components appear in the spec.
 
 ## Endpoints
 
 | Component | Endpoint | Description |
 |-----------|----------|-------------|
-| Fleet | `GET /api/v1/fleet/vehicles` | List vehicles |
-| Fleet | `GET /api/v1/fleet/trucks[/{id}]` | List/get trucks |
-| Fleet | `GET /api/v1/fleet/trailers[/{id}]` | List/get trailers |
-| Fleet | `GET /api/v1/fleet/carriers[/{id}]` | List/get carriers |
-| Driver | `GET /api/v1/drivers[/{id}]` | List/get drivers |
+| Fleet | `GET /api/v1/orgs/{organizationId}/fleet/assets` | Assets of the organization, with filters and counts |
+| Fleet | `GET /api/v1/orgs/{organizationId}/fleet/assets/{assetId}` | One asset: fields and their source, trips, documents, indicators |
+| Fleet | `GET /api/v1/orgs/{organizationId}/fleet/assets/{assetId}/activity` | Daily engine hours, idle time and distance |
+| Fleet | `PATCH /api/v1/orgs/{organizationId}/fleet/assets/{assetId}` | Set or clear fields and document dates |
+| Fleet | `POST /api/v1/orgs/{organizationId}/fleet/assets/{assetId}/suggestions/{kind}/accept\|dismiss` | Apply or hide a suggestion |
 | Tracking | `POST /api/v1/asset/track` | Ingest GPS position |
 | Integrations | `GET /api/v1/orgs/{organizationId}/integrations/connections` | List integration connections |
 | Integrations | `POST /api/v1/orgs/{organizationId}/integrations/connections` | Create an integration connection |

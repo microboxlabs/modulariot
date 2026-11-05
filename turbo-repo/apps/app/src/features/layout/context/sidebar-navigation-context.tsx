@@ -7,12 +7,13 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import { useRouter } from "next/navigation";
 import { useVisiblePages } from "../hooks/use-visible-pages";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import { useKnowledgeTrainer } from "@/features/knowledge/hooks/use-knowledge-trainer";
 import { useMyAccess } from "@/features/settings-admin/team/team-api";
 import { filterSettings } from "../models/pages";
+import { isPlatformScope } from "@/features/common/platform-scope";
+import { useOrgScopes } from "../components/secured-navbar/org-switcher/use-org-scopes";
 import { SidebarItem } from "../types/common.types";
 import {
   getMyTasks,
@@ -25,6 +26,11 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import type { CalendarGroupResponse } from "@microboxlabs/miot-calendar-client";
 import { useDashboardDynamicItems } from "@/features/dashboard/hooks/use-dashboard-dynamic-items";
+import {
+  BOARD_VIEWS,
+  useTripsBoardCounts,
+  type BoardViewKey,
+} from "@/features/trips/board/board-api";
 import { useServerDashboardDynamicItems } from "@/features/dashboard/hooks/use-server-dashboard-dynamic-items";
 import { DEFAULT_SERVICE_TYPE } from "@/features/calendar/services/service-types";
 import {
@@ -163,7 +169,6 @@ export function SidebarNavigationProvider({
   isHarnessSettingsEnabled,
   isDashboardServerEnabled,
 }: Readonly<SidebarNavigationProviderProps>) {
-  const router = useRouter();
   const { data, error } = useMyTasksCount();
   const { data: historicInstances } = useHistoricInstancesCount();
   const { count: mapCount } = useMapPositions();
@@ -176,14 +181,14 @@ export function SidebarNavigationProvider({
   );
   const pages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
+  const platformScope = isPlatformScope(useOrgScopes().activeOrg?.slug);
   const { isTrainer } = useKnowledgeTrainer();
-  const canViewGps = useMyAccess().can("gps:view");
-
-  useEffect(() => {
-    if (error && (error.status === 401 || error.status === 403)) {
-      router.push("/sign-in");
-    }
-  }, [error, router]);
+  const { can } = useMyAccess();
+  const canViewGps = can("gps:view");
+  const canViewFleet = can("fleet:assets.view");
+  const { data: tripCounts } = useTripsBoardCounts(
+    can("trips:view") && pages.some((p) => p.label === "trips")
+  );
 
   const contextValue = useMemo(() => {
     const totals: Record<string, number | string> = {};
@@ -247,11 +252,15 @@ export function SidebarNavigationProvider({
       platformOwner: isPlatformOwner,
       trainer: isTrainer,
       gps: canViewGps,
+      fleet: canViewFleet,
+      platformScope,
     }).map((page) => {
       const dynamic = page.dynamicItemsSource
         ? (dynamicMap[page.dynamicItemsSource] ?? [])
         : [];
-      const items = [...(page.items ?? []), ...dynamic];
+      const items = [...(page.items ?? []), ...dynamic].map((item) =>
+        withTripCount(item, tripCounts)
+      );
       return { ...page, items };
     });
 
@@ -271,6 +280,9 @@ export function SidebarNavigationProvider({
     isPlatformOwner,
     isTrainer,
     canViewGps,
+    canViewFleet,
+    platformScope,
+    tripCounts,
   ]);
 
   return (
@@ -278,6 +290,16 @@ export function SidebarNavigationProvider({
       {children}
     </SidebarNavigationContext.Provider>
   );
+}
+
+/** A trips board link counts its own view, apart from the task kanban's labels. */
+function withTripCount(
+  item: SidebarItem,
+  counts: Record<BoardViewKey, number> | undefined
+): SidebarItem {
+  const view = BOARD_VIEWS.find((v) => item.href === `/trips/${v}`);
+  if (!view) return item;
+  return { ...item, totals: { [item.label]: counts?.[view] ?? "-" } };
 }
 
 export function useSidebarNavigation(): SidebarNavigationContextValue {

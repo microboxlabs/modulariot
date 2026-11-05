@@ -1,0 +1,124 @@
+import { Callout } from 'nextra/components'
+
+# Stacked Stat
+
+**Para:** implementadores. **`componentId`:** `stat_stacked`. **Configuración:** los nombres de los ajustes son los de la aplicación web de ModularIoT.
+
+Muestra las partes de un total como una barra 100 % o una dona, con una leyenda que da el valor de cada parte. Úselo para un "KPI por estado + barra 100 %".
+
+![Stacked Stat con la barra Pendiente 12, En curso 7, Cerrada 30](/dashboards/stat_stacked/templated.png)
+
+## Datos que lee
+
+Lee **la primera fila** de su consulta. Cada categoría lee una columna de esa fila con una plantilla:
+
+```sql
+SELECT
+  COUNT(*) AS total,
+  COUNTIF(estado = 'pendiente') AS pendiente,
+  COUNTIF(estado = 'en_curso')  AS en_curso,
+  COUNTIF(estado = 'cerrada')   AS cerrada
+FROM `mi-proyecto.operaciones.solicitudes`
+```
+
+| Categoría | Valor |
+| --- | --- |
+| Pendiente | `{{pendiente}}` |
+| En curso | `{{en_curso}}` |
+| Cerrada | `{{cerrada}}` |
+
+Si su consulta devuelve una fila por estado, conviértala en columnas: [Pivotar](/es/products/dashboards/tutorials/queries-for-widgets#pivotar-una-columna-por-estado).
+
+## Variantes
+
+| Variante | Ajustes | Forma de la consulta | Captura |
+| --- | --- | --- | --- |
+| Barra | **Tipo de gráfico**: Barra, **Unidad** vacía | Una fila, una columna por categoría | [Barra](#barra) |
+| Dona | **Tipo de gráfico**: Dona, **Unidad** vacía | Igual | [Dona](#dona) |
+| Sin encabezado | **Show Header** apagado | Igual | [Sin encabezado](#sin-encabezado) |
+| Porcentajes | **Unidad**: `%`, valores `{{pendiente_pct}}` | Una fila con porcentajes calculados en la consulta | [Porcentajes](#porcentajes) |
+| Título con plantilla | **Título**: `Solicitudes por estado ({{total}})` | Una fila con una columna `total` | [Título con plantilla](#título-con-plantilla) |
+
+### Barra
+
+![Barra con Pendiente 12, En curso 7, Cerrada 30](/dashboards/stat_stacked/bar.png)
+
+### Dona
+
+![Dona con las mismas tres partes](/dashboards/stat_stacked/donut.png)
+
+### Sin encabezado
+
+![Barra sin título](/dashboards/stat_stacked/no-header.png)
+
+### Porcentajes
+
+![Barra con Pendiente 24.5%, En curso 14.3%, Cerrada 61.2%](/dashboards/stat_stacked/percent.png)
+
+La consulta calcula los porcentajes. Vea [Porcentajes](/es/products/dashboards/tutorials/queries-for-widgets#porcentajes).
+
+### Título con plantilla
+
+![Título Solicitudes por estado (49)](/dashboards/stat_stacked/templated.png)
+
+## Ajustes
+
+| Pestaña | Ajuste | Clave en el documento | Efecto |
+| --- | --- | --- | --- |
+| Visualización | **Show Header** | `showHeader` | Muestra u oculta el título. Por defecto, encendido |
+| Visualización | **Tipo de gráfico**: Barra / Dona | `chartType` (`bar`, `donut`) | Forma del gráfico |
+| Visualización | **Título** | `title` | Acepta plantillas |
+| Visualización | **Unidad** | `unit` | Texto que sigue a cada valor, sin espacio. Por defecto, `%` |
+| Visualización | **Categories** | `items[]`: `label`, `value`, `color` | Una parte por categoría. `color` en hexadecimal sin `#` |
+| Visualización | **Umbrales** | `thresholds` | Se guarda pero el widget no lo usa |
+| Proveedor de Datos | **Fuente de Datos**, **Variable** | `dataMode`, `plannerVariableName` | `planner` lee una consulta guardada |
+| Pie del panel | **Auto-Actualización** | `refreshInterval` | Segundos entre recargas. **Usar configuración del dashboard** quita la clave |
+
+## Cómo calcula la barra
+
+| Caso | Resultado |
+| --- | --- |
+| Valores positivos | Cada parte mide su valor sobre la suma de los valores positivos |
+| Valor 0 o negativo | No dibuja parte. La leyenda muestra el valor |
+| Valor que no es un número | Se trata como 0 |
+| Todos los valores en 0 | La barra queda gris |
+| Color que no es hexadecimal de 6 dígitos | Gris (`9ca3af`) |
+
+Al pasar el cursor por una parte, el texto muestra la etiqueta, el valor con la unidad y el porcentaje con un decimal: `Pendiente: 12 (24.5%)`.
+
+## Ejemplo completo
+
+```json
+{
+  "componentId": "stat_stacked",
+  "config": {
+    "title": "Solicitudes por estado ({{total}})",
+    "unit": "",
+    "showHeader": true,
+    "chartType": "bar",
+    "dataMode": "planner",
+    "plannerVariableName": "resumen",
+    "items": [
+      { "label": "Pendiente", "value": "{{pendiente}}", "color": "eab308" },
+      { "label": "En curso", "value": "{{en_curso}}", "color": "3b82f6" },
+      { "label": "Cerrada", "value": "{{cerrada}}", "color": "22c55e" }
+    ]
+  }
+}
+```
+
+## Límites
+
+<Callout type="warning">
+**Cuidado:** en la configuración de ModularIoT, las plantillas de las categorías se resuelven solo cuando **Fuente de Datos** es **Planificador**. Con datos estáticos (solo posibles al importar un documento con `staticData`) o con una consulta sin filas, `{{pendiente}}` se muestra como 0. El título y la unidad se resuelven siempre.
+</Callout>
+
+| Límite | Alternativa |
+| --- | --- |
+| Lee solo la primera fila | Pivote la consulta: una columna por categoría |
+| Las categorías son fijas. Un estado nuevo no aparece solo | Agregue la columna y la categoría |
+| La leyenda es una lista. No hay tarjetas por categoría | Agregue un Stat Card por estado con la misma variable y **Valor** `{{pendiente}}` |
+| Hacer clic en una parte no filtra otros widgets | Use un filtro de selección del dashboard |
+| La pestaña Proveedor de Datos no tiene editor de JSON estático | Use una consulta guardada |
+| `color` va en hexadecimal sin `#` (`eab308`) | En Chart v2, `customColors` lleva `#` |
+| Las plantillas de las categorías no leen `{{filter.…}}` | Ponga el valor del filtro en el título |

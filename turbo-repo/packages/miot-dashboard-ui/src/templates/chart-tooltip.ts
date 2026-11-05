@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { createTemplateEngine, type CompiledTemplate } from "./engine";
 
 const index = z.number().int().nonnegative();

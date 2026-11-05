@@ -186,6 +186,7 @@ function buildTicketResolver(
       header: auth.header,
       ...(auth.scheme === undefined ? {} : { scheme: auth.scheme }),
       url: auth.url,
+      ...(auth.allowHttp ? { allowHttp: true } : {}),
       method: auth.method,
       present: auth.present,
       headers: asHeaders(auth.serviceHeader),

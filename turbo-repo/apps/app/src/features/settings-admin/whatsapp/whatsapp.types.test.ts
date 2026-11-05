@@ -5,6 +5,9 @@ import {
   parseRecipientList,
   WhatsAppConnectionSchema,
   WhatsAppEditSchema,
+  whatsAppCreate,
+  whatsAppUpdate,
+  whatsAppWebhookPath,
 } from "./whatsapp.types";
 
 describe("parseRecipientList", () => {
@@ -70,6 +73,8 @@ describe("test-mode validation", () => {
     token: "secret",
     testModeEnabled: false,
     testRecipients: "",
+    appSecret: "",
+    verifyToken: "",
   };
 
   it("allows test mode off with no recipients", () => {
@@ -105,5 +110,15 @@ describe("test-mode validation", () => {
     expect(WhatsAppEditSchema.safeParse({ ...base, token: "" }).success).toBe(
       true
     );
+  });
+
+  it("sends only the filled-in webhook secrets", () => {
+    const form = { ...base, appSecret: " signing " };
+    expect(whatsAppCreate(form).secrets).toEqual({ app_secret: "signing" });
+    expect(whatsAppUpdate(base).secrets).toEqual({});
+  });
+
+  it("names the connection in the webhook path", () => {
+    expect(whatsAppWebhookPath("conn-1")).toBe("/webhooks/whatsapp/conn-1");
   });
 });

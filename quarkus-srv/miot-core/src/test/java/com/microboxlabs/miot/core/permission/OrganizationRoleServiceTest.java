@@ -32,6 +32,6 @@ class OrganizationRoleServiceTest {
     }
 
     private static Access access(BaseRole base) {
-        return new Access(1L, "acme", base, Set.of(), Set.of(), null);
+        return new Access(1L, "acme", base, Set.of(), Set.of());
     }
 }

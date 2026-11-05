@@ -14,7 +14,7 @@ export default async function TeamInvitationEmailPage({
     ?.userSettings as I18nRecord;
 
   return (
-    <RouteGuard path="/users/settings/team" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/users/settings/team">
       <InvitationEmailPage dict={userSettings} lang={lang} />
     </RouteGuard>
   );

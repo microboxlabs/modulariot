@@ -21,11 +21,11 @@ class ConversationalSqlIntegrityTest {
     @Test
     void returningKeywordIsSeparatedFromColumnsInEveryStatement() throws Exception {
         assertSeparated(MessageRepository.class, "INSERT");
-        assertSeparated(MessageRepository.class, "INSERT_IF_NEW");
+        assertSeparated(MessageRepository.class, "INSERT_INBOUND_AND_TOUCH");
+        assertSeparated(MessageRepository.class, "INSERT_OUTBOUND_AND_TOUCH");
         assertSeparated(MessageRepository.class, "MARK_STATUS");
         assertSeparated(ConversationRepository.class, "INSERT");
         assertSeparated(ConversationRepository.class, "UPDATE_OUTBOUND");
-        assertSeparated(ConversationRepository.class, "UPDATE_INBOUND");
         assertSeparated(ConversationRepository.class, "RESET_UNREAD");
     }
 

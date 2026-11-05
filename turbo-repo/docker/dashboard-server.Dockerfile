@@ -7,7 +7,7 @@
 # The store is node:sqlite, which ships with Node, so nothing is installed
 # for persistence.
 
-FROM node:24-alpine
+FROM node:24.22.1-alpine
 
 WORKDIR /app
 

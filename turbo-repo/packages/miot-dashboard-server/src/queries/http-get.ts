@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { readJsonBody } from "../http/read-json";
 import { secureUrlProblem } from "../net/endpoint";
 import type {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { logManagementAPI, LogLevel } from "@/lib/logger";
-import { hasAdminAccessForSession } from "@/features/auth/utils/admin-access";
+import { requirePlatformOwner } from "@/features/auth/access/server-access";
 
 /**
  * GET /api/admin/logs
@@ -9,14 +8,8 @@ import { hasAdminAccessForSession } from "@/features/auth/utils/admin-access";
  */
 export async function GET() {
   try {
-    const session = await auth();
-
-    if (!session || !(await hasAdminAccessForSession(session))) {
-      return NextResponse.json(
-        { error: "Unauthorized. Admin access required." },
-        { status: 403 }
-      );
-    }
+    const access = await requirePlatformOwner("/api/admin/logs");
+    if (!access.authorized) return access.response;
 
     const handlers = logManagementAPI.getAllHandlers();
     const tree = logManagementAPI.getHandlerTree();
@@ -44,14 +37,8 @@ export async function GET() {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session || !(await hasAdminAccessForSession(session))) {
-      return NextResponse.json(
-        { error: "Unauthorized. Admin access required." },
-        { status: 403 }
-      );
-    }
+    const access = await requirePlatformOwner("/api/admin/logs");
+    if (!access.authorized) return access.response;
 
     const body = await request.json();
     const { handlerId, level, cascadeToChildren = false } = body;
@@ -113,14 +100,8 @@ export async function PUT(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session || !(await hasAdminAccessForSession(session))) {
-      return NextResponse.json(
-        { error: "Unauthorized. Admin access required." },
-        { status: 403 }
-      );
-    }
+    const access = await requirePlatformOwner("/api/admin/logs");
+    if (!access.authorized) return access.response;
 
     const body = await request.json();
     const { id, name, level, parent } = body;
@@ -179,14 +160,8 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session || !(await hasAdminAccessForSession(session))) {
-      return NextResponse.json(
-        { error: "Unauthorized. Admin access required." },
-        { status: 403 }
-      );
-    }
+    const access = await requirePlatformOwner("/api/admin/logs");
+    if (!access.authorized) return access.response;
 
     const { searchParams } = new URL(request.url);
     const handlerId = searchParams.get("handlerId");

@@ -27,7 +27,7 @@ permissions:
   pull-requests: write
 
 env:
-  NODE_VERSION: "24"
+  NODE_VERSION: "24.22.1"
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
   IMAGE_NAME: miot-app
@@ -40,7 +40,8 @@ jobs:
   build:
     name: Build and publish PR preview image
     runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Release preparation is built by app-release-train.yml, without a PR preview.
+    if: github.event.pull_request.head.repo.full_name == github.repository && !startsWith(github.head_ref, 'release/miot-v')
     outputs:
       image: ${{ steps.image.outputs.image }}
       short_sha: ${{ steps.vars.outputs.short_sha }}
@@ -95,6 +96,7 @@ jobs:
         with:
           context: /tmp/build-app/
           file: /tmp/build-app/nextjs.standalone.Dockerfile
+          pull: true
           platforms: linux/amd64
           push: true
           tags: |

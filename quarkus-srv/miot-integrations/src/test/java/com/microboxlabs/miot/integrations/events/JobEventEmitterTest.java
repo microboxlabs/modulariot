@@ -70,7 +70,7 @@ class JobEventEmitterTest {
                 .getJsonObject("payload").getString("jobOp"));
     }
 
-    private static AsyncJob job() {
+    static AsyncJob job() {
         return job(Map.of());
     }
 

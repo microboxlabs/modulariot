@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleMessage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Finding;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
@@ -27,6 +28,7 @@ final class ConditionChecks {
     /** A string literal; a quote inside it is escaped. */
     private static final Pattern STRING = Pattern.compile("\"(?:[^\"\\\\]|\\\\.)*+\"");
     private static final Pattern BARE = Pattern.compile("^(!?)(" + FIELD + ")$");
+    private static final String FIELD_PARAM = "field";
     private static final String AND = "&&";
     private static final String OR = "||";
     private static final Map<String, String> OPPOSITE = Map.of("==", "!=", "!=", "==", ">", "<=", ">=", "<",
@@ -319,27 +321,27 @@ final class ConditionChecks {
 
     private static void report(String name, FieldBounds b, List<Finding> out) {
         if (b.truthClash) {
-            out.add(error("«" + name + "» no puede ser verdadero y falso a la vez; nunca se cumpliría."));
+            out.add(error(RuleMessage.of("trueAndFalse", FIELD_PARAM, name)));
         }
         if (b.equalsClash || (b.equals != null && b.notEquals.contains(b.equals))) {
-            out.add(error("«" + name + "» no puede tener dos valores a la vez; nunca se cumpliría."));
+            out.add(error(RuleMessage.of("twoValues", FIELD_PARAM, name)));
         }
         if (b.lower != null && b.upper != null
                 && (b.lower > b.upper || (b.lower.equals(b.upper) && (b.lowerStrict || b.upperStrict)))) {
-            out.add(error("«" + name + "» mayor que " + SpecValidator.number(b.lower) + " y menor que "
-                    + SpecValidator.number(b.upper) + " nunca se cumple."));
+            out.add(error(RuleMessage.of("emptyRange", FIELD_PARAM, name, "lower", SpecValidator.number(b.lower),
+                    "upper", SpecValidator.number(b.upper))));
         }
         if (!b.equalsClash && b.number != null && outside(b)) {
-            out.add(error("«" + name + "» igual a " + SpecValidator.number(b.number)
-                    + " queda fuera de sus otros límites; nunca se cumpliría."));
+            out.add(error(RuleMessage.of("valueOutsideRange", FIELD_PARAM, name, "value",
+                    SpecValidator.number(b.number))));
         }
         if (b.lowers > 1) {
-            out.add(warning("Dos mínimos para «" + name + "»; basta el mayor (" + SpecValidator.number(b.lower)
-                    + ")."));
+            out.add(warning(RuleMessage.of("twoMinimums", FIELD_PARAM, name, "lower",
+                    SpecValidator.number(b.lower))));
         }
         if (b.uppers > 1) {
-            out.add(warning("Dos máximos para «" + name + "»; basta el menor (" + SpecValidator.number(b.upper)
-                    + ")."));
+            out.add(warning(RuleMessage.of("twoMaximums", FIELD_PARAM, name, "upper",
+                    SpecValidator.number(b.upper))));
         }
     }
 
@@ -350,11 +352,11 @@ final class ConditionChecks {
         return belowLower || aboveUpper;
     }
 
-    private static Finding error(String message) {
+    private static Finding error(RuleMessage message) {
         return new Finding("activation", Severity.ERROR, message, -1);
     }
 
-    private static Finding warning(String message) {
+    private static Finding warning(RuleMessage message) {
         return new Finding("activation", Severity.WARNING, message, -1);
     }
 }

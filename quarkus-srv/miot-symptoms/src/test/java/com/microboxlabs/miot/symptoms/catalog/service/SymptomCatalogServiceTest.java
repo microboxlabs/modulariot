@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
+import static com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate.PLATFORM_TENANT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -19,8 +20,8 @@ import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.Crea
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.PublishPlan;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomDetail;
-import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -44,7 +45,7 @@ class SymptomCatalogServiceTest {
         catalog = new InMemoryCatalog();
         catalog.upsert(Specs.gpsSignal());
         audit = new AuditService(new InMemoryAuditStore());
-        service = new SymptomCatalogService(catalog, new DataSourceService(catalog, new UnavailableSymptomEngine()),
+        service = new SymptomCatalogService(catalog, new DataSourceService(catalog, SignalSamples.inMemory()),
                 audit);
     }
 
@@ -54,18 +55,46 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
+    void publicationChecksReplyResultsAgainstTheTenantsCurrentOptions() {
+        UUID id = speeding();
+        var allowed = new java.util.HashSet<>(List.of("result_commits"));
+        SymptomCatalogService checked = new SymptomCatalogService(catalog,
+                new DataSourceService(catalog, SignalSamples.inMemory()), audit, null,
+                (tenant, result) -> TENANT.equals(tenant) && allowed.contains(result));
+        SymptomSpec base = Specs.speeding();
+        var step = new SymptomSpec.Step("Conductor", "call", 2, "Hello", null, null, null,
+                List.of(new SymptomSpec.Step.Reply("result_commits", "Agrees")));
+        var levels = new java.util.ArrayList<>(base.levels());
+        levels.set(3, new SymptomSpec.Level(4, true, levels.get(3).when(),
+                new SymptomSpec.Response(true, 5, List.of(step), List.of(), List.of(), false)));
+        SymptomSpec spec = Specs.withLevels(base, levels);
+        checked.saveDraft(TENANT, OWNER, id, spec);
+        assertTrue(checked.plan(TENANT, id).report().publishable());
+        allowed.clear();
+        assertFalse(checked.plan(TENANT, id).report().publishable());
+        assertTrue(checked.validate(TENANT, id, spec).findings().stream()
+                .anyMatch(f -> "stepReplyInvalidResult".equals(f.code())));
+
+        var blank = new SymptomSpec.Step("Conductor", "call", 2, "Hello", null, null, null,
+                List.of(new SymptomSpec.Step.Reply("", "Agrees")));
+        levels.set(3, new SymptomSpec.Level(4, true, levels.get(3).when(),
+                new SymptomSpec.Response(true, 5, List.of(blank), List.of(), List.of(), false)));
+        assertFalse(checked.validate(TENANT, id, Specs.withLevels(base, levels)).publishable());
+    }
+
+    @Test
     void publishComputesTheVersionFromTheChange() {
         UUID id = speeding();
         assertEquals("1.0.0", service.publish(TENANT, OWNER, id, "Primera versión", null, SymptomState.ACTIVE)
                 .version());
 
-        SymptomSpec raised = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11 && medida < 25", "medida >= 25 && sostenido_s >= 60"));
+        SymptomSpec raised = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11 && measure < 25", "measure >= 25 && held_s >= 60"));
         service.saveDraft(TENANT, OWNER, id, raised);
         assertEquals("1.1.0", service.plan(TENANT, id).nextVersion());
         assertEquals("1.1.0", service.publish(TENANT, OWNER, id, "Umbral más alto", null, null).version());
 
-        service.saveDraft(TENANT, OWNER, id, Specs.with(raised, Specs.ACTIVATION + " && signal.gps.speed_kmh > 10"));
+        service.saveDraft(TENANT, OWNER, id, Specs.with(raised, Specs.ACTIVATION + " && signal.frame.gps.speed > 10"));
         assertEquals("2.0.0", service.publish(TENANT, OWNER, id, "Nueva condición", null, null).version());
 
         SymptomDetail detail = service.get(TENANT, id);
@@ -182,7 +211,7 @@ class SymptomCatalogServiceTest {
     @Test
     void aTemplateStartsInTestAtZeroOneZero() {
         SymptomTemplate template = new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
-                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", Specs.speeding());
+                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", "1.0.0", Specs.speeding());
 
         SymptomDetail first = service.createFromTemplate(TENANT, OWNER, template, null);
         SymptomDetail second = service.createFromTemplate(TENANT, OWNER, template, "Exceso en ruta 5");
@@ -202,13 +231,13 @@ class SymptomCatalogServiceTest {
 
     private static SymptomTemplate speedingTemplate() {
         return new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
-                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", Specs.speeding());
+                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", "1.0.0", Specs.speeding());
     }
 
     @Test
     void aTemplateThatDoesNotFitTheSourceLeavesNothingBehind() {
         SymptomTemplate template = new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
-                null, "En viaje", Specs.with(Specs.speeding(), "signal.gps.not_in_this_source > 1"));
+                null, "En viaje", "1.0.0", Specs.with(Specs.speeding(), "signal.gps.not_in_this_source > 1"));
 
         assertThrows(IllegalStateException.class, () -> service.createFromTemplate(TENANT, OWNER, template, null));
 
@@ -227,7 +256,8 @@ class SymptomCatalogServiceTest {
                 if (!raced && d.key().equals("speeding")) {
                     raced = true;
                     super.insertDefinition(new SymptomDefinition(UUID.randomUUID(), d.tenantCode(), "speeding",
-                            "Ganó la otra", null, null, null, "gps_signal", null, null, null, SymptomState.OFF, null,
+                            "Ganó la otra", null, null, null, "gps_signal", null, null, null, null,
+                            SymptomState.OFF, null,
                             OWNER, d.createdAt(), OWNER, d.createdAt()));
                 }
                 return super.insertDefinition(d);
@@ -235,7 +265,7 @@ class SymptomCatalogServiceTest {
         };
         racing.upsert(Specs.gpsSignal());
         SymptomCatalogService raced = new SymptomCatalogService(racing,
-                new DataSourceService(racing, new UnavailableSymptomEngine()), audit);
+                new DataSourceService(racing, SignalSamples.inMemory()), audit);
 
         assertEquals("speeding-2", raced.createFromTemplate(TENANT, OWNER, speedingTemplate(), null).definition()
                 .key());
@@ -280,8 +310,8 @@ class SymptomCatalogServiceTest {
     void aDraftThatLeavesStateAndFamilyKeepsTheSymptoms() {
         UUID id = speeding();
         service.publish(TENANT, OWNER, id, "Primera versión", null, SymptomState.ACTIVE);
-        service.saveDraft(TENANT, OWNER, id, Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 6",
-                "medida >= 6 && medida < 11", "medida >= 11 && medida < 21", "medida >= 21 && sostenido_s >= 60")));
+        service.saveDraft(TENANT, OWNER, id, Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 6",
+                "measure >= 6 && measure < 11", "measure >= 11 && measure < 21", "measure >= 21 && held_s >= 60")));
 
         assertTrue(service.plan(TENANT, id).changes().stream().allMatch(c -> c.section().equals("levels")));
         service.publish(TENANT, OWNER, id, "Umbral", null, null);
@@ -346,8 +376,8 @@ class SymptomCatalogServiceTest {
     void rollingBackRestoresTheRulesNotTheState() {
         UUID id = speeding();
         service.publish(TENANT, OWNER, id, "Primera versión", null, SymptomState.ACTIVE);
-        SymptomSpec raised = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 6",
-                "medida >= 6 && medida < 11", "medida >= 11 && medida < 21", "medida >= 21 && sostenido_s >= 60"));
+        SymptomSpec raised = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 6",
+                "measure >= 6 && measure < 11", "measure >= 11 && measure < 21", "measure >= 21 && held_s >= 60"));
         service.saveDraft(TENANT, OWNER, id, withFamilyAndState(raised, null, SymptomState.TEST));
         service.publish(TENANT, OWNER, id, "A prueba con otro umbral", null, null);
 
@@ -362,8 +392,8 @@ class SymptomCatalogServiceTest {
     void eachVersionCarriesWhatChangedFromThePreviousOne() {
         UUID id = speeding();
         service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.ACTIVE);
-        service.saveDraft(TENANT, OWNER, id, Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11 && medida < 25", "medida >= 25 && sostenido_s >= 60")));
+        service.saveDraft(TENANT, OWNER, id, Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11 && measure < 25", "measure >= 25 && held_s >= 60")));
         String second = service.publish(TENANT, OWNER, id, "Umbrales", null, null).version();
 
         var changes = service.get(TENANT, id).versionChanges();
@@ -484,5 +514,70 @@ class SymptomCatalogServiceTest {
         service.saveDraft(TENANT, OWNER, id, Specs.speeding());
 
         assertEquals("symptom.draft_saved", audit.list(TENANT, "symptom", null, null, null, null, 10).get(0).action());
+    }
+
+    @Test
+    void aCopyRemembersTheTemplateVersion() {
+        SymptomDetail copy = service.createFromTemplate(TENANT, OWNER, speedingTemplate(), null);
+
+        assertEquals("speeding", copy.definition().templateKey());
+        assertEquals("1.0.0", copy.definition().templateVersion());
+        assertEquals("Desde la plantilla Exceso de velocidad 1.0.0", copy.current().reason());
+    }
+
+    @Test
+    void savingAsTemplateLeavesAnUnpublishedTemplateWithoutTheOrganizationsNotices() {
+        UUID id = speeding();
+        SymptomSpec.Notice notice = new SymptomSpec.Notice("open", "whatsapp", "conn-1", "tpl-1", "+56900000000");
+        SymptomSpec.Ignore ignore = new SymptomSpec.Ignore(false, "PT30M", true, List.of("CASE"));
+        SymptomSpec withNotice = Specs.withLevels(Specs.speeding(), Specs.speeding().levels().stream()
+                .map(l -> l.icu() != 4 ? l : new SymptomSpec.Level(4, true, l.when(), new SymptomSpec.Response(true,
+                        5, List.of(), List.of(notice), List.of(), false), ignore))
+                .toList());
+        service.saveDraft(TENANT, OWNER, id, withNotice);
+        service.publish(TENANT, OWNER, id, "Con aviso", null, SymptomState.ACTIVE);
+
+        SymptomDetail template = service.saveAsTemplate(TENANT, OWNER, id, null, null, null);
+
+        assertEquals(PLATFORM_TENANT, template.definition().tenantCode());
+        assertEquals("speeding", template.definition().key());
+        assertNull(template.definition().currentVersion(), "organizations do not see it until it is published");
+        assertEquals(SymptomState.OFF, template.definition().state());
+        SymptomSpec.Notice saved = template.draft().spec().levels().get(3).response().notices().get(0);
+        assertEquals(new SymptomSpec.Notice("open", "whatsapp", null, null, null), saved);
+        assertNull(template.draft().spec().state());
+        assertEquals(ignore, template.draft().spec().levels().get(3).ignore());
+    }
+
+    @Test
+    void anIgnorePolicyOnlyChangeCanBePublished() {
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Inicial", null, SymptomState.ACTIVE);
+        SymptomSpec original = service.get(TENANT, id).current().spec();
+        SymptomSpec changed = Specs.withLevels(original, original.levels().stream()
+                .map(l -> new SymptomSpec.Level(l.icu(), l.applies(), l.when(), l.response(),
+                        new SymptomSpec.Ignore(false, null, null, null))).toList());
+        service.saveDraft(TENANT, OWNER, id, changed);
+        var published = service.publish(TENANT, OWNER, id, "Restringir ignorar", null, SymptomState.ACTIVE);
+        assertEquals(Boolean.FALSE, published.spec().levels().get(0).ignore().allowed());
+    }
+
+    @Test
+    void savingAsAnExistingTemplateReplacesItsDraft() {
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Primera", null, null);
+        UUID templateId = service.saveAsTemplate(TENANT, OWNER, id, null, null, "Velocidad").definition().id();
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(), Specs.ACTIVATION + " && true"));
+
+        SymptomDetail again = service.saveAsTemplate(TENANT, OWNER, id, null, "speeding", null);
+
+        assertEquals(templateId, again.definition().id());
+        assertEquals("Velocidad", again.definition().name());
+        assertEquals(Specs.speeding().activation(), again.draft().spec().activation(),
+                "without a version, the version in force is saved, not the newer draft");
+        assertThrows(NoSuchElementException.class,
+                () -> service.saveAsTemplate(TENANT, OWNER, id, null, "nope", null));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.saveAsTemplate(PLATFORM_TENANT, OWNER, templateId, null, null, null));
     }
 }

@@ -27,7 +27,7 @@ class SpeedRuleCasesTest {
 
     private static Signal signal(int at, double speed, double limit, boolean onTrip) {
         return new Signal(at, EvalTraces.root(Map.of("signal.trip.active", onTrip,
-                "signal.vehicle.weight_category", "HEAVY", "signal.gps.speed_kmh", speed,
+                "signal.vehicle.weight_category", "HEAVY", "signal.frame.gps.speed", speed,
                 "signal.road.maxspeed_osm", limit)));
     }
 

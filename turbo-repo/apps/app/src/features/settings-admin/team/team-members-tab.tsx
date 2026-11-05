@@ -48,6 +48,7 @@ function BaseRoleCell({
   return (
     <Select
       sizing="sm"
+      className="min-w-40"
       value={member.baseRole}
       aria-label={tr("colRole", d)}
       onChange={(e) => onBaseRole(member, e.target.value as BaseRole)}
@@ -122,6 +123,7 @@ function MemberRow({
           <Button
             size="xs"
             color="alternative"
+            className="whitespace-nowrap"
             as={Link}
             href={`/${lang}/users/settings/team/members/${encodeURIComponent(member.userId)}`}
           >
@@ -132,6 +134,7 @@ function MemberRow({
             <Button
               size="xs"
               color="alternative"
+              className="whitespace-nowrap"
               onClick={() => onRemove(member)}
             >
               <HiOutlineTrash className="mr-1 h-4 w-4" />

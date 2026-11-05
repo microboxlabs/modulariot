@@ -106,3 +106,20 @@ export function versionOf(
 ): string | null {
   return entry?.properties?.["cm:versionLabel"] ?? null;
 }
+
+/** Current-source resets replace cached verdicts; legacy pending values keep local decisions. */
+export function mergeLoadedStatuses(
+  previous: ReadonlyMap<string, ReviewVerdict>,
+  loaded: ReadonlyMap<string, ReviewVerdict>,
+  sourceIsCurrent: boolean
+): Map<string, ReviewVerdict> {
+  if (sourceIsCurrent) return new Map(loaded);
+  const next = new Map(previous);
+  for (const id of next.keys()) {
+    if (!loaded.has(id)) next.delete(id);
+  }
+  for (const [id, status] of loaded) {
+    if (status !== "pending" || !previous.has(id)) next.set(id, status);
+  }
+  return next;
+}

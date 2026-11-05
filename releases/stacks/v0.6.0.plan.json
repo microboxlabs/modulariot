@@ -1,0 +1,2974 @@
+{
+  "stack_version": "0.6.0",
+  "stack_tag": "miot-stack@v0.6.0",
+  "milestone": "MIOT-0.6.0",
+  "pull_requests": [
+    {
+      "number": 1936,
+      "title": "[app] Data sharing between organizations, managed by platform owners",
+      "source_issues": [
+        {
+          "number": 1935,
+          "title": "Data sharing: platform owners decide which organization sees another's GPS assets"
+        }
+      ]
+    },
+    {
+      "number": 1938,
+      "title": "[modulith] One GPS database login (miot.gps.*) for every component",
+      "source_issues": []
+    },
+    {
+      "number": 1939,
+      "title": "[modulith] GPS database as the named datasource gps",
+      "source_issues": []
+    },
+    {
+      "number": 1940,
+      "title": "[modulith] Data sharing: store share filters as jsonb arrays",
+      "source_issues": []
+    },
+    {
+      "number": 1941,
+      "title": "[app] Org switcher with search, recent organizations and a scrolling list",
+      "source_issues": []
+    },
+    {
+      "number": 1942,
+      "title": "[modulith] /me/scopes in three queries for platform owners",
+      "source_issues": [
+        {
+          "number": 1937,
+          "title": "/me/scopes is too slow for platform owners: one round of queries per organization"
+        }
+      ]
+    },
+    {
+      "number": 1944,
+      "title": "[modulith] Coordinator permissions and roles",
+      "source_issues": [
+        {
+          "number": 1954,
+          "title": "[modulith] Coordinator permissions and roles in the IAM catalog"
+        }
+      ]
+    },
+    {
+      "number": 1945,
+      "title": "[modulith] Map Alfresco groups to module roles and import their members",
+      "source_issues": [
+        {
+          "number": 1955,
+          "title": "[modulith] Map Alfresco groups to module roles and import their members"
+        }
+      ]
+    },
+    {
+      "number": 1946,
+      "title": "[modulith] Keep projected Alfresco groups equal to their role's holders",
+      "source_issues": [
+        {
+          "number": 1956,
+          "title": "[modulith] Keep projected Alfresco groups equal to their role's holders"
+        }
+      ]
+    },
+    {
+      "number": 1947,
+      "title": "[app] Access from IAM permissions behind ACCESS_CONTROL_SOURCE",
+      "source_issues": [
+        {
+          "number": 1961,
+          "title": "[app] Proxies for platform group-role and token-role maps"
+        },
+        {
+          "number": 1958,
+          "title": "[app] Remove group-based access and land users on a page they can open"
+        },
+        {
+          "number": 1957,
+          "title": "[app] Decide access from IAM permissions"
+        }
+      ]
+    },
+    {
+      "number": 1948,
+      "title": "[app] Decide access with IAM permissions only",
+      "source_issues": []
+    },
+    {
+      "number": 1949,
+      "title": "[modulith] Run organizations on native membership without reading Alfresco",
+      "source_issues": [
+        {
+          "number": 1959,
+          "title": "[modulith] Native membership without reading Alfresco"
+        }
+      ]
+    },
+    {
+      "number": 1950,
+      "title": "[modulith] Roles from the sign-in token",
+      "source_issues": [
+        {
+          "number": 1960,
+          "title": "[modulith] Roles from the sign-in token"
+        }
+      ]
+    },
+    {
+      "number": 1951,
+      "title": "[app] Platform proxies for group-role and token-role maps",
+      "source_issues": []
+    },
+    {
+      "number": 1952,
+      "title": "[modulith] Project role changes to Alfresco as they happen",
+      "source_issues": [
+        {
+          "number": 1962,
+          "title": "[modulith] Project role changes to Alfresco as they happen"
+        }
+      ]
+    },
+    {
+      "number": 1953,
+      "title": "[miot-core] Members by email domain",
+      "source_issues": [
+        {
+          "number": 1963,
+          "title": "[miot-core] Members by email domain"
+        }
+      ]
+    },
+    {
+      "number": 1964,
+      "title": "[app] Keep the team role select and access button readable",
+      "source_issues": [
+        {
+          "number": 1965,
+          "title": "Team page: role select cut off and access button wraps"
+        }
+      ]
+    },
+    {
+      "number": 1966,
+      "title": "[app][miot-core] Drop the legacy access cards from the Organizations page",
+      "source_issues": [
+        {
+          "number": 1967,
+          "title": "Organizations page: remove the legacy access and trainer cards"
+        }
+      ]
+    },
+    {
+      "number": 1968,
+      "title": "[miot-core][app] Native membership only; move Alfresco-membership organizations",
+      "source_issues": [
+        {
+          "number": 1969,
+          "title": "Drop Alfresco membership; move organizations to native memberships"
+        }
+      ]
+    },
+    {
+      "number": 1972,
+      "title": "[app] Team page: members and roles per team, like a member's",
+      "source_issues": [
+        {
+          "number": 1971,
+          "title": "Team page: manage a team's members and roles like a member's"
+        }
+      ]
+    },
+    {
+      "number": 1975,
+      "title": "[app] Searchable team member picker; open a new team after creating it",
+      "source_issues": [
+        {
+          "number": 1974,
+          "title": "Team member picker and new-team form look unfinished"
+        }
+      ]
+    },
+    {
+      "number": 1976,
+      "title": "[docs] Asset Track: document sensors.button_panic",
+      "source_issues": [
+        {
+          "number": 2028,
+          "title": "[docs] Asset Track: document sensors.button_panic"
+        }
+      ]
+    },
+    {
+      "number": 1983,
+      "title": "[symptoms] Rule vocabulary in English",
+      "source_issues": [
+        {
+          "number": 2029,
+          "title": "[symptoms] Rule vocabulary in English"
+        }
+      ]
+    },
+    {
+      "number": 1990,
+      "title": "[symptoms] Versioned platform templates in the catalog, platform editor, save as template",
+      "source_issues": [
+        {
+          "number": 2030,
+          "title": "[symptoms] Versioned platform templates in the catalog, platform editor, save as template"
+        }
+      ]
+    },
+    {
+      "number": 1991,
+      "title": "feat(symptoms): preview rules on recent GPS signals",
+      "source_issues": [
+        {
+          "number": 2032,
+          "title": "feat(symptoms): preview rules on recent GPS signals"
+        }
+      ]
+    },
+    {
+      "number": 1992,
+      "title": "feat(symptoms): trip details and registered driver in the GPS signal",
+      "source_issues": [
+        {
+          "number": 2033,
+          "title": "feat(symptoms): trip details and registered driver in the GPS signal"
+        }
+      ]
+    },
+    {
+      "number": 1993,
+      "title": "[miot-symptoms] Unique Pulsar producer name for gps-signals per pod",
+      "source_issues": [
+        {
+          "number": 2034,
+          "title": "[miot-symptoms] Unique Pulsar producer name for gps-signals per pod"
+        }
+      ]
+    },
+    {
+      "number": 1994,
+      "title": "refactor(symptoms): GPS signal without the gps part that repeated the frame",
+      "source_issues": [
+        {
+          "number": 2035,
+          "title": "refactor(symptoms): GPS signal without the gps part that repeated the frame"
+        }
+      ]
+    },
+    {
+      "number": 1996,
+      "title": "feat(app): rule form reads and writes has() tests on the device frame",
+      "source_issues": [
+        {
+          "number": 1998,
+          "title": "feat(app): rule form reads and writes has() tests on the device frame"
+        }
+      ]
+    },
+    {
+      "number": 1997,
+      "title": "feat(symptoms): optional reads in rules with TRUE, FALSE and NONE",
+      "source_issues": [
+        {
+          "number": 1999,
+          "title": "feat(symptoms): optional reads in rules with TRUE, FALSE and NONE"
+        }
+      ]
+    },
+    {
+      "number": 2000,
+      "title": "[app] Symptom severity section: measure in the form, levels list, findings as codes",
+      "source_issues": [
+        {
+          "number": 2001,
+          "title": "[app] Symptom severity section: measure in the form, levels list, findings as codes"
+        }
+      ]
+    },
+    {
+      "number": 2009,
+      "title": "[app] Symptom response tab: one level at a time, operator steps and closing",
+      "source_issues": [
+        {
+          "number": 2036,
+          "title": "[app] Symptom response tab: one level at a time, operator steps and closing"
+        }
+      ]
+    },
+    {
+      "number": 2012,
+      "title": "[app] Comunicaciones: rules, templates and activity (#2003)",
+      "source_issues": [
+        {
+          "number": 2037,
+          "title": "[app] Comunicaciones: rules, templates and activity (#2003)"
+        }
+      ]
+    },
+    {
+      "number": 2013,
+      "title": "[conversational] Conversation rules, runs and templates (#2003)",
+      "source_issues": [
+        {
+          "number": 2038,
+          "title": "[conversational] Conversation rules, runs and templates (#2003)"
+        }
+      ]
+    },
+    {
+      "number": 2015,
+      "title": "fix(app): symptom editor shows the published version and no draft after publish",
+      "source_issues": [
+        {
+          "number": 2039,
+          "title": "fix(app): symptom editor shows the published version and no draft after publish"
+        }
+      ]
+    },
+    {
+      "number": 2017,
+      "title": "fix(control-tower): count the evaluator's open cases and format their active time",
+      "source_issues": [
+        {
+          "number": 2040,
+          "title": "fix(control-tower): count the evaluator's open cases and format their active time"
+        }
+      ]
+    },
+    {
+      "number": 2018,
+      "title": "[symptoms] Fix trunk test compile: EngineCase SLA and recurrence fields",
+      "source_issues": [
+        {
+          "number": 2041,
+          "title": "[symptoms] Fix trunk test compile: EngineCase SLA and recurrence fields"
+        }
+      ]
+    },
+    {
+      "number": 2019,
+      "title": "fix(control-tower): show the map of a case without a trip",
+      "source_issues": [
+        {
+          "number": 2042,
+          "title": "fix(control-tower): show the map of a case without a trip"
+        }
+      ]
+    },
+    {
+      "number": 2020,
+      "title": "fix(signal-history): read an asset's signals from the modulith",
+      "source_issues": [
+        {
+          "number": 2043,
+          "title": "fix(signal-history): read an asset's signals from the modulith"
+        }
+      ]
+    },
+    {
+      "number": 2021,
+      "title": "docs(fms-viajes): modelo estándar de viajes — documentación del stack",
+      "source_issues": [
+        {
+          "number": 2044,
+          "title": "docs(fms-viajes): modelo estándar de viajes — documentación del stack"
+        }
+      ]
+    },
+    {
+      "number": 2025,
+      "title": "fix(symptoms): catalog stats from the evaluator's cases",
+      "source_issues": [
+        {
+          "number": 2045,
+          "title": "fix(symptoms): catalog stats from the evaluator's cases"
+        }
+      ]
+    },
+    {
+      "number": 2026,
+      "title": "chore(symptoms): remove the demo symptom engine",
+      "source_issues": [
+        {
+          "number": 2046,
+          "title": "chore(symptoms): remove the demo symptom engine"
+        }
+      ]
+    },
+    {
+      "number": 2031,
+      "title": "fix(conversations): Comunicaciones follows the symptom catalog layout",
+      "source_issues": [
+        {
+          "number": 2053,
+          "title": "fix(conversations): Comunicaciones follows the symptom catalog layout"
+        }
+      ]
+    },
+    {
+      "number": 2047,
+      "title": "feat(conversations): \"Nueva regla\" is a modal, like \"Nuevo síntoma\"",
+      "source_issues": [
+        {
+          "number": 2054,
+          "title": "feat(conversations): \"Nueva regla\" is a modal, like \"Nuevo síntoma\""
+        }
+      ]
+    },
+    {
+      "number": 2048,
+      "title": "feat(conversations): semantic versions for rules, card like symptoms",
+      "source_issues": [
+        {
+          "number": 2063,
+          "title": "feat(conversations): semantic versions for rules, card like symptoms"
+        }
+      ]
+    },
+    {
+      "number": 2049,
+      "title": "feat(conversations): message templates belong to the platform",
+      "source_issues": [
+        {
+          "number": 2064,
+          "title": "feat(conversations): message templates belong to the platform"
+        }
+      ]
+    },
+    {
+      "number": 2050,
+      "title": "feat(app): Plataforma › Plantillas de mensajes",
+      "source_issues": [
+        {
+          "number": 2065,
+          "title": "feat(app): Plataforma › Plantillas de mensajes"
+        }
+      ]
+    },
+    {
+      "number": 2051,
+      "title": "feat(conversations): WhatsApp templates on Meta belong to the platform",
+      "source_issues": [
+        {
+          "number": 2074,
+          "title": "feat(conversations): WhatsApp templates on Meta belong to the platform"
+        }
+      ]
+    },
+    {
+      "number": 2055,
+      "title": "fix(conversations): Sonar issues left by the rule semver PR",
+      "source_issues": [
+        {
+          "number": 2066,
+          "title": "fix(conversations): Sonar issues left by the rule semver PR"
+        }
+      ]
+    },
+    {
+      "number": 2056,
+      "title": "feat(app): Comunicaciones with a left menu and its channels",
+      "source_issues": [
+        {
+          "number": 2075,
+          "title": "feat(app): Comunicaciones with a left menu and its channels"
+        }
+      ]
+    },
+    {
+      "number": 2057,
+      "title": "refactor(trips): mandate-open and resource checks in services, not triggers",
+      "source_issues": [
+        {
+          "number": 2067,
+          "title": "refactor(trips): mandate-open and resource checks in services, not triggers"
+        }
+      ]
+    },
+    {
+      "number": 2058,
+      "title": "refactor(trips): mandate line and cargo-to-mandate link in code, not triggers",
+      "source_issues": [
+        {
+          "number": 2068,
+          "title": "refactor(trips): mandate line and cargo-to-mandate link in code, not triggers"
+        }
+      ]
+    },
+    {
+      "number": 2059,
+      "title": "refactor(trips): build trip_live in TripLiveProjector, not triggers",
+      "source_issues": [
+        {
+          "number": 2069,
+          "title": "refactor(trips): build trip_live in TripLiveProjector, not triggers"
+        }
+      ]
+    },
+    {
+      "number": 2060,
+      "title": "refactor(trips,fleet): stores write updated_at, drop set_updated_at triggers",
+      "source_issues": [
+        {
+          "number": 2070,
+          "title": "refactor(trips,fleet): stores write updated_at, drop set_updated_at triggers"
+        }
+      ]
+    },
+    {
+      "number": 2061,
+      "title": "feat(conversations): rule WhatsApp sends from the platform account",
+      "source_issues": [
+        {
+          "number": 2076,
+          "title": "feat(conversations): rule WhatsApp sends from the platform account"
+        }
+      ]
+    },
+    {
+      "number": 2062,
+      "title": "feat: the platform as a scope; channel accounts in Comunicaciones",
+      "source_issues": [
+        {
+          "number": 2077,
+          "title": "feat: the platform as a scope; channel accounts in Comunicaciones"
+        }
+      ]
+    },
+    {
+      "number": 2071,
+      "title": "feat(srv): one platform tenant, _platform, for message and symptom templates",
+      "source_issues": [
+        {
+          "number": 2078,
+          "title": "feat(srv): one platform tenant, _platform, for message and symptom templates"
+        }
+      ]
+    },
+    {
+      "number": 2072,
+      "title": "feat(app): template catalogs move into the platform scope",
+      "source_issues": [
+        {
+          "number": 2082,
+          "title": "feat(app): template catalogs move into the platform scope"
+        }
+      ]
+    },
+    {
+      "number": 2073,
+      "title": "feat: organizations choose the platform's WhatsApp and email account or their own",
+      "source_issues": [
+        {
+          "number": 2086,
+          "title": "Organizations choose the platform's WhatsApp and email account or their own"
+        }
+      ]
+    },
+    {
+      "number": 2079,
+      "title": "feat(fleet): find a truck, trailer or driver by plate or document",
+      "source_issues": [
+        {
+          "number": 2100,
+          "title": "feat(fleet): find a truck, trailer or driver by plate or document"
+        }
+      ]
+    },
+    {
+      "number": 2080,
+      "title": "feat(trips): feed profiles and per-service feed state",
+      "source_issues": [
+        {
+          "number": 2102,
+          "title": "feat(trips): feed profiles and per-service feed state"
+        }
+      ]
+    },
+    {
+      "number": 2081,
+      "title": "feat(trips): reconcile a feed service with its desired state",
+      "source_issues": [
+        {
+          "number": 2107,
+          "title": "feat(trips): reconcile a feed service with its desired state"
+        }
+      ]
+    },
+    {
+      "number": 2083,
+      "title": "feat(trips): feed endpoints, batches as async jobs",
+      "source_issues": [
+        {
+          "number": 2108,
+          "title": "feat(trips): feed endpoints, batches as async jobs"
+        }
+      ]
+    },
+    {
+      "number": 2084,
+      "title": "feat(trips): the feeds' clock starts departures and closes trips",
+      "source_issues": [
+        {
+          "number": 2110,
+          "title": "feat(trips): the feeds' clock starts departures and closes trips"
+        }
+      ]
+    },
+    {
+      "number": 2085,
+      "title": "refactor(trips): status values, stage and location types in English",
+      "source_issues": [
+        {
+          "number": 2111,
+          "title": "refactor(trips): status values, stage and location types in English"
+        }
+      ]
+    },
+    {
+      "number": 2088,
+      "title": "chore(docs): remove the trips design notes from the repository",
+      "source_issues": [
+        {
+          "number": 2109,
+          "title": "chore(docs): remove the trips design notes from the repository"
+        }
+      ]
+    },
+    {
+      "number": 2090,
+      "title": "feat(trips): trip monitors authoring API",
+      "source_issues": [
+        {
+          "number": 2112,
+          "title": "feat(trips): trip monitors authoring API"
+        }
+      ]
+    },
+    {
+      "number": 2091,
+      "title": "feat(app): Settings › Viajes with trip monitors",
+      "source_issues": [
+        {
+          "number": 2113,
+          "title": "Settings › Viajes with trip monitors"
+        }
+      ]
+    },
+    {
+      "number": 2092,
+      "title": "fix: owners set the sending account, replies use the conversation's number, review findings",
+      "source_issues": [
+        {
+          "number": 2119,
+          "title": "fix: owners set the sending account, replies use the conversation's number, review findings"
+        }
+      ]
+    },
+    {
+      "number": 2093,
+      "title": "feat(trips): run trip monitors on trips",
+      "source_issues": [
+        {
+          "number": 2115,
+          "title": "feat(trips): run trip monitors on trips"
+        }
+      ]
+    },
+    {
+      "number": 2094,
+      "title": "refactor: the platform scope uses the organization endpoints; organizations read the message templates",
+      "source_issues": [
+        {
+          "number": 2120,
+          "title": "The platform scope uses the organization endpoints; organizations read the message templates"
+        }
+      ]
+    },
+    {
+      "number": 2095,
+      "title": "feat: the Meta webhook enqueues one integration job per event (#2052, part 1)",
+      "source_issues": [
+        {
+          "number": 2121,
+          "title": "feat: the Meta webhook enqueues one integration job per event (#2052, part 1)"
+        }
+      ]
+    },
+    {
+      "number": 2096,
+      "title": "feat(trips): locations point at GPS geofences; the feed names places",
+      "source_issues": [
+        {
+          "number": 2116,
+          "title": "feat(trips): locations point at GPS geofences; the feed names places"
+        }
+      ]
+    },
+    {
+      "number": 2097,
+      "title": "feat(trips): GPS geofence edges become trip signals",
+      "source_issues": [
+        {
+          "number": 2117,
+          "title": "feat(trips): GPS geofence edges become trip signals"
+        }
+      ]
+    },
+    {
+      "number": 2098,
+      "title": "feat(trips): the feed declares the plan; monitors move the trips",
+      "source_issues": [
+        {
+          "number": 2118,
+          "title": "feat(trips): the feed declares the plan; monitors move the trips"
+        }
+      ]
+    },
+    {
+      "number": 2099,
+      "title": "[trips] Departure, arrival and closure confirmed by a person",
+      "source_issues": [
+        {
+          "number": 2122,
+          "title": "[trips] Departure, arrival and closure confirmed by a person"
+        }
+      ]
+    },
+    {
+      "number": 2101,
+      "title": "[trips] The feed confirms milestones, records regularized trips and reports changes to closed ones",
+      "source_issues": [
+        {
+          "number": 2128,
+          "title": "[trips] The feed confirms milestones, records regularized trips and reports changes to closed ones"
+        }
+      ]
+    },
+    {
+      "number": 2103,
+      "title": "[trips] Trips publish alerts and milestones to the communications rules",
+      "source_issues": [
+        {
+          "number": 2129,
+          "title": "[trips] Trips publish alerts and milestones to the communications rules"
+        }
+      ]
+    },
+    {
+      "number": 2104,
+      "title": "[conversational] A reply to a rule's message goes back as an event in its context",
+      "source_issues": [
+        {
+          "number": 2130,
+          "title": "[conversational] A reply to a rule's message goes back as an event in its context"
+        }
+      ]
+    },
+    {
+      "number": 2105,
+      "title": "[trips] A reply to a milestone notice confirms or rejects it",
+      "source_issues": [
+        {
+          "number": 2131,
+          "title": "[trips] A reply to a milestone notice confirms or rejects it"
+        }
+      ]
+    },
+    {
+      "number": 2106,
+      "title": "[trips] Settings › Viajes lists the detections waiting for a person",
+      "source_issues": [
+        {
+          "number": 2132,
+          "title": "[trips] Settings › Viajes lists the detections waiting for a person"
+        }
+      ]
+    },
+    {
+      "number": 2123,
+      "title": "[communications] Rule sheet like a symptom's, with a sticky header and the draft's actions",
+      "source_issues": [
+        {
+          "number": 2137,
+          "title": "[communications] Rule sheet like a symptom's, with a sticky header and the draft's actions"
+        }
+      ]
+    },
+    {
+      "number": 2124,
+      "title": "[communications] Recipients picked from the contact book by a condition; contacts get an email and their company's RUT",
+      "source_issues": [
+        {
+          "number": 2139,
+          "title": "[communications] Recipients picked from the contact book by a condition; contacts get an email and their company's RUT"
+        }
+      ]
+    },
+    {
+      "number": 2125,
+      "title": "[app] Settings filters in the row under the breadcrumb, one page shell, and member name fixes",
+      "source_issues": [
+        {
+          "number": 2140,
+          "title": "[app] Settings filters in the row under the breadcrumb, one page shell, and member name fixes"
+        }
+      ]
+    },
+    {
+      "number": 2126,
+      "title": "[app] Contact cards with the rules that reach them, carriers as companies, Peruvian documents",
+      "source_issues": [
+        {
+          "number": 2141,
+          "title": "[app] Contact cards with the rules that reach them, carriers as companies, Peruvian documents"
+        }
+      ]
+    },
+    {
+      "number": 2133,
+      "title": "[communications] Recipients as named groups and steps as an escalation, both also editable as JSON",
+      "source_issues": [
+        {
+          "number": 2143,
+          "title": "[communications] Recipients as named groups and steps as an escalation, both also editable as JSON"
+        }
+      ]
+    },
+    {
+      "number": 2135,
+      "title": "[trips] The trip milestones migration keeps the version it was applied with",
+      "source_issues": [
+        {
+          "number": 2144,
+          "title": "[trips] The trip milestones migration keeps the version it was applied with"
+        }
+      ]
+    },
+    {
+      "number": 2142,
+      "title": "feat(conversations): rule messages go out as integration jobs, with retries (#2052, part 2)",
+      "source_issues": [
+        {
+          "number": 2145,
+          "title": "feat(conversations): rule messages go out as integration jobs, with retries (#2052, part 2)"
+        }
+      ]
+    },
+    {
+      "number": 2146,
+      "title": "[communications] Each WhatsApp connection has its own webhook URL and keys",
+      "source_issues": [
+        {
+          "number": 2148,
+          "title": "[communications] Each WhatsApp connection has its own webhook URL and keys"
+        }
+      ]
+    },
+    {
+      "number": 2147,
+      "title": "[credentials] The WhatsApp credential edits its App secret and verify token",
+      "source_issues": [
+        {
+          "number": 2150,
+          "title": "[credentials] The WhatsApp credential edits its App secret and verify token"
+        }
+      ]
+    },
+    {
+      "number": 2149,
+      "title": "[integrations] The WhatsApp connection test checks the App secret and reports the webhook keys",
+      "source_issues": [
+        {
+          "number": 2151,
+          "title": "[integrations] The WhatsApp connection test checks the App secret and reports the webhook keys"
+        }
+      ]
+    },
+    {
+      "number": 2152,
+      "title": "[app] The job console in the platform scope",
+      "source_issues": [
+        {
+          "number": 2153,
+          "title": "[app] The job console in the platform scope"
+        }
+      ]
+    },
+    {
+      "number": 2155,
+      "title": "perf(trips): skip closed unchanged feed services from one read",
+      "source_issues": [
+        {
+          "number": 2161,
+          "title": "perf(trips): skip closed unchanged feed services from one read"
+        }
+      ]
+    },
+    {
+      "number": 2156,
+      "title": "feat(trips): a board of trips in lanes and the trip sheet",
+      "source_issues": [
+        {
+          "number": 2163,
+          "title": "feat(trips): a board of trips in lanes and the trip sheet"
+        }
+      ]
+    },
+    {
+      "number": 2157,
+      "title": "feat(app): the trips board in four pages",
+      "source_issues": [
+        {
+          "number": 2164,
+          "title": "feat(app): the trips board in four pages"
+        }
+      ]
+    },
+    {
+      "number": 2158,
+      "title": "feat(app): the trip page",
+      "source_issues": [
+        {
+          "number": 2166,
+          "title": "feat(app): the trip page"
+        }
+      ]
+    },
+    {
+      "number": 2159,
+      "title": "feat(trips): live updates on the trips board",
+      "source_issues": [
+        {
+          "number": 2167,
+          "title": "feat(trips): live updates on the trips board"
+        }
+      ]
+    },
+    {
+      "number": 2160,
+      "title": "feat(trips): the team that confirms each milestone",
+      "source_issues": [
+        {
+          "number": 2170,
+          "title": "The team that confirms each milestone of a trip"
+        }
+      ]
+    },
+    {
+      "number": 2162,
+      "title": "feat(trips): board counts in the menu and BOARD_MODULE",
+      "source_issues": [
+        {
+          "number": 2171,
+          "title": "Board counts in the menu and BOARD_MODULE for trips"
+        }
+      ]
+    },
+    {
+      "number": 2165,
+      "title": "feat(trips): presentation and validation milestones, and dispatch lanes",
+      "source_issues": [
+        {
+          "number": 2173,
+          "title": "feat(trips): presentation and validation milestones, and dispatch lanes"
+        }
+      ]
+    },
+    {
+      "number": 2168,
+      "title": "[core] Content store with fs and gcs drivers",
+      "source_issues": [
+        {
+          "number": 2174,
+          "title": "[core] Content store with fs and gcs drivers"
+        }
+      ]
+    },
+    {
+      "number": 2169,
+      "title": "[trips] Deliveries with POD, a configurable cycle and the trip end",
+      "source_issues": [
+        {
+          "number": 2177,
+          "title": "[trips] Deliveries with POD, a configurable cycle and the trip end"
+        }
+      ]
+    },
+    {
+      "number": 2172,
+      "title": "feat: trip page laid out like the task bento, with multimedia",
+      "source_issues": [
+        {
+          "number": 2180,
+          "title": "Trip page laid out like the task bento, with multimedia"
+        }
+      ]
+    },
+    {
+      "number": 2179,
+      "title": "feat(symptoms): engine trips from trip_live and the trip's symptoms on the trip page",
+      "source_issues": [
+        {
+          "number": 2182,
+          "title": "feat(symptoms): engine trips from trip_live and the trip's symptoms on the trip page"
+        }
+      ]
+    },
+    {
+      "number": 2183,
+      "title": "feat(symptoms): the trip page map reads a trips-module trip's truck positions",
+      "source_issues": [
+        {
+          "number": 2184,
+          "title": "feat(symptoms): the trip page map reads a trips-module trip's truck positions"
+        }
+      ]
+    },
+    {
+      "number": 2185,
+      "title": "feat(app): BOARD_MODULE also switches My tasks, Where is my load and Collaborators",
+      "source_issues": [
+        {
+          "number": 2186,
+          "title": "feat(app): BOARD_MODULE also switches My tasks, Where is my load and Collaborators"
+        }
+      ]
+    },
+    {
+      "number": 2187,
+      "title": "feat(trips): each monitor names the trips it takes",
+      "source_issues": [
+        {
+          "number": 2189,
+          "title": "feat(trips): each monitor names the trips it takes"
+        }
+      ]
+    },
+    {
+      "number": 2188,
+      "title": "feat(trips): manage feeds in Settings and validate monitor scopes",
+      "source_issues": [
+        {
+          "number": 2194,
+          "title": "feat(trips): manage feeds in Settings and validate monitor scopes"
+        }
+      ]
+    },
+    {
+      "number": 2190,
+      "title": "fix(trips): V0.10.22 matches the migration applied on GKE",
+      "source_issues": [
+        {
+          "number": 2193,
+          "title": "fix(trips): V0.10.22 matches the migration applied on GKE"
+        }
+      ]
+    },
+    {
+      "number": 2191,
+      "title": "fix(app): the template list keeps its height while the preview changes",
+      "source_issues": [
+        {
+          "number": 2192,
+          "title": "fix(app): the template list keeps its height while the preview changes"
+        }
+      ]
+    },
+    {
+      "number": 2195,
+      "title": "feat(trips): a feed registers the carriers, vehicles and drivers fleet lacks",
+      "source_issues": [
+        {
+          "number": 2197,
+          "title": "A feed registers the carriers, vehicles and drivers fleet lacks"
+        }
+      ]
+    },
+    {
+      "number": 2198,
+      "title": "feat(integrations): the job console streams job transitions from the modulith",
+      "source_issues": [
+        {
+          "number": 2199,
+          "title": "The job console streams job transitions from the modulith"
+        }
+      ]
+    },
+    {
+      "number": 2200,
+      "title": "fix(symptoms): treat engine cases through the Control Tower API and show their treatments",
+      "source_issues": [
+        {
+          "number": 2201,
+          "title": "fix(symptoms): treat engine cases through the Control Tower API and show their treatments"
+        }
+      ]
+    },
+    {
+      "number": 2202,
+      "title": "feat(app): DASHBOARD_MODULE keeps only the legacy or the server dashboards",
+      "source_issues": [
+        {
+          "number": 2203,
+          "title": "DASHBOARD_MODULE keeps only the legacy or the server dashboards"
+        }
+      ]
+    },
+    {
+      "number": 2204,
+      "title": "feat(app): server dashboards use the Home landing and create by name",
+      "source_issues": [
+        {
+          "number": 2205,
+          "title": "feat(app): server dashboards use the Home landing and create by name"
+        }
+      ]
+    },
+    {
+      "number": 2206,
+      "title": "feat(app): load the Google service account JSON key, and default to the BigQuery scope",
+      "source_issues": [
+        {
+          "number": 2213,
+          "title": "feat(app): load the Google service account JSON key, and default to the BigQuery scope"
+        }
+      ]
+    },
+    {
+      "number": 2207,
+      "title": "feat(app): BigQuery connections and their dashboard queries",
+      "source_issues": [
+        {
+          "number": 2214,
+          "title": "feat(app): BigQuery connections and their dashboard queries"
+        }
+      ]
+    },
+    {
+      "number": 2208,
+      "title": "feat: test a connection before saving it, with a real BigQuery check",
+      "source_issues": [
+        {
+          "number": 2215,
+          "title": "feat: test a connection before saving it, with a real BigQuery check"
+        }
+      ]
+    },
+    {
+      "number": 2209,
+      "title": "[app] SQL highlighting in BigQuery queries",
+      "source_issues": [
+        {
+          "number": 2216,
+          "title": "[app] SQL highlighting in BigQuery queries"
+        }
+      ]
+    },
+    {
+      "number": 2210,
+      "title": "feat(dashboards): write, test and save SQL queries in the dashboard library",
+      "source_issues": [
+        {
+          "number": 2218,
+          "title": "Write, test and save SQL queries in the dashboard library"
+        }
+      ]
+    },
+    {
+      "number": 2211,
+      "title": "feat(integrations): query authoring endpoints and proxy for the dashboard server",
+      "source_issues": [
+        {
+          "number": 2219,
+          "title": "Query authoring endpoints and proxy for the dashboard server"
+        }
+      ]
+    },
+    {
+      "number": 2212,
+      "title": "[app] BigQuery query editor in Settings › Conexiones",
+      "source_issues": [
+        {
+          "number": 2220,
+          "title": "[app] BigQuery query editor in Settings › Conexiones"
+        }
+      ]
+    },
+    {
+      "number": 2222,
+      "title": "[integrations] A Google service account per organization",
+      "source_issues": [
+        {
+          "number": 2229,
+          "title": "[integrations] A Google service account per organization"
+        }
+      ]
+    },
+    {
+      "number": 2223,
+      "title": "feat(trips): resolve location points without provider (geocoding stage 1)",
+      "source_issues": [
+        {
+          "number": 2261,
+          "title": "Trips: Resolve location points without provider (geocoding stage 1)"
+        }
+      ]
+    },
+    {
+      "number": 2224,
+      "title": "feat(trips): geocoding provider adapter, cache and usage (stage 2)",
+      "source_issues": [
+        {
+          "number": 2231,
+          "title": "feat(trips): geocoding provider adapter, cache and usage (stage 2)"
+        }
+      ]
+    },
+    {
+      "number": 2225,
+      "title": "feat(trips): geocoding quota, plan gate and metrics (stage 3)",
+      "source_issues": [
+        {
+          "number": 2263,
+          "title": "Trips: Geocoding quota, plan gate and metrics (stage 3)"
+        }
+      ]
+    },
+    {
+      "number": 2226,
+      "title": "feat(app): geocoding review queue, provider connection and usage",
+      "source_issues": [
+        {
+          "number": 2232,
+          "title": "feat(app): geocoding review queue, provider connection and usage"
+        }
+      ]
+    },
+    {
+      "number": 2228,
+      "title": "ci: publish stack artifacts and neutral availability notifications",
+      "source_issues": [
+        {
+          "number": 2260,
+          "title": "ci: publish stack artifacts and neutral availability notifications"
+        }
+      ]
+    },
+    {
+      "number": 2233,
+      "title": "docs(dashboards): plan for the didactic rewrite",
+      "source_issues": [
+        {
+          "number": 2257,
+          "title": "docs(dashboards): plan for the didactic rewrite"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".github/scripts/notify-stack.sh",
+    ".github/scripts/resolve-nightly-image.sh",
+    ".github/scripts/resolve-trunk-builds.js",
+    ".github/tests/resolve-trunk-builds.test.js",
+    ".github/tests/test-stack-workflow.py",
+    ".github/workflows/app-nightly.yml",
+    ".github/workflows/app-release-train.yml",
+    ".github/workflows/quarkus.yml",
+    ".github/workflows/validate-stack-workflows.yml",
+    "README.md",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/miot-search/SKILL.md",
+    "quarkus-srv/.env.sample",
+    "quarkus-srv/.gitignore",
+    "quarkus-srv/README.md",
+    "quarkus-srv/docs/fms-viajes/README.md",
+    "quarkus-srv/docs/fms-viajes/api.md",
+    "quarkus-srv/docs/fms-viajes/modelo.md",
+    "quarkus-srv/docs/fms-viajes/objetos.md",
+    "quarkus-srv/docs/fms-viajes/paso-a-prod.md",
+    "quarkus-srv/miot-cli/pom.xml",
+    "quarkus-srv/miot-cli/src/main/java/com/microboxlabs/miot/cli/FlywayMigrator.java",
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-content-gcs/pom.xml",
+    "quarkus-srv/miot-content-gcs/src/main/java/com/microboxlabs/miot/content/gcs/GcsContentDriver.java",
+    "quarkus-srv/miot-content-gcs/src/test/java/com/microboxlabs/miot/content/gcs/GcsContentDriverTest.java",
+    "quarkus-srv/miot-conversational/pom.xml",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/access/ConversationsAccessCatalog.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/accounts/ChannelAccountStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/accounts/ChannelAccountsService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/accounts/ChannelMode.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/accounts/PgChannelAccountStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/OrgContactReachResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/OrgConversationsResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/OrgRuleFamiliesResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/PlatformMessageTemplatesResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/PlatformWhatsAppTemplatesResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/WhatsAppWebhookResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/domain/Channel.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/domain/ContextKind.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/domain/MessageStatus.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/dto/SendWhatsAppMessageRequest.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/events/ConversationEventCatalog.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/events/ConversationReplyData.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/events/ConversationReplyReceived.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/events/ReplyEvents.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/EmailSendJob.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/RuleSendQueue.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/SendJobsOnPark.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/SendOutcome.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/WhatsAppInboundMessageJob.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/WhatsAppInboundStatusJob.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/WhatsAppSendJob.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/WhatsAppWebhookJobs.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/persistence/ConversationRepository.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/persistence/MessageRepository.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/Audiences.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/ConnectionChannel.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/ConnectionChannels.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/ContactReach.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/ConvTemplate.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/EventCatalog.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/EventCondition.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/Invocation.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/Rule.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleBump.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleFamilies.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleInvocations.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleSimulator.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleSpec.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleSpecValidator.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleVersion.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RulesEngine.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RulesService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/Run.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RunsService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/SendJobs.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/SendQueue.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/StepMessages.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/StoredEvent.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/TemplateBump.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/TemplateVariables.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/TemplatesService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/Pg.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/PgRuleStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/PgRunStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/PgTemplateStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/RuleStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/RunStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/TemplateStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/ConnectionMessagingService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/ContextMessage.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/EmailMessagingService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/InboundRoute.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/MetaWebhookParser.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/PlatformInboundRouter.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/QueuedMessageId.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/SendFailure.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/WhatsAppInboundService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/WhatsAppMessagingService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/WhatsAppTemplatesService.java",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.10.1__rule_semantic_versions.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.10.2__platform_message_templates.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.0__connection_channel_messages.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.1__whatsapp_outbound_by_address.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.2__platform_tenant.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.3__channel_accounts.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.4__trip_conversations.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.5__run_invocations.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.7.2__connection_channel_messages.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.7.3__whatsapp_outbound_by_address.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.9.8__conversation_rules.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/selectables/defaults/rule-families.json",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/accounts/ChannelAccountsServiceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/accounts/InMemoryChannelAccounts.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/api/OrgConversationsResourceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/api/OrgWhatsAppTemplatesTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/api/PlatformWhatsAppTemplatesResourceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/api/WhatsAppWebhookResourceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/domain/ChannelTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/jobs/JobFailureNotificationHandlerTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/jobs/WhatsAppWebhookJobsTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/persistence/ConversationalSqlIntegrityTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/ConnectionChannelsTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/ConnectionStepTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/ContactAudienceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/ContactReachTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/EventCatalogTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/InMemoryIntegrations.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/InMemoryRules.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/PlatformTemplatesTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/ReplyEventsTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RuleBumpTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RuleInvocationsTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RuleSendJobsTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RuleSpecTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RuleSpecValidatorTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RulesEngineTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RulesFixture.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RulesFixtureAccess.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RunsServiceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/TemplateVariablesTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/store/PgRuleStoresTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/EmailMessagingServiceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/InMemoryConversations.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/PlatformInboundRoutingTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/RecordingReplyEvent.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppInboundAttachmentTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppInboundServiceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppRuleSendTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppSendConversationTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppTemplatesServiceTest.java",
+    "quarkus-srv/miot-core/docs/organization-access.md",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/alfresco/IAlfrescoDirectoryClient.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/alfresco/RealAlfrescoDirectoryClient.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/alfresco/StubAlfrescoDirectoryClient.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/alfresco/auth/OAuthBearerAuthProvider.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/alfresco/client/AlfrescoAuthClientFilter.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardProxyResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardProxySupport.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardQuerySourceClient.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardQuerySourceProxyResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/MeResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgAccessResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgAdminResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgMembersResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgPermissionsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgResourceSupport.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/PlatformGroupRolesResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/PlatformMemberDomainsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/PlatformOrganizationsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/PlatformTokenRolesResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/AddMemberRequest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/CreateOrganizationRequest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/CreateRootOrganizationRequest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/OrganizationPermissionDto.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/SetOrganizationPermissionRequest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationAccess.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationContext.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationMembership.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationRequestFilter.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/PlatformAuthorizer.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/PlatformScope.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/content/Content.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/content/ContentCleanup.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/content/ContentDriver.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/content/ContentService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/content/ContentStore.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/content/FileContentDriver.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/content/PgContentStore.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/db/PgNotificationListener.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/db/PgTx.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/event/ContactDirectory.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/event/EventTypeCatalog.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/event/Participant.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/event/ParticipantResolver.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/fleet/FleetResources.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/fleet/NoFleetResources.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/geocoding/AllowAllGeocodingGate.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/geocoding/GeocodingGate.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/gps/GpsDatabase.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/Access.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AccessEvaluator.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AccessRules.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AlfrescoBridge.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/CoordinatorAccessCatalog.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/DomainMembership.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/GroupRoles.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/IamDirectory.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/NativeMembershipMigration.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/NativeMembershipReadiness.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/ProjectionQueue.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/RoleProjection.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/TeamDeletionGuard.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/TeamService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/TeamsService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/TokenRoles.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamGroupRole.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamMemberDomain.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamMembership.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamProjectionChange.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamRoleBinding.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamTokenRole.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/model/Organization.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/model/OrganizationModule.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/model/OrganizationPermissionSetting.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/OrganizationPermissionService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/OrganizationRoleService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/MemberSource.java",
+    "quarkus-srv/miot-core/src/main/resources/application.properties",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.17__create_iam_group_role.sql",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.18__create_iam_token_role.sql",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.19__create_iam_member_domain.sql",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.20__create_content.sql",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/alfresco/AllGroupMembersTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/DashboardDataSourceProxyResourceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/DashboardProxyAssertionTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/DashboardProxyResourceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/DashboardRoleMappingTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceApprovalTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceGetTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceKnowledgeGateTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceLearningTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceListRunsTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceModelsTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourcePlanGateTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourcePostTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceSkillsTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceStreamTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceTrainerFlagTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/MeResourceOwnerScopesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/MeScopesQueryCountTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/OrgAccessPlatformTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/ReservedSlugTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/AuthTestInfrastructureTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/PlatformAuthorizerTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/PlatformScopeFilterTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/PlatformTestProfile.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/TestMembers.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/TestTokenFactory.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/content/ContentCleanupTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/content/ContentServiceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/db/PgNotificationListenerTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/AccessRulesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/AlfrescoBridgeMemberGroupTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/AlfrescoBridgeTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/CoordinatorAccessCatalogTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/DomainMembershipTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/GroupRolesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/IamAccessTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/NativeMembershipMigrationTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/ProjectionQueueTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/RoleProjectionTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/TeamApiTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/TeamRulesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/TokenRolesFlowTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/TokenRolesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/mcp/McpSelectablesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/OrganizationPermissionServiceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/OrganizationRoleServiceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/GeneralSelectablesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/MemberSourceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/OrgSelectablesResourceTest.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/api/PlatformDataSharingResource.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/directory/FleetConfig.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/directory/FleetDirectoryProducer.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/resources/service/FleetResourcesService.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/resources/service/ResourceService.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/resources/store/PgAccreditationStore.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/resources/store/PgResourceStore.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/resources/store/ResourceStore.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/ClientMap.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/ClientMapStore.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/ClientMapSync.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/DataShare.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/DemoSharingSource.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/GpsSharingSource.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/InMemoryShareStore.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/PgClientMapStore.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/PgShareStore.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/ShareFilter.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/ShareStore.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/SharingAsset.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/SharingOrg.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/SharingProducer.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/SharingService.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/SharingSource.java",
+    "quarkus-srv/miot-fleet/src/main/resources/db/migration/fleet/V0.9.10__updated_at_in_stores.sql",
+    "quarkus-srv/miot-fleet/src/main/resources/db/migration/fleet/V0.9.1__create_data_shares.sql",
+    "quarkus-srv/miot-fleet/src/test/java/com/microboxlabs/miot/fleet/access/FleetPermissionsTest.java",
+    "quarkus-srv/miot-fleet/src/test/java/com/microboxlabs/miot/fleet/directory/AddressTest.java",
+    "quarkus-srv/miot-fleet/src/test/java/com/microboxlabs/miot/fleet/resources/service/FleetResourcesServiceTest.java",
+    "quarkus-srv/miot-fleet/src/test/java/com/microboxlabs/miot/fleet/sharing/ClientMapTest.java",
+    "quarkus-srv/miot-fleet/src/test/java/com/microboxlabs/miot/fleet/sharing/PgShareStoreTest.java",
+    "quarkus-srv/miot-fleet/src/test/java/com/microboxlabs/miot/fleet/sharing/SharingServiceTest.java",
+    "quarkus-srv/miot-integrations/docs/calendar-sync-modulith-worker.md",
+    "quarkus-srv/miot-integrations/docs/email-channel.md",
+    "quarkus-srv/miot-integrations/pom.xml",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/IntegrationsComponent.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/DashboardAuthoringResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/DashboardOperationsIngress.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/Months.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgAsyncJobsConsoleResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgAsyncJobsResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgGeocodingPlanResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgIntegrationConnectionsResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/PlatformGeocodingPlanResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/PlatformGeocodingResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/PlatformMailResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/PlatformOrgGeocodingConnectionResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/PlatformOrgServiceAccountResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/PlatformWhatsAppResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/auth/google/GoogleServiceAccountAuthProvider.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/auth/google/GoogleServiceAccountConfigs.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/IntegrationConnection.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/ProviderType.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/CredentialUsageResponse.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/GeocodingPlanDtos.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/UpdateIntegrationConnectionRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/email/PlatformMailService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/email/ResendClient.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/email/ResendEmailSender.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/email/SendResult.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/events/JobEventBus.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/events/JobEventEmitter.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/Geocoder.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingConnection.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingEventCatalog.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingEvents.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingHttp.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingMetrics.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingProvider.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingQuotaData.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GoogleGeocoding.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/ManagedGeocodingConnections.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/MapboxCredentialTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/MapboxGeocoding.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/PlatformGeocodingService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/InternalJobTypes.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/ModulithJobHandler.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/ModulithJobWorker.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/orgaccount/GoogleCallException.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/orgaccount/GoogleCalls.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/orgaccount/GoogleIamClient.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/orgaccount/ManagedGoogleIdentity.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/orgaccount/ManagedGoogleIdentityUnavailableException.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/orgaccount/OrgServiceAccount.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/orgaccount/OrgServiceAccountRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/orgaccount/OrgServiceAccountService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/orgaccount/PlatformGoogleToken.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/AsyncJobRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/CredentialProfileRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/GeocodeUsageRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/GeocodingPlanRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/IntegrationConnectionRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/IntegrationOperationRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/ManagedProvisioningTransaction.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/retransmit/StreamhubGpsClient.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/AsyncJobService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/BigQueryProbe.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/ConnectionNotConfiguredException.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/CredentialAuthResolver.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/CredentialProfileService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/DashboardAuthoringService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/GeocodeUsageService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/GeocodingPlanService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/IntegrationConnectionResolver.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/IntegrationConnectionService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/ManagedBigQueryConnections.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/ManagedConnectionLock.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/ManagedCredentials.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/PlatformOnlyProviderException.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/PostgrestCatalog.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/QuotaGeocodingGate.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/WhatsAppWebhookKeys.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/BigQueryConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/ConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/ConnectionTesterRegistry.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/CredentialTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/CredentialTesterRegistry.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/GenericConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/PostgrestConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/WhatsAppConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/whatsapp/PlatformWhatsAppService.java",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.28__tag_platform_resend_credential.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.29__async_jobs_enqueued_by_webhook.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.30__validate_async_jobs_enqueued_by.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.31__org_service_accounts.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.32__add_geocoding_provider_type.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.33__create_geocode_usage.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.34__create_geocoding_plan.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.35__geocoding_plan_enforced.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.36__geocoding_billing_history.sql",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/DashboardAuthoringResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/OrgHarnessLearningGateTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/OrgKnowledgeCandidatesResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/PlatformOrgGeocodingConnectionResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/PlatformOrgServiceAccountResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/auth/google/GoogleServiceAccountStrategyTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/events/JobEventBusTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/events/JobEventEmitterTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/events/PgJobEventBusTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/events/PgJobEventEmitterTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/geocoding/GeocoderTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/geocoding/GeocodingConnectionTesterTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/geocoding/ManagedGeocodingConnectionsTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/geocoding/MapboxCredentialTesterTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/geocoding/PlatformGeocodingServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/jobs/ModulithJobWorkerTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/mcp/ConnectionToolsTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/orgaccount/GoogleIamClientTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/orgaccount/ManagedGoogleIdentityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/orgaccount/OrgServiceAccountServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/orgaccount/PgOrgServiceAccountRepositoryTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/orgaccount/PlatformGoogleTokenTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/PgGeocodingBillingHistoryTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/retransmit/StreamhubGpsClientTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/ConnectionTestRecordsCredentialTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/CredentialProfileServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/DashboardAuthoringServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/DraftConnectionTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/GeocodeUsageServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/GeocodingPlanServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/IntegrationConnectionManagementTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/ManagedBigQueryConnectionsTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/PgManagedConnectionLockTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/TestManagedConnectionLock.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/tester/BigQueryConnectionTesterTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/tester/PostgrestConnectionTesterTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/tester/WhatsAppConnectionTesterTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/whatsapp/PlatformWhatsAppServiceTest.java",
+    "quarkus-srv/miot-symptoms/README.md",
+    "quarkus-srv/miot-symptoms/docs/control-tower-api.md",
+    "quarkus-srv/miot-symptoms/docs/evaluator.md",
+    "quarkus-srv/miot-symptoms/docs/gps-signal.md",
+    "quarkus-srv/miot-symptoms/pom.xml",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/SymptomsComponent.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgContactCompaniesResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerContactsResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgSymptomDefinitionsResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/PlatformSymptomTemplatesResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCase.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCaseService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCaseStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/cel/EqualityLiterals.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleIssue.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleLanguage.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleMessage.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleMessages.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleSchema.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleText.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/domain/SourceField.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/domain/SymptomDefinition.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/domain/SymptomSpec.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/domain/SymptomTemplate.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/mcp/SymptomTools.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/ConditionChecks.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/DataSourceService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/EngineRuleTranslator.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/PreviewService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/RuleDescriptionService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SpecValidator.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SymptomCatalogService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SymptomStatsService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/TemplateService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/store/PgSymptomCatalogStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/domain/Contact.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/domain/ContactChannels.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/domain/ContactFacets.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/domain/ContactFilter.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/dto/ContactPage.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/dto/ContactRequest.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/dto/ContactView.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/engine/DemoSymptomEngine.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/engine/EngineCase.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/engine/GpsSymptomEngine.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/engine/LevelCount.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/engine/SymptomEngine.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/engine/SymptomEngineProducer.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/engine/UnavailableSymptomEngine.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorRedis.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorStream.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/SignalEvaluator.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/events/BookContacts.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/events/SymptomEventCatalog.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/events/SymptomParticipants.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/ControlTowerTreatmentService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/PgTreatmentReads.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/TreatmentReads.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/TripWindows.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/process/StreamhubSymptomsGpsClient.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/ContactService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/GpsSignal.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/ReferenceCache.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/SignalBuilder.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/SignalFields.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/SignalSamples.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/SignalStream.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/TripNoticeReader.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/ContactStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/DuplicateMemberException.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/InMemoryContactStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgContactStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgEngineCases.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgSlaStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/TreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.0__platform_tenant.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.1__contact_company_rut.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.2__contact_company_tax_id_type.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.3__contact_member_unique.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.9.2__rule_vocabulary_en.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.9.3__platform_symptom_templates.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.9.4__signal_without_gps_part.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.9.5__panic_rule_optional_read.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/symptoms/gps-signal-labels.properties",
+    "quarkus-srv/miot-symptoms/src/main/resources/symptoms/gps-signal-samples.json",
+    "quarkus-srv/miot-symptoms/src/main/resources/symptoms/platform-templates.json",
+    "quarkus-srv/miot-symptoms/src/main/resources/symptoms/rule-messages.properties",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/access/ControlTowerPermissionsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgSymptomDefinitionsResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/EngineCaseServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/InMemoryEngineCases.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/SlaTimerTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleLanguageTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleMessageTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/mcp/SymptomToolsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/ConditionChecksTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/EngineImportTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/EngineRulesSampleTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/RuleDescriptionServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SeedTemplates.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SourcesAndPreviewTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SpecFieldsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SpecRulesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/Specs.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SymptomCatalogServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SymptomStatsServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/TemplateServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/store/PgCatalogStoresTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/engine/SymptomEngineTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorCatalogTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorStreamTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/SignalEvaluatorTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/ContinuousDrivingCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/EvalTraces.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/LostSignalCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/NightStopCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/NightStopRuleCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/OffHoursCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/PanicButtonRuleCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/SpeedCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/SpeedCustomCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/SpeedCustomRuleCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/SpeedRuleCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/ZoneAndHourRuleCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/events/SymptomParticipantsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/ControlTowerTreatmentServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/PgTreatmentReadsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/PgTripWindowsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/TripWindowsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/process/StreamhubSymptomsGpsClientTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/service/ContactServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/SignalBuilderTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/SignalFieldsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/SignalSamplesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/TripNoticeReaderTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgSlaStoreTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgTreatmentStoresTest.java",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/continuous-driving/production-rule.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/lost-signal/production-rule.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/night-risk-stay/production-rule.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/night-risk-stay/production-traces.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/night-stop-unauthorized/production-rule.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/night-stop-unauthorized/production-traces.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/off-hours-driving/production-rule.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/off-hours-driving/production-traces.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/risk-zone-stop/production-rule.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/risk-zone-stop/production-traces.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/speed-custom/production-rule.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/speed-custom/production-traces.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/speed/production-rule.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/speed/production-traces.json",
+    "quarkus-srv/miot-trips/pom.xml",
+    "quarkus-srv/miot-trips/scripts/build_boundaries.py",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/access/TripsAccessCatalog.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgCargoResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgFeedsResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgLocationsResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgMandatesResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgMonitorSelectorResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgMonitorsResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgStagesResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgTripDeliveriesResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgTripDocumentsResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgTripMilestonesResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgTripMonitorResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgTripsBoardResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgTripsResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/BoardRow.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/CargoUnit.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/Delivery.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/DeliveryCycle.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/FeedProfile.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/FeedService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/Location.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/Mandate.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/MonitorRun.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/MonitorScope.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/MonitorSelector.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/PendingMilestone.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/Stage.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/StageActivity.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/Trip.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/TripDocument.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/TripLiveProjection.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/TripMilestone.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/TripMonitor.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/BoardView.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/DeliveryViews.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/FeedBatchRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/FeedBatchResult.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/FeedProfileRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/FeedProfileView.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/FeedResult.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/FeedServiceRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/FeedServiceView.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/LocationGeofenceRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/LocationPointRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/LocationRejectRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/LocationResolveRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/LocationResolveResult.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/LocationView.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/MonitorRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/MonitorViews.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/ReceiveRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/TripRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/TripSheet.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/events/MilestoneReplies.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/events/TripEventCatalog.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/events/TripEventData.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/events/TripEvents.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/geo/Addresses.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/geo/AdminBoundaries.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/geo/GeoShape.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/geo/GeofenceEdges.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/monitor/MonitorLanguage.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/monitor/MonitorSchema.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/AssignmentService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/AsyncJobsFeedQueue.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/AuditService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/BoardEvents.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/BoardService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/CargoService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/ConfirmerService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/DeliveryReach.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/DeliveryService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/FeedBatchService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/FeedClock.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/FeedJobQueue.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/FeedProfileService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/FeedReconciler.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/FeedServiceJobHandler.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/FeedSites.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/GeofenceSignals.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/LocationResolutionService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/LocationResolver.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/LocationService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/MandateService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/MilestoneService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/MonitorClock.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/MonitorContext.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/MonitorEngine.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/MonitorService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/StageService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/TripBoard.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/TripCargoService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/TripChanges.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/TripDocumentLists.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/TripDocumentService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/TripLiveProjector.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/TripService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/TripsTeamDeletionGuard.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/BoardChannel.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/BoardStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/CargoStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/ConfirmerStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/DeliveryStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/FeedStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/GeocodeCache.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/GeofenceDirectory.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/GpsGeofenceDirectory.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/GpsOpenAddresses.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/InternalAddresses.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/LocationStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/MandateStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/MilestoneStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/MonitorRunStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/MonitorStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgAssignmentStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgAuditStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgBoardStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgCargoStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgConfirmerStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgDeliveryStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgFeedStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgGeocodeCache.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgLocationStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgMandateStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgMilestoneStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgMonitorRunStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgMonitorStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgStageStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgTripCargoStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgTripDocumentStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgTripLiveStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgTripStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/StageStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/TripCargoStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/TripDocumentStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/TripLiveChannel.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/TripLiveStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/TripStore.java",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.10__create_monitors.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.11__monitors_on_trips.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.12__location_geofences.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.13__feeds_plan_only.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.14__trip_milestones.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.15__backfill_english_projections.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.16__trip_milestones.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.17__feed_applied_desired.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.18__milestone_confirmers.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.19__presentation_validation_milestones.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.20__create_deliveries.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.21__create_trip_documents.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.22__monitor_scope.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.23__validate_monitor_scopes.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.24__feed_registers_resources.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.25__location_resolution.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.26__geocode_cache.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.4__checks_in_services.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.5__side_effects_in_services.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.6__trip_live_in_services.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.7__updated_at_in_stores.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.8__create_feeds.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.9__values_in_english.sql",
+    "quarkus-srv/miot-trips/src/main/resources/geo/LICENSE-MPL-2.0.txt",
+    "quarkus-srv/miot-trips/src/main/resources/geo/NOTICE.md",
+    "quarkus-srv/miot-trips/src/main/resources/geo/README.md",
+    "quarkus-srv/miot-trips/src/main/resources/geo/communes-cl.json.gz",
+    "quarkus-srv/miot-trips/src/main/resources/geo/districts-pe.json.gz",
+    "quarkus-srv/miot-trips/src/main/resources/selectables/defaults/trip-documents.json",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/core/gps/TestGpsDatabase.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/access/OrgLocationsResourceTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/access/OrgTripDocumentsResourceTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/access/TripsPermissionsTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/domain/MonitorScopeTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/geo/AddressesTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/geo/AdminBoundariesDataTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/geo/GeoShapeCenterTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/geo/GeofenceEdgesTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/monitor/MonitorLanguageTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/AsyncJobsFeedQueueTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/BoardEventsTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/CargoServiceTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/DeliveryCycleTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/FeedReconcilerTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/FeedSitesTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/LocationGeocodingTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/LocationResolverTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/MandateServiceTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/MonitorContextTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/MonitorServiceTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/StubGeocoding.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/TripBoardTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/TripFlowTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/FakeAddresses.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/FakeGeofences.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/InMemoryFleet.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/InMemoryFleetTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/InMemoryGeocodeCache.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/InMemoryTripsWorld.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgDeliveriesTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgFeedReconcilerTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgFeedSimulationTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgGeofenceSignalsTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgGpsGeofenceDirectoryTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgMonitorEngineTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgMonitorScopeMigrationTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgMonitorScopeValidationMigrationTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgMonitorServiceTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgTransactionsTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgTripDocumentsTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgTripsStoresTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgValuesInEnglishMigrationTest.java",
+    "quarkus-srv/pom.xml",
+    "quarkus-srv/scripts/simulate-meta-inbound.sh",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/public/credential-logos/bigquery-dark.svg",
+    "turbo-repo/apps/app/public/credential-logos/bigquery-light.svg",
+    "turbo-repo/apps/app/public/credential-logos/bigquery.svg",
+    "turbo-repo/apps/app/public/credential-logos/geocoding-dark.svg",
+    "turbo-repo/apps/app/public/credential-logos/geocoding-light.svg",
+    "turbo-repo/apps/app/public/credential-logos/google-maps-dark.svg",
+    "turbo-repo/apps/app/public/credential-logos/google-maps-light.svg",
+    "turbo-repo/apps/app/public/credential-logos/mapbox-dark.svg",
+    "turbo-repo/apps/app/public/credential-logos/mapbox-light.svg",
+    "turbo-repo/apps/app/public/credential-logos/postgrest-dark.svg",
+    "turbo-repo/apps/app/public/credential-logos/postgrest-light.svg",
+    "turbo-repo/apps/app/public/credential-logos/postgrest.svg",
+    "turbo-repo/apps/app/public/credential-logos/resend-dark.svg",
+    "turbo-repo/apps/app/public/credential-logos/resend-light.svg",
+    "turbo-repo/apps/app/scripts/build-search-index.mjs",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/admin/console/logs/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/admin/console/message-templates/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/calendar/[calendarId]/planning/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/calendar/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/calendar/planning/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/collaborators-management/[codDriver]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/collaborators-management/layout.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/collaborators-management/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/dashboards/[slug]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/dashboards/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/delivery/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/finished/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/fleet/[assetId]/edit/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/fleet/[assetId]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/fleet/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/geographic-view/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/home/[slug]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/home/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/integrations/jobs/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/layout.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/live-streams/devices/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/live-streams/facility-scl/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/live-streams/truck-beds/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/mytasks/layout.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/mytasks/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/no-access/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/planning/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/shipping/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/shippingv1/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/start/page.test.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/start/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/storytelling/[id]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/storytelling/[id]/versions/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/storytelling/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/symptoms/map-view/[id]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/symptoms/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/task/edit/[taskId]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/task/layout.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/trips/[tripId]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/trips/delivery/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/trips/dispatch/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/trips/finished/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/trips/layout.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/trips/planning/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/communications/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/communications/rules/[id]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/communications/templates/[key]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/connections/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/contact-book/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/credentials/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/data-sources/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/geocoding/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/gps/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/harness/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/organizations/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/platform/message-templates/[key]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/platform/message-templates/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/platform/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/platform/symptom-templates/[id]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/platform/symptom-templates/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/selectables/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/symptoms/[id]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/symptoms/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/invitation-email/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/invite/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/members/[userId]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/service-accounts/[accountId]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/service-accounts/new/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/teams/[teamId]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/trips/monitors/[key]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/trips/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/whatsapp/conversations/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/where-is-my-load/layout.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/where-is-my-load/page.tsx",
+    "turbo-repo/apps/app/src/app/api/access/mismatch/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/logs/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/message-templates/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/geocoding-plan/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/connections/[connId]/operations/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/connections/[connId]/operations/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/connections/test/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/connections/test/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/jobs/events/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/jobs/events/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/members/[personId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/members/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/permissions/[permissionCode]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/roles/[roleCode]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/data-sharing/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/data-sharing/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/geocoding-plan/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/geocoding-plan/usage/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/geocoding-provider/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/geocoding-provider/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/mail/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/mail/test/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/message-templates/[[...path]]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/message-templates/[[...path]]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/alfresco-group-roles/[groupId]/[roleKey]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/alfresco-group-roles/import/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/alfresco-group-roles/reconcile/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/alfresco-group-roles/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/alfresco-import/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/geocoding-connection/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/geocoding-connection/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/platform-org-path.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/service-account/[action]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/service-account/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/token-roles/[externalId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/token-roles/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/symptom-templates/[[...path]]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/symptom-templates/[[...path]]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/whatsapp-templates/[[...path]]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/webhooks/route.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/[bookingId]/move/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/[bookingId]/move/route.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/[bookingId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/route.ts",
+    "turbo-repo/apps/app/src/app/api/control-tower/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/control-tower/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/conversations/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/conversations/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/map/historic-pulses/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/historic-pulses/route.ts",
+    "turbo-repo/apps/app/src/app/api/map/trip/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/trip/route.ts",
+    "turbo-repo/apps/app/src/app/api/query-sources/[[...path]]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/query-sources/[[...path]]/route.ts",
+    "turbo-repo/apps/app/src/app/api/runtime-config/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.types.ts",
+    "turbo-repo/apps/app/src/app/api/task/unclaim/route.ts",
+    "turbo-repo/apps/app/src/app/api/team/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/team/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/location/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/location/route.ts",
+    "turbo-repo/apps/app/src/app/api/trips/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/trips/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/trips/board/events/route.ts",
+    "turbo-repo/apps/app/src/app/api/trips/documents/content/route.ts",
+    "turbo-repo/apps/app/src/app/api/trips/documents/upload/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/trips/documents/upload/route.ts",
+    "turbo-repo/apps/app/src/app/api/trips/proofs/content/route.ts",
+    "turbo-repo/apps/app/src/app/api/trips/proofs/upload/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/trips/proofs/upload/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/alfresco-crud-client.ts",
+    "turbo-repo/apps/app/src/app/api/utils/control-tower-map.ts",
+    "turbo-repo/apps/app/src/app/api/utils/organization-owner.ts",
+    "turbo-repo/apps/app/src/app/api/utils/platform-api-proxy.ts",
+    "turbo-repo/apps/app/src/app/api/utils/quarkus-proxy.ts",
+    "turbo-repo/apps/app/src/app/api/utils/streamhub-modulith-proxy.test.ts",
+    "turbo-repo/apps/app/src/app/api/utils/streamhub-modulith-proxy.ts",
+    "turbo-repo/apps/app/src/app/not-found.tsx",
+    "turbo-repo/apps/app/src/features/auth/README.md",
+    "turbo-repo/apps/app/src/features/auth/access/access-control.test.ts",
+    "turbo-repo/apps/app/src/features/auth/access/access-control.ts",
+    "turbo-repo/apps/app/src/features/auth/access/access-rules.test.ts",
+    "turbo-repo/apps/app/src/features/auth/access/access-rules.ts",
+    "turbo-repo/apps/app/src/features/auth/access/landing.test.ts",
+    "turbo-repo/apps/app/src/features/auth/access/landing.ts",
+    "turbo-repo/apps/app/src/features/auth/access/report-mismatch.ts",
+    "turbo-repo/apps/app/src/features/auth/access/server-access.test.ts",
+    "turbo-repo/apps/app/src/features/auth/access/server-access.ts",
+    "turbo-repo/apps/app/src/features/auth/components/access-allowed.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/route-guard.tsx",
+    "turbo-repo/apps/app/src/features/auth/config/route-permissions.ts",
+    "turbo-repo/apps/app/src/features/auth/context/auth-context.tsx",
+    "turbo-repo/apps/app/src/features/auth/hooks/use-permissions.test.ts",
+    "turbo-repo/apps/app/src/features/auth/hooks/use-permissions.ts",
+    "turbo-repo/apps/app/src/features/auth/model/groups.json",
+    "turbo-repo/apps/app/src/features/auth/services/auth.service.ts",
+    "turbo-repo/apps/app/src/features/auth/utils/admin-access.ts",
+    "turbo-repo/apps/app/src/features/auth/utils/utils.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/use-calendar-view-mode.ts",
+    "turbo-repo/apps/app/src/features/common/components/Breadcrumb/Breadcrumb.tsx",
+    "turbo-repo/apps/app/src/features/common/components/admin-message-templates-console/README.md",
+    "turbo-repo/apps/app/src/features/common/components/brand-logo.test.tsx",
+    "turbo-repo/apps/app/src/features/common/components/brand-logo.tsx",
+    "turbo-repo/apps/app/src/features/common/components/catalog-table.tsx",
+    "turbo-repo/apps/app/src/features/common/components/code-editor-theme.ts",
+    "turbo-repo/apps/app/src/features/common/components/custom-dropdown/selector-dropdown.tsx",
+    "turbo-repo/apps/app/src/features/common/components/filter-search.tsx",
+    "turbo-repo/apps/app/src/features/common/components/filter-strip.tsx",
+    "turbo-repo/apps/app/src/features/common/components/group-allowed/group-allowed.tsx",
+    "turbo-repo/apps/app/src/features/common/components/json-code-editor.test.ts",
+    "turbo-repo/apps/app/src/features/common/components/json-code-editor.tsx",
+    "turbo-repo/apps/app/src/features/common/components/json-completions.test.ts",
+    "turbo-repo/apps/app/src/features/common/components/layout-toggle.tsx",
+    "turbo-repo/apps/app/src/features/common/components/my-tasks/my-tasks.tsx",
+    "turbo-repo/apps/app/src/features/common/components/phone-input/phone-input.test.tsx",
+    "turbo-repo/apps/app/src/features/common/components/phone-input/phone-input.tsx",
+    "turbo-repo/apps/app/src/features/common/components/section-menu.tsx",
+    "turbo-repo/apps/app/src/features/common/components/settings-page-shell.tsx",
+    "turbo-repo/apps/app/src/features/common/components/sortable-rows.tsx",
+    "turbo-repo/apps/app/src/features/common/hooks/use-unsaved-navigation.test.tsx",
+    "turbo-repo/apps/app/src/features/common/platform-scope.test.ts",
+    "turbo-repo/apps/app/src/features/common/platform-scope.ts",
+    "turbo-repo/apps/app/src/features/common/providers/client-api.provider.ts",
+    "turbo-repo/apps/app/src/features/conversations/activity-tab.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/activity-tab.tsx",
+    "turbo-repo/apps/app/src/features/conversations/audience-list.tsx",
+    "turbo-repo/apps/app/src/features/conversations/catalog-table.tsx",
+    "turbo-repo/apps/app/src/features/conversations/channel-icon.tsx",
+    "turbo-repo/apps/app/src/features/conversations/channel-panel.tsx",
+    "turbo-repo/apps/app/src/features/conversations/channel-types.ts",
+    "turbo-repo/apps/app/src/features/conversations/communications-page.tsx",
+    "turbo-repo/apps/app/src/features/conversations/communications-sections.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/communications-sections.ts",
+    "turbo-repo/apps/app/src/features/conversations/communications-tabs.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/communications-tabs.tsx",
+    "turbo-repo/apps/app/src/features/conversations/connection-channel-panel.tsx",
+    "turbo-repo/apps/app/src/features/conversations/contact-condition.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/contact-condition.ts",
+    "turbo-repo/apps/app/src/features/conversations/contacts-audience.tsx",
+    "turbo-repo/apps/app/src/features/conversations/conversations-api.ts",
+    "turbo-repo/apps/app/src/features/conversations/conversations-types.ts",
+    "turbo-repo/apps/app/src/features/conversations/layout-toggle.tsx",
+    "turbo-repo/apps/app/src/features/conversations/new-rule-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/new-rule-modal.tsx",
+    "turbo-repo/apps/app/src/features/conversations/new-rule.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/new-rule.tsx",
+    "turbo-repo/apps/app/src/features/conversations/own-templates-panel.tsx",
+    "turbo-repo/apps/app/src/features/conversations/platform-template-page.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/platform-template-page.tsx",
+    "turbo-repo/apps/app/src/features/conversations/platform-templates-catalog.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/platform-templates-catalog.tsx",
+    "turbo-repo/apps/app/src/features/conversations/recipient-groups.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/recipient-groups.tsx",
+    "turbo-repo/apps/app/src/features/conversations/row-keys.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-bump.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-draft-bar.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-draft-bar.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-editor.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-editor.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-findings.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-findings.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-model.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-model.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-sections.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-side-panel.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-steps-connection.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-steps.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-steps.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-trigger.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-trigger.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-versions-drawer.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-versions-drawer.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rules-tab.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rules-tab.tsx",
+    "turbo-repo/apps/app/src/features/conversations/simulation.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/simulation.tsx",
+    "turbo-repo/apps/app/src/features/conversations/spec-code.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/spec-code.tsx",
+    "turbo-repo/apps/app/src/features/conversations/symptom-rules-card.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/symptom-rules-card.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-editor.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-editor.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-picker.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-picker.tsx",
+    "turbo-repo/apps/app/src/features/conversations/templates-tab.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/templates-tab.tsx",
+    "turbo-repo/apps/app/src/features/conversations/test-send-dialog.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/test-send-dialog.tsx",
+    "turbo-repo/apps/app/src/features/conversations/use-rule-draft.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/use-rule-draft.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/use-rule-draft.ts",
+    "turbo-repo/apps/app/src/features/conversations/use-symptom-names.ts",
+    "turbo-repo/apps/app/src/features/credentials/components/bearer-token-credential-modal.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credential-badges.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credential-form-shell.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credential-modal-parts.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credential-type-logo.test.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credential-type-logo.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credential-type-picker-modal.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credentials-list.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credentials-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credentials-page-content.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/google-service-account-credential-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/google-service-account-credential-modal.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/service-account-key-file.test.ts",
+    "turbo-repo/apps/app/src/features/credentials/components/service-account-key-file.ts",
+    "turbo-repo/apps/app/src/features/credentials/credential.types.test.ts",
+    "turbo-repo/apps/app/src/features/credentials/credential.types.ts",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.test.ts",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.ts",
+    "turbo-repo/apps/app/src/features/credentials/use-credentials.ts",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-landing/dashboard-card.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-landing/dashboard-landing-hero.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-landing/dashboard-landing.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/server-create-dashboard-modal.test.ts",
+    "turbo-repo/apps/app/src/features/dashboard/components/server-create-dashboard-modal.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/server-dashboards-page.test.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/server-dashboards-page.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/hooks/use-dashboard-dynamic-items.ts",
+    "turbo-repo/apps/app/src/features/data-sources/components/data-sources-page-content.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/geocoding-plan-view.test.ts",
+    "turbo-repo/apps/app/src/features/geocoding/geocoding-plan-view.ts",
+    "turbo-repo/apps/app/src/features/geocoding/geocoding-plan.types.ts",
+    "turbo-repo/apps/app/src/features/geocoding/geocoding-usage.test.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/geocoding-usage.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/place-location-modal.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/point-picker.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/reject-location-modal.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/review-api.ts",
+    "turbo-repo/apps/app/src/features/geocoding/review-queue.test.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/review-queue.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/use-org-geocoding-plan.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/hooks/use-trip-positions.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/hooks/use-trip-positions.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/trip-camera.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/trip-camera.ts",
+    "turbo-repo/apps/app/src/features/i18n/tr.service.ts",
+    "turbo-repo/apps/app/src/features/integration-config/bigquery-query.test.ts",
+    "turbo-repo/apps/app/src/features/integration-config/bigquery-query.ts",
+    "turbo-repo/apps/app/src/features/integration-config/components/bigquery-queries-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/bigquery-queries-modal.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/bigquery-sql-editor.test.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/connection-form-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/connection-form-modal.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/connections-list.test.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/connections-list.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/connections-toolbar.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/integration-config-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/integration-config-page-content.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/integration-form-modal.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/integration-row.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/managed-geocoding-provider-modal.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/query-editor-section.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/sql-code-editor.test.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/sql-code-editor.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/template-picker-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/template-picker-modal.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/templates-list.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/connection-catalog.test.ts",
+    "turbo-repo/apps/app/src/features/integration-config/connection-catalog.ts",
+    "turbo-repo/apps/app/src/features/integration-config/integration-config-data-service.ts",
+    "turbo-repo/apps/app/src/features/integration-config/integration-config.types.ts",
+    "turbo-repo/apps/app/src/features/integration-config/use-integration-config.ts",
+    "turbo-repo/apps/app/src/features/integration-jobs/integration-jobs-data-service.ts",
+    "turbo-repo/apps/app/src/features/integration-jobs/job-events-store.test.ts",
+    "turbo-repo/apps/app/src/features/integration-jobs/job-events-store.ts",
+    "turbo-repo/apps/app/src/features/integration-jobs/use-job-events.test.ts",
+    "turbo-repo/apps/app/src/features/integration-jobs/use-job-events.ts",
+    "turbo-repo/apps/app/src/features/layout/components/icon-bar/icon-bar-item.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/icon-bar/icon-bar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/mobile-sidebar/mobile-sidebar-item.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/mobile-sidebar/mobile-sidebar-section.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/mobile-sidebar/mobile-sidebar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secondary-panel/secondary-panel-item-list.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/org-switcher/org-switcher-list.test.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/org-switcher/org-switcher-list.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/org-switcher/org-switcher.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/org-switcher/use-org-scopes.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/resolve-section.test.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/resolve-section.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/navegation_params.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/secured-navbar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/navigate-actions.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-search.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/use-pagefind-search.ts",
+    "turbo-repo/apps/app/src/features/layout/components/sidebar-item/sidebar-item.tsx",
+    "turbo-repo/apps/app/src/features/layout/context/sidebar-navigation-context.test.tsx",
+    "turbo-repo/apps/app/src/features/layout/context/sidebar-navigation-context.tsx",
+    "turbo-repo/apps/app/src/features/layout/hooks/use-visible-pages.ts",
+    "turbo-repo/apps/app/src/features/layout/models/board-module.test.ts",
+    "turbo-repo/apps/app/src/features/layout/models/board-module.ts",
+    "turbo-repo/apps/app/src/features/layout/models/dashboard-module.test.ts",
+    "turbo-repo/apps/app/src/features/layout/models/dashboard-module.ts",
+    "turbo-repo/apps/app/src/features/layout/models/pages-config.json",
+    "turbo-repo/apps/app/src/features/layout/models/pages.test.ts",
+    "turbo-repo/apps/app/src/features/layout/models/pages.ts",
+    "turbo-repo/apps/app/src/features/layout/services/board-guard.ts",
+    "turbo-repo/apps/app/src/features/layout/services/dashboard-guard.ts",
+    "turbo-repo/apps/app/src/features/layout/types/common.types.ts",
+    "turbo-repo/apps/app/src/features/map-visualization/map-visualization.tsx",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config.constants.ts",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/channels/channel-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/channels/channel-connections.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/channels/channel.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/components/contact-book-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/contact-book-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/content-review-permission-card.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/content-review-permission-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/harness-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/harness-trainer-permission-card.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/harness-trainer-permission-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/org-detail-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/org-detail-panel.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/organization-members-card.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/organization-members-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/organizations-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/permission-card-parts.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/platform-org-detail-panel.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/selectables-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-duplicates.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-duplicates.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-form-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-form-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-organization-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-person-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-role-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-table.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-table.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/id-field.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/import-contacts-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/parse-contacts-csv.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/single-pick.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/single-pick.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/store.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/store.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/tax-id.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/tax-id.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/use-carrier-companies.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/use-incremental-count.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/use-load-more.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/data/settings-admin-data-service.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/data/settings-admin-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/email/email-channel-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/gps/gps-integration-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/hooks/use-content-review-permission.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/hooks/use-harness-trainer-permission.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/hooks/use-organization-owner-role.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/hooks/use-permission-assignment-form.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/mail-templates/invitation-email-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/asset-picker.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/create-organization-flow.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/create-organization-form.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/create-organization-form.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/data-share-detail-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/data-share-editor.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/data-sharing-api.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/data-sharing-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/data-sharing.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/data-sharing.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/facet-combobox.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-plan-form.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-plan-form.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-plan-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-quota-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-tenants-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-tenants-toolbar.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-tenants-view.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-tenants-view.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/message-templates-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/org-combobox.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/org-geocoding-connection.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/org-search-picker.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/org-service-account-card.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/org-service-account-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/org-service-account.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/org-service-account.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-geocoding-fields.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-geocoding-form.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-geocoding-form.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-mail-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-section-list.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-setting-controls.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/symptom-templates-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-geocoding-plan.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-platform-data-shares.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-platform-geocoding.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-platform-mail.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/field/selectable-field.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/invite-members-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/member-access-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/module-role-selects.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/roles-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-access-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-form-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-members-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-members-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-model.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-model.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-teams-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp-channel-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp-connection-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp.types.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp.types.ts",
+    "turbo-repo/apps/app/src/features/shipping/components/content.tsx",
+    "turbo-repo/apps/app/src/features/shipping/components/modal-tooltip.tsx",
+    "turbo-repo/apps/app/src/features/sidebar/context/sidebar-context.tsx",
+    "turbo-repo/apps/app/src/features/signal-history/geographic-visualization.tsx",
+    "turbo-repo/apps/app/src/features/signal-history/hooks/use-historic-pulse.test.ts",
+    "turbo-repo/apps/app/src/features/signal-history/hooks/use-historic-pulse.ts",
+    "turbo-repo/apps/app/src/features/signal-history/main-content.tsx",
+    "turbo-repo/apps/app/src/features/signal-history/map-history-view.tsx",
+    "turbo-repo/apps/app/src/features/signal-history/pulse-detail-view.tsx",
+    "turbo-repo/apps/app/src/features/signal-history/summary-tooltip.tsx",
+    "turbo-repo/apps/app/src/features/signal-history/utils/download-csv.test.ts",
+    "turbo-repo/apps/app/src/features/signal-history/utils/download-csv.ts",
+    "turbo-repo/apps/app/src/features/signal-history/utils/signal-legs.test.ts",
+    "turbo-repo/apps/app/src/features/signal-history/utils/signal-legs.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/menus/call-driver/call-driver.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/menus/ignore-condition/ignore-condition.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/menus/invalidate-symptom/invalidate-symptom.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/new-number-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/header-chip.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/header-chip.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-call-driver.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-call-driver.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-general-map.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-ignore-condition.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-invalidate-symptom.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-side-info.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/symptoms-list/timed-symptoms.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-item.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-item.type.ts",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/control-tower-api.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/control-tower-api.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/activation-form.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/activation-form.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/catalog-card.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/catalog-derive.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/catalog-derive.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/catalog-stats.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/cel-editor.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/cel-editor.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/clause-breakdown.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/clause-breakdown.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/condition-form.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/condition-form.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/create-symptom-modal.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/draft-bar.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/field-combobox.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/field-combobox.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/harness-panel.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/impact-panel.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-changed.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-notices.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-response-options.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-response.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-row.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-steps.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-steps.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-thresholds.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-thresholds.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/levels-expression.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/levels-expression.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/lifecycle-expression.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/lifecycle-form-fields.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/lifecycle-form.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/lifecycle-form.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/maintainer-api.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/maintainer-api.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/measure-fields.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/measure-fields.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/measure-form.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/measure-form.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/overview-text.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/publish-dialog-component.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/publish-dialog.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/recurrence-form.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/recurrence-form.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/response-workspace.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/response-workspace.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/rule-description.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/rule-problems.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/rule-problems.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/sample-tree.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/sample-tree.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/save-as-template-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/save-as-template-modal.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/script-modal.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/sheet-header-component.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/sheet-header.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/sheet-header.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/source-select.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-catalog.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-detail.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-rule-sections.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-scope.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-side-panels.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/changed.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/changed.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/channel-icon.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/draft-actions.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/mode-toggle.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/pill.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/response-block.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/section.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/select.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/select.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/sheet-top.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/use-symptom-draft.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/use-symptom-draft.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/versions-drawer.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/workspace-tabs.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/workspace-tabs.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/model/active-duration.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/active-duration.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/treatment-link.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/treatment-link.ts",
+    "turbo-repo/apps/app/src/features/symptoms/side-info.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/gps-validation-item/gps-validation-item.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/gps-validation-modal/gps-validation-modal.types.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-actions/task-actions.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/bento.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/driver/validations.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/file-viewer/image-viewer-connector.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/gallery/file-images.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/gallery/image-element.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/gallery/media-row.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/gallery/source-categories.test.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/media-source.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/media-inline-viewer.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/mobile-header.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/modals/delete-confirm-modal.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/observations/observations-section.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/observations/review-version.test.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/observations/review-version.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/use-doc-blob.test.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/use-doc-blob.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/viewer-toolbar.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/trip-information/trip-verifications.tsx",
+    "turbo-repo/apps/app/src/features/theme/flowbite-theme.ts",
+    "turbo-repo/apps/app/src/features/trips/board/board-api.ts",
+    "turbo-repo/apps/app/src/features/trips/board/board-page.tsx",
+    "turbo-repo/apps/app/src/features/trips/board/board.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/board/live-badge.tsx",
+    "turbo-repo/apps/app/src/features/trips/board/trip-card.tsx",
+    "turbo-repo/apps/app/src/features/trips/board/trip-lane.tsx",
+    "turbo-repo/apps/app/src/features/trips/board/trips-board.tsx",
+    "turbo-repo/apps/app/src/features/trips/board/use-board-events.test.ts",
+    "turbo-repo/apps/app/src/features/trips/board/use-board-events.ts",
+    "turbo-repo/apps/app/src/features/trips/deliveries/deliveries-api.ts",
+    "turbo-repo/apps/app/src/features/trips/deliveries/deliveries-panel.tsx",
+    "turbo-repo/apps/app/src/features/trips/deliveries/deliveries.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/documents/documents-api.test.ts",
+    "turbo-repo/apps/app/src/features/trips/documents/documents-api.ts",
+    "turbo-repo/apps/app/src/features/trips/feeds/feeds-api.ts",
+    "turbo-repo/apps/app/src/features/trips/feeds/feeds-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/feeds/feeds-panel.tsx",
+    "turbo-repo/apps/app/src/features/trips/key-from-name.ts",
+    "turbo-repo/apps/app/src/features/trips/locations/locations-api.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/locations/locations-api.ts",
+    "turbo-repo/apps/app/src/features/trips/locations/locations-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/locations/locations-panel.tsx",
+    "turbo-repo/apps/app/src/features/trips/milestones/milestones-api.test.ts",
+    "turbo-repo/apps/app/src/features/trips/milestones/milestones-api.ts",
+    "turbo-repo/apps/app/src/features/trips/milestones/pending-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/milestones/pending-panel.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/confirmers-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/confirmers-panel.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/expression-field.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/expression-field.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/monitor-editor.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/monitor-editor.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/monitor-list.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/monitors-api.ts",
+    "turbo-repo/apps/app/src/features/trips/monitors/monitors-helpers.test.ts",
+    "turbo-repo/apps/app/src/features/trips/monitors/plan-params.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/plan-params.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/rule-card.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/rule-condition-sync.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/rule-condition.test.ts",
+    "turbo-repo/apps/app/src/features/trips/monitors/rule-condition.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/scope-section.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/scope-section.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/use-row-keys.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/use-row-keys.ts",
+    "turbo-repo/apps/app/src/features/trips/sheet/checks.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/milestone-checklist.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/milestone-row.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/milestone-row.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/sheet-api.ts",
+    "turbo-repo/apps/app/src/features/trips/sheet/sheet-bento.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/sheet-head.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/sheet-tables.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/sheet-tiles.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/trip-map.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/trip-media-section.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/trip-sheet.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/trip-symptoms.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/trip-symptoms.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/components/compose-box.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/inbox-data-service.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/docs/AGENTS.md",
+    "turbo-repo/apps/docs/content/en/integration/api-reference/asset-track.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/getting-started/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/getting-started/choose-a-setup.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/add-filters.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/connect-bigquery.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/recipe-colors-per-state.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/recipe-filter-table.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/recipe-status-breakdown.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/recipe-top-n.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/index.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/templates.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/widgets/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/widgets/chart-v2.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/widgets/data-table.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/widgets/index.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/widgets/stacked-stat.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/widgets/stat.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/tutorials/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/tutorials/choose-a-widget.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/tutorials/embed-in-phoenix-liveview.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/tutorials/first-dashboard.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/tutorials/queries-for-widgets.mdx",
+    "turbo-repo/apps/docs/content/es/integration/api-reference/asset-track.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/dashboards/getting-started/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/dashboards/getting-started/choose-a-setup.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/how-to/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/dashboards/how-to/add-filters.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/how-to/connect-bigquery.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/how-to/recipe-colors-per-state.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/how-to/recipe-filter-table.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/how-to/recipe-status-breakdown.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/how-to/recipe-top-n.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/index.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/reference/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/dashboards/reference/templates.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/reference/widgets/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/dashboards/reference/widgets/chart-v2.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/reference/widgets/data-table.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/reference/widgets/index.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/reference/widgets/stacked-stat.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/reference/widgets/stat.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/tutorials/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/dashboards/tutorials/choose-a-widget.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/tutorials/embed-in-phoenix-liveview.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/tutorials/first-dashboard.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/tutorials/queries-for-widgets.mdx",
+    "turbo-repo/apps/docs/plans/dashboards-docs-plan.md",
+    "turbo-repo/apps/docs/public/dashboards/chart_v2/bar-horizontal.png",
+    "turbo-repo/apps/docs/public/dashboards/chart_v2/bar-stacked.png",
+    "turbo-repo/apps/docs/public/dashboards/chart_v2/bar.png",
+    "turbo-repo/apps/docs/public/dashboards/chart_v2/color-rules.png",
+    "turbo-repo/apps/docs/public/dashboards/chart_v2/colors-per-state.png",
+    "turbo-repo/apps/docs/public/dashboards/chart_v2/gauge.png",
+    "turbo-repo/apps/docs/public/dashboards/chart_v2/line.png",
+    "turbo-repo/apps/docs/public/dashboards/chart_v2/mixed-dual-axis.png",
+    "turbo-repo/apps/docs/public/dashboards/chart_v2/palette-warm.png",
+    "turbo-repo/apps/docs/public/dashboards/chart_v2/pie.png",
+    "turbo-repo/apps/docs/public/dashboards/data_table_v2/basic.png",
+    "turbo-repo/apps/docs/public/dashboards/data_table_v2/column-color-rules.png",
+    "turbo-repo/apps/docs/public/dashboards/data_table_v2/row-actions.png",
+    "turbo-repo/apps/docs/public/dashboards/data_table_v2/row-color-rules.png",
+    "turbo-repo/apps/docs/public/dashboards/stat/circular.png",
+    "turbo-repo/apps/docs/public/dashboards/stat/icon-green.png",
+    "turbo-repo/apps/docs/public/dashboards/stat/icon-plain.png",
+    "turbo-repo/apps/docs/public/dashboards/stat/icon-red.png",
+    "turbo-repo/apps/docs/public/dashboards/stat/icon-yellow.png",
+    "turbo-repo/apps/docs/public/dashboards/stat/progress-bar.png",
+    "turbo-repo/apps/docs/public/dashboards/stat/progress-thresholds.png",
+    "turbo-repo/apps/docs/public/dashboards/stat/status.png",
+    "turbo-repo/apps/docs/public/dashboards/stat_stacked/bar.png",
+    "turbo-repo/apps/docs/public/dashboards/stat_stacked/donut.png",
+    "turbo-repo/apps/docs/public/dashboards/stat_stacked/no-header.png",
+    "turbo-repo/apps/docs/public/dashboards/stat_stacked/percent.png",
+    "turbo-repo/apps/docs/public/dashboards/stat_stacked/templated.png",
+    "turbo-repo/apps/docs/public/dashboards/tutorial/result.png",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/packages/miot-connection-client/openapi.json",
+    "turbo-repo/packages/miot-dashboard-contract/contract/openapi.yaml",
+    "turbo-repo/packages/miot-dashboard-contract/package.json",
+    "turbo-repo/packages/miot-dashboard-contract/scripts/guard-imports.mjs",
+    "turbo-repo/packages/miot-dashboard-contract/src/authoring-openapi.test.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/authoring.test.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/authoring.ts",
+    "turbo-repo/packages/miot-dashboard-contract/tsup.config.ts",
+    "turbo-repo/packages/miot-dashboard-server/examples/modulariot-operations.mjs",
+    "turbo-repo/packages/miot-dashboard-server/scripts/guard-imports.mjs",
+    "turbo-repo/packages/miot-dashboard-server/src/access/access-control.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/authoring/local.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/authoring/local.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/authoring/preview.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/authoring/remote.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/authoring/remote.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/authoring/source-schema.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/authoring/workbench.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/authoring/workbench.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/bin.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/datasources.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/handler.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/query-authoring.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/routes.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/index.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/queries.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/queries/bigquery-plan.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/queries/bigquery.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/audit.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/authoring.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/docs.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/operations-module.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/serve.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store-sql.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/migrations.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/query-plans-postgres.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/query-plans.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/query-plans.ts",
+    "turbo-repo/packages/miot-dashboard-ui/package.json",
+    "turbo-repo/packages/miot-dashboard-ui/scripts/guard-imports.mjs",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring.ts",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring/client.test.ts",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring/client.ts",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring/labels.ts",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring/plan-settings.test.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring/plan-settings.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring/query-workbench.test.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring/query-workbench.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring/results-table.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring/schema-explorer.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring/sql-editor.test.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/src/authoring/sql-editor.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/styles.css",
+    "turbo-repo/packages/miot-dashboard-ui/tsup.config.ts",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.0",
+      "tag": "app@v0.6.0"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.64",
+      "version": "0.6.0",
+      "tag": "docs@v0.6.0"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.64",
+      "version": "0.6.0",
+      "tag": "web@v0.6.0"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.38",
+      "version": "0.5.39",
+      "tag": "modulith@v0.5.39"
+    },
+    "harness": {
+      "changed": true,
+      "changed_since": "harness@v0.1.13",
+      "version": "0.1.14",
+      "tag": "harness@v0.1.14"
+    }
+  }
+}

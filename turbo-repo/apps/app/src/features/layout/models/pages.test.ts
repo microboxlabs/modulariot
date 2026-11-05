@@ -15,6 +15,42 @@ function settingsHrefs(input: ReturnType<typeof visiblePages>): string[] {
 }
 
 describe("visiblePages", () => {
+  it("shows only the work board BOARD_MODULE names, and neither before the config loads", () => {
+    const boards = (module: string | null) =>
+      visiblePages(false, false, false, module)
+        .map((p) => p.label)
+        .filter((l) => l === "kanban" || l === "trips");
+    expect(boards("")).toEqual(["kanban", "trips"]);
+    expect(boards("trips")).toEqual(["trips"]);
+    expect(boards("kanban")).toEqual(["kanban"]);
+    expect(boards(null)).toEqual([]);
+  });
+
+  it("shows only the dashboards DASHBOARD_MODULE names, and neither before the config loads", () => {
+    const dashboards = (module: string | null) =>
+      visiblePages(false, false, true, "", module)
+        .map((p) => p.label)
+        .filter((l) => l === "home" || l === DASHBOARD_SERVER_PAGE_LABEL);
+    expect(dashboards("")).toEqual([DASHBOARD_SERVER_PAGE_LABEL, "home"]);
+    expect(dashboards("server")).toEqual([DASHBOARD_SERVER_PAGE_LABEL]);
+    expect(dashboards("legacy")).toEqual(["home"]);
+    expect(dashboards(null)).toEqual([]);
+  });
+
+  it("shows My tasks, Where is my load and Collaborators only with the kanban model", () => {
+    const legacy = (module: string | null) =>
+      visiblePages(false, false, false, module)
+        .map((p) => p.label)
+        .filter((l) =>
+          ["tasks", "whereIsMyLoad", "collaboratorsManagement"].includes(l)
+        );
+    const all = ["tasks", "collaboratorsManagement", "whereIsMyLoad"];
+    expect(legacy("")).toEqual(all);
+    expect(legacy("kanban")).toEqual(all);
+    expect(legacy("trips")).toEqual([]);
+    expect(legacy(null)).toEqual([]);
+  });
+
   it("hides the Dev section unless dev tools are on", () => {
     expect(
       visiblePages(false, false, false).some((p) => p.label === DEV_PAGE_LABEL)
@@ -58,6 +94,7 @@ describe("filterSettings", () => {
       platformOwner: false,
       trainer: true,
       gps: true,
+      fleet: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/platform");
@@ -70,6 +107,7 @@ describe("filterSettings", () => {
       platformOwner: true,
       trainer: true,
       gps: true,
+      fleet: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/harness");
@@ -82,12 +120,15 @@ describe("filterSettings", () => {
       platformOwner: false,
       trainer: false,
       gps: false,
+      fleet: false,
     });
 
     expect(settingsHrefs(filtered)).toEqual([
       "/users/settings/organizations",
       "/users/settings/team",
       "/users/settings/symptoms",
+      "/users/settings/trips",
+      "/users/settings/communications",
       "/users/settings/selectables",
       "/users/settings/contact-book",
       "/users/settings/data-sources",
@@ -111,13 +152,19 @@ describe("filterSettings", () => {
       platformOwner: true,
       trainer: true,
       gps: true,
+      fleet: true,
     });
 
     expect(settingsHrefs(filtered)).toEqual(settingsHrefs(pages));
   });
 
   it("offers the learning workspace to trainers only", () => {
-    const gates = { harness: true, platformOwner: true, gps: true };
+    const gates = {
+      harness: true,
+      platformOwner: true,
+      gps: true,
+      fleet: true,
+    };
     expect(
       settingsHrefs(filterSettings(pages, { ...gates, trainer: true }))
     ).toContain("/harness/learning");
@@ -126,8 +173,36 @@ describe("filterSettings", () => {
     ).not.toContain("/harness/learning");
   });
 
+  it("keeps only the job console and Settings, with the platform's entries, in the platform scope", () => {
+    const filtered = filterSettings(pages, {
+      harness: true,
+      platformOwner: true,
+      trainer: true,
+      gps: true,
+      fleet: true,
+      platformScope: true,
+    });
+    expect(filtered.map((page) => page.label)).toEqual([
+      "integrations",
+      "settings",
+    ]);
+    expect(settingsHrefs(filtered)).toEqual([
+      "/users/settings/platform",
+      "/users/settings/organizations",
+      "/users/settings/symptoms",
+      "/users/settings/communications",
+      "/users/settings/credentials",
+      "/users/settings/connections",
+    ]);
+  });
+
   it("offers GPS to those who may view it", () => {
-    const gates = { harness: true, platformOwner: true, trainer: true };
+    const gates = {
+      harness: true,
+      platformOwner: true,
+      trainer: true,
+      fleet: true,
+    };
     expect(
       settingsHrefs(filterSettings(pages, { ...gates, gps: true }))
     ).toContain("/users/settings/gps");
@@ -136,16 +211,30 @@ describe("filterSettings", () => {
     ).not.toContain("/users/settings/gps");
   });
 
-  it("touches no page outside Settings", () => {
+  it("offers the fleet to those who may view it", () => {
+    const gates = {
+      harness: true,
+      platformOwner: true,
+      trainer: true,
+      gps: true,
+    };
+    const labels = (fleet: boolean) =>
+      filterSettings(pages, { ...gates, fleet }).map((page) => page.label);
+    expect(labels(true)).toContain("fleet");
+    expect(labels(false)).not.toContain("fleet");
+  });
+
+  it("touches no other page outside Settings", () => {
     const filtered = filterSettings(pages, {
       harness: false,
       platformOwner: false,
       trainer: false,
       gps: false,
+      fleet: false,
     });
 
     expect(filtered.map((page) => page.label)).toEqual(
-      pages.map((page) => page.label)
+      pages.map((page) => page.label).filter((label) => label !== "fleet")
     );
   });
 });

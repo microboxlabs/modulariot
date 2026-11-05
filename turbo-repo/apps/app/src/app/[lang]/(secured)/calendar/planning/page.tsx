@@ -3,10 +3,13 @@ import { auth } from "@/auth";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { redirect } from "next/navigation";
 import Planning from "@/features/calendar/components/planning/planning";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function CalendarPlanningPage(
   props: ParamsWithLang<object>
 ) {
+  await guardPage(ACCESS_RULES.calendar, "/calendar/planning");
   const { lang } = await props.params;
 
   const session = await auth();

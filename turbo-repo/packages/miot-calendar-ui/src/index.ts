@@ -112,7 +112,8 @@ export * from "./components/planning/sidebar-form-shell";
 export * from "./theme";
 
 // Re-export the consumer-facing miot-calendar-client types referenced by the
-// CalendarHost contract (`client` config + the BookingApi override surface), so
+// CalendarHost contract (`client` config + the BookingApi override surface) and
+// by the provider props (`windowUsage`), so
 // hosts depend on, and import from, ONLY this package — the client ships as a
 // transitive dependency and need not be installed or imported directly.
 export type {
@@ -122,4 +123,5 @@ export type {
   BookingUpdateRequest,
   BookingListResponse,
   MoveBookingRequest,
+  TimeWindowUsageResponse,
 } from "@microboxlabs/miot-calendar-client";

@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod/v3'
 
 const clientGrants = z.enum([
   'https://modulariot.com/v1/project/admin',

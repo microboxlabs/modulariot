@@ -29,7 +29,7 @@ ModularIoT is an IoT platform built as a TypeScript monorepo using [Turborepo](h
 
 ### Key Technologies
 
-- **Runtime:** Node.js 22+
+- **Runtime:** Node.js 24+
 - **Package manager:** npm 10.2.4 (monorepo managed with npm workspaces)
 - **Build orchestrator:** Turborepo 2.5.4
 - **Language:** TypeScript 5.8.2 (strict mode)
@@ -234,7 +234,7 @@ Docker images are built using multi-stage Dockerfiles in `docker/`:
 
 - `nextjs.monorepo.Dockerfile` — Primary Dockerfile for Next.js apps (used in CI)
 - Build arg `APP_NAME` selects which app to build
-- Base image: `node:22-alpine`
+- Base image: `node:24.22.1-alpine`
 - Production images run as non-root user on port 3000
 
 ### CI/CD Pipeline (GitHub Actions)

@@ -4,12 +4,13 @@ import { ToggleSwitch } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { SymptomSpec } from "./maintainer-api";
+import Select from "./ui/select";
 
 type Recurrence = NonNullable<SymptomSpec["recurrence"]>;
 
 export const RECURRENCE_ENTITIES = [
-  { key: "patente", label: "entityVehicle" },
-  { key: "conductor", label: "entityDriver" },
+  { key: "vehicle", label: "entityVehicle" },
+  { key: "driver", label: "entityDriver" },
 ];
 
 /** What a symptom without a recurrence starts from when it is turned on. */
@@ -18,7 +19,7 @@ export const DEFAULT_RECURRENCE: Recurrence = {
   count: 3,
   days: 7,
   raiseLevels: 1,
-  entity: "patente",
+  entity: "vehicle",
 };
 
 const inputClass =
@@ -91,11 +92,11 @@ export default function RecurrenceForm({
       {enabled && (
         <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <span>{tr("recurrenceIfSame", d)}</span>
-          <select
+          <Select
             aria-label={tr("recurrenceEntity", d)}
             className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             disabled={readOnly}
-            value={r.entity ?? "patente"}
+            value={r.entity ?? "vehicle"}
             onChange={(e) => set({ entity: e.target.value })}
           >
             {RECURRENCE_ENTITIES.map((e) => (
@@ -103,7 +104,7 @@ export default function RecurrenceForm({
                 {trDynamic(e.label, d)}
               </option>
             ))}
-          </select>
+          </Select>
           <span>{tr("recurrenceHas", d)}</span>
           <NumberInput
             value={r.count}

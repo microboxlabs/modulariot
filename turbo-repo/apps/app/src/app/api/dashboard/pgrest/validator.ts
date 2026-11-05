@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import type { IntrospectedParameter } from "./shared";
 
 type Translate = (path: string, params?: Record<string, string>) => string;

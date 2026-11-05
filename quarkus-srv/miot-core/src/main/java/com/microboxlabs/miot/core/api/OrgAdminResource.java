@@ -1,8 +1,6 @@
 package com.microboxlabs.miot.core.api;
 
-import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
-import com.microboxlabs.miot.core.alfresco.IAlfrescoGroupAdminClient;
 import com.microboxlabs.miot.core.api.dto.CreateOrganizationRequest;
 import com.microboxlabs.miot.core.api.dto.OrganizationDto;
 import com.microboxlabs.miot.core.api.dto.PatchOrganizationRequest;
@@ -29,7 +27,6 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.jboss.logging.Logger;
 
 /**
  * Admin write operations on organizations:
@@ -56,22 +53,14 @@ import org.jboss.logging.Logger;
 @SecurityRequirement(name = "oidc")
 public class OrgAdminResource {
 
-    private static final Logger LOG = Logger.getLogger(OrgAdminResource.class);
-
-    private final IAlfrescoGroupAdminClient groupAdmin;
     private final TaxIdValidator taxIdValidator;
     private final WriteAuthorizer writeAuthorizer;
-    private final AccessEvaluator evaluator;
 
     @Inject
-    public OrgAdminResource(IAlfrescoGroupAdminClient groupAdmin,
-                            @ActiveTaxIdValidator TaxIdValidator taxIdValidator,
-                            WriteAuthorizer writeAuthorizer,
-                            AccessEvaluator evaluator) {
-        this.groupAdmin = groupAdmin;
+    public OrgAdminResource(@ActiveTaxIdValidator TaxIdValidator taxIdValidator,
+                            WriteAuthorizer writeAuthorizer) {
         this.taxIdValidator = taxIdValidator;
         this.writeAuthorizer = writeAuthorizer;
-        this.evaluator = evaluator;
     }
 
     @POST
@@ -85,7 +74,6 @@ public class OrgAdminResource {
         String newName = body.name().trim();
         String newDisplayName = (body.displayName() == null || body.displayName().isBlank())
                 ? newName : body.displayName().trim();
-        String derivedGroupId = groupIdFor(body.alfrescoGroupId(), newSlug);
 
         return Panache.withTransaction(() ->
                 Organization.findBySlug(parentSlug)
@@ -94,23 +82,12 @@ public class OrgAdminResource {
                             if (refusal != null) {
                                 return Uni.createFrom().failure(refusal);
                             }
-                            // A native organization's sub-accounts get no Alfresco group.
-                            String groupId = evaluator.isNative(parent) ? null : derivedGroupId;
                             return writeAuthorizer.require(parent, CoreAccessCatalog.ORG_UPDATE)
                                     .flatMap(ignored -> assertSlugAvailable(newSlug))
                                     .flatMap(ignored -> assertTaxIdAvailable(normalizedTaxId))
                                     .flatMap(ignored -> persistNewChild(
                                             parent, newSlug, newName, newDisplayName,
-                                            normalizedTaxId, groupId))
-                                    .flatMap(child -> groupId == null
-                                            ? Uni.createFrom().item(child)
-                                            : groupAdmin
-                                            .createGroup(derivedGroupId, newDisplayName)
-                                            .onFailure().invoke(err ->
-                                                    LOG.errorf(err,
-                                                            "Alfresco group create failed for %s after persisting child %s",
-                                                            derivedGroupId, newSlug))
-                                            .replaceWith(child));
+                                            normalizedTaxId));
                         }))
                 .map(org -> Response.status(Response.Status.CREATED)
                         .entity(OrganizationDto.from(org))
@@ -123,13 +100,6 @@ public class OrgAdminResource {
         } catch (InvalidTaxIdException e) {
             throw new BadRequestException("Invalid tax id: " + e.getMessage());
         }
-    }
-
-    /** The requested Alfresco group, else one named after the slug. */
-    private static String groupIdFor(String requested, String slug) {
-        return requested != null && !requested.isBlank()
-                ? requested.trim()
-                : "GROUP_" + slug.toUpperCase().replace('-', '_');
     }
 
     /** Why a sub-account cannot be created under {@code parent}, or null when it can. */
@@ -190,14 +160,12 @@ public class OrgAdminResource {
                                               String slug,
                                               String name,
                                               String displayName,
-                                              String taxId,
-                                              String alfrescoGroupId) {
+                                              String taxId) {
         Organization child = new Organization();
         child.slug = slug;
         child.name = name;
         child.displayName = displayName;
         child.taxId = taxId;
-        child.alfrescoGroupId = alfrescoGroupId;
         // New sub-accounts inherit the parent's Auth0 M2M client id. Pgrest
         // tenant filtering uses tax_id, not tenant_client_id, so this is fine.
         child.tenantClientId = parent.tenantClientId;

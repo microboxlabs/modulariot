@@ -7,12 +7,21 @@ describe("resolveSection", () => {
   it("resolves calendar planning routes away from the kanban 'planning' key", () => {
     // The regression this exists for: both of these end in `planning`, which is
     // a registered kanban board, so the calendar used to render kanban filters.
-    expect(section("/es/calendar/9f3c-uuid/planning")).toBe("calendar-planning");
+    expect(section("/es/calendar/9f3c-uuid/planning")).toBe(
+      "calendar-planning"
+    );
     expect(section("/es/calendar/planning")).toBe("calendar-planning");
   });
 
   it("leaves the kanban planning board alone", () => {
     expect(section("/es/planning")).toBe("planning");
+  });
+
+  it("gives the trips board its own filters", () => {
+    expect(section("/es/trips/planning")).toBe("trips-board");
+    expect(section("/es/trips/delivery")).toBe("trips-board");
+    expect(section("/es/trips/finished")).toBe("trips-finished");
+    expect(section("/es/trips/9f3c-uuid")).toBe("9f3c-uuid");
   });
 
   it("keeps the bare calendar landing page bar-less", () => {
@@ -28,12 +37,16 @@ describe("resolveSection", () => {
   });
 
   it("is locale-agnostic", () => {
-    expect(section("/en/calendar/9f3c-uuid/planning")).toBe("calendar-planning");
+    expect(section("/en/calendar/9f3c-uuid/planning")).toBe(
+      "calendar-planning"
+    );
     expect(section("/en/planning")).toBe("planning");
   });
 
   it("handles a trailing slash", () => {
-    expect(section("/es/calendar/9f3c-uuid/planning/")).toBe("calendar-planning");
+    expect(section("/es/calendar/9f3c-uuid/planning/")).toBe(
+      "calendar-planning"
+    );
   });
 
   it("returns undefined for an empty path", () => {

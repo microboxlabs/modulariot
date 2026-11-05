@@ -1,0 +1,92 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Certificar un país nuevo
+
+**Para:** implementadores y responsables del producto.
+
+Antes de prometer geocodificación por dirección en un país, mida qué parte de las direcciones reales de los clientes el sistema ubica bien. Esta guía describe qué se necesita, qué se mide y cómo se decide.
+
+## Qué necesita un país
+
+| Pieza | Para qué | Obligatoria | Hoy |
+| --- | --- | --- | --- |
+| Límites administrativos (comunas, distritos) con código, nombre y polígono | La comprobación de la comuna. Sin ellos, todo lugar del país queda en revisión | Sí | Chile (comunas, código CUT), Perú (distritos, ubigeo) |
+| Direcciones internas (calle, número, comuna, punto) | Ubicar direcciones sin costo | No | Chile (OpenAddresses) |
+| Un proveedor certificado | Ubicar las direcciones que no están en las fuentes internas | No, pero sin él las direcciones van a revisión | Chile: Mapbox en uso, sin medición publicada aquí. Perú: ninguno certificado |
+| Cómo escribe el cliente sus direcciones | Elegir las columnas de la planilla | Sí | Por cliente |
+
+Los límites y las direcciones internas son datos del país que se cargan en la plataforma. El resto del sistema (orden de fuentes, caché, cuota, API) no cambia.
+
+<Steps>
+
+### Reunir las direcciones de prueba
+
+Tome direcciones reales, en el formato en que el cliente las escribe. Sepárelas en grupos que se comportan distinto:
+
+| Grupo | Ejemplo de categoría |
+| --- | --- |
+| Capital, calle y número | `Av. Arequipa 1234, Lince` |
+| Provincias, calle y número | Una ciudad secundaria |
+| Sin número | `S/N`, `Km 12 Carretera Central` |
+| Manzana y lote | `Mz. B Lt. 4` |
+| Lugares con nombre | Un puerto, un parque industrial |
+
+Cada grupo necesita su propio resultado: un buen promedio puede esconder un grupo donde nada funciona. Pondere el resultado según el peso de cada grupo en los viajes reales del cliente.
+
+### Tener la verdad de cada dirección
+
+Para cada dirección, consiga su punto correcto: de las direcciones internas, del cliente, de un recorrido GPS que terminó allí, o marcado a mano. Sin punto correcto, una dirección no sirve para medir.
+
+### Medir
+
+La medición se hace fuera de la plataforma, con un script que consulta la API del proveedor: la plataforma no expone los candidatos y, sin modo permanente, manda todo a revisión. Consulte sin guardar resultados (Mapbox con `permanent=false`) y guarde solo las métricas.
+
+| Métrica | Qué dice |
+| --- | --- |
+| Utilizable | El resultado es de nivel dirección, cae en el distrito correcto (comprobado con el polígono) y a poca distancia del punto correcto |
+| Distancia mediana al punto correcto | Qué tan lejos queda la geocerca |
+| Nivel del resultado | Cuántas veces devuelve solo calle, barrio o ciudad |
+| Irían a revisión | Cuántas irían a **Por revisar** con las reglas del sistema |
+
+Defina antes de medir qué porcentaje de utilizables y qué distancia acepta el cliente. Ese es el umbral de certificación.
+
+<Callout type="warning">
+**Cuidado:** compare el distrito por polígono, no por el nombre que devuelve el proveedor. Algunos proveedores omiten el distrito en zonas metropolitanas, y la comparación por nombre da un resultado falso.
+</Callout>
+
+### Validar en producción
+
+Antes de certificar, resuelva un lote de direcciones del piloto en la organización del cliente, con la cuota acotada, y revise **Por revisar** y **Uso del mes**. Lo que pase allí decide.
+
+### Decidir
+
+| Resultado | Qué ofrecer |
+| --- | --- |
+| Certificado | Direcciones por planilla, con revisión de los casos que fallen |
+| No certificado | Plus Code o coordenadas en la planilla, geocercas existentes, y revisión manual |
+
+</Steps>
+
+## Ejemplo: Perú
+
+Medición del 2026-10-29: 440 direcciones de Perú, agrupadas por tipo, con el distrito comprobado por polígono (límites del INEI). Ningún proveedor quedó certificado:
+
+| Grupo | Mapbox utilizable | Google utilizable |
+| --- | --- | --- |
+| Lima, calle y número | 55 % | 68 % |
+| Provincias | 5 % | 45 % |
+| Manzana y lote, kilómetro, sin número | menos de 15 % | menos de 15 % |
+| Total, ponderado por el peso de cada grupo | 22 % | 39 % |
+
+Faltan las direcciones de los viajes piloto, que deciden la certificación.
+
+En Perú, la recomendación es pedir Plus Code o coordenadas en la planilla, o usar geocercas ya dibujadas. Las direcciones que lleguen igual pasan por la caché y el proveedor, y las que fallen van a revisión.
+
+## Trampas conocidas
+
+| Trampa | Efecto |
+| --- | --- |
+| Pedir resultados en un idioma (`language=es` en Mapbox) | Empeora los resultados en Perú. La plataforma no lo envía |
+| Medir con el modo permanente | Cuesta más y guarda resultados. Mida sin él |
+| Usar solo direcciones de la capital | Sobreestima el resultado |
+| Un nombre de distrito que se repite en el país | El sistema pide el código. La planilla debe traer el código o un nombre único |

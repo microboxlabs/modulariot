@@ -22,13 +22,11 @@ export default function GpsValidationItem({
   task,
   msg,
   lang,
-  userGroups,
   item,
 }: {
   task: TaskResponse;
   msg: I18nRecord;
   lang: string;
-  userGroups: string[];
   item: any;
 }) {
   const [showGpsValidationModal, setShowGpsValidationModal] = useState(false);
@@ -108,7 +106,6 @@ export default function GpsValidationItem({
             entityInfo={entityInfo}
             lang={lang}
             task={task}
-            userGroups={userGroups}
           />
         </>
       )}

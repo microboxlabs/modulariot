@@ -9,6 +9,7 @@ import {
   HiOutlineSearch,
   HiOutlinePlus,
   HiChevronDown,
+  HiX,
 } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
@@ -153,13 +154,29 @@ export function SelectableFieldControl({
   fieldKey: string;
   dict: I18nRecord;
 }>) {
+  const [editorMode] = useFieldEditorMode();
+  if (!editorMode) return null;
+  return <SelectableBindingControl fieldKey={fieldKey} dict={dict} />;
+}
+
+/**
+ * The control itself, always shown: the treatment forms gate it behind the
+ * field editor mode (`SelectableFieldControl`); other screens (places'
+ * categories) show it to whoever may configure the field.
+ */
+export function SelectableBindingControl({
+  fieldKey,
+  dict,
+}: Readonly<{
+  fieldKey: string;
+  dict: I18nRecord;
+}>) {
   const { lang } = useParams<{ lang: string }>();
   const selectables = useFormSelectables();
   const [boundId, setBoundId] = useBinding(fieldKey);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
-  const [editorMode] = useFieldEditorMode();
 
   useEffect(() => {
     if (!open) return;
@@ -169,8 +186,6 @@ export function SelectableFieldControl({
     document.addEventListener("mousedown", onOutside);
     return () => document.removeEventListener("mousedown", onOutside);
   }, [open]);
-
-  if (!editorMode) return null;
 
   const bound = selectables.find((s) => s.id === boundId) ?? null;
   const normalizedQuery = query.trim().toLowerCase();
@@ -270,12 +285,13 @@ export function useSelectableOptions(fieldKey: string) {
   return { selectable, options: selectable?.options ?? [] };
 }
 
-const dropdownTriggerBaseClass =
+export const dropdownTriggerBaseClass =
   "flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-2.5 py-1.5 text-left text-xs text-gray-900 hover:border-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-700 dark:text-white dark:hover:border-gray-500";
 /** Default resting border — kept separate so a caller can override just the
  *  color (e.g. to flag the field as filled by an automated pass) without
  *  restating the rest of the trigger's styling. */
-const dropdownDefaultBorderClass = "border-gray-300 dark:border-gray-600";
+export const dropdownDefaultBorderClass =
+  "border-gray-300 dark:border-gray-600";
 
 /**
  * A Flowbite dropdown (not a native `<select>`) over an explicit list of
@@ -292,6 +308,8 @@ export function OptionsDropdown({
   emptyLabel,
   className,
   triggerBorderClassName = dropdownDefaultBorderClass,
+  clearLabel,
+  onClear,
 }: Readonly<{
   options: FormOption[];
   value: string;
@@ -299,6 +317,10 @@ export function OptionsDropdown({
   placeholder: string;
   emptyLabel: string;
   className?: string;
+  /** With `onClear`, the menu opens with this item to empty the field (only
+   *  while something is picked). Off by default. */
+  clearLabel?: string;
+  onClear?: () => void;
   /** Overrides the trigger's resting border color — replaces, rather than
    *  layers onto, the default so there's never two conflicting `border-*`
    *  utilities at once. */
@@ -334,6 +356,15 @@ export function OptionsDropdown({
           </button>
         )}
       >
+        {clearLabel && onClear && value && (
+          <DropdownItem
+            onClick={onClear}
+            icon={HiX}
+            className="border-b border-rose-100 bg-rose-50 font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-300 dark:hover:bg-rose-900/40"
+          >
+            {clearLabel}
+          </DropdownItem>
+        )}
         {options.length === 0 ? (
           <DropdownItem disabled>{emptyLabel}</DropdownItem>
         ) : (
@@ -371,12 +402,18 @@ export function SelectableDropdown({
   onSelect,
   placeholder,
   triggerBorderClassName,
+  clearLabel,
+  onClear,
 }: Readonly<{
   fieldKey: string;
   dict: I18nRecord;
   value: string;
   onSelect: (option: FormOption) => void;
   placeholder?: string;
+  /** Adds a "clear" entry inside the dropdown (single or multiple), which
+   *  calls `onClear`. Off by default. */
+  clearLabel?: string;
+  onClear?: () => void;
   /** Overrides the trigger's resting border color (both the single-pick
    *  dropdown and the multi-select land on the same visual). */
   triggerBorderClassName?: string;
@@ -396,6 +433,10 @@ export function SelectableDropdown({
         }))}
         selectedValues={selectedIds}
         onSelectionChange={(ids) => {
+          if (ids.length === 0 && onClear) {
+            onClear();
+            return;
+          }
           const primary = options.find((o) => o.id === ids[0]);
           onSelect({
             id: ids.join(","),
@@ -411,6 +452,7 @@ export function SelectableDropdown({
         {...(triggerBorderClassName
           ? { borderClassName: triggerBorderClassName }
           : {})}
+        {...(clearLabel && onClear ? { clearLabel } : {})}
       />
     );
   }
@@ -423,6 +465,7 @@ export function SelectableDropdown({
       placeholder={placeholder ?? unassignedLabel}
       emptyLabel={unassignedLabel}
       {...(triggerBorderClassName ? { triggerBorderClassName } : {})}
+      {...(clearLabel && onClear ? { clearLabel, onClear } : {})}
     />
   );
 }

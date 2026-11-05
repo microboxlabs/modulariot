@@ -17,6 +17,8 @@ import TagManager from "../tag-manager";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import { ConditionsAgg } from "../../types/timeline";
 import { useRouter } from "next/navigation";
+import { lugaresLayout } from "./lugares-layout";
+import { chipText } from "./prototype/header-chip";
 
 export default function GeneralMap({
   dict,
@@ -29,6 +31,10 @@ export default function GeneralMap({
   tripId?: string;
   assetId?: string;
 }) {
+  // Lugares abierto en el mapa: la línea de tiempo se pliega y el mapa
+  // toma todo el ancho
+  const [lugaresAbierto, setLugaresAbierto] = useState(false);
+  const layout = lugaresLayout(lugaresAbierto, { side: "35%", map: "65%" });
   const router = useRouter();
   const { positions, error, isLoading } = useTripPositions(
     tripId ?? "",
@@ -202,12 +208,11 @@ export default function GeneralMap({
                     icon: <FaUser className="text-gray-900 dark:text-white" />,
                   },
                   {
-                    text: treatmentData?.trip_info?.trip_id ? (
-                      "Trip id: " + treatmentData?.trip_info?.trip_id
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
+                    text: chipText(
+                      loading,
+                      treatmentData?.trip_info?.trip_code?.trim() ||
+                        treatmentData?.trip_info?.trip_id,
+                      (dict.symptoms as I18nRecord).trip as string
                     ),
                   },
                   {
@@ -227,9 +232,14 @@ export default function GeneralMap({
           </div>
         </Card>
       </div>
-      <div className="flex flex-row gap-2 w-full h-full px-2 pb-2 overflow-hidden">
-        {/* Side information */}
-        <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="flex flex-row w-full h-full px-2 pb-2 overflow-hidden">
+        {/* Side information — se pliega al abrir Lugares en el mapa */}
+        <div
+          className="h-full rounded-lg shadow-md border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-500 ease-in-out"
+          style={layout.sideStyle}
+          aria-hidden={lugaresAbierto}
+          inert={lugaresAbierto}
+        >
           <SideInfo
             dict={dict}
             treatmentData={treatmentData}
@@ -240,7 +250,10 @@ export default function GeneralMap({
           />
           {/* Map */}
         </div>
-        <div className="w-[65%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div
+          className="h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-500 ease-in-out"
+          style={{ width: layout.mapWidth, minWidth: 0 }}
+        >
           <MapVisualizationTrip
             positions={positions}
             error={error}
@@ -253,6 +266,7 @@ export default function GeneralMap({
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
             licensePlate={treatmentData?.trip_info?.asset_id ?? null}
             showAppSignalDetailDefault={false}
+            onLugaresChange={setLugaresAbierto}
           />
         </div>
       </div>

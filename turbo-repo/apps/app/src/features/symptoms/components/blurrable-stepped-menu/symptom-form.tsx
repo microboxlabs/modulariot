@@ -11,7 +11,7 @@ import FormIcon from "./form-icon";
 import CallDriver from "./menus/call-driver/call-driver";
 import WhatsAppContact from "./menus/whatsapp-contact/whatsapp-contact";
 import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
-import { requestTreatment } from "@/features/common/providers/client-api.provider";
+import { startPendingTreatment } from "@/features/symptoms/components/map-view/prototype/prototype-api-guard";
 import IgnoreCondition from "./menus/ignore-condition/ignore-condition";
 import InvalidateSymptom from "./menus/invalidate-symptom/invalidate-symptom";
 import { TiDelete } from "react-icons/ti";
@@ -19,6 +19,15 @@ import { MdBlock } from "react-icons/md";
 
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
+
+// Treatment recorded as `pending` when each menu opens, so the form's final
+// save updates that same record. WhatsApp is absent: sending one doesn't
+// pre-create a treatment record.
+const PENDING_TREATMENT_TYPES: Record<string, string | undefined> = {
+  call_driver: "llamar al conductor",
+  ignore_condition: "ignorar condicion",
+  invalidate_symptom: "invalidar sintoma",
+};
 
 export default function SymptomForm({
   setIsMenuOpen,
@@ -77,22 +86,6 @@ export default function SymptomForm({
   const menus = {
     call_driver: {
       title: (dict.symptoms as I18nRecord).call_driver,
-      preactions: async () => {
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_type: "llamar al conductor",
-          status: "pending",
-        });
-        const response = await requestTreatment({
-          ...treatmentRequest,
-          treatment_type: "llamar al conductor",
-          status: "pending",
-        });
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_id: response.treatment_id,
-        });
-      },
       component: (
         <div className="w-full h-full flex flex-row items-center justify-center">
           <CallDriver
@@ -112,8 +105,6 @@ export default function SymptomForm({
     },
     contact_via_whatsapp: {
       title: (dict.symptoms as I18nRecord).contact_via_whatsapp,
-      // No preaction: sending a WhatsApp doesn't pre-create a treatment record.
-      preactions: undefined,
       component: (
         // key by trip so the form re-seeds its defaults if the selected treatment changes.
         <WhatsAppContact
@@ -127,22 +118,6 @@ export default function SymptomForm({
     },
     ignore_condition: {
       title: (dict.symptoms as I18nRecord).ignore_condition,
-      preactions: async () => {
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_type: "ignorar condicion",
-          status: "pending",
-        });
-        const response = await requestTreatment({
-          ...treatmentRequest,
-          treatment_type: "ignorar condicion",
-          status: "pending",
-        });
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_id: response.treatment_id,
-        });
-      },
       component: (
         <IgnoreCondition
           dict={dict as I18nRecord}
@@ -160,22 +135,6 @@ export default function SymptomForm({
     },
     invalidate_symptom: {
       title: (dict.symptoms as I18nRecord).invalidate_symptom,
-      preactions: async () => {
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_type: "invalidar sintoma",
-          status: "pending",
-        });
-        const response = await requestTreatment({
-          ...treatmentRequest,
-          treatment_type: "invalidar sintoma",
-          status: "pending",
-        });
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_id: response.treatment_id,
-        });
-      },
       component: (
         <InvalidateSymptom
           dict={dict}
@@ -193,8 +152,14 @@ export default function SymptomForm({
 
   useEffect(() => {
     if (isMenuOpen) {
-      const preaction = menus[selectedOption as keyof typeof menus]?.preactions;
-      preaction && preaction();
+      const treatmentType = PENDING_TREATMENT_TYPES[selectedOption];
+      if (treatmentType) {
+        void startPendingTreatment(
+          treatmentRequest,
+          setTreatmentRequest,
+          treatmentType
+        );
+      }
     }
   }, [isMenuOpen]);
 

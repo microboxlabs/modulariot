@@ -4,11 +4,12 @@
 # round-trips through the real WhatsAppSignatureVerifier + ingestion — no real device needed.
 #
 # Usage:
-#   APP_SECRET=<the WHATSAPP_APP_SECRET> PHONE_NUMBER_ID=<id> ./simulate-meta-inbound.sh [message|status]
+#   CONNECTION_ID=<id> APP_SECRET=<secret> PHONE_NUMBER_ID=<id> ./simulate-meta-inbound.sh [message|status]
 #
 # Env (all overridable):
 #   BASE_URL          modulith root (default http://localhost:8180)
-#   APP_SECRET        Meta app secret used to sign the body (REQUIRED — must match the deployment)
+#   CONNECTION_ID     the WHATSAPP connection the webhook URL names (REQUIRED)
+#   APP_SECRET        Meta App secret used to sign the body (REQUIRED — must match the connection's)
 #   PHONE_NUMBER_ID   the receiving number's id; must match the org's WHATSAPP connection metadata
 #   FROM              the driver's number in international digits (default a placeholder)
 #   WAMID             the message/status id (default time-stamped so reruns aren't deduped)
@@ -23,8 +24,8 @@ KIND="${1:-message}"
 TS="$(date +%s)"
 WAMID="${WAMID:-wamid.sim.${TS}}"
 
-if [[ -z "${APP_SECRET:-}" ]]; then
-  echo "ERROR: APP_SECRET is required (must equal the deployment's WHATSAPP_APP_SECRET)." >&2
+if [[ -z "${APP_SECRET:-}" || -z "${CONNECTION_ID:-}" ]]; then
+  echo "ERROR: CONNECTION_ID and APP_SECRET are required (the App secret stored on that connection)." >&2
   exit 2
 fi
 
@@ -52,10 +53,10 @@ esac
 # Sign the EXACT bytes we send (printf '%s' = no trailing newline; curl --data sends them verbatim).
 SIG="sha256=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$APP_SECRET" -hex | sed 's/^.*= //')"
 
-echo "POST ${BASE_URL}/webhooks/whatsapp  (${KIND}, wamid=${WAMID})"
+echo "POST ${BASE_URL}/webhooks/whatsapp/${CONNECTION_ID}  (${KIND}, wamid=${WAMID})"
 curl -sS -i -X POST \
   -H "Content-Type: application/json" \
   -H "X-Hub-Signature-256: ${SIG}" \
   --data "$PAYLOAD" \
-  "${BASE_URL}/webhooks/whatsapp"
+  "${BASE_URL}/webhooks/whatsapp/${CONNECTION_ID}"
 echo

@@ -9,6 +9,7 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import com.microboxlabs.miot.core.auth.HarnessProxyTestProfile;
 import com.microboxlabs.miot.core.auth.HarnessProxyTestProfile.WireMockLifecycle;
 import com.microboxlabs.miot.core.auth.StubAlfrescoMembershipClient;
+import com.microboxlabs.miot.core.auth.TestMembers;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -47,13 +48,14 @@ class HarnessProxyResourceSkillsTest {
     void seedOrgAndStubs() throws SQLException {
         try (Connection c = ds.getConnection(); var st = c.prepareStatement(
                 "INSERT INTO miot_core.organizations "
-                        + "(slug, name, alfresco_group_id, tenant_client_id, active) "
-                        + "VALUES (?, ?, ?, ?, true)")) {
+                        + "(slug, name, alfresco_group_id, tenant_client_id, active, membership_source) "
+                        + "VALUES (?, ?, ?, ?, true, 'NATIVE')")) {
             st.setString(1, ORG_SLUG);
             st.setString(2, "Harness Skills Test Org");
             st.setString(3, ORG_GROUP);
             st.setString(4, ORG_TENANT);
             st.executeUpdate();
+            TestMembers.addMember(c, ORG_SLUG, StubAlfrescoMembershipClient.MEMBER_EMAIL, "OWNER");
         }
         WireMockLifecycle.server().resetAll();
         // urlPathEqualTo so the stub matches whether or not the proxy appends

@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.integrations.service;
 
+import static com.microboxlabs.miot.integrations.email.PlatformMailService.PLATFORM_TENANT;
+
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
@@ -16,10 +18,12 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepos
 import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationTemplateRepository;
+import com.microboxlabs.miot.integrations.tester.ConnectionTester;
 import com.microboxlabs.miot.integrations.tester.ConnectionTesterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +69,19 @@ public class IntegrationConnectionService {
      * needs no template awareness. Without a template it is an ad-hoc connection.
      */
     public IntegrationConnection createConnection(String tenantCode, CreateIntegrationConnectionRequest req) {
+        return create(tenantCode, req, false);
+    }
+
+    /**
+     * Creates a connection of a platform-only provider type in an organization's tenant. Only platform code calls
+     * this, for a connection whose credential the platform manages.
+     */
+    public IntegrationConnection createPlatformManaged(String tenantCode, CreateIntegrationConnectionRequest req) {
+        return create(tenantCode, req, true);
+    }
+
+    private IntegrationConnection create(String tenantCode, CreateIntegrationConnectionRequest req,
+            boolean platformManaged) {
         IntegrationTemplate template = req.templateId() == null
                 ? null
                 : templateRepository.findByTenantAndId(tenantCode, req.templateId());
@@ -73,6 +90,9 @@ public class IntegrationConnectionService {
         }
 
         ProviderType providerType = template != null ? template.providerType() : req.providerType();
+        if (!platformManaged) {
+            requireAllowed(tenantCode, providerType);
+        }
         IntegrationConnection connection = new IntegrationConnection(
                 UUID.randomUUID().toString(),
                 tenantCode,
@@ -125,7 +145,10 @@ public class IntegrationConnectionService {
         if (existing == null) {
             return null;
         }
-        rotateTokenIfPresent(tenantCode, existing, req.token());
+        requireAllowed(tenantCode, existing.providerType());
+        String credentialId = req.credentialProfileId() == null
+                ? existing.credentialProfileId() : req.credentialProfileId();
+        updateSecrets(tenantCode, credentialId, req.token(), req.secrets());
         String baseUrl = req.baseUrl() == null ? null : req.baseUrl().toString();
         return connectionRepository.update(
                 tenantCode, connectionId, req.name(), baseUrl, req.credentialProfileId(), req.metadata());
@@ -138,6 +161,15 @@ public class IntegrationConnectionService {
      * @return {@code false} when the connection did not exist
      */
     public boolean deleteConnection(String tenantCode, String connectionId) {
+        IntegrationConnection existing = connectionRepository.findByTenantAndId(tenantCode, connectionId);
+        if (existing != null) {
+            requireAllowed(tenantCode, existing.providerType());
+        }
+        return deletePlatformManaged(tenantCode, connectionId);
+    }
+
+    /** Deletes a connection without the platform-only check. Only platform code calls this. */
+    public boolean deletePlatformManaged(String tenantCode, String connectionId) {
         int bindings = bindingRepository.countByConnection(connectionId);
         if (bindings > 0) {
             throw new IllegalStateException(
@@ -147,21 +179,32 @@ public class IntegrationConnectionService {
     }
 
     /**
-     * Rotates the linked credential's secret when a non-blank token is supplied.
-     * Fails (does not silently drop the token) when there is no resolvable credential,
-     * so the rotation is part of the update's success contract.
+     * Sets the non-blank token and secrets on the linked credential and keeps its other keys.
+     * Fails (does not silently drop them) when there is no resolvable credential, so the
+     * change is part of the update's success contract.
      */
-    private void rotateTokenIfPresent(String tenantCode, IntegrationConnection existing, String token) {
-        if (token == null || token.isBlank()) {
+    private void updateSecrets(
+            String tenantCode, String credentialId, String token, Map<String, String> secrets) {
+        Map<String, Object> updates = new LinkedHashMap<>();
+        if (secrets != null) {
+            secrets.forEach((key, value) -> {
+                if (key != null && value != null && !value.isBlank()) {
+                    updates.put(key, value);
+                }
+            });
+        }
+        if (token != null && !token.isBlank()) {
+            updates.put("token", token);
+        }
+        if (updates.isEmpty()) {
             return;
         }
-        CredentialProfile rotated = existing.credentialProfileId() == null
+        CredentialProfile updated = credentialId == null
                 ? null
-                : credentialProfileService.rotateSecret(
-                        tenantCode, existing.credentialProfileId(), Map.of("token", token));
-        if (rotated == null) {
+                : credentialProfileService.mergeSecret(tenantCode, credentialId, updates);
+        if (updated == null) {
             throw new IllegalStateException(
-                    "Cannot rotate the access token: the connection has no resolvable credential profile");
+                    "Cannot store the secret: the connection has no resolvable credential profile");
         }
     }
 
@@ -200,18 +243,79 @@ public class IntegrationConnectionService {
         if (connection == null) {
             return new ConnectionTestResponse(false, OffsetDateTime.now(), "Connection not found");
         }
-
-        CredentialProfile credential = connection.credentialProfileId() == null
+        CredentialProfile credential = connection.credentialProfileId() == null || credentialProfileRepository == null
                 ? null
                 : credentialProfileRepository.findByTenantAndId(tenantCode, connection.credentialProfileId());
+        requireStoredTestAllowed(tenantCode, connection, credential);
 
-        ConnectionTestResponse response = testerRegistry.testerFor(connection.providerType())
-                .test(connection, credential, req);
+        ConnectionTester tester = testerRegistry.testerFor(connection);
+        ConnectionTestResponse response = tester.test(connection, credential, req);
 
         ConnectionStatus status = response.success() ? ConnectionStatus.ACTIVE : ConnectionStatus.TEST_FAILED;
         connectionRepository.updateTestResult(
                 connection.tenantCode(), connection.id(), status, response.testedAt(), response.success());
+        // A test that called the provider with the credential exercised it too, so the credentials screen shows
+        // the same result. A contract-only check says nothing about the credential.
+        if (credential != null && tester.validatesCredential()) {
+            credentialProfileRepository.updateTestResult(
+                    connection.tenantCode(), credential.id(), response.testedAt(), response.success());
+        }
         return response;
+    }
+
+    /**
+     * Tests a connection before it is saved, with the values it would be created with. Nothing is
+     * stored: neither the connection nor the result on it or on its credential.
+     */
+    public ConnectionTestResponse testDraft(String tenantCode, CreateIntegrationConnectionRequest req) {
+        IntegrationTemplate template = req.templateId() == null
+                ? null
+                : templateRepository.findByTenantAndId(tenantCode, req.templateId());
+        if (req.templateId() != null && template == null) {
+            return new ConnectionTestResponse(false, OffsetDateTime.now(ZoneOffset.UTC), "Unknown integration template");
+        }
+        requireAllowed(tenantCode, template != null ? template.providerType() : req.providerType());
+        IntegrationConnection draft = new IntegrationConnection(
+                IntegrationConnection.DRAFT_ID,
+                tenantCode,
+                req.name(),
+                template != null ? template.providerType() : req.providerType(),
+                req.baseUrl(),
+                req.credentialProfileId(),
+                ConnectionStatus.DRAFT,
+                null,
+                null,
+                safeMap(req.metadata()),
+                template != null ? template.id() : null);
+        CredentialProfile credential = draft.credentialProfileId() == null
+                ? null
+                : credentialProfileRepository.findByTenantAndId(tenantCode, draft.credentialProfileId());
+        if (draft.credentialProfileId() != null && credential == null) {
+            return new ConnectionTestResponse(false, OffsetDateTime.now(ZoneOffset.UTC), "The credential could not be found");
+        }
+        return testerRegistry.testerFor(draft).test(draft, credential, null);
+    }
+
+    /**
+     * The platform contracts and pays the geocoding provider. An organization's {@link ProviderType#GEOCODING}
+     * connection is created and removed by a platform owner; the organization cannot create, change, draft-test or delete
+     * it.
+     *
+     * @throws PlatformOnlyProviderException for an organization
+     */
+    private static void requireStoredTestAllowed(String tenantCode, IntegrationConnection connection,
+            CredentialProfile credential) {
+        if (connection.providerType() != ProviderType.GEOCODING || PLATFORM_TENANT.equals(tenantCode)) return;
+        if (credential != null && tenantCode.equals(credential.tenantCode())
+                && credential.authType() == com.microboxlabs.miot.integrations.domain.AuthType.BEARER_TOKEN
+                && ManagedCredentials.isManaged(credential.publicConfig())) return;
+        throw new PlatformOnlyProviderException(ProviderType.GEOCODING);
+    }
+
+    private static void requireAllowed(String tenantCode, ProviderType providerType) {
+        if (providerType == ProviderType.GEOCODING && !PLATFORM_TENANT.equals(tenantCode)) {
+            throw new PlatformOnlyProviderException(providerType);
+        }
     }
 
     private Map<String, Object> safeMap(Map<String, Object> map) {

@@ -5,7 +5,6 @@ import { twMerge } from "tailwind-merge";
 // Re-export from common components for backward compatibility
 export {
   KpiRow,
-  ProgressBar,
   LeadTimeDisplay,
   type LeadTimeData,
   getLeadTimeStatus,

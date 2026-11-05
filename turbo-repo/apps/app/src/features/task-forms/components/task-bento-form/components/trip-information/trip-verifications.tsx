@@ -11,13 +11,11 @@ import { GoX } from "react-icons/go";
 export default function TripVerifications({
   task,
   msg,
-  /* lang,
-  userGroups, */
+  /* lang, */
 }: {
   task: TaskResponse;
   msg: I18nRecord;
-  /*  lang: string;
-  userGroups: string[]; */
+  /*  lang: string; */
 }) {
   const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
     useGetServiceValidation(task.mintral_serviceCode as string);
@@ -79,7 +77,6 @@ export default function TripVerifications({
           msg={msg}
           lang={lang}
           task={task}
-          userGroups={userGroups}
         />
       </div> */}
     </div>

@@ -34,7 +34,7 @@ class ZoneAndHourRuleCasesTest {
         Map<String, Object> s = new LinkedHashMap<>();
         s.put("signal.trip.active", true);
         s.put("signal.trip.double_driver", false);
-        s.put("signal.gps.moving", moving);
+        s.put("signal.derived.moving", moving);
         s.put("signal.geo.risk_zone", riskZone);
         s.put("signal.local_hour", hour);
         return new Signal(seconds, EvalTraces.root(s));
@@ -86,7 +86,7 @@ class ZoneAndHourRuleCasesTest {
         Map<String, Object> twoDrivers = new LinkedHashMap<>();
         twoDrivers.put("signal.trip.active", true);
         twoDrivers.put("signal.trip.double_driver", true);
-        twoDrivers.put("signal.gps.moving", false);
+        twoDrivers.put("signal.derived.moving", false);
         twoDrivers.put("signal.geo.risk_zone", true);
         twoDrivers.put("signal.local_hour", 23.0);
         assertEquals(List.of(opened(0, 1)),

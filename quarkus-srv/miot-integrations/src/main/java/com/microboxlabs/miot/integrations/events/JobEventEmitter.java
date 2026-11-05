@@ -1,8 +1,10 @@
 package com.microboxlabs.miot.integrations.events;
 
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
+import com.microboxlabs.miot.core.db.PgTx;
 import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -15,8 +17,10 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
- * Publishes async-job state transitions to the quarkus-sse event bus so the
- * frontend job console and notification inbox update live.
+ * Publishes async-job state transitions so the frontend job console and
+ * notification inbox update live: to the modulith's own {@link JobEventBus},
+ * which the console streams from, and, when configured, to the quarkus-sse
+ * event bus as well.
  *
  * <p>Each transition becomes one {@code EventData} frame POSTed to
  * {@code {base-url}/api/v1/events/emit} with {@code eventType} {@value #EVENT_TYPE}
@@ -30,7 +34,7 @@ import org.jboss.logging.Logger;
  * strictly fire-and-forget: failures are logged at DEBUG and never propagate
  * into the enqueue/claim/report path.
  *
- * <p>Disabled until {@code miot.integrations.job-events.sse-base-url} is set
+ * <p>The quarkus-sse delivery is off until {@code miot.integrations.job-events.sse-base-url} is set
  * (empty default — no baked endpoint), mirroring {@code CalendarBookingsClient}.
  */
 @ApplicationScoped
@@ -43,16 +47,32 @@ public class JobEventEmitter {
 
     private final Optional<String> baseUrl;
     private final HttpClient http;
+    private final JobEventBus bus;
 
     @Inject
     public JobEventEmitter(
-            @ConfigProperty(name = "miot.integrations.job-events.sse-base-url") Optional<String> baseUrl) {
+            @ConfigProperty(name = "miot.integrations.job-events.sse-base-url") Optional<String> baseUrl,
+            Instance<JobEventBus> bus) {
+        this(baseUrl, bus.isResolvable() ? bus.get() : null);
+    }
+
+    public JobEventEmitter(Optional<String> baseUrl) {
+        this(baseUrl, (JobEventBus) null);
+    }
+
+    public JobEventEmitter(Optional<String> baseUrl, JobEventBus bus) {
+        this.bus = bus;
         this.baseUrl = baseUrl
                 .filter(url -> !url.isBlank())
                 .map(url -> url.endsWith("/") ? url.substring(0, url.length() - 1) : url);
         this.http = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(3))
                 .build();
+    }
+
+    /** Whether the console can stream job events from this modulith. */
+    public boolean isLive() {
+        return bus != null && bus.isEnabled();
     }
 
     public boolean isConfigured() {
@@ -68,7 +88,17 @@ public class JobEventEmitter {
      *        {@code failed} or {@code retried}
      */
     public void emit(AsyncJob job, String transition) {
-        if (job == null || baseUrl.isEmpty()) {
+        if (job == null) {
+            return;
+        }
+        PgTx.afterCommit(() -> emitCommitted(job, transition));
+    }
+
+    private void emitCommitted(AsyncJob job, String transition) {
+        if (bus != null) {
+            bus.publish(eventData(job, transition));
+        }
+        if (baseUrl.isEmpty()) {
             return;
         }
         try {

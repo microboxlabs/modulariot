@@ -68,7 +68,7 @@ class TreatmentServiceTest {
 
     @Test
     void callActionCopiesTheContactAndFeedsStatistics() {
-        Contact camila = contacts.insert(new Contact(null, TENANT, "Camila", "Jefe de operaciones", "+56900000101",
+        Contact camila = contacts.insert(new Contact(null, TENANT, "Camila", "Jefe de operaciones", "+12025550101",
                 List.of(CallMethod.PHONE), true, null, ACTOR, null, null));
         String id = service.open(TENANT, ACTOR, 42L, open(TreatmentType.CALL)).treatment().id();
 
@@ -77,7 +77,7 @@ class TreatmentServiceTest {
 
         assertEquals(1, call.seq());
         assertEquals("Camila", call.contactName());
-        assertEquals("+56900000101", call.contactPhone());
+        assertEquals("+12025550101", call.contactPhone());
         assertEquals(List.of("call_tags_3"), call.tags());
         var stats = treatments.contactStats(TENANT);
         assertEquals(1, stats.size());
@@ -99,6 +99,27 @@ class TreatmentServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id, unknownContact));
         assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id, ignoreWithoutReason));
         assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id, noKind));
+    }
+
+    @Test
+    void callToASavedContactNeedsOneOfItsChannels() {
+        Contact camila = contacts.insert(new Contact(null, TENANT, "Camila", "Jefe de operaciones", "+12025550101",
+                List.of(CallMethod.PHONE), true, null, ACTOR, null, null));
+        String id = service.open(TENANT, ACTOR, 42L, open(TreatmentType.CALL)).treatment().id();
+
+        AddActionRequest unsupported = call(camila.id(), null, CallMethod.WHATSAPP);
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> service.addAction(TENANT, ACTOR, id, unsupported));
+        assertEquals("contact " + camila.id() + " has no WHATSAPP channel; its channels: PHONE", e.getMessage());
+
+        AddActionRequest missingMethod = call(camila.id(), null, (CallMethod) null);
+        assertThrows(IllegalArgumentException.class,
+                () -> service.addAction(TENANT, ACTOR, id, missingMethod));
+
+        assertEquals(CallMethod.PHONE, service.addAction(TENANT, ACTOR, id, call(camila.id(), null, true)).method());
+        // The driver and a new number are not in the book: any channel is accepted.
+        assertEquals(CallMethod.WHATSAPP,
+                service.addAction(TENANT, ACTOR, id, call(null, "Conductor del viaje", CallMethod.WHATSAPP)).method());
     }
 
     @Test
@@ -170,6 +191,11 @@ class TreatmentServiceTest {
 
     private static OpenTreatmentRequest open(TreatmentType type) {
         return new OpenTreatmentRequest(type, "AB12", "trip-1", null);
+    }
+
+    private static AddActionRequest call(String contactId, String contactName, CallMethod method) {
+        return new AddActionRequest(ActionKind.CALL, contactId, contactName, null, null, method, "result_no_answer",
+                "No contesta", false, 0, null, null, null, null);
     }
 
     private static AddActionRequest call(String contactId, String contactName, boolean answered) {

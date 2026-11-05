@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@modulariot/db'
-import { z } from 'zod'
+import { z } from 'zod/v3'
 
 export const ProjectIdSchema = z.string().cuid()
 

@@ -12,11 +12,12 @@ import ts from "typescript";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 /** What the published bundle may reach for. */
-const SHIPPED_ALLOWED = new Set(["zod"]);
+const SHIPPED_ALLOWED = new Set(["zod", "zod/v3"]);
 
 /** Additionally allowed in tests and build scripts, which are not published. */
 const TOOLING_ALLOWED = new Set([
   "vitest",
+  "ajv/dist/2020.js",
   "yaml",
   "typescript",
   "zod-to-json-schema",

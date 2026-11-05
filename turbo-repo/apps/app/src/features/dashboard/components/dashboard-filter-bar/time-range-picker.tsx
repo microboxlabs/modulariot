@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { HiCalendar, HiClock, HiSearch, HiChevronDown } from "react-icons/hi";
 import dayjs from "dayjs";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { dayPart } from "../../utils/date-param";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";

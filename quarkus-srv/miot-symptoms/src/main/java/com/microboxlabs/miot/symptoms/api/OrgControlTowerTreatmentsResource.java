@@ -1,5 +1,10 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import com.microboxlabs.miot.symptoms.cases.EngineCase;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
+import com.microboxlabs.miot.symptoms.cases.HoldService;
+import com.microboxlabs.miot.symptoms.dto.TreatmentView;
+import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import io.quarkus.security.PermissionsAllowed;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -39,6 +44,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSupport {
 
     private final TreatmentService treatments;
+    private final EngineCaseService cases;
+    private final HoldService holds;
 
     @Inject
     public OrgControlTowerTreatmentsResource(
@@ -46,9 +53,13 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            TreatmentService treatments) {
+            TreatmentService treatments,
+            EngineCaseService cases,
+            HoldService holds) {
         super(tenantContext, organizationContext, roleService, identity);
         this.treatments = treatments;
+        this.cases = cases;
+        this.holds = holds;
     }
 
     @GET
@@ -115,7 +126,9 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     @POST
     @Path("/treatments/{treatmentId}/close")
     @Operation(operationId = "closeTreatment", summary = "Finish a treatment",
-            description = "Needs at least one action. 409 when the treatment is not open or has no actions.")
+            description = "Needs at least one action. 409 when the treatment is not open or has no actions. "
+                    + "On an engine case (negative symptom id) it also closes the case; repeating it after the "
+                    + "treatment closed retries the case close.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> close(
@@ -124,7 +137,37 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
             CloseTreatmentRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(treatments.close(tenant, actor, treatmentId, body)).build());
+        return work(() -> {
+            TreatmentView current = treatments.get(tenant, treatmentId);
+            boolean engineCase = EngineCase.caseId(current.symptomId()).isPresent();
+            // A retry after the case failed to close: the treatment is already closed, the case still closes.
+            TreatmentView closed = engineCase && current.status() == TreatmentStatus.CLOSED
+                    ? current
+                    : treatments.close(tenant, actor, treatmentId, body);
+            if (engineCase) {
+                cases.close(tenant, closed.symptomId(), actor);
+            }
+            return Response.ok(closed).build();
+        });
+    }
+
+    @POST
+    @Path("/treatments/{treatmentId}/resume")
+    @Operation(operationId = "resumeTreatment", summary = "Lift an \"Ignorar condición\" hold before it ends",
+            description = "The case is checked as when the hold runs out: closed by its symptom's rule, or back in "
+                    + "the tower at its level. 409 when the treatment is not an open hold.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> resume(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("treatmentId") String treatmentId) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return work(() -> {
+            var actions = treatments.actionsOf(tenant, treatmentId);
+            var closed = holds.resume(tenant, actor, treatmentId);
+            return Response.ok(TreatmentView.of(closed, actions)).build();
+        });
     }
 
     @POST

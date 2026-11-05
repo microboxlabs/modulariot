@@ -2,10 +2,7 @@
 import "server-only";
 
 import { AuthError } from "next-auth";
-import {
-  AuthenticateActionState,
-  formSchema,
-} from "./auth.service.types";
+import { AuthenticateActionState, formSchema } from "./auth.service.types";
 import { getAuth0Connection } from "@/features/auth/config/auth0-connections";
 import { auth, signIn } from "@/auth";
 import { redirectWithLang } from "./navigation.service";
@@ -46,7 +43,11 @@ export async function signInWithProvider(
   // If Auth0 is configured and we have a connection mapping, use Auth0 as broker
   if (auth0Connection) {
     // Third argument passes authorization params to Auth0 (connection skips Universal Login)
-    await signIn("auth0", { redirectTo: target }, { connection: auth0Connection });
+    await signIn(
+      "auth0",
+      { redirectTo: target },
+      { connection: auth0Connection }
+    );
     return;
   }
 
@@ -124,7 +125,7 @@ export async function authenticateAction(
     const session = await auth();
     logger.info("session--------------------------------");
     logger.info(session);
-    await redirectWithLang("/shipping");
+    await redirectWithLang("/start");
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {

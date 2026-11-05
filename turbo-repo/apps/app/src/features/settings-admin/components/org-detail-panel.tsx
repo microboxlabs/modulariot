@@ -2,40 +2,32 @@
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { useOrgMembers } from "../hooks/use-org-members";
 import { useOrgModules } from "../hooks/use-org-modules";
 import ModulesList from "./modules-list";
 import GpsWebhookCard from "../gps-webhooks/gps-webhook-card";
-import EmailChannelCard from "../email/email-channel-card";
-import WhatsAppChannelCard from "../whatsapp/whatsapp-channel-card";
-import ContentReviewPermissionCard from "./content-review-permission-card";
-import HarnessTrainerPermissionCard from "./harness-trainer-permission-card";
-import OrganizationMembersCard from "./organization-members-card";
+import OrgServiceAccountCard from "../platform/org-service-account-card";
 import type { OrgSummary } from "../types";
 
 interface OrgDetailPanelProps {
   readonly organization: OrgSummary | null;
   readonly dict: I18nRecord;
-  /** Settings › Credentials text, for the credential forms the channel cards open. */
-  readonly credentialsDict?: I18nRecord;
+  readonly lang: string;
+  /** Platform owners also manage the organization's service account here. */
+  readonly isPlatformOwner: boolean;
 }
 
 /**
- * Right-column detail view. Shows the selected org's members and enabled
- * modules. Both sections load independently via SWR; the hooks skip the
- * fetch when orgSlug is null.
+ * Right-column detail view. Shows the selected org's enabled modules and, to
+ * owners, its GPS webhooks. Members are on the Team page; WhatsApp and email
+ * accounts are in Comunicaciones.
  */
 export default function OrgDetailPanel({
   organization,
   dict,
-  credentialsDict = {},
+  lang,
+  isPlatformOwner,
 }: OrgDetailPanelProps) {
   const orgSlug = organization?.slug ?? null;
-  const {
-    members,
-    isLoading: membersLoading,
-    error: membersError,
-  } = useOrgMembers(orgSlug);
   const {
     modules,
     isLoading: modulesLoading,
@@ -54,47 +46,15 @@ export default function OrgDetailPanel({
 
   return (
     <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-      {isOwner ? (
-        <>
-          <ContentReviewPermissionCard
-            orgSlug={orgSlug}
-            members={members}
-            membersLoading={membersLoading}
-            membersError={membersError}
-            dict={dict}
-          />
-          <HarnessTrainerPermissionCard
-            orgSlug={orgSlug}
-            members={members}
-            membersLoading={membersLoading}
-            membersError={membersError}
-            dict={dict}
-          />
-        </>
-      ) : (
-        <OrganizationMembersCard
-          members={members}
-          isLoading={membersLoading}
-          error={membersError}
-          dict={dict}
-        />
-      )}
       <ModulesList
         modules={modules}
         isLoading={modulesLoading}
         error={modulesError}
         dict={dict}
       />
-      {isOwner && (
-        <>
-          <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
-          <EmailChannelCard
-            orgSlug={orgSlug}
-            dict={dict}
-            credentialsDict={credentialsDict}
-          />
-          <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
-        </>
+      {isOwner && <GpsWebhookCard orgSlug={orgSlug} dict={dict} />}
+      {isPlatformOwner && (
+        <OrgServiceAccountCard slug={orgSlug} dict={dict} lang={lang} />
       )}
     </div>
   );

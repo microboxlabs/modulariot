@@ -16,6 +16,9 @@ import {
 } from "@microboxlabs/miot-dashboard-server";
 import { logger } from "@/lib/logger";
 import type { Session } from "next-auth";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
+import { requireDashboards } from "@/features/layout/services/dashboard-guard";
 
 /** Resolve the user's primary Alfresco site. Returns null when the user has no sites. Throws on errors. */
 async function resolvePrimarySite(session: Session): Promise<string | null> {
@@ -87,6 +90,8 @@ interface SlugPageParams extends ParamsWithLang {
 export default async function SlugDashboardPage({
   params,
 }: Readonly<SlugPageParams>) {
+  requireDashboards("legacy");
+  await guardPage(ACCESS_RULES.dashboards, "/home");
   const { lang, slug } = await params;
 
   const [dictionaryResult, session] = await Promise.all([
@@ -115,7 +120,7 @@ export default async function SlugDashboardPage({
   }
 
   return (
-    <RouteGuard path="/home" fallbackPath={`/${lang}/home`}>
+    <RouteGuard path="/home">
       <div className="flex h-full flex-col overflow-hidden">
         <DashboardProvider
           dictionary={dictionary}

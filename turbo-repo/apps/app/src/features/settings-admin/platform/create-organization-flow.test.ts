@@ -6,7 +6,6 @@ const organization = {
   slug: "acme",
   name: "Acme",
   tenantClientId: "client-1",
-  membershipSource: "NATIVE" as const,
 };
 const OWNER = "owner@example.test";
 

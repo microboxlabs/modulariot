@@ -2,24 +2,21 @@ package com.microboxlabs.miot.fleet.api;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
-import com.microboxlabs.miot.fleet.dto.CreateCarrierRequest;
-import com.microboxlabs.miot.fleet.dto.CreateTrailerRequest;
-import com.microboxlabs.miot.fleet.dto.CreateTruckRequest;
-import com.microboxlabs.miot.fleet.model.Carrier;
-import com.microboxlabs.miot.fleet.model.Trailer;
-import com.microboxlabs.miot.fleet.model.Truck;
-import com.microboxlabs.miot.fleet.service.CarrierService;
-import com.microboxlabs.miot.fleet.service.TruckMetricCatalog;
-import com.microboxlabs.miot.fleet.service.TruckMetricSelection;
-import com.microboxlabs.miot.fleet.service.TrailerService;
-import com.microboxlabs.miot.fleet.service.TruckService;
-import com.microboxlabs.miot.fleet.service.TruckRealtimeEnricher;
-import com.microboxlabs.miot.resource.dto.StatusChangeRequest;
-import com.microboxlabs.miot.resource.event.EntityEvent;
-import com.microboxlabs.miot.resource.event.EntityEventService;
-import com.microboxlabs.miot.resource.event.EntityType;
+import com.microboxlabs.miot.core.iam.OrgPermission;
+import com.microboxlabs.miot.fleet.access.FleetAccessCatalog;
+import com.microboxlabs.miot.fleet.directory.AssetKind;
+import com.microboxlabs.miot.fleet.directory.AssetQuery;
+import com.microboxlabs.miot.fleet.directory.AssetStatus;
+import com.microboxlabs.miot.fleet.directory.FleetDirectoryService;
+import com.microboxlabs.miot.fleet.directory.FleetDirectoryService.Viewer;
+import com.microboxlabs.miot.fleet.directory.FleetUnavailableException;
+import com.microboxlabs.miot.fleet.directory.Views.AssetUpdate;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.quarkus.security.Authenticated;
+import io.quarkus.security.PermissionsAllowed;
+import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
@@ -30,229 +27,177 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+/** The organization's fleet: assets filled from GPS signals and trips, and the data people set by hand. */
 @Path("/api/v1/orgs/{organizationId}/fleet")
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "Fleet", description = "Fleet resource directory: vehicles, trucks, trailers, carriers")
+@Tag(name = "Fleet", description = "Assets, their trips, documents and indicators")
 @SecurityRequirement(name = "oidc")
+@Authenticated
 @IfBuildProperty(name = "miot.component.fleet.enabled", stringValue = "true")
 public class OrgFleetResource {
 
-    private static final String ERR_JSON_PREFIX = "{\"error\":\"";
-
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
-    private final TruckService truckService;
-    private final TrailerService trailerService;
-    private final CarrierService carrierService;
-    private final EntityEventService eventService;
-    private final TruckRealtimeEnricher truckRealtimeEnricher;
-    private final TruckMetricCatalog truckMetricCatalog;
+    private final SecurityIdentity identity;
+    private final FleetDirectoryService fleet;
 
     @Inject
     public OrgFleetResource(TenantContext tenantContext, OrganizationContext organizationContext,
-            TruckService truckService, TrailerService trailerService,
-            CarrierService carrierService, EntityEventService eventService,
-            TruckRealtimeEnricher truckRealtimeEnricher,
-            TruckMetricCatalog truckMetricCatalog) {
+            SecurityIdentity identity, FleetDirectoryService fleet) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
-        this.truckService = truckService;
-        this.trailerService = trailerService;
-        this.carrierService = carrierService;
-        this.eventService = eventService;
-        this.truckRealtimeEnricher = truckRealtimeEnricher;
-        this.truckMetricCatalog = truckMetricCatalog;
-    }
-
-    // --- Trucks ---
-
-    @GET
-    @Path("/trucks")
-    @Operation(summary = "List trucks")
-    public Uni<List<Truck>> listTrucks(
-            @PathParam("organizationId") String organizationId,
-            @QueryParam("page") @DefaultValue("0") int page,
-            @QueryParam("size") @DefaultValue("25") int size,
-            @QueryParam("includeMetrics") @DefaultValue("false") boolean includeMetrics,
-            @QueryParam("metricView") String metricView,
-            @QueryParam("metricFields") String metricFields) {
-        TruckMetricSelection selection = truckMetricCatalog.resolve(includeMetrics, metricView, metricFields);
-        return truckService.list(tenantContext.getEffectiveClientIds(), page, size)
-                .flatMap(trucks -> truckRealtimeEnricher.enrichList(tenantContext.getClientId(), trucks, selection));
+        this.identity = identity;
+        this.fleet = fleet;
     }
 
     @GET
-    @Path("/trucks/{id}")
-    @Operation(summary = "Get truck by ID")
-    public Uni<Response> getTruck(
-            @PathParam("organizationId") String organizationId,
-            @PathParam("id") Long id,
-            @QueryParam("includeMetrics") @DefaultValue("false") boolean includeMetrics,
-            @QueryParam("metricView") String metricView,
-            @QueryParam("metricFields") String metricFields) {
-        TruckMetricSelection selection = truckMetricCatalog.resolve(includeMetrics, metricView, metricFields);
-        return truckService.findById(tenantContext.getEffectiveClientIds(), id)
-                .flatMap(truck -> {
-                    if (truck == null) return Uni.createFrom().item(Response.status(404).build());
-                    return truckRealtimeEnricher.enrichTruck(tenantContext.getClientId(), truck, selection)
-                            .map(enriched -> Response.ok(enriched).build());
-                });
+    @Path("/assets")
+    @Operation(operationId = "listFleetAssets", summary = "Assets of the organization, filtered and paged")
+    @PermissionsAllowed(value = FleetAccessCatalog.ASSETS_VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> assets(@PathParam("organizationId") String organizationId, @QueryParam("q") String q,
+            @QueryParam("kind") String kind, @QueryParam("status") String status,
+            @QueryParam("carrier") String carrier, @QueryParam("suggestions") boolean suggestions,
+            @QueryParam("documentsDue") boolean documentsDue, @QueryParam("sort") String sort,
+            @QueryParam("page") @DefaultValue("0") int page, @QueryParam("size") @DefaultValue("50") int size) {
+        Viewer viewer = viewer(organizationId);
+        AssetQuery query = new AssetQuery(q, parse(kind, AssetKind::valueOf), parse(status, AssetStatus::valueOf),
+                blank(carrier), suggestions, documentsDue, sort, page, size);
+        return work(() -> fleet.list(viewer, query));
     }
 
-    @POST
-    @Path("/trucks")
-    @Operation(summary = "Create a truck")
-    public Uni<Response> createTruck(
-            @PathParam("organizationId") String organizationId,
-            CreateTruckRequest req) {
-        return truckService.create(tenantContext.getClientId(), req, organizationContext.getUserEmail())
-                .map(t -> Response.status(201).entity(t).build());
+    @GET
+    @Path("/assets/{assetId}")
+    @Operation(operationId = "getFleetAsset", summary = "One asset with its fields, trips, documents and indicators")
+    @PermissionsAllowed(value = FleetAccessCatalog.ASSETS_VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> asset(@PathParam("organizationId") String organizationId,
+            @PathParam("assetId") String assetId) {
+        Viewer viewer = viewer(organizationId);
+        return work(() -> fleet.asset(viewer, assetId));
+    }
+
+    @GET
+    @Path("/assets/{assetId}/activity")
+    @Operation(operationId = "getFleetAssetActivity", summary = "Daily engine hours, idle time and distance")
+    @PermissionsAllowed(value = FleetAccessCatalog.ASSETS_VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> activity(@PathParam("organizationId") String organizationId,
+            @PathParam("assetId") String assetId, @QueryParam("days") @DefaultValue("14") int days) {
+        Viewer viewer = viewer(organizationId);
+        return work(() -> fleet.activity(viewer, assetId, days));
     }
 
     @PATCH
-    @Path("/trucks/{id}/status")
-    @Operation(summary = "Change truck status")
-    public Uni<Response> changeTruckStatus(
-            @PathParam("organizationId") String organizationId,
-            @PathParam("id") Long id,
-            StatusChangeRequest req) {
-        return truckService.changeStatus(tenantContext.getEffectiveClientIds(), id, req, organizationContext.getUserEmail())
-                .map(t -> Response.ok(t).build())
-                .onFailure(IllegalArgumentException.class)
-                .recoverWithItem(e -> Response.status(404).entity(ERR_JSON_PREFIX + e.getMessage() + "\"}").build());
-    }
-
-    @GET
-    @Path("/trucks/{id}/events")
-    @Operation(summary = "Get truck event history")
-    public Uni<List<EntityEvent>> getTruckEvents(
-            @PathParam("organizationId") String organizationId,
-            @PathParam("id") Long id,
-            @QueryParam("limit") @DefaultValue("50") int limit) {
-        return truckService.findById(tenantContext.getEffectiveClientIds(), id)
-                .flatMap(t -> t == null ? Uni.createFrom().item(List.<EntityEvent>of())
-                        : eventService.listByEntity(EntityType.TRUCK, t.entityId, limit));
-    }
-
-    // --- Trailers ---
-
-    @GET
-    @Path("/trailers")
-    @Operation(summary = "List trailers")
-    public Uni<List<Trailer>> listTrailers(
-            @PathParam("organizationId") String organizationId,
-            @QueryParam("page") @DefaultValue("0") int page,
-            @QueryParam("size") @DefaultValue("25") int size) {
-        return trailerService.list(tenantContext.getEffectiveClientIds(), page, size);
-    }
-
-    @GET
-    @Path("/trailers/{id}")
-    @Operation(summary = "Get trailer by ID")
-    public Uni<Response> getTrailer(
-            @PathParam("organizationId") String organizationId,
-            @PathParam("id") Long id) {
-        return trailerService.findById(tenantContext.getEffectiveClientIds(), id)
-                .map(t -> t != null ? Response.ok(t).build() : Response.status(404).build());
+    @Path("/assets/{assetId}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "updateFleetAsset",
+            summary = "Set or clear fields and document dates; a cleared field is filled by the integrations again")
+    @PermissionsAllowed(value = FleetAccessCatalog.ASSETS_EDIT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> update(@PathParam("organizationId") String organizationId,
+            @PathParam("assetId") String assetId, AssetUpdate update) {
+        Viewer viewer = viewer(organizationId);
+        String actor = actor();
+        AssetUpdate body = update == null ? new AssetUpdate(Map.of(), Map.of()) : update;
+        return work(() -> fleet.update(viewer, assetId, body, actor));
     }
 
     @POST
-    @Path("/trailers")
-    @Operation(summary = "Create a trailer")
-    public Uni<Response> createTrailer(
-            @PathParam("organizationId") String organizationId,
-            CreateTrailerRequest req) {
-        return trailerService.create(tenantContext.getClientId(), req, organizationContext.getUserEmail())
-                .map(t -> Response.status(201).entity(t).build());
-    }
-
-    @PATCH
-    @Path("/trailers/{id}/status")
-    @Operation(summary = "Change trailer status")
-    public Uni<Response> changeTrailerStatus(
-            @PathParam("organizationId") String organizationId,
-            @PathParam("id") Long id,
-            StatusChangeRequest req) {
-        return trailerService.changeStatus(tenantContext.getEffectiveClientIds(), id, req, organizationContext.getUserEmail())
-                .map(t -> Response.ok(t).build())
-                .onFailure(IllegalArgumentException.class)
-                .recoverWithItem(e -> Response.status(404).entity(ERR_JSON_PREFIX + e.getMessage() + "\"}").build());
-    }
-
-    @GET
-    @Path("/trailers/{id}/events")
-    @Operation(summary = "Get trailer event history")
-    public Uni<List<EntityEvent>> getTrailerEvents(
-            @PathParam("organizationId") String organizationId,
-            @PathParam("id") Long id,
-            @QueryParam("limit") @DefaultValue("50") int limit) {
-        return trailerService.findById(tenantContext.getEffectiveClientIds(), id)
-                .flatMap(t -> t == null ? Uni.createFrom().item(List.<EntityEvent>of())
-                        : eventService.listByEntity(EntityType.TRAILER, t.entityId, limit));
-    }
-
-    // --- Carriers ---
-
-    @GET
-    @Path("/carriers")
-    @Operation(summary = "List carriers")
-    public Uni<List<Carrier>> listCarriers(
-            @PathParam("organizationId") String organizationId,
-            @QueryParam("page") @DefaultValue("0") int page,
-            @QueryParam("size") @DefaultValue("25") int size) {
-        return carrierService.list(tenantContext.getEffectiveClientIds(), page, size);
-    }
-
-    @GET
-    @Path("/carriers/{id}")
-    @Operation(summary = "Get carrier by ID")
-    public Uni<Response> getCarrier(
-            @PathParam("organizationId") String organizationId,
-            @PathParam("id") Long id) {
-        return carrierService.findById(tenantContext.getEffectiveClientIds(), id)
-                .map(c -> c != null ? Response.ok(c).build() : Response.status(404).build());
+    @Path("/assets/{assetId}/suggestions/{kind}/accept")
+    @Operation(operationId = "acceptFleetSuggestion", summary = "Apply a suggestion to its field")
+    @PermissionsAllowed(value = FleetAccessCatalog.ASSETS_EDIT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> accept(@PathParam("organizationId") String organizationId,
+            @PathParam("assetId") String assetId, @PathParam("kind") String kind) {
+        Viewer viewer = viewer(organizationId);
+        String actor = actor();
+        return work(() -> fleet.accept(viewer, assetId, kind, actor));
     }
 
     @POST
-    @Path("/carriers")
-    @Operation(summary = "Create a carrier")
-    public Uni<Response> createCarrier(
-            @PathParam("organizationId") String organizationId,
-            CreateCarrierRequest req) {
-        return carrierService.create(tenantContext.getClientId(), req, organizationContext.getUserEmail())
-                .map(c -> Response.status(201).entity(c).build());
+    @Path("/assets/{assetId}/suggestions/{kind}/dismiss")
+    @Operation(operationId = "dismissFleetSuggestion", summary = "Stop suggesting this value")
+    @PermissionsAllowed(value = FleetAccessCatalog.ASSETS_EDIT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> dismiss(@PathParam("organizationId") String organizationId,
+            @PathParam("assetId") String assetId, @PathParam("kind") String kind) {
+        Viewer viewer = viewer(organizationId);
+        String actor = actor();
+        return work(() -> fleet.dismiss(viewer, assetId, kind, actor));
     }
 
-    @PATCH
-    @Path("/carriers/{id}/status")
-    @Operation(summary = "Change carrier status")
-    public Uni<Response> changeCarrierStatus(
-            @PathParam("organizationId") String organizationId,
-            @PathParam("id") Long id,
-            StatusChangeRequest req) {
-        return carrierService.changeStatus(tenantContext.getEffectiveClientIds(), id, req, organizationContext.getUserEmail())
-                .map(c -> Response.ok(c).build())
-                .onFailure(IllegalArgumentException.class)
-                .recoverWithItem(e -> Response.status(404).entity(ERR_JSON_PREFIX + e.getMessage() + "\"}").build());
+    private Viewer viewer(String organizationId) {
+        if (!Objects.equals(organizationId, organizationContext.getOrganizationId())) {
+            throw new WebApplicationException(error(Response.Status.FORBIDDEN,
+                    "Organization context does not match request path"));
+        }
+        Set<String> clientIds = new HashSet<>();
+        if (tenantContext.getClientId() != null) {
+            clientIds.addAll(tenantContext.getEffectiveClientIds());
+        }
+        String tenantCode = tenantContext.getTenantCode() != null ? tenantContext.getTenantCode()
+                : tenantContext.getClientId();
+        return new Viewer(organizationId, clientIds, tenantCode);
     }
 
-    @GET
-    @Path("/carriers/{id}/events")
-    @Operation(summary = "Get carrier event history")
-    public Uni<List<EntityEvent>> getCarrierEvents(
-            @PathParam("organizationId") String organizationId,
-            @PathParam("id") Long id,
-            @QueryParam("limit") @DefaultValue("50") int limit) {
-        return carrierService.findById(tenantContext.getEffectiveClientIds(), id)
-                .flatMap(c -> c == null ? Uni.createFrom().item(List.<EntityEvent>of())
-                        : eventService.listByEntity(EntityType.CARRIER, c.entityId, limit));
+    /** The user's email for a session token, the client id for an M2M token. */
+    private String actor() {
+        String email = organizationContext.getUserEmail();
+        if (email != null && !email.isBlank()) {
+            return email;
+        }
+        return identity != null && identity.getPrincipal() != null ? identity.getPrincipal().getName() : null;
+    }
+
+    private static <T> T parse(String value, Function<String, T> parser) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return parser.apply(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new WebApplicationException(error(Response.Status.BAD_REQUEST, "Unknown value: " + value));
+        }
+    }
+
+    private static String blank(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static Uni<Response> work(Supplier<Object> read) {
+        return Uni.createFrom().item(() -> answer(read))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+    }
+
+    private static Response answer(Supplier<Object> read) {
+        try {
+            return Response.ok(read.get()).build();
+        } catch (NoSuchElementException e) {
+            return error(Response.Status.NOT_FOUND, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return error(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (FleetUnavailableException e) {
+            return error(Response.Status.SERVICE_UNAVAILABLE, e.getMessage());
+        }
+    }
+
+    private static Response error(Response.Status status, String message) {
+        return Response.status(status).type(MediaType.APPLICATION_JSON).entity(Map.of("error", message)).build();
     }
 }

@@ -1,12 +1,11 @@
 "use client";
 
 import { Button, Checkbox } from "flowbite-react";
-import { useGetNodeThumbnail } from "@/features/common/providers/client-api.provider";
+import { useMediaSource } from "../media-source";
 import { useEffect, useState } from "react";
 import { IoImagesOutline } from "react-icons/io5";
 import { FaRegFilePdf } from "react-icons/fa";
 import { HiPencilSquare } from "react-icons/hi2";
-import { getCategories } from "../clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
@@ -51,7 +50,8 @@ export default function MediaRow({
   dictionary: I18nRecord;
 }>) {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const { data } = useGetNodeThumbnail(file.entry.id);
+  const source = useMediaSource();
+  const { data } = source.useThumbnail(file.entry.id);
 
   useEffect(() => {
     if (!data) return;
@@ -60,7 +60,7 @@ export default function MediaRow({
     return () => URL.revokeObjectURL(url);
   }, [data]);
 
-  const categories = getCategories(dictionary);
+  const categories = source.useCategories(dictionary);
   const tag = file.entry.properties?.["mintral:contentType"];
   const categoryLabel = categories[tag as keyof typeof categories]?.label;
   const FallbackIcon = type === "image" ? IoImagesOutline : FaRegFilePdf;

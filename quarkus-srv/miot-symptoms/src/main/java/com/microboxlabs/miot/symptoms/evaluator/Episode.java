@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -17,9 +18,10 @@ import java.util.UUID;
  *                       threshold, for levels qualified by a hold time; reset when the version changes
  * @param lastSignalAt   the newest signal applied
  * @param openedAt       when the case opened, or null when no case is open
- * @param level          the case's level; 0 when no case is open
+ * @param level          the case's level; with no case open, 0, or the level of an opening a hold keeps back
  * @param maxMeasure     the highest measure since the case opened
  */
+@RegisterForReflection
 public record Episode(
         UUID definitionId,
         String version,

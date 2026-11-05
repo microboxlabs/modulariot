@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { createCalendarClient } from "../../utils/miot-calendar-api-client";
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import {

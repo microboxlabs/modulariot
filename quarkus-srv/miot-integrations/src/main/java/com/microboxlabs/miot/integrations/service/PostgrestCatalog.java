@@ -71,7 +71,7 @@ public class PostgrestCatalog {
 
     /** The raw OpenAPI answer; a non-2xx status is returned, not thrown. */
     public OperationInvocationResult fetchSpec(IntegrationConnection connection) {
-        var resolved = resolver.resolve(connection.tenantCode(), connection.id());
+        var resolved = resolver.resolve(connection.tenantCode(), connection);
         var root = new IntegrationOperation(null, connection.id(), "openapi", "GET", "/", Map.of(), Map.of(), false);
         return invoker.executeBounded(resolved, root, Map.of(), MAX_SPEC_BYTES);
     }

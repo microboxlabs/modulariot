@@ -8,8 +8,8 @@
     { "icu": 4, "applies": true, "when": "check.driving_minutes >= 360" }
   ],
   "lifecycle": {
-    "open": "caso.condicion_s >= 0",
-    "close": "caso.normal_s >= 0",
+    "open": "case.condition_s >= 0",
+    "close": "case.normal_s >= 0",
     "levelDown": true
   }
 }

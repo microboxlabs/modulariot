@@ -150,9 +150,8 @@ function topShareText(
   d: I18nRecord
 ) {
   const top = stats?.totals.topShare;
-  if (!stats?.engineAvailable || !top?.definitionIds.length) {
-    return tr("noEngineData", d);
-  }
+  if (!stats?.engineAvailable) return tr("noEngineData", d);
+  if (!top?.definitionIds.length) return tr("noCases", d);
   const names = new Map(all.map((s) => [s.definition.id, s.definition.name]));
   return tr("topShare", d, {
     names: top.definitionIds
@@ -182,7 +181,9 @@ function WeekCard({
       <CardHeader
         tile={<Tile>▤</Tile>}
         title={tr("cardWeek", d)}
-        subtitle={tr("cardWeekHint", d)}
+        subtitle={tr("cardWeekHint", d, {
+          n: String(stats?.windowDays ?? 90),
+        })}
       />
       <div className="flex-1 px-4 py-3">
         <Big

@@ -2,8 +2,10 @@
 
 /**
  * Client for the symptom catalog API (`/control-tower/symptom-definitions`
- * and `/control-tower/data-sources`), through the app's Control Tower proxy.
- * Types mirror the modulith's JSON.
+ * and `/control-tower/data-sources`), through the app's Control Tower proxy,
+ * and for the platform's symptom templates, which take the same requests.
+ * Hooks follow the {@link SymptomScope} in context; the other calls take it
+ * as their last argument. Types mirror the modulith's JSON.
  */
 
 import useSWR, { mutate } from "swr";
@@ -12,6 +14,13 @@ import {
   ControlTowerError,
   controlTowerRequest as request,
 } from "../control-tower/control-tower-api";
+import {
+  ORG_SYMPTOMS,
+  PLATFORM_TEMPLATES,
+  isTemplateScope,
+  useSymptomScope,
+  type SymptomScope,
+} from "./symptom-scope";
 
 export type SymptomState = "OFF" | "TEST" | "ACTIVE";
 export type VersionBump = "PATCH" | "MINOR" | "MAJOR";
@@ -25,11 +34,30 @@ export type FieldOrigin =
   | "CALCULATED"
   | "CONNECTION";
 
+/** Where an older step's role was looked up: the trip's driver, the trip's carrier, or the organization. */
+export type StepScope = "DRIVER" | "TRIP_CARRIER" | "ORG";
+
 export interface Step {
+  /** Older steps: a contact book role. Read through `whoOf`. */
   role: string | null;
   channel: string | null;
   budgetMinutes: number | null;
   script: string | null;
+  /** Older steps: where `role` is looked up. Read through `whoOf`. */
+  scope?: StepScope | null;
+  /** Who to contact: CEL over `contact` and `event`, as a communication rule's book audience. */
+  who?: string | null;
+  /** What the call must obtain: the operator's aim, and a voice agent's instruction. */
+  goal?: string | null;
+  /** The answers the step expects, each tied to a call result. */
+  replies?: StepReply[] | null;
+}
+
+/** An answer a step expects: the call result it records and what the person says or does. */
+export interface StepReply {
+  /** An option of the `call_result` selectable. */
+  result: string;
+  says: string;
 }
 
 export interface Notice {
@@ -47,8 +75,12 @@ export interface LevelResponse {
   notices: Notice[];
   evidence: string[];
   ignorable: boolean;
-  /** Who is told when the SLA runs out, e.g. "Jefe de torre". */
+  /** The role told when the SLA runs out, e.g. "Jefe de torre". */
   escalateTo?: string | null;
+  /** Where `escalateTo` is looked up; absent in older specs. */
+  escalateScope?: StepScope | null;
+  /** Who is told when the SLA runs out, as a step's `who`; older specs use `escalateTo`. */
+  escalateWho?: string | null;
   /** The case counts in consequence management. */
   consequence?: boolean;
 }
@@ -75,13 +107,15 @@ export interface SymptomSpec {
     close: string | null;
     /** An open case's level follows the measure down. */
     levelDown?: boolean;
+    /** When it holds on a signal of an open case, the case's timeline gets an entry; the case does not close. */
+    note?: string | null;
   } | null;
   recurrence: {
     enabled: boolean;
     count: number;
     days: number;
     raiseLevels: number;
-    /** "patente" (default) or "conductor". */
+    /** "vehicle" (default) or "driver". */
     entity?: string | null;
   } | null;
   /** A symptom_families value; null or missing keeps the symptom's. */
@@ -101,6 +135,8 @@ export interface SymptomDefinition {
   sourceKey: string;
   engineRuleId: number | null;
   templateKey: string | null;
+  /** The template version the symptom was copied from. */
+  templateVersion?: string | null;
   forkedFromVersionId: string | null;
   state: SymptomState;
   currentVersion: string | null;
@@ -189,8 +225,12 @@ export interface SymptomDetail {
 export interface Finding {
   section: string;
   severity: "ERROR" | "WARNING";
+  /** Spanish text, shown when the app does not know the code. */
   message: string;
   position: number;
+  /** Translated as `finding<Code>` in the lang files. */
+  code?: string;
+  params?: Record<string, string>;
 }
 
 export interface ValidationReport {
@@ -281,17 +321,19 @@ export interface CreateSymptomBody {
   spec?: SymptomSpec;
 }
 
-const DEFS = `${CONTROL_TOWER_BASE}/symptom-definitions`;
-const SOURCES = `${CONTROL_TOWER_BASE}/data-sources`;
+/** Organization-only requests: stats, team, templates, engine import, state and live responses. */
+const DEFS = ORG_SYMPTOMS.defs;
 
 export const definitionsKey = DEFS;
-export const definitionKey = (id: string) => `${DEFS}/${id}`;
+export const definitionKey = (id: string, scope: SymptomScope = ORG_SYMPTOMS) =>
+  `${scope.defs}/${id}`;
 
 const fetcher = <T>(url: string) => request<T>(url);
 
-/** The organization's symptoms; nothing is fetched while `enabled` is false. */
+/** The scope's symptoms; nothing is fetched while `enabled` is false. */
 export function useSymptomDefinitions(enabled = true) {
-  return useSWR<SymptomSummary[]>(enabled ? definitionsKey : null, fetcher);
+  const scope = useSymptomScope();
+  return useSWR<SymptomSummary[]>(enabled ? scope.defs : null, fetcher);
 }
 
 export const statsKey = `${DEFS}/stats`;
@@ -327,6 +369,8 @@ export function useControlTowerAccess() {
     data?.permissions.includes(permission) ?? false;
   return {
     can,
+    /** False until the permissions arrive; until then every `can*` is false. */
+    loaded: data !== undefined,
     canOperate: can("controltower:case.treat"),
     canMaintain: can("controltower:symptom.edit"),
   };
@@ -351,15 +395,16 @@ export async function saveTowerTeam(team: TowerTeam) {
 }
 
 /** Undefined data while loading; an error when the modulith or the engine fails. */
-export function useSymptomStats() {
-  return useSWR<SymptomStats>(statsKey, fetcher, {
+export function useSymptomStats(enabled = true) {
+  return useSWR<SymptomStats>(enabled ? statsKey : null, fetcher, {
     shouldRetryOnError: false,
     revalidateOnFocus: false,
   });
 }
 
 export function useSymptomDefinition(id: string | null) {
-  return useSWR<SymptomDetail>(id ? definitionKey(id) : null, fetcher);
+  const scope = useSymptomScope();
+  return useSWR<SymptomDetail>(id ? definitionKey(id, scope) : null, fetcher);
 }
 
 export interface LevelResponseView {
@@ -386,22 +431,61 @@ export function useLevelResponse(
 }
 
 export function useDataSources() {
-  return useSWR<DataSource[]>(SOURCES, fetcher);
+  const { sources } = useSymptomScope();
+  return useSWR<DataSource[]>(sources, fetcher);
+}
+
+/** One event type the organization's GPS frames carried, and how many frames carried it. */
+export interface EventTypeCount {
+  eventType: string;
+  count: number;
+}
+
+/** The field whose values the event type suggestions are. */
+export const EVENT_TYPE_PATH = "signal.frame.events.event_type";
+
+/** Days of frames the event type suggestions read. */
+export const EVENT_TYPE_DAYS = 7;
+
+/**
+ * The event types (`signal.frame.events[].event_type`) the organization's
+ * frames carried in the last {@link EVENT_TYPE_DAYS} days, most frequent
+ * first. None for a template, which belongs to no organization.
+ */
+export function useEventTypes(enabled = true) {
+  const scope = useSymptomScope();
+  const url =
+    enabled && !isTemplateScope(scope)
+      ? `${scope.sources}/gps_signal/event-types?days=${EVENT_TYPE_DAYS}`
+      : null;
+  const { data } = useSWR<{ days: number; types: EventTypeCount[] }>(
+    url,
+    fetcher,
+    { shouldRetryOnError: false, revalidateOnFocus: false }
+  );
+  return data?.types ?? [];
 }
 
 export function useDataSource(key: string | null) {
-  return useSWR<DataSource>(key ? `${SOURCES}/${key}` : null, fetcher);
+  const { sources } = useSymptomScope();
+  return useSWR<DataSource>(key ? `${sources}/${key}` : null, fetcher);
 }
 
 /** Refreshes the list and, when given, one symptom. */
-export async function refreshSymptoms(id?: string) {
-  await mutate(definitionsKey);
-  await mutate(statsKey);
-  if (id) await mutate(definitionKey(id));
+export async function refreshSymptoms(
+  id?: string,
+  scope: SymptomScope = ORG_SYMPTOMS
+) {
+  await mutate(scope.defs);
+  if (scope.kind === "org") await mutate(statsKey);
+  if (id) await mutate(definitionKey(id, scope));
 }
 
-export function createSymptom(body: CreateSymptomBody) {
-  return request<SymptomDetail>(DEFS, { method: "POST", body });
+export function createSymptom(
+  body: CreateSymptomBody,
+  scope: SymptomScope = ORG_SYMPTOMS
+) {
+  return request<SymptomDetail>(scope.defs, { method: "POST", body });
 }
 
 export function updateIdentity(
@@ -411,9 +495,13 @@ export function updateIdentity(
     family?: string | null;
     icon?: string | null;
     description?: string | null;
-  }
+  },
+  scope: SymptomScope = ORG_SYMPTOMS
 ) {
-  return request<SymptomDefinition>(`${DEFS}/${id}`, { method: "PATCH", body });
+  return request<SymptomDefinition>(definitionKey(id, scope), {
+    method: "PATCH",
+    body,
+  });
 }
 
 export interface ImportResult {
@@ -434,6 +522,8 @@ export interface SymptomTemplate {
   icon: string | null;
   /** When it opens, in words. */
   description: string;
+  /** The published template version a copy starts from. */
+  version?: string;
   spec: SymptomSpec;
 }
 
@@ -453,61 +543,107 @@ export function createFromTemplate(templateKey: string, name?: string) {
   });
 }
 
+/**
+ * Saves a symptom as a platform template (platform owners): a new one keyed
+ * after the symptom, or a new draft of `templateKey`. Organizations see it
+ * once a platform owner publishes it.
+ */
+export async function saveAsTemplate(
+  id: string,
+  body: {
+    version?: string | null;
+    templateKey?: string | null;
+    name?: string | null;
+  }
+) {
+  const saved = await request<SymptomDetail>(`${DEFS}/${id}/save-as-template`, {
+    method: "POST",
+    body,
+  });
+  await refreshSymptoms(saved.definition.id, PLATFORM_TEMPLATES);
+  return saved;
+}
+
 /** Creates an off draft for each engine rule the organization does not have yet. */
 export function importEngineRules() {
   return request<ImportResult>(`${DEFS}/import-engine`, { method: "POST" });
 }
 
 /** What a rule does, in plain words, written by the Harness and cached by rule. */
-export function describeRule(body: {
-  section: string;
-  rule: string;
-  sourceKey: string;
-  locale?: string;
-}) {
-  return request<{ html: string; cached: boolean }>(`${DEFS}/describe`, {
+export function describeRule(
+  body: {
+    section: string;
+    rule: string;
+    sourceKey: string;
+    locale?: string;
+  },
+  scope: SymptomScope = ORG_SYMPTOMS
+) {
+  return request<{ html: string; cached: boolean }>(`${scope.defs}/describe`, {
     method: "POST",
     body,
   });
 }
 
-export function saveDraft(id: string, spec: SymptomSpec) {
-  return request<SymptomVersion>(`${DEFS}/${id}/draft`, {
+export function saveDraft(
+  id: string,
+  spec: SymptomSpec,
+  scope: SymptomScope = ORG_SYMPTOMS
+) {
+  return request<SymptomVersion>(`${definitionKey(id, scope)}/draft`, {
     method: "PUT",
     body: spec,
   });
 }
 
-export function discardDraft(id: string) {
-  return request<void>(`${DEFS}/${id}/draft`, { method: "DELETE" });
+export function discardDraft(id: string, scope: SymptomScope = ORG_SYMPTOMS) {
+  return request<void>(`${definitionKey(id, scope)}/draft`, {
+    method: "DELETE",
+  });
 }
 
-export function validateSpec(id: string, spec?: SymptomSpec) {
-  return request<ValidationReport>(`${DEFS}/${id}/validate`, {
+export function validateSpec(
+  id: string,
+  spec?: SymptomSpec,
+  scope: SymptomScope = ORG_SYMPTOMS
+) {
+  return request<ValidationReport>(`${definitionKey(id, scope)}/validate`, {
     method: "POST",
     body: spec ?? {},
   });
 }
 
-export function previewSpec(id: string, spec?: SymptomSpec) {
-  return request<Preview>(`${DEFS}/${id}/preview`, {
+export function previewSpec(
+  id: string,
+  spec?: SymptomSpec,
+  scope: SymptomScope = ORG_SYMPTOMS
+) {
+  return request<Preview>(`${definitionKey(id, scope)}/preview`, {
     method: "POST",
     body: spec ?? {},
   });
 }
 
-export const publishPlanKey = (id: string) => `${DEFS}/${id}/publish-plan`;
+export const publishPlanKey = (
+  id: string,
+  scope: SymptomScope = ORG_SYMPTOMS
+) => `${definitionKey(id, scope)}/publish-plan`;
 
-export function publishPlan(id: string) {
-  return request<PublishPlan>(publishPlanKey(id));
+export function publishPlan(id: string, scope: SymptomScope = ORG_SYMPTOMS) {
+  return request<PublishPlan>(publishPlanKey(id, scope));
 }
 
 /** What publishing the draft would do; null key when there is no draft. */
 export function usePublishPlan(id: string, hasDraft: boolean) {
-  return useSWR<PublishPlan>(hasDraft ? publishPlanKey(id) : null, fetcher, {
-    revalidateOnFocus: false,
-    shouldRetryOnError: false,
-  });
+  const scope = useSymptomScope();
+  return useSWR<PublishPlan>(
+    hasDraft ? publishPlanKey(id, scope) : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      shouldRetryOnError: false,
+    }
+  );
 }
 
 /** A family the organization files symptoms under; the label is per language. */
@@ -532,16 +668,22 @@ export function familiesListMissing(error: unknown) {
 
 export function publishDraft(
   id: string,
-  body: { reason: string; bump?: VersionBump | null }
+  body: { reason: string; bump?: VersionBump | null },
+  scope: SymptomScope = ORG_SYMPTOMS
 ) {
-  return request<SymptomVersion>(`${DEFS}/${id}/publish`, {
+  return request<SymptomVersion>(`${definitionKey(id, scope)}/publish`, {
     method: "POST",
     body,
   });
 }
 
-export function rollbackTo(id: string, version: string, reason?: string) {
-  return request<SymptomVersion>(`${DEFS}/${id}/rollback`, {
+export function rollbackTo(
+  id: string,
+  version: string,
+  reason?: string,
+  scope: SymptomScope = ORG_SYMPTOMS
+) {
+  return request<SymptomVersion>(`${definitionKey(id, scope)}/rollback`, {
     method: "POST",
     body: { version, reason },
   });
@@ -549,9 +691,10 @@ export function rollbackTo(id: string, version: string, reason?: string) {
 
 export function forkSymptom(
   id: string,
-  body: { version?: string | null; key: string; name: string }
+  body: { version?: string | null; key: string; name: string },
+  scope: SymptomScope = ORG_SYMPTOMS
 ) {
-  return request<SymptomDetail>(`${DEFS}/${id}/fork`, {
+  return request<SymptomDetail>(`${definitionKey(id, scope)}/fork`, {
     method: "POST",
     body,
   });
@@ -570,9 +713,10 @@ export function useVersionCompare(
   from: string | null,
   to: string | null
 ) {
+  const scope = useSymptomScope();
   const key =
     from && to && from !== to
-      ? `${DEFS}/${id}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+      ? `${definitionKey(id, scope)}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
       : null;
   return useSWR<Change[]>(key, fetcher, {
     revalidateOnFocus: false,

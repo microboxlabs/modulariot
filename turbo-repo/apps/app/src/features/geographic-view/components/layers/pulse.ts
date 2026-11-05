@@ -1,4 +1,4 @@
-import { BasePulsePinLayer, getColor } from "./pulse-base";
+import { BasePulsePinLayer, pulseColor } from "./pulse-base";
 
 export class PulsePinLayer extends BasePulsePinLayer {
   static readonly layerName = "PulsePinLayer";
@@ -8,7 +8,7 @@ export class PulsePinLayer extends BasePulsePinLayer {
     if (d.properties.id > displayPosition) {
       return [0, 0, 0, 0];
     }
-    return getColor(d.properties.icu_code);
+    return pulseColor(d);
   }
 
   protected filterMovingVehicles() {

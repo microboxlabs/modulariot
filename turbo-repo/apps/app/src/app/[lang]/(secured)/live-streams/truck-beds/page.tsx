@@ -1,7 +1,10 @@
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function TruckBedsPage({ params }: ParamsWithLang) {
+  await guardPage(ACCESS_RULES.liveStreams, "/live-streams");
   const { lang } = await params;
   const [tr] = await getDictionary(lang);
 

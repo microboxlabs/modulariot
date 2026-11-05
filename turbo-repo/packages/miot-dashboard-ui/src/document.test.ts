@@ -146,7 +146,7 @@ describe("isolated document editing", () => {
     expect(session.getSnapshot().editorKey).not.toBe(editorKey);
   });
 
-  it("serializes operations and prevents edits during a save", async () => {
+  it("serializes operations and keeps edits made during a save dirty", async () => {
     const { session, client } = setup();
     await session.load();
     session.onChange({ ...empty, name: "First edit" });
@@ -158,16 +158,100 @@ describe("isolated document editing", () => {
         }),
     );
     const saving = session.save();
-    expect(session.getSnapshot().readOnly).toBe(true);
-    expect(session.onChange({ ...empty, name: "Racing edit" })).toBe(false);
+    expect(session.getSnapshot()).toMatchObject({
+      busy: true,
+      readOnly: false,
+    });
+    expect(session.onChange({ ...empty, name: "Racing edit" })).toBe(true);
     expect(await session.save()).toBe(false);
     expect(await session.discardAndReload()).toBe(false);
     finish({ etag: '"8"', revision: 8, updatedAt: "now" });
     expect(await saving).toBe(true);
     expect(session.getSnapshot()).toMatchObject({
-      config: { name: "First edit" },
-      dirty: false,
+      config: { name: "Racing edit" },
+      etag: '"8"',
+      dirty: true,
       readOnly: false,
+    });
+    expect(await session.save()).toBe(true);
+    expect(client.save.mock.calls[1]?.slice(1, 3)).toEqual([
+      { ...empty, name: "Racing edit" },
+      '"8"',
+    ]);
+    expect(session.getSnapshot().dirty).toBe(false);
+  });
+
+  it("keeps an edit made after the save response but before it is applied", async () => {
+    const { session, client } = setup();
+    await session.load();
+    session.onChange({ ...empty, name: "Saved" });
+    client.save.mockImplementationOnce(() => {
+      const saved = Promise.resolve({
+        etag: '"8"',
+        revision: 8,
+        updatedAt: "now",
+      });
+      // Runs after the save callback returns and before run() applies its result.
+      void saved.then(() =>
+        queueMicrotask(() => session.onChange({ ...empty, name: "Late edit" })),
+      );
+      return saved;
+    });
+    expect(await session.save()).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({
+      config: { name: "Late edit" },
+      dirty: true,
+    });
+  });
+
+  it("stays read-only until a reload started by a listener finishes", async () => {
+    const { session, client } = setup();
+    await session.load();
+    let finish!: (value: Awaited<ReturnType<typeof client.load>>) => void;
+    let nested: Promise<boolean> | undefined;
+    const unsubscribe = session.subscribe(() => {
+      const { busy } = session.getSnapshot();
+      if (!busy && !nested && client.load.mock.calls.length === 2) {
+        client.load.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finish = resolve;
+            }),
+        );
+        nested = session.discardAndReload();
+      }
+    });
+    expect(await session.discardAndReload()).toBe(true);
+    unsubscribe();
+    expect(nested).toBeDefined();
+    expect(session.getSnapshot().readOnly).toBe(true);
+    expect(session.onChange({ ...empty, name: "Lost edit" })).toBe(false);
+    finish({ config: empty, etag: '"10"' });
+    expect(await nested).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({
+      readOnly: false,
+      etag: '"10"',
+    });
+  });
+
+  it("stays read-only while reloading", async () => {
+    const { session, client } = setup();
+    await session.load();
+    let finish!: (value: Awaited<ReturnType<typeof client.load>>) => void;
+    client.load.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const reloading = session.discardAndReload();
+    expect(session.getSnapshot().readOnly).toBe(true);
+    expect(session.onChange({ ...empty, name: "Lost edit" })).toBe(false);
+    finish({ config: empty, etag: '"9"' });
+    expect(await reloading).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({
+      readOnly: false,
+      etag: '"9"',
     });
   });
 
@@ -235,5 +319,35 @@ describe("isolated document editing", () => {
     session.destroy();
     session.subscribe(listener)();
     expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+describe("save/reload commit boundaries", () => {
+  it("retains an edit queued after the save response but before publishing its result", async () => {
+    const { session, client } = setup();
+    await session.load();
+    session.onChange({ ...empty, name: "Submitted" });
+    let finish!: (value: Awaited<ReturnType<typeof client.save>>) => void;
+    client.save.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const saving = session.save();
+    finish({ etag: '"8"', revision: 8, updatedAt: "now" });
+    queueMicrotask(() => session.onChange({ ...empty, name: "Newer edit" }));
+    expect(await saving).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({
+      config: { name: "Newer edit" },
+      dirty: true,
+      etag: '"8"',
+    });
+    expect(await session.save()).toBe(true);
+    expect(client.save.mock.calls[1]?.slice(1, 3)).toEqual([
+      { ...empty, name: "Newer edit" },
+      '"8"',
+    ]);
+    expect(session.getSnapshot().dirty).toBe(false);
   });
 });

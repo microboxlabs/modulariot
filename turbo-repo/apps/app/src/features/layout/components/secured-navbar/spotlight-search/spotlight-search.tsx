@@ -35,6 +35,11 @@ import { SpotlightElicitChips } from "./spotlight-elicit-chip";
 import { SpotlightEmptyState } from "./spotlight-empty-state";
 import { SpotlightFooter } from "./spotlight-footer";
 import { KbdHint } from "../searchbar/kbd-hint";
+import { useOrgScopes } from "../org-switcher/use-org-scopes";
+import {
+  isPlatformScope,
+  isPlatformScopePage,
+} from "@/features/common/platform-scope";
 
 // ── Icon config ───────────────────────────────────────────────────────────────
 interface IconConfig {
@@ -151,7 +156,7 @@ export default function SpotlightSearch({
   isDashboardServerEnabled = false,
 }: Readonly<SpotlightSearchProps>) {
   const router = useRouter();
-  const { userGroups } = usePermissions();
+  const { canAccess } = usePermissions();
 
   // ── i18n ─────────────────────────────────────────────────────────────────
   const spotlightDict = dict?.spotlight as I18nRecord | undefined;
@@ -196,20 +201,14 @@ export default function SpotlightSearch({
     [router]
   );
 
-  const canAccess = useCallback(
-    (requiredGroups: string[], blockedGroups: string[]) => {
-      if (blockedGroups.some((g) => userGroups.includes(g))) return false;
-      if (!requiredGroups.length) return true;
-      return requiredGroups.some((g) => userGroups.includes(g));
-    },
-    [userGroups]
-  );
-
   // ── Navigate item registry ────────────────────────────────────────────────
   const visiblePages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
   const { isTrainer } = useKnowledgeTrainer();
-  const canViewGps = useMyAccess().can("gps:view");
+  const { can } = useMyAccess();
+  const canViewGps = can("gps:view");
+  const canViewFleet = can("fleet:assets.view");
+  const platformScope = isPlatformScope(useOrgScopes().activeOrg?.slug);
   const navigateItems = useMemo(
     () =>
       buildNavigateItems(
@@ -218,6 +217,8 @@ export default function SpotlightSearch({
           platformOwner: isPlatformOwner,
           trainer: isTrainer,
           gps: canViewGps,
+          fleet: canViewFleet,
+          platformScope,
         }),
         sidebarLabels ?? {},
         onNavigate,
@@ -229,6 +230,8 @@ export default function SpotlightSearch({
       isPlatformOwner,
       isTrainer,
       canViewGps,
+      canViewFleet,
+      platformScope,
       sidebarLabels,
       onNavigate,
       canAccess,
@@ -358,7 +361,8 @@ export default function SpotlightSearch({
     query,
     navigateItems,
     canAccess,
-    onNavigate
+    onNavigate,
+    platformScope ? isPlatformScopePage : undefined
   );
   // Symptom names are data, so Pagefind does not index them.
   const symptomResults = useSymptomSearch(

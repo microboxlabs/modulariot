@@ -5,18 +5,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { MdOutlineFileUpload } from "react-icons/md";
 import { HiChevronDown, HiArrowDownTray } from "react-icons/hi2";
 import { toast } from "sonner";
-import { useSWRConfig } from "swr";
 import { useSession } from "next-auth/react";
-import {
-  useGetNodeContents,
-  useOptimisticFileUpload,
-  putBentoMultimedia,
-  deleteBentoMultimedia,
-  recordReviewRound,
-  replyContentForumPost,
-  deleteContentForumPost,
-  deleteContentForumTopic,
-} from "@/features/common/providers/client-api.provider";
 import { TaskResponse, ForumDiscussionResponse, ReviewRoundResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -31,8 +20,9 @@ import MediaInlineViewer, { MediaViewerItem } from "../viewer/media-inline-viewe
 import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry, LooseObservationTimelineEntry } from "../viewer/media-inline-viewer";
 import MediaRow, { ReviewStatus } from "./media-row";
 import { isRoundObservation, observationReasonLabels } from "../viewer/observations/observation-utils";
-import { statusForCurrentVersion, versionOf } from "../viewer/observations/review-version";
+import { mergeLoadedStatuses, statusForCurrentVersion, versionOf } from "../viewer/observations/review-version";
 import { useBentoReview } from "../../../../bento-review-context";
+import { createAlfrescoSource, MediaSourceProvider, type MediaSource } from "../media-source";
 
 /** The verdict each UI state records. "pending" is a reversal, not the absence of one. */
 const VERDICT_BY_STATUS: Record<ReviewStatus, "APPROVED" | "REJECTED" | "PENDING"> = {
@@ -46,11 +36,6 @@ const STATUS_BY_VERDICT: Record<"APPROVED" | "REJECTED" | "PENDING", ReviewStatu
   REJECTED: "rejected",
   PENDING: "pending",
 };
-
-function toNodeRef(id: string): string {
-  if (id.startsWith("workspace://")) return id;
-  return `workspace://SpacesStore/${id}`;
-}
 
 function isReviewableFile(file: AlfrescoFileEntry): boolean {
   return file.entry.aspectNames?.includes("mintral:reviewableAspect") ?? false;
@@ -479,17 +464,28 @@ function MediaSection({
 
 export default function FileImages({
   task,
+  source,
   dictionary,
   isExpanded = false,
   onRequestExpand,
   onRequestCollapse,
 }: Readonly<{
   task: TaskResponse | null;
+  /** Where the files live; the task's Alfresco package when absent. */
+  source?: MediaSource;
   dictionary: I18nRecord;
   isExpanded?: boolean;
   onRequestExpand?: () => void;
   onRequestCollapse?: () => void;
 }>) {
+  const packageId = task?.bpm_package
+    ? task.bpm_package.split("/")[task.bpm_package.split("/").length - 1]
+    : undefined;
+  const serviceCode = task?.mintral_serviceCode;
+  const src = useMemo(
+    () => source ?? createAlfrescoSource(packageId, serviceCode),
+    [source, packageId, serviceCode]
+  );
   const [selectedDocument, setSelectedDocument] = useState<any | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFetchingFromUrl, setIsFetchingFromUrl] = useState(false);
@@ -562,6 +558,14 @@ export default function FileImages({
     return map;
   }, [images, documents]);
 
+  const modifiedAtById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of [...images, ...documents] as { file: AlfrescoFileEntry }[]) {
+      map.set(item.file.entry.id, item.file.entry.modifiedAt);
+    }
+    return map;
+  }, [images, documents]);
+
   /**
    * Nodes with a decision in flight. The reviewer's click is the most recent fact until the
    * round comes back, and the rounds held in `committedTimeline` still predate it — so the
@@ -586,13 +590,14 @@ export default function FileImages({
    */
   const effectiveStatuses = useMemo(() => {
     const map = new Map(reviewStatuses);
+    if (src.reviewStatusIsCurrent) return map;
     for (const id of reviewableIds) {
       if (decidingRef.current.has(id)) continue;
       const derived = statusForCurrentVersion(committedTimeline.get(id) ?? [], versionsById.get(id) ?? null);
       if (derived) map.set(id, derived);
     }
     return map;
-  }, [reviewStatuses, reviewableIds, committedTimeline, versionsById]);
+  }, [reviewStatuses, reviewableIds, committedTimeline, versionsById, src.reviewStatusIsCurrent]);
 
   const reviewSummary = useMemo(() => {
     // Only reviewable items contribute to review counts; non-reviewable content has no
@@ -757,12 +762,13 @@ export default function FileImages({
     setCommittedTimeline((prev) => { snapTimeline = prev; return prev; });
 
     try {
-      await recordReviewRound({
-        contentNodeRef: toNodeRef(id),
-        verdict: VERDICT_BY_STATUS[status],
+      await src.recordRound(
+        id,
+        VERDICT_BY_STATUS[status],
         reasons,
-        comment: comment || undefined,
-      });
+        comment || undefined,
+        modifiedAtById.get(id)
+      );
     } catch {
       decidingRef.current.delete(id);
       toast.error(tr("bento.multimedia.review_state_update_error", dictionary));
@@ -787,7 +793,7 @@ export default function FileImages({
       next.set(id, buildCommittedEntry(existing, status, id, now, currentUserName, staged, versionsById.get(id) ?? null));
       return next;
     });
-  }, [currentUserName, dictionary, draftObservations, versionsById]);
+  }, [currentUserName, dictionary, draftObservations, versionsById, modifiedAtById, src]);
 
   /**
    * Stages an observation against a file. Nothing is written until the reviewer decides:
@@ -829,15 +835,15 @@ export default function FileImages({
     if (!obsId.startsWith("obs-")) {
       const refs = forumRefMap.get(obsId);
       if (refs) {
-        deleteContentForumPost(refs.topicRef, refs.postRef).catch(() => {});
+        src.forum?.deletePost(refs.topicRef, refs.postRef).catch(() => {});
       } else {
         // Only when the id really is a forum topic ref. It used to fall through to here for
         // anything that was not a draft, which turned `round-1-detail` into
         // `workspace://SpacesStore/round-1-detail` and posted it to topic/delete.
-        deleteContentForumTopic(toNodeRef(obsId)).catch(() => {});
+        src.forum?.deleteTopic(obsId).catch(() => {});
       }
     }
-  }, [committedTimeline, forumRefMap]);
+  }, [committedTimeline, forumRefMap, src]);
 
   const handleAddReply = useCallback((fileId: string, obsId: string, description: string) => {
     const reply = { id: `reply-${obsId}-${Date.now()}`, description, createdAt: new Date(), createdBy: currentUserName };
@@ -856,9 +862,9 @@ export default function FileImages({
     // Persist reply to per-node forum
     const refs = forumRefMap.get(obsId);
     if (refs) {
-      replyContentForumPost(refs.topicRef, refs.postRef, description, currentUserName).catch(() => {});
+      src.forum?.reply(refs.topicRef, refs.postRef, description, currentUserName).catch(() => {});
     }
-  }, [currentUserName, forumRefMap]);
+  }, [currentUserName, forumRefMap, src]);
 
   const handleRemoveReply = useCallback((fileId: string, obsId: string, replyId: string) => {
     setCommittedTimeline((prev) => {
@@ -876,78 +882,53 @@ export default function FileImages({
     // Persist deletion to per-node forum
     const refs = forumRefMap.get(obsId);
     if (refs && !replyId.startsWith("reply-")) {
-      deleteContentForumPost(refs.topicRef, replyId).catch(() => {});
+      src.forum?.deletePost(refs.topicRef, replyId).catch(() => {});
     }
-  }, [forumRefMap]);
+  }, [forumRefMap, src]);
 
-  const { mutate: globalMutate } = useSWRConfig();
-
-  const packageId = task?.bpm_package
-    ? task.bpm_package.split("/")[task.bpm_package.split("/").length - 1]
-    : undefined;
-
-  const { data, isLoading, uploadFile, mutate } = useOptimisticFileUpload(packageId);
-  const files = useMemo(() => data?.data?.list?.entries || [], [data]);
-
-  const {
-    data: documentsData,
-    isLoading: documentsIsLoading,
-    mutate: mutateContents,
-  } = useGetNodeContents(files?.map((file: AlfrescoFileEntry) => file.entry.id) || []);
+  const invalidateThumbnail = src.useInvalidateThumbnail();
+  const { files, isLoading, refresh } = src.useFiles();
+  const upload = src.useUpload();
 
   useEffect(() => {
-    if (files.length > 0 && documentsData) {
+    if (files) {
       const newImages: any[] = [];
       const newDocuments: any[] = [];
       const loadedStatuses = new Map<string, ReviewStatus>();
       const loadedTimestamps = new Map<string, Date>();
       const loadedUsers = new Map<string, string>();
-      documentsData.data.forEach((document: any, index: number) => {
-        if (!document.error && files[index]) {
-          const entry = files[index] as AlfrescoFileEntry;
-          const alfrescoState = entry.entry.properties?.["mintral:reviewStatus"];
-          if (alfrescoState === "APPROVED") loadedStatuses.set(entry.entry.id, "approved");
-          else if (alfrescoState === "REJECTED") loadedStatuses.set(entry.entry.id, "rejected");
-          else loadedStatuses.set(entry.entry.id, "pending");
-          const reviewedAt = entry.entry.properties?.["mintral:reviewedAt"];
-          if (reviewedAt) loadedTimestamps.set(entry.entry.id, new Date(reviewedAt));
-          const reviewedBy = entry.entry.properties?.["mintral:reviewedBy"];
-          if (reviewedBy) loadedUsers.set(entry.entry.id, reviewedBy);
-          if (isImageEntry(entry)) {
-            newImages.push({ file: entry, data: document });
-          } else {
-            newDocuments.push({ file: entry, data: document });
-          }
+      files.forEach((entry: AlfrescoFileEntry) => {
+        const alfrescoState = entry.entry.properties?.["mintral:reviewStatus"];
+        if (alfrescoState === "APPROVED") loadedStatuses.set(entry.entry.id, "approved");
+        else if (alfrescoState === "REJECTED") loadedStatuses.set(entry.entry.id, "rejected");
+        else loadedStatuses.set(entry.entry.id, "pending");
+        const reviewedAt = entry.entry.properties?.["mintral:reviewedAt"];
+        if (reviewedAt) loadedTimestamps.set(entry.entry.id, new Date(reviewedAt));
+        const reviewedBy = entry.entry.properties?.["mintral:reviewedBy"];
+        if (reviewedBy) loadedUsers.set(entry.entry.id, reviewedBy);
+        if (isImageEntry(entry)) {
+          newImages.push({ file: entry });
+        } else {
+          newDocuments.push({ file: entry });
         }
       });
       setImages(newImages);
       setDocuments(newDocuments);
       setReviewStatusTimestamps((prev) => {
+        if (src.reviewStatusIsCurrent) return loadedTimestamps;
         const next = new Map(prev);
         loadedTimestamps.forEach((date, id) => { if (!prev.has(id)) next.set(id, date); });
         return next;
       });
       setReviewStatusUsers((prev) => {
+        if (src.reviewStatusIsCurrent) return loadedUsers;
         const next = new Map(prev);
         loadedUsers.forEach((user, id) => { if (!prev.has(id)) next.set(id, user); });
         return next;
       });
-      setReviewStatuses((prev) => {
-        const next = new Map(prev);
-        // Remove stale entries for nodes no longer in the list.
-        const liveIds = new Set([...newImages, ...newDocuments].map((item: { file: AlfrescoFileEntry }) => item.file.entry.id));
-        next.forEach((_, id) => { if (!liveIds.has(id)) next.delete(id); });
-        // Only "approved"/"rejected" from Alfresco override in-memory committed state.
-        // A "pending" from Alfresco (absent property) only applies when there is no
-        // in-memory decision — this preserves same-session commits while the backend
-        // Absence means the property is not yet set; treat as "review" (the default state).
-        loadedStatuses.forEach((status, id) => {
-          if (status !== "pending" || !prev.has(id)) next.set(id, status);
-        });
-        return next;
-      });
+      setReviewStatuses((prev) => mergeLoadedStatuses(prev, loadedStatuses, Boolean(src.reviewStatusIsCurrent)));
     }
-  }, [documentsData, files]);
+  }, [files, src.reviewStatusIsCurrent]);
 
   // Hydrate committedTimeline: review rounds where a node has them, its forum discussion
   // otherwise. Rounds win — the forum kept observations and state changes as unrelated
@@ -960,15 +941,8 @@ export default function FileImages({
     async function fetchHistories() {
       const results = await Promise.allSettled(
         allIds.map(async (nodeId) => {
-          const nodeRef = encodeURIComponent(toNodeRef(nodeId));
-          const roundsRes = await fetch(`/app/api/review/rounds?contentNodeRef=${nodeRef}`);
-          if (roundsRes.ok) {
-            const { rounds } = (await roundsRes.json()) as { rounds: ReviewRoundResponse[] };
-            if (rounds?.length) return { nodeId, rounds, data: null };
-          }
-          const res = await fetch(`/app/api/forum/content?contentNodeRef=${nodeRef}`);
-          if (!res.ok) return { nodeId, rounds: null, data: null };
-          return { nodeId, rounds: null, data: (await res.json()) as ForumDiscussionResponse };
+          const { rounds, forum } = await src.history(nodeId);
+          return { nodeId, rounds, data: forum };
         })
       );
       if (cancelled) return;
@@ -992,7 +966,7 @@ export default function FileImages({
     }
     fetchHistories();
     return () => { cancelled = true; };
-  }, [allIds, discussionsLoaded]);
+  }, [allIds, discussionsLoaded, src]);
 
   const allMediaItems = useMemo<MediaViewerItem[]>(
     () => [
@@ -1050,10 +1024,7 @@ export default function FileImages({
       }
       const nodeId = item.file.entry.id;
       setIsUpdatingImage(true);
-      const updatePromise = putBentoMultimedia(nodeId, file).then((result) => {
-        if (!result.success) throw new Error("Update failed");
-        return result;
-      });
+      const updatePromise = src.replace(nodeId, file);
       toast.promise(updatePromise, {
         loading: tr("bento.multimedia.update_loading", dictionary),
         success: tr("bento.multimedia.update_success", dictionary),
@@ -1061,10 +1032,9 @@ export default function FileImages({
       });
       try {
         await updatePromise;
-        await mutate();
-        await mutateContents();
+        await refresh();
+        await invalidateThumbnail(nodeId);
         if (item.type === "image") {
-          await globalMutate(`/app/api/bento/thumbnails?nodeId=${nodeId}`);
           setImageRefreshKey((prev) => prev + 1);
         }
       } finally {
@@ -1072,7 +1042,7 @@ export default function FileImages({
         setEditImageIndex(null);
       }
     },
-    [viewerItems, dictionary, mutate, mutateContents, globalMutate]
+    [viewerItems, dictionary, refresh, invalidateThumbnail, src]
   );
 
   const handleDeleteMedia = useCallback(
@@ -1080,7 +1050,7 @@ export default function FileImages({
       const item = viewerItems[index];
       if (!item?.file?.entry?.id) return;
       const nodeId = item.file.entry.id;
-      const deletePromise = deleteBentoMultimedia(nodeId);
+      const deletePromise = src.remove(nodeId);
       toast.promise(deletePromise, {
         loading: tr("bento.multimedia.delete_loading", dictionary),
         success: tr("bento.multimedia.delete_success", dictionary),
@@ -1088,20 +1058,19 @@ export default function FileImages({
       });
       try {
         await deletePromise;
-        await mutate();
-        await mutateContents();
+        await refresh();
         if (viewerItems.length <= 1) closeViewer();
       } catch {
         // error toast already shown
       }
     },
-    [viewerItems, mutate, mutateContents, closeViewer, dictionary]
+    [viewerItems, refresh, closeViewer, dictionary, src]
   );
 
-  if (!packageId) return null;
+  if (!src.ready) return null;
 
   if (
-    (isLoading || documentsIsLoading) &&
+    isLoading &&
     images.length === 0 &&
     documents.length === 0
   ) {
@@ -1111,6 +1080,7 @@ export default function FileImages({
   // Expanded inline viewer mode — fade in after container expansion (500ms) is mostly done
   if (isExpanded && viewerIndex !== null) {
     return (
+      <MediaSourceProvider value={src}>
       <div
         className="w-full h-full animate-fade-in-opacity"
         style={{ animationDelay: "350ms", opacity: 0 }}
@@ -1124,8 +1094,8 @@ export default function FileImages({
           onStatusChange={handleStatusChange}
           onEdit={(i) => setEditImageIndex(i)}
           onDelete={handleDeleteMedia}
-          onRename={async () => { await mutate(); await mutateContents(); }}
-          onCategoryChanged={async () => { await mutate(); await mutateContents(); }}
+          onRename={async () => { await refresh(); }}
+          onCategoryChanged={async () => { await refresh(); }}
           currentTaskServiceCode={task?.mintral_serviceCode}
           draftObservations={draftObservations}
           committedTimeline={committedTimeline}
@@ -1147,6 +1117,7 @@ export default function FileImages({
           accept={editImageIndex !== null && viewerItems[editImageIndex]?.type === "document" ? ".pdf" : ".jpg,.jpeg,.png"}
         />
       </div>
+      </MediaSourceProvider>
     );
   }
 
@@ -1182,6 +1153,7 @@ export default function FileImages({
   };
 
   return (
+    <MediaSourceProvider value={src}>
     <div
       className="h-full w-full flex flex-col overflow-hidden relative"
       onDragEnter={(e) => {
@@ -1392,12 +1364,11 @@ export default function FileImages({
 
       {isClasificationFormOpen && (
         <ClasificationForm
-          packageId={packageId}
           setIsOpen={setIsClasificationFormOpen}
           uploadableFiles={uploadableFiles}
           dictionary={dictionary}
           setUploadableFiles={setUploadableFiles}
-          uploadFile={uploadFile}
+          upload={upload}
           onUploadComplete={() => setUploadableFiles([])}
         />
       )}
@@ -1411,5 +1382,6 @@ export default function FileImages({
         />
       )}
     </div>
+    </MediaSourceProvider>
   );
 }

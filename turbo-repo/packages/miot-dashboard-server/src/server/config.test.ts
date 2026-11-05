@@ -630,6 +630,7 @@ describe("readServerConfig: ticket authentication", () => {
       header: "x-ticket",
       scheme: undefined,
       url: "https://emitter.test/tickets/-me-",
+      allowHttp: false,
       method: "GET",
       present: {
         kind: "header",
@@ -647,6 +648,16 @@ describe("readServerConfig: ticket authentication", () => {
       negativeCacheSeconds: 30,
       requestTimeoutMs: 5000,
     });
+  });
+
+  it("accepts plain http for the emitter only when told to", () => {
+    expect(
+      ticketAuthOf({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_VALIDATE_URL: "http://emitter.internal/me",
+        MIOT_DASHBOARD_TICKET_ALLOW_HTTP: "true",
+      }),
+    ).toMatchObject({ url: "http://emitter.internal/me", allowHttp: true });
   });
 
   it.each([

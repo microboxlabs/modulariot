@@ -13,7 +13,7 @@ import { splitByVersion } from "./review-version";
 import { StateChangeEntry } from "./state-change-entry";
 import { LooseObservationEntry } from "./loose-observation-entry";
 import { VersionHistory } from "./version-history";
-import { useObservationTypes } from "@/features/common/providers/client-api.provider";
+import { useMediaSource } from "../../media-source";
 
 export function ObservationsSection({
   dictionary,
@@ -61,7 +61,7 @@ export function ObservationsSection({
   // The selectable observation reasons come from the Alfresco "Tipos de
   // Observación" data list. While it loads (or if the request fails) we fall
   // back to the static OBSERVATION_TYPE_KEYS so the picker is never empty.
-  const { observationTypes } = useObservationTypes(category);
+  const { observationTypes } = useMediaSource().useObservationTypes(category);
   const typeOptions = useMemo<{ code: ObservationType; name?: string }[]>(
     () =>
       observationTypes.length > 0

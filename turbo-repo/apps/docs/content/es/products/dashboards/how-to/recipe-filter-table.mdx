@@ -1,0 +1,86 @@
+import { Callout } from 'nextra/components'
+
+# Receta: filtrar una tabla por estado
+
+**Para:** implementadores. **Configuración:** ModularIoT.
+
+**Resultado:** un filtro **Estado** sobre el dashboard. Al elegir un estado, la tabla muestra solo esas filas. El resumen sigue mostrando todos los estados.
+
+![Filtro Estado: En curso, el Stacked Stat con los tres estados y la tabla con 7 filas](/dashboards/tutorial/result.png)
+
+<Callout type="info">
+Hacer clic en un gráfico o en una barra no filtra la tabla ([#2234](https://github.com/microboxlabs/modulariot/issues/2234)). Esta receta usa un filtro del dashboard.
+</Callout>
+
+## Antes de empezar
+
+| Paso | Dónde |
+| --- | --- |
+| Guardar cada consulta SQL con un nombre | **Ajustes › Conexiones › BigQuery** › **+ Nueva** › **Guardar** |
+| Agregar una consulta guardada al dashboard | Con **Modo Edición** activo: menú de ajustes (engranaje) › **Consultas guardadas** › **Agregar consulta**. **Conexión**: su conexión de BigQuery. **Operación**: el nombre de la consulta SQL |
+| Agregar un widget | Con **Modo Edición** activo: **Agregar Widget** |
+
+El paso a paso completo está en [Construir su primer dashboard](/es/products/dashboards/tutorials/first-dashboard).
+
+## Consultas
+
+**Detalle**. Guárdela como `detalle_solicitudes`. En **Parámetros**, seleccione **Declarar @estado** (tipo `STRING`):
+
+```sql
+SELECT
+  id, estado, responsable,
+  FORMAT_TIMESTAMP('%Y-%m-%d %H:%M', creada_en, 'America/Santiago') AS creada
+FROM `mi-proyecto.operaciones.solicitudes`
+WHERE (IFNULL(@estado, '') = '' OR estado IN UNNEST(SPLIT(@estado, ',')))
+ORDER BY creada_en DESC
+LIMIT 500
+```
+
+**Opciones del filtro** (opcional), para que la lista de estados salga de los datos. Guárdela como `estados_opciones`:
+
+```sql
+SELECT DISTINCT estado,
+  CASE estado WHEN 'pendiente' THEN 'Pendiente' WHEN 'en_curso' THEN 'En curso' ELSE 'Cerrada' END AS etiqueta
+FROM `mi-proyecto.operaciones.solicitudes`
+ORDER BY CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_curso' THEN 2 ELSE 3 END
+```
+
+## Pasos
+
+1. Active **Modo Edición**. Agregue la consulta guardada **Nombre del resultado** `detalle`, **Operación** `detalle_solicitudes`, con estos parámetros:
+
+   ```json
+   { "estado": { "kind": "filter", "key": "estado", "defaultValue": "" } }
+   ```
+
+2. Agregue una **Tabla de Datos V2** con **Fuente de Datos** **Planificador** y **Variable** `detalle`.
+3. Si usa la consulta de opciones, agréguela con **Nombre del resultado** `estados`, **Operación** `estados_opciones`, **Parámetros (JSON)** `{}`.
+4. Menú de ajustes › **Barra de Filtros** › **Agregar filtro**:
+
+   | Ajuste | Valor |
+   | --- | --- |
+   | **Tipo de filtro** | Selección |
+   | **Etiqueta de visualización** | `Estado` |
+   | **Clave de parámetro** | `estado` |
+   | **Permitir una sola selección** | Marcado para un estado a la vez. Sin marcar para varios |
+   | **Origen de las opciones** | **Manual (escritas a mano)** con `Pendiente`/`pendiente`, `En curso`/`en_curso`, `Cerrada`/`cerrada`. O la consulta `estados`, con **Columna del valor** `estado` y **Columna de la etiqueta** `etiqueta`. Si no aparecen columnas, espere a que el dashboard cargue y vuelva a abrir **Barra de Filtros** |
+
+5. **Guardar** en el panel y desactive **Modo Edición**.
+
+| Parte | Hace |
+| --- | --- |
+| `"key": "estado"` en el vínculo | Debe ser igual a la **Clave de parámetro** del filtro |
+| `"defaultValue": ""` | Sin filtro, la consulta recibe texto vacío y devuelve todo. BigQuery necesita todos sus parámetros |
+| `SPLIT(@estado, ',')` | Con varias opciones elegidas, el valor llega como `pendiente,en_curso` |
+
+La dirección de la página guarda el filtro (`?estado=en_curso`). Puede compartir ese enlace.
+
+## Para que el resumen también se filtre
+
+Agregue a la consulta del resumen la misma condición `WHERE`, declare `@estado` (tipo `STRING`) en el editor y use el mismo vínculo en sus **Parámetros (JSON)**. Con un solo estado elegido, la barra 100 % queda de un solo color.
+
+## Relacionado
+
+- [Agregar filtros](/es/products/dashboards/how-to/add-filters)
+- [Tabla de Datos V2](/es/products/dashboards/reference/widgets/data-table)
+- [Filtros como parámetros](/es/products/dashboards/tutorials/queries-for-widgets#filtros-como-parámetros)

@@ -9,19 +9,29 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useSWRConfig } from "swr";
 import type { CallMethod } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
 import {
+  contactFacetsKey,
+  contactsKey,
   createContact,
   deleteContact,
+  fetchAllContacts,
   importContacts,
   updateContact,
+  useContactFacets,
+  useContactPages,
   useContacts,
   type TowerCallMethod,
   type TowerContact,
   type TowerContactBody,
+  type TowerContactFacets,
   type TowerContactImportResult,
+  type TowerContactQuery,
 } from "@/features/symptoms/control-tower/control-tower-api";
-import { displayRut } from "./contact-duplicates";
+import { displayId } from "./tax-id";
+import type { IdType } from "./tax-id";
+import { contactReachKey } from "@/features/conversations/conversations-api";
 import {
   ensureBadge,
   normalizeLabel,
@@ -45,9 +55,17 @@ export interface BookContact {
   /** Free text about the person; the API's `notes`. The table falls back to
    *  `role` when it is empty. */
   description?: string;
-  /** Chilean RUT; unique in the organization (compared normalized). */
+  /** The document's number (a Chilean RUT by default); unique in the organization (compared normalized). */
   rut?: string;
+  /** What `rut` holds: RUT, DNI, CE, PASAPORTE or OTRO. */
+  rutType?: string;
   company?: string;
+  /** The company's RUT, as shown (12.345.678-5). */
+  companyRut?: string;
+  /** What `companyRut` holds: RUT, RUC or OTRO. */
+  companyRutType?: string;
+  /** Where communication rules send email; not a call method. */
+  email?: string;
   position?: string;
   /** Id of the organization member this contact was created from, if any. */
   orgMemberId?: string;
@@ -82,7 +100,7 @@ export function toBookContact(
   const idByName = badgeIdByName(badges);
   const channels: Partial<Record<CallMethod, string>> = {};
   for (const [method, address] of Object.entries(c.channels ?? {})) {
-    if (address) channels[method as CallMethod] = address;
+    if (address && method !== "email") channels[method as CallMethod] = address;
   }
   return {
     id: c.id,
@@ -92,8 +110,16 @@ export function toBookContact(
     methods: c.methods.map(fromApiMethod),
     channels,
     description: c.notes ?? undefined,
-    rut: c.nationalId ? displayRut(c.nationalId) : undefined,
+    rut: c.nationalId
+      ? displayId(c.nationalIdType ?? undefined, c.nationalId)
+      : undefined,
+    rutType: c.nationalIdType ?? undefined,
     company: c.company ?? undefined,
+    companyRut: c.companyRut
+      ? displayId(c.companyTaxIdType ?? undefined, c.companyRut)
+      : undefined,
+    companyRutType: c.companyTaxIdType ?? undefined,
+    email: c.channels?.email ?? undefined,
     position: c.position ?? undefined,
     orgMemberId: c.memberUserId ?? undefined,
     badgeIds: (c.tags ?? []).flatMap(
@@ -116,25 +142,39 @@ export function toContactBody(
     methods: c.methods.map(toApiMethod),
     notes: c.description ?? "",
     nationalId: c.rut ?? "",
-    nationalIdType: "RUT",
+    nationalIdType: c.rutType ?? "RUT",
     company: c.company ?? "",
+    companyRut: c.companyRut ?? "",
+    companyTaxIdType: c.companyRut ? (c.companyRutType ?? "RUT") : "",
     position: c.position ?? "",
-    channels: c.channels ?? {},
+    channels: { ...c.channels, email: c.email ?? "" },
     tags: (c.badgeIds ?? []).flatMap((id) => nameById.get(id) ?? []),
     memberUserId: c.orgMemberId ?? "",
     provisional: c.provisional ?? false,
   };
 }
 
-/** The organizations used in the book (each contact's `company`), once
- *  each (case/accent-insensitive, first spelling wins), sorted by name. */
-export function organizationNames(contacts: readonly BookContact[]): string[] {
-  const byKey = new Map<string, string>();
-  for (const c of contacts) {
-    const name = c.company?.trim();
-    if (name && !byKey.has(normalizeLabel(name))) byKey.set(normalizeLabel(name), name);
-  }
-  return [...byKey.values()].sort((a, b) => a.localeCompare(b, "es"));
+/** A company a contact can belong to: from the book or one of the organization's carriers. */
+export interface CompanyOption {
+  name: string;
+  /** Normalized RUT, when known. */
+  rut?: string;
+  taxIdType?: IdType;
+  source: "book" | "carrier";
+}
+
+/** The companies used in the book, each with the first RUT given for it. */
+export function bookCompanies(
+  facets: TowerContactFacets | undefined
+): CompanyOption[] {
+  return (facets?.companies ?? [])
+    .map((c) => ({
+      name: c.name,
+      rut: c.rut ?? undefined,
+      taxIdType: (c.taxIdType ?? undefined) as IdType | undefined,
+      source: "book" as const,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "es"));
 }
 
 /** A tag rename or delete that some contacts did not get. */
@@ -150,29 +190,28 @@ export class TagUpdateError extends Error {
 const sameTag = (a: string, b: string) =>
   normalizeLabel(a) === normalizeLabel(b);
 
-export function useContactBook() {
-  const { data, error, mutate } = useContacts();
-  const { badges } = useContactBadges();
+const NO_TAGS: string[] = [];
 
-  // Tags another operator used may not have a badge in this browser yet.
-  // Each name is ensured once per mount, so renaming or deleting a badge
-  // here does not bring the old name back.
+/** Tags another operator used may not have a badge in this browser yet. Each name is ensured once per mount, so
+ *  renaming or deleting a badge here does not bring the old name back. */
+function useEnsuredBadges(tags: readonly string[]) {
   const ensured = useRef(new Set<string>());
   useEffect(() => {
-    for (const tag of (data ?? []).flatMap((c) => c.tags ?? [])) {
+    for (const tag of tags) {
       const key = normalizeLabel(tag);
       if (!key || ensured.current.has(key)) continue;
       ensured.current.add(key);
       ensureBadge(tag);
     }
-  }, [data]);
+  }, [tags]);
+  return ensured;
+}
 
-  const contacts = useMemo(
-    () => (data ?? []).map((c) => toBookContact(c, badges)),
-    [data, badges]
-  );
-  const hydrated = data !== undefined || error !== undefined;
-
+/** Saving, importing, deleting and retagging; `refresh` reloads what the caller shows. */
+function useBookActions(
+  refresh: () => Promise<unknown>,
+  ensured: { current: Set<string> }
+) {
   /** Creates a contact made with `makeContactId`, updates any other.
    *  Resolves with the stored contact; rejects with the API's error. */
   const save = useCallback(
@@ -182,10 +221,10 @@ export function useContactBook() {
       const stored = contact.id.startsWith(NEW_ID_PREFIX)
         ? await createContact(body)
         : await updateContact(contact.id, body);
-      await mutate();
+      await refresh();
       return toBookContact(stored, all);
     },
-    [mutate]
+    [refresh]
   );
 
   /** Creates several contacts in one request (the CSV import). */
@@ -195,31 +234,29 @@ export function useContactBook() {
       const result = await importContacts(
         added.map((c) => toContactBody(c, all))
       );
-      await mutate();
+      await refresh();
       return result;
     },
-    [mutate]
+    [refresh]
   );
 
   const remove = useCallback(
     async (id: string) => {
       await deleteContact(id);
-      await mutate();
+      await refresh();
     },
-    [mutate]
+    [refresh]
   );
 
-  /** Rewrites the tag on every contact that has it: `to` null removes it.
+  /** Rewrites the tag on every contact of the book that has it: `to` null removes it.
    *  Rejects with a {@link TagUpdateError} when some contacts were not
    *  updated; the book is reloaded either way. */
   const retag = useCallback(
     async (from: string, to: string | null) => {
-      const affected = (data ?? []).filter((c) =>
-        (c.tags ?? []).some((t) => sameTag(t, from))
-      );
       ensured.current.add(normalizeLabel(from));
       if (to) ensured.current.add(normalizeLabel(to));
       try {
+        const affected = await fetchAllContacts({ tag: from });
         const results = await Promise.allSettled(
           affected.map((c) => {
             const kept = (c.tags ?? []).filter((t) => !sameTag(t, from));
@@ -230,10 +267,10 @@ export function useContactBook() {
         if (failed > 0)
           throw new TagUpdateError(failed, results.length - failed);
       } finally {
-        await mutate();
+        await refresh();
       }
     },
-    [data, mutate]
+    [ensured, refresh]
   );
 
   const renameTag = useCallback(
@@ -242,14 +279,83 @@ export function useContactBook() {
   );
   const deleteTag = useCallback((name: string) => retag(name, null), [retag]);
 
+  return { save, addMany, remove, renameTag, deleteTag };
+}
+
+/** The whole book in memory, for the call panel. */
+export function useContactBook() {
+  const { data, error, mutate } = useContacts();
+  const { mutate: mutateKey } = useSWRConfig();
+  const { badges } = useContactBadges();
+  const tags = useMemo(() => (data ?? []).flatMap((c) => c.tags ?? []), [data]);
+  const ensured = useEnsuredBadges(tags);
+  const refresh = useCallback(
+    () =>
+      Promise.all([
+        mutate(),
+        mutateKey(contactFacetsKey),
+        mutateKey(contactReachKey),
+      ]),
+    [mutate, mutateKey]
+  );
+  const actions = useBookActions(refresh, ensured);
+
+  const contacts = useMemo(
+    () => (data ?? []).map((c) => toBookContact(c, badges)),
+    [data, badges]
+  );
+  const hydrated = data !== undefined || error !== undefined;
+
+  return { contacts, hydrated, error: error as Error | undefined, ...actions };
+}
+
+/**
+ * The book 100 contacts at a time, filtered by the API, for Settings › Libreta de contactos. `loadMore` fetches the
+ * next page; `facets` lists the roles, companies, tags and members of the whole book.
+ */
+export function useContactBookPages(query: TowerContactQuery) {
+  const pages = useContactPages(query);
+  const facets = useContactFacets();
+  const { mutate: mutateKey } = useSWRConfig();
+  const { badges } = useContactBadges();
+  const ensured = useEnsuredBadges(facets.data?.tags ?? NO_TAGS);
+  const { mutate: mutatePages } = pages;
+  const { mutate: mutateFacets } = facets;
+  const refresh = useCallback(
+    () =>
+      Promise.all([
+        mutatePages(),
+        mutateFacets(),
+        mutateKey(contactsKey),
+        mutateKey(contactReachKey),
+      ]),
+    [mutatePages, mutateFacets, mutateKey]
+  );
+  const actions = useBookActions(refresh, ensured);
+
+  const contacts = useMemo(
+    () =>
+      (pages.data ?? []).flatMap((p) =>
+        p.items.map((c) => toBookContact(c, badges))
+      ),
+    [pages.data, badges]
+  );
+  const loaded = pages.data?.length ?? 0;
+  const hasMore = !pages.error && Boolean(pages.data?.[loaded - 1]?.next);
+  const loadingMore = pages.size > loaded && !pages.error;
+  const { size, setSize } = pages;
+  const loadMore = useCallback(() => {
+    if (hasMore && !loadingMore) void setSize(size + 1);
+  }, [hasMore, loadingMore, setSize, size]);
+
   return {
     contacts,
-    hydrated,
-    error: error as Error | undefined,
-    save,
-    addMany,
-    remove,
-    renameTag,
-    deleteTag,
+    facets: facets.data,
+    hydrated: pages.data !== undefined || pages.error !== undefined,
+    error: pages.error as Error | undefined,
+    hasMore,
+    loadingMore,
+    loadMore,
+    ...actions,
   };
 }

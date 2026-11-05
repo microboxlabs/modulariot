@@ -26,6 +26,9 @@ public class PlatformTestProfile implements QuarkusTestProfile {
      */
     public static final String GRANTED_EMAIL = "granted@test.example";
 
+    /** The claim that carries role ids in test tokens. */
+    public static final String ROLES_CLAIM = "https://miot.test/roles";
+
     @Override
     public Map<String, String> getConfigOverrides() {
         Map<String, String> overrides = new HashMap<>();
@@ -40,6 +43,7 @@ public class PlatformTestProfile implements QuarkusTestProfile {
 
         overrides.put("miot.platform.owner-emails", OWNER_EMAIL);
         overrides.put("miot.app.public-url", "https://app.example.test/app/");
+        overrides.put("miot.iam.token-roles.claim", ROLES_CLAIM);
         overrides.put("miot.iam.api-key-own-organization-paths", "/api/v1/asset/track,/api/v1/gps-test/probe");
 
         overrides.put("miot.alfresco.auth", "stub");
@@ -61,6 +65,7 @@ public class PlatformTestProfile implements QuarkusTestProfile {
         overrides.put("quarkus.flyway.schemas", "miot_core");
         overrides.put("quarkus.flyway.create-schemas", "true");
         overrides.put("quarkus.hibernate-orm.schema-management.strategy", "none");
+        overrides.put("quarkus.hibernate-orm.statistics", "true");
         overrides.put("quarkus.hibernate-orm.physical-naming-strategy",
                 "org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy");
 

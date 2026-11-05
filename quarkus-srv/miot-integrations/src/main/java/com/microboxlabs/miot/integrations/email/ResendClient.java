@@ -68,7 +68,7 @@ public class ResendClient {
         try {
             json = objectMapper.writeValueAsString(body);
         } catch (JsonProcessingException e) {
-            return SendResult.failed(0, "Could not build the email request");
+            return SendResult.failedPermanently("Could not build the email request");
         }
         HttpRequest.Builder request = HttpRequest.newBuilder(endpoint("/emails"))
                 .timeout(TIMEOUT)

@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import { HiChevronDown } from "react-icons/hi";
-import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import {
+  usePermissions,
+  type CanAccess,
+} from "@/features/auth/hooks/use-permissions";
 import { trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
@@ -98,8 +101,7 @@ function NestedGroup({
   searchParams,
   dict,
   totals,
-  userGroups,
-  hasPermission,
+  canAccess,
   onNavigate,
 }: Readonly<{
   group: SidebarItem;
@@ -107,17 +109,12 @@ function NestedGroup({
   searchParams: string;
   dict: PropsWithI18nDict["dict"];
   totals: Record<string, number | string>;
-  userGroups: string[];
-  hasPermission: (groups: string[], op?: "OR" | "AND") => boolean;
+  canAccess: CanAccess;
   onNavigate: () => void;
 }>) {
-  const visibleChildren = (group.items ?? []).filter((child) => {
-    const hasBlocked = (child.blockedGroups ?? []).some((g) =>
-      userGroups.includes(g)
-    );
-    if (hasBlocked) return false;
-    return hasPermission(child.requiredGroups ?? []);
-  });
+  const visibleChildren = (group.items ?? []).filter((child) =>
+    canAccess(child)
+  );
 
   if (visibleChildren.length === 0) return null;
 
@@ -149,15 +146,11 @@ export default function MobileSidebarSection({
   dict,
   onNavigate,
 }: Readonly<PropsWithI18nDict<MobileSidebarSectionProps>>) {
-  const { hasPermission, userGroups } = usePermissions();
+  const { canAccess } = usePermissions();
   const searchParamsHook = useSearchParams();
   const searchParamsStr = searchParamsHook.toString();
 
-  const hasBlockedGroup = (item.blockedGroups ?? []).some((g) =>
-    userGroups.includes(g)
-  );
-  if (hasBlockedGroup) return null;
-  if (!hasPermission(item.requiredGroups ?? [])) return null;
+  if (!canAccess(item)) return null;
 
   const hasChildren = Boolean(item.items && item.items.length > 0);
   const active = isSectionActive(item, pathname);
@@ -174,8 +167,7 @@ export default function MobileSidebarSection({
         searchParams={searchParamsStr}
         totals={totals}
         dict={dict}
-        userGroups={userGroups}
-        hasPermission={hasPermission}
+        canAccess={canAccess}
         onNavigate={onNavigate}
       />
     );
@@ -217,8 +209,7 @@ function ExpandableSection({
   searchParams,
   totals,
   dict,
-  userGroups,
-  hasPermission,
+  canAccess,
   onNavigate,
 }: Readonly<{
   item: SidebarItem;
@@ -228,8 +219,7 @@ function ExpandableSection({
   searchParams: string;
   totals: Record<string, number | string>;
   dict: PropsWithI18nDict["dict"];
-  userGroups: string[];
-  hasPermission: (groups: string[], op?: "OR" | "AND") => boolean;
+  canAccess: CanAccess;
   onNavigate: () => void;
 }>) {
   const [isExpanded, setIsExpanded] = useState(active);
@@ -238,13 +228,9 @@ function ExpandableSection({
     if (active) setIsExpanded(true);
   }, [active]);
 
-  const visibleItems = (item.items ?? []).filter((child) => {
-    const hasBlocked = (child.blockedGroups ?? []).some((g) =>
-      userGroups.includes(g)
-    );
-    if (hasBlocked) return false;
-    return hasPermission(child.requiredGroups ?? []);
-  });
+  const visibleItems = (item.items ?? []).filter((child) =>
+    canAccess(child)
+  );
 
   if (visibleItems.length === 0) return null;
 
@@ -300,8 +286,7 @@ function ExpandableSection({
                     searchParams={searchParams}
                     dict={dict}
                     totals={totals}
-                    userGroups={userGroups}
-                    hasPermission={hasPermission}
+                    canAccess={canAccess}
                     onNavigate={onNavigate}
                   />
                 );

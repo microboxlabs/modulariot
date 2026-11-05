@@ -1,21 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Alert, Badge, Button, Spinner } from "flowbite-react";
-import {
-  HiOutlineKey,
-  HiOutlinePencil,
-  HiOutlineTrash,
-  HiOutlineUsers,
-  HiPlus,
-} from "react-icons/hi";
+import { HiOutlineKey, HiOutlineTrash, HiPlus } from "react-icons/hi";
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { RolesModal } from "./roles-modal";
-import { deleteTeam, setTeamRoles, useTeams } from "./team-api";
+import { deleteTeam, useTeams } from "./team-api";
 import { TeamFormModal } from "./team-form-modal";
-import { TeamMembersModal } from "./team-members-modal";
 import { labelOf, memberLabels } from "./team-model";
 import type { CatalogRole, Team, TeamMember } from "./team.types";
 
@@ -29,6 +23,13 @@ export interface TeamsPermissions {
   canBind: boolean;
 }
 
+function teamPath(lang: string, id: string) {
+  return `/${lang}/users/settings/team/teams/${encodeURIComponent(id)}`;
+}
+
+/** Members named in a row before the rest are counted. */
+const SHOWN_MEMBERS = 3;
+
 interface TeamRowProps {
   readonly team: Team;
   readonly members: TeamMember[];
@@ -36,9 +37,6 @@ interface TeamRowProps {
   readonly allowed: TeamsPermissions;
   readonly lang: string;
   readonly d: I18nRecord;
-  readonly onEdit: (team: Team) => void;
-  readonly onMembers: (team: Team) => void;
-  readonly onRoles: (team: Team) => void;
   readonly onDelete: (team: Team) => void;
 }
 
@@ -49,11 +47,10 @@ function TeamRow({
   allowed,
   lang,
   d,
-  onEdit,
-  onMembers,
-  onRoles,
   onDelete,
 }: TeamRowProps) {
+  const labels = memberLabels(team.members, members);
+  const hidden = labels.length - SHOWN_MEMBERS;
   return (
     <tr className="border-b border-gray-100 dark:border-gray-800">
       <td className={CELL}>
@@ -67,15 +64,18 @@ function TeamRow({
         )}
       </td>
       <td className={CELL}>
-        <div className="flex flex-wrap gap-1">
-          {team.members.length === 0 && (
+        <div className="flex flex-wrap items-center gap-1">
+          {labels.length === 0 && (
             <span className="text-xs text-gray-400">{tr("noMembers", d)}</span>
           )}
-          {memberLabels(team.members, members).map((label) => (
+          {labels.slice(0, SHOWN_MEMBERS).map((label) => (
             <Badge key={label} color="gray">
               {label}
             </Badge>
           ))}
+          {hidden > 0 && (
+            <span className="text-xs text-gray-500">+{hidden}</span>
+          )}
         </div>
       </td>
       <td className={CELL}>
@@ -96,32 +96,23 @@ function TeamRow({
       </td>
       <td className={`${CELL} text-right`}>
         <div className="flex justify-end gap-1">
-          {allowed.canManage && (
-            <Button size="xs" color="alternative" onClick={() => onEdit(team)}>
-              <HiOutlinePencil className="mr-1 h-4 w-4" />
-              {tr("edit", d)}
-            </Button>
-          )}
-          {allowed.canManage && (
-            <Button
-              size="xs"
-              color="alternative"
-              onClick={() => onMembers(team)}
-            >
-              <HiOutlineUsers className="mr-1 h-4 w-4" />
-              {tr("tabMembers", d)}
-            </Button>
-          )}
-          {allowed.canBind && (
-            <Button size="xs" color="alternative" onClick={() => onRoles(team)}>
-              <HiOutlineKey className="mr-1 h-4 w-4" />
-              {tr("tabRoles", d)}
-            </Button>
-          )}
+          <Button
+            size="xs"
+            color="alternative"
+            className="whitespace-nowrap"
+            as={Link}
+            href={teamPath(lang, team.id)}
+          >
+            <HiOutlineKey className="mr-1 h-4 w-4" />
+            {allowed.canManage || allowed.canBind
+              ? tr("editAccess", d)
+              : tr("viewAccess", d)}
+          </Button>
           {allowed.canManage && (
             <Button
               size="xs"
               color="alternative"
+              className="whitespace-nowrap"
               onClick={() => onDelete(team)}
             >
               <HiOutlineTrash className="mr-1 h-4 w-4" />
@@ -151,10 +142,9 @@ export function TeamTeamsTab({
   d,
 }: TeamTeamsTabProps) {
   const teams = useTeams(true);
+  const router = useRouter();
 
-  const [form, setForm] = useState<{ team: Team | null } | null>(null);
-  const [editingMembers, setEditingMembers] = useState<Team | null>(null);
-  const [editingRoles, setEditingRoles] = useState<Team | null>(null);
+  const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Team | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -179,21 +169,12 @@ export function TeamTeamsTab({
   };
 
   const list = teams.data ?? [];
-  // Stable while the modal is open, so a re-render does not reset the form.
-  const currentRoles = useMemo(
-    () => editingRoles?.roles ?? null,
-    [editingRoles]
-  );
 
   return (
     <div className="flex flex-col gap-3">
       {allowed.canManage && (
         <div className="flex justify-end">
-          <Button
-            color="blue"
-            size="sm"
-            onClick={() => setForm({ team: null })}
-          >
+          <Button color="blue" size="sm" onClick={() => setCreating(true)}>
             <HiPlus className="mr-1.5 h-4 w-4" />
             {tr("teamCreate", d)}
           </Button>
@@ -232,9 +213,6 @@ export function TeamTeamsTab({
                   allowed={allowed}
                   lang={lang}
                   d={d}
-                  onEdit={(t) => setForm({ team: t })}
-                  onMembers={setEditingMembers}
-                  onRoles={setEditingRoles}
                   onDelete={setDeleting}
                 />
               ))}
@@ -244,27 +222,13 @@ export function TeamTeamsTab({
       )}
 
       <TeamFormModal
-        show={form !== null}
-        team={form?.team ?? null}
-        onClose={() => setForm(null)}
-        onSaved={reload}
-        d={d}
-      />
-      <TeamMembersModal
-        team={editingMembers}
-        members={members}
-        onClose={() => setEditingMembers(null)}
-        onSaved={reload}
-        d={d}
-      />
-      <RolesModal
-        current={currentRoles}
-        title={tr("rolesTitle", d, { name: editingRoles?.name ?? "" })}
-        onSave={(selected) => setTeamRoles(editingRoles?.id ?? "", selected)}
-        onClose={() => setEditingRoles(null)}
-        onSaved={reload}
-        roles={roles}
-        lang={lang}
+        show={creating}
+        team={null}
+        onClose={() => setCreating(false)}
+        onSaved={(team) => {
+          void teams.mutate((current) => [...(current ?? []), team]);
+          router.push(teamPath(lang, team.id));
+        }}
         d={d}
       />
       <ConfirmationModal

@@ -12,9 +12,12 @@ import {
   useSymptomDefinition,
   validateSpec,
   type Preview,
+  type SymptomDetail,
   type SymptomSpec,
+  type SymptomVersion,
   type ValidationReport,
 } from "./maintainer-api";
+import { useSymptomScope } from "./symptom-scope";
 
 const DEBOUNCE_MS = 600;
 
@@ -25,12 +28,32 @@ function shown(spec: SymptomSpec | null): SymptomSpec | null {
   return activation === spec.activation ? spec : { ...spec, activation };
 }
 
+/** The symptom as a publish leaves it: the new version in force with its state and family, and no draft. */
+export function withPublished(
+  detail: SymptomDetail,
+  version: SymptomVersion
+): SymptomDetail {
+  return {
+    ...detail,
+    definition: {
+      ...detail.definition,
+      currentVersion: version.version,
+      state: version.spec.state ?? detail.definition.state,
+      family: version.spec.family ?? detail.definition.family,
+    },
+    current: version,
+    draft: null,
+    versions: [version, ...detail.versions.filter((v) => v.id !== version.id)],
+  };
+}
+
 /**
  * The spec being edited on the symptom page. Starts from the draft (else the
  * version in force). Each change is checked and previewed by the server after
  * a short pause; owners also save it as the draft.
  */
 export function useSymptomDraft(id: string, canWrite: boolean) {
+  const scope = useSymptomScope();
   const { data: detail, error, mutate } = useSymptomDefinition(id);
   const [spec, setSpec] = useState<SymptomSpec | null>(null);
   const [report, setReport] = useState<ValidationReport | null>(null);
@@ -92,33 +115,33 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     setSpec(loaded);
     setPlanFor(loaded);
     setReport(null);
-    void globalMutate(publishPlanKey(id));
-  }, [serverDraft, id]);
+    void globalMutate(publishPlanKey(id, scope));
+  }, [serverDraft, id, scope]);
 
   const check = useCallback(
     (next: SymptomSpec, save: boolean) => {
       const ticket = ++latest.current;
       // The plan describes `next` once its reload after the save resolves.
       const reloadPlan = async () => {
-        await globalMutate(publishPlanKey(id));
+        await globalMutate(publishPlanKey(id, scope));
         if (ticket === latest.current) setPlanFor(next);
       };
       const run = async () => {
         try {
           if (save) {
             setSaving(true);
-            const saved = await saveDraft(id, next);
+            const saved = await saveDraft(id, next, scope);
             known.current = JSON.stringify(saved?.spec ?? next);
             if (ticket === latest.current) dirty.current = false;
             setSaveError(null);
             void mutate();
-            void refreshSymptoms();
+            void refreshSymptoms(undefined, scope);
             void reloadPlan();
           }
           if (ticket !== latest.current) return;
           const [r, p] = await Promise.all([
-            validateSpec(id, next),
-            previewSpec(id, next),
+            validateSpec(id, next, scope),
+            previewSpec(id, next, scope),
           ]);
           if (ticket !== latest.current) return;
           setReport(r);
@@ -133,7 +156,7 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
       queue.current = queue.current.then(run);
       return queue.current;
     },
-    [id, mutate]
+    [id, mutate, scope]
   );
 
   // First check once the spec is loaded, without saving.
@@ -158,25 +181,48 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     []
   );
 
-  /** Reloads the editor from the server, after a publish, restore or discard changed it there. */
+  /** Puts `fresh` in the editor, dropping unsaved edits and earlier checks. */
+  const take = useCallback(
+    (fresh: SymptomDetail | undefined) => {
+      if (timer.current) clearTimeout(timer.current);
+      const next = shown(fresh?.draft?.spec ?? fresh?.current?.spec ?? null);
+      known.current = JSON.stringify(fresh?.draft?.spec ?? null);
+      dirty.current = false;
+      setExternal(false);
+      loadedFor.current = id;
+      setSpec(next);
+      setPlanFor(next);
+      setReport(null);
+    },
+    [id]
+  );
+
+  /** Reloads the editor from the server, after a restore or a draft written elsewhere. */
   const resync = useCallback(async () => {
     if (timer.current) clearTimeout(timer.current);
-    const fresh = await mutate();
-    const next = shown(fresh?.draft?.spec ?? fresh?.current?.spec ?? null);
-    known.current = JSON.stringify(fresh?.draft?.spec ?? null);
-    dirty.current = false;
-    setExternal(false);
-    loadedFor.current = id;
-    setSpec(next);
-    setPlanFor(next);
-    setReport(null);
-  }, [id, mutate]);
+    take(await mutate());
+  }, [mutate, take]);
+
+  // A reload alone can resolve with the cached symptom, which still holds the consumed draft.
+  const settle = useCallback(
+    async (change: (d: SymptomDetail) => SymptomDetail) => {
+      take(await mutate((d) => d && change(d), { revalidate: false }));
+      void mutate();
+    },
+    [mutate, take]
+  );
+
+  /** Takes a publish's answer: the version it made is in force and the draft is gone. */
+  const showPublished = useCallback(
+    (version: SymptomVersion) => settle((d) => withPublished(d, version)),
+    [settle]
+  );
 
   const discard = useCallback(async () => {
-    await discardDraft(id);
-    await refreshSymptoms();
-    await resync();
-  }, [id, resync]);
+    await discardDraft(id, scope);
+    await settle((d) => ({ ...d, draft: null }));
+    await refreshSymptoms(undefined, scope);
+  }, [id, settle, scope]);
 
   return {
     detail,
@@ -195,5 +241,6 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     external,
     discard,
     resync,
+    showPublished,
   };
 }

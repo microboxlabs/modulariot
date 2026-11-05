@@ -1,0 +1,61 @@
+# Receta: los N primeros en barra horizontal
+
+**Para:** implementadores. **Configuración:** ModularIoT.
+
+**Resultado:** un ranking de los 5 responsables con más solicitudes, de mayor a menor, con el valor al final de cada barra.
+
+![Top 5 responsables en barras horizontales con etiquetas](/dashboards/chart_v2/bar-horizontal.png)
+
+## Antes de empezar
+
+| Paso | Dónde |
+| --- | --- |
+| Guardar cada consulta SQL con un nombre | **Ajustes › Conexiones › BigQuery** › **+ Nueva** › **Guardar** |
+| Agregar una consulta guardada al dashboard | Con **Modo Edición** activo: menú de ajustes (engranaje) › **Consultas guardadas** › **Agregar consulta**. **Conexión**: su conexión de BigQuery. **Operación**: el nombre de la consulta SQL |
+| Agregar un widget | Con **Modo Edición** activo: **Agregar Widget** |
+
+El paso a paso completo está en [Construir su primer dashboard](/es/products/dashboards/tutorials/first-dashboard).
+
+## Consulta
+
+```sql
+SELECT responsable, COUNT(*) AS cantidad
+FROM `mi-proyecto.operaciones.solicitudes`
+GROUP BY responsable
+ORDER BY cantidad DESC
+LIMIT 5
+```
+
+Guárdela como `top_responsables`. El gráfico no ordena: el orden sale del `ORDER BY`. La primera fila queda arriba.
+
+## Pasos
+
+1. Active **Modo Edición**. Agregue la consulta guardada **Nombre del resultado** `top`, **Operación** `top_responsables`, **Parámetros (JSON)** `{}`.
+2. **Agregar Widget** › busque `Chart` › **Chart v2**. **Proveedor de Datos**: **Planificador**, **Variable** `top`.
+3. **Visualización**:
+
+   | Ajuste | Valor |
+   | --- | --- |
+   | **Título** | `Top 5 responsables` |
+   | **Familia de gráfico** | Cartesiano |
+   | **Columna Eje X** | `responsable` |
+   | **Representaciones** | El widget trae dos (barra y línea). Borre la línea. En la barra: columna `cantidad`, etiqueta `Solicitudes`, **Etiquetas** encendido |
+   | **Barras Horizontales** | Encendido |
+   | **Mostrar Leyenda** | Apagado |
+
+4. **Guardar**.
+
+## Variantes
+
+| Quiere | Cambie |
+| --- | --- |
+| Los 10 primeros | `LIMIT 10` y más alto el widget |
+| Los últimos (menos solicitudes) | `ORDER BY cantidad ASC` |
+| Color según el valor | **Colores y reglas**: por ejemplo `>` `10` rojo. Vea [Chart v2](/es/products/dashboards/reference/widgets/chart-v2#reglas-de-color) |
+| Nombres largos | Se cortan a 120 píxeles. Acórtelos en la consulta |
+
+La etiqueta de la barra más larga puede quedar cortada en el borde derecho, como en la captura ([#2246](https://github.com/microboxlabs/modulariot/issues/2246)).
+
+## Relacionado
+
+- [Chart v2](/es/products/dashboards/reference/widgets/chart-v2)

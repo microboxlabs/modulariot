@@ -1,8 +1,7 @@
 "use client";
-import { z } from "zod";
+import { z } from "zod/v3";
 import useSWR, { SWRConfiguration } from "swr";
-import { useEffect, useMemo, useRef, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { useMemo, useRef, useCallback } from "react";
 import fetcher, { createFetcherError } from "./fetcher";
 import { safeJsonParse } from "./safe-json";
 import { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types";
@@ -28,6 +27,7 @@ import {
   MapPositionResume,
 } from "@/features/geographic-view/types/map";
 import { MapService } from "@/features/geographic-view/services/map.service";
+import { isOfflineFrame } from "@/features/geographic-view/utils/signal-state";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
 import {
@@ -61,8 +61,13 @@ import type {
   MoveBookingRequest,
   SlotResponse,
   SlotListResponse,
+  TimeWindowUsageResponse,
 } from "@microboxlabs/miot-calendar-client";
 import type { ServiceType } from "./alfresco-api/service-types.types";
+import {
+  isEngineCaseId,
+  tripIdOf,
+} from "@/features/symptoms/model/treatment-link";
 import type { ObservationTypeItem } from "./alfresco-api/observation-types.types";
 
 export function useMyTasks(
@@ -273,9 +278,11 @@ export function useSymptoms(date_range?: { from: string; to: string }) {
     }
   );
 
+  // Ignored cases are on hold: out of the total.
   const count = data
-    ? Object.values(data).reduce<number>(
-        (sum, value) => (typeof value === "number" ? sum + value : sum),
+    ? Object.entries(data).reduce<number>(
+        (sum, [key, value]) =>
+          typeof value === "number" && key !== "ignored" ? sum + value : sum,
         0
       )
     : 0;
@@ -329,7 +336,7 @@ export function useSymptomsTable({
   symptom_name?: string;
   date_range?: {
     from: string;
-    to: string;
+    to?: string;
   };
 }) {
   const { data, error, isLoading, isValidating, mutate } = useSWR<
@@ -440,23 +447,30 @@ export function useSymptomsIcu(condition?: string) {
   };
 }
 
-export function useMapPositions() {
+export function useMapPositions(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const { data, error, isLoading, mutate } = useSWR<
     MapPosition[],
     FetcherError
   >(
-    "/app/api/map",
+    enabled ? "/app/api/map" : null,
     async (url: string) => {
       const response = await fetch(url);
       const data = await safeJsonParse<MapPosition[]>(response);
       return data?.map((position: MapPosition) => {
+        const assetId = position.asset_id?.trim()
+          ? position.asset_id
+          : position.assetid;
         const [longitude, latitude] = MapService.parseWKBPoint(
           position.location
         );
         return {
           ...position,
+          asset_id: assetId,
+          assetid: assetId,
           longitude,
           latitude,
+          lost_signal: isOfflineFrame(position.timestamp, position.signal),
         };
       });
     },
@@ -480,12 +494,13 @@ export function useMapPositions() {
   };
 }
 
-export function useMapPositionsResume() {
+export function useMapPositionsResume(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const { data, error, isLoading, mutate } = useSWR<
     MapPositionResume,
     FetcherError
   >(
-    "/app/api/map/resume",
+    enabled ? "/app/api/map/resume" : null,
     async (url: string) => {
       const response = await fetch(url);
       return safeJsonParse<MapPositionResume>(response);
@@ -506,8 +521,9 @@ export function useMapPositionsResume() {
 }
 
 export function useGeofences(tripId: string) {
+  const trip = tripIdOf(tripId);
   const { data, error, isLoading } = useSWR<any, FetcherError>(
-    `/app/api/map/geofences?tripId=${tripId}`,
+    trip ? `/app/api/map/geofences?tripId=${trip}` : null,
     fetcher
   );
 
@@ -636,16 +652,20 @@ export function useTreatmentsLocation(
   last_date: string, */
   symptom_id: string
 ) {
-  const shouldFetch = tripId && symptom_name; //&& first_date && last_date
-  //&first_date=${first_date}&last_date=${last_date}
+  const trip = tripIdOf(tripId);
+  // The evaluator's cases may have no trip; their signals are read by symptom.
+  const shouldFetch =
+    !!symptom_name && (!!trip || (!!symptom_id && isEngineCaseId(symptom_id)));
+  const tripParam = trip ? `trip_id=${encodeURIComponent(trip)}&` : "";
   const { data, error, isLoading } = useSWR<
     TreatmentsLocationResponseItem,
     FetcherError
   >(
     shouldFetch
-      ? `/app/api/treatments/location?trip_id=${tripId}&symptom_name=${symptom_name}&symptom_id=${symptom_id}`
+      ? `/app/api/treatments/location?${tripParam}symptom_name=${encodeURIComponent(symptom_name)}&symptom_id=${encodeURIComponent(symptom_id)}`
       : null,
-    fetcher
+    fetcher,
+    { refreshInterval: (current) => (current?.closed === false ? 60_000 : 0) }
   );
 
   return {
@@ -709,26 +729,6 @@ export function useGetUserStates() {
     `/app/api/user/states`,
     fetcher
   );
-  const pathname = usePathname();
-
-  // Handle 401 errors (session expired) by redirecting to sign-in
-  useEffect(() => {
-    if (error?.status === 401) {
-      // Extract language from pathname (format: /app/[lang]/... or /[lang]/...)
-      const pathSegments = pathname.split("/").filter(Boolean);
-      // Remove 'app' prefix if present
-      const segmentsWithoutApp =
-        pathSegments[0] === "app" ? pathSegments.slice(1) : pathSegments;
-      // Find the language segment (usually 'es' or 'en')
-      const lang =
-        segmentsWithoutApp.find(
-          (segment) => segment === "es" || segment === "en"
-        ) || "es"; // Default to 'es' if not found
-
-      // Redirect to sign-in page with language
-      globalThis.location.href = `/${lang}/sign-in`;
-    }
-  }, [error, pathname]);
 
   return {
     user_states: data,
@@ -1902,6 +1902,30 @@ export function useCalendarSlots(
   };
 }
 
+const EMPTY_WINDOW_USAGE: TimeWindowUsageResponse[] = [];
+
+/**
+ * Booked and remaining capacity of each time window per date, as the calendar
+ * counts it. Returns null SWR key (no fetch) when calendarId is missing.
+ */
+export function useCalendarTimeWindowUsage(
+  calendarId: string | null,
+  startDate: string,
+  endDate: string
+) {
+  const url = calendarId
+    ? `/app/api/calendar/${calendarId}/time-windows/usage?startDate=${startDate}&endDate=${endDate}`
+    : null;
+
+  const { data, mutate } = useSWR<TimeWindowUsageResponse[], FetcherError>(
+    url,
+    fetcher,
+    { keepPreviousData: true, revalidateOnFocus: false }
+  );
+
+  return { usage: data ?? EMPTY_WINDOW_USAGE, refresh: mutate };
+}
+
 // ============================================================================
 // Booking Helpers
 // ============================================================================
@@ -2165,6 +2189,8 @@ const BookingListResponseSchema = z.object({
         .optional(),
       syncStatus: z.enum(["PENDING", "CONFIRMED", "REJECTED"]).optional(),
       syncDetail: z.string().optional(),
+      // Outside capacity: the planner gives back its place only when it counts.
+      overbooked: z.boolean().optional(),
       createdAt: z.string(),
       createdBy: z.string().nullable().optional(),
     })

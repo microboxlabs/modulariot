@@ -6,11 +6,11 @@ import { twMerge } from "tailwind-merge";
 import SecuredLayout from "@/features/layout/components/secured-layout";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
-import { AuthProvider } from "@/features/auth/context/auth-context";
 import { HarnessChatProvider } from "@/features/harness-chat/context/harness-chat-context";
 import { isHarnessUiEnabled } from "@/features/layout/utils/utils";
 import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 import HarnessChatMount from "./harness-chat-mount";
+import { SessionExpiryGuard } from "@/features/auth/session-expiry/session-expiry-guard";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,11 +27,10 @@ export default async function Layout({
         "bg-gray-50 dark:bg-gray-900 h-screen flex flex-row"
       )}
     >
+      <SessionExpiryGuard />
       <HarnessChatProvider>
         <SessionProvider basePath="/app/api/auth">
-          <AuthProvider>
-            <SecuredLayout params={params}>{children}</SecuredLayout>
-          </AuthProvider>
+          <SecuredLayout params={params}>{children}</SecuredLayout>
         </SessionProvider>
         {isHarnessUiEnabled() && (
           // HarnessChatMount is a sibling of SecuredLayout, not nested inside

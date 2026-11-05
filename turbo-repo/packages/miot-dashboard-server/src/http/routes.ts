@@ -19,7 +19,13 @@ export type RouteName =
   | "datasource"
   | "datasourceTest"
   | "credentials"
-  | "credential";
+  | "credential"
+  | "querySources"
+  | "querySourceSchema"
+  | "queryPlans"
+  | "queryPlan"
+  | "queryEstimate"
+  | "queryPreview";
 
 export interface RouteMatch {
   route: RouteName;
@@ -37,8 +43,10 @@ export interface RouteMatch {
   scopeId: string;
   /** Absent only for the collection route. */
   slug?: string;
-  /** Query id, datasource id or credential ref, on the routes that address one. */
+  /** Query id, datasource id, credential ref or query source id, on the routes that address one. */
   id?: string;
+  /** Saved query id under a query source. */
+  planId?: string;
 }
 
 /**
@@ -69,6 +77,9 @@ export function matchRoute(pathname: string): RouteMatch | null {
   }
   if (collection === "credentials") {
     return matchCredentials(segments, tenantId, scopeId);
+  }
+  if (collection === "query-sources") {
+    return matchQuerySources(segments, tenantId, scopeId);
   }
   if (collection !== "dashboards") return null;
   return matchDashboards(segments, tenantId, scopeId);
@@ -151,6 +162,36 @@ function matchCredentials(
   if (id === null) return null;
   if (segments.length === 6) {
     return { route: "credential", tenantId, scopeId, id };
+  }
+  return null;
+}
+
+const QUERY_SOURCE_ACTIONS = {
+  schema: "querySourceSchema",
+  plans: "queryPlans",
+  estimate: "queryEstimate",
+  preview: "queryPreview",
+} as const;
+
+/** /query-sources, /query-sources/{id}/{schema|plans|estimate|preview}, /query-sources/{id}/plans/{planId} */
+function matchQuerySources(
+  segments: readonly string[],
+  tenantId: string,
+  scopeId: string,
+): RouteMatch | null {
+  if (segments.length === 5) return { route: "querySources", tenantId, scopeId };
+  const id = decodeSegment(segments[5]);
+  if (id === null || segments.length < 7) return null;
+  const action = segments[6];
+  if (segments.length === 7 && action !== undefined && Object.hasOwn(QUERY_SOURCE_ACTIONS, action)) {
+    const route = QUERY_SOURCE_ACTIONS[action as keyof typeof QUERY_SOURCE_ACTIONS];
+    return { route, tenantId, scopeId, id };
+  }
+  if (segments.length === 8 && action === "plans") {
+    const planId = decodeSegment(segments[7]);
+    return planId === null
+      ? null
+      : { route: "queryPlan", tenantId, scopeId, id, planId };
   }
   return null;
 }

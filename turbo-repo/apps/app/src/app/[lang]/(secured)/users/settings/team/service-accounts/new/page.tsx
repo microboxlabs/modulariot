@@ -18,7 +18,7 @@ export default async function NewServiceAccountPage({
     ?.userSettings as I18nRecord;
 
   return (
-    <RouteGuard path="/users/settings/team" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/users/settings/team">
       <ServiceAccountCreatePage dict={userSettings} lang={lang} />
     </RouteGuard>
   );

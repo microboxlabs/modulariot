@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { twMerge } from "tailwind-merge";
-import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import {
+  usePermissions,
+  type CanAccess,
+} from "@/features/auth/hooks/use-permissions";
 import { trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
@@ -14,18 +17,6 @@ interface SecondaryPanelItemListProps {
   searchQuery: string;
   totals: Record<string, number | string>;
   onNavigate?: () => void;
-}
-
-function isItemVisible(
-  item: SidebarItem,
-  userGroups: string[],
-  hasPermission: (groups: string[], op?: "OR" | "AND") => boolean
-): boolean {
-  const hasBlockedGroup = (item.blockedGroups ?? []).some((g) =>
-    userGroups.includes(g)
-  );
-  if (hasBlockedGroup) return false;
-  return hasPermission(item.requiredGroups ?? []);
 }
 
 function matchesSearch(label: string, query: string): boolean {
@@ -85,8 +76,7 @@ function PanelNestedGroup({
   searchQuery,
   dict,
   totals,
-  userGroups,
-  hasPermission,
+  canAccess,
   onNavigate,
 }: Readonly<{
   item: SidebarItem;
@@ -95,14 +85,13 @@ function PanelNestedGroup({
   searchQuery: string;
   dict: PropsWithI18nDict["dict"];
   totals: Record<string, number | string>;
-  userGroups: string[];
-  hasPermission: (groups: string[], op?: "OR" | "AND") => boolean;
+  canAccess: CanAccess;
   onNavigate?: () => void;
 }>) {
   const translatedGroupLabel = trDynamic(item.label, dict);
   const visibleChildren = (item.items ?? []).filter(
     (child) =>
-      isItemVisible(child, userGroups, hasPermission) &&
+      canAccess(child) &&
       matchesSearch(trDynamic(child.label, dict), searchQuery)
   );
 
@@ -146,12 +135,12 @@ export default function SecondaryPanelItemList({
   const pathname = pathNameWithoutLanguage(usePathname());
   const searchParamsHook = useSearchParams();
   const searchParamsStr = searchParamsHook.toString();
-  const { hasPermission, userGroups } = usePermissions();
+  const { canAccess } = usePermissions();
 
   return (
     <ul className="flex-1 space-y-0.5 overflow-y-auto">
       {items.map((item) => {
-        if (!isItemVisible(item, userGroups, hasPermission)) return null;
+        if (!canAccess(item)) return null;
 
         const translatedLabel = trDynamic(item.label, dict);
 
@@ -166,8 +155,7 @@ export default function SecondaryPanelItemList({
               searchQuery={searchQuery}
               dict={dict}
               totals={totals}
-              userGroups={userGroups}
-              hasPermission={hasPermission}
+              canAccess={canAccess}
               onNavigate={onNavigate}
             />
           );

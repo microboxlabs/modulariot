@@ -10,7 +10,8 @@
  * Nothing here migrates a version it does not understand.
  */
 
-import { z } from "zod";
+// Keep the published contract and JSON Schema generator on the stable v3 schema API.
+import { z } from "zod/v3";
 import type { DashboardStorageSchema, Widget } from "./document";
 
 /** The version this package describes. */

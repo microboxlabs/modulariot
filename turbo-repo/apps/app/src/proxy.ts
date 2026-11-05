@@ -19,13 +19,11 @@ import {
   defaultServiceTypeFor,
 } from "./features/layout/services/kanban-default-filters";
 import { createManagedLogger } from "./lib/logger";
-import { homePath } from "@/features/common/providers/alfresco-api/ecm-config";
 // import { logger } from "./lib/logger";
 // import {
 //   buildAccessLogFields,
 //   generateRequestId,
 // } from "@/features/common/utils/access-log";
-//import { getRoutePermissions } from "@/features/auth/config/route-permissions";
 //import type { JWT } from "next-auth/jwt";
 
 /* interface NextRequestWithAuth extends NextRequest {
@@ -33,21 +31,6 @@ import { homePath } from "@/features/common/providers/alfresco-api/ecm-config";
     token: JWT | null;
   };
 } */
-/* 
-
-function hasRequiredGroups(
-  userGroups: string[] = [],
-  requiredGroups: string[],
-  operator: "OR" | "AND" = "OR",
-): boolean {
-  if (!requiredGroups.length) return true;
-
-  return operator === "OR"
-    ? requiredGroups.some((group) => userGroups.includes(group))
-    : requiredGroups.every((group) => userGroups.includes(group));
-} */
-
-// moved to common utils
 
 const logger = createManagedLogger("middleware", "Middleware", "error");
 
@@ -83,8 +66,9 @@ const middleware = auth(async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // The start page picks the first module page the caller may open.
   if (/^\/[a-z]{0,2}\/{0,1}$/.test(pathname)) {
-    pathname = homePath();
+    pathname = "/start";
   }
 
   // const startTime = Date.now();

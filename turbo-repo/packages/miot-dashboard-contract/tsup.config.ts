@@ -3,7 +3,13 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   // One entry per subject, no root barrel: importing the role vocabulary must
   // not load zod.
-  entry: ["src/document.ts", "src/schema.ts", "src/roles.ts", "src/errors.ts"],
+  entry: [
+    "src/document.ts",
+    "src/schema.ts",
+    "src/roles.ts",
+    "src/errors.ts",
+    "src/authoring.ts",
+  ],
   format: ["esm"],
   outDir: "dist",
   dts: true,

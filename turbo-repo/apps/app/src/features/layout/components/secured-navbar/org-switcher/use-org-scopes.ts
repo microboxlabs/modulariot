@@ -1,6 +1,10 @@
 "use client";
 
 import { confirmNavigation } from "@/features/common/hooks/use-unsaved-navigation";
+import {
+  isPlatformScope,
+  platformScopeLanding,
+} from "@/features/common/platform-scope";
 
 import useSWR from "swr";
 
@@ -74,8 +78,12 @@ export function useOrgScopes() {
     }
   );
 
-  const switchOrg = async (slug: string) => {
-    if (!confirmNavigation()) return;
+  /**
+   * False when the user kept their unsaved changes; true when the page reloads into the org, or
+   * opens `href` in it.
+   */
+  const switchOrg = async (slug: string, href?: string): Promise<boolean> => {
+    if (!confirmNavigation()) return false;
     let response: Response;
     try {
       response = await fetch("/app/api/user/active-org", {
@@ -100,7 +108,15 @@ export function useOrgScopes() {
     }
 
     await mutate();
-    globalThis.location.reload();
+    // Organization-only pages answer 404 in the platform scope: land on one it has.
+    const landing =
+      href ??
+      (isPlatformScope(slug)
+        ? platformScopeLanding(globalThis.location.pathname)
+        : null);
+    if (landing) globalThis.location.assign(landing);
+    else globalThis.location.reload();
+    return true;
   };
 
   return {

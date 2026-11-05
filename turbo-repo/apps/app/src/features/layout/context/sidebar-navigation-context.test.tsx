@@ -51,6 +51,19 @@ vi.mock("@/features/task-forms/services/form.service", () => ({
 
 vi.mock("@/features/task-forms/services/form.service.types", () => ({}));
 
+// A loaded config with no flags on: Dev and Storytelling hidden, both work boards shown.
+vi.mock("@/features/runtime-config/runtime-config-context", () => ({
+  useRuntimeConfig: () => ({ BOARD_MODULE: "" }),
+}));
+
+const tripCounts = vi.hoisted(() => ({
+  data: undefined as Record<string, number> | undefined,
+}));
+vi.mock("@/features/trips/board/board-api", () => ({
+  BOARD_VIEWS: ["planning", "dispatch", "delivery", "finished"],
+  useTripsBoardCounts: () => ({ data: tripCounts.data }),
+}));
+
 import {
   useMyTasksCount,
   useHistoricInstancesCount,
@@ -167,26 +180,27 @@ describe("SidebarNavigationProvider", () => {
     expect(result.current.totals).toBeDefined();
   });
 
-  it("exposes all pages as items", () => {
+  it("exposes all pages as items, Fleet only with fleet:assets.view", () => {
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
     expect(result.current.items).toHaveLength(
-      visiblePages(false, false, false).length
+      visiblePages(false, false, false).filter((p) => p.label !== "fleet")
+        .length
     );
   });
 
   it("hides the Dev section when the runtime config hasn't enabled it", () => {
-    // No RuntimeConfigProvider in this wrapper, so useRuntimeConfig() is null
-    // — the same state as a page before the config fetch resolves. Dev must
-    // stay out of navigation in that window.
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
-    expect(result.current.items.some((i) => i.label === DEV_PAGE_LABEL)).toBe(false);
+    expect(result.current.items.some((i) => i.label === DEV_PAGE_LABEL)).toBe(
+      false
+    );
     expect(pages.some((p) => p.label === DEV_PAGE_LABEL)).toBe(true);
   });
 
   it("hides the Storytelling section when the runtime config hasn't enabled it", () => {
-    // Same "config not resolved yet" state as the Dev test above.
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
-    expect(result.current.items.some((i) => i.label === STORYTELLING_PAGE_LABEL)).toBe(false);
+    expect(
+      result.current.items.some((i) => i.label === STORYTELLING_PAGE_LABEL)
+    ).toBe(false);
     expect(pages.some((p) => p.label === STORYTELLING_PAGE_LABEL)).toBe(true);
   });
 
@@ -325,6 +339,18 @@ describe("SidebarNavigationProvider", () => {
       setDefaultMocks({ taskTotals: { shippingTask: 4, deliveryTask: 6 } });
       const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
       expect(result.current.totals.pending_tasks).toBe(10);
+    });
+
+    it("counts the trips board links by their own view, not the task kanban", () => {
+      setDefaultMocks({ taskTotals: { shippingTask: 7 } });
+      tripCounts.data = { planning: 3, dispatch: 2, delivery: 0, finished: 9 };
+      const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
+      const trips = result.current.items.find((p) => p.label === "trips");
+      expect(trips?.items?.map((i) => i.totals?.[i.label])).toEqual([
+        3, 2, 0, 9,
+      ]);
+      expect(result.current.totals.shipping).toBe(7);
+      tripCounts.data = undefined;
     });
 
     it("skips shipping/delivery/planning totals when there is an error", () => {

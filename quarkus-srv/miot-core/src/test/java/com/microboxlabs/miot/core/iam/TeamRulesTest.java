@@ -14,7 +14,7 @@ class TeamRulesTest {
 
     private static Access as(BaseRole base, String... roles) {
         return AccessRules.resolve(1L, "acme", Caller.user("actor@example.com"),
-                new AccessRules.Facts(true, base, false, false, false, Set.of(roles), null), REGISTRY);
+                new AccessRules.Facts(base, false, Set.of(roles)), REGISTRY);
     }
 
     @Test

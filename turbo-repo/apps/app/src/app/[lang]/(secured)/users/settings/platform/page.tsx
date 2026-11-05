@@ -12,11 +12,12 @@ export default async function PlatformSettingsPage({ params }: ParamsWithLang) {
     ?.userSettings as I18nRecord;
 
   return (
-    <RouteGuard
-      path="/users/settings/platform"
-      fallbackPath={`/${lang}/shipping`}
-    >
-      <PlatformPageContent dict={userSettings} lang={lang} />
+    <RouteGuard path="/users/settings/platform">
+      <PlatformPageContent
+        dict={userSettings}
+        rootDict={dictionary as unknown as I18nRecord}
+        lang={lang}
+      />
     </RouteGuard>
   );
 }

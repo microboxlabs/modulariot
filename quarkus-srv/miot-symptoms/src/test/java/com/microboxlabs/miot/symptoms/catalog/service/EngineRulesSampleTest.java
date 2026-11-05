@@ -7,7 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.catalog.service.EngineRuleTranslator.Translation;
 import com.microboxlabs.miot.symptoms.engine.EngineRule;
-import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +30,7 @@ class EngineRulesSampleTest {
             rows = new ObjectMapper().readValue(in, new TypeReference<List<Row>>() {
             });
         }
-        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), new UnavailableSymptomEngine());
+        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory());
         List<String> failures = new ArrayList<>();
         for (Row row : rows) {
             EngineRule rule = new EngineRule(row.id(), row.name(), row.trigger(), row.pattern(),

@@ -38,7 +38,8 @@ jobs:
     name: SonarCloud
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Release preparation PRs are handled by app-release-train.yml.
+    if: github.event_name != 'pull_request' || (!startsWith(github.head_ref, 'release/miot-v') && github.event.pull_request.head.repo.full_name == github.repository)
 
     permissions:
       contents: read
@@ -74,7 +75,7 @@ jobs:
         if: steps.sonar-auth.outputs.scan-enabled == 'true'
         uses: actions/setup-node@v6
         with:
-          node-version: "24"
+          node-version: "24.22.1"
           cache: "npm"
           cache-dependency-path: turbo-repo/package-lock.json
 

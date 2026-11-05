@@ -20,6 +20,7 @@ messages:
       Generate ModularIoT release notes as MDX.
 
       Release version: {{release_version}}
+      Release scope: {{release_scope}}
       Release date: {{release_date}}
       Stack version: {{stack_version}}
       Private milestone: {{private_milestone}}
@@ -43,8 +44,8 @@ messages:
 
       Sources:
       - "release" source means private/custom-client release milestone.
-      - "oss" source means OSS integration milestone. Add a short note like
-        *(Integración OSS — {{oss_milestone}})* to bullets sourced from OSS issues.
+      - "oss" source means the OSS platform milestone.
+      {{source_guidance}}
 
       Categorization rules:
       - Labels `enhancement`, `feature`, `feat`, `ui`, `ux`, or title prefix

@@ -18,6 +18,7 @@ export type {
   TimeWindowKind,
   TimeWindowRequest,
   TimeWindowResponse,
+  TimeWindowUsageResponse,
   GenerateSlotsRequest,
   GenerateSlotsResponse,
   SlotResponse,

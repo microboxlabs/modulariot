@@ -149,6 +149,8 @@ export interface TicketAuthConfig {
   /** Scheme prefix to strip from that header, when the caller sends one. */
   scheme: string | undefined;
   url: string;
+  /** Accept a plain `http://` validation URL off loopback. */
+  allowHttp: boolean;
   method: HttpMethod;
   present: TicketPresentation;
   /** A credential this server sends to the emitter, beyond the ticket itself. */
@@ -609,6 +611,7 @@ const TICKET_ENV_KEYS = [
   "MIOT_DASHBOARD_TICKET_HEADER",
   "MIOT_DASHBOARD_TICKET_SCHEME",
   "MIOT_DASHBOARD_TICKET_VALIDATE_URL",
+  "MIOT_DASHBOARD_TICKET_ALLOW_HTTP",
   "MIOT_DASHBOARD_TICKET_VALIDATE_METHOD",
   "MIOT_DASHBOARD_TICKET_PRESENT",
   "MIOT_DASHBOARD_TICKET_PRESENT_NAME",
@@ -705,6 +708,7 @@ function readTicketAuth(env: ConfigEnv): TicketAuthConfig {
       "the emitter's endpoint for checking a ticket. A ticket carries no " +
         "proof of its own, so only the emitter can say whether it is valid.",
     ),
+    allowHttp: readBoolean(env.MIOT_DASHBOARD_TICKET_ALLOW_HTTP),
     method,
     present,
     serviceHeader,

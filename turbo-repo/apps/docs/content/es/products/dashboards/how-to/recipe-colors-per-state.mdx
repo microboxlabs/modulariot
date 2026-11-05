@@ -1,0 +1,71 @@
+import { Callout } from 'nextra/components'
+
+# Receta: un color por estado
+
+**Para:** implementadores. **Configuración:** ModularIoT.
+
+**Resultado:** cada estado se ve siempre con el mismo color, en el resumen, en un gráfico de barras y en la tabla.
+
+| Estado | Color |
+| --- | --- |
+| Pendiente | `eab308` (amarillo) |
+| En curso | `3b82f6` (azul) |
+| Cerrada | `22c55e` (verde) |
+
+| Widget | Cómo se fija el color |
+| --- | --- |
+| Stacked Stat | Un color por categoría en los ajustes |
+| Chart v2 barras | Una serie por estado, cada una con su color |
+| Tabla de Datos V2 | Una regla de color por estado en la columna |
+| Chart v2 torta | Solo editando el documento |
+
+## Stacked Stat
+
+![Stacked Stat con Pendiente amarillo, En curso azul y Cerrada verde](/dashboards/stat_stacked/bar.png)
+
+Cada categoría tiene su color. Vea [Receta: KPI por estado y barra 100 %](/es/products/dashboards/how-to/recipe-status-breakdown).
+
+## Barras con un color por estado
+
+![Barras amarilla, azul y verde, una por estado](/dashboards/chart_v2/colors-per-state.png)
+
+Un gráfico de barras colorea por serie. La consulta devuelve una columna por estado, con valor solo en la fila de su estado. Supone tres estados. Guárdela como `barras_por_estado`:
+
+```sql
+SELECT
+  CASE estado WHEN 'pendiente' THEN 'Pendiente' WHEN 'en_curso' THEN 'En curso' ELSE 'Cerrada' END AS etiqueta,
+  IF(estado = 'pendiente', COUNT(*), NULL) AS pendiente,
+  IF(estado = 'en_curso',  COUNT(*), NULL) AS en_curso,
+  IF(estado = 'cerrada',   COUNT(*), NULL) AS cerrada
+FROM `mi-proyecto.operaciones.solicitudes`
+GROUP BY estado
+ORDER BY CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_curso' THEN 2 ELSE 3 END
+```
+
+1. Agregue la consulta guardada **Nombre del resultado** `barras`, **Operación** `barras_por_estado`.
+2. **Agregar Widget** › **Chart v2**. **Proveedor de Datos**: **Planificador**, **Variable** `barras`.
+3. **Visualización**:
+
+   | Ajuste | Valor |
+   | --- | --- |
+   | **Columna Eje X** | `etiqueta` |
+   | **Representaciones** | El widget trae una barra y una línea. Cambie la línea a **Barras** y agregue una tercera con **Agregar representación**. Columnas `pendiente`, `en_curso`, `cerrada`, con los colores de la tabla de arriba. Las tres con **Apilado** y **Etiquetas** |
+   | **Mostrar Leyenda** | Apagado |
+
+4. **Guardar**.
+
+Con **Apilado**, cada barra queda centrada en su categoría. Dé color a las tres representaciones.
+
+## Tabla con el estado en color
+
+![Columna Estado con insignias de color](/dashboards/data_table_v2/column-color-rules.png)
+
+En la columna Estado: tipo `badge`, pincel encendido y una regla `=` por estado. Vea [Tabla de Datos V2](/es/products/dashboards/reference/widgets/data-table#estado-con-color).
+
+## Torta
+
+<Callout type="warning">
+En una torta, elegir un color para su representación pinta **todas** las porciones de ese color ([#2240](https://github.com/microboxlabs/modulariot/issues/2240)). Si ya eligió uno, borre la representación y agréguela de nuevo.
+</Callout>
+
+Para fijar un color por estado en la torta, edite el documento ([Importar y exportar](/es/products/dashboards/how-to/import-export)): `"colorPalette": "custom"`, `"customColors": ["#eab308", "#3b82f6", "#22c55e"]`, y ordene las filas con el mismo `ORDER BY` de arriba. Si un estado no tiene filas, los colores se desplazan.

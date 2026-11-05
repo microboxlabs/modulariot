@@ -39,7 +39,7 @@ const d = {
 const moment = (patch: Partial<CasePreview>): CasePreview => ({
   scenario: "held",
   open: false,
-  sample: { caso: { condicion_s: 75 } },
+  sample: { case: { condition_s: 75 } },
   outcome: "opens",
   error: null,
   ...patch,
@@ -55,8 +55,8 @@ const PREVIEW: Preview = {
 };
 
 const LIFECYCLE = {
-  open: "caso.condicion_s >= 60",
-  close: "caso.normal_s >= 120",
+  open: "case.condition_s >= 60",
+  close: "case.normal_s >= 120",
   levelDown: false,
 };
 
@@ -107,11 +107,11 @@ describe("LifecycleExpression", () => {
       />
     );
     fireEvent.change(screen.getByLabelText("Se cierra cuando · CEL"), {
-      target: { value: "caso.cerrado_por_operador" },
+      target: { value: "case.closed_by_operator" },
     });
     expect(onChange).toHaveBeenCalledWith({
       ...LIFECYCLE,
-      close: "caso.cerrado_por_operador",
+      close: "case.closed_by_operator",
     });
     expect(screen.queryByText(/Se abre un caso/)).toBeNull();
   });

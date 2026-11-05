@@ -25,8 +25,8 @@ Authorization: Bearer <access_token>
 | `Authorization` | Sí | `Bearer <access_token>` |
 | `Content-Type` | Sí | `application/json` |
 | `Accept` | Recomendado | `application/json` |
-| `X-Request-Id` | Sí | Identificador único de solicitud para trazabilidad |
-| `X-Request-Timestamp` | Sí | Timestamp de la solicitud (segundos Unix epoch) |
+
+El gateway asigna `X-Request-Id` y `X-Request-Timestamp` a cada solicitud; si la solicitud los trae, los reemplaza. La respuesta incluye `X-Request-Id`: guárdelo como comprobante de la solicitud.
 
 ## Formatos de Respuesta
 

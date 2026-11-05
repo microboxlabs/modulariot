@@ -1,14 +1,14 @@
 {
   "source": "gps_signal",
-  "activation": "signal.trip.active && !signal.gps.moving && signal.geo.risk_zone && signal.local_hour > 6 && signal.local_hour < 21",
+  "activation": "signal.trip.active && !signal.derived.moving && signal.geo.risk_zone && signal.local_hour > 6 && signal.local_hour < 21",
   "levels": [
-    { "icu": 1, "applies": true, "when": "sostenido_s < 600" },
-    { "icu": 2, "applies": true, "when": "sostenido_s >= 600 && sostenido_s < 1500" },
-    { "icu": 3, "applies": true, "when": "sostenido_s >= 1500 && sostenido_s < 2400" },
-    { "icu": 4, "applies": true, "when": "sostenido_s >= 2400" }
+    { "icu": 1, "applies": true, "when": "held_s < 600" },
+    { "icu": 2, "applies": true, "when": "held_s >= 600 && held_s < 1500" },
+    { "icu": 3, "applies": true, "when": "held_s >= 1500 && held_s < 2400" },
+    { "icu": 4, "applies": true, "when": "held_s >= 2400" }
   ],
   "lifecycle": {
-    "open": "caso.condicion_s >= 0",
-    "close": "caso.normal_s >= 0"
+    "open": "case.condition_s >= 0",
+    "close": "case.normal_s >= 0"
   }
 }

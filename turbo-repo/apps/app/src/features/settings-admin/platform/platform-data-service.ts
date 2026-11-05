@@ -2,7 +2,6 @@
 
 import { ApiError, getJson, sendEmpty, sendJson } from "../data/json-client";
 import { readLogoDataUrl } from "./domain-branding-form";
-import { ORGANIZATION_OWNER_ROLE_CODE } from "../data/settings-admin-data-service";
 import type { OrganizationRole } from "../types";
 import {
   PLATFORM_OWNER_ROLE,
@@ -155,6 +154,8 @@ export function fetchPlatformOrganizations(): Promise<
 > {
   return getJson<PlatformOrganizationListItem[]>(`${PLATFORM_BASE}/orgs`);
 }
+
+const ORGANIZATION_OWNER_ROLE_CODE = "ORGANIZATION_OWNER";
 
 function organizationOwnersUrl(slug: string): string {
   return `${PLATFORM_BASE}/orgs/${encodeURIComponent(slug)}/roles/${ORGANIZATION_OWNER_ROLE_CODE}`;

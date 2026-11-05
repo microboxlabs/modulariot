@@ -49,14 +49,12 @@ const ValidationCategory = ({
   items,
   msg,
   lang,
-  userGroups,
   task,
 }: {
   title: string;
   items: ValidationItem[];
   msg: I18nRecord;
   lang: string;
-  userGroups: string[];
   task: TaskResponse;
 }) => {
   return (
@@ -82,7 +80,6 @@ const ValidationCategory = ({
                   msg={msg}
                   lang={lang}
                   task={task as TaskResponse}
-                  userGroups={userGroups}
                   item={item}
                 />
               ) : (
@@ -97,7 +94,6 @@ const ValidationCategory = ({
                   msg={msg}
                   lang={lang}
                   task={task as TaskResponse}
-                  userGroups={userGroups}
                   item={item}
                 />
               ) : (
@@ -150,12 +146,10 @@ export default function ValidationsInfo({
   task,
   msg,
   lang,
-  userGroups,
 }: {
   readonly task: TaskResponse;
   readonly msg: I18nRecord;
   readonly lang: string;
-  readonly userGroups: string[];
 }) {
   const {
     data: serviceValidation,
@@ -239,7 +233,6 @@ export default function ValidationsInfo({
             }))}
             msg={msg}
             lang={lang}
-            userGroups={userGroups}
             task={task}
           />
         ))}

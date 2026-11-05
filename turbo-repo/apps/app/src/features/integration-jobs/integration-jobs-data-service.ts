@@ -34,6 +34,9 @@ export class JobsApiError extends Error {
 const base = (orgSlug: string) =>
   `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/integrations/jobs`;
 
+/** The org's live job transitions, relayed from the modulith as server-sent events. */
+export const jobEventsUrl = (orgSlug: string) => `${base(orgSlug)}/events`;
+
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) {
@@ -68,7 +71,10 @@ function filterParams(filters: JobListFilters): URLSearchParams {
   return params;
 }
 
-export function fetchJobs(orgSlug: string, filters: JobListFilters = {}): Promise<AsyncJob[]> {
+export function fetchJobs(
+  orgSlug: string,
+  filters: JobListFilters = {}
+): Promise<AsyncJob[]> {
   const params = filterParams(filters);
   if (filters.limit) params.set("limit", String(filters.limit));
   if (filters.offset) params.set("offset", String(filters.offset));
@@ -78,10 +84,15 @@ export function fetchJobs(orgSlug: string, filters: JobListFilters = {}): Promis
 }
 
 /** How many jobs match `filters` ledger-wide — the page's "of N". */
-export async function fetchJobsCount(orgSlug: string, filters: JobListFilters = {}): Promise<number> {
+export async function fetchJobsCount(
+  orgSlug: string,
+  filters: JobListFilters = {}
+): Promise<number> {
   const qs = filterParams(filters).toString();
   const suffix = qs ? `?${qs}` : "";
-  const body = await getJson<{ total?: number }>(`${base(orgSlug)}/count${suffix}`);
+  const body = await getJson<{ total?: number }>(
+    `${base(orgSlug)}/count${suffix}`
+  );
   return body.total ?? 0;
 }
 
@@ -94,7 +105,9 @@ export function fetchJob(orgSlug: string, jobId: string): Promise<AsyncJob> {
 }
 
 export function retryJob(orgSlug: string, jobId: string): Promise<AsyncJob> {
-  return postJson<AsyncJob>(`${base(orgSlug)}/${encodeURIComponent(jobId)}/retry`);
+  return postJson<AsyncJob>(
+    `${base(orgSlug)}/${encodeURIComponent(jobId)}/retry`
+  );
 }
 
 const rulesBase = (orgSlug: string) =>
@@ -111,14 +124,16 @@ async function readError(res: Response, url: string): Promise<JobsApiError> {
   return new JobsApiError({ status: res.status, url, message });
 }
 
-export function fetchNotificationRules(orgSlug: string): Promise<NotificationRule[]> {
+export function fetchNotificationRules(
+  orgSlug: string
+): Promise<NotificationRule[]> {
   return getJson<NotificationRule[]>(rulesBase(orgSlug));
 }
 
 export async function upsertNotificationRule(
   orgSlug: string,
   jobType: string,
-  rule: NotificationRuleUpsert,
+  rule: NotificationRuleUpsert
 ): Promise<NotificationRule> {
   const url = `${rulesBase(orgSlug)}/${encodeURIComponent(jobType)}`;
   const res = await fetch(url, {
@@ -132,7 +147,10 @@ export async function upsertNotificationRule(
   return (await res.json()) as NotificationRule;
 }
 
-export async function deleteNotificationRule(orgSlug: string, jobType: string): Promise<void> {
+export async function deleteNotificationRule(
+  orgSlug: string,
+  jobType: string
+): Promise<void> {
   const url = `${rulesBase(orgSlug)}/${encodeURIComponent(jobType)}`;
   const res = await fetch(url, { method: "DELETE" });
   if (!res.ok) {

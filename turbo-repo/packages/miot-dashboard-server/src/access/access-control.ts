@@ -178,6 +178,15 @@ const ACTION_RULES: Readonly<Record<DashboardAction, ActionRule>> = {
     capability: "canEdit",
   },
   "embed.token.issue": { level: "dashboard", capability: "canShare" },
+  // Writing queries reads source metadata and spends the source's BigQuery
+  // budget, so it needs more standing than building a dashboard.
+  "query.author.read": { level: "scope", floor: "Editor", capability: "canEdit" },
+  "query.author.run": { level: "scope", floor: "Editor", capability: "canEdit" },
+  "query.author.write": {
+    level: "scope",
+    floor: "Coordinator",
+    capability: "canEdit",
+  },
 };
 
 /**

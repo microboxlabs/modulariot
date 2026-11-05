@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.35</version>
+        <version>0.5.41</version>
     </parent>
 
     <artifactId>miot-cli</artifactId>
@@ -22,11 +22,15 @@
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-content-gcs</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-fleet</artifactId>
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
-            <artifactId>miot-resource-core</artifactId>
+            <artifactId>miot-places</artifactId>
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
@@ -46,10 +50,6 @@
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
-            <artifactId>miot-driver</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-tracking</artifactId>
             <exclusions>
                 <exclusion>
@@ -61,6 +61,10 @@
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-symptoms</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-trips</artifactId>
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>

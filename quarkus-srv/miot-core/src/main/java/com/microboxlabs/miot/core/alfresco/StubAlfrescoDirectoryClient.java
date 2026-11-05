@@ -4,6 +4,9 @@ import io.quarkus.arc.DefaultBean;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.jboss.logging.Logger;
 
 /**
@@ -43,6 +46,12 @@ public class StubAlfrescoDirectoryClient implements IAlfrescoDirectoryClient {
         LOG.warnf("STUB: listGroupMembers(%s, max=%d, skip=%d) — returning sample people",
                 groupId, maxItems, skipCount);
         return Uni.createFrom().item(slice(SAMPLE_PEOPLE, maxItems, skipCount));
+    }
+
+    @Override
+    public Uni<Set<String>> listDirectMemberIds(String groupId) {
+        return Uni.createFrom().item(SAMPLE_PEOPLE.stream().map(p -> p.id().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet()));
     }
 
     @Override

@@ -16,6 +16,7 @@ import {
 import {
   useCalendarTimeWindows,
   useCalendarSlots,
+  useCalendarTimeWindowUsage,
   useCalendars,
   useMyTasks,
   createCalendarTimeWindow,
@@ -301,6 +302,25 @@ export function PlanningSelectionProvider({
     [calendarId]
   );
 
+  // ±30-day window around the URL `date` param — the upstream bookings endpoint
+  // returns empty with no range, and this stays well inside the 90-day cap.
+  const searchParams = useSearchParams();
+  const bookingsRange = useMemo(() => {
+    const anchor = parseUrlDate(searchParams.get("date")) ?? dayjs();
+    return {
+      startDate: anchor.subtract(30, "day").format("YYYY-MM-DD"),
+      endDate: anchor.add(30, "day").format("YYYY-MM-DD"),
+    };
+  }, [searchParams]);
+  // Every quota the grid shows comes from the calendar's own count, so
+  // bookings the calendar leaves out (overbooked) never take a planner's room.
+  const { usage: windowUsage, refresh: refreshWindowUsage } =
+    useCalendarTimeWindowUsage(
+      calendarId ?? null,
+      bookingsRange.startDate,
+      bookingsRange.endDate
+    );
+
   const syncTimeSlots = useCallback(
     async (slots: TimeSlot[]) => {
       if (!calendarId) return;
@@ -310,8 +330,9 @@ export function PlanningSelectionProvider({
         deactivateRemovedWindows(newSlotIds),
         saveLocalSlots(slots, currentIds),
       ]);
-      // Reload from API to replace temp IDs with real server IDs.
-      await refreshTimeWindows();
+      // Reload from API to replace temp IDs with real server IDs, and the
+      // usage, whose capacity follows the saved windows.
+      await Promise.all([refreshTimeWindows(), refreshWindowUsage()]);
       const errors = [...deactivateErrors, ...saveErrors];
       if (errors.length > 0) throw new Error(errors.join("; "));
     },
@@ -321,6 +342,7 @@ export function PlanningSelectionProvider({
       deactivateRemovedWindows,
       saveLocalSlots,
       refreshTimeWindows,
+      refreshWindowUsage,
     ]
   );
 
@@ -355,25 +377,18 @@ export function PlanningSelectionProvider({
     [serviceCodeToLiveTask]
   );
 
-  // ±30-day window around the URL `date` param — the upstream bookings endpoint
-  // returns empty with no range, and this stays well inside the 90-day cap.
-  const searchParams = useSearchParams();
-  const bookingsRange = useMemo(() => {
-    const anchor = parseUrlDate(searchParams.get("date")) ?? dayjs();
-    return {
-      startDate: anchor.subtract(30, "day").format("YYYY-MM-DD"),
-      endDate: anchor.add(30, "day").format("YYYY-MM-DD"),
-    };
-  }, [searchParams]);
   const bookingsKey = `${calendarId ?? ""}:${bookingsRange.startDate}:${bookingsRange.endDate}`;
+  const handleBookingChange = useCallback(() => {
+    refreshLiveTasks();
+    void refreshWindowUsage();
+  }, [refreshLiveTasks, refreshWindowUsage]);
   const bookingsLoadErrorMessage = useMemo(
     () => tr("pages.planning.sidebar.notifications.bookingsLoadError", dict),
     [dict]
   );
 
-  // Deliberately unfiltered by the source selector: the provider counts this
-  // list for slot quota and the "window full" gate, so a filtered load would
-  // offer slots that are already taken. `use-planning-grid` filters what the
+  // Deliberately unfiltered by the source selector: the provider reads this
+  // list for andén occupancy and search. `use-planning-grid` filters what the
   // grid draws instead.
   const loadBookings = useCallback(
     async (signal: AbortSignal) => {
@@ -811,11 +826,12 @@ export function PlanningSelectionProvider({
       timeWindowsError={Boolean(timeWindowsError)}
       syncTimeSlots={syncTimeSlots}
       parallelism={parallelism}
+      windowUsage={windowUsage}
       loadBookings={loadBookings}
       bookingsKey={bookingsKey}
       bookingsLoadErrorMessage={bookingsLoadErrorMessage}
       onSelectedDateChange={setSlotDate}
-      onBookingChange={refreshLiveTasks}
+      onBookingChange={handleBookingChange}
     >
       <CalendarProvider
         host={host}

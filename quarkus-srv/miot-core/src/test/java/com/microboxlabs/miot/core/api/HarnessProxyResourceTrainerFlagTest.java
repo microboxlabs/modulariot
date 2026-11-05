@@ -89,7 +89,7 @@ class HarnessProxyResourceTrainerFlagTest {
         private final Uni<Boolean> allowed;
 
         FixedPermissionService(Uni<Boolean> allowed) {
-            super(null, null, null);
+            super(null, null);
             this.allowed = allowed;
         }
 

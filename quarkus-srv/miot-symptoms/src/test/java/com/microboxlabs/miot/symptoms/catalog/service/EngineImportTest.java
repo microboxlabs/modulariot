@@ -7,10 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.EngineImportService.ImportResult;
 import com.microboxlabs.miot.symptoms.catalog.service.EngineRuleTranslator.Translation;
-import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.engine.EngineRule;
+import com.microboxlabs.miot.symptoms.engine.SymptomEngine;
 import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,11 +24,28 @@ class EngineImportTest {
         return new EngineRule(id, name, trigger, new LinkedHashMap<>(pattern), true, List.of(), false);
     }
 
+    /** An engine that runs only the speeding rule. */
+    private static SymptomEngine speedingEngine() {
+        return new SymptomEngine() {
+            @Override
+            public boolean available() {
+                return true;
+            }
+
+            @Override
+            public List<EngineRule> rules(String tenantCode) {
+                return List.of(new EngineRule(9, "Speed Limit Standard", "signal",
+                        Map.of("in_trip", 1, "cooldown_seconds", 120, "maxspeed_infraction_osm", 1), true,
+                        List.of("Invalidated"), false));
+            }
+        };
+    }
+
     private static SpecValidator.Report check(Translation t, DataSourceService sources) {
         return SpecValidator.validate(t.spec(), sources.find("tenant-a", t.sourceKey()).orElseThrow());
     }
 
-    private final DataSourceService sources = new DataSourceService(new InMemoryCatalog(), new UnavailableSymptomEngine());
+    private final DataSourceService sources = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory());
 
     @Test
     void speedingBecomesAMeasureWithTheEnginesLadder() {
@@ -36,8 +54,8 @@ class EngineImportTest {
 
         assertEquals("exceso-de-velocidad-estandar-9", t.key());
         assertEquals("signal.trip.active", t.spec().activation());
-        assertEquals("signal.gps.speed_kmh - signal.road.maxspeed_osm", t.spec().measure().expression());
-        assertEquals("caso.normal_s >= 120", t.spec().lifecycle().close());
+        assertEquals("signal.frame.gps.speed - signal.road.maxspeed_osm", t.spec().measure().expression());
+        assertEquals("case.normal_s >= 120", t.spec().lifecycle().close());
         assertEquals("SPEED LIMIT STANDARD", t.icon());
         assertTrue(t.pending().isEmpty());
         assertTrue(check(t, sources).publishable(), () -> check(t, sources).findings().toString());
@@ -52,7 +70,7 @@ class EngineImportTest {
         assertTrue(t.spec().activation().contains("(signal.local_hour >= 21 || signal.local_hour < 6)"),
                 t.spec().activation());
         assertTrue(t.spec().activation().contains("!signal.trip.double_driver"));
-        assertTrue(t.spec().activation().contains("!signal.gps.moving"));
+        assertTrue(t.spec().activation().contains("!signal.derived.moving"));
         assertEquals(List.of("respect_permanently_closed = 1"), t.pending());
         assertTrue(check(t, sources).publishable(), () -> check(t, sources).findings().toString());
     }
@@ -91,10 +109,10 @@ class EngineImportTest {
     @Test
     void importCreatesOffDraftsOnceAndNeedsAnEngine() {
         InMemoryCatalog store = new InMemoryCatalog();
-        DataSourceService withEngine = new DataSourceService(store, new DemoSymptomEngine());
+        DataSourceService withEngine = new DataSourceService(store, SignalSamples.inMemory());
         SymptomCatalogService catalog = new SymptomCatalogService(store, withEngine,
                 new AuditService(new InMemoryAuditStore()));
-        EngineImportService importer = new EngineImportService(new DemoSymptomEngine(), catalog);
+        EngineImportService importer = new EngineImportService(speedingEngine(), catalog);
 
         ImportResult first = importer.importRules("tenant-a", "owner@example.com");
         ImportResult again = importer.importRules("tenant-a", "owner@example.com");

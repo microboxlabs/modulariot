@@ -4,9 +4,13 @@ import {
   isCarrierOrg,
   requireCarrierData,
 } from "@/app/api/utils/carrier-scope";
-import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import {
+  forwardControlTowerMap,
+  isoDate,
+} from "@/app/api/utils/control-tower-map";
 import { SymptomsTableResponse } from "./route.types";
 import { SymptomTableResponse } from "@/features/symptoms/types/symptoms";
+import { formatActiveDuration } from "@/features/symptoms/model/active-duration";
 
 // Parameter mapping configuration
 const PARAM_MAPPING = {
@@ -27,6 +31,8 @@ const PARAM_MAPPING = {
   page: "p_page",
 } as const;
 
+const DATE_PARAMS = new Set(["from", "to"]);
+
 function buildApiParams(searchParams: URLSearchParams): URLSearchParams {
   const params = new URLSearchParams();
 
@@ -34,7 +40,9 @@ function buildApiParams(searchParams: URLSearchParams): URLSearchParams {
     const value = searchParams.get(inputParam);
     if (value) {
       // Trim all parameter values to remove leading/trailing whitespace
-      const processedValue = value.trim();
+      const processedValue = DATE_PARAMS.has(inputParam)
+        ? isoDate(value)
+        : value.trim();
       if (processedValue) {
         // Only add non-empty values
         params.set(apiParam, processedValue);
@@ -52,14 +60,20 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       condition: item?.icu_condition?.toLowerCase(),
       icu_code: item?.icu_code,
       licensePlate: item?.asset_id,
-      time: item?.duration_sec?.toString(),
+      time: formatActiveDuration(item?.duration_sec) ?? "",
       trip: item?.trip_id,
+      tripCode: item?.trip_code,
       driver: item?.driver,
       date: item?.start_time,
+      endDate: item?.end_time ?? null,
       service: item?.asset_id,
       alertType: item?.type_of_incidence,
       status: item?.treatment_count === 0 ? "" : "Tratado",
       last_assigned_to: item?.last_assigned_to,
+      sla_minutes: item?.sla_minutes ?? null,
+      recurrence_events: item?.recurrence_events ?? null,
+      ignored: item?.ignored ?? null,
+      returnedAfterIgnoreAt: item?.returned_after_ignore_at ?? null,
     })),
     pagination: {
       total_rows: data.total_rows,

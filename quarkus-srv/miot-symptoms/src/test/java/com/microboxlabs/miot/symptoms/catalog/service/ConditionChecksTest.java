@@ -29,20 +29,20 @@ class ConditionChecksTest {
                 messages("signal.geo.zone == \"A\" && signal.geo.zone == \"B\""));
         assertEquals(List.of("ERROR «signal.geo.zone» no puede tener dos valores a la vez; nunca se cumpliría."),
                 messages("signal.geo.zone == \"A\" && signal.geo.zone != \"A\""));
-        assertEquals(List.of("ERROR «signal.gps.speed_kmh» mayor que 90 y menor que 80 nunca se cumple."),
-                messages("signal.gps.speed_kmh > 90 && signal.gps.speed_kmh < 80"));
-        assertEquals(List.of("ERROR «signal.gps.speed_kmh» mayor que 80 y menor que 80 nunca se cumple."),
-                messages("signal.gps.speed_kmh >= 80 && signal.gps.speed_kmh < 80"));
+        assertEquals(List.of("ERROR «signal.frame.gps.speed» mayor que 90 y menor que 80 nunca se cumple."),
+                messages("signal.frame.gps.speed > 90 && signal.frame.gps.speed < 80"));
+        assertEquals(List.of("ERROR «signal.frame.gps.speed» mayor que 80 y menor que 80 nunca se cumple."),
+                messages("signal.frame.gps.speed >= 80 && signal.frame.gps.speed < 80"));
     }
 
     @Test
     void boundsThatHoldOrJustRepeatAreFineOrWarnings() {
-        assertTrue(messages("signal.gps.speed_kmh >= 80 && signal.gps.speed_kmh <= 80").isEmpty(), "exactly 80");
-        assertTrue(messages("signal.gps.speed_kmh > 80 && signal.gps.speed_kmh < 120").isEmpty());
-        assertEquals(List.of("WARNING Dos mínimos para «signal.gps.speed_kmh»; basta el mayor (90)."),
-                messages("signal.gps.speed_kmh > 80 && signal.gps.speed_kmh > 90"));
-        assertEquals(List.of("WARNING Dos máximos para «signal.gps.speed_kmh»; basta el menor (80)."),
-                messages("signal.gps.speed_kmh < 80 && signal.gps.speed_kmh <= 100"));
+        assertTrue(messages("signal.frame.gps.speed >= 80 && signal.frame.gps.speed <= 80").isEmpty(), "exactly 80");
+        assertTrue(messages("signal.frame.gps.speed > 80 && signal.frame.gps.speed < 120").isEmpty());
+        assertEquals(List.of("WARNING Dos mínimos para «signal.frame.gps.speed»; basta el mayor (90)."),
+                messages("signal.frame.gps.speed > 80 && signal.frame.gps.speed > 90"));
+        assertEquals(List.of("WARNING Dos máximos para «signal.frame.gps.speed»; basta el menor (80)."),
+                messages("signal.frame.gps.speed < 80 && signal.frame.gps.speed <= 100"));
     }
 
     @Test
@@ -212,14 +212,14 @@ class ConditionChecksTest {
 
     @Test
     void gapsBetweenLevelsAreWarnings() {
-        SymptomSpec gap = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 15 && medida < 21", "medida >= 21 && sostenido_s >= 60"));
+        SymptomSpec gap = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 15 && measure < 21", "measure >= 21 && held_s >= 60"));
         assertEquals(List.of("Entre 11 y 15 ningún nivel aplica."), levelWarnings(gap));
         assertTrue(levelWarnings(Specs.speeding()).isEmpty(), "the speeding ladder has no gap");
 
         SymptomSpec byTime = Specs.withLevels(Specs.speeding(), List.of(
-                new SymptomSpec.Level(1, true, "sostenido_s < 600", Specs.response(false, null)),
-                new SymptomSpec.Level(2, true, "sostenido_s >= 900", Specs.response(false, null)),
+                new SymptomSpec.Level(1, true, "held_s < 600", Specs.response(false, null)),
+                new SymptomSpec.Level(2, true, "held_s >= 900", Specs.response(false, null)),
                 new SymptomSpec.Level(3, false, null, null),
                 new SymptomSpec.Level(4, false, null, null)));
         assertEquals(List.of("Entre 600 y 900 s sostenidos ningún nivel aplica."), levelWarnings(byTime));
@@ -227,11 +227,11 @@ class ConditionChecksTest {
 
     @Test
     void gapsAreReportedAtTheRuleNumbers() {
-        SymptomSpec open = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida > 10 && medida < 21", "medida >= 21 && medida < 30", "medida >= 30 && sostenido_s >= 60"));
+        SymptomSpec open = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure > 10 && measure < 21", "measure >= 21 && measure < 30", "measure >= 30 && held_s >= 60"));
         assertEquals(List.of("Entre 5 y 10 ningún nivel aplica."), levelWarnings(open));
-        SymptomSpec point = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida > 5 && medida < 21", "medida >= 21 && medida < 30", "medida >= 30 && sostenido_s >= 60"));
+        SymptomSpec point = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure > 5 && measure < 21", "measure >= 21 && measure < 30", "measure >= 30 && held_s >= 60"));
         assertEquals(List.of("Con 5 exactos ningún nivel aplica."), levelWarnings(point));
     }
 

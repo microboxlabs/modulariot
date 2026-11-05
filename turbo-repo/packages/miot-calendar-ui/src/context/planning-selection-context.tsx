@@ -21,6 +21,7 @@ import {
   type BookingResponse,
   type ClientConfig,
   type SlotResponse,
+  type TimeWindowUsageResponse,
 } from "@microboxlabs/miot-calendar-client";
 import type { CalendarItem } from "../types/calendar-item";
 import type { SelectedSlot } from "../types/calendar-slot";
@@ -38,6 +39,10 @@ import {
   type TimeWindow,
 } from "../components/planning/time-window";
 import type { CalendarHost } from "../contract/calendar-host";
+import {
+  indexWindowUsage,
+  remainingWindowQuota,
+} from "../services/window-quota";
 import type { BookingApi, BookingPersistContext } from "../contract/booking-api";
 import {
   buildBookingRequest,
@@ -183,6 +188,8 @@ export interface PlanningSelectionProviderProps<
   readonly syncTimeSlots: (slots: TimeSlot[]) => Promise<void>;
   /** Calendar parallelism (number of andenes); applied once when it loads. */
   readonly parallelism?: number;
+  /** Per-day window usage from the calendar; the source of every quota shown. */
+  readonly windowUsage?: readonly TimeWindowUsageResponse[];
   /** Reconstruct planned items for the active window (host domain mapping). */
   readonly loadBookings: (
     signal: AbortSignal
@@ -196,6 +203,8 @@ export interface PlanningSelectionProviderProps<
   /** Called after each successful booking mutation (e.g. refresh live tasks). */
   readonly onBookingChange?: () => void;
 }
+
+const EMPTY_WINDOW_USAGE: readonly TimeWindowUsageResponse[] = [];
 
 /** Build a default booking API from the host's client config. */
 function buildDefaultBookingApi(config: ClientConfig): BookingApi {
@@ -223,6 +232,7 @@ export function PlanningSelectionProvider<
   timeWindowsError,
   syncTimeSlots,
   parallelism,
+  windowUsage = EMPTY_WINDOW_USAGE,
   loadBookings,
   bookingsKey,
   bookingsLoadErrorMessage,
@@ -480,40 +490,6 @@ export function PlanningSelectionProvider<
     await setTimeSlotsAndSync(timeSlots);
   }, [timeSlots, setTimeSlotsAndSync]);
 
-  /**
-   * Count services placed within a time window on a day (excludes the service
-   * being reassigned, so its own slot doesn't count against the quota).
-   */
-  const getServicesInTimeWindow = useCallback(
-    (timeWindow: TimeWindow, date: Date): number => {
-      const d = dayjs(date);
-      const timeRange = TimeWindowUtils.getTimeRange(timeWindow);
-      if (!timeRange) return 0;
-      const windowStart = timeRange.startHour * 60 + timeRange.startMinutes;
-      const windowEnd = timeRange.endHour * 60 + timeRange.endMinutes;
-      return plannedServices.filter((ps) => {
-        if (
-          reassigningService &&
-          ps.service.id === reassigningService.service.service.id
-        ) {
-          return false;
-        }
-        if (!dayjs(ps.slot.date).isSame(d, "day")) return false;
-        const slotMinutes = ps.slot.hour * 60 + ps.slot.minutes;
-        return slotMinutes >= windowStart && slotMinutes < windowEnd;
-      }).length;
-    },
-    [plannedServices, reassigningService]
-  );
-
-  const getRemainingQuota = useCallback(
-    (timeWindow: TimeWindow, date: Date): number => {
-      const usedQuota = getServicesInTimeWindow(timeWindow, date);
-      return Math.max(0, timeWindow.quota - usedQuota);
-    },
-    [getServicesInTimeWindow]
-  );
-
   const getTimeWindowForSlot = useCallback(
     (date: Date, hour: number, minutes: number): TimeWindow | null => {
       const d = dayjs(date);
@@ -529,6 +505,34 @@ export function PlanningSelectionProvider<
       return null;
     },
     [timeWindows]
+  );
+
+  const windowUsageIndex = useMemo(
+    () => indexWindowUsage(windowUsage),
+    [windowUsage]
+  );
+
+  const getRemainingQuota = useCallback(
+    (timeWindow: TimeWindow, date: Date): number => {
+      const d = dayjs(date);
+      const moving = reassigningService?.service;
+      const freesOwnPlace =
+        moving !== undefined &&
+        !moving.overbooked &&
+        dayjs(moving.slot.date).isSame(d, "day") &&
+        getTimeWindowForSlot(
+          moving.slot.date,
+          moving.slot.hour,
+          moving.slot.minutes
+        )?.id === timeWindow.id;
+      return remainingWindowQuota(
+        windowUsageIndex,
+        timeWindow,
+        d.format("YYYY-MM-DD"),
+        freesOwnPlace
+      );
+    },
+    [windowUsageIndex, reassigningService, getTimeWindowForSlot]
   );
 
   const getBlocksForSlot = useCallback(

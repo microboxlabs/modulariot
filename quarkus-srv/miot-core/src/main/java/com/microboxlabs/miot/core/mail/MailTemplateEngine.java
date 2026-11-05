@@ -5,6 +5,7 @@ import com.github.jknack.handlebars.Decorator;
 import com.github.jknack.handlebars.EscapingStrategy;
 import com.github.jknack.handlebars.Handlebars;
 import com.github.jknack.handlebars.Helper;
+import com.github.jknack.handlebars.TagType;
 import com.github.jknack.handlebars.Template;
 import com.github.jknack.handlebars.context.MapValueResolver;
 import com.github.jknack.handlebars.io.AbstractTemplateLoader;
@@ -14,6 +15,8 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -42,6 +45,23 @@ public final class MailTemplateEngine {
     private final Handlebars subject = configure(new Handlebars(new NoPartials()).with(EscapingStrategy.NOOP));
     private final Map<String, Template> bodies = new ConcurrentHashMap<>();
     private final Map<String, Template> subjects = new ConcurrentHashMap<>();
+
+    /** The references in a template, including helper arguments and section conditions. */
+    public Set<String> variables(String source) {
+        if (source == null || source.isBlank()) {
+            return Set.of();
+        }
+        try {
+            Template template = body.compileInline(source);
+            Set<String> out = new TreeSet<>(template.collectReferenceParameters());
+            template.collect(TagType.VAR, TagType.TRIPLE_VAR, TagType.AMP_VAR, TagType.SECTION,
+                    TagType.START_SECTION).stream()
+                    .filter(name -> body.helper(name) == null).forEach(out::add);
+            return Set.copyOf(out);
+        } catch (IOException | RuntimeException e) {
+            throw new IllegalArgumentException("The template is not valid: " + e.getMessage(), e);
+        }
+    }
 
     /** Throws {@link IllegalArgumentException} when either template does not parse or render. */
     public Rendered render(String subjectTemplate, String htmlTemplate, Map<String, String> values) {

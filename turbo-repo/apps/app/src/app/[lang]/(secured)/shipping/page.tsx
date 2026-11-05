@@ -1,6 +1,4 @@
 import "server-only";
-import { auth } from "@/auth";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 // import { getUserTasks } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
@@ -11,14 +9,16 @@ import {
 } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
 import { RouteGuard } from "@/features/auth/components/route-guard";
-import { KANBAN_ACCESS_ROLES } from "@/features/auth/config/route-permissions";
+import { guardPage } from "@/features/auth/access/server-access";
+import { requireBoard } from "@/features/layout/services/board-guard";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 export default async function ShippingPage(params: ParamsWithLang) {
+  requireBoard("kanban");
+  await guardPage(ACCESS_RULES.kanban, "/shipping");
   try {
     const { lang } = await params.params;
     const [, dictionary] = await getDictionary(lang);
-    const session = await auth();
 
-    const userGroups = await getGroupsForPerson(session!);
     // let tasks;
 
     // tasks = await getUserTasks(session);
@@ -33,10 +33,7 @@ export default async function ShippingPage(params: ParamsWithLang) {
     // });
 
     return (
-      <RouteGuard
-        requiredGroups={KANBAN_ACCESS_ROLES}
-        fallbackPath={`/${lang}/geographic-view`}
-      >
+      <RouteGuard path="/shipping">
         <PageContent
           showFinishedTasks={false}
           showWorkflowTasks="shipping"
@@ -46,7 +43,6 @@ export default async function ShippingPage(params: ParamsWithLang) {
             base: (dictionary.pages as I18nRecord)?.shipping as I18nRecord,
             general: dictionary,
           }}
-          userGroups={userGroups}
         />
       </RouteGuard>
     );

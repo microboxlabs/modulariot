@@ -29,6 +29,12 @@ public class GenericConnectionTester implements ConnectionTester {
         return false;
     }
 
+    /** Only the URL policy and the contract: the credential is neither read nor sent. */
+    @Override
+    public boolean validatesCredential() {
+        return false;
+    }
+
     @Override
     public ConnectionTestResponse test(
             IntegrationConnection connection,

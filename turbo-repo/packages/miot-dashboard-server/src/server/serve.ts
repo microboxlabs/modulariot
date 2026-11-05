@@ -38,6 +38,9 @@ export interface ServeOptions {
   audit?: AuditSink;
   queries?: NonNullable<DashboardHandlerOptions["queries"]>;
   queryCatalog?: NonNullable<DashboardHandlerOptions["queryCatalog"]>;
+  /** Omit and the query-source routes answer 404. */
+  authoring?: NonNullable<DashboardHandlerOptions["authoring"]>;
+  authoringOptions?: NonNullable<DashboardHandlerOptions["authoringOptions"]>;
   policy?: NonNullable<DashboardHandlerOptions["policy"]>;
   basePath?: string;
   cors?: CorsOptions;
@@ -115,6 +118,10 @@ export function createRequestHandler(options: ServeOptions) {
     store: options.store,
     ...(options.queries ? { queries: options.queries } : {}),
     ...(options.queryCatalog ? { queryCatalog: options.queryCatalog } : {}),
+    ...(options.authoring ? { authoring: options.authoring } : {}),
+    ...(options.authoringOptions
+      ? { authoringOptions: options.authoringOptions }
+      : {}),
     ...(options.policy ? { policy: options.policy } : {}),
     ...(options.maxBodyBytes === undefined
       ? {}

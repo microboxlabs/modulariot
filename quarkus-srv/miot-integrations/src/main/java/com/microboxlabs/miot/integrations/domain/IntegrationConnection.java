@@ -18,6 +18,14 @@ public record IntegrationConnection(
         /** The template this connection is an instance of, or {@code null} for an ad-hoc connection. */
         String templateId) {
 
+    /** The id of a connection being tested before it is saved. */
+    public static final String DRAFT_ID = "draft";
+
+    /** Whether this is a connection being tested before it is saved. */
+    public boolean isDraft() {
+        return DRAFT_ID.equals(id);
+    }
+
     /** Back-compat: connections not created from a template carry no {@code templateId}. */
     public IntegrationConnection(
             String id,

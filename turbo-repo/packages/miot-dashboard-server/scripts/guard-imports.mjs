@@ -69,6 +69,7 @@ const CONTRACT_ENTRIES = [
   "@microboxlabs/miot-dashboard-contract/schema",
   "@microboxlabs/miot-dashboard-contract/roles",
   "@microboxlabs/miot-dashboard-contract/errors",
+  "@microboxlabs/miot-dashboard-contract/authoring",
   "@microboxlabs/miot-dashboard-contract/openapi.yaml",
   "@microboxlabs/miot-dashboard-contract/dashboard-config.schema.json",
 ];

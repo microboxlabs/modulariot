@@ -120,6 +120,33 @@ export const MIGRATIONS: readonly Migration[] = [
     // their next save.
     statements: [`ALTER TABLE dashboards ADD COLUMN sort_order INTEGER`],
   },
+  {
+    version: 7,
+    name: "saved queries of a query source",
+    statements: [
+      // `parameters` and `columns` are JSON. `name_key` is the lower-cased
+      // name, unique per source.
+      `CREATE TABLE query_plans (
+         tenant_id            TEXT NOT NULL,
+         source_id            TEXT NOT NULL,
+         id                   TEXT NOT NULL,
+         name                 TEXT NOT NULL,
+         name_key             TEXT NOT NULL,
+         description          TEXT,
+         project_id           TEXT NOT NULL,
+         location             TEXT NOT NULL,
+         sql_text             TEXT NOT NULL,
+         maximum_bytes_billed BIGINT NOT NULL,
+         parameters           TEXT NOT NULL,
+         columns              TEXT,
+         revision             TEXT NOT NULL,
+         updated_at           TEXT NOT NULL,
+         updated_by           TEXT,
+         PRIMARY KEY (tenant_id, source_id, id),
+         UNIQUE (tenant_id, source_id, name_key)
+       )`,
+    ],
+  },
 ];
 
 export const DEFAULT_HISTORY_TABLE = "schema_migrations";

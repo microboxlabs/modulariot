@@ -7,7 +7,9 @@ import StoryVersionsPage from "@/features/storytelling/components/story-versions
 
 type StoryVersionsRouteParams = ParamsWithLang<{ id: string }>;
 
-export default async function StoryVersionsRoute({ params }: StoryVersionsRouteParams) {
+export default async function StoryVersionsRoute({
+  params,
+}: StoryVersionsRouteParams) {
   // Testing-only for now — mirrors the detail route's gate.
   if (process.env.ENABLE_STORYTELLING !== "true") {
     notFound();
@@ -19,7 +21,7 @@ export default async function StoryVersionsRoute({ params }: StoryVersionsRouteP
   const decodedId = decodeURIComponent(id);
 
   return (
-    <RouteGuard path="/storytelling" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/storytelling">
       <div className="flex h-full w-full flex-col overflow-y-auto bg-white outline-none dark:bg-gray-900">
         <StoryVersionsPage
           key={decodedId}

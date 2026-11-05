@@ -1,0 +1,130 @@
+# 🔔 Release Notes v0.6.0 — ModularIoT
+
+### Fecha: 31/10/2026
+
+**Objetivo**: Consolidar la coordinación de viajes, las comunicaciones automatizadas y los dashboards, con permisos unificados y nuevas herramientas de integración. Esta versión comprende exclusivamente los cambios de plataforma del milestone OSS `MIOT-0.6.0`, sin cambios específicos de clientes.
+
+## 🚀 Evolutivos
+
+- **📍 Tablero y ficha de viajes**
+  - **Punto clave**: Nuevas vistas de Planificación, Despachos, Entregas y Finalizados, con tarjetas, hitos, avisos de atraso, filtros y contadores en el menú.
+  - **Detalle técnico**: La ficha reúne etapas, recursos, historial del monitor y datos de origen; incorpora detalles de carga, conductores, posiciones GPS, alertas y documentos multimedia con versiones y rondas de revisión. Tablero y ficha reciben actualizaciones en vivo, con consulta periódica cada 30 segundos como alternativa.
+
+- **📍 Monitores y confirmación de hitos**
+  - **Punto clave**: Creación de monitores con etapas, parámetros, reglas CEL, borradores y versiones publicadas. Incluye hitos de presentación, validación, salida, llegada y cierre, además de entregas con comprobante de entrega y ciclo configurable.
+  - **Detalle técnico**: Los monitores gobiernan las transiciones del viaje. Las detecciones pendientes pueden confirmarse o rechazarse desde la aplicación o mediante respuestas a avisos; cada hito puede restringirse a un equipo. Las respuestas antiguas no alteran detecciones posteriores.
+
+- **📍 Alimentación de viajes y recursos de flota**
+  - **Punto clave**: Gestión de perfiles de alimentación desde Ajustes › Viajes, con selección de monitor, validación de conflictos de alcance y registro opcional de transportistas, camiones, remolques y conductores faltantes.
+  - **Detalle técnico**: Los lotes se procesan mediante trabajos asíncronos por servicio modificado. La alimentación conserva su estado aplicado, incorpora hitos y tiempos reales, registra viajes regularizados y reporta cambios en viajes cerrados. Los servicios cerrados sin cambios se omiten sin abrir una transacción.
+
+- **📍 Ubicaciones y geocodificación**
+  - **Punto clave**: Resolución de puntos sin proveedor externo, cola de revisión y pantallas de consumo mensual por organización, con cuotas y controles de acceso según el plan.
+  - **Detalle técnico**: Se incorporan adaptadores Mapbox/Google administrados por la plataforma, conexiones `GEOCODING` por organización, fuente interna OpenAddresses, caché y seguimiento de uso.
+
+- **📍 Comunicaciones basadas en reglas**
+  - **Punto clave**: Reglas, plantillas y actividad en una navegación unificada, con versiones semánticas, borradores, grupos de destinatarios y pasos de escalamiento editables también como JSON.
+  - **Detalle técnico**: Los destinatarios pueden seleccionarse mediante condiciones CEL sobre contactos y eventos. Los viajes publican alertas, detecciones y decisiones tras confirmar la transacción; las respuestas generan `conversation.reply_received` en el contexto original.
+
+- **📍 Cuentas y catálogos de plataforma**
+  - **Punto clave**: Los propietarios disponen de un ámbito de plataforma para administrar plantillas de síntomas y mensajes, incluidas las de WhatsApp en Meta.
+  - **Detalle técnico**: Los catálogos utilizan el ámbito `_platform`. Cada organización puede elegir cuentas de WhatsApp y correo propias o de plataforma, consultar plantillas de mensajes y copiar plantillas de WhatsApp aprobadas.
+
+- **📍 Libreta de contactos**
+  - **Punto clave**: Tarjetas con empresa, identificación tributaria, canales, notas y reglas publicadas que alcanzan al contacto, con advertencias cuando no existe un canal disponible.
+  - **Detalle técnico**: Búsqueda, filtros y paginación desde la API evitan cargar toda la libreta en el navegador. Se impiden miembros duplicados y se incorporan documentos personales y empresariales, incluidos DNI, CE y RUC.
+
+- **📍 Autoría de consultas y dashboards**
+  - **Punto clave**: Editor GoogleSQL en Ajustes › Conexiones para escribir, probar y guardar consultas BigQuery, con explorador de esquema, parámetros, vista previa y estimación mediante ejecución de prueba.
+  - **Detalle técnico**: `QueryWorkbench` comparte capacidades entre la biblioteca, el servidor de dashboards y ModularIoT. Las consultas guardadas incluyen comprobaciones de revisión; el editor ofrece resaltado y sugerencias en temas claro y oscuro.
+  - **Experiencia**: Los dashboards del servidor comparten la presentación de inicio y se crean por nombre, rechazando duplicados.
+
+- **📍 Permisos IAM y gestión de equipos**
+  - **Punto clave**: Acceso a páginas y módulos basado en permisos IAM, membresías nativas y roles por organización, con páginas de equipo para administrar miembros, roles y permisos efectivos.
+  - **Detalle técnico**: Se incorporan importación de grupos Alfresco, roles derivados del token y alta por dominio de correo verificado sin roles de módulo iniciales. Tras iniciar sesión, cada usuario accede a una página permitida o a una pantalla explícita de falta de acceso.
+
+- **📍 Compartición administrada de activos GPS**
+  - **Punto clave**: Los propietarios de plataforma pueden crear y revocar comparticiones entre organizaciones por totalidad de activos, criterios o lista fija, con inicio, vencimiento opcional y motivo.
+  - **Detalle técnico**: Las organizaciones receptoras no pueden redistribuir el acceso. El editor incluye búsqueda, selección virtualizada de activos y carga de listas de identificadores.
+
+- **📍 Síntomas y evaluación sobre señales GPS**
+  - **Punto clave**: Casos del motor integrados en Torre de Control, previsualización de reglas sobre señales recientes y plantillas de plataforma versionadas.
+  - **Detalle técnico**: El contrato GPS incorpora detalles del viaje y conductor registrado. Las reglas admiten lecturas opcionales con `TRUE`, `FALSE` y `NONE`, y condiciones protegidas con `has()`. La edición organiza severidad, niveles y respuesta operativa.
+
+- **📍 Navegación y documentación**
+  - **Punto clave**: `BOARD_MODULE` permite seleccionar el tablero kanban o el de viajes y ajusta las secciones relacionadas; `DASHBOARD_MODULE` permite mostrar dashboards del servidor, heredados o ambos.
+  - **Documentación**: Se renuevan las guías de dashboards en español e inglés: orientación por rol, primer dashboard, selección de widgets, consultas, referencias con capturas, recetas por estado e integración en Phoenix LiveView.
+
+## 🔧 Integraciones
+
+- **🔌 BigQuery y credenciales Google**
+  - **Alcance**: Conexiones BigQuery con consultas parametrizadas y límites de bytes facturados; prueba de conexiones antes de guardar, con comprobación real de BigQuery y validación de PostgREST.
+  - **Credenciales**: Carga local de archivos JSON para completar el formulario y alcance BigQuery predeterminado. Cada organización puede disponer de una cuenta de servicio administrada sin claves mediante Workload Identity o suplantación.
+
+- **🔌 WhatsApp y trabajos de comunicación**
+  - **Alcance**: Cada conexión dispone de URL de webhook, secreto de aplicación y token de verificación propios, con eventos limitados a sus números y mensajes.
+  - **Procesamiento**: El webhook verifica la firma y encola un trabajo por evento. Los mensajes de reglas por WhatsApp y correo se ejecutan como trabajos con reintentos y actividad visible en Integraciones.
+  - **Validación**: La prueba comprueba el secreto de Meta e informa las claves almacenadas; un secreto incorrecto falla, mientras que las claves ausentes se señalan sin hacer fallar la prueba por sí solas.
+
+- **🔌 Consola de trabajos y ámbito de plataforma**
+  - **Alcance**: La consola está disponible también en el ámbito de plataforma y recibe transiciones desde el modulith mediante PostgreSQL y un retransmisor autenticado, sin depender del servicio externo de eventos ECM.
+
+- **🔌 Geocercas y almacenamiento de contenido**
+  - **Alcance**: Las ubicaciones pueden referenciar geocercas GPS. Las entradas y salidas confirmadas en muestras consecutivas generan señales de viaje; esta capacidad permanece desactivada por defecto mediante `MIOT_TRIPS_GEOFENCES_ENABLED`.
+  - **Contenido**: `miot-core` incorpora almacenamiento con controladores de sistema de archivos y Google Cloud Storage para fotografías y documentos.
+
+- **🔌 IAM y proyección hacia Alfresco**
+  - **Alcance**: IAM administra las membresías y decisiones de acceso; Alfresco recibe la proyección de miembros y roles necesaria para ECM y BPM. Los cambios se encolan transaccionalmente, con reconciliación periódica como respaldo.
+
+- **🔌 Publicación del stack y mantenimiento técnico**
+  - **Alcance**: Los flujos públicos publican imágenes y manifiestos y emiten una notificación neutral `miot-stack-available` con referencias inmutables, sin seleccionar destinos ni desplegar cargas.
+  - **Mantenimiento**: Docker y CI se estandarizan en Node.js 24 parcheado. La proyección `trip_live`, las validaciones y las marcas de actualización de viajes y flota pasan de disparadores a código de aplicación.
+
+## 🐛 Correcciones
+
+- **🐛 Tratamiento y visualización de casos del motor**
+  - **Impacto**: Los tratamientos de casos abiertos por el motor podían devolver errores 500; estadísticas, tiempos activos, mapas e historial de señales presentaban inconsistencias.
+  - **Solución**: Los tratamientos utilizan la API de Torre de Control y aparecen en la cronología e historial. Se corrigen los conteos del evaluador, el formato del tiempo activo, los mapas sin viaje y la lectura de señales desde el modulith.
+
+- **🐛 Compatibilidad de migraciones de viajes**
+  - **Impacto**: Cambios en nombres o contenido de migraciones ya aplicadas provocaban conflictos de checksum o intentos de recrear tablas existentes.
+  - **Solución**: Se restauran las versiones y contenidos aplicados de las migraciones de hitos y alcance de monitores.
+
+- **🐛 Envíos y edición de credenciales**
+  - **Impacto**: Las respuestas manuales podían salir desde un número distinto al de la conversación y la edición parcial de credenciales podía eliminar secretos existentes.
+  - **Solución**: Se conserva el número de la conversación y los secretos omitidos en la actualización. También se validan conexiones activas y se deduplican reintentos de correo por identificador del proveedor.
+
+- **🐛 Estabilidad de formularios y editores**
+  - **Impacto**: La lista de plantillas cambiaba de altura al previsualizar; algunos controles de acceso se recortaban y el editor de síntomas mostraba un estado incorrecto tras publicar.
+  - **Solución**: La lista mantiene una altura fija con desplazamiento interno, se ajustan los controles de equipo y se muestra la versión publicada sin un borrador residual.
+
+- **🐛 Carga de organizaciones para propietarios de plataforma**
+  - **Impacto**: La consulta de ámbitos acumulaba operaciones por organización y podía agotar el tiempo de espera.
+  - **Solución**: Se elimina el procesamiento repetitivo para propietarios de plataforma mediante cargas agrupadas y un único registro de inicio de sesión.
+
+## 📊 Beneficios
+
+- Seguimiento de viajes con hitos, evidencias, documentos y actualización en vivo.
+- Confirmaciones controladas por permisos y equipos, protegidas frente a respuestas desactualizadas.
+- Comunicaciones trazables con reintentos y contexto de conversación.
+- Consultas BigQuery reutilizables con parámetros y estimación previa.
+- Acceso unificado mediante IAM y navegación coherente con los permisos.
+- Menor trabajo innecesario en alimentación de viajes y carga de organizaciones.
+- Publicación de artefactos separada del despliegue operativo.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.6.0`.
+- **Aplicación**: `app@v0.6.0`, con cambios.
+- **Documentación**: `docs@v0.6.0`, con cambios.
+- **Web**: `web@v0.6.0`, con cambios.
+- **Modulith**: `modulith@v0.5.39`, con cambios.
+- **Harness**: `harness@v0.1.14`, con cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso `stack-manifest.json` de la publicación.
+
+## 📌 Conclusión
+
+ModularIoT 0.6.0 conecta la operación de viajes con monitores, evidencias, comunicaciones y análisis de datos, sobre un modelo de acceso común. Los avances corresponden a la plataforma OSS y no incluyen entregas específicas de clientes.
+
+La adopción requiere revisar los permisos IAM y la configuración de módulos visibles. Las geocercas siguen siendo optativas; la sincronización de comparticiones GPS permanece desactivada por defecto y requiere la migración `V1.61.0` de `db-writer` antes de habilitarse. La publicación del stack queda separada de la selección de destinos y del despliegue operativo.

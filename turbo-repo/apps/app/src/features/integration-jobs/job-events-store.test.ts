@@ -6,6 +6,7 @@ import {
   pushJobEventForTests,
   resetJobEventsStoreForTests,
   subscribeJobEvents,
+  connectJobEvents,
 } from "./job-events-store";
 
 function payload(overrides: Partial<JobEventPayload> = {}): JobEventPayload {
@@ -30,7 +31,32 @@ function payload(overrides: Partial<JobEventPayload> = {}): JobEventPayload {
 
 afterEach(() => {
   resetJobEventsStoreForTests();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
+
+class FakeEventSource {
+  static readonly CLOSED = 2;
+  static instances: FakeEventSource[] = [];
+  readyState = 0;
+  onopen: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onmessage: ((message: MessageEvent) => void) | null = null;
+
+  constructor(readonly url: string) {
+    FakeEventSource.instances.push(this);
+  }
+
+  close() {
+    this.readyState = FakeEventSource.CLOSED;
+  }
+}
+
+function mockStreams() {
+  vi.useFakeTimers();
+  FakeEventSource.instances = [];
+  vi.stubGlobal("EventSource", FakeEventSource);
+}
 
 describe("job-events-store", () => {
   it("prepends events, counts notify-worthy transitions as unseen", () => {
@@ -70,5 +96,73 @@ describe("job-events-store", () => {
     unsubscribe();
     pushJobEventForTests(payload());
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a closed stream once after a delay and preserves its activity", () => {
+    mockStreams();
+    connectJobEvents("/org-a/events");
+    const first = FakeEventSource.instances[0];
+    first.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({ payload: payload() }),
+      })
+    );
+    first.readyState = FakeEventSource.CLOSED;
+    first.onerror?.();
+    first.onerror?.();
+    connectJobEvents("/org-a/events");
+    vi.advanceTimersByTime(4999);
+    expect(FakeEventSource.instances).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(FakeEventSource.instances).toHaveLength(2);
+    expect(FakeEventSource.instances[1].url).toBe("/org-a/events");
+    expect(getJobEventsSnapshot().events).toHaveLength(1);
+    expect(getJobEventsSnapshot().connected).toBe(false);
+    FakeEventSource.instances[1].onopen?.();
+    expect(getJobEventsSnapshot().connected).toBe(true);
+  });
+
+  it("keeps native reconnects and shares the same organization's connection", () => {
+    mockStreams();
+    connectJobEvents("/org-a/events");
+    const first = FakeEventSource.instances[0];
+    first.onerror?.(); // CONNECTING: the browser owns this retry.
+    connectJobEvents("/org-a/events");
+    vi.advanceTimersByTime(10000);
+    expect(FakeEventSource.instances).toHaveLength(1);
+  });
+
+  it("clears old activity and retries when switching organizations, ignoring late callbacks", () => {
+    mockStreams();
+    connectJobEvents("/org-a/events");
+    const first = FakeEventSource.instances[0];
+    first.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({ payload: payload() }),
+      })
+    );
+    first.readyState = FakeEventSource.CLOSED;
+    first.onerror?.();
+    connectJobEvents("/org-b/events");
+    expect(getJobEventsSnapshot()).toMatchObject({
+      connected: false,
+      events: [],
+      unseen: 0,
+    });
+    first.onopen?.();
+    first.onmessage?.(
+      new MessageEvent("message", {
+        data: JSON.stringify({ payload: payload() }),
+      })
+    );
+    first.onerror?.();
+    vi.advanceTimersByTime(5000);
+    expect(FakeEventSource.instances).toHaveLength(2);
+    expect(FakeEventSource.instances[1].url).toBe("/org-b/events");
+    expect(getJobEventsSnapshot()).toMatchObject({
+      connected: false,
+      events: [],
+      unseen: 0,
+    });
   });
 });

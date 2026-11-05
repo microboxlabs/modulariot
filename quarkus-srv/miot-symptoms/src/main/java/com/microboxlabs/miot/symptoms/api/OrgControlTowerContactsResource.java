@@ -6,8 +6,14 @@ import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
+import com.microboxlabs.miot.symptoms.domain.ContactFilter;
 import com.microboxlabs.miot.symptoms.dto.ContactImportRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
+import com.microboxlabs.miot.symptoms.dto.TripContactsRequest;
+import com.microboxlabs.miot.symptoms.dto.TripPeople;
+import com.microboxlabs.miot.core.event.ContactConditions;
+import jakarta.enterprise.inject.Instance;
 import com.microboxlabs.miot.symptoms.service.ContactService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -43,6 +49,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class OrgControlTowerContactsResource extends ControlTowerResourceSupport {
 
     private final ContactService contacts;
+    private final EngineCaseService cases;
+    private final Instance<ContactConditions> conditions;
 
     @Inject
     public OrgControlTowerContactsResource(
@@ -50,9 +58,13 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            ContactService contacts) {
+            ContactService contacts,
+            EngineCaseService cases,
+            Instance<ContactConditions> conditions) {
         super(tenantContext, organizationContext, roleService, identity);
         this.contacts = contacts;
+        this.cases = cases;
+        this.conditions = conditions;
     }
 
     @GET
@@ -64,6 +76,85 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             @QueryParam("active") Boolean active) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(contacts.list(tenant, active)).build());
+    }
+
+    @GET
+    @Path("/page")
+    @Operation(operationId = "pageContacts", summary = "One page of contacts, filtered",
+            description = "In creation order, 100 per page by default (at most 200). Pass the `next` of a page as "
+                    + "`cursor` to get the following one; `next` is null on the last page. `q` searches the name, "
+                    + "role, company, email and document. `kind` is `member` or `external`; `role`, `company` "
+                    + "and `tag` match whole values, ignoring case.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> page(
+            @PathParam("organizationId") String organizationId,
+            @QueryParam("q") String q,
+            @QueryParam("kind") String kind,
+            @QueryParam("role") String role,
+            @QueryParam("company") String company,
+            @QueryParam("tag") String tag,
+            @QueryParam("active") Boolean active,
+            @QueryParam("cursor") String cursor,
+            @QueryParam("limit") Integer limit) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> {
+            String requestedKind = value(kind);
+            Boolean member = requestedKind == null ? null : isMember(requestedKind);
+            ContactFilter filter = new ContactFilter(value(q), member, value(role), value(company),
+                    value(tag), active);
+            return Response.ok(contacts.page(tenant, filter, cursor, limit)).build();
+        });
+    }
+
+    @GET
+    @Path("/facets")
+    @Operation(operationId = "contactFacets", summary = "Roles, companies, tags and members used in the book",
+            description = "With the number of contacts. Feeds the filters and pickers of the paged list.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> facets(@PathParam("organizationId") String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(contacts.facets(tenant)).build());
+    }
+
+    private static String value(String raw) {
+        return raw == null || raw.isBlank() ? null : raw.trim();
+    }
+
+    private static boolean isMember(String kind) {
+        return switch (kind) {
+            case "member" -> true;
+            case "external" -> false;
+            default -> throw new IllegalArgumentException("kind must be member or external");
+        };
+    }
+
+    @POST
+    @Path("/trip")
+    @Operation(operationId = "matchTripContacts", summary = "The book's people for each step of a case",
+            description = "Evaluates each contact condition (an operator step's who) against the active contacts, "
+                    + "with event.data holding the case trip's driverRut, secondDriverRut and carrierRut. Same CEL "
+                    + "and contact fields as a communication rule's book audience. Only engine cases (negative ids) "
+                    + "have a trip; for other cases event.data is empty. 404 when the engine case is not the "
+                    + "organization's; 503 when the communication rules component is off.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> trip(
+            @PathParam("organizationId") String organizationId,
+            TripContactsRequest body) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> {
+            if (body == null) {
+                throw new IllegalArgumentException("body is required");
+            }
+            if (!conditions.isResolvable()) {
+                return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
+            }
+            long id = parseSymptomId(body.symptomId());
+            TripPeople people = id < 0 ? cases.tripPeople(tenant, id) : TripPeople.NONE;
+            return Response.ok(contacts.tripContacts(tenant, people, body.conditions(), conditions.get())).build();
+        });
     }
 
     @GET

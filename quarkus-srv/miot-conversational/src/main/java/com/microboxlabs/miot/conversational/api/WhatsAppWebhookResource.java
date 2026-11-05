@@ -1,7 +1,9 @@
 package com.microboxlabs.miot.conversational.api;
 
-import com.microboxlabs.miot.conversational.service.WhatsAppInboundService;
+import com.microboxlabs.miot.conversational.jobs.WhatsAppWebhookJobs;
 import com.microboxlabs.miot.conversational.service.WhatsAppSignatureVerifier;
+import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
+import com.microboxlabs.miot.integrations.service.WhatsAppWebhookKeys;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
@@ -11,12 +13,13 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Optional;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
+import java.util.function.Function;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
@@ -32,15 +35,15 @@ import org.jboss.logging.Logger;
  *       rule returned 401 in practice: Quarkus 3.32.4 did not let the narrower {@code permit}
  *       override {@code /api/*}. Living off {@code /api/*} sidesteps that precedence entirely.)</li>
  *   <li>It carries no {@code {organizationId}}, so the org-scoped {@code OrganizationRequestFilter}
- *       — which only matches {@code /api/v1/orgs/**} — never runs. The owning org is resolved later
- *       from the payload's {@code phone_number_id}, not from the path.</li>
+ *       — which only matches {@code /api/v1/orgs/**} — never runs. The path names the WHATSAPP
+ *       connection instead; its organization owns the delivery.</li>
  * </ul>
  *
- * <p>Trust is established instead by Meta's own signals: a verify-token handshake on
- * {@code GET} and an {@code X-Hub-Signature-256} HMAC over the raw body on {@code POST}. Both
- * are fail-closed — a mismatch returns 403/401 and the body is never processed.
+ * <p>Trust is established by the connection's own keys, stored on its credential: the verify token
+ * on {@code GET} and an {@code X-Hub-Signature-256} HMAC with the Meta App secret on {@code POST}.
+ * An unknown connection or a mismatch returns 403/401 and the body is never processed.
  */
-@Path("/webhooks/whatsapp")
+@Path("/webhooks/whatsapp/{connectionId}")
 @Tag(name = "WhatsApp Webhook", description = "Inbound Meta WhatsApp Cloud API webhook (public, signature-verified)")
 @IfBuildProperty(name = "miot.component.conversational.enabled", stringValue = "true")
 public class WhatsAppWebhookResource {
@@ -48,38 +51,34 @@ public class WhatsAppWebhookResource {
     private static final Logger LOG = Logger.getLogger(WhatsAppWebhookResource.class);
     private static final String MODE_SUBSCRIBE = "subscribe";
 
-    private final String verifyToken;
-    private final String appSecret;
-    private final WhatsAppInboundService inboundService;
+    private final Function<String, Optional<WhatsAppWebhookKeys>> keys;
+    private final WhatsAppWebhookJobs jobs;
 
     @Inject
-    public WhatsAppWebhookResource(
-            // Optional (not String + defaultValue): application.properties maps these from env as
-            // ${WHATSAPP_..:}, so when the env is unset the property is present-but-EMPTY, and SmallRye
-            // rejects an empty value for a required String — crashing the modulith at boot even though
-            // conversational is baked into every image. Optional tolerates the empty/absent value; a
-            // blank token/secret then fails closed via the handshake + signature guards below.
-            @ConfigProperty(name = "miot.whatsapp.webhook.verify-token") Optional<String> verifyToken,
-            @ConfigProperty(name = "miot.whatsapp.app-secret") Optional<String> appSecret,
-            WhatsAppInboundService inboundService) {
-        this.verifyToken = verifyToken.orElse("");
-        this.appSecret = appSecret.orElse("");
-        this.inboundService = inboundService;
+    public WhatsAppWebhookResource(IntegrationConnectionResolver resolver, WhatsAppWebhookJobs jobs) {
+        this(resolver::whatsAppWebhookKeys, jobs);
+    }
+
+    WhatsAppWebhookResource(Function<String, Optional<WhatsAppWebhookKeys>> keys, WhatsAppWebhookJobs jobs) {
+        this.keys = keys;
+        this.jobs = jobs;
     }
 
     /**
      * Meta's one-time subscription handshake: echo {@code hub.challenge} verbatim (text/plain)
-     * only when Meta is subscribing and presents our configured verify token.
+     * only when Meta is subscribing and presents the connection's verify token.
      */
     @GET
     @Produces(MediaType.TEXT_PLAIN)
     @Operation(summary = "Verify the webhook subscription (Meta hub.challenge handshake)")
     public Response verify(
+            @PathParam("connectionId") String connectionId,
             @QueryParam("hub.mode") String mode,
             @QueryParam("hub.verify_token") String token,
             @QueryParam("hub.challenge") String challenge) {
-        if (!isValidHandshake(mode, token, verifyToken)) {
-            LOG.warn("Rejected WhatsApp webhook verification handshake (mode/verify-token mismatch)");
+        String expected = keys.apply(connectionId).map(WhatsAppWebhookKeys::verifyToken).orElse("");
+        if (!isValidHandshake(mode, token, expected)) {
+            LOG.warnf("Rejected WhatsApp webhook verification handshake for connection %s", connectionId);
             return Response.status(Response.Status.FORBIDDEN).build();
         }
         if (challenge == null || challenge.isBlank()) {
@@ -91,26 +90,27 @@ public class WhatsAppWebhookResource {
 
     /**
      * Inbound events (driver messages + delivery/read status). Verifies the HMAC over the exact
-     * received bytes, then ingests on a worker thread: 200 on success, 500 on a processing error so
-     * Meta retries. Ingestion is idempotent (wamid unique-index dedup + advance-only status), so a
-     * retry recovers transient failures instead of permanently dropping the event.
+     * received bytes with the connection's App secret, then makes each event of the connection's
+     * organization an integration job and answers 200 once they are inserted. A failed insert answers
+     * 500 so Meta redelivers; each job's dedupe key keeps a redelivery from running an event twice.
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Operation(summary = "Receive inbound WhatsApp messages and status callbacks (HMAC-verified)")
     public Uni<Response> receive(
+            @PathParam("connectionId") String connectionId,
             @HeaderParam("X-Hub-Signature-256") String signature,
             byte[] body) {
-        if (!WhatsAppSignatureVerifier.verify(body, signature, appSecret)) {
-            LOG.warn("Rejected WhatsApp webhook POST: missing or invalid X-Hub-Signature-256");
-            return Uni.createFrom().item(Response.status(Response.Status.UNAUTHORIZED).build());
-        }
-        // Verified: ingest on a worker thread (blocking SQL). Ack 200 on success; on a processing
-        // error return 500 so Meta redelivers — idempotent ingestion makes the retry safe, which is
-        // better than swallowing a transient failure and losing the event.
         return Uni.createFrom().item(() -> {
+            Optional<WhatsAppWebhookKeys> connection = keys.apply(connectionId);
+            if (connection.isEmpty()
+                    || !WhatsAppSignatureVerifier.verify(body, signature, connection.get().appSecret())) {
+                LOG.warnf("Rejected WhatsApp webhook POST for connection %s: unknown connection or invalid "
+                        + "X-Hub-Signature-256", connectionId);
+                return Response.status(Response.Status.UNAUTHORIZED).build();
+            }
             try {
-                inboundService.ingest(body);
+                jobs.enqueue(body, connection.get().tenantCode());
                 return Response.ok().build();
             } catch (RuntimeException e) {
                 LOG.error("WhatsApp webhook ingestion failed; returning 500 so Meta retries", e);
@@ -120,9 +120,9 @@ public class WhatsAppWebhookResource {
     }
 
     /**
-     * The handshake is valid only when Meta is subscribing AND presents exactly our configured
-     * verify token. A blank configured token never matches, so an unconfigured channel cannot be
-     * verified by an empty token. Static + package-private for unit testing without HTTP.
+     * The handshake is valid only when Meta is subscribing AND presents exactly the connection's
+     * verify token. A blank token never matches, so a connection without one cannot be verified
+     * by an empty token. Static + package-private for unit testing without HTTP.
      */
     static boolean isValidHandshake(String mode, String token, String expectedToken) {
         return MODE_SUBSCRIBE.equals(mode)

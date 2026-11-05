@@ -3,6 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { SymptomDefinition } from "./maintainer-api";
 
 vi.mock("../components/symtom-icon", () => ({ default: () => <span /> }));
+vi.mock("./symptom-name", () => ({
+  default: ({ name, canRename }: { name: string; canRename: boolean }) => (
+    <h1 data-can-rename={String(canRename)}>{name}</h1>
+  ),
+}));
 
 import SheetHeader from "./sheet-header";
 
@@ -25,7 +30,11 @@ const def = {
   currentVersion: "1.0.0",
 } as unknown as SymptomDefinition;
 
-function header(props: { stateless?: boolean; onSaveAsTemplate?: () => void }) {
+function header(props: {
+  stateless?: boolean;
+  canWrite?: boolean;
+  onSaveAsTemplate?: () => void;
+}) {
   render(
     <SheetHeader
       def={def}
@@ -75,5 +84,19 @@ describe("SheetHeader", () => {
     document.body.innerHTML = "";
     header({ stateless: true });
     expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("lets who can edit the symptom rename it", () => {
+    header({});
+    expect(screen.getByRole("heading")).toHaveAttribute(
+      "data-can-rename",
+      "true"
+    );
+    document.body.innerHTML = "";
+    header({ canWrite: false });
+    expect(screen.getByRole("heading")).toHaveAttribute(
+      "data-can-rename",
+      "false"
+    );
   });
 });

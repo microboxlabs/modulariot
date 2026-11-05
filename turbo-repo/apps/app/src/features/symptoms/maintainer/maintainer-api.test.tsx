@@ -9,6 +9,7 @@ import {
   refreshSymptoms,
   saveAsTemplate,
   saveDraft,
+  updateIdentity,
   useDataSources,
   useSymptomDefinitions,
 } from "./maintainer-api";
@@ -105,5 +106,34 @@ describe("saveAsTemplate", () => {
     });
     expect(swr.mutate).toHaveBeenCalledWith(PLATFORM_TEMPLATES.defs);
     expect(swr.mutate).toHaveBeenCalledWith(`${PLATFORM_TEMPLATES.defs}/t9`);
+  });
+});
+
+describe("updateIdentity", () => {
+  it("seeds the confirmed definition without losing the editor detail", async () => {
+    const definition = { id: "s1", name: "Velocidad alta" };
+    respond(definition);
+    await expect(
+      updateIdentity("s1", { name: definition.name })
+    ).resolves.toEqual(definition);
+    expect(swr.mutate).toHaveBeenCalledWith(
+      `${ORG_SYMPTOMS.defs}/s1`,
+      expect.any(Function),
+      { revalidate: false }
+    );
+    const update = swr.mutate.mock.calls[0]?.[1];
+    const detail = {
+      definition: { id: "s1", name: "Exceso de velocidad" },
+      draft: { version: "1.0.1" },
+      versions: [{ version: "1.0.0" }],
+    };
+    expect(update(detail)).toEqual({ ...detail, definition });
+    expect(update(undefined)).toBeUndefined();
+  });
+
+  it("leaves the cache alone when the PATCH fails", async () => {
+    fetchMock.mockResolvedValue(new Response("{}", { status: 409 }));
+    await expect(updateIdentity("s1", { name: "Other" })).rejects.toThrow();
+    expect(swr.mutate).not.toHaveBeenCalled();
   });
 });

@@ -488,7 +488,7 @@ export function createSymptom(
   return request<SymptomDetail>(scope.defs, { method: "POST", body });
 }
 
-export function updateIdentity(
+export async function updateIdentity(
   id: string,
   body: {
     name?: string;
@@ -498,10 +498,18 @@ export function updateIdentity(
   },
   scope: SymptomScope = ORG_SYMPTOMS
 ) {
-  return request<SymptomDefinition>(definitionKey(id, scope), {
+  const key = definitionKey(id, scope);
+  const definition = await request<SymptomDefinition>(key, {
     method: "PATCH",
     body,
   });
+  // Keep the confirmed identity even when the subsequent revalidation fails.
+  await mutate<SymptomDetail>(
+    key,
+    (detail) => (detail ? { ...detail, definition } : detail),
+    { revalidate: false }
+  );
+  return definition;
 }
 
 export interface ImportResult {

@@ -197,7 +197,7 @@ class EvaluatorStreamTest {
                 java.time.Instant.parse("2026-10-22T03:00:00Z"), null, null,
                 java.util.Map.of(4, java.time.Instant.parse("2026-10-22T03:00:00Z")),
                 java.time.Instant.parse("2026-10-22T03:00:30Z"), java.time.Instant.parse("2026-10-22T03:00:30Z"),
-                4, 0);
+                4, 0, java.time.Instant.parse("2026-10-22T03:00:30Z"));
 
         assertEquals(e, RedisEpisodes.read(RedisEpisodes.write(e)));
     }

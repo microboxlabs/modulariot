@@ -117,7 +117,7 @@ class PgPlatformTemplatesTest {
     @Test
     void theEventTemplatesAreSeededAndPanicIsAtItsLatestVersion() {
         assertEquals(List.of("driver-fatigue:1.0.0", "driver-fatigue-sensor:1.0.0", "load-securing-absence:1.0.0",
-                "panic-button:1.1.0", "road-assistance:1.0.0", "stake-side-usage:1.0.0"),
+                "panic-button:2.0.0", "road-assistance:1.0.0", "stake-side-usage:1.0.0"),
                 rows("SELECT symptom_key || ':' || current_version FROM miot_symptoms.symptom_definition"
                         + " WHERE tenant_code = '_platform' AND symptom_key IN ('driver-fatigue', 'driver-fatigue-sensor',"
                         + " 'load-securing-absence', 'panic-button', 'road-assistance', 'stake-side-usage')"

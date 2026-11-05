@@ -45,6 +45,8 @@ export type TableItemType = {
   ignored?: IgnoredInfo | null;
   // When the case came back to the tower from its latest hold.
   returnedAfterIgnoreAt?: string | null;
+  // When the SLA of the current level started: the case reached the level, or came back from a hold.
+  slaSince?: string | null;
 };
 
 export type Condition = {

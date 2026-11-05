@@ -18,6 +18,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   useContacts: () => ({ data: [], error: undefined, isLoading: false }),
   useSymptomTreatments: () => ({ data: undefined }),
   useCaseContext: () => ({ data: undefined }),
+  useCaseTimeline: () => ({ data: undefined }),
   useTripContacts: () => ({ data: undefined, mutate: api.mutate }),
 }));
 
@@ -86,7 +87,6 @@ describe("CallCenterMenu — new number", () => {
       <CallCenterMenu
         dict={dict}
         treatmentData={null}
-        startedAt={Date.now()}
         skippedTo={null}
         onSkip={vi.fn()}
         onCall={onCall}

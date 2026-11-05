@@ -18,8 +18,11 @@ import {
 } from "@/features/symptoms/control-tower/control-tower-api";
 import type { Step, StepReply } from "./maintainer-api";
 import {
+  blankLabel,
   contextLeaves,
-  fillScriptText,
+  type FieldLabels,
+  filledParts,
+  partsText,
   SCRIPT_PATHS,
   scriptParts,
   valueAt,
@@ -94,9 +97,9 @@ function Filled({
           <mark
             key={key}
             title={why}
-            className="rounded bg-amber-100 px-0.5 dark:bg-amber-900/40 dark:text-amber-200"
+            className="rounded bg-amber-100 px-0.5 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
           >
-            {`{{${part.variable}}}`}
+            {blankLabel(part.variable, d.scriptField as FieldLabels)}
           </mark>
         );
       })}
@@ -198,7 +201,9 @@ function ScriptPreview({
                   <span className="text-gray-500">→</span>
                   <span>
                     {tr("scriptReplyLine", d, {
-                      says: fillScriptText(r.says, ctx),
+                      says: partsText(
+                        filledParts(r.says, ctx, d.scriptField as FieldLabels)
+                      ),
                       result: resultLabel(r.result),
                     })}
                   </span>
@@ -240,7 +245,9 @@ function ScriptPreview({
               : visibleReplies.map(({ key, reply: r }) => (
                   <div key={key}>
                     <b>{resultLabel(r.result)}</b>:{" "}
-                    {fillScriptText(r.says, ctx)}
+                    {partsText(
+                      filledParts(r.says, ctx, d.scriptField as FieldLabels)
+                    )}
                   </div>
                 ))}
           </dd>

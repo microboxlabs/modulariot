@@ -160,6 +160,18 @@ class EngineCaseServiceTest {
         store.add(c);
         assertEquals(OPENED.minusSeconds(600).toString(),
                 service.casesPage(TENANT, Map.of()).path("data").get(0).path("sla_since").asText());
+        assertEquals(c.slaStart().toString(),
+                service.header(TENANT, -1).path("symptom_info").path("sla_since").asText());
+    }
+
+    @Test
+    void theCallPanelAndInboxShareTheSlaStartAfterAHold() {
+        EngineCase c = ranked(1, 3, -600, 5).withHold(null, OPENED);
+        store.add(c);
+        assertEquals(OPENED.toString(),
+                service.casesPage(TENANT, Map.of()).path("data").get(0).path("sla_since").asText());
+        assertEquals(OPENED.toString(),
+                service.header(TENANT, -1).path("symptom_info").path("sla_since").asText());
     }
 
     @Test

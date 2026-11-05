@@ -14,6 +14,8 @@ Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>
 
 An expiring set per vehicle, `symptoms:ep-tenants:<asset>`, indexes organizations with unfinished episodes. When an organization leaves the signal's `clients` (for example, its last trip ends), the evaluator reconciles its existing episodes with only the vehicle id, time and `trip.active: false`. An activation that is false on that input starts or advances the normal timer; its lifecycle still decides when to close. An activation needing unavailable GPS fields stays unknown, and operator-only cases stay open. Reconciliation keeps no samples, carries no GPS position or speed, and opens no cases. The index is updated atomically with the episodes and also exists in memory without Redis.
 
+Previews treat samples independently. Recent signals carry no case age, so `open_s` defaults to 0; they cannot preview repeated-event escalation on an existing case. Samples supplied directly to `PreviewService.run` can include a numeric `open_s`.
+
 Rule previews use the organization's recent signals. At most one signal per organization every 15 s goes to the list `symptoms:samples:<tenant>` (newest 20, expires a day after the last one). The 15 s are checked in Redis (`symptoms:samples:<tenant>:gate`, in the same script as the list), so replicas share them. Only the paths of the rule editor's fields are saved: `schema`, `at`, `clients`, the frame's driver data, lists and times are dropped. An organization with no recent signals previews on the fixed samples in `symptoms/gps-signal-samples.json`.
 
 | | |
@@ -37,6 +39,8 @@ Rule previews use the organization's recent signals. At most one signal per orga
 | Open | No case open, the condition holds and the lifecycle's open rule is true |
 | Level change | A case's level only rises, unless the lifecycle's `levelDown` lets it follow the measure down while the condition holds |
 | Close | The lifecycle's close rule is true. If the condition still holds, the next signal starts a new run |
+
+`case.off_trip_s` counts from the first observed off-trip frame of an open case and resets on a trip; it is -1 while on a trip or without trip evidence. Cargo rules require both 1200 seconds off a trip and 1200 seconds without their event.
 
 `case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals.
 

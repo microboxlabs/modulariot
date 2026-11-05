@@ -125,7 +125,6 @@ function Flow({
       treatmentRequest={{ ...request, symptom_id: symptomId }}
       setTreatmentRequest={vi.fn()}
       setIsMenuOpen={vi.fn()}
-      startedAt={0}
       skippedTo={null}
       onSkip={vi.fn()}
       resumeSnapshot={snapshot}

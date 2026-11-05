@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { TowerContact } from "@/features/symptoms/control-tower/control-tower-api";
-import { contactMethods, phoneForMethod, stepMethod } from "./call-targets";
+import {
+  contactMethods,
+  isTripDriver,
+  phoneForMethod,
+  stepMethod,
+  tripPhoneBody,
+  tripPhoneE164,
+} from "./call-targets";
 
 const contact = (patch: Partial<TowerContact>): TowerContact =>
   ({
@@ -71,5 +78,47 @@ describe("phoneForMethod", () => {
     expect(phoneForMethod({ phone: target.phone }, "whatsapp")).toBe(
       target.phone
     );
+  });
+});
+
+describe("tripPhoneE164", () => {
+  it("reads a national number as Chilean and returns E.164", () => {
+    expect(tripPhoneE164("+56 9 0000 0000")).toBe("+56900000000");
+    expect(tripPhoneE164("9 0000 0000")).toBe("+56900000000");
+  });
+
+  it("is null for an empty or invalid number", () => {
+    expect(tripPhoneE164(undefined)).toBeNull();
+    expect(tripPhoneE164("  ")).toBeNull();
+    expect(tripPhoneE164("123")).toBeNull();
+  });
+});
+
+describe("isTripDriver", () => {
+  it("compares national ids without dots or dashes, ignoring case", () => {
+    expect(isTripDriver({ nationalId: "00.000.001-k" }, "00000001K")).toBe(
+      true
+    );
+    expect(isTripDriver({ nationalId: "000000019" }, "000000027")).toBe(false);
+    expect(isTripDriver({ nationalId: null }, undefined)).toBe(false);
+  });
+});
+
+describe("tripPhoneBody", () => {
+  it("adds phone and WhatsApp once and keeps the other channels", () => {
+    expect(
+      tripPhoneBody(
+        { methods: ["PHONE", "TEAMS"], channels: { teams: "ana@example.com" } },
+        "+56900000000"
+      )
+    ).toEqual({
+      phone: "+56900000000",
+      methods: ["PHONE", "TEAMS", "WHATSAPP"],
+      channels: {
+        teams: "ana@example.com",
+        phone: "+56900000000",
+        whatsapp: "+56900000000",
+      },
+    });
   });
 });

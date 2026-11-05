@@ -1,6 +1,12 @@
 "use client";
 
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import {
+  useEffect,
+  useRef,
+  type ComponentType,
+  type ReactNode,
+  type SVGProps,
+} from "react";
 
 export interface SectionMenuEntry<T extends string> {
   readonly id: T;
@@ -11,7 +17,11 @@ export interface SectionMenuEntry<T extends string> {
   readonly group?: string;
 }
 
-/** Left-column menu of a settings page with a list beside its detail (Plataforma, Comunicaciones). */
+/**
+ * Left-column menu of a settings page with a list beside its detail (Plataforma, Comunicaciones).
+ * From md the menu is capped to its grid row and its list scrolls on its own; below md it keeps
+ * its full height and scrolls with the page.
+ */
 export default function SectionMenu<T extends string>({
   title,
   sections,
@@ -23,14 +33,19 @@ export default function SectionMenu<T extends string>({
   selected: T;
   onSelect: (section: T) => void;
 }>) {
+  const activeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [selected]);
+
   return (
-    <aside className="self-start overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-      <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+    <aside className="flex flex-col self-start overflow-clip rounded-lg border md:max-h-full md:min-h-0 border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+      <div className="shrink-0 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
           {title}
         </h2>
       </div>
-      <ul>
+      <ul className="md:min-h-0 md:overflow-y-auto">
         {sections.map((section, index) => {
           const isActive = section.id === selected;
           const isLast = index === sections.length - 1;
@@ -48,6 +63,7 @@ export default function SectionMenu<T extends string>({
                 </div>
               )}
               <button
+                ref={isActive ? activeRef : undefined}
                 type="button"
                 aria-current={isActive ? "page" : undefined}
                 onClick={() => onSelect(section.id)}

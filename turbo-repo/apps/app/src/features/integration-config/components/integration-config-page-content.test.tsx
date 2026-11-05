@@ -14,6 +14,10 @@ const state = vi.hoisted(() => ({
   connect: vi.fn(),
   success: vi.fn(),
   failure: vi.fn(),
+  ask: vi.fn(),
+  save: vi.fn(),
+  telephony: { preferred: null as string | null, active: null, lines: [] },
+  saveTelephony: vi.fn(),
   params: new URLSearchParams(
     "section=bigquery&source=demo-old&query=demo-plan"
   ),
@@ -34,6 +38,7 @@ vi.mock("../use-integration-config", () => ({
     templates: [],
     connections: state.connections,
     removeConnection: state.remove,
+    saveConnection: state.save,
     credentials: [],
     isLoading: false,
     error: null,
@@ -94,13 +99,40 @@ vi.mock("@/features/settings-admin/platform/org-service-account", () => ({
   connectManagedBigQuery: state.connect,
 }));
 vi.mock("sonner", () => ({
-  toast: {
+  toast: Object.assign(state.ask, {
     loading: vi.fn(() => "pending"),
     success: state.success,
     error: state.failure,
-  },
+    dismiss: vi.fn(),
+  }),
 }));
-vi.mock("./connection-form-modal", () => ({ ConnectionFormModal: () => null }));
+vi.mock("@/features/symptoms/control-tower/telephony-api", () => ({
+  useTelephony: () => ({ data: state.telephony, error: undefined }),
+  saveTelephony: state.saveTelephony,
+}));
+vi.mock("./org-telephony-choice", () => ({
+  OrgTelephonyChoice: () => <p>Organization telephony</p>,
+}));
+vi.mock("./connection-form-modal", () => ({
+  ConnectionFormModal: ({
+    onSave,
+  }: {
+    onSave: (create: Record<string, unknown>) => Promise<unknown>;
+  }) => (
+    <button
+      onClick={() =>
+        void onSave({
+          name: "Mintral Teams",
+          baseUrl: "https://graph.microsoft.com",
+          credentialProfileId: "c1",
+          providerType: "TEAMS_PHONE",
+        })
+      }
+    >
+      Create Teams Phone
+    </button>
+  ),
+}));
 vi.mock("./integration-delete-dialog", () => ({
   IntegrationDeleteDialog: ({
     show,
@@ -290,4 +322,53 @@ describe("managed geocoding deletion scope", () => {
       }
     }
   );
+});
+
+describe("organization telephony", () => {
+  const t = en.pages.integrationConnections.telephonyChoice;
+  const renderPage = () =>
+    render(
+      <IntegrationConfigPageContent
+        dict={en.pages.integrationConnections}
+        breadcrumbDict={{}}
+        rootDict={en}
+        lang="en"
+      />
+    );
+
+  beforeEach(() => {
+    state.params = new URLSearchParams();
+    state.slug = "mintral";
+    state.save.mockResolvedValue({ id: "m1", providerType: "TEAMS_PHONE" });
+    state.saveTelephony.mockResolvedValue(undefined);
+  });
+
+  it("shows the selector on the connections section", () => {
+    renderPage();
+    expect(screen.getByText("Organization telephony")).toBeInTheDocument();
+  });
+
+  it("asks to use a new Teams Phone connection when the organization has not chosen", async () => {
+    state.telephony = { preferred: null, active: null, lines: [] };
+    renderPage();
+    fireEvent.click(screen.getByText("Create Teams Phone"));
+    await waitFor(() => expect(state.ask).toHaveBeenCalled());
+    const [message, options] = state.ask.mock.calls[0] as [
+      string,
+      { action: { label: string; onClick: () => void } },
+    ];
+    expect(message).toBe(t.askTeams.replace("{name}", "Mintral Teams"));
+    expect(options.action.label).toBe(t.askTeamsAction);
+    options.action.onClick();
+    expect(state.saveTelephony).toHaveBeenCalledWith("TEAMS_PHONE");
+    await waitFor(() => expect(state.success).toHaveBeenCalledWith(t.saved));
+  });
+
+  it("does not ask when the organization already chose", async () => {
+    state.telephony = { preferred: "TELNYX", active: null, lines: [] };
+    renderPage();
+    fireEvent.click(screen.getByText("Create Teams Phone"));
+    await waitFor(() => expect(state.save).toHaveBeenCalled());
+    expect(state.ask).not.toHaveBeenCalled();
+  });
 });

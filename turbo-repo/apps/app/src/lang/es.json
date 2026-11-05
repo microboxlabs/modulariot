@@ -4501,17 +4501,8 @@
         "newRuleForLevel": "Nueva regla para este nivel",
         "newRuleForLevelName": "{symptom} · {level}",
         "channelPreferred": "Preferido",
-        "telephonyTitle": "Telefonía de \"Llamar a\"",
-        "telephonySavesImmediately": "Los cambios se guardan al elegir, independientemente de los ajustes del equipo.",
-        "telephonyAuto": "Automático: Telnyx si está conectado, si no Teams Phone",
-        "telephonyActive": "Conexión seleccionada",
-        "telephonyNone": "el marcador del teléfono (sin conexión de telefonía)",
-        "telephonyNotReady": "{name} no pasó su prueba; no se usa hasta que la pase.",
-        "telephonyConnections": "Configurar en Conexiones",
-        "telephonyLoadFailed": "No se pudo leer la telefonía.",
-        "telephonySaveFailed": "No se pudo guardar la telefonía.",
-        "telephonyManaged": "línea de la plataforma",
-        "telephonyMonth": "Este mes: {used} de {quota} minutos · {pending} sin confirmar · {charge}"
+        "telephonyMoved": "La telefonía de la organización se elige en Conexiones.",
+        "telephonyConnections": "Ir a Conexiones"
       },
       "communications": {
         "title": "Comunicaciones",
@@ -5694,6 +5685,25 @@
         "webhookPublicKeyHelp": "En Telnyx: Account Settings › Keys & Credentials › Public Key. Con ella el modulith verifica los webhooks de llamadas.",
         "webhookUrl": "URL de webhook para la Credential Connection",
         "webhookUrlHelp": "Pégala en Telnyx como webhook de la conexión. Se muestra después de guardar."
+      },
+      "telephonyChoice": {
+        "title": "Telefonía de la organización",
+        "hint": "Las llamadas de \"Llamar a\" salen por esta línea. El botón Teams abre Microsoft Teams siempre que haya una conexión Teams Phone activa.",
+        "platform": "Línea de la plataforma (Telnyx)",
+        "ownTelnyx": "{name} (Telnyx)",
+        "teams": "{name} (Teams Phone)",
+        "notTested": "{name} (Teams Phone, sin probar)",
+        "unset": "Sin elegir",
+        "inUse": "En uso: {line}",
+        "inUseNone": "En uso: el marcador del teléfono (sin línea activa)",
+        "unsetHint": "La organización aún no elige. Mientras tanto se usa la línea indicada.",
+        "notReady": "{name} no pasó su prueba. No se usa hasta que la pase.",
+        "month": "Este mes: {used} de {quota} minutos · {pending} sin confirmar · {charge}",
+        "saved": "Telefonía guardada.",
+        "saveFailed": "No se pudo guardar la telefonía.",
+        "forbidden": "Solo un dueño o administrador de la organización puede cambiar la telefonía.",
+        "askTeams": "¿Usar {name} como telefonía de la organización?",
+        "askTeamsAction": "Usar Teams Phone"
       }
     },
     "calendar": {
@@ -7812,7 +7822,8 @@
     "call_telephony_pending": "registro pendiente: Teams publica la duración y el resultado unos minutos después",
     "call_quota_exhausted": "Se usaron los minutos de llamadas de la plataforma de este mes.",
     "call_channels_busy": "Todas las líneas de la plataforma están en una llamada. Intenta en un momento.",
-    "call_use_phone": "Llamar con el teléfono"
+    "call_use_phone": "Llamar con el teléfono",
+    "call_teams_no_connection": "Sin conexión Teams Phone"
   },
   "geographic_view": {
     "arrival_delay": "Retraso de llegada",

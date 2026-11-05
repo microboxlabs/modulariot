@@ -10,11 +10,12 @@ import {
   ModalHeader,
   TextInput,
 } from "flowbite-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ControlTowerError } from "../control-tower/control-tower-api";
 import { saveTowerTeam, useTowerTeam, type TowerTeam } from "./maintainer-api";
-import TelephonySection from "./telephony-section";
 import { MUTED } from "./ui/card";
 
 /** Bounds the API accepts. */
@@ -171,7 +172,7 @@ function TeamForm({
             </p>
           )}
         </div>
-        <TelephonySection d={d} />
+        <TelephonyLink d={d} />
       </ModalBody>
       <ModalFooter className="justify-end">
         <Button color="alternative" onClick={onClose}>
@@ -182,5 +183,23 @@ function TeamForm({
         </Button>
       </ModalFooter>
     </>
+  );
+}
+
+/** The organization's telephony is chosen in Conexiones; the modal only links there. */
+export function TelephonyLink({ d }: Readonly<{ d: I18nRecord }>) {
+  const { lang } = useParams<{ lang: string }>();
+  return (
+    <p
+      className={`mt-4 border-t border-gray-200 pt-4 text-xs dark:border-gray-700 ${MUTED}`}
+    >
+      {tr("telephonyMoved", d)}{" "}
+      <Link
+        href={`/${lang}/users/settings/connections`}
+        className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+      >
+        {tr("telephonyConnections", d)}
+      </Link>
+    </p>
   );
 }

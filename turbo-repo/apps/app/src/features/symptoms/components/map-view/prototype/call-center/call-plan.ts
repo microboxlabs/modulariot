@@ -6,6 +6,7 @@
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import type {
   ScriptContext,
+  TowerAction,
   TowerTreatment,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/features/symptoms/control-tower/step-who";
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
 import { fillScriptText } from "@/features/symptoms/maintainer/script-fill";
+import { SKIP_TO_STEP } from "../prototype-api-guard";
 import { type CallTarget, targetIdOfAction } from "./call-targets";
 
 export interface CallGroup {
@@ -32,6 +34,50 @@ export interface CallPlan {
   groups: CallGroup[];
   /** Contacts no step points to. With no steps, every target. */
   others: CallTarget[];
+}
+
+/**
+ * The furthest step (0-based) the case's call script was skipped to, from
+ * the NOTE actions its treatments recorded. Only skips made since `since`
+ * (the case's SLA start) count: a new level or the end of a hold starts the
+ * script over. Null when nothing was skipped.
+ */
+export function skippedInCase(
+  treatments: readonly TowerTreatment[] | undefined,
+  since: number | null,
+  level?: number
+): number | null {
+  let furthest: number | null = null;
+  for (const t of treatments ?? []) {
+    for (const action of t.actions) {
+      const step =
+        action.kind === "NOTE" ? action.details?.[SKIP_TO_STEP] : null;
+      if (typeof step !== "number" || !Number.isInteger(step) || step < 2)
+        continue;
+      if (!skipMatchesCase(action, since, level)) continue;
+      furthest = Math.max(furthest ?? 0, step - 1);
+    }
+  }
+  return furthest;
+}
+
+/** A delayed save from an old panel must not advance a new level or resumed hold. */
+function skipMatchesCase(
+  action: TowerAction,
+  since: number | null,
+  level?: number
+): boolean {
+  if (
+    level !== undefined &&
+    action.details?.level !== undefined &&
+    action.details.level !== level
+  )
+    return false;
+  if (since === null) return true;
+  const panelSince = action.details?.slaSince;
+  if (typeof panelSince === "string" && Date.parse(panelSince) !== since)
+    return false;
+  return Date.parse(action.performedAt) >= since;
 }
 
 /**

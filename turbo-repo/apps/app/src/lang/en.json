@@ -7792,6 +7792,7 @@
       "skip": "Skip step",
       "skipReason": "Why it is skipped",
       "skipConfirm": "Skip",
+      "skipError": "Could not save the step skip. Try again.",
       "channelCall": "Call",
       "channelWhatsapp": "WhatsApp",
       "channelTeams": "Teams",

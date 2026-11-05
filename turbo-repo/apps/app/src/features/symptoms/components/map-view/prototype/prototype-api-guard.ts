@@ -153,6 +153,49 @@ async function finishEngineTreatment(
   if (progress) progress.pendingClose = undefined;
 }
 
+/** On a NOTE action: the call-script step (1-based) the operator skipped to. */
+export const SKIP_TO_STEP = "skipToStep";
+
+export interface StepSkip {
+  symptomId: number;
+  assetId?: string;
+  tripId?: string;
+  /** The step skipped to, 0-based as in the panel. */
+  toStep: number;
+  reason: string;
+  level?: number;
+  version?: string;
+  /** Reuse for retries of the same skip, including a lost server response. */
+  skipId: string;
+  /** The SLA interval in which the panel was shown; holds restart it too. */
+  slaSince?: string;
+}
+
+/**
+ * Records a call-script skip on an engine case: a NOTE action in the
+ * operator's open treatment, which stays open for the calls that follow.
+ * The server stores who and when. Other cases keep the skip in the panel.
+ */
+export async function guardedSkipStep(skip: StepSkip): Promise<void> {
+  if (isPrototypeApiDisabled() || skip.symptomId >= 0) return;
+  const treatment = await openTreatment(skip.symptomId, {
+    type: "CALL",
+    assetId: skip.assetId || undefined,
+    tripId: skip.tripId || undefined,
+  });
+  await addTreatmentAction(treatment.id, {
+    kind: "NOTE",
+    note: skip.reason,
+    details: {
+      [SKIP_TO_STEP]: skip.toStep + 1,
+      level: skip.level,
+      version: skip.version,
+      skipId: skip.skipId,
+      slaSince: skip.slaSince,
+    },
+  });
+}
+
 /**
  * Drop-in replacement for `requestTreatment` — when the real API is
  * disabled, echoes the request payload straight back instead of sending it,

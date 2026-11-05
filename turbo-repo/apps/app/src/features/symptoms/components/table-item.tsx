@@ -11,6 +11,11 @@ import { FormattedDate } from "@/features/common/components/formatted-date";
 import icu_condition from "@/features/symptoms/model/icu_condition.json";
 import { FaChevronRight } from "react-icons/fa6";
 import IgnoredHoldCell from "./ignored-hold-cell";
+import { tr } from "@/features/i18n/tr.service";
+
+/** Cell content that opens the case's treatment, as the "Tratar" button does. */
+const ROW_LINK =
+  "-m-1 flex w-fit items-center gap-2 rounded-md p-1 cursor-pointer hover:bg-black/5 hover:underline dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
 
 function slaBadge(data: TableItemType, dict: I18nRecord) {
   const slaMin = data.sla_minutes;
@@ -56,6 +61,10 @@ export default function TableItem({
   // Occurrence number of this event on the trip: earlier events plus this one.
   const occurrence = (data.recurrence_events ?? 0) + 1;
   const slaCell = slaBadge(data, dict);
+  const href = treatmentHref(data.id, data.trip, data.licensePlate);
+  const openLabel = tr("symptoms.open_treatment", dict, {
+    plate: data.licensePlate,
+  });
 
   if (!compact) {
     return (
@@ -64,7 +73,7 @@ export default function TableItem({
         ${Conditions[data.condition as keyof typeof Conditions]?.bgColor}`}
       >
         <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
-          <div className="flex items-center gap-2">
+          <Link href={href} title={openLabel} className={ROW_LINK}>
             {searchParams.get("icu_code") === "6" && (
               <>
                 <ConditionIcon
@@ -83,21 +92,23 @@ export default function TableItem({
               size="h-7 w-7"
               dict={dict}
             />
-            <p
+            <span
               className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
             >
               {data.licensePlate}
-            </p>
-          </div>
+            </span>
+          </Link>
         </TableCell>
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
-          {(() => {
-            const symptomsDict = dict.symptoms as I18nRecord;
-            const types = symptomsDict.types as Record<string, string>;
-            return types[data.alertType] || data.alertType;
-          })()}
+          <Link href={href} title={openLabel} className={ROW_LINK}>
+            {(() => {
+              const symptomsDict = dict.symptoms as I18nRecord;
+              const types = symptomsDict.types as Record<string, string>;
+              return types[data.alertType] || data.alertType;
+            })()}
+          </Link>
         </TableCell>
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
@@ -157,7 +168,7 @@ export default function TableItem({
         >
           <div className="flex items-center gap-2">
             {data.last_assigned_to ? (
-              <Link href={treatmentHref(data.id, data.trip, data.licensePlate)}>
+              <Link href={href}>
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
                   color="light"
@@ -173,7 +184,7 @@ export default function TableItem({
                 </Button>
               </Link>
             ) : (
-              <Link href={treatmentHref(data.id, data.trip, data.licensePlate)}>
+              <Link href={href}>
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
                   color="blue"

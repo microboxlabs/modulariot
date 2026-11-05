@@ -1,10 +1,35 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { Table, TableBody } from "flowbite-react";
 import TableItem from "./table-item";
 import type { TableItemType } from "./table-item.type";
 import dict from "@/lang/es.json";
 
+const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
+
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: string;
+    children: ReactNode;
+  }) => (
+    <a
+      href={href}
+      {...rest}
+      onClick={(e) => {
+        e.preventDefault();
+        navigate(href);
+      }}
+    >
+      {children}
+    </a>
+  ),
+}));
 vi.mock("./condition-icon", () => ({ default: () => null }));
 vi.mock("@/features/common/components/formatted-date", () => ({
   FormattedDate: () => null,
@@ -44,10 +69,12 @@ describe("symptoms trip column", () => {
 
     expect(screen.getByText("SERVICE-001")).toBeInTheDocument();
     expect(screen.queryByText(tripId)).not.toBeInTheDocument();
-    expect(screen.getByRole("link")).toHaveAttribute(
-      "href",
-      `/symptoms/map-view/-1?tripId=${tripId}&assetId=vehicle-demo`
-    );
+    for (const link of screen.getAllByRole("link")) {
+      expect(link).toHaveAttribute(
+        "href",
+        `/symptoms/map-view/-1?tripId=${tripId}&assetId=vehicle-demo`
+      );
+    }
   });
 
   it.each([null, undefined, "", "   "])(
@@ -61,8 +88,49 @@ describe("symptoms trip column", () => {
   it("keeps the legacy numeric trip id", () => {
     renderRow({ ...row, id: "1", trip: "12345" });
     expect(screen.getByText("12345")).toBeInTheDocument();
-    expect(screen.getByRole("link").getAttribute("href")).toContain(
-      "tripId=12345"
+    expect(
+      screen.getByRole("link", { name: "vehicle-demo" }).getAttribute("href")
+    ).toContain("tripId=12345");
+  });
+});
+
+describe("symptoms row opens the treatment", () => {
+  const href = `/symptoms/map-view/-1?tripId=${tripId}&assetId=vehicle-demo`;
+
+  beforeEach(() => navigate.mockClear());
+
+  it("opens it from the condition and symptom cells, as Tratar does", async () => {
+    const user = userEvent.setup();
+    renderRow(row);
+    const [condition, symptom] = screen.getAllByRole("cell");
+
+    await user.click(within(condition).getByRole("link"));
+    await user.click(within(symptom).getByRole("link"));
+    await user.click(screen.getByRole("button", { name: "Tratar" }));
+
+    expect(navigate.mock.calls).toEqual([[href], [href], [href]]);
+    expect(within(condition).getByRole("link")).toHaveAttribute(
+      "title",
+      "Abrir el tratamiento de vehicle-demo"
     );
+  });
+
+  it("opens it from the keyboard", async () => {
+    const user = userEvent.setup();
+    renderRow(row);
+
+    await user.tab();
+    expect(screen.getByRole("link", { name: "vehicle-demo" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(screen.getByRole("link", { name: "Demo symptom" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    expect(navigate.mock.calls).toEqual([[href], [href]]);
+  });
+
+  it("keeps the Tratar button", () => {
+    renderRow(row);
+    expect(screen.getByRole("button", { name: "Tratar" })).toBeInTheDocument();
   });
 });

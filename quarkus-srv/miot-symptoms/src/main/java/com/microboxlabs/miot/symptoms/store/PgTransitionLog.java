@@ -25,6 +25,11 @@ import java.util.function.Supplier;
  * yields the same change at the same time, which is skipped: one per symptom, vehicle and signal, and one note
  * ({@code NOTED}) besides. A change's
  * case is the latest OPENED row of its symptom, vehicle and state.
+ *
+ * <p>A change is skipped when it would not match its case: an opening in a state the symptom no longer has (the
+ * evaluator's catalog is up to 30 s old), or a level change, note or close whose case is not the vehicle's latest
+ * case of that symptom, open and in the same state. So no row is written in a state other than its case's OPENED
+ * row, and a case closed after a state change is not closed twice.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -41,6 +46,18 @@ public class PgTransitionLog implements TransitionLog {
                 SELECT 1 FROM miot_symptoms.signal_transitions
                 WHERE definition_id = $2::uuid AND at = $7::timestamptz AND asset_id = $6::varchar
                   AND tenant_code = $1::varchar AND (kind = 'NOTED') = ($5::varchar = 'NOTED'))
+              AND ($5::varchar <> 'OPENED' OR NOT EXISTS (
+                SELECT 1 FROM miot_symptoms.symptom_definition d
+                WHERE d.tenant_code = $1::varchar AND d.id = $2::uuid AND d.state <> $4::varchar))
+              AND ($5::varchar IN ('OPENED', 'HELD') OR EXISTS (
+                SELECT 1 FROM (SELECT o.id, o.state FROM miot_symptoms.signal_transitions o
+                                WHERE o.tenant_code = $1::varchar AND o.definition_id = $2::uuid
+                                  AND o.asset_id = $6::varchar AND o.kind = 'OPENED'
+                                ORDER BY o.id DESC LIMIT 1) latest
+                WHERE latest.state = $4::varchar AND NOT EXISTS (
+                    SELECT 1 FROM miot_symptoms.signal_transitions c
+                    WHERE c.tenant_code = $1::varchar AND c.definition_id = $2::uuid AND c.asset_id = $6::varchar
+                      AND c.state = $4::varchar AND c.kind = 'CLOSED' AND c.id > latest.id)))
             ON CONFLICT DO NOTHING
             RETURNING id, CASE WHEN kind = 'OPENED' THEN id ELSE (
                 SELECT o.id FROM miot_symptoms.signal_transitions o

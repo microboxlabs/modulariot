@@ -32,6 +32,12 @@ import GeocodingTenantsSection from "./geocoding-tenants-section";
 import GeocodingTenantsToolbar from "./geocoding-tenants-toolbar";
 import TelephonyPlanSection from "./telephony-plan-section";
 import TelephonyTenantsSection from "./telephony-tenants-section";
+import TelephonyTenantsToolbar from "./telephony-tenants-toolbar";
+import {
+  NO_TELEPHONY_FILTERS,
+  type TelephonyFilters,
+} from "./telephony-tenants-view";
+import { DEFAULT_USAGE_SORT, type UsageSort } from "./usage-tenants-view";
 import {
   DEFAULT_TENANT_SORT,
   NO_TENANT_FILTERS,
@@ -112,6 +118,13 @@ export default function PlatformPageContent({
   const [assigning, setAssigning] = useState(false);
   const assignDone = useCallback(() => setAssigning(false), []);
   const onTenants = selected === "geocodingTenants";
+  const [phoneFilters, setPhoneFilters] =
+    useState<TelephonyFilters>(NO_TELEPHONY_FILTERS);
+  const [phoneSort, setPhoneSort] = useState<UsageSort>(DEFAULT_USAGE_SORT);
+  const [phoneMonth, setPhoneMonth] = useState(() => monthOf(new Date()));
+  const [assigningMinutes, setAssigningMinutes] = useState(false);
+  const assignMinutesDone = useCallback(() => setAssigningMinutes(false), []);
+  const onPhoneTenants = selected === "telephonyTenants";
 
   const group = {
     brand: tr("groups.brand", platformDict),
@@ -226,7 +239,17 @@ export default function PlatformPageContent({
       />
     ),
     telephonyPlan: <TelephonyPlanSection dict={telephonyPlanDict} />,
-    telephonyTenants: <TelephonyTenantsSection dict={telephonyTenantsDict} />,
+    telephonyTenants: (
+      <TelephonyTenantsSection
+        dict={telephonyTenantsDict}
+        lang={lang}
+        filters={phoneFilters}
+        sort={phoneSort}
+        month={phoneMonth}
+        assigning={assigningMinutes}
+        onAssignDone={assignMinutesDone}
+      />
+    ),
     sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (
       <MailTemplateEditor scope="platform" dict={templatesDict} lang={lang} />
@@ -244,7 +267,7 @@ export default function PlatformPageContent({
       title={tr("title", platformDict)}
       description={tr("description", platformDict)}
       filters={
-        onTenants && (
+        (onTenants && (
           <GeocodingTenantsToolbar
             filters={tenantFilters}
             onFiltersChange={setTenantFilters}
@@ -256,15 +279,38 @@ export default function PlatformPageContent({
             rootDict={rootDict}
             lang={lang}
           />
-        )
+        )) ||
+        (onPhoneTenants && (
+          <TelephonyTenantsToolbar
+            filters={phoneFilters}
+            onFiltersChange={setPhoneFilters}
+            sort={phoneSort}
+            onSortChange={setPhoneSort}
+            month={phoneMonth}
+            onMonthChange={setPhoneMonth}
+            dict={telephonyTenantsDict}
+            rootDict={rootDict}
+            lang={lang}
+          />
+        ))
       }
       actions={
-        onTenants && (
+        (onTenants && (
           <Button color="blue" size="sm" onClick={() => setAssigning(true)}>
             <HiPlus className="mr-1 h-4 w-4" />
             {tr("assign", geocodingTenantsDict)}
           </Button>
-        )
+        )) ||
+        (onPhoneTenants && (
+          <Button
+            color="blue"
+            size="sm"
+            onClick={() => setAssigningMinutes(true)}
+          >
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("assign", telephonyTenantsDict)}
+          </Button>
+        ))
       }
     >
       {isLoading && <Spinner size="md" />}

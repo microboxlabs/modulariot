@@ -7718,7 +7718,8 @@
     "call_quota_exhausted": "Se usaron los minutos de llamadas de la plataforma de este mes.",
     "call_channels_busy": "Todas las líneas de la plataforma están en una llamada. Intenta en un momento.",
     "call_use_phone": "Llamar con el teléfono",
-    "call_teams_no_connection": "Sin conexión Teams Phone"
+    "call_teams_no_connection": "Sin conexión Teams Phone",
+    "call_teams_no_number": "Este contacto necesita un número de teléfono con código de país para llamar por Teams Phone."
   },
   "geographic_view": {
     "arrival_delay": "Retraso de llegada",

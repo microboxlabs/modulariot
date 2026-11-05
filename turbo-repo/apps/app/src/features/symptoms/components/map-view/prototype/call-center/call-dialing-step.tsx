@@ -73,20 +73,18 @@ function formatDuration(totalSeconds: number): string {
 }
 
 function CallTimer({
-  noTeams,
+  notice,
   showTimer,
   seconds,
-  dict,
 }: Readonly<{
-  noTeams: boolean;
+  notice: string | null;
   showTimer: boolean;
   seconds: number;
-  dict: I18nRecord;
 }>) {
-  if (noTeams) {
+  if (notice) {
     return (
       <output className="text-sm font-medium text-amber-700 dark:text-amber-400">
-        {tr("symptoms.call_teams_no_connection", dict)}
+        {notice}
       </output>
     );
   }
@@ -228,15 +226,18 @@ export default function CallDialingStep({
     !serviceNumber;
   // "teams" calls from Teams on any Teams Phone line; "phone" only when Teams
   // Phone is the main line.
+  const teamsConnection =
+    [line, teamsLine].find((l) => l?.provider === "TEAMS_PHONE" && l.ready) ??
+    null;
   const teamsVia = (id: CallMethod): TelephonyLine | null => {
     if (destination === null || serviceNumber) return null;
-    if (id === "phone" && line?.provider === "TEAMS_PHONE") return line;
-    if (id !== "teams") return null;
-    if (line?.provider === "TEAMS_PHONE") return line;
-    return teamsLine?.provider === "TEAMS_PHONE" ? teamsLine : null;
+    if (id === "teams") return teamsConnection;
+    if (id === "phone" && line?.provider === "TEAMS_PHONE")
+      return teamsConnection;
+    return null;
   };
   // A "teams" press with no Teams Phone line opens nothing.
-  const [noTeams, setNoTeams] = useState(false);
+  const [teamsNotice, setTeamsNotice] = useState<string | null>(null);
   const [teamsCall, setTeamsCall] = useState<{
     startedAt: number;
     connectionId: string;
@@ -385,10 +386,9 @@ export default function CallDialingStep({
           >
             <div className="overflow-hidden">
               <CallTimer
-                noTeams={noTeams}
+                notice={teamsNotice}
                 showTimer={showTimer}
                 seconds={shownSeconds}
-                dict={dict}
               />
               {phase !== null && phase !== "active" && (
                 <p className="text-center text-xs text-gray-500 dark:text-gray-400">
@@ -511,7 +511,7 @@ export default function CallDialingStep({
                       openTeams(links);
                       setBrowserAttempt(false);
                       setPhase(null);
-                      setNoTeams(false);
+                      setTeamsNotice(null);
                       setTeamsCall({
                         startedAt: Date.now(),
                         connectionId: viaTeams.connectionId,
@@ -530,7 +530,14 @@ export default function CallDialingStep({
                     }
                     // Opens the channel's app (dialer, WhatsApp chat with the
                     // script typed); the call is timed here either way.
-                    setNoTeams(id === "teams");
+                    if (id === "teams") {
+                      const notice = teamsConnection
+                        ? "call_teams_no_number"
+                        : "call_teams_no_connection";
+                      setTeamsNotice(t(notice));
+                    } else {
+                      setTeamsNotice(null);
+                    }
                     const link = channelLink(
                       id,
                       channels?.[id] ?? contactPhone,

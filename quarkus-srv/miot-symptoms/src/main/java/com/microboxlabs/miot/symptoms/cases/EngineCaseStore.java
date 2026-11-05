@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** The evaluator's cases: open ones, one by id, and the operator's close. */
+/** The evaluator's cases: open ones, one by id, the operator's close, and the close after a state change. */
 public interface EngineCaseStore {
 
     /** The most recent open cases, at most a page of them. */
@@ -82,6 +82,27 @@ public interface EngineCaseStore {
      * overlapping closes only one returns true.
      */
     boolean close(String tenantCode, long caseId, String actor, Instant at);
+
+    /**
+     * Closes each open case whose state is no longer its symptom's state, as when the symptom moved between TEST
+     * and ACTIVE or was turned off, and returns the cases it closed. Each gets a CLOSED transition in its own state
+     * with {@code reason}. A case already closed is left alone, so running it again closes nothing.
+     *
+     * @param tenantCode   null for every organization
+     * @param definitionId null for every symptom
+     */
+    default List<StaleCase> closeStale(String tenantCode, UUID definitionId, Instant at, String reason) {
+        return List.of();
+    }
+
+    /** A case {@link #closeStale} closed; {@code id} is its OPENED transition's. */
+    record StaleCase(String tenantCode, long id, UUID definitionId, String version, boolean test, String assetId,
+            int level, String tripId, Double latitude, Double longitude, Double speedKmh) {
+
+        public long symptomId() {
+            return -id;
+        }
+    }
 
     record OpenCount(int level, boolean underTreatment, long count) {
     }

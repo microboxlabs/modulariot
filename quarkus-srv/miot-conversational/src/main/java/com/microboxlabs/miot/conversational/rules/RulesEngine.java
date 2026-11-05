@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.rules;
 
+import com.microboxlabs.miot.conversational.calling.CallPermissionService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.conversational.domain.Channel;
@@ -50,7 +51,8 @@ import org.jboss.logging.Logger;
  *       moves {@code next_at} by its wait plus the next step's {@code after}; otherwise the next step goes out
  *       right away. After the last step, and its wait, the run is DONE.</li>
  *   <li>A reply on a run's conversation makes it REPLIED when the step it answers says {@code onReply: stop}.</li>
- *   <li>{@code symptom.case.closed} cancels the WAITING runs about the same case.</li>
+ *   <li>{@code symptom.case.closed} and {@code symptom.case.ignored} cancel WAITING runs for the case.
+ *       Queued sends are suppressed after an ignore, including already completed runs.</li>
  * </ul>
  *
  * A step's WhatsApp and email messages are stored PENDING and sent by integration jobs ({@link SendJobs}), which
@@ -63,6 +65,7 @@ import org.jboss.logging.Logger;
 public class RulesEngine {
 
     public static final String CASE_CLOSED = "symptom.case.closed";
+    public static final String CASE_IGNORED = "symptom.case.ignored";
     static final Duration LEASE = Duration.ofMinutes(2);
     static final int BATCH = 50;
     private static final Logger LOG = Logger.getLogger(RulesEngine.class);
@@ -177,8 +180,11 @@ public class RulesEngine {
         StoredEvent stored = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), event.tenantCode(),
                 event.type(), event.source(), event.context().kind(), event.context().key(), data(event.data()),
                 event.test(), event.at(), now));
-        if (CASE_CLOSED.equals(stored.type())) {
+        if (CASE_CLOSED.equals(stored.type()) || CASE_IGNORED.equals(stored.type())) {
             cancelWaiting(stored, now);
+        }
+        if (CASE_IGNORED.equals(stored.type())) {
+            return List.of();
         }
         return start(stored, now);
     }
@@ -269,6 +275,10 @@ public class RulesEngine {
     }
 
     private void advance(Run run, Instant now) {
+        if (runs.ignoredSince(run)) {
+            runs.updateIfWaiting(run.advanced(Run.Status.CANCELLED, run.step(), null, null, now));
+            return;
+        }
         Optional<RuleSpec> found = spec(run);
         Optional<StoredEvent> event = runs.event(run.eventId());
         if (found.isEmpty() || event.isEmpty()) {
@@ -325,7 +335,8 @@ public class RulesEngine {
                     isWhatsApp ? m.template().whatsapp().metaName() : m.template().key(),
                     isWhatsApp ? m.template().whatsapp().language() : null, m.params(), m.subject(), m.text(),
                     run.id(), run.step(), m.html());
-            queueOrSimulate(run, message, isWhatsApp, jobs);
+            queueOrSimulate(run, message, isWhatsApp, isWhatsApp && (CallPermissionService.TEMPLATE_KEY.equals(m.template().key())
+                    || m.template().whatsapp().callPermission()), jobs);
         }
         if (!jobs.isEmpty()) {
             queue.enqueue(run.tenantCode(), jobs);
@@ -333,7 +344,8 @@ public class RulesEngine {
         return problems.isEmpty() ? null : String.join("; ", problems);
     }
 
-    private void queueOrSimulate(Run run, ContextMessage message, boolean isWhatsApp, List<AsyncJobSpec> jobs) {
+    private void queueOrSimulate(Run run, ContextMessage message, boolean isWhatsApp, boolean callPermission,
+            List<AsyncJobSpec> jobs) {
         if (run.test()) {
             if (isWhatsApp) {
                 whatsapp.sendInContext(run.tenantCode(), message, true);
@@ -341,7 +353,7 @@ public class RulesEngine {
                 email.sendInContext(run.tenantCode(), message, true);
             }
         } else if (isWhatsApp) {
-            jobs.add(SendJobs.whatsapp(whatsapp.queueInContext(run.tenantCode(), message), message));
+            jobs.add(SendJobs.whatsapp(whatsapp.queueInContext(run.tenantCode(), message), message, callPermission));
         } else {
             jobs.add(SendJobs.email(email.queueInContext(run.tenantCode(), message)));
         }

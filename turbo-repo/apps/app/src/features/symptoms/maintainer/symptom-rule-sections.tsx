@@ -309,9 +309,11 @@ export default function SymptomRuleSections({
   const levelProblems = problemsFor(findings, "levels", d);
   const open = problemsFor(findings, "lifecycle.open", d);
   const close = problemsFor(findings, "lifecycle.close", d);
+  const note = problemsFor(findings, "lifecycle.note", d);
   const recurrence = problemsFor(findings, "recurrence", d);
   const levelRuleFields = [...sourceFields, ...levelFields(d)];
-  const lifecycleFields = caseFields(d);
+  // The lifecycle reads the case and the signal, so a case can close on a GPS event.
+  const lifecycleFields = [...caseFields(d), ...sourceFields];
   // The levels and the lifecycle are described together, one text per section.
   const levelsText = [
     `medida = ${spec.measure?.expression ?? ""}`,
@@ -319,7 +321,11 @@ export default function SymptomRuleSections({
       .filter((l) => l.applies)
       .map((l) => `nivel ${l.icu}: ${l.when ?? ""}`),
   ].join("\n");
-  const lifecycleText = `abre: ${spec.lifecycle?.open ?? ""}\ncierra: ${spec.lifecycle?.close ?? ""}`;
+  const lifecycleText = [
+    `abre: ${spec.lifecycle?.open ?? ""}`,
+    `cierra: ${spec.lifecycle?.close ?? ""}`,
+    ...(spec.lifecycle?.note ? [`anota: ${spec.lifecycle.note}`] : []),
+  ].join("\n");
   const lifecycle = spec.lifecycle ?? { open: "", close: "" };
   const lifeFormable =
     parseOpen(lifecycle.open) !== null && parseClose(lifecycle.close) !== null;
@@ -450,6 +456,7 @@ export default function SymptomRuleSections({
             fields={lifecycleFields}
             openProblems={open}
             closeProblems={close}
+            noteProblems={note}
             readOnly={readOnly}
             d={d}
             onChange={(next) => onChange({ ...spec, lifecycle: next })}
@@ -472,6 +479,7 @@ export default function SymptomRuleSections({
           <>
             <Problems items={open} />
             <Problems items={close} />
+            <Problems items={note} />
           </>
         )}
       </Section>

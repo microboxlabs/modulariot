@@ -1,8 +1,12 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
+import com.microboxlabs.miot.core.gps.SignalStates;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
+import com.microboxlabs.miot.symptoms.evaluator.Episode;
 import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorRedis;
+import com.microboxlabs.miot.symptoms.evaluator.Holds;
 import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.RedisEpisodes;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
@@ -15,15 +19,19 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
+import io.vertx.mutiny.sqlclient.Pool;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -32,11 +40,12 @@ import org.jboss.logging.Logger;
  * ({@link ArrivalProfiles}) and, for a vehicle on a trip, moves its deadline to arrival + expected silence. A
  * ticker in one replica checks the vehicles whose deadline expired ({@link LossTicker}) and runs the
  * organizations' {@code trip_check} versions on them ({@link TripChecks}). On wherever the evaluator is; a
- * failure is counted ({@code miot.symptoms.lost_signal.failed}) and never redelivers the signal.
+ * failure is counted ({@code miot.symptoms.lost_signal.failed}) and never redelivers the signal. It also answers
+ * the vehicles' signal state from the same profiles ({@link SignalStateReader}), on any replica with the store.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
-public class LostSignalDetector {
+public class LostSignalDetector implements SignalStates {
 
     private static final Logger LOG = Logger.getLogger(LostSignalDetector.class);
     private static final Duration HEARTBEAT_EVERY = Duration.ofSeconds(1);
@@ -50,11 +59,12 @@ public class LostSignalDetector {
     private final LossStore store;
     private final LossTicker ticker;
     private final TripChecks trips;
-    private final CoverageMap coverage = CoverageMap.defaults();
+    private final ShadowMaps coverage;
     private final String owner;
     private final MeterRegistry meters;
     private final Clock clock;
     private final AtomicLong lastBeat = new AtomicLong();
+    private final SignalStateReader signals;
 
     /**
      * How the ticker runs.
@@ -69,6 +79,11 @@ public class LostSignalDetector {
                     new IngestHealth(Duration.ofMinutes(2), Duration.ofMinutes(2)), Duration.ofMinutes(1));
         }
     }
+
+    /** Whether the detector runs and the settings of its arrival profiles and ticker. */
+    public record Settings(boolean enabled, LossSettings profiles, TickerSettings ticker) {
+    }
+
     private volatile long skipUntil;
 
     @Inject
@@ -85,15 +100,17 @@ public class LostSignalDetector {
             @ConfigProperty(name = "miot.symptoms.lost-signal.return-grace", defaultValue = "PT1M") Duration returnGrace,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration episodeTtl,
             EvaluatorRedis redis, EvaluatorCatalog catalog, TransitionLog transitionLog, SymptomEvents events,
-            AuditService audit, MeterRegistry meters) {
-        this(enabled, redis.client().<LossStore>map(c -> new RedisLossStore(c, profileTtl))
-                .orElseGet(InMemoryLossStore::new),
-                settings(profileTtl, minSamples, gapMargin, delayQuantile, maxDelay),
+            AuditService audit, MeterRegistry meters, Instance<Pool> pool, Holds holds) {
+        this(new Settings(enabled, settings(profileTtl, minSamples, gapMargin, delayQuantile, maxDelay),
                 new TickerSettings(recheck, maxSilence, Duration.ofSeconds(15), 500,
-                        new IngestHealth(staleAfter, maxLag), returnGrace),
-                // The evaluator's episodes: an operator's close drops them for both.
+                        new IngestHealth(staleAfter, maxLag), returnGrace)),
+                redis.client().<LossStore>map(c -> new RedisLossStore(c, profileTtl))
+                        .orElseGet(InMemoryLossStore::new),
+                // The evaluator's episodes: an operator's close records the same decision for both consumers.
                 new TripChecks(catalog, redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, episodeTtl))
-                        .orElseGet(InMemoryEpisodeRepository::new), transitionLog, events, audit, meters),
+                        .orElseGet(InMemoryEpisodeRepository::new), transitionLog, events, audit, meters, holds),
+                new ShadowMaps(new PgCoverageStore(pool::get), CoverageSettings.from(ConfigProvider.getConfig()),
+                        Clock.systemUTC()),
                 meters, Clock.systemUTC());
         if (enabled) {
             LOG.infof("Lost-signal detector: on, state in %s", redis.client().isPresent() ? "Redis" : "memory");
@@ -109,15 +126,25 @@ public class LostSignalDetector {
 
     public LostSignalDetector(boolean enabled, LossStore store, LossSettings settings, TickerSettings ticker,
             TripChecks trips, MeterRegistry meters, Clock clock) {
-        this.enabled = enabled;
+        this(new Settings(enabled, settings, ticker), store, trips, ShadowMaps.of(ShadowMap.empty()), meters, clock);
+    }
+
+    public LostSignalDetector(Settings settings, LossStore store, TripChecks trips, ShadowMaps coverage,
+            MeterRegistry meters, Clock clock) {
+        this.enabled = settings.enabled();
+        this.coverage = coverage;
+        meters.gauge("miot.symptoms.lost_signal.coverage_cells", coverage, m -> m.get().cells());
         this.trips = trips;
         this.store = store;
-        this.profiles = new ArrivalProfiles(store, settings);
+        this.profiles = new ArrivalProfiles(store, settings.profiles());
+        this.signals = new SignalStateReader(store, profiles);
         this.owner = UUID.randomUUID().toString();
         this.meters = meters;
         this.clock = clock;
-        this.ticker = new LossTicker(store, new MarkLost(store, trips, coverage, ticker.recheck(),
-                ticker.maxSilence(), ticker.returnGrace(), meters), ticker.ingest(), owner, ticker.leaseTtl(), ticker.batch(), meters, clock);
+        TickerSettings tickerSettings = settings.ticker();
+        this.ticker = new LossTicker(store, new MarkLost(store, trips, coverage, tickerSettings.recheck(),
+                tickerSettings.maxSilence(), tickerSettings.returnGrace(), meters), tickerSettings.ingest(), owner,
+                tickerSettings.leaseTtl(), tickerSettings.batch(), meters, clock);
     }
 
     /** A detector that does nothing. */
@@ -150,26 +177,18 @@ public class LostSignalDetector {
     }
 
     private void observe(Frame f, Map<String, Object> signal) {
-        String cell = CoverageMap.cell(f.latitude(), f.longitude());
-        LossStore.Profiles before = store.load(f.assetId(), f.sender(), cell);
+        LossStore.Profiles before = store.load(f.assetId(), f.sender());
         ArrivalProfiles.Arrival a = profiles.apply(before, f);
         store.save(f.assetId(), a.vehicle(), f.sender(), a.sender(), schedule(a, before.check(), f, signal),
-                mark(a, before.check(), f, profiles.settings()), cells(cell, before, a, f));
+                mark(a, before.check(), f, profiles.settings()), reporting(a, f));
     }
 
-    /**
-     * Every frame with a position adds to its cell of the shadow map, late ones too: they carry the real position
-     * of a silence. Only a frame newer than the newest counts the vehicle as reporting there.
-     */
-    private LossStore.Cells cells(String cell, LossStore.Profiles before, ArrivalProfiles.Arrival a, Frame f) {
-        if (cell == null || a.replay()) {
+    /** Only a frame newer than the vehicle's newest, with a position, counts the vehicle as reporting there. */
+    static LossStore.Reporting reporting(ArrivalProfiles.Arrival a, Frame f) {
+        if (a.late() || a.replay() || CoverageMap.cell(f.latitude(), f.longitude()) == null) {
             return null;
         }
-        Instant now = f.arrivedAt();
-        boolean reporting = !a.late();
-        return new LossStore.Cells(cell, Coverage.with(before.bySender(), a.delayed(), now, coverage.halfLife()),
-                Coverage.with(before.byAll(), a.delayed(), now, coverage.halfLife()),
-                reporting ? f.latitude() : null, reporting ? f.longitude() : null);
+        return new LossStore.Reporting(f.latitude(), f.longitude());
     }
 
     /**
@@ -184,7 +203,8 @@ public class LostSignalDetector {
         double backfillAfter = (double) Math.max(BACKFILL_DELAY.toSeconds(), usual.toSeconds());
         boolean backfill = a.late() || f.delaySeconds() > backfillAfter;
         Instant returned = a.late() || a.replay() ? null : f.arrivedAt();
-        return backfill || returned != null ? new Mark(check.lostSince(), returned, backfill) : null;
+        Instant returnedFrame = returned == null ? null : f.at();
+        return backfill || returned != null ? new Mark(check.lostSince(), returned, backfill, returnedFrame) : null;
     }
 
     /**
@@ -246,11 +266,50 @@ public class LostSignalDetector {
         }
     }
 
+    /** Every replica keeps the shadow map in memory and rebuilds it from the coverage rows. */
+    @Scheduled(every = "${miot.symptoms.lost-signal.coverage.reload-every:1h}", delayed = "20s",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void reloadCoverage() {
+        if (!enabled) {
+            return;
+        }
+        try {
+            int cells = coverage.reload();
+            LOG.debugf("Lost-signal detector: shadow map has %d cells", cells);
+        } catch (RuntimeException e) {
+            // The previous map stays.
+            LOG.warnf("Lost-signal detector: shadow map not reloaded (%s)", e.getClass().getSimpleName());
+        }
+    }
+
     /** An operator closed the symptom's case for the vehicle. */
     public void forget(String tenant, String assetId, UUID definitionId) {
+        forget(tenant, assetId, definitionId, null);
+    }
+
+    /** Keeps the same trip-close marker as the GPS consumer, including when their repository is shared. */
+    public void forget(String tenant, String assetId, UUID definitionId, Episode marker) {
         if (enabled) {
-            trips.forget(tenant, assetId, definitionId);
+            trips.forget(tenant, assetId, definitionId, marker);
         }
+    }
+
+    /** A state-change sweep drops the same old episode in the lost-signal evaluator. */
+    public void forgetStale(StaleCase c) {
+        if (enabled) {
+            trips.forgetStale(c);
+        }
+    }
+
+    /** Read whether the detector runs here or not: the profiles are shared through the store. */
+    @Override
+    public Map<String, SignalState> states(Collection<String> assetIds, Instant now) {
+        return signals.states(assetIds, now);
+    }
+
+    /** The vehicle's state, usual report interval and engine, for a case's popup; empty without a profile. */
+    public java.util.Optional<SignalStateReader.Reported> reported(String assetId, Instant now) {
+        return signals.reported(assetId, now);
     }
 
     /** One pass of the ticker; returns the vehicles checked. */

@@ -8,8 +8,9 @@
  * hash of the symptom — frontend-only, same as `mock-call-log.ts`. Gated by
  * `isMockDataEnabled` (see `prototype-api-guard.ts`): once that's off, this
  * stops inventing clusters/times and instead gives every treatment its own
- * group, timestamped with the real `start` (no interpolation) — real
- * treatments, just not fabricating relationships between them anymore.
+ * group, timestamped with its own `at` when it has one (engine cases), else
+ * the real `start` (no interpolation) — real treatments, just not
+ * fabricating relationships between them anymore.
  */
 
 import type { TreatmentTimelineElement } from "@/features/symptoms/types/timeline";
@@ -31,11 +32,12 @@ export function groupTreatments(
   const startMs = start ? new Date(start).getTime() : null;
 
   if (!isMockDataEnabled()) {
-    return treatments.map((treatment, index) => ({
-      id: `${seed}-g${index}`,
-      time: startMs !== null ? new Date(startMs) : null,
-      items: [{ treatment, index }],
-    }));
+    // Engine cases' treatments carry their own time.
+    return treatments.map((treatment, index) => {
+      let time: Date | null = startMs !== null ? new Date(startMs) : null;
+      if (treatment.at) time = new Date(treatment.at);
+      return { id: `${seed}-g${index}`, time, items: [{ treatment, index }] };
+    });
   }
 
   // First pass: 1-2 procedures per episode, deterministic per position.

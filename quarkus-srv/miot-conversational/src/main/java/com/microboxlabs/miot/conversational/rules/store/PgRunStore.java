@@ -209,6 +209,17 @@ public class PgRunStore implements RunStore {
     }
 
     @Override
+    public boolean ignoredSince(Run run) {
+        var trigger = event(run.eventId()).map(StoredEvent::at).orElse(run.createdAt());
+        return query(pool.get(), """
+                SELECT 1 FROM miot_conversational.conv_event
+                 WHERE tenant_code = $1 AND context_kind = $2 AND context_key = $3
+                   AND type = 'symptom.case.ignored' AND at >= $4 AND NOT test LIMIT 1
+                """, Tuple.of(run.tenantCode(), run.contextKind(), run.contextKey(), time(trigger)))
+                .iterator().hasNext();
+    }
+
+    @Override
     public List<Run> claimDue(Instant now, Duration lease, int limit) {
         return runs(query(pool.get(), CLAIM, Tuple.of(time(now), time(now.plus(lease)), limit)));
     }

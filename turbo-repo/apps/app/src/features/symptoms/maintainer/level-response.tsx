@@ -4,17 +4,29 @@ import { ToggleSwitch } from "flowbite-react";
 import SymptomRulesCard from "@/features/conversations/symptom-rules-card";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import LevelSteps, { type StepErrors } from "./level-steps";
+import { whoOf } from "../control-tower/step-who";
+import { useState } from "react";
+import {
+  CaseTimelinePreview,
+  CloseRules,
+  type LifecycleRules,
+} from "./close-section";
+import type { EditMode } from "./level-row";
+import ModeToggle from "./ui/mode-toggle";
+import LevelSteps, {
+  type AudienceDicts,
+  type StepErrors,
+  WhoEditor,
+} from "./level-steps";
 import type { Finding, LevelResponse } from "./maintainer-api";
 import { findingProblem, findingText, Problems } from "./rule-problems";
+import { PillNumber, PillSelect } from "./ui/pill";
 import {
-  FIELD,
   FIELD_ERROR,
   FieldError,
   FieldRow,
   ResponseBlock,
 } from "./ui/response-block";
-import Select from "./ui/select";
 
 /** What the operator must record to close a case, as stored in the spec. */
 const EVIDENCE = [
@@ -77,22 +89,32 @@ function Check({
 function OperatorBlock({
   response,
   findings,
-  sample,
+  cases,
+  audience,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   response: LevelResponse;
   findings: Finding[];
-  sample: Record<string, unknown> | undefined;
+  /** The symptom and level whose recent cases fill the script's preview. */
+  cases: { symptomName: string; icu: number } | undefined;
+  audience: AudienceDicts;
   readOnly: boolean;
   d: I18nRecord;
   onChange: (patch: Partial<LevelResponse>) => void;
 }>) {
   const slaError = findings.find((f) => f.code === "operatorNeedsSla");
+  const escalation = whoOf({
+    who: response.escalateWho,
+    role: response.escalateTo,
+    scope: response.escalateScope,
+  });
   return (
     <ResponseBlock
+      number={2}
       title={tr("operatorTitle", d)}
+      subtitle={tr("operatorSub", d)}
       aside={
         <ToggleSwitch
           checked={response.operator}
@@ -111,33 +133,13 @@ function OperatorBlock({
         <>
           <div className="flex flex-col gap-1">
             <FieldRow label={tr("attendWithin", d)}>
-              <input
-                type="number"
-                min={1}
-                aria-label={tr("attendWithin", d)}
-                className={`${FIELD} w-16 ${slaError ? FIELD_ERROR : ""}`}
+              <PillNumber
+                ariaLabel={tr("attendWithin", d)}
+                className={slaError ? FIELD_ERROR : ""}
                 disabled={readOnly}
-                value={response.slaMinutes ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    slaMinutes: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-              />
-              <span>min</span>
-              <span className="ml-2">{tr("escalateTo", d)}</span>
-              <input
-                aria-label={tr("escalateTo", d)}
-                className={`${FIELD} min-w-40 flex-1`}
-                disabled={readOnly}
-                maxLength={120}
-                placeholder={tr("escalateToPlaceholder", d)}
-                value={response.escalateTo ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    escalateTo: e.target.value.trim() ? e.target.value : null,
-                  })
-                }
+                value={response.slaMinutes}
+                unit="min"
+                onChange={(slaMinutes) => onChange({ slaMinutes })}
               />
             </FieldRow>
             {slaError && (
@@ -146,14 +148,46 @@ function OperatorBlock({
               </div>
             )}
           </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {tr("escalateToLabel", d)}
+            </span>
+            <WhoEditor
+              who={escalation}
+              audience={audience}
+              readOnly={readOnly}
+              onChange={(who) =>
+                onChange({
+                  escalateWho: who || null,
+                  escalateTo: null,
+                  escalateScope: null,
+                })
+              }
+            />
+          </div>
           <LevelSteps
             steps={response.steps ?? []}
             slaMinutes={response.slaMinutes}
             errors={stepErrors(findings, d)}
-            sample={sample}
+            audience={audience}
+            cases={cases}
             readOnly={readOnly}
             d={d}
             onChange={(steps) => onChange({ steps })}
+          />
+          <Check
+            checked={response.ignorable}
+            label={tr("ignorable", d)}
+            hint={tr("ignorableHint", d)}
+            readOnly={readOnly}
+            onChange={(ignorable) => onChange({ ignorable })}
+          />
+          <Check
+            checked={response.consequence ?? false}
+            label={tr("consequence", d)}
+            hint={tr("consequenceHint", d)}
+            readOnly={readOnly}
+            onChange={(consequence) => onChange({ consequence })}
           />
         </>
       ) : (
@@ -167,55 +201,64 @@ function OperatorBlock({
 
 function CloseBlock({
   response,
+  rules,
+  cases,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   response: LevelResponse;
+  rules?: LifecycleRules;
+  /** The symptom and level whose recent cases fill the timeline preview. */
+  cases: { symptomName: string; icu: number } | undefined;
   readOnly: boolean;
   d: I18nRecord;
   onChange: (patch: Partial<LevelResponse>) => void;
 }>) {
   const value = response.evidence?.[0] ?? "";
   const known = value === "" || EVIDENCE.some((e) => e.value === value);
+  const [mode, setMode] = useState<EditMode>("form");
   return (
-    <ResponseBlock title={tr("closeTitle", d)}>
+    <ResponseBlock
+      number={3}
+      title={tr("closeTitle", d)}
+      subtitle={tr("closeSub", d)}
+      aside={rules && <ModeToggle mode={mode} d={d} onChange={setMode} />}
+    >
       {response.operator && (
         <FieldRow label={tr("closeRequires", d)}>
-          <Select
-            aria-label={tr("closeRequires", d)}
-            className={FIELD}
-            wrapperClassName="min-w-48"
+          <PillSelect
+            ariaLabel={tr("closeRequires", d)}
             disabled={readOnly}
             value={value}
-            onChange={(e) =>
-              onChange({ evidence: e.target.value ? [e.target.value] : [] })
-            }
-          >
-            <option value="">{tr("evidenceNothing", d)}</option>
-            {!known && <option value={value}>{value}</option>}
-            {EVIDENCE.map((e) => (
-              <option key={e.value} value={e.value}>
-                {trDynamic(e.label, d)}
-              </option>
-            ))}
-          </Select>
+            onChange={(next) => onChange({ evidence: next ? [next] : [] })}
+            options={[
+              { value: "", label: tr("evidenceNothing", d) },
+              ...(known ? [] : [{ value, label: value }]),
+              ...EVIDENCE.map((e) => ({
+                value: e.value,
+                label: trDynamic(e.label, d),
+              })),
+            ]}
+          />
         </FieldRow>
       )}
-      <Check
-        checked={response.ignorable}
-        label={tr("ignorable", d)}
-        hint={tr("ignorableHint", d)}
-        readOnly={readOnly}
-        onChange={(ignorable) => onChange({ ignorable })}
-      />
-      <Check
-        checked={response.consequence ?? false}
-        label={tr("consequence", d)}
-        hint={tr("consequenceHint", d)}
-        readOnly={readOnly}
-        onChange={(consequence) => onChange({ consequence })}
-      />
+      {rules && (
+        <CloseRules
+          rules={rules}
+          mode={mode}
+          readOnly={readOnly}
+          d={d}
+          onExpr={() => setMode("expr")}
+        />
+      )}
+      {cases && (
+        <CaseTimelinePreview
+          symptomName={cases.symptomName}
+          icu={cases.icu}
+          d={d}
+        />
+      )}
     </ResponseBlock>
   );
 }
@@ -225,6 +268,8 @@ export interface ResponseSymptom {
   key: string;
   name: string;
   icu: number;
+  /** The Comunicaciones page's dictionary, which the rule cards read. */
+  rulesDict: I18nRecord;
 }
 
 /**
@@ -234,18 +279,22 @@ export interface ResponseSymptom {
 export default function LevelResponseDetail({
   response,
   findings,
-  sample,
   symptom,
+  rules,
+  audience,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   response: LevelResponse;
+  /** The symptom's close and note rules; absent where they are not edited. */
+  rules?: LifecycleRules;
+  /** The texts of the "contacts from the book" condition the steps use. */
+  audience: AudienceDicts;
   /** Absent for a template, which has no rules. */
   symptom?: ResponseSymptom;
   /** The findings of this level's response. */
   findings: Finding[];
-  sample: Record<string, unknown> | undefined;
   readOnly: boolean;
   d: I18nRecord;
   onChange: (patch: Partial<LevelResponse>) => void;
@@ -262,9 +311,14 @@ export default function LevelResponseDetail({
           icu={symptom.icu}
           canWrite={!readOnly}
           d={d}
+          rulesDict={symptom.rulesDict}
         />
       ) : (
-        <ResponseBlock title={tr("communicationsTitle", d)}>
+        <ResponseBlock
+          number={1}
+          title={tr("communicationsTitle", d)}
+          subtitle={tr("communicationsSub", d)}
+        >
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {tr("communicationsSoon", d)}
           </p>
@@ -273,13 +327,20 @@ export default function LevelResponseDetail({
       <OperatorBlock
         response={response}
         findings={findings}
-        sample={sample}
+        cases={
+          symptom ? { symptomName: symptom.name, icu: symptom.icu } : undefined
+        }
+        audience={audience}
         readOnly={readOnly}
         d={d}
         onChange={onChange}
       />
       <CloseBlock
         response={response}
+        rules={rules}
+        cases={
+          symptom ? { symptomName: symptom.name, icu: symptom.icu } : undefined
+        }
         readOnly={readOnly}
         d={d}
         onChange={onChange}

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Report;
@@ -16,6 +17,24 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SpecRulesTest {
+
+    @Test
+    void contactConditionsBlockPublicationWhenTheSharedEvaluatorRejectsThem() {
+        SymptomSpec base = Specs.speeding();
+        var response = new SymptomSpec.Response(true, 5,
+                List.of(new SymptomSpec.Step(null, "call", 2, null, null, "contact.role == (")),
+                List.of(), List.of(), false, null, false, null, "42");
+        var levels = new java.util.ArrayList<>(base.levels());
+        levels.set(3, new Level(4, true, levels.get(3).when(), response));
+        var asked = new java.util.ArrayList<String>();
+        Report report = SpecValidator.validate(Specs.withLevels(base, levels), Specs.gpsSignal(), condition -> {
+            asked.add(condition);
+            return java.util.Optional.of("Invalid condition");
+        });
+        assertFalse(report.publishable());
+        assertTrue(asked.containsAll(List.of("contact.role == (", "42")));
+        assertEquals(2, report.findings().stream().filter(f -> "contactConditionInvalid".equals(f.code())).count());
+    }
 
     @Test
     void bumpFollowsWhatChanged() {
@@ -88,6 +107,25 @@ class SpecRulesTest {
     }
 
     @Test
+    void overlapChecksVaryCaseAgeIndependentlyOfConditionTime() {
+        SymptomSpec spec = Specs.withLevels(Specs.speeding(), Specs.levels(
+                "held_s < 10 && open_s >= 20", "open_s >= 20", "false", "false"));
+        Report report = SpecValidator.validate(spec, Specs.gpsSignal());
+        assertTrue(report.findings().stream().anyMatch(f -> f.code().equals("levelsOverlap")));
+    }
+
+    @Test
+    void anOldCasesTerminalLevelDoesNotHideANewCasesMeasureGap() {
+        SymptomSpec spec = Specs.withLevels(Specs.speeding(), Specs.levels(
+                "measure < 5 && open_s < 900", "measure >= 10 && open_s < 900", "false", "open_s >= 900"));
+        var gaps = SpecValidator.validate(spec, Specs.gpsSignal()).findings().stream()
+                .filter(f -> f.code().startsWith("gap")).toList();
+        assertEquals(1, gaps.size(), "repeat ages report the same measure gap once");
+        assertEquals("5", gaps.get(0).params().get("from"));
+        assertEquals("10", gaps.get(0).params().get("to"));
+    }
+
+    @Test
     void levelRulesCountForEngineSupportButStringsDoNot() {
         SymptomSpec levelField = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
                 "measure >= 5 && measure < 11", "measure >= 11 && measure < 21",
@@ -97,6 +135,22 @@ class SpecRulesTest {
         SymptomSpec inText = Specs.with(Specs.speeding(),
                 Specs.ACTIVATION + " && signal.vehicle.weight_category != \"signal.derived.speed_avg_5m\"");
         assertFalse(SpecValidator.validate(inText, Specs.gpsSignal()).needsTestOnly());
+    }
+
+    @Test
+    void lifecycleRulesCannotActivateUnsupportedFields() {
+        String unsupported = "signal.derived.speed_avg_5m > 90";
+        for (SymptomSpec.Lifecycle lifecycle : List.of(
+                new SymptomSpec.Lifecycle(unsupported, "false"),
+                new SymptomSpec.Lifecycle("true", unsupported),
+                new SymptomSpec.Lifecycle("true", "false", false, unsupported))) {
+            SymptomSpec base = Specs.speeding();
+            SymptomSpec spec = new SymptomSpec(base.source(), base.activation(), base.measure(), base.levels(),
+                    lifecycle, null).withState(SymptomState.ACTIVE);
+            Report report = SpecValidator.validate(spec, Specs.gpsSignal());
+            assertTrue(report.needsTestOnly());
+            assertFalse(report.publishable());
+        }
     }
 
     @Test
@@ -145,6 +199,33 @@ class SpecRulesTest {
         assertEquals(List.of("El paso 2 no dice a quién contactar.", "El paso 2 necesita minutos."), messages);
     }
 
+
+    @Test
+    void aStepSaysWhomByScopeOrRole() {
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("Conductor", "call", 2, null)));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step(null, "call", 2, null, "DRIVER")));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("", "call", 2, null, "TRIP_CARRIER")));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("Gerente de Seguridad", "call", 2, null,
+                "TRIP_CARRIER")));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("Jefe de torre", "call", 2, null, "ORG")));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step(" ", "call", 2, null, "ORG")));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step(" ", "call", 2, null)));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step("Jefe", "call", 2, null, "MOON")));
+        // A contact condition says whom on its own, whatever the older fields hold.
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step(null, "call", 2, null, null,
+                "contact.role == 'Conductor' && contact.nationalId == event.data.driverRut")));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step(null, "call", 2, null, null, "  ")));
+    }
+
+    @Test
+    void anOlderStepReadsItsScopeFromTheRole() {
+        assertEquals("DRIVER", new SymptomSpec.Step("conductor", "call", 2, null).effectiveScope());
+        assertEquals("TRIP_CARRIER", new SymptomSpec.Step(" Transportista ", "call", 2, null).effectiveScope());
+        assertEquals("ORG", new SymptomSpec.Step("Jefe de torre", "call", 2, null).effectiveScope());
+        assertEquals("ORG", new SymptomSpec.Step(null, "call", 2, null).effectiveScope());
+        assertEquals("TRIP_CARRIER",
+                new SymptomSpec.Step("Gerente de Seguridad", "call", 2, null, "TRIP_CARRIER").effectiveScope());
+    }
     @Test
     void findingsCarryACodeAndItsParametersForTheApp() throws Exception {
         SymptomSpec.Response withSteps = new SymptomSpec.Response(true, 5, List.of(

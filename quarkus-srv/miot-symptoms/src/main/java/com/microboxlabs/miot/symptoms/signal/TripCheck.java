@@ -29,6 +29,11 @@ public record TripCheck(
                 @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED"),
                 @Extension(name = "x-engine", value = "false") })
         @JsonProperty("resting_minutes") Double restingMinutes,
+        @Schema(title = "Minutos de jornada sin descanso largo", description = "Minutes on the trip since the "
+                + "driver's last rest of 8 h, or since the trip started", extensions = {
+                @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED"),
+                @Extension(name = "x-engine", value = "false") })
+        @JsonProperty("duty_minutes") Double dutyMinutes,
         @Schema(title = "Minutos sin señal", extensions = {
                 @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED") })
         @JsonProperty("signal_lost_minutes") Double signalLostMinutes,
@@ -55,9 +60,15 @@ public record TripCheck(
             @Schema(title = "Volvió la señal") Boolean returned,
             @Schema(title = "Volvió con relleno", description = "Frames from inside the silence arrived after it")
             Boolean backfill,
-            @Schema(title = "Zona de baja cobertura", description = "The shadow map says frames arrive delayed in "
-                    + "the last position's cell")
+            @Schema(title = "Zona de baja cobertura", description = "The shadow map says frames arrive delayed or "
+                    + "go missing in the last position's cell")
             @JsonProperty("low_coverage_zone") Boolean lowCoverageZone,
+            @Schema(title = "Proporción sin cobertura", description = "The cell's share of delayed and missing "
+                    + "frames, for the sender or the other senders; absent when nobody decided the cell")
+            @JsonProperty("coverage_share") Double coverageShare,
+            @Schema(title = "Fuente de cobertura", description = "Who decided the cell: sender, consensus or none",
+                    enumeration = {"sender", "consensus", "none"})
+            @JsonProperty("coverage_source") String coverageSource,
             @Schema(title = "Pérdida en grupo", description = "Many of the sender's vehicles are lost at once, "
                     + "against its usual count")
             @JsonProperty("cohort_outage") Boolean cohortOutage,
@@ -84,15 +95,16 @@ public record TripCheck(
 
     /**
      * Two checks with the source's whole shape: a vehicle lost at speed, and one whose signal came back. They keep
-     * synthetic driving and resting minutes so the continuous-driving templates still preview in the editor.
+     * synthetic driving, resting and duty minutes so the continuous-driving and resting templates still preview in
+     * the editor.
      */
     public static List<Map<String, Object>> samples() {
         GpsSignal.Trip trip = new GpsSignal.Trip(true, false, "T-1", null, "v", "in_transit", 240.0, -15.0, null,
                 null, null, null, null, null, null);
-        TripCheck lost = new TripCheck(312.0, 0.0, 6.0, trip, new Loss(360.0, 120.0, 3.0,
-                new Last("2026-01-01T12:00:00Z", -23.6, -70.4, 82.0, true), "sender-1", false, false, false, false, 4.0));
-        TripCheck back = new TripCheck(40.0, 0.0, 0.5, trip, new Loss(30.0, 120.0, 0.25,
-                new Last("2026-01-01T12:40:00Z", -23.7, -70.3, 60.0, true), "sender-1", true, true, true, false, 2.0));
+        TripCheck lost = new TripCheck(312.0, 0.0, 990.0, 6.0, trip, new Loss(360.0, 120.0, 3.0,
+                new Last("2026-01-01T12:00:00Z", -23.6, -70.4, 82.0, true), "sender-1", false, false, false, 0.12, "sender", false, 4.0));
+        TripCheck back = new TripCheck(40.0, 0.0, 120.0, 0.5, trip, new Loss(30.0, 120.0, 0.25,
+                new Last("2026-01-01T12:40:00Z", -23.7, -70.3, 60.0, true), "sender-1", true, true, false, null, "none", false, 0.0));
         return List.of(sample(lost), sample(back));
     }
 

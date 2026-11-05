@@ -24,7 +24,17 @@ public final class SeedTemplates {
 
     static final String MIGRATION = "/db/migration/symptoms/V0.9.3__platform_symptom_templates.sql";
     /** Later migrations that seed new templates in the same shape. */
-    static final List<String> MORE = List.of("/db/migration/symptoms/V0.12.6__gps_sabotage_template.sql");
+    static final List<String> MORE = List.of("/db/migration/symptoms/V0.12.6__gps_sabotage_template.sql",
+            "/db/migration/symptoms/V0.12.17__event_symptom_templates.sql",
+            "/db/migration/symptoms/V0.12.19__zone_and_hour_templates.sql",
+            "/db/migration/symptoms/V0.12.20__driving_and_rest_templates.sql",
+            "/db/migration/symptoms/V0.12.21__route_templates.sql");
+    /** Migrations that publish new versions as rows of an {@code upgrade} list, applied in this order. */
+    static final List<String> UPGRADE_LISTS = List.of(
+            "/db/migration/symptoms/V0.12.17__event_symptom_templates.sql",
+            "/db/migration/symptoms/V0.12.18__speed_templates_escalation.sql",
+            "/db/migration/symptoms/V0.12.19__zone_and_hour_templates.sql",
+            "/db/migration/symptoms/V0.12.20__driving_and_rest_templates.sql");
 
     private static final String TEXT = "'((?:[^']|'')*)'";
     private static final Pattern ROW = Pattern.compile("\\(" + TEXT + ", " + TEXT + ", " + TEXT + ", (NULL|"
@@ -44,9 +54,14 @@ public final class SeedTemplates {
             new Upgrade("signal-loss", "2.0.0",
                     "/db/migration/symptoms/V0.12.4__signal_loss_template_reads_detector.sql"),
             new Upgrade("signal-loss", "2.1.0",
-                    "/db/migration/symptoms/V0.12.5__signal_loss_template_coverage_cohort.sql"));
+                    "/db/migration/symptoms/V0.12.5__signal_loss_template_coverage_cohort.sql"),
+            new Upgrade("signal-loss", "2.2.0",
+                    "/db/migration/symptoms/V0.12.11__signal_loss_close_level_one.sql"));
     private static final Pattern UPGRADE_SPEC = Pattern.compile("'(\\{\"source\".*?)'::jsonb", Pattern.DOTALL);
     private static final Pattern UPGRADE_DESCRIPTION = Pattern.compile("description = " + TEXT);
+    /** A row of an upgrade list: key, version, spec, bump, reason, description. */
+    private static final Pattern UPGRADE_ROW = Pattern.compile("\\(" + TEXT + ", " + TEXT + ",\\s*" + TEXT
+            + ",\\s*'(MAJOR|MINOR|PATCH)', " + TEXT + ", " + TEXT + "\\)", Pattern.DOTALL);
 
     private record Upgrade(String key, String version, String file) {
     }
@@ -87,6 +102,17 @@ public final class SeedTemplates {
             out.replaceAll(t -> t.key().equals(u.key()) ? new SymptomTemplate(t.key(), t.name(), t.family(),
                     t.icon(), unquote(description.group(1)), u.version(), spec(unquote(spec.group(1))).withState(null))
                     : t);
+        }
+        for (String file : UPGRADE_LISTS) {
+            Matcher row = UPGRADE_ROW.matcher(read(file));
+            while (row.find()) {
+                String key = unquote(row.group(1));
+                String version = unquote(row.group(2));
+                SymptomSpec spec = spec(unquote(row.group(3))).withState(null);
+                String description = unquote(row.group(6));
+                out.replaceAll(t -> t.key().equals(key) ? new SymptomTemplate(t.key(), t.name(), t.family(), t.icon(),
+                        description, version, spec) : t);
+            }
         }
         return List.copyOf(out);
     }

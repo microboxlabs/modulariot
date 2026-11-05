@@ -10,6 +10,7 @@ import {
   HiOutlineGlobeAlt,
   HiOutlineKey,
   HiOutlineMap,
+  HiOutlinePhone,
   HiOutlinePhotograph,
   HiOutlineShare,
   HiOutlineTemplate,
@@ -29,13 +30,21 @@ import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
 import GeocodingPlanSection from "./geocoding-plan-section";
 import GeocodingTenantsSection from "./geocoding-tenants-section";
 import GeocodingTenantsToolbar from "./geocoding-tenants-toolbar";
+import TelephonyPlanSection from "./telephony-plan-section";
+import TelephonyTenantsSection from "./telephony-tenants-section";
+import TelephonyTenantsToolbar from "./telephony-tenants-toolbar";
+import {
+  NO_TELEPHONY_FILTERS,
+  type TelephonyFilters,
+} from "./telephony-tenants-view";
+import { DEFAULT_USAGE_SORT, type UsageSort } from "./usage-tenants-view";
 import {
   DEFAULT_TENANT_SORT,
   NO_TENANT_FILTERS,
   type TenantFilters,
   type TenantSort,
 } from "./geocoding-tenants-view";
-import { monthOf } from "@/features/geocoding/geocoding-plan-view";
+import { monthOf } from "@/features/metered-usage/usage-view";
 import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
 import PlatformSectionList, {
@@ -81,6 +90,9 @@ export default function PlatformPageContent({
   const geocodingPlanDict = (platformDict?.geocodingPlan as I18nRecord) ?? {};
   const geocodingTenantsDict =
     (platformDict?.geocodingTenants as I18nRecord) ?? {};
+  const telephonyPlanDict = (platformDict?.telephonyPlan as I18nRecord) ?? {};
+  const telephonyTenantsDict =
+    (platformDict?.telephonyTenants as I18nRecord) ?? {};
   const sharingDict = (platformDict?.sharing as I18nRecord) ?? {};
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
@@ -106,12 +118,20 @@ export default function PlatformPageContent({
   const [assigning, setAssigning] = useState(false);
   const assignDone = useCallback(() => setAssigning(false), []);
   const onTenants = selected === "geocodingTenants";
+  const [phoneFilters, setPhoneFilters] =
+    useState<TelephonyFilters>(NO_TELEPHONY_FILTERS);
+  const [phoneSort, setPhoneSort] = useState<UsageSort>(DEFAULT_USAGE_SORT);
+  const [phoneMonth, setPhoneMonth] = useState(() => monthOf(new Date()));
+  const [assigningMinutes, setAssigningMinutes] = useState(false);
+  const assignMinutesDone = useCallback(() => setAssigningMinutes(false), []);
+  const onPhoneTenants = selected === "telephonyTenants";
 
   const group = {
     brand: tr("groups.brand", platformDict),
     access: tr("groups.access", platformDict),
     ai: tr("groups.ai", platformDict),
     geocoding: tr("groups.geocoding", platformDict),
+    telephony: tr("groups.telephony", platformDict),
   };
 
   const sections: readonly PlatformSectionEntry[] = [
@@ -185,6 +205,20 @@ export default function PlatformPageContent({
       icon: HiOutlineMap,
       group: group.geocoding,
     },
+    {
+      id: "telephonyTenants",
+      label: tr("menuTitle", telephonyTenantsDict),
+      description: tr("menuHint", telephonyTenantsDict),
+      icon: HiOutlinePhone,
+      group: group.telephony,
+    },
+    {
+      id: "telephonyPlan",
+      label: tr("menuTitle", telephonyPlanDict),
+      description: tr("menuHint", telephonyPlanDict),
+      icon: HiOutlineCreditCard,
+      group: group.telephony,
+    },
   ];
 
   const panels: Record<PlatformSection, ReactNode> = {
@@ -204,6 +238,18 @@ export default function PlatformPageContent({
         onAssignDone={assignDone}
       />
     ),
+    telephonyPlan: <TelephonyPlanSection dict={telephonyPlanDict} />,
+    telephonyTenants: (
+      <TelephonyTenantsSection
+        dict={telephonyTenantsDict}
+        lang={lang}
+        filters={phoneFilters}
+        sort={phoneSort}
+        month={phoneMonth}
+        assigning={assigningMinutes}
+        onAssignDone={assignMinutesDone}
+      />
+    ),
     sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (
       <MailTemplateEditor scope="platform" dict={templatesDict} lang={lang} />
@@ -221,7 +267,7 @@ export default function PlatformPageContent({
       title={tr("title", platformDict)}
       description={tr("description", platformDict)}
       filters={
-        onTenants && (
+        (onTenants && (
           <GeocodingTenantsToolbar
             filters={tenantFilters}
             onFiltersChange={setTenantFilters}
@@ -233,15 +279,38 @@ export default function PlatformPageContent({
             rootDict={rootDict}
             lang={lang}
           />
-        )
+        )) ||
+        (onPhoneTenants && (
+          <TelephonyTenantsToolbar
+            filters={phoneFilters}
+            onFiltersChange={setPhoneFilters}
+            sort={phoneSort}
+            onSortChange={setPhoneSort}
+            month={phoneMonth}
+            onMonthChange={setPhoneMonth}
+            dict={telephonyTenantsDict}
+            rootDict={rootDict}
+            lang={lang}
+          />
+        ))
       }
       actions={
-        onTenants && (
+        (onTenants && (
           <Button color="blue" size="sm" onClick={() => setAssigning(true)}>
             <HiPlus className="mr-1 h-4 w-4" />
             {tr("assign", geocodingTenantsDict)}
           </Button>
-        )
+        )) ||
+        (onPhoneTenants && (
+          <Button
+            color="blue"
+            size="sm"
+            onClick={() => setAssigningMinutes(true)}
+          >
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("assign", telephonyTenantsDict)}
+          </Button>
+        ))
       }
     >
       {isLoading && <Spinner size="md" />}
@@ -254,14 +323,15 @@ export default function PlatformPageContent({
       )}
 
       {!isLoading && isPlatformOwner && (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
+        // Below md the menu and the detail stack and scroll together; from md each scrolls on its own.
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 max-md:overflow-y-auto md:grid-cols-[320px_1fr]">
           <PlatformSectionList
             sections={sections}
             selected={selected}
             onSelect={setSelected}
             dict={platformDict}
           />
-          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+          <div className="flex flex-col gap-4 pr-1 md:min-h-0 md:overflow-y-auto">
             {panels[selected]}
           </div>
         </div>

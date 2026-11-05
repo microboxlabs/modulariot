@@ -17,6 +17,7 @@ import {
 import {
   ORG_SYMPTOMS,
   PLATFORM_TEMPLATES,
+  isTemplateScope,
   useSymptomScope,
   type SymptomScope,
 } from "./symptom-scope";
@@ -33,11 +34,30 @@ export type FieldOrigin =
   | "CALCULATED"
   | "CONNECTION";
 
+/** Where an older step's role was looked up: the trip's driver, the trip's carrier, or the organization. */
+export type StepScope = "DRIVER" | "TRIP_CARRIER" | "ORG";
+
 export interface Step {
+  /** Older steps: a contact book role. Read through `whoOf`. */
   role: string | null;
   channel: string | null;
   budgetMinutes: number | null;
   script: string | null;
+  /** Older steps: where `role` is looked up. Read through `whoOf`. */
+  scope?: StepScope | null;
+  /** Who to contact: CEL over `contact` and `event`, as a communication rule's book audience. */
+  who?: string | null;
+  /** What the call must obtain: the operator's aim, and a voice agent's instruction. */
+  goal?: string | null;
+  /** The answers the step expects, each tied to a call result. */
+  replies?: StepReply[] | null;
+}
+
+/** An answer a step expects: the call result it records and what the person says or does. */
+export interface StepReply {
+  /** An option of the `call_result` selectable. */
+  result: string;
+  says: string;
 }
 
 export interface Notice {
@@ -55,8 +75,12 @@ export interface LevelResponse {
   notices: Notice[];
   evidence: string[];
   ignorable: boolean;
-  /** Who is told when the SLA runs out, e.g. "Jefe de torre". */
+  /** The role told when the SLA runs out, e.g. "Jefe de torre". */
   escalateTo?: string | null;
+  /** Where `escalateTo` is looked up; absent in older specs. */
+  escalateScope?: StepScope | null;
+  /** Who is told when the SLA runs out, as a step's `who`; older specs use `escalateTo`. */
+  escalateWho?: string | null;
   /** The case counts in consequence management. */
   consequence?: boolean;
 }
@@ -83,6 +107,8 @@ export interface SymptomSpec {
     close: string | null;
     /** An open case's level follows the measure down. */
     levelDown?: boolean;
+    /** When it holds on a signal of an open case, the case's timeline gets an entry; the case does not close. */
+    note?: string | null;
   } | null;
   recurrence: {
     enabled: boolean;
@@ -407,6 +433,37 @@ export function useLevelResponse(
 export function useDataSources() {
   const { sources } = useSymptomScope();
   return useSWR<DataSource[]>(sources, fetcher);
+}
+
+/** One event type the organization's GPS frames carried, and how many frames carried it. */
+export interface EventTypeCount {
+  eventType: string;
+  count: number;
+}
+
+/** The field whose values the event type suggestions are. */
+export const EVENT_TYPE_PATH = "signal.frame.events.event_type";
+
+/** Days of frames the event type suggestions read. */
+export const EVENT_TYPE_DAYS = 7;
+
+/**
+ * The event types (`signal.frame.events[].event_type`) the organization's
+ * frames carried in the last {@link EVENT_TYPE_DAYS} days, most frequent
+ * first. None for a template, which belongs to no organization.
+ */
+export function useEventTypes(enabled = true) {
+  const scope = useSymptomScope();
+  const url =
+    enabled && !isTemplateScope(scope)
+      ? `${scope.sources}/gps_signal/event-types?days=${EVENT_TYPE_DAYS}`
+      : null;
+  const { data } = useSWR<{ days: number; types: EventTypeCount[] }>(
+    url,
+    fetcher,
+    { shouldRetryOnError: false, revalidateOnFocus: false }
+  );
+  return data?.types ?? [];
 }
 
 export function useDataSource(key: string | null) {

@@ -485,16 +485,95 @@ def sonar_keys(pr, repo_root=None):
             if k not in keys:
                 keys.append(k)
     if not keys and repo_root:
-        for dirpath, dirnames, filenames in os.walk(repo_root):
-            dirnames[:] = [d for d in dirnames if d not in (".git", "node_modules", "target", "dist", ".venv")]
-            if "sonar-project.properties" in filenames:
-                with open(os.path.join(dirpath, "sonar-project.properties")) as fh:
-                    for line in fh:
-                        if line.strip().startswith("sonar.projectKey="):
-                            k = line.split("=", 1)[1].strip()
-                            if k and k not in keys:
-                                keys.append(k)
+        # No Sonar check on the PR (a stacked PR gets no CI): fall back to the projects the
+        # repo declares, keeping only those whose sources the PR touches.
+        projects = declared_sonar_projects(repo_root)
+        paths = changed_paths(pr)
+        for key, roots in projects:
+            if (paths is None or any(covers(r, p) for r in roots for p in paths)) and key not in keys:
+                keys.append(key)
     return keys
+
+
+SONAR_WORKFLOW_KEY = re.compile(r"-Dsonar\.projectKey=([^\s\"']+)")
+WORKING_DIRECTORY = re.compile(r"^\s*working-directory:\s*([^\s#]+)")
+STEP_START = re.compile(r"^\s*-\s")
+
+
+def declared_sonar_projects(repo_root):
+    """(key, source roots) from every sonar-project.properties and every workflow that
+    passes -Dsonar.projectKey (the Maven scanner has no properties file). Roots are
+    repo-relative; '' means the whole repo."""
+    found = []
+    for dirpath, dirnames, filenames in os.walk(repo_root):
+        dirnames[:] = [d for d in dirnames if d not in (".git", "node_modules", "target", "dist", ".venv")]
+        if "sonar-project.properties" not in filenames:
+            continue
+        base = os.path.relpath(dirpath, repo_root)
+        base = "" if base == "." else base
+        key, project_base, sources, tests = None, ".", [], []
+        with open(os.path.join(dirpath, "sonar-project.properties")) as fh:
+            for line in fh:
+                line = line.strip()
+                if line.startswith("sonar.projectKey="):
+                    key = line.split("=", 1)[1].strip()
+                elif line.startswith("sonar.projectBaseDir="):
+                    project_base = line.split("=", 1)[1].strip()
+                elif line.startswith("sonar.sources="):
+                    sources = [s.strip() for s in line.split("=", 1)[1].split(",") if s.strip()]
+                elif line.startswith("sonar.tests="):
+                    tests = [s.strip() for s in line.split("=", 1)[1].split(",") if s.strip()]
+        if key:
+            base = os.path.join(base, project_base)
+            roots = [os.path.normpath(os.path.join(base, s)) for s in (sources or ["."]) + tests]
+            found.append((key, ["" if r == "." else r.replace(os.sep, "/") for r in roots]))
+    workflows = os.path.join(repo_root, ".github", "workflows")
+    if os.path.isdir(workflows):
+        for name in sorted(os.listdir(workflows)):
+            if not name.endswith((".yml", ".yaml")):
+                continue
+            with open(os.path.join(workflows, name)) as fh:
+                lines = fh.read().splitlines()
+            for i, line in enumerate(lines):
+                if line.lstrip().startswith("#"):
+                    continue
+                m = SONAR_WORKFLOW_KEY.search(line)
+                if m:
+                    found.append((m.group(1), [step_working_directory(lines, i)]))
+    return found
+
+
+def step_working_directory(lines, i):
+    """The working-directory of the workflow step that holds line i, or '' if it has none."""
+    start = i
+    while start > 0 and not STEP_START.match(lines[start]):
+        start -= 1
+    step_indent = len(lines[start]) - len(lines[start].lstrip())
+    end = i + 1
+    while end < len(lines):
+        content = lines[end].lstrip()
+        if content and not content.startswith("#") and len(lines[end]) - len(content) <= step_indent:
+            break
+        end += 1
+    for line in lines[start:end]:
+        m = WORKING_DIRECTORY.match(line)
+        if m:
+            root = os.path.normpath(m.group(1).strip("'\""))
+            return "" if root == "." else root.replace(os.sep, "/")
+    return ""
+
+
+def changed_paths(pr):
+    """The PR's changed files, or None when the list is incomplete (then every project counts)."""
+    conn = pr.get("files") or {}
+    if (conn.get("pageInfo") or {}).get("hasNextPage"):
+        return None
+    paths = [n.get("path") for n in conn.get("nodes") or [] if n.get("path")]
+    return paths or None
+
+
+def covers(root, path):
+    return root == "" or path == root or path.startswith(root + "/")
 
 
 def sonar_get(host, token, path, params):
@@ -524,6 +603,9 @@ def sonar_state(pr, settings, repo_root, skip=False):
                 "reason": "not queried on this path"}
     keys = sonar_keys(pr, repo_root)
     if not keys:
+        if repo_root and declared_sonar_projects(repo_root) and changed_paths(pr) is not None:
+            return {"provider": "sonar", "available": True, "fresh": True, "verdict": "clean",
+                    "projects": [], "reason": "PR touches no declared SonarCloud project"}
         return {"provider": "sonar", "available": False, "verdict": None,
                 "reason": "no SonarCloud check or sonar-project.properties found"}
     token = os.environ.get(settings["sonarTokenEnv"], "")
@@ -744,8 +826,11 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, de
         warnings.append("base is %s, not the default branch %s - CI and CodeRabbit may be disabled"
                         % (pr.get("baseRefName"), pr.get("_defaultBranch")))
 
+    # A reviewer the org does not require is never waited for: CodeRabbit can take 30+ minutes.
+    require_coderabbit = settings.get("requireCodeRabbit", True)
     settled = ((cop["fresh"] or not require_copilot) and chk["settled"]
-               and (crb["fresh"] or not (crb["available"] or crb.get("pending"))))
+               and (crb["fresh"] or not require_coderabbit
+                    or not (crb["available"] or crb.get("pending"))))
 
     return {
         "repo": pr["url"].split("/pull/")[0].replace("https://github.com/", ""),

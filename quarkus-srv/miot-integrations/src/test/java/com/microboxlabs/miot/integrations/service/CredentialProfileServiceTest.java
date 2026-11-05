@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class CredentialProfileServiceTest {
 
@@ -56,6 +58,31 @@ class CredentialProfileServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.mergeSecret(TENANT, id, secret));
         assertThrows(IllegalArgumentException.class, () -> service.rotateSecret(TENANT, id, secret));
         assertEquals(profile.encryptedSecretJson(), credentials.findByTenantAndId(TENANT, profile.id()).encryptedSecretJson());
+    }
+
+    @Test
+    void everySecretMutationInvalidatesLinkedPhoneLinesForTheSameTenantAndCredential() {
+        var service = service();
+        var created = service.create(TENANT, ACTOR, entraRequest("Telephony", "QA"));
+        var patch = new UpdateCredentialProfileRequest(null, null, null, Map.of("clientSecret", "new-secret"));
+        service.update(TENANT, ACTOR, created.id(), patch);
+        service.rotateSecret(TENANT, created.id(), Map.of("clientSecret", "rotated-secret"));
+        service.mergeSecret(TENANT, created.id(), Map.of("clientSecret", "merged-secret"));
+        assertEquals(3, connections.invalidations);
+        assertEquals(TENANT, connections.invalidatedTenant);
+        assertEquals(created.id(), connections.invalidatedCredential);
+    }
+
+    @Test
+    void onlyAChangedPublicConfigurationInvalidatesAnOtherwiseUnchangedCredential() {
+        var service = service();
+        var created = service.create(TENANT, ACTOR, entraRequest("Telephony", "QA"));
+        service.update(TENANT, ACTOR, created.id(), new UpdateCredentialProfileRequest("Renamed", null, ENTRA_CONFIG, null));
+        assertEquals(0, connections.invalidations);
+        var changed = new java.util.LinkedHashMap<>(ENTRA_CONFIG);
+        changed.put("clientId", "99999999-7777-8888-9999-000000000000");
+        service.update(TENANT, ACTOR, created.id(), new UpdateCredentialProfileRequest(null, null, changed, null));
+        assertEquals(1, connections.invalidations);
     }
 
     @Test
@@ -153,6 +180,84 @@ class CredentialProfileServiceTest {
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> service.create(TENANT, ACTOR, request));
         assertEquals("Managed credentials are created by the platform", error.getMessage());
+    }
+
+    /** Geocoding is a platform service; an organization reaches it through its managed connection. */
+    @Test
+    void refusesAGeocodingProviderCredentialOutsideThePlatformScope() {
+        CredentialProfileService service = service();
+        for (String provider : List.of("mapbox", "google_maps")) {
+            CreateCredentialProfileRequest request = bearer("Maps " + provider, provider);
+            assertThrows(PlatformOnlyCredentialException.class, () -> service.create(TENANT, ACTOR, request));
+        }
+        assertTrue(credentials.rows.isEmpty());
+    }
+
+    @Test
+    void thePlatformScopeCreatesGeocodingProviderCredentials() {
+        CredentialProfileService service = service();
+        for (String provider : List.of("mapbox", "google_maps")) {
+            assertNotNull(service.create("_platform", ACTOR, bearer("Maps " + provider, provider)));
+        }
+    }
+
+    /** Retagging a plain bearer token would be creation by another route. */
+    @ParameterizedTest
+    @CsvSource({"mapbox", "google_maps"})
+    void refusesToRetagAnOrganizationCredentialAsAGeocodingProvider(String provider) {
+        CredentialProfileService service = service();
+        String id = service.create(TENANT, ACTOR, bearer("Plain token", null)).id();
+        UpdateCredentialProfileRequest retag = new UpdateCredentialProfileRequest(
+                null, null, Map.of("provider", provider), null);
+        assertThrows(PlatformOnlyCredentialException.class, () -> service.update(TENANT, ACTOR, id, retag));
+    }
+
+    /** One an organization already has keeps working and stays editable. */
+    @ParameterizedTest
+    @CsvSource({"mapbox,false", "mapbox,true", "google_maps,false", "google_maps,true"})
+    void anExistingOrganizationGeocodingCredentialStaysUsableAndEditable(String provider, boolean rotating) {
+        CredentialProfileService service = service();
+        String id = legacyGeocodingCredential(provider);
+        assertNotNull(service.get(TENANT, id));
+        assertEquals(id, service.list(TENANT).getFirst().id());
+        assertTrue(service.test(TENANT, id).success());
+        UpdateCredentialProfileRequest rename = new UpdateCredentialProfileRequest(
+                "Legacy maps renamed", null, Map.of("provider", provider), rotating ? Map.of("token", "pk.rotated") : null);
+        CredentialProfileResponse updated = service.update(TENANT, ACTOR, id, rename);
+        assertNotNull(updated);
+        assertEquals("Legacy maps renamed", credentials.lastUpdate.displayName());
+        assertEquals(rotating ? 2 : 1, updated.secretVersion());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"mapbox,false", "mapbox,true", "google_maps,false", "google_maps,true"})
+    void aConcurrentProviderChangeCannotBeOverwrittenByALegacyEdit(String provider, boolean rotating) {
+        String id = legacyGeocodingCredential(provider);
+        credentials.concurrentPublicConfig = Map.of("provider", "other");
+        UpdateCredentialProfileRequest staleEdit = new UpdateCredentialProfileRequest(
+                null, null, Map.of("provider", provider), rotating ? Map.of("token", "pk.rotated") : null);
+
+        CredentialProfileService service = service();
+        assertThrows(PlatformOnlyCredentialException.class, () -> service.update(TENANT, ACTOR, id, staleEdit));
+        CredentialProfile stored = credentials.findByTenantAndId(TENANT, id);
+        assertEquals("other", stored.publicConfig().get("provider"));
+        assertEquals(1, stored.secretVersion());
+    }
+
+    private String legacyGeocodingCredential(String provider) {
+        CredentialProfileResponse created = service().create("_platform", ACTOR, bearer("Legacy maps", provider));
+        CredentialProfile legacy = credentials.rows.get(0);
+        credentials.rows.set(0, new CredentialProfile(legacy.id(), TENANT, legacy.displayName(), legacy.credentialType(),
+                legacy.authType(), legacy.environment(), legacy.publicConfig(), legacy.encryptedSecretJson(),
+                legacy.secretPreview(), legacy.secretVersion(), legacy.lastTestedAt(), legacy.lastTestResult(),
+                legacy.createdAt(), legacy.updatedAt(), legacy.createdBy(), legacy.updatedBy()));
+        return created.id();
+    }
+
+    private static CreateCredentialProfileRequest bearer(String name, String provider) {
+        Map<String, Object> publicConfig = provider == null ? Map.of() : Map.of("provider", provider);
+        return new CreateCredentialProfileRequest(
+                name, CredentialType.BEARER_TOKEN, null, "PRODUCTION", publicConfig, Map.of("token", "pk.synthetic"));
     }
 
     @Test
@@ -438,6 +543,7 @@ class CredentialProfileServiceTest {
         UpdateCredentialProfileParams lastUpdate;
         String storedSecret;
         Map<String, Object> concurrentSecret;
+        Map<String, Object> concurrentPublicConfig;
         OffsetDateTime recordedTestedAt;
         Boolean recordedTestResult;
         boolean deleted;
@@ -480,6 +586,25 @@ class CredentialProfileServiceTest {
             }
             storedSecret = params.encryptedSecretJson();
             return replaceSecret(current, storedSecret, params.secretPreview());
+        }
+
+        @Override
+        public CredentialProfile updateIfProvider(
+                UpdateCredentialProfileParams params, String expectedProvider, int expectedVersion) {
+            CredentialProfile current = findByTenantAndId(params.tenantCode(), params.id());
+            if (concurrentPublicConfig != null) {
+                rows.set(rows.indexOf(current), new CredentialProfile(current.id(), current.tenantCode(),
+                        current.displayName(), current.credentialType(), current.authType(), current.environment(),
+                        concurrentPublicConfig, current.encryptedSecretJson(), current.secretPreview(), current.secretVersion(),
+                        current.lastTestedAt(), current.lastTestResult(), current.createdAt(), current.updatedAt(),
+                        current.createdBy(), current.updatedBy()));
+                concurrentPublicConfig = null;
+                return null;
+            }
+            if (!expectedProvider.equals(current.publicConfig().get("provider")) || current.secretVersion() != expectedVersion) {
+                return null;
+            }
+            return params.encryptedSecretJson() == null ? update(params) : updateIfVersion(params, expectedVersion);
         }
 
         @Override
@@ -544,6 +669,17 @@ class CredentialProfileServiceTest {
     private static class FakeConnections extends IntegrationConnectionRepository {
 
         final List<IntegrationConnection> rows = new ArrayList<>();
+        int invalidations;
+        String invalidatedTenant;
+        String invalidatedCredential;
+
+        @Override
+        public int invalidateTelephonyCredential(String tenantCode, String credentialProfileId) {
+            invalidations++;
+            invalidatedTenant = tenantCode;
+            invalidatedCredential = credentialProfileId;
+            return 0; // Production row filtering and readiness changes are exercised against PostgreSQL.
+        }
 
         FakeConnections() {
             super(null);
@@ -553,6 +689,7 @@ class CredentialProfileServiceTest {
         public List<IntegrationConnection> listByCredentialProfiles(
                 String tenantCode, Collection<String> credentialProfileIds) {
             return rows.stream()
+                    .filter(row -> tenantCode.equals(row.tenantCode()))
                     .filter(row -> credentialProfileIds.contains(row.credentialProfileId()))
                     .toList();
         }

@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.service;
 
+import com.microboxlabs.miot.core.event.ContactConditions;
 import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.ContactCallStats;
@@ -11,6 +12,8 @@ import com.microboxlabs.miot.symptoms.dto.ContactImportResult.Status;
 import com.microboxlabs.miot.symptoms.dto.ContactPage;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactView;
+import com.microboxlabs.miot.symptoms.dto.TripContactsView;
+import com.microboxlabs.miot.symptoms.dto.TripPeople;
 import com.microboxlabs.miot.symptoms.store.ContactStore;
 import com.microboxlabs.miot.symptoms.store.ContactStore.After;
 import com.microboxlabs.miot.symptoms.store.DuplicateMemberException;
@@ -74,6 +77,56 @@ public class ContactService {
         return contacts.list(tenantCode, active).stream()
                 .map(c -> ContactView.of(c, stats.get(c.id())))
                 .toList();
+    }
+
+    /** The role a trip's driver has in the book. */
+    public static final String DRIVER_ROLE = "Conductor";
+
+    /** The most conditions one request may evaluate: a level's steps plus its escalation target. */
+    static final int MAX_CONDITIONS = 20;
+
+    /**
+     * The book's people for each contact condition (an operator step's {@code who}), read with {@code event.data}
+     * set to the trip's normalized RUTs. The conditions are evaluated by the communication rules' evaluator, so a
+     * condition means the same in a step and in a rule's audience.
+     */
+    public TripContactsView tripContacts(String tenantCode, TripPeople trip, List<String> conditions,
+            ContactConditions evaluator) {
+        List<String> given = conditions == null ? List.of() : conditions;
+        if (given.size() > MAX_CONDITIONS) {
+            throw new IllegalArgumentException("at most " + MAX_CONDITIONS + " conditions");
+        }
+        Map<String, Object> data = tripData(trip);
+        List<String> problems = given.stream().map(c -> evaluator.problem(c).orElse(null)).toList();
+        return new TripContactsView(data, evaluator.match(tenantCode, given, data), problems);
+    }
+
+    /** {@code event.data} for a trip: driverRut, secondDriverRut and carrierRut, normalized, when the trip has them. */
+    static Map<String, Object> tripData(TripPeople trip) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        putRut(data, "driverRut", trip.driverRut());
+        putRut(data, "secondDriverRut", trip.secondDriverRut());
+        putRut(data, "carrierRut", trip.carrierRut());
+        putType(data, "driverIdType", driverIdType(trip.driverRut(), trip.carrierRut()));
+        putType(data, "secondDriverIdType", driverIdType(trip.secondDriverRut(), trip.carrierRut()));
+        putType(data, "carrierIdType", DriverContactSync.companyTaxIdType(trip.carrierRut()));
+        return data;
+    }
+
+    private static String driverIdType(String id, String carrier) {
+        String normalized = normalizeNationalId(id);
+        return normalized == null ? null : DriverContactSync.nationalIdType(normalized, carrier);
+    }
+
+    private static void putType(Map<String, Object> data, String key, String type) {
+        if (type != null) data.put(key, type);
+    }
+
+    private static void putRut(Map<String, Object> data, String key, String rut) {
+        String normalized = normalizeNationalId(rut);
+        if (normalized != null) {
+            data.put(key, normalized);
+        }
     }
 
     /** Up to {@code limit} contacts (100 by default) that pass {@code filter}, from {@code cursor} on. */
@@ -296,7 +349,7 @@ public class ContactService {
                 });
     }
 
-    private static Map<String, Object> createdDetails(Contact c, String source) {
+    static Map<String, Object> createdDetails(Contact c, String source) {
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("name", c.name());
         details.put("role", c.role() == null ? "" : c.role());
@@ -325,13 +378,13 @@ public class ContactService {
         }
         String compact = phone.replaceAll("[\\s\\-()]", "");
         if (!E164.matcher(compact).matches()) {
-            throw new IllegalArgumentException("phone must be a full international number, e.g. +56912345678");
+            throw new IllegalArgumentException("phone must be a full international number, e.g. +12025550101");
         }
         return compact;
     }
 
     /** The id without dots, dashes or spaces, upper case: "12.345.678-k" becomes "12345678K". Blank is null. */
-    static String normalizeNationalId(String nationalId) {
+    public static String normalizeNationalId(String nationalId) {
         if (blank(nationalId)) {
             return null;
         }

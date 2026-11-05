@@ -55,6 +55,8 @@ export const PLATFORM_SECTIONS = [
   "vehicleImages",
   "geocodingPlan",
   "geocodingTenants",
+  "telephonyPlan",
+  "telephonyTenants",
   "sharing",
   "templates",
   "plan",

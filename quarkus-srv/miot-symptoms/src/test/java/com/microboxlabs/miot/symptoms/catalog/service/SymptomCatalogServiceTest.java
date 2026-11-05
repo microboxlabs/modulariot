@@ -55,6 +55,34 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
+    void publicationChecksReplyResultsAgainstTheTenantsCurrentOptions() {
+        UUID id = speeding();
+        var allowed = new java.util.HashSet<>(List.of("result_commits"));
+        SymptomCatalogService checked = new SymptomCatalogService(catalog,
+                new DataSourceService(catalog, SignalSamples.inMemory()), audit, null,
+                (tenant, result) -> TENANT.equals(tenant) && allowed.contains(result));
+        SymptomSpec base = Specs.speeding();
+        var step = new SymptomSpec.Step("Conductor", "call", 2, "Hello", null, null, null,
+                List.of(new SymptomSpec.Step.Reply("result_commits", "Agrees")));
+        var levels = new java.util.ArrayList<>(base.levels());
+        levels.set(3, new SymptomSpec.Level(4, true, levels.get(3).when(),
+                new SymptomSpec.Response(true, 5, List.of(step), List.of(), List.of(), false)));
+        SymptomSpec spec = Specs.withLevels(base, levels);
+        checked.saveDraft(TENANT, OWNER, id, spec);
+        assertTrue(checked.plan(TENANT, id).report().publishable());
+        allowed.clear();
+        assertFalse(checked.plan(TENANT, id).report().publishable());
+        assertTrue(checked.validate(TENANT, id, spec).findings().stream()
+                .anyMatch(f -> "stepReplyInvalidResult".equals(f.code())));
+
+        var blank = new SymptomSpec.Step("Conductor", "call", 2, "Hello", null, null, null,
+                List.of(new SymptomSpec.Step.Reply("", "Agrees")));
+        levels.set(3, new SymptomSpec.Level(4, true, levels.get(3).when(),
+                new SymptomSpec.Response(true, 5, List.of(blank), List.of(), List.of(), false)));
+        assertFalse(checked.validate(TENANT, id, Specs.withLevels(base, levels)).publishable());
+    }
+
+    @Test
     void publishComputesTheVersionFromTheChange() {
         UUID id = speeding();
         assertEquals("1.0.0", service.publish(TENANT, OWNER, id, "Primera versión", null, SymptomState.ACTIVE)
@@ -120,6 +148,40 @@ class SymptomCatalogServiceTest {
         assertEquals(Specs.ACTIVATION, restored.spec().activation());
         assertEquals(SymptomState.ACTIVE, service.get(TENANT, id).definition().state());
         assertThrows(IllegalStateException.class, () -> service.rollback(TENANT, OWNER, id, "3.0.0", null));
+    }
+
+    @Test
+    void eachStateChangeIsHeardOnceAfterItIsSaved() {
+        List<SymptomStateChanged> heard = new java.util.ArrayList<>();
+        service.onStateChange(change -> {
+            assertEquals(change.to(), service.get(TENANT, change.definitionId()).definition().state(), "saved first");
+            heard.add(change);
+        });
+        UUID id = speeding();
+
+        service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.TEST);
+        service.setState(TENANT, OWNER, id, SymptomState.ACTIVE);
+        service.setState(TENANT, OWNER, id, SymptomState.ACTIVE);
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(), Specs.ACTIVATION + " && true"));
+        service.publish(TENANT, OWNER, id, "Segunda", null, null);
+        service.setState(TENANT, OWNER, id, SymptomState.OFF);
+
+        assertEquals(List.of(new SymptomStateChanged(TENANT, id, SymptomState.OFF, SymptomState.TEST),
+                new SymptomStateChanged(TENANT, id, SymptomState.TEST, SymptomState.ACTIVE),
+                new SymptomStateChanged(TENANT, id, SymptomState.ACTIVE, SymptomState.OFF)), heard);
+    }
+
+    @Test
+    void aFailingListenerDoesNotUndoTheStateChange() {
+        service.onStateChange(change -> {
+            throw new IllegalStateException("database down");
+        });
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.TEST);
+
+        service.setState(TENANT, OWNER, id, SymptomState.ACTIVE);
+
+        assertEquals(SymptomState.ACTIVE, service.get(TENANT, id).definition().state());
     }
 
     @Test
@@ -501,9 +563,10 @@ class SymptomCatalogServiceTest {
     void savingAsTemplateLeavesAnUnpublishedTemplateWithoutTheOrganizationsNotices() {
         UUID id = speeding();
         SymptomSpec.Notice notice = new SymptomSpec.Notice("open", "whatsapp", "conn-1", "tpl-1", "+56900000000");
+        SymptomSpec.Ignore ignore = new SymptomSpec.Ignore(false, "PT30M", true, List.of("CASE"));
         SymptomSpec withNotice = Specs.withLevels(Specs.speeding(), Specs.speeding().levels().stream()
                 .map(l -> l.icu() != 4 ? l : new SymptomSpec.Level(4, true, l.when(), new SymptomSpec.Response(true,
-                        5, List.of(), List.of(notice), List.of(), false)))
+                        5, List.of(), List.of(notice), List.of(), false), ignore))
                 .toList());
         service.saveDraft(TENANT, OWNER, id, withNotice);
         service.publish(TENANT, OWNER, id, "Con aviso", null, SymptomState.ACTIVE);
@@ -517,6 +580,20 @@ class SymptomCatalogServiceTest {
         SymptomSpec.Notice saved = template.draft().spec().levels().get(3).response().notices().get(0);
         assertEquals(new SymptomSpec.Notice("open", "whatsapp", null, null, null), saved);
         assertNull(template.draft().spec().state());
+        assertEquals(ignore, template.draft().spec().levels().get(3).ignore());
+    }
+
+    @Test
+    void anIgnorePolicyOnlyChangeCanBePublished() {
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Inicial", null, SymptomState.ACTIVE);
+        SymptomSpec original = service.get(TENANT, id).current().spec();
+        SymptomSpec changed = Specs.withLevels(original, original.levels().stream()
+                .map(l -> new SymptomSpec.Level(l.icu(), l.applies(), l.when(), l.response(),
+                        new SymptomSpec.Ignore(false, null, null, null))).toList());
+        service.saveDraft(TENANT, OWNER, id, changed);
+        var published = service.publish(TENANT, OWNER, id, "Restringir ignorar", null, SymptomState.ACTIVE);
+        assertEquals(Boolean.FALSE, published.spec().levels().get(0).ignore().allowed());
     }
 
     @Test

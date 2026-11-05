@@ -3,7 +3,9 @@ package com.microboxlabs.miot.symptoms.lostsignal;
 import com.microboxlabs.miot.symptoms.lostsignal.IngestHealth.Heartbeat;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /** The lost-signal detector's state: in Redis, or in memory for one replica and for tests. */
 public interface LossStore {
@@ -13,24 +15,15 @@ public interface LossStore {
      *
      * @param vehicle null for a vehicle never seen; {@code sender} null for a sender never seen or unknown
      */
-    record Profiles(VehicleProfile vehicle, SenderProfile sender, CheckState check, Coverage bySender,
-            Coverage byAll) {
+    record Profiles(VehicleProfile vehicle, SenderProfile sender, CheckState check) {
 
         public Profiles(VehicleProfile vehicle, SenderProfile sender) {
-            this(vehicle, sender, null, null, null);
+            this(vehicle, sender, null);
         }
     }
 
-    /**
-     * What a frame adds to the shadow map, and where the vehicle reports for nearby-unit counts.
-     *
-     * @param latitude null when the frame does not count as reporting (late or a replay)
-     */
-    record Cells(String cell, Coverage bySender, Coverage byAll, Double latitude, Double longitude) {
-    }
-
-    /** Around a lost vehicle's last position: its cell in the shadow map and the vehicles still reporting. */
-    record Around(Coverage bySender, Coverage byAll, int nearby) {
+    /** Where a frame newer than the vehicle's newest says it reports, for nearby-unit counts. */
+    record Reporting(double latitude, double longitude) {
     }
 
     /**
@@ -41,7 +34,12 @@ public interface LossStore {
      * @param deadline   the vehicle's deadline when read: its check writes only while it is unchanged
      */
     record Vehicle(VehicleProfile profile, Watch watch, CheckState check, Instant returnedAt, boolean backfill,
-            Instant deadline) {
+            Instant deadline, Instant returnedFrameAt) {
+
+        public Vehicle(VehicleProfile profile, Watch watch, CheckState check, Instant returnedAt, boolean backfill,
+                Instant deadline) {
+            this(profile, watch, check, returnedAt, backfill, deadline, null);
+        }
 
         public Vehicle(VehicleProfile profile, Watch watch, CheckState check) {
             this(profile, watch, check, null, false, null);
@@ -53,7 +51,10 @@ public interface LossStore {
      * kept once set), or a frame from inside the silence arrived ({@code backfill}). Both belong to the loss that
      * started at {@code lostSince} and are ignored for any other.
      */
-    record Mark(Instant lostSince, Instant returnedAt, boolean backfill) {
+    record Mark(Instant lostSince, Instant returnedAt, boolean backfill, Instant returnedFrameAt) {
+        public Mark(Instant lostSince, Instant returnedAt, boolean backfill) {
+            this(lostSince, returnedAt, backfill, null);
+        }
     }
 
     /**
@@ -79,13 +80,26 @@ public interface LossStore {
         }
     }
 
-    /** @param sender null when the frame names none */
-    default Profiles load(String assetId, String sender) {
-        return load(assetId, sender, null);
+    /**
+     * What the signal state reads for one vehicle; any part may be null.
+     *
+     * @param sender the profile of the vehicle's sender, read only when there is no active trip watch
+     */
+    record Seen(VehicleProfile profile, Watch watch, SenderProfile sender) {
+        public boolean onTrip() {
+            return watch != null && !watch.trips().isEmpty();
+        }
     }
 
-    /** @param cell the frame's cell in the shadow map, null without a position */
-    Profiles load(String assetId, String sender, String cell);
+    /**
+     * The vehicles' profiles and watches, then the senders of those without an active trip watch: two reads
+     * whatever the count.
+     * A vehicle never seen, or whose profile expired, is left out.
+     */
+    Map<String, Seen> seen(Collection<String> assetIds);
+
+    /** @param sender null when the frame names none */
+    Profiles load(String assetId, String sender);
 
     /** @param senderProfile ignored when {@code sender} is null */
     default void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile) {
@@ -94,7 +108,7 @@ public interface LossStore {
 
     /** @param mark null when the vehicle is not lost or the frame tells nothing about its loss */
     void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile, Schedule schedule,
-            Mark mark, Cells cells);
+            Mark mark, Reporting reporting);
 
     /** The vehicles whose deadline is at or before {@code now}, earliest first. */
     List<String> due(Instant now, int limit);
@@ -112,11 +126,10 @@ public interface LossStore {
     boolean checked(String assetId, Instant seen, CheckState check, Instant next);
 
     /**
-     * @param cell   null without a last position
-     * @param radius how far from the last position a vehicle that reported in the last 10 min counts as nearby
+     * The vehicles other than {@code assetId} that reported in the last 10 min within {@code radiusKm} of the
+     * position; 0 without one.
      */
-    Around around(String sender, String cell, Double latitude, Double longitude, String assetId, Instant now,
-            double radiusKm);
+    int nearby(Double latitude, Double longitude, String assetId, Instant now, double radiusKm);
 
     /** Adds the vehicle to its sender's lost set, or removes it; returns how many of the sender's are lost. */
     int lost(String sender, String assetId, boolean lost);

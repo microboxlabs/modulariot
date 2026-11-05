@@ -27,6 +27,7 @@ import {
   MapPositionResume,
 } from "@/features/geographic-view/types/map";
 import { MapService } from "@/features/geographic-view/services/map.service";
+import { isOfflineFrame } from "@/features/geographic-view/utils/signal-state";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
 import {
@@ -277,9 +278,11 @@ export function useSymptoms(date_range?: { from: string; to: string }) {
     }
   );
 
+  // Ignored cases are on hold: out of the total.
   const count = data
-    ? Object.values(data).reduce<number>(
-        (sum, value) => (typeof value === "number" ? sum + value : sum),
+    ? Object.entries(data).reduce<number>(
+        (sum, [key, value]) =>
+          typeof value === "number" && key !== "ignored" ? sum + value : sum,
         0
       )
     : 0;
@@ -455,13 +458,19 @@ export function useMapPositions(options?: { enabled?: boolean }) {
       const response = await fetch(url);
       const data = await safeJsonParse<MapPosition[]>(response);
       return data?.map((position: MapPosition) => {
+        const assetId = position.asset_id?.trim()
+          ? position.asset_id
+          : position.assetid;
         const [longitude, latitude] = MapService.parseWKBPoint(
           position.location
         );
         return {
           ...position,
+          asset_id: assetId,
+          assetid: assetId,
           longitude,
           latitude,
+          lost_signal: isOfflineFrame(position.timestamp, position.signal),
         };
       });
     },
@@ -655,7 +664,8 @@ export function useTreatmentsLocation(
     shouldFetch
       ? `/app/api/treatments/location?${tripParam}symptom_name=${encodeURIComponent(symptom_name)}&symptom_id=${encodeURIComponent(symptom_id)}`
       : null,
-    fetcher
+    fetcher,
+    { refreshInterval: (current) => (current?.closed === false ? 60_000 : 0) }
   );
 
   return {

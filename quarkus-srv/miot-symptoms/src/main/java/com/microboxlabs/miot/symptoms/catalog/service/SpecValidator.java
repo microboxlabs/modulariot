@@ -19,6 +19,9 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -33,9 +36,12 @@ public final class SpecValidator {
     /** Distance from each threshold at which overlaps are tried, on both sides. */
     private static final double NEAR = 0.01;
     private static final String LEVELS = "levels";
+    private static final String LEVEL_SECTION_PREFIX = "levels.";
+    private static final String RESPONSE_SUFFIX = ".response";
     private static final String ACTIVATION = "activation";
     private static final String MEASURE = "measure";
     private static final String HELD = "held_s";
+    private static final String OPEN = "open_s";
 
     /** Severity of a finding. */
     public enum Severity {
@@ -101,6 +107,16 @@ public final class SpecValidator {
     }
 
     public static Report validate(SymptomSpec spec, DataSource source) {
+        return validate(spec, source, condition -> Optional.empty());
+    }
+
+    public static Report validate(SymptomSpec spec, DataSource source,
+            Function<String, Optional<String>> contactProblem) {
+        return validate(spec, source, contactProblem, result -> true);
+    }
+
+    public static Report validate(SymptomSpec spec, DataSource source,
+            Function<String, Optional<String>> contactProblem, Predicate<String> knownResult) {
         List<Finding> out = new ArrayList<>();
         if (source == null) {
             out.add(new Finding("source", Severity.ERROR, RuleMessage.of("sourceMissing"), -1));
@@ -121,9 +137,15 @@ public final class SpecValidator {
         if (spec.lifecycle() == null) {
             out.add(new Finding("lifecycle", Severity.ERROR, RuleMessage.of("lifecycleMissing"), -1));
         } else {
-            rule(out, "lifecycle.open", RuleSchema.CASE, spec.lifecycle().open(), Expect.CONDITION);
-            rule(out, "lifecycle.close", RuleSchema.CASE, spec.lifecycle().close(), Expect.CONDITION);
+            RuleSchema lifecycle = RuleSchema.lifecycle(source);
+            rule(out, "lifecycle.open", lifecycle, spec.lifecycle().open(), Expect.CONDITION);
+            rule(out, "lifecycle.close", lifecycle, spec.lifecycle().close(), Expect.CONDITION);
+            if (spec.lifecycle().note() != null) {
+                rule(out, "lifecycle.note", lifecycle, spec.lifecycle().note(), Expect.CONDITION);
+            }
         }
+        contactConditions(out, spec, contactProblem);
+        replyResults(out, spec, knownResult);
         recurrence(out, spec.recurrence());
         engineSupport(out, source, spec);
         if (spec.family() != null && spec.family().codePointCount(0, spec.family().length()) > MAX_FAMILY) {
@@ -133,6 +155,59 @@ public final class SpecValidator {
             out.add(new Finding("state", Severity.ERROR, RuleMessage.of("engineNotReady"), -1));
         }
         return new Report(out);
+    }
+
+    private static void replyResults(List<Finding> out, SymptomSpec spec, Predicate<String> knownResult) {
+        if (spec.levels() == null) return;
+        for (Level level : spec.levels()) {
+            if (level.applies() && level.response() != null) {
+                stepReplyResults(out, LEVEL_SECTION_PREFIX + level.icu() + RESPONSE_SUFFIX,
+                        level.response().steps(), knownResult);
+            }
+        }
+    }
+
+    private static void stepReplyResults(List<Finding> out, String section, List<SymptomSpec.Step> steps,
+            Predicate<String> knownResult) {
+        if (steps == null) return;
+        for (int i = 0; i < steps.size(); i++) {
+            checkReplies(out, section, i + 1, steps.get(i).replies(), knownResult);
+        }
+    }
+
+    private static void checkReplies(List<Finding> out, String section, int step,
+            List<SymptomSpec.Step.Reply> replies, Predicate<String> knownResult) {
+        if (replies == null) return;
+        for (SymptomSpec.Step.Reply reply : replies) {
+            String result = reply == null ? null : reply.result();
+            if (result == null || result.isBlank() || !knownResult.test(result)) {
+                out.add(new Finding(section, Severity.ERROR,
+                        RuleMessage.of("stepReplyInvalidResult", "n", step, "result", result == null ? "" : result), -1));
+            }
+        }
+    }
+
+    private static void contactConditions(List<Finding> out, SymptomSpec spec,
+            Function<String, Optional<String>> check) {
+        if (spec.levels() == null) return;
+        for (SymptomSpec.Level level : spec.levels()) {
+            SymptomSpec.Response response = level.response();
+            if (response == null) continue;
+            String section = LEVEL_SECTION_PREFIX + level.icu() + RESPONSE_SUFFIX;
+            contactCondition(out, section, response.escalateWho(), check);
+            if (response.steps() != null) {
+                for (SymptomSpec.Step step : response.steps()) {
+                    contactCondition(out, section, step.who(), check);
+                }
+            }
+        }
+    }
+
+    private static void contactCondition(List<Finding> out, String section, String who,
+            Function<String, Optional<String>> check) {
+        if (who == null || who.isBlank()) return;
+        check.apply(who).ifPresent(problem -> out.add(new Finding(section, Severity.ERROR,
+                RuleMessage.of("contactConditionInvalid", "detail", problem), -1)));
     }
 
     private static void rule(List<Finding> out, String section, RuleSchema schema, String rule, Expect expect) {
@@ -155,10 +230,11 @@ public final class SpecValidator {
             if (!level.applies()) {
                 continue;
             }
-            String section = "levels." + level.icu();
+            String section = LEVEL_SECTION_PREFIX + level.icu();
             int before = out.size();
             rule(out, section, schema, level.when(), Expect.CONDITION);
-            response(out, section + ".response", level.response());
+            response(out, section + RESPONSE_SUFFIX, level.response());
+            ignore(out, section + ".ignore", level.ignore());
             if (out.size() == before) {
                 valid.add(level);
             }
@@ -190,6 +266,44 @@ public final class SpecValidator {
         steps(out, section, response.steps());
     }
 
+    /** A maximum duration that is a positive ISO-8601 duration, and known scopes. */
+    private static void ignore(List<Finding> out, String section, SymptomSpec.Ignore ignore) {
+        if (ignore == null) {
+            return;
+        }
+        try {
+            java.time.Duration max = ignore.maxDurationValue();
+            if (max != null && max.compareTo(java.time.Duration.ofSeconds(1)) < 0) {
+                out.add(new Finding(section, Severity.ERROR, RuleMessage.of("ignoreMaxDuration"), -1));
+            }
+        } catch (IllegalArgumentException e) {
+            out.add(new Finding(section, Severity.ERROR, RuleMessage.of("ignoreMaxDuration"), -1));
+        }
+        if (ignore.scopes() != null && (ignore.scopes().isEmpty()
+                || !SymptomSpec.Ignore.VALID_SCOPES.containsAll(ignore.scopes()))) {
+            out.add(new Finding(section, Severity.ERROR, RuleMessage.of("ignoreScopes"), -1));
+        }
+    }
+
+    /**
+     * A step says whom to contact when it has a contact condition. An older step does when it names a role, or its
+     * scope is the driver or the trip's carrier (any of its contacts); an unknown scope does not.
+     */
+    static boolean saysWhom(SymptomSpec.Step step) {
+        if (step.hasWho()) {
+            return true;
+        }
+        String scope = step.scope();
+        if (scope != null && !scope.isBlank() && !SymptomSpec.Step.SCOPES.contains(scope)) {
+            return false;
+        }
+        boolean hasRole = step.role() != null && !step.role().isBlank();
+        if (scope == null || scope.isBlank()) {
+            return hasRole;
+        }
+        return hasRole || !SymptomSpec.Step.ORG.equals(scope);
+    }
+
     /** Each step says whom to contact and has minutes; the script is optional. */
     private static void steps(List<Finding> out, String section, List<SymptomSpec.Step> steps) {
         if (steps == null) {
@@ -197,7 +311,7 @@ public final class SpecValidator {
         }
         for (int i = 0; i < steps.size(); i++) {
             SymptomSpec.Step step = steps.get(i);
-            if (step.role() == null || step.role().isBlank()) {
+            if (!saysWhom(step)) {
                 out.add(new Finding(section, Severity.ERROR, RuleMessage.of("stepNoContact", "n", i + 1), -1));
             }
             if (step.budgetMinutes() == null || step.budgetMinutes() <= 0) {
@@ -218,13 +332,15 @@ public final class SpecValidator {
         // A case has held for zero seconds or more.
         List<Double> heldPoints = points.stream().filter(p -> p >= 0).toList();
         Set<String> reported = new HashSet<>();
-        for (double held : heldPoints) {
-            for (double measure : points) {
-                Map<String, Object> vars = Map.of(MEASURE, measure, HELD, held);
-                List<Level> hits = levels.stream()
-                        .filter(l -> Boolean.TRUE.equals(rules.get(l).run(vars).value()))
-                        .toList();
-                reportOverlaps(out, reported, hits, measure, held);
+        for (double held : mentions(levels, HELD) ? heldPoints : List.of(0.0)) {
+            for (double open : mentions(levels, OPEN) ? heldPoints : List.of(0.0)) {
+                for (double measure : mentions(levels, MEASURE) ? points : List.of(0.0)) {
+                    Map<String, Object> vars = Map.of(MEASURE, measure, HELD, held, OPEN, open);
+                    List<Level> hits = levels.stream()
+                            .filter(l -> Boolean.TRUE.equals(rules.get(l).run(vars).value()))
+                            .toList();
+                    reportOverlaps(out, reported, hits, measure, held, open);
+                }
             }
         }
     }
@@ -250,16 +366,27 @@ public final class SpecValidator {
      */
     private static void gaps(List<Finding> out, RuleSchema schema, List<Level> levels) {
         boolean byMeasure = mentions(levels, MEASURE);
-        if (!byMeasure && !mentions(levels, HELD)) {
+        if (!byMeasure && !mentions(levels, HELD) && !mentions(levels, OPEN)) {
             return;
         }
         List<PreparedRule> rules = levels.stream().map(l -> RuleLanguage.prepare(schema, l.when())).toList();
+        List<Double> ages = byMeasure && mentions(levels, OPEN)
+                ? testPoints(levels).stream().filter(p -> p >= 0).toList() : List.of(1e9);
+        Set<Finding> found = new java.util.LinkedHashSet<>();
+        for (double age : ages) {
+            measureGaps(found, levels, rules, byMeasure, age);
+        }
+        out.addAll(found);
+    }
+
+    private static void measureGaps(Set<Finding> out, List<Level> levels, List<PreparedRule> rules,
+            boolean byMeasure, double age) {
         List<Double> thresholds = levels.stream().flatMap(l -> RuleText.numbers(l.when()).stream()).toList();
         boolean held = !byMeasure;
         boolean seenCovered = false;
         Double gapStart = null;
         for (double point : testPoints(levels)) {
-            boolean covered = covered(rules, byMeasure, point);
+            boolean covered = covered(rules, byMeasure, point, age);
             if (covered && gapStart != null) {
                 out.add(gap(threshold(gapStart, thresholds), threshold(point, thresholds), held));
                 gapStart = null;
@@ -278,7 +405,7 @@ public final class SpecValidator {
         for (Level level : levels) {
             // A rule that does not parse has its own error.
             if (level.applies() && RuleText.identifiers(level.when()).contains(MEASURE)) {
-                out.add(new Finding("levels." + level.icu(), Severity.ERROR, RuleMessage.of("measureMissing"), -1));
+                out.add(new Finding(LEVEL_SECTION_PREFIX + level.icu(), Severity.ERROR, RuleMessage.of("measureMissing"), -1));
             }
         }
     }
@@ -288,9 +415,9 @@ public final class SpecValidator {
     }
 
     /** Whether any level applies at this point of the ladder. */
-    private static boolean covered(List<PreparedRule> rules, boolean byMeasure, double point) {
-        Map<String, Object> vars = byMeasure ? Map.of(MEASURE, point, HELD, 1e9)
-                : Map.of(MEASURE, 0.0, HELD, point);
+    private static boolean covered(List<PreparedRule> rules, boolean byMeasure, double point, double age) {
+        Map<String, Object> vars = byMeasure ? Map.of(MEASURE, point, HELD, 1e9, OPEN, age)
+                : Map.of(MEASURE, 0.0, HELD, point, OPEN, point);
         return rules.stream().anyMatch(r -> Boolean.TRUE.equals(r.run(vars).value()));
     }
 
@@ -336,13 +463,13 @@ public final class SpecValidator {
     }
 
     private static void reportOverlaps(List<Finding> out, Set<String> reported, List<Level> hits, double measure,
-            double held) {
+            double held, double open) {
         for (int i = 0; i + 1 < hits.size(); i++) {
             int a = hits.get(i).icu();
             int b = hits.get(i + 1).icu();
             if (reported.add(a + "-" + b)) {
                 out.add(new Finding(LEVELS, Severity.ERROR, RuleMessage.of("levelsOverlap", "levelA", a, "levelB", b,
-                        MEASURE, number(measure), "held", number(held)), -1));
+                        MEASURE, number(measure), "held", number(held), OPEN, number(open)), -1));
             }
         }
     }
@@ -399,6 +526,18 @@ public final class SpecValidator {
                 .filter(f -> !f.engineSupported())
                 .map(SourceField::path)
                 .collect(Collectors.toSet());
+        Set<String> reported = new HashSet<>();
+        for (String rule : engineRules(spec)) {
+            for (String path : RuleText.fieldPaths(rule)) {
+                if (unsupported.contains(path) && reported.add(path)) {
+                    out.add(new Finding(ENGINE, Severity.WARNING, RuleMessage.of("engineUnsupported", "path", path),
+                            rule.indexOf(path)));
+                }
+            }
+        }
+    }
+
+    private static List<String> engineRules(SymptomSpec spec) {
         List<String> rules = new ArrayList<>();
         rules.add(spec.activation());
         if (spec.measure() != null) {
@@ -407,15 +546,12 @@ public final class SpecValidator {
         if (spec.levels() != null) {
             spec.levels().stream().filter(Level::applies).forEach(l -> rules.add(l.when()));
         }
-        Set<String> reported = new HashSet<>();
-        for (String rule : rules) {
-            for (String path : RuleText.fieldPaths(rule)) {
-                if (unsupported.contains(path) && reported.add(path)) {
-                    out.add(new Finding(ENGINE, Severity.WARNING, RuleMessage.of("engineUnsupported", "path", path),
-                            rule.indexOf(path)));
-                }
-            }
+        if (spec.lifecycle() != null) {
+            rules.add(spec.lifecycle().open());
+            rules.add(spec.lifecycle().close());
+            rules.add(spec.lifecycle().note());
         }
+        return rules;
     }
 
     static String number(double value) {

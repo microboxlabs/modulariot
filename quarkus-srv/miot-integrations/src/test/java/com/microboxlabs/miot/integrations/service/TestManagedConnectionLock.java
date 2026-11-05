@@ -10,6 +10,10 @@ public final class TestManagedConnectionLock extends ManagedConnectionLock {
         super(() -> null);
     }
 
+    public static ManagedConnectionLock forPool(io.vertx.mutiny.sqlclient.Pool pool) {
+        return new ManagedConnectionLock(() -> pool);
+    }
+
     @Override
     public <T> T locked(String tenantCode, Supplier<T> work) {
         return work.get();

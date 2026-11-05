@@ -2,40 +2,90 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import LevelSteps from "./level-steps";
 import type { Step } from "./maintainer-api";
-import { scriptParts } from "./script-fill";
 
-const SAMPLE = {
-  signal: {
-    vehicle: { plate: "AB1234" },
-    trip: { route: "SCL - ANF" },
-    frame: { gps: { speed: 112 } },
-    road: { maxspeed_osm: 90 },
-  },
+/** The condition editor reads its texts from here; the tests do not look at them. */
+const AUDIENCE = { d: {}, fieldDict: {} };
+import { scriptParts, fillScriptText } from "./script-fill";
+
+const CTX = {
+  case: { symptom: "Pérdida de señal", level: 4 },
+  vehicle: { plate: "TEST-PLATE" },
+  trip: { origin: "SCL", destination: "ANF", driver: { name: "Juan" } },
 };
 
+const mocked = vi.hoisted(() => ({
+  contacts: { data: [] as unknown[] },
+  samples: { data: [] as unknown[] },
+  none: { data: undefined },
+  results: {
+    data: [{ value: "result_commits", label: { es: "Se compromete" } }],
+  },
+}));
+
+vi.mock(
+  "@/features/symptoms/control-tower/control-tower-api",
+  async (orig) => ({
+    ...(await orig<object>()),
+    useContacts: () => mocked.contacts,
+    useScriptSamples: (name: string | null | undefined) =>
+      name ? mocked.samples : mocked.none,
+  })
+);
+
+vi.mock(
+  "@/features/settings-admin/selectables/selectables-api",
+  async (orig) => ({
+    ...(await orig<object>()),
+    useSelectableOptions: () => mocked.results,
+  })
+);
+
+mocked.samples.data = [
+  {
+    symptom_id: -680,
+    asset_id: "TEST-PLATE",
+    icu_code: 4,
+    opened_at: "2026-11-03T18:52:00Z",
+    context: CTX,
+  },
+];
+
 describe("scriptParts", () => {
-  it("fills the variables the sample has and marks the ones it lacks", () => {
+  it("leaves unknown inherited property names unchanged", () => {
+    const text =
+      "{{constructor}} {{toString}} {{__proto__}} {{trip.constructor.name}}";
+    expect(fillScriptText(text, CTX)).toBe(text);
+    expect(
+      scriptParts(text, CTX)
+        .filter((p) => "variable" in p)
+        .every((p) => "known" in p && !p.known)
+    ).toBe(true);
+  });
+
+  it("fills fields and older names from the case and marks what it lacks", () => {
     expect(
       scriptParts(
-        "Hola {{conductor}}, el {{ patente }} va a {{velocidad}}.",
-        SAMPLE
+        "Hola {{conductor}}, el {{ patente }} va por {{ruta}} a {{velocidad}}.",
+        CTX
       )
     ).toEqual([
       { text: "Hola " },
-      { variable: "conductor", value: null, known: true },
+      { variable: "conductor", value: "Juan", known: true },
       { text: ", el " },
-      { variable: "patente", value: "AB1234", known: true },
-      { text: " va a " },
+      { variable: "patente", value: "TEST-PLATE", known: true },
+      { text: " va por " },
+      { variable: "ruta", value: "SCL → ANF", known: true },
+      { text: " a " },
       { variable: "velocidad", value: null, known: false },
       { text: "." },
     ]);
-    expect(scriptParts("{{ruta}}", undefined)).toEqual([
-      { variable: "ruta", value: null, known: true },
+    expect(scriptParts("{{trip.driver.name}}", CTX)).toEqual([
+      { variable: "trip.driver.name", value: "Juan", known: true },
     ]);
-    expect(scriptParts("{{constructor}}", SAMPLE)).toEqual([
-      { variable: "constructor", value: null, known: false },
+    expect(scriptParts("{{trip.carrier.name}}", undefined)).toEqual([
+      { variable: "trip.carrier.name", value: null, known: true },
     ]);
-    expect(scriptParts("sin variables", SAMPLE)).toEqual([
+    expect(scriptParts("sin variables", CTX)).toEqual([
       { text: "sin variables" },
     ]);
   });
@@ -48,10 +98,12 @@ const d = {
   stepScriptLabel: "Guion:",
   stepScriptWrite: "escribir guion",
   stepIfNot: "si no resulta en",
-  stepThen: "min, paso {n}",
+  stepThen: "min, sigue el siguiente",
   stepWithin: "plazo",
   stepChannel: "Canal",
   stepRole: "Persona",
+  stepScope: "{label} · de",
+  stepScopeRole: "{label} · rol",
   stepBudget: "Minutos",
   stepScript: "Guion",
   stepScriptPlaceholder: "Qué decir {vars}",
@@ -65,6 +117,10 @@ const d = {
   scriptEmpty: "Sin guion.",
   close: "Cerrar",
   stepCall: "Llamar",
+  scriptGoalLabel: "Objetivo de la llamada",
+  scriptAddReply: "Agregar respuesta",
+  scriptReplySays: "Qué dice",
+  scriptReplyResult: "Resultado",
 };
 
 const STEPS: Step[] = [
@@ -74,73 +130,88 @@ const STEPS: Step[] = [
     budgetMinutes: 2,
     script: "Hola, el camión {{patente}} va por {{ruta}}",
   },
-  { role: "Transportista", channel: "whatsapp", budgetMinutes: 3, script: "" },
+  { role: "Jefe de turno", channel: "whatsapp", budgetMinutes: 3, script: "" },
 ];
 
 describe("LevelSteps", () => {
-  it("reads as a timeline with the wait before the next step", () => {
+  it("reads as an unnumbered timeline with the wait before the next step", () => {
     render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={STEPS}
         slaMinutes={5}
-        sample={SAMPLE}
         readOnly={false}
         d={d}
         onChange={vi.fn()}
       />
     );
     const items = screen.getAllByRole("listitem");
-    expect(items[0]?.textContent).toContain("Paso 1");
+    // Steps carry no visible number; the order is the list's, named for screen readers.
+    expect(items[0]?.getAttribute("aria-label")).toBe("Paso 1");
+    expect(items[0]?.textContent).not.toContain("Paso 1");
     expect(items[0]?.textContent).toContain("si no resulta en");
-    expect(items[0]?.textContent).toContain("min, paso 2");
+    expect(items[0]?.textContent).toContain("min, sigue el siguiente");
     expect(items[1]?.textContent).toContain("plazo");
     expect(within(items[1]!).getByText("escribir guion")).toBeTruthy();
   });
 
-  it("opens the script with its variables filled from the sample, and edits it", () => {
+  it("opens the script in the side panel with a recent case's data, and edits its three parts", () => {
     const onChange = vi.fn();
     render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={STEPS}
         slaMinutes={5}
-        sample={SAMPLE}
+        cases={{ symptomName: "Pérdida de señal", icu: 4 }}
         readOnly={false}
         d={d}
         onChange={onChange}
       />
     );
     fireEvent.click(screen.getByText(/^Hola, el camión/));
-    expect(screen.getByText("Guion · paso 1")).toBeTruthy();
-    expect(screen.getByText("AB1234")).toBeTruthy();
-    expect(screen.getByText("SCL - ANF")).toBeTruthy();
-    expect(screen.getByText("Vista")).toBeTruthy();
+    const panel = screen.getByRole("dialog", { name: "Guion · paso 1" });
+    // In the preview and as the variables panel's example.
+    expect(within(panel).getAllByText("TEST-PLATE").length).toBeGreaterThan(0);
+    expect(within(panel).getByText("SCL → ANF")).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Guion"), {
+    fireEvent.change(within(panel).getByLabelText("Guion"), {
       target: { value: "Nuevo" },
     });
     expect(onChange.mock.calls[0]?.[0][0].script).toBe("Nuevo");
+    fireEvent.change(within(panel).getByLabelText("Objetivo de la llamada"), {
+      target: { value: "Que confirme" },
+    });
+    expect(onChange.mock.calls[1]?.[0][0].goal).toBe("Que confirme");
+    fireEvent.click(within(panel).getByText("Agregar respuesta"));
+    expect(onChange.mock.calls[2]?.[0][0].replies).toEqual([
+      { result: "", says: "" },
+    ]);
   });
 
-  it("inserts a variable at the caret without taking focus from the script", () => {
+  it("inserts a case field at the caret from the variables panel", () => {
     const onChange = vi.fn();
     render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={[{ ...STEPS[0]!, script: "va por  hoy" }]}
         slaMinutes={5}
-        sample={SAMPLE}
+        cases={{ symptomName: "Pérdida de señal", icu: 4 }}
         readOnly={false}
         d={d}
         onChange={onChange}
       />
     );
     fireEvent.click(screen.getByText("va por hoy"));
-    const box = screen.getByLabelText("Guion") as HTMLTextAreaElement;
+    const panel = screen.getByRole("dialog", { name: "Guion · paso 1" });
+    const box = within(panel).getByLabelText("Guion") as HTMLTextAreaElement;
     box.focus();
     box.setSelectionRange(7, 7);
-    const chip = screen.getByText("{{ruta}}");
-    expect(fireEvent.mouseDown(chip)).toBe(false);
-    fireEvent.click(chip);
-    expect(onChange.mock.calls[0]?.[0][0].script).toBe("va por {{ruta}} hoy");
+    const item = within(panel).getAllByText("{{vehicle.plate}}").at(-1)!;
+    expect(fireEvent.mouseDown(item)).toBe(false);
+    fireEvent.click(item);
+    expect(onChange.mock.calls[0]?.[0][0].script).toBe(
+      "va por {{vehicle.plate}} hoy"
+    );
   });
 
   it("keeps a moved step's own fields", () => {
@@ -150,26 +221,31 @@ describe("LevelSteps", () => {
     });
     const view = render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={steps}
         slaMinutes={5}
         readOnly={false}
-        d={{ ...d, moveUp: "Subir" }}
+        d={{ ...d, dragStep: "Mover" }}
         onChange={onChange}
       />
     );
-    const second = screen.getByDisplayValue("Transportista");
-    fireEvent.click(screen.getAllByLabelText("Subir")[1]!);
+    const second = screen.getByDisplayValue("3");
+    // The drag handle also moves a step with the arrow keys.
+    fireEvent.keyDown(screen.getAllByLabelText("Mover")[1]!, {
+      key: "ArrowUp",
+    });
     view.rerender(
       <LevelSteps
+        audience={AUDIENCE}
         steps={steps}
         slaMinutes={5}
         readOnly={false}
-        d={{ ...d, moveUp: "Subir" }}
+        d={{ ...d, dragStep: "Mover" }}
         onChange={onChange}
       />
     );
-    expect(steps.map((s) => s.role)).toEqual(["Transportista", "Conductor"]);
-    expect(screen.getByDisplayValue("Transportista")).toBe(second);
+    expect(steps.map((s) => s.role)).toEqual(["Jefe de turno", "Conductor"]);
+    expect(screen.getByDisplayValue("3")).toBe(second);
   });
 
   it("keeps the next step's own fields when the first is removed", () => {
@@ -183,17 +259,20 @@ describe("LevelSteps", () => {
       d: { ...d, removeStep: "Quitar" },
       onChange,
     };
-    const view = render(<LevelSteps steps={steps} {...props} />);
-    const second = screen.getByDisplayValue("Transportista");
+    const view = render(
+      <LevelSteps steps={steps} audience={AUDIENCE} {...props} />
+    );
+    const second = screen.getByDisplayValue("3");
     fireEvent.click(screen.getAllByLabelText("Quitar")[0]!);
-    view.rerender(<LevelSteps steps={steps} {...props} />);
-    expect(steps.map((s) => s.role)).toEqual(["Transportista"]);
-    expect(screen.getByDisplayValue("Transportista")).toBe(second);
+    view.rerender(<LevelSteps steps={steps} audience={AUDIENCE} {...props} />);
+    expect(steps.map((s) => s.role)).toEqual(["Jefe de turno"]);
+    expect(screen.getByDisplayValue("3")).toBe(second);
   });
 
-  it("shows a step's error under it and marks the field", () => {
+  it("shows a step's error under that step only", () => {
     render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={[{ ...STEPS[0]!, role: "" }, STEPS[1]!]}
         slaMinutes={5}
         errors={{ 0: { contact: "El paso 1 no dice a quién contactar." } }}
@@ -206,17 +285,15 @@ describe("LevelSteps", () => {
     expect(
       within(items[0]!).getByText("El paso 1 no dice a quién contactar.")
     ).toBeTruthy();
-    expect(within(items[0]!).getByLabelText("Persona").className).toContain(
-      "border-red-500"
-    );
-    expect(within(items[1]!).getByLabelText("Persona").className).not.toContain(
-      "border-red-500"
-    );
+    expect(
+      within(items[1]!).queryByText("El paso 1 no dice a quién contactar.")
+    ).toBeNull();
   });
 
   it("lets readers read the script but not change the steps", () => {
     render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={STEPS}
         slaMinutes={5}
         readOnly

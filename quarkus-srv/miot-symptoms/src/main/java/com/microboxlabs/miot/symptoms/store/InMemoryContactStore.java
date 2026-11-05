@@ -44,6 +44,15 @@ public class InMemoryContactStore implements ContactStore {
     }
 
     @Override
+    public synchronized Optional<Contact> updateIfUnchanged(Contact c, OffsetDateTime expectedUpdatedAt) {
+        if (expectedUpdatedAt == null || find(c.tenantCode(), c.id())
+                .filter(current -> current.updatedAt().isEqual(expectedUpdatedAt)).isEmpty()) {
+            return Optional.empty();
+        }
+        return update(c);
+    }
+
+    @Override
     public synchronized Optional<Contact> find(String tenantCode, String id) {
         Contact c = id == null ? null : contacts.get(id);
         return c != null && c.tenantCode().equals(tenantCode) ? Optional.of(c) : Optional.empty();

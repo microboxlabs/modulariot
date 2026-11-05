@@ -11,7 +11,10 @@ import {
   TreatmentsGeneralResponse,
   TreatmentsGeneralResponseItem,
 } from "./route.type";
-import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import {
+  forwardControlTowerMap,
+  legacySymptomsEnabled,
+} from "@/app/api/utils/control-tower-map";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
@@ -32,8 +35,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
-  // Without PostgREST, the modulith reads the symptom as the active organization.
-  if (!process.env.STREAMHUB_URL) {
+  // Without PostgREST or legacy symptoms, the modulith reads the symptom as the
+  // active organization.
+  if (!process.env.STREAMHUB_URL || !legacySymptomsEnabled()) {
     if (!id?.trim()) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }

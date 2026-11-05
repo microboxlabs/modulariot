@@ -30,7 +30,8 @@ replaces the `store` package implementations without changing this contract.
 | `getTreatment` | `GET /treatments/{treatmentId}` | |
 | `addTreatmentAction` | `POST /treatments/{treatmentId}/actions` | 201. Only while `OPEN` |
 | `closeTreatment` | `POST /treatments/{treatmentId}/close` | Body `{resolution, note}`, optional. Needs at least one action |
-| `cancelTreatment` | `POST /treatments/{treatmentId}/cancel` | Body `{reason}`, optional |
+| `cancelTreatment` | `POST /treatments/{treatmentId}/cancel` | Body `{reason}`, optional. 409 on an engine case's hold |
+| `resumeTreatment` | `POST /treatments/{treatmentId}/resume` | "Reanudar": ends a hold early, as if its time ran out. 409 when the treatment is not an open hold |
 
 `type` is the form the episode was opened from: `CALL`, `IGNORE_CONDITION`,
 `INVALIDATE_SYMPTOM`. An episode opened as a call can end with an ignore or
@@ -51,7 +52,78 @@ Action body:
 | `message` | string | What the operator told the contact |
 | `note` | string | What came back, or the operator's note |
 | `tags` | string[] | Option ids from `call_tags` |
-| `details` | object | Anything else, e.g. `{"durationSeconds": 1800}` on an ignore |
+| `details` | object | Anything else. On an engine case's `IGNORE`: `scope` and `until_trip_end` (below). On a `NOTE`: `skipToStep` (below) |
+
+A `NOTE` with `details.skipToStep` records that the operator skipped the
+level's call script to that step (1-based, at least 2). It needs an engine
+case and the reason in `note`. `performedBy` and `performedAt` say who and
+when. The call panel reads the furthest skip made since the case's
+`sla_since` from `listSymptomTreatments`, so a new level or the end of a hold
+starts the script over. The app also sends `level` and `version`, and a UUID
+`skipId` that it reuses on retries. Under the case's vehicle lock, a repeated
+`skipId` in the operator's treatment returns the saved NOTE without another
+action or audit event.
+It also sends the panel's `slaSince`: the reader excludes a skip from a
+different level or SLA interval even when a delayed save lands after the reset.
+
+### Ignorar condición (engine cases)
+
+An `IGNORE` on an engine case (negative symptom id) puts the case on hold and
+sets its treatment type to `IGNORE_CONDITION`, including a mid-call ignore. The
+treatment stays `OPEN` while the hold lasts; it is the hold. No other table.
+
+| Field | Meaning |
+|---|---|
+| `durationSeconds` | How long, at most a day. Required unless `details.until_trip_end` |
+| `details.scope` | `CASE` (default): this case. `SYMPTOM`: also any case of the same symptom on the vehicle. `ALL`: any case of any symptom on the vehicle |
+| `details.until_trip_end` | Hold until the case's trip ends. Needs a running trip |
+| `note` | Required for "Otro", or when the level's policy says so |
+
+The server adds `case_level`, `case_condition` and `until` to the stored
+details. 400 when the request breaks the policy, 409 when the case is closed or
+already on hold. Changes are serialized per tenant and vehicle across pods.
+Ordinary close and cancel return 409 for an engine hold; use Resume.
+
+While on hold:
+
+| Aspect | Behaviour |
+|---|---|
+| Symptom list and counts | Out of the active list and counts. `p_icu_code=9` lists the held cases; the counts add `Ignored` |
+| Row and header | `ignored: {treatment_id, since, until, until_trip_end, scope, by}`; `until` is null until the trip ends |
+| Level | Does not rise; the case may still close by its symptom's rule |
+| New cases in scope | Do not open. The evaluator records a `HELD` transition as evidence, once per run |
+| SLA | Counts as attended |
+| Notifications | `symptom.case.ignored` cancels waiting notification rules and queued sends for every covered case |
+
+When the hold ends (time, `resumeTreatment`, trip end) the treatment closes
+with a `resolution`:
+
+| `resolution` | When |
+|---|---|
+| `resolved_after_ignore` | The case had closed by its symptom's rule |
+| `returned_after_ignore` | The case is still open: back in the tower at its level, with `returned_after_ignore_at` on its row. The next level and a new SLA count from then |
+| `ignored` | The trip ended: the held cases closed |
+
+Holds are read from the store on each evaluation so another pod sees them immediately.
+At expiry or resume the close rule runs on the latest condition evidence and the
+level timers restart from the return, including when no signal arrived during the hold.
+Expired holds remain held until that return is recorded. Repeated SLA expiries at
+the same level replace the previous period's mark, once per new attention period.
+
+A timer ends the due holds every 30 s (`miot.symptoms.holds.every`, off with
+`miot.symptoms.holds.enabled=false`). The timeline shows the `IGNORE` with
+`ignored_until`, `until_trip_end` and `scope`, and the end as a
+`fin de ignorar` row with `resolution`, `at` and `by` (`system` when it ran
+out).
+
+Each level of a symptom version may set `ignore`:
+
+| Field | Default |
+|---|---|
+| `allowed` | `true` |
+| `max_duration` | none; ISO-8601, e.g. `PT30M`. With it, "until the trip ends" is refused |
+| `note_required` | only for "Otro" |
+| `scopes` | all of `CASE`, `SYMPTOM`, `ALL` |
 
 ## Contacts
 
@@ -59,6 +131,7 @@ Action body:
 |---|---|---|
 | `listContacts` | `GET /contacts?active` | `controltower:view` |
 | `getContact` | `GET /contacts/{contactId}` | `controltower:view` |
+| `matchTripContacts` | `POST /contacts/trip` | `controltower:view`. The book's people for each step condition, with the case trip's RUTs |
 | `createContact` | `POST /contacts` | `controltower:contact.write`. Operators add contacts from the call panel |
 | `importContacts` | `POST /contacts/import` | `controltower:contact.write`. Body `{contacts: [...]}`, up to 1000 |
 | `updateContact` | `PATCH /contacts/{contactId}` | `controltower:contact.write` |
@@ -91,6 +164,26 @@ A national id already used by another contact of the organization is a 409.
 `status` is `created`, `skipped` (national id already in the book, or repeated
 in the request) or `error` (the row is invalid; `reason` says why).
 
+`matchTripContacts` takes `{symptomId, conditions}`. Each condition is an
+operator step's `who`: CEL over `contact` and `event`, the same as a
+communication rule's "contacts from the book" audience. It answers
+`{data, matches, problems}`:
+
+| Field | Meaning |
+|---|---|
+| `data` | `event.data` the conditions read: the case trip's `driverRut`, `secondDriverRut` and `carrierRut`, normalized, when the trip has them |
+| `matches` | For each condition, in order, the ids of the active contacts that meet it |
+| `problems` | For each condition, its compile problem, or null |
+
+`contact` has `role`, `tags`, `company`, `companyRut`, `nationalId`,
+`position`, `member`, `email` and `whatsapp`; a missing text is `''`. Only
+engine cases (negative ids) have a trip; for other cases `data` is empty, so a
+condition that reads it meets nobody. At most 20 conditions per request. 503
+when the communication rules component is off.
+
+A CALL action with a `contactId` must use one of the contact's `methods`; any
+other `method` is a 400.
+
 ## Map
 
 | Operation | Method and path | Returns |
@@ -106,6 +199,29 @@ organization's own Auth0 application, so each organization gets only its own
 data. The token comes from the caching token endpoint and is reused until a
 minute before it expires (see `miot-core/docs/organization-access.md`). Each
 answer is kept for five seconds per organization.
+
+### Legacy symptoms setting
+
+`miot.symptoms.legacy.enabled` (env `MIOT_SYMPTOMS_LEGACY_ENABLED`), default `true`. An installation setting: it
+applies to every organization of the deployment. The app reads the same env name (see below).
+
+| Endpoint | `true` (default) | `false` |
+|---|---|---|
+| `GET /map/symptoms` | GPS database page, with the evaluator's open cases first on page 1 | The evaluator's cases only, paged with `p_page` and `p_page_size` (default 10). Totals count the matching cases, at most 200. Driver, carrier, origin and destination match the case's live trip (`miot_trips.trip_live`); a case without one matches none of them. `p_driver_id`: either driver's RUT. `p_carrier_id`: the carrier's RUT (`miot_fleet.carrier.rut`) or id. RUTs ignore dots, dashes, spaces and case. `p_origin`, `p_destination`: the whole place name, ignoring case. Rows carry the trip's `driver`, `carrier`, `origin` and `destination` names |
+| `GET /map/conditions` | GPS database counts plus the open cases | The open cases only. With `from` and `to`, the cases opened in that range by current level |
+| `GET /map/positions` | GPS database positions with its symptom fields | GPS database positions. `symptoms_condition` is the vehicle's highest open case level (0 with none), `associate_symptoms` lists its open cases, `speed_limit_condition` is null, `speed_limit` and `lost_signal` are left out |
+| `GET /map/summary` | GPS database | Same shape. Symptom items count the open cases by level; the services and fleet items and `stable_condition` have no case equivalent and are 0 |
+| `GET /map/symptoms/{id}`, `/signals`, `/positions` with a positive id | GPS database symptom | 404 |
+
+**The inbox lists only cases that need an operator.** Without `from` and `to`, `GET /map/symptoms` and `GET /map/conditions` keep the open cases whose current level has `response.operator: true` in the published version the case runs on. A level with `operator: false`, or without a response, stays out; the case enters when it escalates to a level with `operator: true` and leaves when it goes back down. The history (with `from` and `to`), the map positions and a case's own endpoints keep every case.
+
+**Inbox order.** The inbox comes ordered by criticality: highest level first (código negro, then 3, 2, 1). Within a level, the SLA that runs out soonest goes first, so overdue cases are at the top; a level without SLA goes last. Then the oldest arrival at the level, then the case id. The SLA runs from when the case reached its level, or from its return from a hold if later; each row carries that start as `sla_since`. The treatment header exposes the same value in `symptom_info.sla_since` for the call panel and its step deadlines. Paging follows this order, and the 200-case limit keeps the most critical. The history keeps its own order (newest first).
+
+In engine-only mode, `p_icu_code=6` selects cases with an open treatment, independently of their severity.
+The store applies this predicate before its 200-case limit.
+
+If the optional trip or fleet tables are absent, trip filters match no cases. Other database failures
+propagate as errors instead of returning a successful empty page.
 
 ## Selectables
 
@@ -152,7 +268,7 @@ Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerA
 | Permission | Endpoints |
 |---|---|
 | `controltower:view` | Every read, plus `describe`, `validate` and `preview` |
-| `controltower:case.treat` | Treatments: open, actions, close, cancel |
+| `controltower:case.treat` | Treatments: open, actions, close, cancel, resume |
 | `controltower:contact.write` | Contacts: create, import, update |
 | `controltower:contact.delete` | Contacts: delete |
 | `controltower:symptom.edit` | Symptoms: create, from template, import, identity, draft, fork |
@@ -187,9 +303,11 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 | Panel opens on a form | `openTreatment` with the form's type |
 | Contact list | `listContacts`, plus the driver from the trip |
 | Add contact | `createContact` |
+| "Saltar paso" | `openTreatment {type: CALL}` then `addTreatmentAction {kind: NOTE, note, details.skipToStep}`; the treatment stays open |
 | "Guardar y hacer otra llamada" | `addTreatmentAction {kind: CALL}` |
 | "Finalizar tratamiento" | `addTreatmentAction {kind: CALL}` then `closeTreatment` |
-| Ignore, from the menu or mid-call | `addTreatmentAction {kind: IGNORE, outcomeKey, details.durationSeconds}` then `closeTreatment` |
+| Ignore, from the menu or mid-call | `addTreatmentAction {kind: IGNORE, outcomeKey, durationSeconds, details.scope}`; the treatment stays open while the hold lasts |
+| "Reanudar" | `resumeTreatment` |
 | Invalidate | `addTreatmentAction {kind: INVALIDATE, outcomeKey, note}` then `closeTreatment` |
 | Panel closed with nothing recorded | `cancelTreatment` |
 | Timeline and symptom card | `listSymptomTreatments` |

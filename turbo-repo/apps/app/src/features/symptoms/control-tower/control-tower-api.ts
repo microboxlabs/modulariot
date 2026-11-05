@@ -7,6 +7,7 @@
  */
 
 import useSWR from "swr";
+import { z } from "zod/v3";
 import useSWRInfinite from "swr/infinite";
 
 export type TowerTreatmentType =
@@ -116,6 +117,16 @@ export interface TowerContactFacets {
   members: { memberUserId: string; contactId: string }[];
 }
 
+/** The book's people for each step of a case, as the server evaluated the steps' conditions. */
+export interface TowerTripContacts {
+  /** `event.data` the conditions read: the trip's driverRut, secondDriverRut and carrierRut, when it has them. */
+  data: Partial<Record<"driverRut" | "secondDriverRut" | "carrierRut", string>>;
+  /** For each condition, in order, the ids of the active contacts that meet it. */
+  matches: string[][];
+  /** For each condition, its compile problem, or null. */
+  problems: (string | null)[];
+}
+
 /** Create or update body. On update, a field left out keeps its value and "" clears it. */
 export interface TowerContactBody {
   name?: string;
@@ -166,7 +177,9 @@ const BASE = `${API_ROOT}control-tower`;
 export class ControlTowerError extends Error {
   constructor(
     message: string,
-    readonly status: number
+    readonly status: number,
+    /** The API's `{code}`, when it names the reason (e.g. telephony_quota_exhausted). */
+    readonly code?: string
   ) {
     super(message);
   }
@@ -202,7 +215,8 @@ async function request<T>(
   if (!response.ok) {
     throw new ControlTowerError(
       json?.error ?? `HTTP ${response.status}`,
-      response.status
+      response.status,
+      typeof json?.code === "string" ? json.code : undefined
     );
   }
   return json as T;
@@ -215,6 +229,7 @@ export const treatmentsKey = (symptomId: number | string) =>
   `${BASE}/symptoms/${symptomId}/treatments`;
 export const contactsKey = `${BASE}/contacts`;
 export const contactFacetsKey = `${BASE}/contacts/facets`;
+export const tripContactsPath = `${BASE}/contacts/trip`;
 export const CONTACT_PAGE_SIZE = 100;
 
 export function contactPageKey(
@@ -228,6 +243,114 @@ export function contactPageKey(
   params.set("limit", String(CONTACT_PAGE_SIZE));
   if (cursor) params.set("cursor", cursor);
   return `${BASE}/contacts/page?${params}`;
+}
+
+/* ---------- script context ---------- */
+
+/**
+ * What an operator step's script reads for a case: `case`, `condition`,
+ * `trip` and `vehicle`, written in a script as `{{trip.driver.name}}`.
+ */
+export type ScriptContext = Record<string, unknown>;
+
+/** A recent case of a symptom, with the context a script reads. */
+export interface ScriptSample {
+  symptom_id: number;
+  asset_id: string;
+  icu_code: number;
+  opened_at: string;
+  context: ScriptContext;
+}
+
+const scriptContextSchema = z
+  .object({
+    case: z.record(z.unknown()),
+    condition: z.record(z.unknown()),
+    trip: z.record(z.unknown()),
+    vehicle: z.record(z.unknown()),
+  })
+  .passthrough();
+const scriptSamplesSchema = z.array(
+  z
+    .object({
+      symptom_id: z.number().int(),
+      asset_id: z.string(),
+      icu_code: z.number().int(),
+      opened_at: z.string().datetime({ offset: true }),
+      context: scriptContextSchema,
+    })
+    .passthrough()
+);
+
+export function parseScriptContext(value: unknown): ScriptContext {
+  return scriptContextSchema.parse(value);
+}
+
+export function parseScriptSamples(value: unknown): ScriptSample[] {
+  return scriptSamplesSchema.parse(value);
+}
+
+/** The symptom's newest engine cases, those at `level` first, to write a script with real data. */
+export function useScriptSamples(
+  symptomName: string | null | undefined,
+  level: number | null | undefined
+) {
+  const params = new URLSearchParams();
+  if (symptomName) params.set("symptom", symptomName);
+  if (level != null) params.set("level", String(level));
+  return useSWR<ScriptSample[]>(
+    symptomName ? `${BASE}/map/script-samples?${params}` : null,
+    async (url: string) => parseScriptSamples(await fetcher(url))
+  );
+}
+
+/** One moment of an engine case's life, as `GET /map/symptoms/{id}/timeline` lists it. */
+const caseTimelineEntrySchema = z.object({
+  kind: z.enum([
+    "OPENED",
+    "LEVEL_CHANGED",
+    "NOTED",
+    "HELD",
+    "ACTION",
+    "CLOSED",
+  ]),
+  at: z.string().datetime({ offset: true }),
+  level: z.number().int().optional(),
+  previousLevel: z.number().int().optional(),
+  eventType: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  action: z.string().optional(),
+  by: z.string().nullable().optional(),
+  contact: z.string().nullable().optional(),
+  outcome: z.string().nullable().optional(),
+  // The closing rule's opaque JSON context is displayed by the sample tree.
+  context: z.unknown().optional(),
+});
+
+export type CaseTimelineEntry = z.infer<typeof caseTimelineEntrySchema>;
+
+export function parseCaseTimeline(data: unknown): CaseTimelineEntry[] {
+  return z.array(caseTimelineEntrySchema).parse(data);
+}
+
+/** An engine case's life in time order; none for other cases. */
+export function useCaseTimeline(symptomId: number | null | undefined) {
+  return useSWR<CaseTimelineEntry[]>(
+    symptomId != null && symptomId < 0
+      ? `${BASE}/map/symptoms/${symptomId}/timeline`
+      : null,
+    async (url: string) => parseCaseTimeline(await fetcher(url))
+  );
+}
+
+/** The context a script reads for one engine case (negative id); none for other cases. */
+export function useCaseContext(symptomId: number | null | undefined) {
+  return useSWR<ScriptContext>(
+    symptomId != null && symptomId < 0
+      ? `${BASE}/map/symptoms/${symptomId}/context`
+      : null,
+    async (url: string) => parseScriptContext(await fetcher(url))
+  );
 }
 
 /* ---------- treatments ---------- */
@@ -273,6 +396,14 @@ export function closeTreatment(
   });
 }
 
+/** "Reanudar": ends an engine case's "Ignorar condición" hold early. */
+export function resumeTreatment(treatmentId: string) {
+  return request<TowerTreatment>(`/treatments/${treatmentId}/resume`, {
+    method: "POST",
+    body: {},
+  });
+}
+
 export function cancelTreatment(treatmentId: string, reason?: string) {
   return request<TowerTreatment>(`/treatments/${treatmentId}/cancel`, {
     method: "POST",
@@ -296,6 +427,27 @@ export function useContactPages(query: TowerContactQuery) {
         : contactPageKey(query, previous?.next),
     fetcher,
     { revalidateFirstPage: false, keepPreviousData: true }
+  );
+}
+
+/**
+ * The book's people for each condition (a step's `who`), with the case trip's
+ * RUTs as `event.data`. Other cases than engine ones (negative ids) have no
+ * trip, so a condition that reads it finds nobody.
+ */
+export function useTripContacts(
+  symptomId: number | null | undefined,
+  conditions: readonly string[]
+) {
+  const key =
+    symptomId != null && conditions.length > 0
+      ? ([tripContactsPath, String(symptomId), ...conditions] as const)
+      : null;
+  return useSWR<TowerTripContacts>(key, () =>
+    request<TowerTripContacts>(tripContactsPath, {
+      method: "POST",
+      body: { symptomId: String(symptomId), conditions },
+    })
   );
 }
 

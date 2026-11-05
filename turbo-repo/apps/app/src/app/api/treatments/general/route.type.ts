@@ -2,6 +2,8 @@ import {
   ConditionsAgg,
   TimelineElement,
 } from "@/features/symptoms/types/timeline";
+import type { LevelReason } from "@/features/symptoms/model/level-reason";
+import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
 
 export type TreatmentsGeneralResponse = {
   data: TreatmentsGeneralResponseItem;
@@ -14,6 +16,8 @@ export type TreatmentsGeneralResponseItem = {
   timeline?: TimelineElement[];
   trip_info: TreatmentsTripInfoResponse;
   symptom_info: TreatmentsSymptomInfoResponse;
+  /** Engine cases only: why the case is at its level. */
+  level_reason?: LevelReason | null;
 };
 
 export type TreatmentsTripInfoResponse = {
@@ -23,6 +27,7 @@ export type TreatmentsTripInfoResponse = {
   driver: string;
   driver2?: string;
   trip_id: string;
+  trip_code?: string | null;
   origin: string;
   type_load: string;
   driver_contact: string;
@@ -34,4 +39,14 @@ export type TreatmentsSymptomInfoResponse = {
   type: string;
   icu_code: number;
   icu_condition: string;
+  /** Engine cases only: when the case opened, and when its condition began. */
+  opened_at?: string;
+  /** The server's current-level SLA start, including returns from holds. */
+  sla_since?: string | null;
+  started_at?: string;
+  duration_sec?: number;
+  /** Engine cases on an "Ignorar condición" hold. */
+  ignored?: IgnoredInfo | null;
+  /** When the case came back to the tower from its latest hold. */
+  returned_after_ignore_at?: string | null;
 };

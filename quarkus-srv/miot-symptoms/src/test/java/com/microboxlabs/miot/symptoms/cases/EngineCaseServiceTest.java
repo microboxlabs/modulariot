@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
@@ -66,6 +67,152 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void theInboxListsOnlyCasesWhoseLevelAsksForAnOperator() {
+        store.operatorLevels.put(PANIC, Set.of(2, 3, 4));
+        store.add(engineCase(12, "DEMO01", 1, 0));
+        store.add(engineCase(13, "DEMO02", 3, 0));
+
+        JsonNode page = service.casesPage(TENANT, Map.of());
+        assertEquals(List.of(-13L), ids(page));
+        assertEquals(1, page.path("total_rows").asInt());
+        assertEquals(List.of(-13L), ids(service.withCases(TENANT, Map.of(), null)));
+        JsonNode counts = service.caseCounts(TENANT, null, null);
+        assertEquals(1, counts.path("Critical condition").asInt());
+        assertFalse(counts.has("Under Observation"), "the counts match the list");
+    }
+
+    @Test
+    void aCaseEntersTheInboxWhenItEscalatesAndLeavesWhenItGoesBackDown() {
+        store.operatorLevels.put(PANIC, Set.of(2, 3, 4));
+        store.add(engineCase(12, "DEMO01", 1, 0));
+        assertTrue(ids(service.casesPage(TENANT, Map.of())).isEmpty());
+
+        store.changeLevel(12, 2);
+        assertEquals(List.of(-12L), ids(service.casesPage(TENANT, Map.of())));
+        assertEquals(1, service.caseCounts(TENANT, null, null).path("Compromised condition").asInt());
+
+        store.changeLevel(12, 1);
+        assertTrue(ids(service.casesPage(TENANT, Map.of())).isEmpty());
+        assertTrue(service.caseCounts(TENANT, null, null).isEmpty());
+    }
+
+    @Test
+    void anUnderTreatmentCaseBackAtALevelWithoutOperatorLeavesTheInbox() {
+        store.operatorLevels.put(PANIC, Set.of(3));
+        store.add(engineCase(12, "DEMO01", 1, 1));
+
+        assertTrue(ids(service.casesPage(TENANT, Map.of("p_icu_code", "6"))).isEmpty());
+        assertFalse(service.caseCounts(TENANT, null, null).has("Under Treatment"));
+    }
+
+    @Test
+    void theHistoryKeepsCasesThatNeverAskedForAnOperator() {
+        store.operatorLevels.put(PANIC, Set.of());
+        store.add(engineCase(12, "DEMO01", 1, 0));
+
+        assertEquals(List.of(-12L), ids(service.casesPage(TENANT, Map.of(
+                "p_start_date_historic", "2026-10-22T00:00:00Z", "p_end_date_historic", "2026-10-23T00:00:00Z"))));
+        assertEquals(1, service.caseCounts(TENANT, "2026-10-22T00:00:00Z", "2026-10-23T00:00:00Z")
+                .path("Under Observation").asInt());
+        assertEquals(1, service.withCaseLevels(TENANT, new ObjectMapper().createArrayNode()
+                .add(new ObjectMapper().createObjectNode().put("asset_id", "DEMO01")))
+                .get(0).path("symptoms_condition").asInt(), "the map still shows it");
+    }
+
+    /** A level-{@code level} case that reached it {@code since} seconds from OPENED, with an SLA in minutes. */
+    private static EngineCase ranked(long id, int level, long since, Integer sla) {
+        return new EngineCase(id, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO" + id, OPENED.minusSeconds(3600),
+                level, "T-1", -33.4489, -70.6693, 0.0, null, 0, sla, 1L).withLevelAt(OPENED.plusSeconds(since));
+    }
+
+    @Test
+    void theInboxIsOrderedByLevelThenSlaThenArrivalAtTheLevel() {
+        List<EngineCase> cases = List.of(
+                ranked(1, 2, -600, 1),    // level 2, overdue: after every level 3
+                ranked(2, 3, -2000, null), // level 3 without SLA, older
+                ranked(3, 3, -600, 5),    // overdue by 5 min
+                ranked(4, 3, -1000, null), // level 3 without SLA, newer
+                ranked(5, 4, 0, 30),      // código negro
+                ranked(6, 3, -60, 1),     // overdue by 30 s
+                ranked(7, 3, 0, 10),      // due in 10 min
+                ranked(8, 3, 0, 10),      // same deadline and arrival as 7: by id
+                ranked(9, 3, -600, 5).withHold(null, OPENED)); // back from a hold: its SLA runs from then
+        new ArrayList<>(cases).reversed().forEach(store::add);
+
+        JsonNode page = service.casesPage(TENANT, Map.of("p_page_size", "50"));
+
+        assertEquals(List.of(-5L, -3L, -6L, -9L, -7L, -8L, -2L, -4L, -1L), ids(page));
+        assertEquals(ids(page), ids(service.casesPage(TENANT, Map.of("p_page_size", "50"))), "a refresh keeps it");
+        assertEquals(List.of(-9L, -7L, -8L), ids(service.casesPage(TENANT, Map.of("p_page", "2", "p_page_size",
+                "3"))), "pages follow the order");
+        assertEquals(9, page.path("total_rows").asInt());
+        assertEquals(List.of(-5L, -3L, -6L, -9L, -7L, -8L, -2L, -4L, -1L),
+                ids(service.withCases(TENANT, Map.of(), null)));
+    }
+
+    @Test
+    void theSlaRunsFromTheArrivalAtTheLevel() {
+        EngineCase c = ranked(1, 3, -600, 5);
+        assertEquals(OPENED.minusSeconds(600), c.slaStart());
+        assertEquals(OPENED.minusSeconds(300), c.slaDeadline());
+        assertEquals(OPENED, c.withHold(null, OPENED).slaStart());
+        assertEquals(null, ranked(2, 3, 0, null).slaDeadline());
+        store.add(c);
+        assertEquals(OPENED.minusSeconds(600).toString(),
+                service.casesPage(TENANT, Map.of()).path("data").get(0).path("sla_since").asText());
+        assertEquals(c.slaStart().toString(),
+                service.header(TENANT, -1).path("symptom_info").path("sla_since").asText());
+    }
+
+    @Test
+    void theCallPanelAndInboxShareTheSlaStartAfterAHold() {
+        EngineCase c = ranked(1, 3, -600, 5).withHold(null, OPENED);
+        store.add(c);
+        assertEquals(OPENED.toString(),
+                service.casesPage(TENANT, Map.of()).path("data").get(0).path("sla_since").asText());
+        assertEquals(OPENED.toString(),
+                service.header(TENANT, -1).path("symptom_info").path("sla_since").asText());
+    }
+
+    @Test
+    void theHistoryKeepsItsOwnOrder() {
+        store.add(ranked(1, 1, 0, null));
+        store.add(ranked(2, 4, 0, null));
+        List<Long> history = ids(service.casesPage(TENANT, Map.of("p_start_date_historic", "2026-10-01T00:00:00Z",
+                "p_end_date_historic", "2026-11-01T00:00:00Z")));
+        assertEquals(List.of(-1L, -2L), history, "as the store lists them");
+    }
+
+    @Test
+    void engineOnlyPagingAcceptsLargeSizesAndPagesWithoutWrapping() {
+        store.add(panic(12, "vehicle-demo"));
+        store.add(panic(13, "vehicle-other"));
+
+        JsonNode page = service.casesPage(TENANT, Map.of("p_page_size", "2147483647"));
+        assertEquals(2, page.path("data").size());
+        assertEquals(1, page.path("total_pages").asInt());
+        assertEquals(0, service.casesPage(TENANT,
+                Map.of("p_page", "2147483647", "p_page_size", "2147483647")).path("data").size());
+    }
+
+    @Test
+    void engineOnlyConditionSixListsOpenTreatmentsBeforeThePageLimit() {
+        store.add(engineCase(1, "treated-demo", 3, 1));
+        for (int id = 2; id <= 202; id++) {
+            store.add(at(id, "demo-" + id, OPENED.plusSeconds(id), null));
+        }
+
+        JsonNode page = service.casesPage(TENANT, Map.of("p_icu_code", "6"));
+
+        assertEquals(List.of(-1L), ids(page));
+        assertEquals("UNDER TREATMENT", page.path("data").get(0).path("icu_condition").asText());
+        assertEquals(1, page.path("total_rows").asInt());
+        assertEquals(1, service.caseCounts(TENANT, null, null).path("Under Treatment").asInt());
+        assertEquals(6, EngineCaseService.filter(Map.of("p_icu_code", "6")).level(),
+                "the legacy list's severity filter is unchanged");
+    }
+
+    @Test
     void theSignalWindowRunsFromAnHourBeforeTheCaseUntilNow() {
         store.add(at(12, "DEMO01", OPENED, null));
 
@@ -99,6 +246,39 @@ class EngineCaseServiceTest {
 
         assertEquals(opened.plus(EngineCaseService.SIGNALS_AT_MOST), w.to());
         assertThrows(NoSuchElementException.class, () -> service.signalWindow(TENANT, -99));
+    }
+
+    @Test
+    void theListAndHeaderExposeTheServiceCodeAndKeepTheTripUuid() throws Exception {
+        String tripId = UUID.randomUUID().toString();
+        store.add(new EngineCase(12, PANIC, "0.1.0", "Demo symptom", "demo", "vehicle-demo", OPENED, 1,
+                tripId, null, null, null, null, 0, null, null, "SERVICE-001"));
+        JsonNode legacy = new ObjectMapper().readTree("""
+                {"data":[{"id":991,"trip_id":"12345"}]}
+                """);
+
+        JsonNode page = service.withCases(TENANT, Map.of(), legacy);
+        JsonNode row = page.path("data").get(0);
+        JsonNode trip = service.header(TENANT, -12).path("trip_info");
+
+        assertEquals(tripId, row.path("trip_id").asText());
+        assertEquals("SERVICE-001", row.path("trip_code").asText());
+        assertEquals(tripId, trip.path("trip_id").asText());
+        assertEquals("SERVICE-001", trip.path("trip_code").asText());
+        assertEquals(legacy.path("data").get(0), page.path("data").get(1));
+    }
+
+    @Test
+    void aMissingServiceCodeKeepsTheTripIdAvailable() {
+        store.add(panic(12, "vehicle-demo"));
+
+        JsonNode row = service.withCases(TENANT, Map.of(), null).path("data").get(0);
+        JsonNode trip = service.header(TENANT, -12).path("trip_info");
+
+        assertEquals("T-1", row.path("trip_id").asText());
+        assertTrue(row.path("trip_code").isNull());
+        assertEquals("T-1", trip.path("trip_id").asText());
+        assertTrue(trip.path("trip_code").isNull());
     }
 
     @Test
@@ -188,6 +368,27 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void anOperatorsCloseHandsTheCasesTripToTheEvaluator() {
+        List<String> closes = new ArrayList<>();
+        EngineCaseService withTrips = new EngineCaseService(store, new EngineCaseService.Forget() {
+            @Override
+            public void episode(String tenantCode, String assetId, UUID definitionId) {
+                closes.add("episode " + assetId);
+            }
+
+            @Override
+            public void closed(String tenantCode, String assetId, UUID definitionId, String tripId) {
+                closes.add(assetId + " on " + tripId);
+            }
+        }, t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+        store.add(panic(12, "DEMO01"));
+
+        withTrips.close(TENANT, -12, "operator@example.com");
+
+        assertEquals(List.of("DEMO01 on T-1"), closes);
+    }
+
+    @Test
     void closedCasesAreNotCounted() {
         store.add(panic(12, "DEMO01"));
         service.close(TENANT, -12, "operator@example.com");
@@ -251,6 +452,35 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void readsTheTripFiltersAsACaseFilter() {
+        EngineCaseStore.CaseFilter f = EngineCaseService.filter(Map.of("p_driver_id", " 12.345.678-9 ",
+                "p_carrier_id", "76.111.111-1", "p_origin", "Planta Norte", "p_destination", " "));
+
+        assertEquals(new EngineCaseStore.CaseFilter(null, null, null, null, null, null, "12.345.678-9",
+                "76.111.111-1", "Planta Norte", null), f);
+        assertTrue(f.byTrip());
+        assertFalse(EngineCaseService.filter(Map.of("p_trip_id", "T-1")).byTrip());
+    }
+
+    @Test
+    void theEngineOnlyPageAppliesTheTripFiltersAndNamesTheTrip() {
+        store.trips.put("T-1", new InMemoryEngineCases.Trip("12.345.678-9", null, "c-1", "76.111.111-1", "Norte",
+                "Sur"));
+        store.add(new EngineCase(12, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01", OPENED, 4, "T-1",
+                null, null, null, null, 0, null, 0L, null).withTrip(new EngineCase.TripDetails("Driver", "Carrier",
+                        "Norte", "Sur")));
+        store.add(new EngineCase(13, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO02", OPENED, 4, "T-2",
+                null, null, null, null, 0, null, 0L));
+
+        JsonNode page = service.casesPage(TENANT, Map.of("p_carrier_id", "76111111-1"));
+
+        assertEquals(List.of(-12L), ids(page));
+        assertEquals("Driver", page.get("data").get(0).get("driver").asText());
+        assertEquals("Sur", page.get("data").get(0).get("destination").asText());
+        assertEquals(0, service.casesPage(TENANT, Map.of("p_driver_id", "1-9")).get("total_rows").asInt());
+    }
+
+    @Test
     void aTripsCasesOpenAndClosedComeWithADateRange() {
         store.add(engineCase(12, "DEMO01", 4, 0));
         store.add(new EngineCase(13, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01",
@@ -296,6 +526,104 @@ class EngineCaseServiceTest {
         assertThrows(NoSuchElementException.class, () -> service.header(TENANT, -99));
     }
 
+    private static EngineCase lostSignal(long id, Instant lostSince, Instant closed) throws Exception {
+        JsonNode context = new ObjectMapper().readTree("""
+                {"check": {"signal_lost_minutes": 12.5, "loss": {"silence_s": 750.0, "ratio": 2.5,
+                 "low_coverage_zone": true, "cohort_outage": false, "returned": false,
+                 "last": {"at": "%s"}}}}
+                """.formatted(lostSince));
+        return new EngineCase(id, PANIC, "2.1.0", "Pérdida de señal", "signal_continuity", "DEMO01", OPENED, 1,
+                "T-1", -33.4489, -70.6693, 0.0, closed, 0, null, 0L, null, context, context,
+                "check.loss.silence_s < 1800 || check.loss.low_coverage_zone",
+                List.of(new EngineCase.LevelStep(OPENED, 1)));
+    }
+
+    @Test
+    void anOpenCaseLastsUntilNow() {
+        store.add(panic(12, "DEMO01"));
+
+        JsonNode header = service.header(TENANT, -12);
+
+        JsonNode agg = header.path("timeline").get(0).path("conditions_agg").get(0);
+        assertEquals(OPENED.toString(), agg.path("start").asText());
+        assertEquals(OPENED.plusSeconds(90).toString(), agg.path("end").asText(), "not 0 min: now");
+        assertEquals(90, header.path("symptom_info").path("duration_sec").asLong());
+        assertEquals(OPENED.plusSeconds(90).toString(),
+                service.signals(TENANT, -12).path("description").path("last_signal_timestamp").asText());
+    }
+
+    @Test
+    void aLostSignalCaseStartsAtTheLastFrameBeforeTheSilence() throws Exception {
+        Instant lost = OPENED.minusSeconds(660);
+        store.add(lostSignal(12, lost, null));
+
+        JsonNode header = service.header(TENANT, -12);
+
+        JsonNode entry = header.path("timeline").get(0);
+        assertEquals(lost.toString(), entry.path("start").asText());
+        assertEquals(lost.toString(), entry.path("conditions_agg").get(0).path("start").asText());
+        assertEquals(OPENED.toString(), header.path("symptom_info").path("opened_at").asText());
+        assertEquals(750, header.path("symptom_info").path("duration_sec").asLong());
+        JsonNode signals = service.signals(TENANT, -12);
+        assertEquals(lost.toString(), signals.path("description").path("first_signal_timestamp").asText());
+        assertEquals(lost.toString(), signals.path("features").get(0).path("properties").path("timestamp").asText());
+        assertEquals(1, signals.path("features").get(0).path("properties").path("icu_code").asInt());
+        assertEquals(lost.minusSeconds(3600), service.signalWindow(TENANT, -12).from());
+    }
+
+    @Test
+    void theHeaderSaysWhyTheCaseIsAtItsLevel() throws Exception {
+        Instant lost = OPENED.minusSeconds(660);
+        store.add(lostSignal(12, lost, OPENED.plusSeconds(30)));
+
+        JsonNode reason = service.header(TENANT, -12).path("level_reason");
+
+        assertEquals(1, reason.path("icu_code").asInt());
+        assertEquals("UNDER OBSERVATION", reason.path("icu_condition").asText());
+        assertEquals("check.loss.silence_s < 1800 || check.loss.low_coverage_zone", reason.path("rule").asText());
+        assertEquals(lost.toString(), reason.path("lost_since").asText());
+        assertTrue(reason.path("context").path("check").path("loss").path("low_coverage_zone").asBoolean());
+        assertEquals(750.0, reason.path("context").path("check").path("loss").path("silence_s").asDouble());
+        assertEquals(OPENED.toString(), reason.path("levels").get(0).path("at").asText());
+        assertEquals(1, reason.path("levels").get(0).path("icu_code").asInt());
+    }
+
+    @Test
+    void aCaseWithoutAKeptContextStillAnswersItsLevel() {
+        store.add(panic(12, "DEMO01"));
+
+        JsonNode reason = service.header(TENANT, -12).path("level_reason");
+
+        assertEquals(4, reason.path("icu_code").asInt());
+        assertTrue(reason.path("context").isNull());
+        assertFalse(reason.has("lost_since"));
+    }
+
+    @Test
+    void aLostSinceAfterTheOpeningIsIgnored() throws Exception {
+        store.add(lostSignal(12, OPENED.plusSeconds(10), null));
+
+        assertEquals(OPENED.toString(), service.header(TENANT, -12).path("timeline").get(0).path("start").asText());
+    }
+
+    @Test
+    void aLevelChangeOnReturnKeepsTheOriginalSilenceStart() throws Exception {
+        Instant lost = OPENED.minusSeconds(660);
+        EngineCase opened = lostSignal(12, lost, null);
+        JsonNode returned = new ObjectMapper().readTree("""
+                {"check":{"loss":{"returned":true,"last":{"at":"%s"}}}}
+                """.formatted(OPENED.plusSeconds(60)));
+        store.add(opened.withLevel(opened.openingContext(), returned, "check.loss.returned", opened.levels()));
+
+        JsonNode header = service.header(TENANT, -12);
+
+        assertEquals(lost.toString(), header.path("timeline").get(0).path("start").asText());
+        assertEquals(lost.toString(), header.path("level_reason").path("lost_since").asText());
+        assertTrue(header.path("level_reason").path("context").path("check").path("loss").path("returned").asBoolean());
+        assertEquals(750, header.path("symptom_info").path("duration_sec").asLong());
+        assertEquals(lost.minusSeconds(3600), service.signalWindow(TENANT, -12).from());
+    }
+
     @Test
     void theHeaderListsTheCaseTreatmentsAndWhenItClosed() {
         Instant closed = OPENED.plusSeconds(600);
@@ -319,6 +647,192 @@ class EngineCaseServiceTest {
         assertEquals("Contestó · Va en camino", rows.get(0).path("description").path("driver_response").asText());
         assertEquals("invalidar sintoma", rows.get(1).path("treatment_type").asText());
         assertEquals("Motivo: prueba", rows.get(1).path("description").path("message").asText());
+    }
+
+    @Test
+    void gpsEventNotesLandInTheStepOfTheirFrameBeforeTheTreatments() throws Exception {
+        store.add(escalated(OPENED.plusSeconds(10_000)));
+        store.notes.put(12L, List.of(
+                new EngineCaseStore.CaseNote(OPENED.plusSeconds(3700), "main_power_reconnect",
+                        "Alimentación reconectada", OPENED.plusSeconds(3650)),
+                new EngineCaseStore.CaseNote(OPENED.plusSeconds(9500), "device_tamper", null,
+                        OPENED.plusSeconds(9500))));
+        List<TreatmentView> treatments = List.of(treatment(TreatmentStatus.CLOSED,
+                actionAt(OPENED.plusSeconds(3800), "En L2")));
+
+        JsonNode aggs = EngineCaseService.withTreatments(service.header(TENANT, -12), treatments)
+                .path("timeline").get(0).path("conditions_agg");
+
+        assertEquals(List.of(), messages(aggs.get(0)));
+        JsonNode l2 = aggs.get(1).path("treatments");
+        assertEquals(2, l2.size());
+        assertEquals("evento del gps", l2.get(0).path("treatment_type").asText());
+        assertEquals("main_power_reconnect", l2.get(0).path("event_type").asText());
+        assertEquals("Alimentación reconectada", l2.get(0).path("description").path("message").asText());
+        assertEquals(OPENED.plusSeconds(3650).toString(), l2.get(0).path("at").asText(), "the event's own time");
+        assertEquals("llamar al conductor", l2.get(1).path("treatment_type").asText());
+        JsonNode l4 = aggs.get(3).path("treatments");
+        assertEquals("device_tamper", l4.get(0).path("description").path("message").asText(),
+                "without a description the entry shows the event type");
+    }
+
+    private static EngineCase escalated(Instant closed) throws Exception {
+        EngineCase c = lostSignal(12, OPENED.minusSeconds(600), closed);
+        return c.withLevel(c.openingContext(), c.levelContext(), c.levelRule(), List.of(
+                new EngineCase.LevelStep(OPENED, 1), new EngineCase.LevelStep(OPENED.plusSeconds(3600), 2),
+                new EngineCase.LevelStep(OPENED.plusSeconds(7200), 3),
+                new EngineCase.LevelStep(OPENED.plusSeconds(9000), 4)));
+    }
+
+    @Test
+    void eachLevelStepIsItsOwnTimelineBlock() throws Exception {
+        Instant closed = OPENED.plusSeconds(10_000);
+        store.add(escalated(closed));
+
+        JsonNode entry = service.header(TENANT, -12).path("timeline").get(0);
+
+        assertEquals(OPENED.minusSeconds(600).toString(), entry.path("start").asText());
+        assertEquals(closed.toString(), entry.path("end").asText());
+        JsonNode aggs = entry.path("conditions_agg");
+        assertEquals(4, aggs.size());
+        List<Instant> bounds = List.of(OPENED.minusSeconds(600), OPENED.plusSeconds(3600), OPENED.plusSeconds(7200),
+                OPENED.plusSeconds(9000), closed);
+        for (int i = 0; i < 4; i++) {
+            JsonNode agg = aggs.get(i);
+            assertEquals(bounds.get(i).toString(), agg.path("start").asText(), "start of step " + i);
+            assertEquals(bounds.get(i + 1).toString(), agg.path("end").asText(), "end of step " + i);
+            assertEquals(String.valueOf(i + 1), agg.path("icu_code").asText());
+            assertEquals(-12, agg.path("symptom_id").asLong(), "every step selects the same case");
+        }
+        assertEquals("CODE BLACK", aggs.get(3).path("icu_condition").asText());
+    }
+
+    @Test
+    void levelStepBoundariesStayWithinTheCaseDespiteClockSkew() throws Exception {
+        EngineCase c = lostSignal(12, OPENED.minusSeconds(600), OPENED.plusSeconds(240));
+        store.add(c.withLevel(c.openingContext(), c.levelContext(), c.levelRule(), List.of(
+                new EngineCase.LevelStep(OPENED, 1), new EngineCase.LevelStep(OPENED.minusSeconds(900), 2),
+                new EngineCase.LevelStep(OPENED.plusSeconds(300), 3),
+                new EngineCase.LevelStep(OPENED.plusSeconds(120), 4))));
+
+        JsonNode aggs = service.header(TENANT, -12).path("timeline").get(0).path("conditions_agg");
+
+        List<Instant> bounds = List.of(OPENED.minusSeconds(600), OPENED.minusSeconds(600),
+                OPENED.plusSeconds(240), OPENED.plusSeconds(240), OPENED.plusSeconds(240));
+        assertEquals(4, aggs.size(), "preserve every level step, including zero-duration steps");
+        for (int i = 0; i < aggs.size(); i++) {
+            assertEquals(bounds.get(i).toString(), aggs.get(i).path("start").asText());
+            assertEquals(bounds.get(i + 1).toString(), aggs.get(i).path("end").asText());
+            assertEquals(String.valueOf(i + 1), aggs.get(i).path("icu_code").asText());
+        }
+    }
+
+    @Test
+    void actionsLandInTheStepOfTheirTime() throws Exception {
+        store.add(escalated(OPENED.plusSeconds(10_000)));
+        List<TreatmentView> treatments = List.of(treatment(TreatmentStatus.CLOSED,
+                actionAt(OPENED.minusSeconds(900), "Antes"), actionAt(OPENED.plusSeconds(3600), "En L2"),
+                actionAt(OPENED.plusSeconds(8000), "En L3"), actionAt(OPENED.plusSeconds(20_000), "Después"),
+                actionAt(null, "Sin hora"), action(ActionKind.NOTE, null, null, "nota")),
+                treatment(TreatmentStatus.CANCELLED, actionAt(OPENED.plusSeconds(3600), "Cancelado")));
+        JsonNode header = service.header(TENANT, -12);
+        JsonNode original = header.deepCopy();
+
+        JsonNode aggs = EngineCaseService.withTreatments(header, treatments)
+                .path("timeline").get(0).path("conditions_agg");
+
+        assertEquals(List.of("Llamado a: Antes"), messages(aggs.get(0)));
+        assertEquals(List.of("Llamado a: En L2"), messages(aggs.get(1)));
+        assertEquals(List.of("Llamado a: En L3"), messages(aggs.get(2)));
+        assertEquals(List.of("Llamado a: Después", "Llamado a: Sin hora"), messages(aggs.get(3)));
+        assertEquals(5, aggs.findValues("treatment_type").size(), "header counters see each call only once");
+        aggs.forEach(agg -> assertEquals("operator@example.com", agg.path("assigned_to").asText()));
+        assertEquals(original, header, "adding treatments leaves the original header untouched");
+    }
+
+    @Test
+    void onlyTheStepsThatWereTreatedShowTheOperator() throws Exception {
+        store.add(escalated(OPENED.plusSeconds(10_000)));
+        List<TreatmentView> treatments = List.of(treatment(TreatmentStatus.CLOSED,
+                actionAt(OPENED.plusSeconds(9_500), "En L4")));
+
+        JsonNode aggs = EngineCaseService.withTreatments(service.header(TENANT, -12), treatments)
+                .path("timeline").get(0).path("conditions_agg");
+
+        for (int i = 0; i < 3; i++) {
+            assertTrue(aggs.get(i).path("assigned_to").isNull(), "untreated step " + (i + 1) + " has no operator");
+            assertEquals(List.of(), messages(aggs.get(i)));
+        }
+        assertEquals("operator@example.com", aggs.get(3).path("assigned_to").asText());
+        assertEquals(List.of("Llamado a: En L4"), messages(aggs.get(3)));
+    }
+
+    @Test
+    void eachStepKeepsItsActionOperatorWhenAnotherOperatorClosesTheTreatment() throws Exception {
+        store.add(escalated(OPENED.plusSeconds(10_000)));
+        OffsetDateTime at = OPENED.atOffset(ZoneOffset.UTC);
+        TreatmentView treatment = new TreatmentView("t", -12, "DEMO01", "T-1", TreatmentType.CALL,
+                TreatmentStatus.CLOSED, "opener@example.com", at, "closer@example.com", at.plusSeconds(9_500),
+                null, null, at.plusSeconds(9_500), List.of(
+                        actionAt(OPENED.plusSeconds(1_800), "En L1", "alice@example.com"),
+                        actionAt(OPENED.plusSeconds(4_000), "En L2", "bob@example.com"),
+                        actionAt(OPENED.plusSeconds(8_000), "En L3", null)));
+
+        JsonNode aggs = EngineCaseService.withTreatments(service.header(TENANT, -12), List.of(treatment))
+                .path("timeline").get(0).path("conditions_agg");
+
+        assertEquals("alice@example.com", aggs.get(0).path("assigned_to").asText());
+        assertEquals("bob@example.com", aggs.get(1).path("assigned_to").asText());
+        assertEquals("opener@example.com", aggs.get(2).path("assigned_to").asText(),
+                "an action without its actor falls back to the opener, never the closer");
+        assertTrue(aggs.get(3).path("assigned_to").isNull(), "closing alone does not assign an untreated step");
+    }
+
+    @Test
+    void aHoldEndAssignsItsStepWithoutReplacingAnEarlierActionOperator() throws Exception {
+        store.add(escalated(OPENED.plusSeconds(10_000)));
+        OffsetDateTime at = OPENED.atOffset(ZoneOffset.UTC);
+        for (String resolution : HoldService.ENDINGS) {
+            TreatmentView treatment = new TreatmentView("t", -12, "DEMO01", "T-1", TreatmentType.IGNORE_CONDITION,
+                    TreatmentStatus.CLOSED, "opener@example.com", at, HoldService.SYSTEM, at.plusSeconds(9_500),
+                    resolution, null, at.plusSeconds(9_500), List.of(action(ActionKind.IGNORE, null, "Motivo", null)));
+
+            JsonNode aggs = EngineCaseService.withTreatments(service.header(TENANT, -12), List.of(treatment))
+                    .path("timeline").get(0).path("conditions_agg");
+
+            assertEquals("operator@example.com", aggs.get(0).path("assigned_to").asText());
+            assertTrue(aggs.get(1).path("assigned_to").isNull());
+            assertTrue(aggs.get(2).path("assigned_to").isNull());
+            assertEquals(HoldService.SYSTEM, aggs.get(3).path("assigned_to").asText());
+            assertEquals("fin de ignorar", aggs.get(3).path("treatments").get(0).path("treatment_type").asText());
+            assertEquals(resolution, aggs.get(3).path("treatments").get(0).path("resolution").asText());
+        }
+    }
+
+    @Test
+    void aCaseWithoutStepsKeepsOneBlock() {
+        store.add(panic(12, "DEMO01"));
+
+        JsonNode aggs = service.header(TENANT, -12).path("timeline").get(0).path("conditions_agg");
+
+        assertEquals(1, aggs.size());
+        assertEquals("4", aggs.get(0).path("icu_code").asText());
+    }
+
+    private static TreatmentAction actionAt(Instant at, String contact) {
+        return actionAt(at, contact, "operator@example.com");
+    }
+
+    private static TreatmentAction actionAt(Instant at, String contact, String operator) {
+        return new TreatmentAction("a", "t", TENANT, 1, ActionKind.CALL, null, contact, null, null, null, null, null,
+                null, null, null, null, List.of(), Map.of(), operator,
+                at == null ? null : at.atOffset(ZoneOffset.UTC));
+    }
+
+    private static List<String> messages(JsonNode agg) {
+        List<String> out = new ArrayList<>();
+        agg.path("treatments").forEach(row -> out.add(row.path("description").path("message").asText()));
+        return out;
     }
 
     @Test
@@ -430,6 +944,17 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void tripPeoplePropagatesAReadFailureButAnAbsentTripIsEmpty() {
+        store.add(panic(12, "DEMO01"));
+        IllegalStateException failure = new IllegalStateException("database down");
+        EngineCaseService gpsDown = new EngineCaseService(store, (tenant, asset, definition) -> {
+        }, t -> { throw failure; }, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+
+        assertEquals(failure, assertThrows(IllegalStateException.class, () -> gpsDown.tripPeople(TENANT, -12)));
+        assertEquals(com.microboxlabs.miot.symptoms.dto.TripPeople.NONE, service.tripPeople(TENANT, -12));
+    }
+
+    @Test
     void theHeaderAnswersWhenTheTripCannotBeRead() {
         store.add(panic(12, "DEMO01"));
         EngineCaseService gpsDown = new EngineCaseService(store, (tenant, asset, definition) -> {
@@ -441,6 +966,130 @@ class EngineCaseServiceTest {
 
         assertEquals("T-1", header.path("trip_info").path("trip_id").asText());
         assertFalse(header.path("trip_info").has("carrier"));
+    }
+
+    @Test
+    void aScriptReadsTheCaseTheVehicleAndTheTripWithoutALiveTrip() {
+        store.add(engineCase(12, "TEST-PLATE", 4, 0));
+
+        JsonNode ctx = service.context(TENANT, -12);
+
+        assertEquals("Botón de pánico", ctx.path("case").path("symptom").asText());
+        assertEquals(4, ctx.path("case").path("level").asInt());
+        assertEquals(-12, ctx.path("case").path("id").asLong());
+        assertEquals("TEST-PLATE", ctx.path("vehicle").path("plate").asText());
+        assertEquals("T-1", ctx.path("trip").path("id").asText());
+        assertFalse(ctx.path("trip").has("driver"), "no live trip, no driver");
+        assertTrue(ctx.path("condition").isObject());
+    }
+
+    @Test
+    void theTimelineListsTheCasesLifeInTimeOrder() {
+        store.add(at(12, "TEST-PLATE", OPENED, OPENED.plusSeconds(3600)));
+        store.notes.put(12L, List.of(new EngineCaseStore.CaseNote(OPENED.plusSeconds(600), "main_power_reconnect",
+                "Volvió la energía", OPENED.plusSeconds(590))));
+
+        JsonNode timeline = service.timeline(TENANT, -12, List.of());
+
+        List<String> kinds = new ArrayList<>();
+        timeline.forEach(e -> kinds.add(e.path("kind").asText()));
+        assertEquals(List.of("OPENED", "NOTED", "CLOSED"), kinds);
+        assertEquals(4, timeline.get(0).path("level").asInt());
+        assertEquals("main_power_reconnect", timeline.get(1).path("eventType").asText());
+        assertEquals(OPENED.plusSeconds(3600).toString(), timeline.get(2).path("at").asText());
+    }
+
+    @Test
+    void theTimelineIncludesTreatmentActionsAndTheirRecordedFields() {
+        store.add(at(12, "TEST-PLATE", OPENED, OPENED.plusSeconds(3600)));
+        JsonNode timeline = service.timeline(TENANT, -12, List.of(treatment(TreatmentStatus.CLOSED,
+                action(ActionKind.CALL, "Synthetic contact", "Answered", "On the way"))));
+
+        JsonNode call = timeline.get(1);
+        assertEquals("OPENED", timeline.get(0).path("kind").asText());
+        assertEquals("ACTION", call.path("kind").asText());
+        assertEquals(OPENED.toString(), call.path("at").asText());
+        assertEquals("CALL", call.path("action").asText());
+        assertEquals("operator@example.com", call.path("by").asText());
+        assertEquals("Synthetic contact", call.path("contact").asText());
+        assertEquals("Answered", call.path("outcome").asText());
+    }
+
+    @Test
+    void theTimelineUsesHistoricalHoldsAndStartsPreexistingCoverageAtOpening() {
+        InMemoryEngineCases history = new InMemoryEngineCases() {
+            @Override
+            public List<EngineCase.Ignored> holds(String tenant, EngineCase c, Instant until) {
+                assertEquals(OPENED.plusSeconds(60), until);
+                return List.of(new EngineCase.Ignored("ended-hold", OPENED.minusSeconds(30),
+                        OPENED.plusSeconds(30), false, "ALL", "operator@example.test"));
+            }
+        };
+        history.add(at(12, "TEST-PLATE", OPENED, OPENED.plusSeconds(60)));
+        EngineCaseService historical = new EngineCaseService(history, (tenant, asset, definition) -> { },
+                t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+
+        JsonNode timeline = historical.timeline(TENANT, -12, List.of());
+
+        assertEquals("HELD", timeline.get(1).path("kind").asText());
+        assertEquals(OPENED.toString(), timeline.get(1).path("at").asText());
+        assertEquals("operator@example.test", timeline.get(1).path("by").asText());
+    }
+
+    @Test
+    void theTimelineOrdersFractionalInstantsAndKeepsTiesStable() {
+        store.add(at(12, "TEST-PLATE", OPENED, OPENED.plusMillis(100)));
+        store.notes.put(12L, List.of(
+                new EngineCaseStore.CaseNote(OPENED, "at-opening", null, OPENED),
+                new EngineCaseStore.CaseNote(OPENED.plusMillis(50), "later", null, OPENED.plusMillis(50))));
+
+        JsonNode timeline = service.timeline(TENANT, -12, List.of());
+
+        List<String> kinds = new ArrayList<>();
+        timeline.forEach(e -> kinds.add(e.path("kind").asText()));
+        assertEquals(List.of("OPENED", "NOTED", "NOTED", "CLOSED"), kinds);
+        assertEquals("at-opening", timeline.get(1).path("eventType").asText());
+        assertEquals(OPENED.plusMillis(50).toString(), timeline.get(2).path("at").asText());
+    }
+
+    @Test
+    void scriptSamplesPutTheLevelsCasesFirstThenTheNewest() {
+        store.add(at(1, "OLD", OPENED.minusSeconds(600), null));
+        store.add(at(2, "NEW", OPENED, null));
+        store.add(engineCase(3, "LEVEL2", 2, 0));
+
+        JsonNode samples = service.scriptSamples(TENANT, "Botón de pánico", 2);
+
+        List<String> assets = new ArrayList<>();
+        samples.forEach(s -> assets.add(s.path("asset_id").asText()));
+        assertEquals(List.of("LEVEL2", "NEW", "OLD"), assets);
+        assertEquals("NEW", samples.get(1).path("context").path("vehicle").path("plate").asText());
+        assertEquals(0, service.scriptSamples(TENANT, "Otro síntoma", null).size());
+        assertThrows(IllegalArgumentException.class, () -> service.scriptSamples(TENANT, " ", null));
+    }
+
+    @Test
+    void scriptSamplesIncludeHistoryAndHydrateTheListProjection() {
+        InMemoryEngineCases projections = new InMemoryEngineCases() {
+            @Override
+            public List<EngineCase> list(String tenant, EngineCaseStore.CaseFilter filter) {
+                assertFalse(filter.openOnly(), "samples include closed and ignored history");
+                assertEquals(OPENED.plusSeconds(90), filter.to());
+                return super.list(tenant, filter).stream()
+                        .map(c -> c.withLevel(null, null, null, List.of())).toList();
+            }
+        };
+        JsonNode opening = new ObjectMapper().createObjectNode().put("speed", 80);
+        JsonNode reached = new ObjectMapper().createObjectNode().put("speed", 100);
+        projections.add(at(1, "HISTORY", OPENED, OPENED.plusSeconds(30))
+                .withLevel(opening, reached, "speed", List.of()));
+        EngineCaseService samples = new EngineCaseService(projections, (tenant, asset, definition) -> { },
+                t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+
+        JsonNode found = samples.scriptSamples(TENANT, "Botón de pánico", null);
+
+        assertEquals(1, found.size());
+        assertEquals(100, found.get(0).path("context").path("condition").path("speed").asInt());
     }
 
     @Test

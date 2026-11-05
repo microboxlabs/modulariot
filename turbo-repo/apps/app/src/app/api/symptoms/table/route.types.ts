@@ -1,3 +1,5 @@
+import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
+
 export interface SymptomsTableRequest {
   page: number;
   limit: number;
@@ -22,6 +24,7 @@ export interface SymptomsTable {
   client: string;
   driver: string;
   trip_id: string;
+  trip_code?: string | null;
   asset_id: string;
   end_time: string;
   start_time: string;
@@ -35,4 +38,10 @@ export interface SymptomsTable {
   last_assigned_to: string;
   sla_minutes: number | null;
   recurrence_events: number | null;
+  /** Engine cases on an "Ignorar condición" hold. */
+  ignored?: IgnoredInfo | null;
+  /** When the case came back to the tower from its latest hold. */
+  returned_after_ignore_at?: string | null;
+  /** When the SLA of the case's current level started. */
+  sla_since?: string | null;
 }

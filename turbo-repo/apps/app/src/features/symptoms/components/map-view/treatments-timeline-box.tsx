@@ -36,6 +36,10 @@ import CallLogRow from "./prototype/call-center/call-log-row";
 import CopyButton from "./prototype/call-center/copy-button";
 import { mockCallLogForTreatment } from "./prototype/call-center/mock-call-log";
 import { groupTreatments } from "./prototype/call-center/group-treatments";
+import {
+  HOLD_ENDINGS,
+  SYSTEM_ACTOR,
+} from "@/features/symptoms/model/ignore-hold";
 
 /** Shared by every procedure kind — same hover tooltip either way, just
  *  fed a different message/response: the real treatment record's for
@@ -166,6 +170,30 @@ function InstantTooltip({
 }
 
 /**
+ * The hold's mark on an "ignorar condicion" row ("Ignorada hasta HH:MM ·
+ * operator") or on its "fin de ignorar" row ("Vuelve tras ignorar", and who
+ * lifted it when it was not the timer); null on any other row.
+ */
+export function holdLine(
+  treatment: TreatmentTimelineElement,
+  t: (k: string) => string
+): string | null {
+  const by =
+    treatment.by && treatment.by !== SYSTEM_ACTOR ? treatment.by : null;
+  if (treatment.resolution) {
+    const ending = HOLD_ENDINGS[treatment.resolution];
+    if (!ending) return null;
+    return by ? `${t(ending)} · ${t("resumed_by")} ${by}` : t(ending);
+  }
+  if (treatment.until_trip_end) {
+    return [t("ignored_until_trip_end"), by].filter(Boolean).join(" · ");
+  }
+  if (!treatment.ignored_until) return null;
+  const until = formatDateString(new Date(treatment.ignored_until), "time");
+  return [`${t("ignored_until")} ${until}`, by].filter(Boolean).join(" · ");
+}
+
+/**
  * Same card language as the call-log rows below (icon + name/detail stack)
  * instead of a bare underlined line — the deeper message/response pair still
  * lives in the hover tooltip, sized to match this trigger card exactly
@@ -189,10 +217,13 @@ function GenericTreatmentRow({
   const t = (k: string) => (dict.symptoms as I18nRecord)[k] as string;
   const label =
     t(treatment.treatment_type.toUpperCase()) ?? treatment.treatment_type;
+  const hold = holdLine(treatment, t);
 
   const getCopyText = () => {
     const lines = [label];
     if (time) lines.push(formatDateString(time, "datetime"));
+    if (hold) lines.push(hold);
+    if (treatment.event_type) lines.push(treatment.event_type);
     if (treatment.description.message) {
       lines.push(`${t("message")}: ${treatment.description.message}`);
     }
@@ -221,11 +252,22 @@ function GenericTreatmentRow({
             <p className="truncate text-xs font-medium text-gray-900 dark:text-gray-100">
               {label}
             </p>
-            {treatment.description.message && (
+            {hold && (
+              <p className="wrap-break-word text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                {hold}
+              </p>
+            )}
+            {treatment.description.message && !treatment.resolution && (
               <p className="wrap-break-word text-[10px] text-gray-500 dark:text-gray-400">
                 {treatment.description.message}
               </p>
             )}
+            {treatment.event_type &&
+              treatment.event_type !== treatment.description.message && (
+                <p className="truncate font-mono text-[10px] text-gray-500 dark:text-gray-400">
+                  {treatment.event_type}
+                </p>
+              )}
             {treatment.description.driver_response && (
               <p className="wrap-break-word text-[10px] text-gray-500 dark:text-gray-400">
                 {t("response")}: {treatment.description.driver_response}

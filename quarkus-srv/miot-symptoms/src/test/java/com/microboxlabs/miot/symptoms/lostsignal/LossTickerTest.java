@@ -212,13 +212,13 @@ class LossTickerTest {
 
         assertEquals(List.of("HSET", "EXPIRE", "SET", "ZADD", "EXPIRE"), commands(RedisLossStore.saveRequests("V1",
                 v, "S1", SenderProfile.empty(), Schedule.at(T0, w), null, Duration.ofDays(7))));
-        assertEquals(List.of("HSET", "EXPIRE", "HSET", "EXPIRE", "GEOADD", "EXPIRE"), commands(RedisLossStore
-                .cellRequests("V1", "S1", new LossStore.Cells("1:2", null, null, -33.0, -71.0), T0)));
+        assertEquals(List.of("GEOADD", "EXPIRE"), commands(RedisLossStore
+                .reportingRequests("V1", new LossStore.Reporting(-33.0, -71.0), T0)));
         assertEquals("symptoms:geo:5890752", RedisLossStore.geoKey(T0));
         assertEquals(List.of("HSET", "HDEL", "ZREM", "EXPIRE"), commands(RedisLossStore.saveRequests("V1", v, null,
                 null, Schedule.DROP, null, Duration.ofDays(7))));
         assertEquals(List.of("HSET", "HSETNX", "HSET", "EXPIRE"), commands(RedisLossStore.saveRequests("V1", v, null,
-                null, Schedule.KEEP, new LossStore.Mark(T0, T0, true), Duration.ofDays(7))));
+                null, Schedule.KEEP, new LossStore.Mark(T0, T0, true, T0), Duration.ofDays(7))));
         assertEquals(List.of("HSET", "EXPIRE", "ZADD", "EXPIRE"), commands(RedisLossStore.saveRequests("V1",
                 v, null, null, Schedule.clear(T0, new Watch(Map.of(), 180, "S1")), null, Duration.ofDays(7))));
         assertEquals(List.of("EVAL"), commands(List.of(RedisLossStore.checkedRequest("V1", T0, CheckState.NONE, T0,

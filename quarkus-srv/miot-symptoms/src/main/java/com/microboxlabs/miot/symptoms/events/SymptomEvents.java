@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.events;
 import com.microboxlabs.miot.core.event.EventContext;
 import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
@@ -72,10 +73,16 @@ public class SymptomEvents {
         this.clock = clock;
     }
 
-    /** One event per change the evaluator recorded. */
+    /**
+     * One event per change the evaluator recorded; an opening a hold kept back ({@code HELD}) and a timeline note
+     * ({@code NOTED}) send none.
+     */
     public void transitions(String tenantCode, List<Recorded> recorded, Place place) {
         for (Recorded r : recorded) {
             Transition t = r.transition();
+            if (t.kind() == Transition.Kind.HELD || t.kind() == Transition.Kind.NOTED) {
+                continue;
+            }
             Name n = name(tenantCode, t.definitionId());
             SymptomCaseData data = new SymptomCaseData(-r.caseId(), t.definitionId(), t.version(), n.key(),
                     n.name(), t.level(), t.previousLevel(), t.assetId(), place.tripId(), place.driverId(),
@@ -88,6 +95,22 @@ public class SymptomEvents {
     public void closedByOperator(String tenantCode, EngineCase c, String actor, Instant at) {
         Name n = name(tenantCode, c.definitionId());
         publish(SymptomEventCatalog.CLOSED, tenantCode, at, new SymptomCaseData(c.symptomId(), c.definitionId(),
+                c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(), null, null,
+                c.latitude(), c.longitude(), c.speedKmh(), actor, null, null, null, null), c.test());
+    }
+
+    /** The case closed because its symptom changed state; no operator closed it. */
+    public void closedByStateChange(String tenantCode, EngineCaseStore.StaleCase c, Instant at) {
+        Name n = name(tenantCode, c.definitionId());
+        publish(SymptomEventCatalog.CLOSED, tenantCode, at, new SymptomCaseData(c.symptomId(), c.definitionId(),
+                c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(), null, null,
+                c.latitude(), c.longitude(), c.speedKmh(), null, null, null, null, null), c.test());
+    }
+
+    /** Cancellation signal for pending notification rules on each case covered by an ignore hold. */
+    public void ignored(String tenantCode, EngineCase c, String actor, Instant at) {
+        Name n = name(tenantCode, c.definitionId());
+        publish(SymptomEventCatalog.IGNORED, tenantCode, at, new SymptomCaseData(c.symptomId(), c.definitionId(),
                 c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(), null, null,
                 c.latitude(), c.longitude(), c.speedKmh(), actor, null, null, null, null), false);
     }
@@ -156,6 +179,7 @@ public class SymptomEvents {
             case OPENED -> SymptomEventCatalog.OPENED;
             case LEVEL_CHANGED -> SymptomEventCatalog.LEVEL_CHANGED;
             case CLOSED -> SymptomEventCatalog.CLOSED;
+            case HELD, NOTED -> throw new IllegalArgumentException("A held opening or a note publishes no event");
         };
     }
 }

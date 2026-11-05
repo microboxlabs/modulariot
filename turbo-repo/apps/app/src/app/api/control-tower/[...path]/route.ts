@@ -6,10 +6,15 @@ import { forwardToStreamhubModulith } from "@/app/api/utils/streamhub-modulith-p
  * modulith next to the GPS data: `MIOT_STREAMHUB_API_URL`, else `MIOT_MODULITH_URL`.
  */
 const proxy = orgApiProxy("control-tower", {
-  // The modulith checks platform ownership from the token's email, so saving
-  // as a template always goes with the user's session, never an M2M token.
+  // Template ownership and telephony logins require the individual user's
+  // session; a shared service token cannot identify that operator.
   forward: (path, init) =>
-    path.split("?")[0].endsWith("/save-as-template")
+    [
+      "/save-as-template",
+      "/telephony/webrtc-token",
+      "/telephony/reconcile",
+    ].some((suffix) => path.split("?")[0].endsWith(suffix)) ||
+    /\/telephony\/calls\/[^/]+\/ended$/.test(path.split("?")[0])
       ? forwardToStreamhubModulith(path, { ...init, sessionOnly: true })
       : forwardToStreamhubModulith(path, init),
 });

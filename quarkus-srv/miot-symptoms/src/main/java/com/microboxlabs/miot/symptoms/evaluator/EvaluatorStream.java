@@ -2,8 +2,12 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
+import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
+import com.microboxlabs.miot.symptoms.signal.GpsSignal;
 import com.microboxlabs.miot.symptoms.signal.SignalFields;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -23,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.reactive.messaging.Message;
@@ -47,6 +52,7 @@ public class EvaluatorStream {
     private static final Logger LOG = Logger.getLogger(EvaluatorStream.class);
     private static final ObjectMapper JSON = new ObjectMapper();
     static final String SOURCE = "gps_signal";
+    private static final String FRAME = "frame";
     private static final Duration VERSIONS_TTL = Duration.ofSeconds(30);
     /** Client ids are 8 characters before any suffix; the tag keeps only those. */
     private static final int SENDER_TAG = 8;
@@ -61,6 +67,7 @@ public class EvaluatorStream {
     private final SymptomEvents events;
     private final LateFrames lateFrames;
     private final LostSignalDetector lostSignal;
+    private final Holds holds;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
@@ -70,12 +77,13 @@ public class EvaluatorStream {
     EvaluatorStream(@ConfigProperty(name = "miot.symptoms.evaluator.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration ttl,
             EvaluatorRedis redis, SignalSamples samples, EvaluatorCatalog catalog, TransitionLog transitionLog,
-            MeterRegistry meters, SymptomEvents events, Instance<LateFrames> lateFrames, LostSignalDetector lostSignal) {
+            MeterRegistry meters, SymptomEvents events, Instance<LateFrames> lateFrames, LostSignalDetector lostSignal,
+            Holds holds) {
         this(enabled, catalog, new Sinks(transitionLog, events, meters), Clock.systemUTC(),
                 // Also when not consuming: closing a case drops its episode in the Redis the consumers use.
                 redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, ttl))
                         .orElseGet(InMemoryEpisodeRepository::new),
-                samples, lateFrames.isResolvable() ? lateFrames.get() : LateFrames.NONE, lostSignal);
+                samples, lateFrames.isResolvable() ? lateFrames.get() : LateFrames.NONE, lostSignal, holds);
         if (enabled) {
             LOG.infof("Symptom evaluator: on, episodes in %s",
                     episodes instanceof RedisEpisodes ? "Redis" : "memory");
@@ -94,6 +102,13 @@ public class EvaluatorStream {
     @SuppressWarnings("java:S107") // The collaborators above, plus the two hooks, for tests.
     EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
             SignalSamples samples, LateFrames lateFrames, LostSignalDetector lostSignal) {
+        this(enabled, catalog, sinks, clock, episodes, samples, lateFrames, lostSignal, Holds.NONE);
+    }
+
+    @SuppressWarnings("java:S107") // As above, with the holds the evaluator reads.
+    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
+            SignalSamples samples, LateFrames lateFrames, LostSignalDetector lostSignal, Holds holds) {
+        this.holds = holds;
         this.lateFrames = lateFrames;
         this.lostSignal = lostSignal;
         this.enabled = enabled;
@@ -130,6 +145,21 @@ public class EvaluatorStream {
                 .filter(ms -> ms > 0).map(Instant::ofEpochMilli).orElseGet(clock::instant);
     }
 
+    /**
+     * When the frame reached the platform: the gateway's time the signal carries ({@code received_at}), so a
+     * backlog before the signal builder does not read as the device's delay; else when the builder published it.
+     */
+    static Instant arrival(Map<String, Object> signal, Instant published) {
+        if (signal.get("received_at") instanceof String received) {
+            try {
+                return Instant.parse(received);
+            } catch (DateTimeParseException e) {
+                return published;
+            }
+        }
+        return published;
+    }
+
     int evaluate(String json) {
         return evaluate(json, clock.instant());
     }
@@ -159,14 +189,21 @@ public class EvaluatorStream {
             throw new IllegalArgumentException("not a signal time", e);
         }
         // Before the organizations: a failing catalog or log must not keep the frame out of the profiles.
-        lostSignal.frame(assetId, instant, arrivedAt, signal);
+        lostSignal.frame(assetId, instant, arrival(signal, arrivedAt), signal);
         int recorded = 0;
         boolean late = false;
         for (Object client : clients) {
             if (client instanceof String tenant) {
-                Evaluated e = evaluate(tenant, assetId, instant, forTenant(signal, tenant));
+                Evaluated e = evaluate(tenant, assetId, instant, forTenant(signal, tenant), false);
                 recorded += e.transitions();
                 late |= e.late();
+            }
+        }
+        for (String tenant : episodes.tenantsWithEpisodes(assetId)) {
+            if (!clients.contains(tenant)) {
+                recorded += evaluate(tenant, assetId, instant,
+                        Map.of("asset_id", assetId, "at", time, "trip", NO_TRIP,
+                                FRAME, Map.of("events", List.of())), true).transitions();
             }
         }
         if (late) {
@@ -188,51 +225,90 @@ public class EvaluatorStream {
 
     private static final Map<String, Object> NO_TRIP = Map.of("active", false, "double_driver", false);
 
-    /** The signal as the organization's rules read it: its own trip as {@code trip}, none of the others. */
+    /**
+     * The signal as the organization's rules read it: its own trip as {@code trip} and its own zones as
+     * {@code geo}, none of the others, and the frame's events always a list ({@link GpsSignal.FrameEvent}).
+     * An organization without zones gets no {@code geo}.
+     */
     static Map<String, Object> forTenant(Map<String, Object> signal, String tenant) {
-        Map<String, Object> out = new LinkedHashMap<>(signal);
+        Map<String, Object> out = new LinkedHashMap<>(GpsSignal.FrameEvent.withEvents(signal));
         Object trips = out.remove("trips");
         Object trip = trips instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
         out.put("trip", trip != null ? trip : NO_TRIP);
+        Object geos = out.remove("geos");
+        out.remove("geo");
+        Object geo = geos instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
+        if (geo != null) {
+            out.put("geo", geo);
+        }
         return out;
     }
 
-    private Evaluated evaluate(String tenant, String assetId, Instant at, Map<String, Object> signal) {
-        samples.keep(tenant, signal);
+    private Evaluated evaluate(String tenant, String assetId, Instant at, Map<String, Object> signal,
+            boolean reconcile) {
+        if (!reconcile) {
+            samples.keep(tenant, signal);
+        }
         List<CompiledSymptom> symptoms = symptoms(tenant);
-        if (symptoms.isEmpty()) {
+        if (symptoms.isEmpty() && !reconcile) {
             return new Evaluated(0, false);
         }
         AssetEpisodes state = episodes.load(tenant, assetId);
+        if (symptoms.isEmpty()) {
+            episodes.save(state);
+            return new Evaluated(0, false);
+        }
         Instant newest = state.watermark(tenant, assetId, SOURCE).orElse(null);
         boolean late = newest != null && at.isBefore(newest);
-        if (late) {
-            try {
-                lateFrames.late(tenant, assetId, at, newest, signal);
-            } catch (RuntimeException e) {
-                // A failed hook is not worth a redelivery.
-                meters.counter("miot.symptoms.evaluator.late_hook_failed").increment();
-            }
-            if (symptoms.stream().noneMatch(CompiledSymptom::eventDriven)) {
-                return new Evaluated(0, true);
-            }
+        if (late && reconcile) {
+            return new Evaluated(0, false);
+        }
+        if (late && !lateRuns(tenant, assetId, at, newest, signal, symptoms)) {
+            return new Evaluated(0, true);
         }
         // A late frame runs only the event-driven symptoms, without moving the watermark (a buffered panic or
         // sabotage event still opens its case); the others keep skipping it.
-        SignalEvaluator evaluator = new SignalEvaluator(state);
+        SignalEvaluator evaluator = new SignalEvaluator(state, holds);
         Map<String, Object> root = Map.of(SignalFields.ROOT, signal);
-        SignalEvaluator.Result result = late ? evaluator.evaluateLate(tenant, assetId, at, root, symptoms)
-                : evaluator.evaluate(tenant, assetId, at, root, symptoms);
-        // Transitions first: a failed episode write replays the signal, and the log skips what it already holds.
+        SignalEvaluator.Result result;
+        if (reconcile) {
+            result = evaluator.reconcile(tenant, assetId, at, root, symptoms);
+        } else {
+            result = late ? evaluator.evaluateLate(tenant, assetId, at, root, symptoms)
+                    : evaluator.evaluate(tenant, assetId, at, root, symptoms);
+        }
+        writeResult(tenant, assetId, signal, state, result, late);
+        return new Evaluated(result.transitions().size(), late);
+    }
+
+    /** Hands a late frame to the late hook; true when an event-driven symptom still has to run on it. */
+    private boolean lateRuns(String tenant, String assetId, Instant at, Instant newest, Map<String, Object> signal,
+            List<CompiledSymptom> symptoms) {
+        try {
+            lateFrames.late(tenant, assetId, at, newest, signal);
+        } catch (RuntimeException e) {
+            // A failed hook is not worth a redelivery.
+            meters.counter("miot.symptoms.evaluator.late_hook_failed").increment();
+        }
+        return symptoms.stream().anyMatch(CompiledSymptom::eventDriven);
+    }
+
+    /** Writes the result: transitions first, since a failed episode write replays the signal and the log skips
+     * what it already holds; then the episodes and the counters. */
+    private void writeResult(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
+            SignalEvaluator.Result result, boolean late) {
         if (!result.transitions().isEmpty()) {
             TransitionLog.Place place = place(signal);
             // Only the changes new to the log: a replayed signal publishes nothing twice.
             List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, result.transitions(), place);
-            events.transitions(tenant, recorded, place);
+            events.transitions(tenant, recorded.stream()
+                    .filter(r -> !holds.held(tenant, assetId, r.transition().definitionId(), Instant.EPOCH))
+                    .toList(), place);
             if (late) {
                 // A late opening the log already holds is a replay of a case that may be closed since: it keeps no
                 // episode, or that episode would block the next real event.
                 result.transitions().stream()
+                        .filter(t -> t.kind() == Transition.Kind.OPENED)
                         .filter(t -> recorded.stream().noneMatch(r -> r.transition().equals(t)))
                         .forEach(t -> state.delete(tenant, assetId, t.definitionId()));
             }
@@ -243,7 +319,6 @@ public class EvaluatorStream {
         if (!result.errors().isEmpty()) {
             meters.counter("miot.symptoms.evaluator.rule_errors").increment(result.errors().size());
         }
-        return new Evaluated(result.transitions().size(), late);
     }
 
     /**
@@ -251,15 +326,48 @@ public class EvaluatorStream {
      * meets the condition opens a new case.
      */
     public void forget(String tenant, String assetId, java.util.UUID definitionId) {
-        episodes.forget(tenant, assetId, definitionId);
-        lostSignal.forget(tenant, assetId, definitionId);
+        forget(tenant, assetId, definitionId, null);
+    }
+
+    /**
+     * As {@link #forget(String, String, java.util.UUID)}, and the episode keeps the case's trip, so the open rule
+     * reads {@code case.closed_on_trip} true while the vehicle stays on that trip.
+     */
+    public void forget(String tenant, String assetId, java.util.UUID definitionId, String tripId) {
+        Episode marker = tripId == null ? null : Episode.closedOnTrip(definitionId, assetId, tripId, clock.instant());
+        // Both consumers may share Redis. Neither close may expose an empty episode before installing its marker.
+        lostSignal.forget(tenant, assetId, definitionId, marker);
+        episodes.operatorClose(tenant, assetId, definitionId, marker);
+    }
+
+    /** Drops only the case the sweep closed, preserving a newer episode opened on another replica. */
+    public void forgetStale(StaleCase c) {
+        episodes.forgetStale(c.tenantCode(), c.assetId(), c.definitionId(),
+                c.test() ? SymptomState.TEST : SymptomState.ACTIVE, c.openedAt());
+        lostSignal.forgetStale(c);
+    }
+
+    /** Rechecks the latest condition evidence before releasing a hold, then restarts its level timers. */
+    public void finishHold(IgnoreHold h) {
+        AssetEpisodes state = episodes.load(h.tenantCode(), h.assetId());
+        List<CompiledSymptom> covered = Stream.concat(catalog.forSource(h.tenantCode(), SOURCE).symptoms().stream(),
+                catalog.forSource(h.tenantCode(), "trip_check").symptoms().stream())
+                .filter(s -> state.find(h.tenantCode(), h.assetId(), s.definitionId())
+                        .map(e -> h.covers(h.assetId(), s.definitionId(), e.openedAt())).orElse(false))
+                .toList();
+        List<Transition> closed = new SignalEvaluator(state).finishHold(h.tenantCode(), h.assetId(), clock.instant(),
+                covered);
+        if (!closed.isEmpty()) {
+            transitionLog.append(h.tenantCode(), closed, new TransitionLog.Place(h.tripId(), null, null, null, null));
+        }
+        episodes.save(state);
     }
 
     /** The trip, position and driver of the signal, as far as it has them. */
     static TransitionLog.Place place(Map<String, Object> signal) {
         return new TransitionLog.Place(text(path(signal, "trip", "id")),
-                number(path(signal, "frame", "gps", "latitude")), number(path(signal, "frame", "gps", "longitude")),
-                number(path(signal, "frame", "gps", "speed")), text(path(signal, "trip", "driver", "id")));
+                number(path(signal, FRAME, "gps", "latitude")), number(path(signal, FRAME, "gps", "longitude")),
+                number(path(signal, FRAME, "gps", "speed")), text(path(signal, "trip", "driver", "id")));
     }
 
     private static String text(Object value) {

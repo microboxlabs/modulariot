@@ -28,10 +28,11 @@ vi.mock("../use-credentials", () => ({
     ...actions,
   }),
 }));
+const scope = vi.hoisted(() => ({ slug: "demo-org" }));
 vi.mock(
   "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
   () => ({
-    useOrgScopes: () => ({ activeOrg: { slug: "demo-org" } }),
+    useOrgScopes: () => ({ activeOrg: { slug: scope.slug } }),
   })
 );
 vi.mock("@/features/common/components/settings-page-shell", () => ({
@@ -68,6 +69,7 @@ vi.mock("./bearer-token-credential-modal", () => ({
   WhatsAppCredentialModal: () => null,
   MapboxCredentialModal: () => null,
   GoogleMapsCredentialModal: () => null,
+  TelnyxCredentialModal: () => null,
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -85,6 +87,7 @@ function deferred<T>() {
 }
 
 beforeEach(() => {
+  scope.slug = "demo-org";
   Object.values(actions).forEach((action) => action.mockReset());
   actions.create.mockResolvedValue({ id: "new-demo" });
   actions.testConfig.mockResolvedValue(success);
@@ -209,5 +212,44 @@ describe("credential save and recorded test lifecycle", () => {
       ).not.toBeInTheDocument()
     );
     expect(actions.test).not.toHaveBeenCalled();
+  });
+});
+
+describe("credential type picker", () => {
+  async function openPicker() {
+    fireEvent.click(screen.getByRole("button", { name: dict.addButton }));
+    await screen.findByPlaceholderText(dict.picker.searchPlaceholder);
+  }
+
+  it("offers Mapbox and Google Maps in the platform scope", async () => {
+    scope.slug = "_platform";
+    show();
+    await openPicker();
+    expect(screen.getByText(dict.types.mapbox.name)).toBeInTheDocument();
+    expect(screen.getByText(dict.types.googleMaps.name)).toBeInTheDocument();
+  });
+
+  it("does not offer Mapbox or Google Maps to an organization", async () => {
+    show();
+    await openPicker();
+    expect(screen.getByText(dict.types.bearer.name)).toBeInTheDocument();
+    expect(screen.queryByText(dict.types.mapbox.name)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(dict.types.googleMaps.name)
+    ).not.toBeInTheDocument();
+  });
+
+  it("lists the unavailable types after every available one", async () => {
+    show();
+    await openPicker();
+    const options = screen
+      .getAllByRole("listitem")
+      .map((item) => item.querySelector("button"))
+      .filter((button) => button !== null);
+    const firstDisabled = options.findIndex((button) => button.disabled);
+    expect(firstDisabled).toBeGreaterThan(0);
+    expect(
+      options.slice(firstDisabled).every((button) => button.disabled)
+    ).toBe(true);
   });
 });

@@ -2,7 +2,7 @@
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
-import { Card } from "flowbite-react";
+import { Badge, Card } from "flowbite-react";
 import Image from "next/image";
 import PrototypeSideInfo from "./prototype-side-info";
 import MapVisualizationTrip, {
@@ -13,11 +13,12 @@ import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
 import { chipText } from "./header-chip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../../hooks/use-treatments-general";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
 import { titles } from "../../../types/symptom-titles";
 import TagManager from "../../tag-manager";
+import IgnoredHoldCell from "../../ignored-hold-cell";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import { ConditionsAgg } from "../../../types/timeline";
 import type { SelectedOption } from "../../../types/side-info";
@@ -25,6 +26,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import { lugaresLayout } from "../lugares-layout";
+import { caseSpans as spansOf } from "@/features/symptoms/model/level-reason";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -195,6 +197,7 @@ export default function PrototypeGeneralMap({
     id
   );
   const casePoint = tripless ? firstPoint(caseLocation) : null;
+  const caseSpans = useMemo(() => spansOf(treatmentData), [treatmentData]);
 
   useEffect(() => {
     if (errorTreatments) {
@@ -306,7 +309,11 @@ export default function PrototypeGeneralMap({
                     icon: <FaUser className="text-gray-900 dark:text-white" />,
                   },
                   {
-                    text: chipText(loading, tripInfo?.trip_id, "Trip id"),
+                    text: chipText(
+                      loading,
+                      tripInfo?.trip_code?.trim() || tripInfo?.trip_id,
+                      symptomsDict.trip as string
+                    ),
                   },
                   {
                     text: chipText(
@@ -318,6 +325,18 @@ export default function PrototypeGeneralMap({
                 ]}
               />
             </div>
+            {treatmentData?.symptom_info?.ignored && (
+              <IgnoredHoldCell
+                info={treatmentData.symptom_info.ignored}
+                dict={dict as I18nRecord}
+              />
+            )}
+            {!treatmentData?.symptom_info?.ignored &&
+              treatmentData?.symptom_info?.returned_after_ignore_at && (
+                <Badge color="warning" className="w-fit whitespace-nowrap">
+                  {symptomsDict.returned_after_ignore as string}
+                </Badge>
+              )}
           </div>
         </Card>
       </div>
@@ -364,6 +383,8 @@ export default function PrototypeGeneralMap({
               licensePlate={treatmentData?.trip_info?.asset_id ?? null}
               onLugaresChange={setLugaresAbierto}
               casePoint={casePoint}
+              caseSpans={caseSpans}
+              lostSince={treatmentData?.level_reason?.lost_since ?? null}
             />
           </div>
           {/* Keeps the symptom being called about visible without flipping

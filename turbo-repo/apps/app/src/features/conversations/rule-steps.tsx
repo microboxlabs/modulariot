@@ -9,7 +9,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { FieldError } from "@/features/symptoms/maintainer/ui/response-block";
 import { PillNumber, PillSelect } from "@/features/symptoms/maintainer/ui/pill";
-import { channelLogo } from "./channel-icon";
+import { ChannelGlyph } from "./channel-icon";
 import type {
   ConversationTemplate,
   MetaTemplate,
@@ -139,17 +139,6 @@ function ConnectionPill({
         ...(known ? [] : [{ value: value ?? "", label: value ?? "" }]),
         ...connections.map((c) => ({ value: c.id, label: c.name })),
       ]}
-    />
-  );
-}
-
-/** A channel's logo at text size, in the logos' gray. */
-function ChannelGlyph({ channel }: Readonly<{ channel: string }>) {
-  const Logo = channelLogo(channel);
-  return (
-    <Logo
-      aria-hidden
-      className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-gray-400"
     />
   );
 }

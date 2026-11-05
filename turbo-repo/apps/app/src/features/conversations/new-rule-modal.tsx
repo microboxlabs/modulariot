@@ -18,8 +18,17 @@ import {
   keyFrom,
 } from "@/features/symptoms/maintainer/create-symptom-modal";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
-import { createRule, refreshRules, useEventCatalog } from "./conversations-api";
-import type { EventTypeInfo, RuleDetail } from "./conversations-types";
+import {
+  createRule,
+  refreshRules,
+  useEventCatalog,
+  useRulePresets,
+} from "./conversations-api";
+import type {
+  EventTypeInfo,
+  RuleDetail,
+  RulePreset,
+} from "./conversations-types";
 import {
   eventGroups,
   eventLabel,
@@ -72,6 +81,16 @@ function createError(e: unknown, d: I18nRecord) {
   return tr("createRuleFailed", d);
 }
 
+function presetText(preset: RulePreset, d: I18nRecord) {
+  if (preset.key === "trip-departure-call-permission") {
+    return {
+      name: tr("rulePresetDeparturePermissionName", d),
+      description: tr("rulePresetDeparturePermissionDescription", d),
+    };
+  }
+  return { name: preset.name, description: preset.description };
+}
+
 /** The form; mounted fresh each time the modal opens, so it starts from the prefill. */
 function NewRuleForm({
   prefill,
@@ -89,6 +108,13 @@ function NewRuleForm({
   onCreated: (detail: RuleDetail) => void;
 }>) {
   const { data: catalog } = useEventCatalog();
+  const {
+    data: presets,
+    error: presetsError,
+    mutate: reloadPresets,
+  } = useRulePresets();
+  const [presetKey, setPresetKey] = useState("");
+  const preset = presets?.find((p) => p.key === presetKey);
   const symptomName = useSymptomNames();
   const [name, setName] = useState(prefill.name ?? "");
   const [key, setKey] = useState("");
@@ -99,7 +125,8 @@ function NewRuleForm({
   const [error, setError] = useState<string | null>(null);
   // The prefilled condition names the prefilled event's data; another event drops it.
   const when = event === prefilledEvent ? (prefill.when ?? "") : "";
-  const spec = newRuleSpec(event, when);
+  const spec = preset ? preset.spec : newRuleSpec(event, when);
+  const shownEvent = preset ? preset.spec.trigger.event : event;
   const effectiveKey = keyTouched ? key : keyFrom(name);
   const keyValid = KEY_PATTERN.test(effectiveKey);
   // A modal dismissed while creating must not navigate when the request lands.
@@ -134,8 +161,59 @@ function NewRuleForm({
     }
   };
 
+  const pickPreset = (key: string) => {
+    setPresetKey(key);
+    const picked = presets?.find((p) => p.key === key);
+    if (!picked) {
+      setName(prefill.name ?? "");
+      setKey("");
+      setKeyTouched(false);
+      return;
+    }
+    setName(presetText(picked, d).name);
+    setKey(picked.key);
+    setKeyTouched(true);
+  };
+
   return (
     <div className="flex flex-col gap-4">
+      {presetsError && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {tr("rulePresetsLoadFailed", d)}{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => {
+              void reloadPresets();
+            }}
+          >
+            {tr("retryRulePresets", d)}
+          </button>
+        </p>
+      )}
+      {presets && presets.length > 0 && (
+        <div>
+          <Label htmlFor="rule-preset">{tr("rulePreset", d)}</Label>
+          <Select
+            id="rule-preset"
+            disabled={!canWrite}
+            value={presetKey}
+            onChange={(e) => pickPreset(e.target.value)}
+          >
+            <option value="">{tr("rulePresetNone", d)}</option>
+            {presets.map((p) => (
+              <option key={p.key} value={p.key}>
+                {presetText(p, d).name}
+              </option>
+            ))}
+          </Select>
+          {preset && (
+            <p className={`mt-1 text-xs ${MUTED}`}>
+              {presetText(preset, d).description}
+            </p>
+          )}
+        </div>
+      )}
       <div>
         <Label htmlFor="rule-name">{tr("ruleName", d)}</Label>
         <TextInput
@@ -168,11 +246,11 @@ function NewRuleForm({
         <Label htmlFor="rule-event">{tr("eventLabel", d)}</Label>
         <Select
           id="rule-event"
-          disabled={!canWrite}
-          value={event}
+          disabled={!canWrite || Boolean(preset)}
+          value={shownEvent}
           onChange={(e) => setEvent(e.target.value)}
         >
-          {eventGroups(eventOptions(catalog, event), d).map((g) => (
+          {eventGroups(eventOptions(catalog, shownEvent), d).map((g) => (
             <optgroup key={g.label} label={g.label}>
               {g.types.map((type) => (
                 <option key={type} value={type}>

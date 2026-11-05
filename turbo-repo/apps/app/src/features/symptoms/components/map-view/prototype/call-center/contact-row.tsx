@@ -11,7 +11,8 @@
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import CallStatsBadges from "./call-stats-badges";
-import type { MockCallStats } from "./mock-contact-data";
+import { CALL_METHOD_ICONS, type CallMethod } from "./call-method";
+import type { CallStats } from "./call-targets";
 
 export default function ContactRow({
   personName,
@@ -24,12 +25,21 @@ export default function ContactRow({
   pulsing,
   recentlyCalled,
   justCalledLabel,
-  bgClassName = "bg-gray-50 dark:bg-gray-800/40",
+  bgClassName = "bg-white dark:bg-gray-800",
+  methods,
+  methodLabels,
+  unavailableNote,
 }: Readonly<{
+  /** The contact's channels, shown as icons. */
+  methods?: readonly CallMethod[];
+  /** The label of each channel icon. */
+  methodLabels?: Partial<Record<CallMethod, string>>;
+  /** Set when the contact cannot be reached on the step's channel. */
+  unavailableNote?: string;
   personName: string;
   roleLabel?: string;
   phone?: string;
-  stats?: MockCallStats | null;
+  stats?: CallStats | null;
   /** Only the clickable "a quién llamar" list variant passes this. */
   onClick?: () => void;
   title?: string;
@@ -56,12 +66,12 @@ export default function ContactRow({
   const justCalled =
     recentlyCalled &&
     !!justCalledLabel &&
-    !!stats &&
+    !!stats?.lastCallAt &&
     Date.now() - stats.lastCallAt.getTime() < 60_000;
 
   const className = `flex w-full items-center justify-between gap-3 border-b border-gray-200 px-3 py-2.5 text-left dark:border-gray-700 ${bgClassName} ${
     interactive
-      ? "cursor-pointer transition-colors hover:bg-white dark:hover:bg-gray-700"
+      ? "cursor-pointer transition-colors hover:bg-gray-50 focus:outline-none focus-visible:bg-gray-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 dark:hover:bg-gray-700 dark:focus-visible:bg-gray-700"
       : ""
   }`;
 
@@ -85,9 +95,27 @@ export default function ContactRow({
               </span>
             )}
           </div>
-          {phone && (
-            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-              {phone}
+          {(phone || (methods && methods.length > 0)) && (
+            <p className="flex min-w-0 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              {phone && <span className="truncate">{phone}</span>}
+              {methods?.map((m) => {
+                const Icon = CALL_METHOD_ICONS[m];
+                const label = methodLabels?.[m] ?? m;
+                return (
+                  <Icon
+                    key={m}
+                    role="img"
+                    aria-label={label}
+                    title={label}
+                    className="h-3 w-3 shrink-0"
+                  />
+                );
+              })}
+            </p>
+          )}
+          {unavailableNote && (
+            <p className="truncate text-xs text-amber-700 dark:text-amber-400">
+              {unavailableNote}
             </p>
           )}
         </div>
@@ -100,15 +128,17 @@ export default function ContactRow({
               {justCalledLabel}
             </span>
           ) : (
-            <FormattedDate
-              date={stats.lastCallAt}
-              format="relative"
-              className={
-                recentlyCalled
-                  ? "font-medium text-green-500 dark:text-green-400"
-                  : undefined
-              }
-            />
+            stats.lastCallAt && (
+              <FormattedDate
+                date={stats.lastCallAt}
+                format="relative"
+                className={
+                  recentlyCalled
+                    ? "font-medium text-green-500 dark:text-green-400"
+                    : undefined
+                }
+              />
+            )
           )}
           <CallStatsBadges accepted={stats.accepted} denied={stats.denied} />
         </div>

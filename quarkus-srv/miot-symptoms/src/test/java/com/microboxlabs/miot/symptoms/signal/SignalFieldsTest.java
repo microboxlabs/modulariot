@@ -79,7 +79,10 @@ class SignalFieldsTest {
         labels.load(new InputStreamReader(SignalFields.class.getResourceAsStream(SignalFields.LABELS),
                 StandardCharsets.UTF_8));
         List<String> missing = SignalFields.fields().stream().map(SourceField::path)
-                .filter(p -> p.startsWith("signal.frame.") && !labels.containsKey(p)).toList();
+                .filter(p -> p.startsWith("signal.frame.") && !labels.containsKey(p))
+                // A list's fields are labelled by its declared type (GpsSignal.FrameEvent).
+                .filter(p -> SignalFields.LISTS.keySet().stream().noneMatch(l -> p.equals(l) || p.startsWith(l + ".")))
+                .toList();
 
         assertEquals(List.of(), missing, "add these paths to " + SignalFields.LABELS);
     }
@@ -89,7 +92,7 @@ class SignalFieldsTest {
         Map<String, SourceField> fields = byPath();
 
         assertTrue(fields.keySet().stream().noneMatch(p -> p.contains("driver_info") || p.contains("metrics")
-                || p.contains("peripherals") || p.contains("events")));
+                || p.contains("peripherals")));
         assertTrue(fields.keySet().stream().noneMatch(p -> p.equals("signal.schema") || p.equals("signal.at")
                 || p.startsWith("signal.clients") || p.equals("signal.frame.asset_id")));
     }
@@ -109,13 +112,14 @@ class SignalFieldsTest {
     @Test
     void everyFieldIsAPathOfTheSerializedSignal() throws Exception {
         AssetTrackingData frame = JSON.readValue(FRAME, AssetTrackingData.class);
-        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, List.of("client-1"), "client-1", null,
+        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, null, List.of("client-1"), "client-1", null,
                 new GpsSignal.Trip(true, false, "T-1", "SVC-1", "v", "in_transit", 30.0, -5.0, new GpsSignal.Origin(32, "ANF", true, true),
                         new GpsSignal.Destination(17, "SPC", false), 4, new GpsSignal.Carrier("1-9", "Transportes"),
                         "rampla", "AB1234", new GpsSignal.Driver("d-1", true, GpsSignal.DriverStatus.ACTIVE, false)),
                 new GpsSignal.Vehicle(GpsSignal.WeightCategory.HEAVY, 30000.0),
                 new GpsSignal.Road(90.0, 80.0),
-                new GpsSignal.Geo(false, "Z-1"), 14, new GpsSignal.Derived(true, 40.0, false, false), frame);
+                new GpsSignal.Geo(false, "Z-1", true, true), null, 14, 870.5,
+                new GpsSignal.Derived(true, 40.0, false, false), frame);
         Map<String, Object> root = Map.of(SignalFields.ROOT, JSON.convertValue(signal, new TypeReference<>() {
         }));
 
@@ -123,7 +127,8 @@ class SignalFieldsTest {
                 "signal.trip.late_min", "signal.trip.origin.label",
                 "signal.trip.destination.visited", "signal.trip.carrier.name", "signal.trip.driver.status",
                 "signal.trip.driver.license_expired", "signal.vehicle.weight_category", "signal.frame.gps.speed",
-                "signal.road.maxspeed_osm", "signal.geo.zone", "signal.local_hour", "signal.derived.moving",
+                "signal.road.maxspeed_osm", "signal.geo.zone", "signal.geo.risk_zone",
+                "signal.geo.outside_authorized", "signal.local_hour", "signal.local_minutes", "signal.derived.moving",
                 "signal.derived.speed_avg_5m", "signal.frame.sensors.engine_status",
                 "signal.frame.gps.latitude", "signal.frame.sensors.panic_button")) {
             assertTrue(byPath().containsKey(path), path);
@@ -131,6 +136,36 @@ class SignalFieldsTest {
         }
         assertEquals(Boolean.TRUE, valueAt(root, "signal.frame.sensors.panic_button"));
         assertEquals(GpsSignal.SCHEMA_ID, valueAt(root, "signal.schema"));
+    }
+
+    @Test
+    void theFrameEventsAreAListOfObjects() {
+        Map<String, SourceField> fields = byPath();
+
+        SourceField events = fields.get("signal.frame.events");
+        assertEquals("objects", events.type());
+        assertEquals("Eventos del GPS", events.label());
+        assertEquals(FieldOrigin.DEVICE, events.origin());
+        assertEquals("text", fields.get("signal.frame.events.event_type").type());
+        assertEquals("Tipo de evento", fields.get("signal.frame.events.event_type").label());
+        assertEquals("text", fields.get("signal.frame.events.severity").type());
+        assertEquals("text", fields.get("signal.frame.events.description").type());
+        assertEquals("time", fields.get("signal.frame.events.timestamp").type());
+        assertTrue(fields.keySet().stream().noneMatch(p -> p.contains("additional_info")
+                || p.contains("threshold_exceeded")));
+    }
+
+    @Test
+    void theFrameEventsAreReadWithEveryValueAText() {
+        Map<String, Object> signal = Map.of("frame", Map.of("events", List.of(
+                Map.of("event_type", "device_tamper", "timestamp", "2026-01-01T12:00:00Z"), "not an event")));
+
+        Map<String, Object> read = GpsSignal.FrameEvent.withEvents(signal);
+
+        assertEquals(List.of(Map.of("event_type", "device_tamper", "severity", "", "description", "",
+                "timestamp", "2026-01-01T12:00:00Z")), ((Map<?, ?>) read.get("frame")).get("events"));
+        assertEquals(List.of(), ((Map<?, ?>) GpsSignal.FrameEvent.withEvents(Map.of("frame", Map.of()))
+                .get("frame")).get("events"), "a frame without events reads an empty list");
     }
 
     @SuppressWarnings("unchecked")

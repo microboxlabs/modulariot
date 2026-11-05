@@ -1,4 +1,5 @@
 import type { StaticImageData } from "next/image";
+import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
 
 import blackCode from "@assets/conditions/codigo-negro.svg";
 import criticalAlert from "@assets/conditions/alerta-critica.svg";
@@ -28,6 +29,7 @@ export type TableItemType = {
   licensePlate: string;
   time: string;
   trip: string;
+  tripCode?: string | null;
   driver: string;
   date: string;
   // When it closed; absent while it is open.
@@ -39,6 +41,12 @@ export type TableItemType = {
   sla_minutes: number | null;
   // Earlier events of the same symptom on the trip; null when there is no trip.
   recurrence_events: number | null;
+  // Engine cases on an "Ignorar condición" hold.
+  ignored?: IgnoredInfo | null;
+  // When the case came back to the tower from its latest hold.
+  returnedAfterIgnoreAt?: string | null;
+  // When the SLA of the current level started: the case reached the level, or came back from a hold.
+  slaSince?: string | null;
 };
 
 export type Condition = {

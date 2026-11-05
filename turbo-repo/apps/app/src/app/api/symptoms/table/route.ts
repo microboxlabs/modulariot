@@ -62,6 +62,7 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       licensePlate: item?.asset_id,
       time: formatActiveDuration(item?.duration_sec) ?? "",
       trip: item?.trip_id,
+      tripCode: item?.trip_code,
       driver: item?.driver,
       date: item?.start_time,
       endDate: item?.end_time ?? null,
@@ -71,6 +72,9 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       last_assigned_to: item?.last_assigned_to,
       sla_minutes: item?.sla_minutes ?? null,
       recurrence_events: item?.recurrence_events ?? null,
+      ignored: item?.ignored ?? null,
+      returnedAfterIgnoreAt: item?.returned_after_ignore_at ?? null,
+      slaSince: item?.sla_since ?? null,
     })),
     pagination: {
       total_rows: data.total_rows,

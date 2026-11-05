@@ -18,6 +18,8 @@ import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -69,6 +71,18 @@ public class PgResourceStore implements ResourceStore {
     private static final String PHONE = "phone";
 
     private static final String BY_ID = " AND id = $2";
+
+    private static final String DRIVER_DETAILS = """
+            SELECT d.id, d.rut,
+                   COALESCE(NULLIF(trim(d.full_name), ''),
+                            NULLIF(trim(concat_ws(' ', d.first_name, d.last_name)), '')) AS full_name,
+                   COALESCE(NULLIF(trim(d.mobile_phone), ''), NULLIF(trim(d.phone), '')) AS phone,
+                   d.is_active AND COALESCE(d.status, 'active') <> 'inactive' AS usable,
+                   c.legal_name, c.rut AS carrier_rut, d.updated_at
+            FROM miot_fleet.driver d
+            LEFT JOIN miot_fleet.carrier c
+                   ON c.id = d.carrier_id AND c.tenant_code = d.tenant_code AND c.version_of IS NULL
+            WHERE d.tenant_code = $1 AND d.version_of IS NULL""";
     private static final String CARRIER = "carrier";
     private static final String TRUCK = "truck";
     private static final String TRAILER = "trailer";
@@ -352,6 +366,35 @@ public class PgResourceStore implements ResourceStore {
         return first(query(pool.get(), select("id, legal_name, phone, rut", CARRIER) + BY_ID,
                 Tuple.of(tenantCode, id)), r -> new FleetResources.Carrier(r.getUUID(ID), r.getString(LEGAL_NAME),
                         r.getString(PHONE), r.getString(RUT)));
+    }
+
+    @Override
+    public List<FleetResources.DriverDetails> driverDetails(String tenantCode, Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return query(pool.get(), DRIVER_DETAILS + " AND d.id = ANY($2) ORDER BY d.id",
+                Tuple.of(tenantCode, ids.toArray(UUID[]::new))).stream().map(PgResourceStore::details).toList();
+    }
+
+    @Override
+    public List<FleetResources.DriverDetails> driversChangedSince(String tenantCode, OffsetDateTime since,
+            UUID afterId, int limit) {
+        Tuple params = Tuple.of(tenantCode, since);
+        String after = " AND d.updated_at > $2";
+        if (afterId != null) {
+            params.addUUID(afterId);
+            after = " AND (d.updated_at, d.id) > ($2, $3)";
+        }
+        params.addInteger(limit);
+        return query(pool.get(), DRIVER_DETAILS + after + " ORDER BY d.updated_at, d.id LIMIT $" + params.size(),
+                params).stream().map(PgResourceStore::details).toList();
+    }
+
+    private static FleetResources.DriverDetails details(Row r) {
+        return new FleetResources.DriverDetails(r.getUUID(ID), r.getString(RUT), r.getString(FULL_NAME),
+                r.getString(PHONE), r.getBoolean("usable"), r.getString(LEGAL_NAME), r.getString("carrier_rut"),
+                time(r, UPDATED_AT));
     }
 
     @Override

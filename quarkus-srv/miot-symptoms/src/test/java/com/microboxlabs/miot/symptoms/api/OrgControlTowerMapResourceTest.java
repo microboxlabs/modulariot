@@ -12,11 +12,15 @@ import com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.gps.SignalStates;
+import com.microboxlabs.miot.core.gps.SignalStates.SignalState;
+import com.microboxlabs.miot.core.gps.SignalStates.Status;
 import com.microboxlabs.miot.core.iam.Access;
 import com.microboxlabs.miot.core.iam.BaseRole;
 import com.microboxlabs.miot.core.iam.Caller;
@@ -55,21 +59,25 @@ class OrgControlTowerMapResourceTest {
     private final GpsRpcApi rpc = new GpsRpcApi() {
         @Override
         public Uni<RpcResponse> positions(String authorization, boolean all) {
+            gpsCalls.add("positions");
             return Uni.createFrom().item(response);
         }
 
         @Override
         public Uni<RpcResponse> summary(String authorization) {
+            gpsCalls.add("summary");
             return Uni.createFrom().item(response);
         }
 
         @Override
         public Uni<RpcResponse> conditions(String authorization, String from, String to) {
+            gpsCalls.add("conditions");
             return Uni.createFrom().item(response);
         }
 
         @Override
         public Uni<JsonNode> symptoms(String authorization, Map<String, String> filters) {
+            gpsCalls.add("symptoms");
             sentFilters.add(filters);
             JsonNode page = JSON.createObjectNode().put("total_rows", 1).set("data",
                     JSON.createArrayNode().add(JSON.createObjectNode().put("asset_id", "AB12")));
@@ -78,6 +86,7 @@ class OrgControlTowerMapResourceTest {
     };
 
     private final List<Map<String, String>> sentFilters = new ArrayList<>();
+    private final List<String> gpsCalls = new ArrayList<>();
 
     private static final class Roles extends OrganizationRoleService {
         private final Set<String> permissions;
@@ -103,6 +112,21 @@ class OrgControlTowerMapResourceTest {
 
     private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions,
             com.microboxlabs.miot.core.trips.TripGeofences tripGeofences) {
+        return resource(url, permissions, tripGeofences, null, true);
+    }
+
+    private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions,
+            com.microboxlabs.miot.core.trips.TripGeofences tripGeofences, boolean legacy) {
+        return resource(url, permissions, tripGeofences, null, legacy);
+    }
+
+    private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions,
+            com.microboxlabs.miot.core.trips.TripGeofences tripGeofences, SignalStates signals) {
+        return resource(url, permissions, tripGeofences, signals, true);
+    }
+
+    private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions,
+            com.microboxlabs.miot.core.trips.TripGeofences tripGeofences, SignalStates signals, boolean legacy) {
         OrganizationContext org = new OrganizationContext();
         org.setOrganizationId(ORG);
         org.setUserEmail("member@example.com");
@@ -113,14 +137,29 @@ class OrgControlTowerMapResourceTest {
             return Uni.createFrom().item(new IssuedToken("t", Instant.now().plusSeconds(3600)));
         }, url, () -> rpc);
         tenant.setEffectiveClientIds(List.of("client-a", "client-child"));
-        return new OrgControlTowerMapResource(tenant, org, new Roles(permissions), null, map,
+        return new OrgControlTowerMapResource(tenant, org, new Roles(permissions), null,
+                new OrgControlTowerMapResource.MapServices(map,
                 new ControlTowerTreatmentService(treatmentReads), new EngineCaseService(engineCases,
                         (t, a, d) -> { }, t -> null, java.time.Clock.systemUTC()),
                 new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments),
                         new AuditService(new InMemoryAuditStore())),
                 new TripWindows((tenantCode, trip, asset) -> moduleTrips.getOrDefault(trip + "/" + asset,
                         Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)),
-                geofences(tripGeofences));
+                geofences(tripGeofences), instance(signals)), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC), legacy);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> jakarta.enterprise.inject.Instance<T> instance(T service) {
+        return (jakarta.enterprise.inject.Instance<T>) java.lang.reflect.Proxy.newProxyInstance(
+                OrgControlTowerMapResourceTest.class.getClassLoader(),
+                new Class<?>[] {jakarta.enterprise.inject.Instance.class}, (proxy, method, args) -> {
+                    return switch (method.getName()) {
+                        case "isUnsatisfied" -> service == null;
+                        case "isResolvable" -> service != null;
+                        case "get" -> service;
+                        default -> throw new UnsupportedOperationException(method.getName());
+                    };
+                });
     }
 
     private static final Instant NOW = Instant.parse("2026-10-26T12:00:00Z");
@@ -511,5 +550,304 @@ class OrgControlTowerMapResourceTest {
         WebApplicationException e = assertThrows(WebApplicationException.class, () -> resource.symptom("org-b", "7"));
         assertEquals(403, e.getResponse().getStatus());
         assertEquals(List.of(), treatmentClients);
+    }
+
+    private OrgControlTowerMapResource engineOnly() {
+        return resource(Optional.of("http://pgrest.test"), Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals, false);
+    }
+
+    private static EngineCase openCase(long id, String asset, String name, int level) {
+        return new EngineCase(id, UUID.randomUUID(), "0.1.0", name, "emergencies", asset,
+                Instant.now().minusSeconds(id), level, null, null, null, null, null, 0, 2, null);
+    }
+
+    @Test
+    void engineOnlyTheListIsTheCasesPagedWithoutTheGpsDatabase() {
+        for (long id = 1; id <= 12; id++) {
+            engineCases.add(openCase(id, "AB" + id, id % 2 == 0 ? "Botón de pánico" : "Pérdida de señal", 3));
+        }
+        var subject = engineOnly();
+
+        JsonNode first = (JsonNode) call(subject.symptoms(ORG, query("p_page=1&p_page_size=5"))).getEntity();
+        JsonNode third = (JsonNode) call(subject.symptoms(ORG, query("p_page=3&p_page_size=5"))).getEntity();
+
+        assertEquals(5, first.get("data").size());
+        assertEquals(-12, first.get("data").get(0).get("id").asLong(), "same level: the SLA that runs out first");
+        assertEquals(12, first.get("total_rows").asInt());
+        assertEquals(3, first.get("total_pages").asInt());
+        assertEquals(1, first.get("page").asInt());
+        assertEquals(5, first.get("page_size").asInt());
+        assertEquals(2, first.get("symptom_name_list").size());
+        assertEquals(2, third.get("data").size());
+        assertEquals(List.of(), gpsCalls);
+        assertEquals(List.of(), tokensAskedFor);
+    }
+
+    @Test
+    void engineOnlyTheListFiltersTheCases() {
+        engineCases.add(openCase(1, "AB12", "Pérdida de señal", 3));
+        engineCases.add(openCase(2, "CD34", "Pérdida de señal", 1));
+        var subject = engineOnly();
+
+        JsonNode byLevel = (JsonNode) call(subject.symptoms(ORG, query("p_icu_code=3"))).getEntity();
+
+        assertEquals(1, byLevel.get("total_rows").asInt());
+        assertEquals("AB12", byLevel.get("data").get(0).get("asset_id").asText());
+        assertEquals(400, call(subject.symptoms(ORG, query("p_client_id=other"))).getStatus());
+        assertEquals(400, call(subject.symptoms(ORG, query("p_page=one"))).getStatus());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    private static EngineCase onTrip(long id, String trip, EngineCase.TripDetails details) {
+        return new EngineCase(id, UUID.randomUUID(), "0.1.0", "Pérdida de señal", "connectivity", "AB" + id,
+                Instant.now().minusSeconds(id), 2, trip, null, null, null, null, 0, null, 0L, null).withTrip(details);
+    }
+
+    /** Case 1 on trip A (two drivers, carrier 76.111.111-1), case 2 on trip B, case 3 without a trip. */
+    private void casesOnTrips() {
+        engineCases.trips.put("A", new com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases.Trip("12.345.678-9",
+                "9.876.543-K", "c-1", "76.111.111-1", "Planta Norte", "Puerto Sur"));
+        engineCases.trips.put("B", new com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases.Trip("11.111.111-1",
+                null, "c-2", "77.222.222-2", "Planta Sur", "Puerto Norte"));
+        engineCases.add(onTrip(1, "A", new EngineCase.TripDetails("Driver A", "Carrier A", "Planta Norte",
+                "Puerto Sur")));
+        engineCases.add(onTrip(2, "B", new EngineCase.TripDetails("Driver B", "Carrier B", "Planta Sur",
+                "Puerto Norte")));
+        engineCases.add(onTrip(3, null, null));
+    }
+
+    private List<String> assets(OrgControlTowerMapResource subject, String q) {
+        List<String> out = new ArrayList<>();
+        ((JsonNode) call(subject.symptoms(ORG, query(q))).getEntity()).get("data")
+                .forEach(r -> out.add(r.get("asset_id").asText()));
+        return out;
+    }
+
+    @Test
+    void engineOnlyTheTripFiltersMatchTheCasesLiveTrip() {
+        casesOnTrips();
+        var subject = engineOnly();
+
+        assertEquals(List.of("AB1"), assets(subject, "p_driver_id=12345678-9"), "first driver, other format");
+        assertEquals(List.of("AB1"), assets(subject, "p_driver_id=9876543k"), "second driver");
+        assertEquals(List.of("AB2"), assets(subject, "p_carrier_id=77222222-2"));
+        assertEquals(List.of("AB2"), assets(subject, "p_carrier_id=c-2"), "the carrier's id");
+        assertEquals(List.of("AB1"), assets(subject, "p_origin=planta norte"));
+        assertEquals(List.of("AB2"), assets(subject, "p_destination=Puerto Norte&p_origin=Planta Sur"));
+        assertEquals(List.of(), assets(subject, "p_origin=Planta"), "the whole name");
+        assertEquals(List.of(), assets(subject, "p_driver_id=12345678-9&p_carrier_id=77222222-2"));
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void engineOnlyACarrierSeesTheCasesOfItsOwnTrips() {
+        casesOnTrips();
+
+        JsonNode page = (JsonNode) call(engineOnly().symptoms(ORG, query("p_carrier_id=76.111.111-1"))).getEntity();
+
+        assertEquals(1, page.get("total_rows").asInt());
+        JsonNode row = page.get("data").get(0);
+        assertEquals(-1, row.get("id").asLong());
+        assertEquals("Driver A", row.get("driver").asText());
+        assertEquals("Carrier A", row.get("carrier").asText());
+        assertEquals("Planta Norte", row.get("origin").asText());
+        assertEquals("Puerto Sur", row.get("destination").asText());
+        assertEquals(List.of(), assets(engineOnly(), "p_carrier_id=78.333.333-3"), "a carrier without trips");
+    }
+
+    @Test
+    void engineOnlyACaseWithoutALiveTripHasNoTripNames() {
+        casesOnTrips();
+
+        JsonNode rows = ((JsonNode) call(engineOnly().symptoms(ORG, query("p_page_size=10"))).getEntity()).get("data");
+
+        assertEquals(3, rows.size());
+        JsonNode noTrip = rows.get(0);
+        assertEquals(-3, noTrip.get("id").asLong());
+        assertTrue(noTrip.get("driver").isNull());
+        assertTrue(noTrip.get("carrier").isNull());
+    }
+
+    @Test
+    void engineOnlyTheCountsAreTheOpenCasesOnly() {
+        engineCases.add(openCase(1, "AB12", "Pérdida de señal", 4));
+        engineCases.add(openCase(2, "CD34", "Pérdida de señal", 2));
+        var subject = engineOnly();
+
+        JsonNode counts = (JsonNode) call(subject.conditions(ORG, null, null)).getEntity();
+        JsonNode range = (JsonNode) call(subject.conditions(ORG, "2026-01-01", "2099-01-01")).getEntity();
+
+        assertEquals(1, counts.get("Code Black").asInt());
+        assertEquals(1, counts.get("Compromised condition").asInt());
+        assertFalse(counts.has("Stable"));
+        assertEquals(1, range.get("Code Black").asInt());
+        assertEquals(400, call(subject.conditions(ORG, "2026-10-01", null)).getStatus());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void engineOnlyThePositionsCarryTheHighestOpenCaseLevel() {
+        response = new GpsRpcApi.RpcResponse(200, "ok", JSON.createArrayNode()
+                .add(JSON.createObjectNode().put("assetid", "AB12").put("symptoms_condition", 1)
+                        .put("latitude", -33.0).put("longitude", -70.0)
+                        .put("speed_limit_condition", 4).put("speed_limit", 90).put("lost_signal", true)
+                        .set("associate_symptoms", JSON.createArrayNode().add(JSON.createObjectNode()
+                                .put("symptom_name", "legacy").put("icu_condition", 1))))
+                .add(JSON.createObjectNode().put("assetid", "CD34").put("symptoms_condition", 3)));
+        engineCases.add(openCase(1, "AB12", "Pérdida de señal", 2));
+        engineCases.add(openCase(2, "AB12", "Botón de pánico", 4));
+
+        JsonNode positions = (JsonNode) call(engineOnly().positions(ORG)).getEntity();
+
+        JsonNode withCases = positions.get(0);
+        assertEquals("offline", withCases.path("signal").path("state").asText());
+        assertEquals("2026-10-26T11:40:00Z", withCases.path("signal").path("offline_since").asText());
+        assertEquals(-33.0, withCases.path("latitude").asDouble());
+        assertEquals(-70.0, withCases.path("longitude").asDouble());
+        assertEquals(4, withCases.get("symptoms_condition").asInt());
+        assertEquals(2, withCases.get("associate_symptoms").size());
+        assertEquals("Pérdida de señal", withCases.get("associate_symptoms").get(0).get("symptom_name").asText());
+        assertTrue(withCases.get("speed_limit_condition").isNull());
+        assertFalse(withCases.has("speed_limit"));
+        assertFalse(withCases.has("lost_signal"));
+        assertEquals(0, positions.get(1).get("symptoms_condition").asInt(), "no open case");
+        assertEquals(0, positions.get(1).get("associate_symptoms").size());
+        assertEquals("online", positions.get(1).path("signal").path("state").asText());
+        assertEquals(List.of("positions"), gpsCalls, "the positions still come from the GPS database");
+    }
+
+    @Test
+    void engineOnlyTheSummaryCountsTheOpenCasesAndZerosTheRest() {
+        engineCases.add(openCase(1, "AB12", "Pérdida de señal", 3));
+        engineCases.add(openCase(2, "CD34", "Pérdida de señal", 3));
+
+        JsonNode summary = (JsonNode) call(engineOnly().summary(ORG)).getEntity();
+
+        JsonNode sections = summary.get("sections");
+        assertEquals(List.of("services", "fleet", "symptoms"), List.of(sections.get(0).get("title").asText(),
+                sections.get(1).get("title").asText(), sections.get(2).get("title").asText()));
+        sections.get(0).get("items").forEach(item -> assertEquals(0, item.get("value").asInt()));
+        JsonNode symptoms = sections.get(2).get("items");
+        assertEquals("critical_condition", symptoms.get(3).get("key").asText());
+        assertEquals(2, symptoms.get(3).get("value").asInt());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void engineOnlyAGpsDatabaseSymptomIs404AndACaseStillAnswers() {
+        engineCases.add(openCase(3, "DEMO03", "Botón de pánico", 4));
+        var subject = engineOnly();
+
+        assertEquals(404, call(subject.symptom(ORG, "7")).getStatus());
+        assertEquals(404, call(subject.symptomSignals(ORG, "7")).getStatus());
+        assertEquals(404, call(subject.symptomPositions(ORG, "7")).getStatus());
+        assertEquals(List.of(), treatmentClients);
+        assertEquals(200, call(subject.symptom(ORG, "-3")).getStatus());
+        assertEquals(200, call(subject.symptomSignals(ORG, "-3")).getStatus());
+        assertEquals(200, call(subject.symptomPositions(ORG, "-3")).getStatus());
+    }
+
+    /** AB12 is offline since 11:40, CD34 online, EF56 never seen. */
+    private final SignalStates sampleSignals = (ids, now) -> {
+        Map<String, SignalState> out = new java.util.LinkedHashMap<>();
+        for (String id : ids) {
+            out.put(id, switch (id) {
+                case "AB12" -> new SignalState(Status.OFFLINE, Instant.parse("2026-10-26T11:40:00Z"),
+                        Instant.parse("2026-10-26T11:40:00Z"), 1190L, 300L);
+                case "CD34" -> new SignalState(Status.ONLINE, null, now.minusSeconds(30), 25L, 180L);
+                default -> SignalState.UNKNOWN;
+            });
+        }
+        return out;
+    };
+
+    private void positionsOf(String... assets) {
+        com.fasterxml.jackson.databind.node.ArrayNode data = JSON.createArrayNode();
+        for (String a : assets) {
+            data.addObject().put("assetid", a).put("speed", 0);
+        }
+        response = new GpsRpcApi.RpcResponse(200, "ok", data);
+    }
+
+    @Test
+    void eachPositionCarriesItsAssetsSignalState() {
+        positionsOf("AB12", "CD34", "EF56");
+        JsonNode body = (JsonNode) call(resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals).positions(ORG)).getEntity();
+
+        JsonNode offline = body.get(0).path("signal");
+        assertEquals("offline", offline.path("state").asText());
+        assertEquals("2026-10-26T11:40:00Z", offline.path("offline_since").asText());
+        assertEquals(1190, offline.path("silence_s").asLong());
+        assertEquals(300, offline.path("expected_s").asLong());
+        assertEquals("online", body.get(1).path("signal").path("state").asText());
+        assertFalse(body.get(1).path("signal").has("offline_since"));
+        assertEquals("unknown", body.get(2).path("signal").path("state").asText());
+        assertEquals(1, body.get(2).path("signal").size(), "unknown has only its state");
+    }
+
+    @Test
+    void withoutTheDetectorEveryPositionIsUnknown() {
+        positionsOf("AB12");
+        JsonNode body = (JsonNode) call(resource.positions(ORG)).getEntity();
+        assertEquals("unknown", body.get(0).path("signal").path("state").asText());
+    }
+
+    @Test
+    void aFailedDetectorReadLeavesPositionsVisibleAndSignalUnknown() {
+        positionsOf("V1");
+        SignalStates unavailable = (ids, now) -> {
+            throw new IllegalStateException("Store unavailable");
+        };
+        OrgControlTowerMapResource subject = resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, unavailable);
+        Response positions = call(subject.positions(ORG));
+        assertEquals(200, positions.getStatus());
+        JsonNode body = (JsonNode) positions.getEntity();
+        assertEquals("V1", body.get(0).path("assetid").asText());
+        assertEquals("unknown", body.get(0).path("signal").path("state").asText());
+        Response signal = call(subject.assetSignal(ORG, "V1"));
+        assertEquals(200, signal.getStatus());
+        assertEquals("unknown", ((JsonNode) signal.getEntity()).path("state").asText());
+        assertEquals(404, call(subject.assetSignal(ORG, "OTHER")).getStatus());
+    }
+
+    @Test
+    void theCachedPositionsAreNotChangedBySignalStates() {
+        positionsOf("AB12");
+        OrgControlTowerMapResource withSignals = resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals);
+        call(withSignals.positions(ORG));
+        assertFalse(response.data().get(0).has("signal"));
+    }
+
+    @Test
+    void oneAssetsSignalIsReadOnlyForTheOrganizationsAssets() {
+        positionsOf("AB12", "CD34");
+        OrgControlTowerMapResource withSignals = resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals);
+
+        Response found = call(withSignals.assetSignal(ORG, "AB12"));
+        assertEquals(200, found.getStatus());
+        assertEquals("offline", ((JsonNode) found.getEntity()).path("state").asText());
+        assertEquals(404, call(withSignals.assetSignal(ORG, "ZZ99")).getStatus());
+        assertThrows(WebApplicationException.class, () -> withSignals.assetSignal("org-b", "AB12"));
+    }
+
+    /** The GPS database's live positions name the asset {@code asset_id}, as production returns them. */
+    @Test
+    void positionsNamingTheAssetAssetIdCarryTheirSignalAndAnswerOneAsset() {
+        response = new GpsRpcApi.RpcResponse(200, "ok", JSON.createArrayNode()
+                .add(JSON.createObjectNode().put("asset_id", "AB12").put("speed", 0))
+                .add(JSON.createObjectNode().put("asset_id", "CD34").put("speed", 0)));
+        OrgControlTowerMapResource withSignals = resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals);
+
+        JsonNode body = (JsonNode) call(withSignals.positions(ORG)).getEntity();
+        assertEquals("offline", body.get(0).path("signal").path("state").asText());
+        assertEquals("online", body.get(1).path("signal").path("state").asText());
+        Response one = call(withSignals.assetSignal(ORG, "AB12"));
+        assertEquals(200, one.getStatus());
+        assertEquals("offline", ((JsonNode) one.getEntity()).path("state").asText());
     }
 }

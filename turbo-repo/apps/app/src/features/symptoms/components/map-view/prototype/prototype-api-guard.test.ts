@@ -18,6 +18,7 @@ import {
   guardedFinishTreatment,
   guardedInvalidateSymptom,
   guardedRequestTreatment,
+  guardedSkipStep,
   startPendingTreatment,
 } from "./prototype-api-guard";
 
@@ -176,5 +177,50 @@ describe("treatments on a GPS database symptom", () => {
 
     expect(tower.openTreatment).not.toHaveBeenCalled();
     expect(tower.closeTreatment).not.toHaveBeenCalled();
+  });
+});
+
+describe("call-step skips", () => {
+  it("records a NOTE with the 1-based step in the operator's open treatment", async () => {
+    await guardedSkipStep({
+      symptomId: -16,
+      assetId: "asset-test",
+      tripId: "",
+      toStep: 1,
+      reason: "No contesta",
+      level: 3,
+      version: "4",
+      skipId: "skip-1",
+      slaSince: "2026-11-05T12:00:00Z",
+    });
+
+    expect(tower.openTreatment).toHaveBeenCalledWith(-16, {
+      type: "CALL",
+      assetId: "asset-test",
+      tripId: undefined,
+    });
+    expect(tower.addTreatmentAction).toHaveBeenCalledWith("t-1", {
+      kind: "NOTE",
+      note: "No contesta",
+      details: {
+        skipToStep: 2,
+        level: 3,
+        version: "4",
+        skipId: "skip-1",
+        slaSince: "2026-11-05T12:00:00Z",
+      },
+    });
+    expect(tower.closeTreatment).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing for a case outside the Control Tower", async () => {
+    await guardedSkipStep({
+      symptomId: 16,
+      toStep: 1,
+      reason: "x",
+      skipId: "skip-1",
+    });
+    expect(tower.openTreatment).not.toHaveBeenCalled();
+    expect(tower.addTreatmentAction).not.toHaveBeenCalled();
   });
 });

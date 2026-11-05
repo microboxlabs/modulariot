@@ -14,6 +14,7 @@ import Filters from "./filters";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import MapTooltip from "./map-tooltip";
 import PinTooltip from "./tooltips/pin-tooltip";
+import { pinWithSignal } from "../utils/signal-tooltip";
 import MapStyleSelector from "./map-style-selector";
 import MapLayersCard, { capasDeVista, useCapasMapa } from "./map-layers-card";
 import {
@@ -301,7 +302,10 @@ export default function MapVisualization({
             top={hoverInfo.y}
             setHoverInfo={setHoverInfo}
           >
-            <PinTooltip object={hoverInfo.object} dict={dict} />
+            <PinTooltip
+              object={pinWithSignal(hoverInfo.object, mapPositions)}
+              dict={dict}
+            />
           </MapTooltip>
         )}
       </div>

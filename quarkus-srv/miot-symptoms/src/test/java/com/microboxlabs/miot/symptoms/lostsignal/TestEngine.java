@@ -33,7 +33,9 @@ public final class TestEngine {
     public final SymptomCatalogService catalog = new SymptomCatalogService(store, sources, new AuditService(audits));
     public final List<OperationalEvent> fired = new ArrayList<>();
     public final List<Transition> recorded = new ArrayList<>();
+    public final List<Map<String, Object>> contexts = new ArrayList<>();
     public final SymptomEvents events;
+    public final java.util.concurrent.atomic.AtomicBoolean held = new java.util.concurrent.atomic.AtomicBoolean();
     private final Map<String, Long> opened = new HashMap<>();
 
     public TestEngine(Clock clock) {
@@ -44,10 +46,11 @@ public final class TestEngine {
     }
 
     /** As {@code PgTransitionLog}: ids from 1, each change's case is its OPENED row. */
-    public final TransitionLog log = (tenant, transitions, place) -> {
+    public final TransitionLog log = (tenant, transitions, place, context) -> {
         List<TransitionLog.Recorded> out = new ArrayList<>();
         for (Transition t : transitions) {
             recorded.add(t);
+            contexts.add(context);
             String k = tenant + "/" + t.definitionId() + "/" + t.assetId();
             if (t.kind() == Transition.Kind.OPENED) {
                 opened.put(k, (long) recorded.size());
@@ -59,7 +62,7 @@ public final class TestEngine {
 
     public TripChecks trips(MeterRegistry meters) {
         return new TripChecks(new EvaluatorCatalog(catalog, sources), new InMemoryEpisodeRepository(), log, events,
-                new AuditService(audits), meters);
+                new AuditService(audits), meters, (tenant, asset, definition, openedAt) -> held.get());
     }
 
     public UUID publish(String tenant, String key, SymptomSpec spec, SymptomState state) {

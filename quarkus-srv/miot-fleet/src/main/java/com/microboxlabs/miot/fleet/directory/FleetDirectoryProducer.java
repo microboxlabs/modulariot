@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.fleet.directory;
 
 import com.microboxlabs.miot.core.gps.GpsDatabase;
+import com.microboxlabs.miot.core.gps.SignalStates;
 import com.microboxlabs.miot.core.vehicle.VehicleImages;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
@@ -31,6 +32,7 @@ public class FleetDirectoryProducer {
     private final Instance<Pool> modulithPool;
     private final GpsDatabase gps;
     private final VehicleImages images;
+    private final Instance<SignalStates> signals;
     private final String source;
     private final ZoneId zone;
     private final Duration cacheTtl;
@@ -39,8 +41,10 @@ public class FleetDirectoryProducer {
     private final Clock clock = Clock.systemUTC();
     private Wiring wiring;
 
-    FleetDirectoryProducer(Instance<Pool> modulithPool, GpsDatabase gps, VehicleImages images, FleetConfig config) {
+    FleetDirectoryProducer(Instance<Pool> modulithPool, GpsDatabase gps, VehicleImages images, FleetConfig config,
+            Instance<SignalStates> signals) {
         this.modulithPool = modulithPool;
+        this.signals = signals;
         this.gps = gps;
         this.images = images;
         this.source = config.source();
@@ -84,16 +88,16 @@ public class FleetDirectoryProducer {
             FleetData data = new DemoFleetData(clock::instant);
             ActivityStore activity = new InMemoryActivityStore();
             wiring = new Wiring(
-                    new FleetDirectoryService(data, new InMemoryProfileStore(), activity, new AssetImages(images), clock, zone,
-                            cacheTtl),
+                    new FleetDirectoryService(data, new InMemoryProfileStore(), activity, new AssetImages(images),
+                            signals(), new FleetDirectoryService.Settings(clock, zone, cacheTtl)),
                     new ActivityRollup(data, activity, clock, zone, history, (int) history.toHours()));
         } else if ("gps".equals(source) && gps.configured()) {
             LOG.info("Fleet directory: GPS database, read only; edits in the modulith database");
             FleetData data = new GpsFleetData(gps::readPool);
             ActivityStore activity = new PgActivityStore(modulithPool::get);
             wiring = new Wiring(
-                    new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity, new AssetImages(images), clock,
-                            zone, cacheTtl),
+                    new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity,
+                            new AssetImages(images), signals(), new FleetDirectoryService.Settings(clock, zone, cacheTtl)),
                     new ActivityRollup(data, activity, clock, zone, history, backfillPerRun));
         } else {
             LOG.infof("Fleet directory: none (miot.fleet.source=%s)", source);
@@ -101,6 +105,11 @@ public class FleetDirectoryProducer {
                     new InMemoryActivityStore(), clock, zone, cacheTtl), null);
         }
         return wiring;
+    }
+
+    /** The symptoms module's lost-signal states, when it is deployed here. */
+    private SignalStates signals() {
+        return signals.isResolvable() ? signals.get() : null;
     }
 
     /** No source configured: every read answers 503. */

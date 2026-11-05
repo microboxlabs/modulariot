@@ -10,6 +10,7 @@ import LayoutToggle, {
 import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { isPlatformScope } from "@/features/common/platform-scope";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import {
   DEFAULT_FILTERS,
@@ -37,6 +38,7 @@ import {
   WhatsAppCredentialModal,
   MapboxCredentialModal,
   GoogleMapsCredentialModal,
+  TelnyxCredentialModal,
 } from "./bearer-token-credential-modal";
 import { CredentialDeleteDialog } from "./credential-delete-dialog";
 import { CredentialTypePickerModal } from "./credential-type-picker-modal";
@@ -54,6 +56,7 @@ const RESEND = "RESEND" as const;
 const WHATSAPP = "WHATSAPP" as const;
 const MAPBOX = "MAPBOX" as const;
 const GOOGLE_MAPS = "GOOGLE_MAPS" as const;
+const TELNYX = "TELNYX" as const;
 
 interface CredentialsPageContentProps {
   /** `pages.userSettings` subtree. */
@@ -317,6 +320,7 @@ export default function CredentialsPageContent({
         show={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onSelect={handleTypeSelected}
+        platformScope={isPlatformScope(orgSlug)}
         dict={credentialsDict}
       />
 
@@ -336,6 +340,7 @@ export default function CredentialsPageContent({
       <WhatsAppCredentialModal show={shown(WHATSAPP)} {...formProps} />
       <MapboxCredentialModal show={shown(MAPBOX)} {...formProps} />
       <GoogleMapsCredentialModal show={shown(GOOGLE_MAPS)} {...formProps} />
+      <TelnyxCredentialModal show={shown(TELNYX)} {...formProps} />
 
       <CredentialDeleteDialog
         credential={deleting}

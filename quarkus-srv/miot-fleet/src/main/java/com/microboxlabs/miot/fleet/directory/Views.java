@@ -11,10 +11,20 @@ public final class Views {
     private Views() {
     }
 
-    /** One line of the fleet list. */
+    /**
+     * One line of the fleet list.
+     *
+     * @param signal the lost-signal detector's state ({@code state} online, offline or unknown, {@code offline_since}
+     *               ...), null where the detector is not deployed; set on the page's rows only
+     */
     public record AssetRow(String id, String label, AssetKind kind, AssetStatus status, String carrier,
             String driver, TripView currentTrip, TripView nextTrip, DocumentView accreditation, double km30d,
-            Instant lastSignalAt, String gpsProvider, int suggestions) {
+            Instant lastSignalAt, String gpsProvider, int suggestions, Map<String, Object> signal) {
+
+        AssetRow withSignal(Map<String, Object> state) {
+            return new AssetRow(id, label, kind, status, carrier, driver, currentTrip, nextTrip, accreditation,
+                    km30d, lastSignalAt, gpsProvider, suggestions, state);
+        }
     }
 
     /** Counts over every asset the organization sees, before filters. */
@@ -53,10 +63,11 @@ public final class Views {
             Double fleetUtilizationPct, int trips30d, Double avgTripHours) {
     }
 
+    /** @param signal as on {@link AssetRow#signal()} */
     public record AssetDetail(String id, String label, AssetKind kind, AssetStatus status, ImageView image,
             List<FieldView> fields, LiveView live, Indicators indicators, TripView currentTrip,
             List<TripView> plannedTrips, List<TripView> recentTrips, List<DocumentView> documents,
-            List<SuggestionView> suggestions, List<Change> changes) {
+            List<SuggestionView> suggestions, List<Change> changes, Map<String, Object> signal) {
     }
 
     /** A studio image of the vehicle's make and model; the URL works until {@code expiresAt}. */

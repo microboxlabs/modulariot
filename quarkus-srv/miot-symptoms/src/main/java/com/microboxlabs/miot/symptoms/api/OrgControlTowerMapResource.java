@@ -22,6 +22,9 @@ import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.enterprise.inject.Instance;
 import com.microboxlabs.miot.core.trips.TripGeofences;
+import com.microboxlabs.miot.core.gps.SignalStates;
+import com.microboxlabs.miot.symptoms.map.SignalStateFields;
+import java.time.Clock;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -36,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.Supplier;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -43,6 +47,10 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 /**
  * The map, the dashboard counters and the treatment page, read from the GPS database as the organization. Answers
  * 404 for a symptom or trip outside the organization, and 503 when the GPS data cannot be read.
+ *
+ * <p>With {@code miot.symptoms.legacy.enabled=false} the symptoms are the evaluator's cases only: the list, the
+ * counters and the summary read no GPS database symptoms, the positions carry each vehicle's level from its open
+ * cases, and a GPS database symptom (positive id) is 404.
  */
 @Path("/api/v1/orgs/{organizationId}/control-tower/map")
 @Produces(MediaType.APPLICATION_JSON)
@@ -59,6 +67,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final TreatmentService caseTreatments;
     private final TripWindows tripWindows;
     private final Instance<TripGeofences> tripGeofences;
+    private final boolean legacy;
+    private final Instance<SignalStates> signals;
+    private final Clock clock;
 
     @Inject
     public OrgControlTowerMapResource(
@@ -71,25 +82,73 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             EngineCaseService cases,
             TreatmentService caseTreatments,
             TripWindows tripWindows,
-            Instance<TripGeofences> tripGeofences) {
+            Instance<TripGeofences> tripGeofences,
+            Instance<SignalStates> signals,
+            @ConfigProperty(name = "miot.symptoms.legacy.enabled", defaultValue = "true") boolean legacy) {
+        this(tenantContext, organizationContext, roleService, identity,
+                new MapServices(map, treatments, cases, caseTreatments, tripWindows, tripGeofences, signals),
+                Clock.systemUTC(), legacy);
+    }
+
+    record MapServices(ControlTowerMapService map, ControlTowerTreatmentService treatments,
+            EngineCaseService cases, TreatmentService caseTreatments, TripWindows tripWindows,
+            Instance<TripGeofences> tripGeofences, Instance<SignalStates> signals) {
+    }
+
+    OrgControlTowerMapResource(
+            TenantContext tenantContext,
+            OrganizationContext organizationContext,
+            OrganizationRoleService roleService,
+            SecurityIdentity identity,
+            MapServices services,
+            Clock clock, boolean legacy) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
-        this.map = map;
-        this.treatments = treatments;
-        this.cases = cases;
-        this.caseTreatments = caseTreatments;
-        this.tripWindows = tripWindows;
-        this.tripGeofences = tripGeofences;
+        this.map = services.map();
+        this.treatments = services.treatments();
+        this.cases = services.cases();
+        this.caseTreatments = services.caseTreatments();
+        this.tripWindows = services.tripWindows();
+        this.tripGeofences = services.tripGeofences();
+        this.legacy = legacy;
+        this.signals = services.signals();
+        this.clock = clock;
     }
 
     @GET
     @Path("/positions")
-    @Operation(operationId = "listMapPositions", summary = "Last position of each of the organization's assets")
+    @Operation(operationId = "listMapPositions", summary = "Last position of each of the organization's assets",
+            description = "Each position has signal: the lost-signal detector's state of its asset (state online, "
+                    + "offline or unknown; offline_since, last_frame_at, silence_s, expected_s when known).")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> positions(@PathParam("organizationId") String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return answer(() -> map.positions(tenantContext.getClientId())
+                .emitOn(Infrastructure.getDefaultWorkerPool())
+                .map(p -> SignalStateFields.withSignal(p, signalStates(), clock.instant()))
+                .map(p -> legacy ? p : cases.withCaseLevels(tenant, p)));
+    }
+
+    @GET
+    @Path("/assets/{assetId}/signal")
+    @Operation(operationId = "getMapAssetSignal", summary = "Whether the asset's GPS signal is arriving",
+            description = "The lost-signal detector's state: offline once the time since the newest frame arrived "
+                    + "passes the silence expected for the vehicle. state online, offline or unknown (no profile); "
+                    + "offline_since (the newest frame's GPS time, when offline), last_frame_at, silence_s and "
+                    + "expected_s when known. 404 when the asset is not among the organization's positions.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> assetSignal(@PathParam("organizationId") String organizationId,
+            @PathParam("assetId") String assetId) {
         tenantCode(organizationId);
-        return answer(() -> map.positions(tenantContext.getClientId()));
+        return answer(() -> map.positions(tenantContext.getClientId())
+                .emitOn(Infrastructure.getDefaultWorkerPool())
+                .map(p -> SignalStateFields.one(p, assetId, signalStates(), clock.instant())));
+    }
+
+    private SignalStates signalStates() {
+        return signals.isResolvable() ? signals.get() : null;
     }
 
     @GET
@@ -98,7 +157,10 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> summary(@PathParam("organizationId") String organizationId) {
-        tenantCode(organizationId);
+        String tenant = tenantCode(organizationId);
+        if (!legacy) {
+            return answer(() -> blocking(() -> cases.summary(tenant)));
+        }
         return answer(() -> map.summary(tenantContext.getClientId()));
     }
 
@@ -114,6 +176,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             @QueryParam("from") String from,
             @QueryParam("to") String to) {
         String tenant = tenantCode(organizationId);
+        if (!legacy) {
+            return answer(() -> blocking(() -> cases.caseCounts(tenant, from, to)));
+        }
         return answer(() -> {
             Uni<JsonNode> gps = map.conditions(tenantContext.getClientId(), from, to);
             if (notBlank(from) || notBlank(to)) {
@@ -145,10 +210,15 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> symptoms(@PathParam("organizationId") String organizationId, @Context UriInfo uri) {
-        tenantCode(organizationId);
+        String tenant = tenantCode(organizationId);
         Map<String, String> filters = new LinkedHashMap<>();
         uri.getQueryParameters().forEach((name, values) -> filters.put(name, values.isEmpty() ? null : values.get(0)));
-        String tenant = tenantCode(organizationId);
+        if (!legacy) {
+            return answer(() -> {
+                Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
+                return blocking(() -> cases.casesPage(tenant, checked));
+            });
+        }
         return answer(() -> {
             Uni<JsonNode> gps = map.symptoms(tenantContext.getClientId(), filters);
             if (!EngineCaseService.showsCases(filters)) {
@@ -181,7 +251,57 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             return answer(() -> blocking(() -> EngineCaseService.withTreatments(cases.header(tenant, id),
                     caseTreatments.listForSymptom(tenant, id))));
         }
+        if (!legacy) {
+            return notFound();
+        }
         return answer(() -> treatments.treatment(clientIds(), symptomId));
+    }
+
+    @GET
+    @Path("/symptoms/{symptomId}/context")
+    @Operation(operationId = "getMapSymptomContext", summary = "What an operator step's script reads for a case",
+            description = "case, condition, trip and vehicle of an engine case (negative id); a script writes them "
+                    + "as {{trip.driver.name}}. 404 for other cases and for cases not the organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> symptomContext(@PathParam("organizationId") String organizationId,
+            @PathParam("symptomId") String symptomId) {
+        String tenant = tenantCode(organizationId);
+        if (!engineCase(symptomId)) {
+            return notFound();
+        }
+        long id = Long.parseLong(symptomId.trim());
+        return answer(() -> blocking(() -> cases.context(tenant, id)));
+    }
+
+    @GET
+    @Path("/symptoms/{symptomId}/timeline")
+    @Operation(operationId = "getMapSymptomTimeline", summary = "An engine case's life as one ordered list",
+            description = "OPENED, LEVEL_CHANGED, NOTED, HELD, ACTION and CLOSED entries with their time, for the "
+                    + "response editor's timeline preview. 404 for other cases and for cases not the organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> symptomTimeline(@PathParam("organizationId") String organizationId,
+            @PathParam("symptomId") String symptomId) {
+        String tenant = tenantCode(organizationId);
+        if (!engineCase(symptomId)) {
+            return notFound();
+        }
+        long id = Long.parseLong(symptomId.trim());
+        return answer(() -> blocking(() -> cases.timeline(tenant, id, caseTreatments.listForSymptom(tenant, id))));
+    }
+
+    @GET
+    @Path("/script-samples")
+    @Operation(operationId = "getScriptSamples", summary = "Recent cases of a symptom, to write a script with",
+            description = "Up to 10 of the symptom's newest engine cases, those at level first, each with the "
+                    + "context a script reads (see getMapSymptomContext). 400 without symptom.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> scriptSamples(@PathParam("organizationId") String organizationId,
+            @QueryParam("symptom") String symptom, @QueryParam("level") Integer level) {
+        String tenant = tenantCode(organizationId);
+        return answer(() -> blocking(() -> cases.scriptSamples(tenant, symptom, level)));
     }
 
     @GET
@@ -196,6 +316,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         if (engineCase(symptomId)) {
             return answer(() -> blocking(() -> cases.signals(tenant, Long.parseLong(symptomId.trim()))));
         }
+        if (!legacy) {
+            return notFound();
+        }
         return answer(() -> treatments.signals(clientIds(), symptomId));
     }
 
@@ -206,12 +329,16 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             description = "From an hour before the case opened, or from the vehicle's previous case when nearer, until "
                     + "the case closed or now; oldest first, at most 20000. Only for the evaluator's cases (negative "
                     + "ids): a symptom with a trip reads the trip's positions. 404 when the case is not the "
-                    + "organization's.")
+                    + "organization's. Each position has received_at, when it reached the platform, and delay_s, "
+                    + "the seconds after its GPS time (null without an arrival time).")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> symptomPositions(@PathParam("organizationId") String organizationId,
             @PathParam("symptomId") String symptomId) {
         String tenant = tenantCode(organizationId);
+        if (!engineCase(symptomId) && !legacy) {
+            return notFound();
+        }
         if (!engineCase(symptomId)) {
             return Uni.createFrom().item(error(Response.Status.BAD_REQUEST,
                     "Only the evaluator's cases have positions here; read the trip's"));
@@ -249,7 +376,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
                     + "positions from its departure until it ended or now; of a longer trip, its last 7 days; none "
                     + "before it departs. "
                     + "Any other id is a GPS database trip. 404 when the trip does not exist for the asset or the "
-                    + "asset was not the organization's when the trip started.")
+                    + "asset was not the organization's when the trip started. Each position has received_at and "
+                    + "delay_s, as the symptom's positions.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> tripPositions(@PathParam("organizationId") String organizationId,
@@ -272,7 +400,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @Operation(operationId = "listMapAssetPositions", summary = "The asset's positions in a time range, oldest first",
             description = "from and to are ISO-8601 date-times with an offset, from before to, at most 7 days apart "
                     + "(400 otherwise). At most 20000, sampled evenly. Only the signals sent while the asset was the "
-                    + "organization's; an empty array when there are none or the asset is not the organization's.")
+                    + "organization's; an empty array when there are none or the asset is not the organization's. "
+                    + "Each position has received_at and delay_s, as the symptom's positions.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> assetPositions(@PathParam("organizationId") String organizationId,
@@ -289,6 +418,11 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     /** A negative symptom id is one of the evaluator's cases ({@link EngineCase#symptomId()}). */
     private static boolean engineCase(String symptomId) {
         return symptomId != null && symptomId.trim().matches("-\\d{1,18}");
+    }
+
+    /** A GPS database symptom while this installation shows the evaluator's cases only. */
+    private static Uni<Response> notFound() {
+        return Uni.createFrom().item(error(Response.Status.NOT_FOUND, "Symptom not found"));
     }
 
     private static Uni<JsonNode> blocking(Supplier<JsonNode> read) {

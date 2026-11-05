@@ -16,6 +16,7 @@ import com.microboxlabs.miot.symptoms.api.OrgControlTowerAuditResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerContactsResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerMapResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerSettingsResource;
+import com.microboxlabs.miot.symptoms.api.OrgControlTowerTelephonyResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerTreatmentsResource;
 import com.microboxlabs.miot.symptoms.api.OrgDataSourcesResource;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource;
@@ -38,7 +39,7 @@ class ControlTowerPermissionsTest {
 
     private static final List<Class<?>> RESOURCES = List.of(OrgControlTowerAuditResource.class,
             OrgControlTowerContactsResource.class, OrgControlTowerMapResource.class, OrgControlTowerSettingsResource.class,
-            OrgControlTowerTreatmentsResource.class, OrgDataSourcesResource.class,
+            OrgControlTowerTelephonyResource.class, OrgControlTowerTreatmentsResource.class, OrgDataSourcesResource.class,
             OrgSymptomDefinitionsResource.class, OrgSymptomFamiliesResource.class);
 
     private static final String VIEW = ControlTowerAccessCatalog.VIEW;
@@ -55,6 +56,7 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerAuditResource.list", VIEW),
             Map.entry("OrgControlTowerContactsResource.list", VIEW),
             Map.entry("OrgControlTowerContactsResource.page", VIEW),
+            Map.entry("OrgControlTowerContactsResource.trip", VIEW),
             Map.entry("OrgControlTowerContactsResource.facets", VIEW),
             Map.entry("OrgControlTowerContactsResource.get", VIEW),
             Map.entry("OrgControlTowerContactsResource.create", CONTACT_WRITE),
@@ -66,21 +68,32 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerMapResource.conditions", VIEW),
             Map.entry("OrgControlTowerMapResource.symptoms", VIEW),
             Map.entry("OrgControlTowerMapResource.symptom", VIEW),
+            Map.entry("OrgControlTowerMapResource.symptomContext", VIEW),
+            Map.entry("OrgControlTowerMapResource.symptomTimeline", VIEW),
+            Map.entry("OrgControlTowerMapResource.scriptSamples", VIEW),
             Map.entry("OrgControlTowerMapResource.symptomSignals", VIEW),
             Map.entry("OrgControlTowerMapResource.symptomPositions", VIEW),
             Map.entry("OrgControlTowerMapResource.tripGeofences", VIEW + " | trips:view"),
             Map.entry("OrgControlTowerMapResource.tripPositions", VIEW),
             Map.entry("OrgControlTowerMapResource.assetPositions", VIEW),
+            Map.entry("OrgControlTowerMapResource.assetSignal", VIEW),
             Map.entry("OrgControlTowerSettingsResource.get", VIEW),
             Map.entry("OrgControlTowerSettingsResource.save", SETTINGS),
+            Map.entry("OrgControlTowerTelephonyResource.get", VIEW),
+            Map.entry("OrgControlTowerTelephonyResource.save", SETTINGS),
+            Map.entry("OrgControlTowerTelephonyResource.webRtcToken", TREAT),
+            Map.entry("OrgControlTowerTelephonyResource.reconcile", TREAT),
+            Map.entry("OrgControlTowerTelephonyResource.callEnded", TREAT),
             Map.entry("OrgControlTowerTreatmentsResource.listForSymptom", VIEW),
             Map.entry("OrgControlTowerTreatmentsResource.get", VIEW),
             Map.entry("OrgControlTowerTreatmentsResource.open", TREAT),
             Map.entry("OrgControlTowerTreatmentsResource.addAction", TREAT),
             Map.entry("OrgControlTowerTreatmentsResource.close", TREAT),
+            Map.entry("OrgControlTowerTreatmentsResource.resume", TREAT),
             Map.entry("OrgControlTowerTreatmentsResource.cancel", TREAT),
             Map.entry("OrgDataSourcesResource.list", VIEW),
             Map.entry("OrgDataSourcesResource.get", VIEW),
+            Map.entry("OrgDataSourcesResource.eventTypes", VIEW),
             Map.entry("OrgSymptomDefinitionsResource.stats", VIEW),
             Map.entry("OrgSymptomDefinitionsResource.describe", VIEW),
             Map.entry("OrgSymptomDefinitionsResource.list", VIEW),

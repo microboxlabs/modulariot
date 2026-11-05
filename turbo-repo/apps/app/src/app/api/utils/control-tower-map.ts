@@ -41,6 +41,17 @@ export function isoDate(value: string): string {
   return date;
 }
 
+/**
+ * Whether this installation shows the GPS database's (legacy) symptoms beside
+ * the evaluator's cases. `MIOT_SYMPTOMS_LEGACY_ENABLED=false` turns them off;
+ * set it on the modulith too, which reads the same name.
+ */
+export function legacySymptomsEnabled(): boolean {
+  return (
+    process.env.MIOT_SYMPTOMS_LEGACY_ENABLED?.trim().toLowerCase() !== "false"
+  );
+}
+
 export const SSE_HEADERS = {
   "Content-Type": "text/event-stream",
   "Cache-Control": "no-cache, no-transform",

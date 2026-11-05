@@ -50,6 +50,7 @@ export default function SymptomsCards({
     stable = 0,
     //remission = 0,
     compromised = 0,
+    ignored = 0,
   } = symptoms || {};
 
   return (
@@ -201,6 +202,19 @@ export default function SymptomsCards({
               title={(dict.symptoms as I18nRecord).in_treatment as string}
               icu_condition={icuConditions.under_treatment}
               count={treatment.toString().padStart(2, "0")}
+            />
+            <StatusCard
+              dict={dict}
+              icon={
+                <ConditionIcon
+                  condition="ignore condition"
+                  size="h-7 w-7"
+                  dict={dict}
+                />
+              }
+              title={(dict.symptoms as I18nRecord).ignored as string}
+              icu_condition={icuConditions.ignored}
+              count={ignored.toString().padStart(2, "0")}
             />
           </div>
         </CustomCard>

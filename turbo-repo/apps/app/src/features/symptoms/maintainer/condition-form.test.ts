@@ -486,3 +486,40 @@ describe("fields of the device frame", () => {
     expect(compileConditions(form)).toBe("signal.trip.active");
   });
 });
+
+describe("GPS event conditions", () => {
+  const EVENTS = [
+    field("signal.trip.active", "bool"),
+    field("signal.frame.events", "objects"),
+    field("signal.frame.events.event_type", "text"),
+  ];
+
+  it("reads and writes a condition on the frame's events", () => {
+    const rule =
+      'signal.trip.active\n&& signal.frame.events.exists(e, e.event_type == "device_tamper")\n&& !signal.frame.events.exists(e, e.event_type == "main_power_reconnect")';
+    const form = parseConditions(rule, EVENTS);
+    expect(form?.rows.map((r) => [r.path, r.op, r.value])).toEqual([
+      ["signal.trip.active", "is_true", null],
+      ["signal.frame.events", "has_event", "device_tamper"],
+      ["signal.frame.events", "no_event", "main_power_reconnect"],
+    ]);
+    expect(compileConditions(form as ConditionForm)).toBe(rule);
+  });
+
+  it("offers include and do not include, without has() tests", () => {
+    expect(opsFor("objects")).toEqual(["has_event", "no_event"]);
+    const row = newCondition(EVENTS[1] as SourceField);
+    expect(compileConditions({ match: "all", rows: [row], groups: [] })).toBe(
+      'signal.frame.events.exists(e, e.event_type == "")'
+    );
+  });
+
+  it("leaves other macros to the expression editor", () => {
+    expect(
+      parseConditions(
+        'signal.frame.events.exists(e, e.event_type in ["a", "b"])',
+        EVENTS
+      )
+    ).toBeNull();
+  });
+});

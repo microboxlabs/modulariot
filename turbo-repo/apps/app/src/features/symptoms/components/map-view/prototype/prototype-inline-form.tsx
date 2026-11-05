@@ -108,6 +108,12 @@ export default function PrototypeInlineForm({
   // Lets the back button send them straight back to that completed call
   // instead of the contact list or closing the panel entirely.
   const [callSnapshot, setCallSnapshot] = useState<CallSnapshot | null>(null);
+  const skipScope = `${treatmentData?.symptom_info?.id}:${treatmentData?.symptom_info?.icu_code}:${treatmentData?.symptom_info?.sla_since}`;
+  const [callSkip, setCallSkip] = useState<{
+    scope: string;
+    step: number;
+  } | null>(null);
+  const callSkippedTo = callSkip?.scope === skipScope ? callSkip.step : null;
   // True from the moment the operator clicks "Guardar y hacer otra llamada"
   // onward — drives the "Llamar → Llamar de nuevo" header title on "who to
   // call"/dialing for this second (or later) round, instead of the plain
@@ -125,6 +131,7 @@ export default function PrototypeInlineForm({
     if (!isMenuOpen) {
       setCallSnapshot(null);
       setCallFormDraft(null);
+      setCallSkip(null);
     }
   }, [isMenuOpen]);
 
@@ -235,7 +242,7 @@ export default function PrototypeInlineForm({
           "llamar al conductor"
         ),
       component: (
-        <div className="w-full h-full flex flex-row items-start justify-center">
+        <div className="flex h-full min-h-0 w-full flex-col">
           <PrototypeCallCenterFlow
             key={callCenterResetKey}
             dict={dict as I18nRecord}
@@ -252,6 +259,8 @@ export default function PrototypeInlineForm({
             onRepeatCallChange={setIsRepeatCall}
             formDraft={callFormDraft}
             onFormDraftChange={setCallFormDraft}
+            skippedTo={callSkippedTo}
+            onSkip={(step) => setCallSkip({ scope: skipScope, step })}
           />
         </div>
       ),

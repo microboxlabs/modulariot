@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
 import java.util.List;
+import java.util.Map;
 
 /** Where the evaluator records the case changes it finds. Appending a change it already holds does nothing. */
 public interface TransitionLog {
@@ -22,5 +23,13 @@ public interface TransitionLog {
     }
 
     /** @return the changes it recorded now, without the ones it already held */
-    List<Recorded> append(String tenantCode, List<Transition> transitions, Place place);
+    default List<Recorded> append(String tenantCode, List<Transition> transitions, Place place) {
+        return append(tenantCode, transitions, place, null);
+    }
+
+    /**
+     * @param context what the rules read, kept with each change so the case can say why it is at its level; null
+     *        for none
+     */
+    List<Recorded> append(String tenantCode, List<Transition> transitions, Place place, Map<String, Object> context);
 }

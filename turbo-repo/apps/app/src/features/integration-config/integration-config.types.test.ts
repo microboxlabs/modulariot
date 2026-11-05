@@ -13,10 +13,19 @@ describe("buildPostgrestImport", () => {
     name,
     path: `/rpc/${name}`,
     description: null,
-    parameters: parameters.map((p) => ({ name: p, type: "string", format: null, required: false })),
+    parameters: parameters.map((p) => ({
+      name: p,
+      type: "string",
+      format: null,
+      required: false,
+    })),
     operationId: null,
   });
-  const functions = [fn("summary", "p_client", "p_days"), fn("detail", "p_asset"), fn("other", "p_client")];
+  const functions = [
+    fn("summary", "p_client", "p_days"),
+    fn("detail", "p_asset"),
+    fn("other", "p_client"),
+  ];
 
   it("imports only selected functions and applies each pin where the parameter exists", () => {
     expect(
@@ -26,14 +35,21 @@ describe("buildPostgrestImport", () => {
         { name: "", value: "x" },
       ])
     ).toEqual({
-      functions: [{ name: "summary", pinned: { p_client: "c1" } }, { name: "detail" }],
+      functions: [
+        { name: "summary", pinned: { p_client: "c1" } },
+        { name: "detail" },
+      ],
     });
   });
 
   it("pins PostgREST's select column list on every selected function", () => {
     expect(
-      buildPostgrestImport(functions, new Set(["detail"]), [{ name: "select", value: "id,total" }])
-    ).toEqual({ functions: [{ name: "detail", pinned: { select: "id,total" } }] });
+      buildPostgrestImport(functions, new Set(["detail"]), [
+        { name: "select", value: "id,total" },
+      ])
+    ).toEqual({
+      functions: [{ name: "detail", pinned: { select: "id,total" } }],
+    });
   });
 });
 
@@ -61,7 +77,10 @@ describe("schemaLeafPaths", () => {
   it("lists scalar leaves of a flat object", () => {
     const schema = {
       type: "object",
-      properties: { serviceCode: { type: "string" }, aprobada: { type: "boolean" } },
+      properties: {
+        serviceCode: { type: "string" },
+        aprobada: { type: "boolean" },
+      },
     };
     expect(schemaLeafPaths(schema)).toEqual(["serviceCode", "aprobada"]);
   });
@@ -112,7 +131,10 @@ describe("schemaLeafPaths", () => {
 });
 
 /** Messages are dictionary keys; the modals resolve them against the page dictionary. */
-function firstIssue(result: { success: boolean; error?: { issues: { message: string }[] } }) {
+function firstIssue(result: {
+  success: boolean;
+  error?: { issues: { message: string }[] };
+}) {
   return result.success ? null : result.error?.issues[0]?.message;
 }
 
@@ -121,6 +143,11 @@ describe("ConnectionFormSchema", () => {
     name: "Partner API · QA",
     baseUrl: "https://api.partner.example.com",
     credentialProfileId: "",
+    sipConnectionId: "",
+    callerNumber: "",
+    defaultCallerId: "",
+    channelLimit: "",
+    webhookPublicKey: "",
   };
 
   it("accepts an instance with no credential — the field is optional by value", () => {

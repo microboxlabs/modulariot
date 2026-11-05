@@ -1,11 +1,13 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.evaluator.AssetEpisodes;
 import com.microboxlabs.miot.symptoms.evaluator.CompiledSymptom;
 import com.microboxlabs.miot.symptoms.evaluator.Episode;
 import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
+import com.microboxlabs.miot.symptoms.evaluator.Holds;
 import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
@@ -26,8 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Runs the organization's {@code trip_check} versions on a lost vehicle's check, with the evaluator's episodes,
  * transition log and case events, and keeps the id of each case they open. When the signal returns, each open
- * case gets a {@code symptom.case.signal_returned} event and, for an ACTIVE case, an audit entry; the case stays
- * open for the operator.
+ * case that the return check left open gets a {@code symptom.case.signal_returned} event and, for an ACTIVE
+ * case, an audit entry.
  */
 public class TripChecks {
 
@@ -42,26 +44,41 @@ public class TripChecks {
     private final SymptomEvents events;
     private final AuditService audit;
     private final MeterRegistry meters;
+    private final Holds holds;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
     }
 
     /** How the signal came back. */
-    public record Return(Instant at, boolean backfill) {
+    public record Return(Instant at, boolean backfill, Instant frameAt) {
+        public Return(Instant at, boolean backfill) {
+            this(at, backfill, null);
+        }
     }
 
     /**
-     * Around the last position: the shadow map says coverage is poor there, many of the sender's vehicles are
-     * lost at once, and how many vehicles still report nearby.
+     * Around the last position: what the shadow map says about the sender there ({@link ShadowMap#level}), many of
+     * the sender's vehicles are lost at once, and how many vehicles still report nearby.
      */
-    public record Area(boolean lowCoverage, boolean cohortOutage, int nearby) {
+    public record Area(ShadowMap.Level coverage, boolean cohortOutage, int nearby) {
 
-        public static final Area NONE = new Area(false, false, 0);
+        public static final Area NONE = new Area(ShadowMap.Level.NONE, false, 0);
+
+        public boolean lowCoverage() {
+            return coverage.shadow();
+        }
     }
 
     public TripChecks(EvaluatorCatalog catalog, EpisodeRepository episodes, TransitionLog log, SymptomEvents events,
             AuditService audit, MeterRegistry meters) {
+        this(catalog, episodes, log, events, audit, meters, Holds.NONE);
+    }
+
+    @SuppressWarnings("java:S107") // As above, with the holds the checks read.
+    public TripChecks(EvaluatorCatalog catalog, EpisodeRepository episodes, TransitionLog log, SymptomEvents events,
+            AuditService audit, MeterRegistry meters, Holds holds) {
+        this.holds = holds;
         this.catalog = catalog;
         this.episodes = episodes;
         this.log = log;
@@ -125,8 +142,15 @@ public class TripChecks {
             loss.put("sender", v.watch().sender());
         }
         loss.put("returned", back != null);
+        if (back != null && back.frameAt() != null) {
+            loss.put("returned_frame_at", back.frameAt().toString());
+        }
         loss.put(BACKFILL, back != null && back.backfill());
         loss.put("low_coverage_zone", area.lowCoverage());
+        if (area.coverage().share() != null) {
+            loss.put("coverage_share", area.coverage().share());
+        }
+        loss.put("coverage_source", area.coverage().source().value());
         loss.put("cohort_outage", area.cohortOutage());
         loss.put("nearby_reporting", (double) area.nearby());
         Map<String, Object> check = new LinkedHashMap<>();
@@ -134,6 +158,13 @@ public class TripChecks {
         check.put("trip", trip);
         check.put("loss", loss);
         return check;
+    }
+
+    /** The check kept with each case change, without its trip: the trip is the case's, and holds the driver. */
+    static Map<String, Object> context(Map<String, Object> check) {
+        Map<String, Object> kept = new LinkedHashMap<>(check);
+        kept.remove("trip");
+        return Map.of(TripCheck.ROOT, kept);
     }
 
     private static Map<String, Object> last(VehicleProfile.Last last) {
@@ -162,15 +193,17 @@ public class TripChecks {
             return;
         }
         AssetEpisodes state = episodes.load(tenant, assetId);
-        SignalEvaluator.Result result = new SignalEvaluator(state)
+        SignalEvaluator.Result result = new SignalEvaluator(state, holds)
                 .evaluate(tenant, assetId, now, Map.of(TripCheck.ROOT, check), symptoms);
         TransitionLog.Place place = place(trip, last);
         if (!result.transitions().isEmpty()) {
-            List<TransitionLog.Recorded> recorded = log.append(tenant, result.transitions(), place);
+            List<TransitionLog.Recorded> recorded = log.append(tenant, result.transitions(), place, context(check));
             recorded.stream().filter(r -> r.transition().kind() == Transition.Kind.OPENED)
                     .forEach(r -> open.put(key(tenant, r.transition().definitionId()),
                             new OpenCase(r.caseId(), r.transition().version(), r.transition().state())));
-            events.transitions(tenant, recorded, place);
+            events.transitions(tenant, recorded.stream()
+                    .filter(r -> !holds.held(tenant, assetId, r.transition().definitionId(), Instant.EPOCH))
+                    .toList(), place);
         }
         episodes.save(state);
         result.transitions().forEach(t -> meters.counter("miot.symptoms.evaluator.transitions",
@@ -189,8 +222,10 @@ public class TripChecks {
     private void returned(String tenant, String assetId, UUID definitionId, OpenCase c, Episode e,
             TransitionLog.Place place, Return back) {
         long caseId = c.id();
-        events.signalReturned(tenant, caseId, definitionId, c.version(), c.state(), e.level(), assetId, place,
-                back.at(), back.backfill());
+        if (!holds.held(tenant, assetId, definitionId, e.openedAt())) {
+            events.signalReturned(tenant, caseId, definitionId, c.version(), c.state(), e.level(), assetId, place,
+                    back.at(), back.backfill());
+        }
         if (c.state() == SymptomState.ACTIVE) {
             Map<String, Object> details = new LinkedHashMap<>();
             details.put("returnedAt", back.at().toString());
@@ -216,7 +251,18 @@ public class TripChecks {
 
     /** Drops the vehicle's episode of the symptom, as when an operator closes its case. */
     public void forget(String tenant, String assetId, UUID definitionId) {
-        episodes.forget(tenant, assetId, definitionId);
+        forget(tenant, assetId, definitionId, null);
+    }
+
+    /** Atomically closes the episode without exposing an empty state before the GPS consumer's marker. */
+    public void forget(String tenant, String assetId, UUID definitionId, Episode marker) {
+        episodes.operatorClose(tenant, assetId, definitionId, marker);
+    }
+
+    /** Preserves an episode opened after the case the sweep closed. */
+    public void forgetStale(StaleCase c) {
+        episodes.forgetStale(c.tenantCode(), c.assetId(), c.definitionId(),
+                c.test() ? SymptomState.TEST : SymptomState.ACTIVE, c.openedAt());
     }
 
     private List<CompiledSymptom> symptoms(String tenant, Instant now) {

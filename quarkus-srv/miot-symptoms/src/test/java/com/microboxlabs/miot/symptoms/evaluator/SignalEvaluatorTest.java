@@ -64,6 +64,22 @@ class SignalEvaluatorTest {
     }
 
     @Test
+    void reconciliationLeavesAnUnknownActivationUnchanged() {
+        CompiledSymptom symptom = CompiledSymptom.compile(SPEEDING, "1.0.0", SymptomState.TEST,
+                Specs.with(Specs.speeding(), "signal.frame.gps.speed > 0"), Specs.gpsSignal());
+        List<CompiledSymptom> published = List.of(symptom);
+        evaluator.evaluate(TENANT, TRUCK, T0, signal(96), published);
+        Episode before = store.find(TENANT, TRUCK, SPEEDING).orElseThrow();
+
+        Result result = evaluator.reconcile(TENANT, TRUCK, T0.plusSeconds(300),
+                Map.of("signal", Map.of("trip", Map.of("active", false))), published);
+
+        assertTrue(result.transitions().isEmpty());
+        assertTrue(result.errors().isEmpty(), "missing GPS fields mean unknown, not recovery");
+        assertEquals(before, store.find(TENANT, TRUCK, SPEEDING).orElseThrow());
+    }
+
+    @Test
     void aCaseOpensAtTheLevelReachedRisesAndClosesAfterTwoMinutesNormal() {
         assertEquals(List.of(), kinds(at(0, 85)), "under the limit: nothing");
         assertEquals(1, store.size(), "on a trip: the activation's run is kept for time-based levels");
@@ -211,12 +227,13 @@ class SignalEvaluatorTest {
     @Test
     void aNewVersionTakesOverTheOpenCase() {
         at(0, 100);
-        symptoms = List.of(CompiledSymptom.compile(SPEEDING, "1.1.0", SymptomState.ACTIVE, Specs.speeding(),
+        // Same state: a version published in another state closes the case first (SymptomStateChangeTest).
+        symptoms = List.of(CompiledSymptom.compile(SPEEDING, "1.1.0", SymptomState.TEST, Specs.speeding(),
                 Specs.gpsSignal()));
         Result r = at(5, 102);
         assertEquals(List.of("LEVEL_CHANGED:3"), kinds(r));
         assertEquals("1.1.0", r.transitions().get(0).version());
-        assertEquals(SymptomState.ACTIVE, r.transitions().get(0).state());
+        assertEquals(SymptomState.TEST, r.transitions().get(0).state());
         assertEquals(2, r.transitions().get(0).previousLevel());
     }
 
@@ -262,9 +279,9 @@ class SignalEvaluatorTest {
         List<CompiledSymptom> one = List.of(CompiledSymptom.compile(stop, "0.1.0", SymptomState.TEST, night,
                 platform));
         Map<String, Object> stopped = Map.of("signal", Map.of(
-                "trip", Map.of("active", true),
+                "trip", Map.of("active", true, "double_driver", false),
                 "derived", Map.of("moving", false),
-                "geo", Map.of("authorized_zone", false),
+                "geo", Map.of("authorized_zone", false, "outside_authorized", true),
                 "local_hour", 23.0));
         List<String> seen = new ArrayList<>();
         for (int sec : new int[] {0, 300, 600, 900, 1200, 1800, 1900}) {

@@ -1,8 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import type { CelField } from "./cel-editor";
+import type { LifecycleRules } from "./close-section";
 import LevelResponseDetail from "./level-response";
+import type { AudienceDicts } from "./level-steps";
 import { EMPTY_RESPONSE, levelOf, withLevel } from "./level-row";
 import type {
   Finding,
@@ -10,7 +14,8 @@ import type {
   Preview,
   SymptomSpec,
 } from "./maintainer-api";
-import { useSourceSamples } from "./sample-tree";
+import { problemsFor } from "./rule-problems";
+import { caseFields } from "./symptom-rule-sections";
 import { ICU_LEVELS } from "./symptom-labels";
 import { CHANGED_DOT } from "./ui/changed";
 import { LevelIcon } from "./ui/level-icon";
@@ -159,34 +164,59 @@ export default function ResponseWorkspace({
   spec,
   symptom,
   changedLevels,
-  preview,
   findings,
   readOnly,
   icu,
+  sourceFields = [],
+  preview,
+  audience,
   d,
   onIcu,
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
+  /** The texts of the "contacts from the book" condition each step uses. */
+  audience: AudienceDicts;
   /** The symptom whose conversation rules each level lists; absent for a template. */
-  symptom?: { key: string; name: string };
+  symptom?: { key: string; name: string; rulesDict: I18nRecord };
   /** Levels that differ from the published version. */
   changedLevels: ReadonlySet<number>;
-  preview?: Preview;
   findings: Finding[] | undefined;
   readOnly: boolean;
   icu: number;
+  /** The source's fields, which the close and note rules read besides the case. */
+  sourceFields?: CelField[];
+  /** The rule's preview; its case moments are the { } mode's samples for the close and note rules. */
+  preview?: Preview;
   d: I18nRecord;
   onIcu: (icu: number) => void;
   onChange: (spec: SymptomSpec) => void;
 }>) {
-  // Step scripts are previewed with the first sample of the source.
-  const sample = useSourceSamples(preview, spec.source)[0]?.sample;
   const level = levelOf(spec, icu);
   const response = level.response ?? EMPTY_RESPONSE;
   const name = trDynamic(`levelName${icu}`, d);
   const setResponse = (next: LevelResponse) =>
     onChange(withLevel(spec, { ...level, response: next }));
+  const lifecycle = spec.lifecycle ?? { open: "", close: "" };
+  // The case moments are the same for every spec, so the { } tree keeps the
+  // last ones while the next preview is made (validating, saving): without
+  // them the tree goes away and the editors jump to the full width.
+  const [shownPreview, setShownPreview] = useState(preview);
+  if (preview?.cases !== undefined && preview !== shownPreview)
+    setShownPreview(preview);
+  const rules: LifecycleRules = {
+    close: lifecycle.close ?? "",
+    note: lifecycle.note ?? "",
+    fields: [...caseFields(d), ...sourceFields],
+    closeProblems: problemsFor(findings, "lifecycle.close", d),
+    noteProblems: problemsFor(findings, "lifecycle.note", d),
+    samples: (shownPreview?.cases ?? []).map((c) => ({
+      sample: c.sample,
+      label: trDynamic(`caseScenario_${c.scenario}`, d),
+    })),
+    onChange: ({ close, note }) =>
+      onChange({ ...spec, lifecycle: { ...lifecycle, close, note } }),
+  };
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
@@ -245,8 +275,9 @@ export default function ResponseWorkspace({
             findings={(findings ?? []).filter(
               (f) => f.section === responseSection(icu)
             )}
-            sample={sample}
             symptom={symptom && { ...symptom, icu }}
+            rules={rules}
+            audience={audience}
             readOnly={readOnly}
             d={d}
             onChange={(patch) => setResponse({ ...response, ...patch })}

@@ -32,6 +32,11 @@ public interface RunStore {
 
     Optional<Run> find(String id);
 
+    /** The case was ignored after this run's trigger, including an event processed late. */
+    default boolean ignoredSince(Run run) {
+        return false;
+    }
+
     /**
      * Claims up to {@code limit} WAITING runs due at {@code now}: their {@code next_at} moves to
      * {@code now + lease}, so another pod skips them while this one works.

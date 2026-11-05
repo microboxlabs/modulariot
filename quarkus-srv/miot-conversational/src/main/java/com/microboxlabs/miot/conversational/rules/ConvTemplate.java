@@ -19,10 +19,18 @@ public record ConvTemplate(String id, String tenantCode, String key, String name
     /** The reserved tenant that owns the message templates. */
     public static final String PLATFORM_TENANT = PlatformScope.TENANT;
 
-    public record WhatsApp(String metaName, String language, List<String> params) {
+    /**
+     * @param callPermission the Meta template carries a call permission request: sending it counts against
+     *                       Meta's request limits and needs WhatsApp calling enabled
+     */
+    public record WhatsApp(String metaName, String language, List<String> params, boolean callPermission) {
 
         public WhatsApp {
             params = params == null ? List.of() : List.copyOf(params);
+        }
+
+        public WhatsApp(String metaName, String language, List<String> params) {
+            this(metaName, language, params, false);
         }
     }
 

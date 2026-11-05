@@ -67,6 +67,34 @@ class SourcesAndPreviewTest {
     }
 
     @Test
+    void everyFallbackSampleProvidesAnEmptyEventsListToAllPreviewRules() {
+        DataSource gps = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory()).get(TENANT, "gps_signal");
+        String empty = "signal.frame.events.size() == 0";
+        SymptomSpec spec = new SymptomSpec("gps_signal", "signal.trip.active && " + empty,
+                new SymptomSpec.Measure("signal.frame.events.size()", "Eventos", ""),
+                Specs.levels(empty, "false", "false", "false"), new SymptomSpec.Lifecycle("true", "false"), null);
+
+        List<SamplePreview> previews = PreviewService.run(spec, gps);
+
+        assertEquals(gps.samples().size(), previews.size());
+        assertTrue(previews.stream().allMatch(p -> p.error() == null), previews.toString());
+        assertTrue(previews.stream().flatMap(p -> p.clauses().stream()).allMatch(c -> c.error() == null));
+    }
+
+    @Test
+    void eventPreviewsAcceptAnExplicitCaseAgeAndDefaultToANewCase() {
+        DataSource gps = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory()).get(TENANT, "gps_signal");
+        Map<String, Object> signal = Map.of("trip", Map.of("active", true),
+                "frame", Map.of("events", List.of(Map.of("event_type", "FYSS"))));
+        DataSource samples = new DataSource(gps.id(), gps.tenantCode(), gps.key(), gps.name(), gps.kind(),
+                gps.root(), gps.cadence(), gps.fields(), List.of(Map.of("signal", signal),
+                        Map.of("signal", signal, "open_s", 900)));
+        var previews = PreviewService.run(SeedTemplates.get("driver-fatigue-sensor").spec(), samples);
+        assertEquals(List.of(1, 3), previews.stream().map(SamplePreview::level).toList());
+        assertTrue(previews.stream().allMatch(p -> p.error() == null));
+    }
+
+    @Test
     void recentSignalsReplaceTheFixedSamples() {
         SignalSamples samples = SignalSamples.inMemory();
         samples.keep(TENANT, Map.of("asset_id", "AB1234", "clients", List.of(TENANT),

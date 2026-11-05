@@ -8,6 +8,7 @@ import es from "@/lang/es.json";
 import PrototypeCallDriver, {
   type CallFormDraft,
 } from "./prototype-call-driver";
+import type { TelephonyCallResult } from "./call-center/telnyx-call";
 
 const api = vi.hoisted(() => ({
   openTreatment: vi.fn(),
@@ -16,10 +17,14 @@ const api = vi.hoisted(() => ({
   requestTreatment: vi.fn(),
   push: vi.fn(),
   notify: vi.fn(),
+  scheduleTeamsReconcile: vi.fn(),
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => api);
 vi.mock("@/features/common/providers/client-api.provider", () => api);
+vi.mock("@/features/symptoms/control-tower/telephony-api", () => ({
+  scheduleTeamsReconcile: api.scheduleTeamsReconcile,
+}));
 vi.mock("@/features/runtime-config/runtime-config-context", () => ({
   getRuntimeConfig: () => ({}),
 }));
@@ -72,7 +77,12 @@ const draft: CallFormDraft = {
   saved: false,
 };
 
-function renderCall(saved = false) {
+function renderCall(
+  saved = false,
+  resultadoId = draft.resultadoId,
+  callTelephony: TelephonyCallResult | null = null,
+  person = { name: "Test contact", phone: "+12025550100", role: "Dispatcher" }
+) {
   const closeMenu = vi.fn();
   render(
     <PrototypeCallDriver
@@ -83,11 +93,14 @@ function renderCall(saved = false) {
       treatmentRequest={request}
       setTreatmentRequest={vi.fn()}
       setIsMenuOpen={closeMenu}
-      initialCallTargetName="Test contact"
-      initialCallTargetPhone="+12025550100"
-      initialCallTargetRole="Dispatcher"
-      initialDraft={{ ...draft, saved }}
+      initialCallTargetName={person.name}
+      initialCallTargetPhone={person.phone}
+      initialCallTargetRole={person.role}
+      initialDraft={{ ...draft, saved, resultadoId }}
       callDurationSeconds={30}
+      callTelephony={callTelephony}
+      onMakeAnotherCall={vi.fn()}
+      onSwitchTreatment={vi.fn()}
     />
   );
   return closeMenu;
@@ -101,6 +114,92 @@ beforeEach(() => {
 });
 
 describe("engine call treatment form", () => {
+  it.each([
+    ["Carabineros", "133"],
+    ["Ambulancia (SAMU)", "131"],
+    ["Bomberos", "132"],
+    ["PDI", "134"],
+  ])(
+    "records the emergency call to %s as a CALL action",
+    async (name, phone) => {
+      const user = userEvent.setup();
+      renderCall(false, draft.resultadoId, null, {
+        name,
+        phone,
+        role: `Emergencias – ${name}`,
+      });
+      await user.click(
+        screen.getByRole("button", { name: es.symptoms.save_treatment })
+      );
+      await waitFor(() =>
+        expect(api.addTreatmentAction).toHaveBeenCalledWith(
+          "t-1",
+          expect.objectContaining({
+            kind: "CALL",
+            contactName: name,
+            contactPhone: phone,
+            contactRole: `Emergencias – ${name}`,
+            durationSeconds: 30,
+          })
+        )
+      );
+    }
+  );
+
+  it.each([
+    {
+      answered: false,
+      selected: "result_corrected",
+      button: "save_treatment",
+      expected: "call_telephony_unanswered",
+    },
+    {
+      answered: true,
+      selected: "result_no_answer",
+      button: "save_and_call_again",
+      expected: "call_telephony_answered",
+    },
+    {
+      answered: true,
+      selected: "result_corrected",
+      button: "save_treatment",
+      expected: "result_corrected",
+    },
+    {
+      answered: false,
+      selected: "result_no_answer",
+      button: "save_and_call_again",
+      expected: "result_no_answer",
+    },
+  ] as const)(
+    "saves a consistent provider outcome: $selected / $answered / $button",
+    async ({ answered, selected, button, expected }) => {
+      const user = userEvent.setup();
+      renderCall(false, selected, {
+        provider: "TELNYX",
+        answered,
+        durationSeconds: answered ? 30 : 0,
+        hangupCause: null,
+        sipCode: null,
+        callId: "provider-call",
+        calleeNumber: "+12025550100",
+        startedAt: "2026-11-04T10:00:00Z",
+      });
+      await user.click(
+        screen.getByRole("button", { name: es.symptoms[button] })
+      );
+      await waitFor(() =>
+        expect(api.addTreatmentAction).toHaveBeenCalledWith(
+          "t-1",
+          expect.objectContaining({
+            answered,
+            outcomeLabel: es.symptoms[expected],
+          })
+        )
+      );
+    }
+  );
+
   it("records the selected person's identity and number rather than the role picker", async () => {
     const user = userEvent.setup();
     const closeMenu = renderCall();
@@ -118,9 +217,87 @@ describe("engine call treatment form", () => {
         contactRole: "Dispatcher",
         durationSeconds: 30,
         note: "Synthetic call note",
+        answered: true,
       })
     );
     expect(api.requestTreatment).not.toHaveBeenCalled();
+  });
+
+  it("a browser call records the provider's result", async () => {
+    const user = userEvent.setup();
+    const closeMenu = renderCall(false, draft.resultadoId, {
+      provider: "TELNYX",
+      answered: true,
+      durationSeconds: 30,
+      hangupCause: "NORMAL_CLEARING",
+      sipCode: 200,
+      callId: "v3:control-1",
+      calleeNumber: "+12025550100",
+      startedAt: "2026-11-04T10:00:00.000Z",
+    });
+    await user.click(
+      screen.getByRole("button", { name: es.symptoms.save_treatment })
+    );
+    await waitFor(() => expect(closeMenu).toHaveBeenCalledWith(false));
+    expect(api.addTreatmentAction).toHaveBeenCalledWith(
+      "t-1",
+      expect.objectContaining({
+        answered: true,
+        details: {
+          telephony: expect.objectContaining({
+            provider: "TELNYX",
+            status: "RECORDED",
+            callId: "v3:control-1",
+          }),
+        },
+      })
+    );
+    expect(api.scheduleTeamsReconcile).not.toHaveBeenCalled();
+  });
+
+  it("a Teams call is saved pending and asks for its record later", async () => {
+    const user = userEvent.setup();
+    const closeMenu = renderCall(false, draft.resultadoId, {
+      provider: "TEAMS_PHONE",
+      status: "PENDING",
+      answered: false,
+      durationSeconds: 30,
+      hangupCause: null,
+      sipCode: null,
+      callId: null,
+      calleeNumber: "+12025550100",
+      startedAt: "2026-11-04T10:00:00.000Z",
+      endedAt: "2026-11-04T10:00:30.000Z",
+    });
+    expect(screen.getByText(/registro pendiente/)).toBeTruthy();
+    await user.click(
+      screen.getByRole("button", { name: es.symptoms.save_treatment })
+    );
+    await waitFor(() => expect(closeMenu).toHaveBeenCalledWith(false));
+    const body = api.addTreatmentAction.mock.calls[0][1];
+    expect(body.answered).toBeUndefined();
+    expect(JSON.parse(JSON.stringify(body))).not.toHaveProperty("answered");
+    expect(body.details.telephony).toMatchObject({
+      provider: "TEAMS_PHONE",
+      status: "PENDING",
+    });
+    expect(api.scheduleTeamsReconcile).toHaveBeenCalledTimes(1);
+  });
+
+  it("records a no-answer result as a missed call", async () => {
+    const user = userEvent.setup();
+    renderCall(false, "result_no_answer");
+    await user.click(
+      screen.getByRole("button", {
+        name: es.symptoms.save_and_call_again,
+      })
+    );
+    await waitFor(() =>
+      expect(api.addTreatmentAction).toHaveBeenCalledWith(
+        "t-1",
+        expect.objectContaining({ answered: false })
+      )
+    );
   });
 
   it("keeps the form open on close failure and retries without a duplicate call action", async () => {

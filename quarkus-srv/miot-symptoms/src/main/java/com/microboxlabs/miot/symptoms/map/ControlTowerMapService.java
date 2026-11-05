@@ -121,6 +121,18 @@ public class ControlTowerMapService {
      * @throws IllegalArgumentException for any other parameter, a non-numeric number or a non-ISO date
      */
     public Uni<JsonNode> symptoms(String clientId, Map<String, String> filters) {
+        Map<String, String> sent = symptomFilters(filters);
+        Map<String, String> query = new LinkedHashMap<>(sent);
+        return call(clientId, "symptoms " + cacheKey(sent), (rpc, bearer) -> rpc.symptoms(bearer, query)
+                .map(ControlTowerMapService::whole));
+    }
+
+    /**
+     * The symptom list filters that have a value, trimmed and sorted by name.
+     *
+     * @throws IllegalArgumentException for an unknown parameter, a non-numeric number or a non-ISO date
+     */
+    public static Map<String, String> symptomFilters(Map<String, String> filters) {
         Map<String, String> sent = new TreeMap<>();
         filters.forEach((name, value) -> {
             if (!SYMPTOM_TEXT_FILTERS.contains(name) && !SYMPTOM_NUMBER_FILTERS.contains(name)
@@ -131,9 +143,7 @@ public class ControlTowerMapService {
                 sent.put(name, symptomFilter(name, value.trim()));
             }
         });
-        Map<String, String> query = new LinkedHashMap<>(sent);
-        return call(clientId, "symptoms " + cacheKey(sent), (rpc, bearer) -> rpc.symptoms(bearer, query)
-                .map(ControlTowerMapService::whole));
+        return sent;
     }
 
     /** Each name and value prefixed with its length, so no two filter sets share a key. */

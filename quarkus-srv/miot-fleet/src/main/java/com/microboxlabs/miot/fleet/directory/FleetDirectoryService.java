@@ -5,6 +5,8 @@ import com.microboxlabs.miot.fleet.directory.Views.AssetPage;
 import com.microboxlabs.miot.fleet.directory.Views.AssetRow;
 import com.microboxlabs.miot.fleet.directory.Views.AssetUpdate;
 import com.microboxlabs.miot.fleet.directory.Views.SuggestionView;
+import com.microboxlabs.miot.core.gps.SignalStates;
+import com.microboxlabs.miot.core.gps.SignalStates.SignalState;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,12 +22,15 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import org.jboss.logging.Logger;
 
 /**
  * The fleet directory: what the integrations know about each asset, with what people set by hand on top. A
  * manual value wins until it is cleared; integrations then fill the field again.
  */
 public class FleetDirectoryService {
+
+    private static final Logger LOG = Logger.getLogger(FleetDirectoryService.class);
 
     static final String USUAL_TRAILER = Suggestions.USUAL_TRAILER;
     static final String USUAL_DRIVER = Suggestions.USUAL_DRIVER;
@@ -36,6 +41,7 @@ public class FleetDirectoryService {
     private final AssetImages images;
     private final ProfileStore profiles;
     private final ActivityStore activity;
+    private final SignalStates signals;
     private final Clock clock;
     private final ZoneId zone;
     private final Duration cacheTtl;
@@ -56,6 +62,10 @@ public class FleetDirectoryService {
             Double fleetUtilization) {
     }
 
+    /** Time and freshness settings for directory reads. */
+    record Settings(Clock clock, ZoneId zone, Duration cacheTtl) {
+    }
+
     public FleetDirectoryService(FleetData data, ProfileStore profiles, ActivityStore activity, Clock clock,
             ZoneId zone, Duration cacheTtl) {
         this(data, profiles, activity, AssetImages.NONE, clock, zone, cacheTtl);
@@ -63,13 +73,20 @@ public class FleetDirectoryService {
 
     FleetDirectoryService(FleetData data, ProfileStore profiles, ActivityStore activity, AssetImages images,
             Clock clock, ZoneId zone, Duration cacheTtl) {
+        this(data, profiles, activity, images, null, new Settings(clock, zone, cacheTtl));
+    }
+
+    /** @param signals the lost-signal detector's states; null where it is not deployed */
+    FleetDirectoryService(FleetData data, ProfileStore profiles, ActivityStore activity, AssetImages images,
+            SignalStates signals, Settings settings) {
         this.data = data;
+        this.signals = signals;
         this.images = images;
         this.profiles = profiles;
         this.activity = activity;
-        this.clock = clock;
-        this.zone = zone;
-        this.cacheTtl = cacheTtl;
+        this.clock = settings.clock();
+        this.zone = settings.zone();
+        this.cacheTtl = settings.cacheTtl();
     }
 
     // ---- reads
@@ -92,7 +109,7 @@ public class FleetDirectoryService {
                 .toList();
         int from = (int) Math.min((long) query.page() * query.size(), matching.size());
         int to = Math.min(from + query.size(), matching.size());
-        return new AssetPage(matching.subList(from, to), matching.size(), query.page(), query.size(),
+        return new AssetPage(withSignals(matching.subList(from, to)), matching.size(), query.page(), query.size(),
                 AssetFigures.summary(rows, stored, today, endOfToday), AssetFigures.kinds(rows),
                 AssetFigures.carriers(rows));
     }
@@ -118,6 +135,30 @@ public class FleetDirectoryService {
             all.add(found.getOrDefault(d, new ActivityDay(d, 0, 0, 0, 0, 0)));
         }
         return all;
+    }
+
+    /** The page's rows with the detector's state, read in one call; without it they stay as they are. */
+    private List<AssetRow> withSignals(List<AssetRow> page) {
+        if (signals == null || page.isEmpty()) {
+            return page;
+        }
+        Map<String, SignalState> found = states(page.stream().map(AssetRow::id).toList());
+        return page.stream().map(r -> r.withSignal(found.getOrDefault(r.id(), SignalState.UNKNOWN).fields()))
+                .toList();
+    }
+
+    /** A failed read leaves every asset unknown: the directory answers without the detector. */
+    private Map<String, SignalState> states(List<String> assetIds) {
+        try {
+            return signals.states(assetIds, clock.instant());
+        } catch (RuntimeException e) {
+            LOG.debugf("Fleet directory: signal states not read (%s)", e.getClass().getSimpleName());
+            return Map.of();
+        }
+    }
+
+    private Map<String, Object> signal(String assetId) {
+        return signals == null ? null : states(List.of(assetId)).getOrDefault(assetId, SignalState.UNKNOWN).fields();
     }
 
     // ---- writes
@@ -230,7 +271,7 @@ public class FleetDirectoryService {
                 AssetFields.status(facts, clock.instant()), AssetFields.carrier(facts, profile),
                 AssetFields.driver(facts, profile), facts.currentTrip(), facts.nextTrip(),
                 AssetFields.document("accreditation", profile, today), AssetFigures.round(totals.km()),
-                facts.lastSignalAt(), facts.gpsProvider(), Suggestions.of(facts, profile, dismissed).size());
+                facts.lastSignalAt(), facts.gpsProvider(), Suggestions.of(facts, profile, dismissed).size(), null);
     }
 
     private AssetDetail detail(Viewer viewer, AssetFacts facts, Profile profile, Snapshot snapshot,
@@ -242,7 +283,7 @@ public class FleetDirectoryService {
                 AssetFigures.indicators(facts, snapshot.totals().get(facts.id()), snapshot.fleetUtilization()),
                 facts.currentTrip(), data.plannedTrips(facts.id()), data.recentTrips(facts.id(), 10),
                 AssetFields.documentViews(profile, today()), Suggestions.of(facts, profile, dismissed),
-                profiles.changes(profile.organizationId(), facts.id(), 20));
+                profiles.changes(profile.organizationId(), facts.id(), 20), signal(facts.id()));
     }
 
     private LocalDate today() {

@@ -4,7 +4,9 @@ import com.microboxlabs.miot.symptoms.lostsignal.IngestHealth.Heartbeat;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -21,8 +23,7 @@ public class InMemoryLossStore implements LossStore {
     private final Map<String, Instant> deadlines = new ConcurrentHashMap<>();
     private final Map<String, Heartbeat> beats = new ConcurrentHashMap<>();
     private final Map<String, Mark> marks = new ConcurrentHashMap<>();
-    private final Map<String, Coverage> coverage = new ConcurrentHashMap<>();
-    private final Map<String, Cells> reporting = new ConcurrentHashMap<>();
+    private final Map<String, Reporting> reporting = new ConcurrentHashMap<>();
     private final Map<String, Instant> reportedAt = new ConcurrentHashMap<>();
     private final Map<String, Set<String>> lost = new ConcurrentHashMap<>();
     private final Map<String, Cohort> cohorts = new ConcurrentHashMap<>();
@@ -39,23 +40,31 @@ public class InMemoryLossStore implements LossStore {
     }
 
     @Override
-    public Profiles load(String assetId, String sender, String cell) {
-        return new Profiles(vehicles.get(assetId), sender == null ? null : senders.get(sender), checks.get(assetId),
-                cell == null || sender == null ? null : coverage.get(sender + "/" + cell),
-                cell == null ? null : coverage.get("*/" + cell));
+    public synchronized Map<String, Seen> seen(Collection<String> assetIds) {
+        Map<String, Seen> out = new LinkedHashMap<>();
+        for (String id : assetIds) {
+            VehicleProfile v = vehicles.get(id);
+            if (v != null) {
+                Seen seen = new Seen(v, watches.get(id), null);
+                if (!seen.onTrip() && v.sender() != null) {
+                    seen = new Seen(v, seen.watch(), senders.get(v.sender()));
+                }
+                out.put(id, seen);
+            }
+        }
+        return out;
+    }
+
+    @Override
+    public Profiles load(String assetId, String sender) {
+        return new Profiles(vehicles.get(assetId), sender == null ? null : senders.get(sender), checks.get(assetId));
     }
 
     @Override
     public synchronized void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
-            Schedule schedule, Mark mark, Cells cells) {
-        if (cells != null && cells.cell() != null) {
-            if (sender != null) {
-                coverage.put(sender + "/" + cells.cell(), cells.bySender());
-            }
-            coverage.put("*/" + cells.cell(), cells.byAll());
-        }
-        if (cells != null && cells.latitude() != null) {
-            reporting.put(assetId, cells);
+            Schedule schedule, Mark mark, Reporting at) {
+        if (at != null) {
+            reporting.put(assetId, at);
             // The frame's arrival, not the save: a backlog does not make a report look fresh.
             reportedAt.put(assetId, vehicle.arrival());
         }
@@ -91,7 +100,8 @@ public class InMemoryLossStore implements LossStore {
             return m;
         }
         Instant returned = old.returnedAt() == null ? m.returnedAt() : old.returnedAt();
-        return new Mark(m.lostSince(), returned, old.backfill() || m.backfill());
+        Instant frame = old.returnedAt() == null ? m.returnedFrameAt() : old.returnedFrameAt();
+        return new Mark(m.lostSince(), returned, old.backfill() || m.backfill(), frame);
     }
 
     @Override
@@ -106,7 +116,7 @@ public class InMemoryLossStore implements LossStore {
         Mark m = marks.get(assetId);
         boolean current = c != null && c.lost() && m != null && m.lostSince().equals(c.lostSince());
         return new Vehicle(vehicles.get(assetId), watches.get(assetId), c, current ? m.returnedAt() : null,
-                current && m.backfill(), deadlines.get(assetId));
+                current && m.backfill(), deadlines.get(assetId), current ? m.returnedFrameAt() : null);
     }
 
     @Override
@@ -136,11 +146,10 @@ public class InMemoryLossStore implements LossStore {
     }
 
     @Override
-    public Around around(String sender, String cell, Double latitude, Double longitude, String assetId, Instant now,
-            double radiusKm) {
+    public int nearby(Double latitude, Double longitude, String assetId, Instant now, double radiusKm) {
         int nearby = 0;
         if (latitude != null && longitude != null) {
-            for (Map.Entry<String, Cells> e : reporting.entrySet()) {
+            for (Map.Entry<String, Reporting> e : reporting.entrySet()) {
                 Instant at = reportedAt.get(e.getKey());
                 if (!e.getKey().equals(assetId) && at != null && !at.isBefore(now.minusSeconds(600))
                         && km(latitude, longitude, e.getValue().latitude(), e.getValue().longitude()) <= radiusKm) {
@@ -148,8 +157,7 @@ public class InMemoryLossStore implements LossStore {
                 }
             }
         }
-        return new Around(cell == null || sender == null ? null : coverage.get(sender + "/" + cell),
-                cell == null ? null : coverage.get("*/" + cell), nearby);
+        return nearby;
     }
 
     static double km(double lat1, double lon1, double lat2, double lon2) {

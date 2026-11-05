@@ -24,7 +24,8 @@ public record RuleSchema(String root, Map<String, String> fields, Map<String, St
     private static final String NUMBER = "number";
 
     /** The variables a level condition adds to the source: the measure and how long it has held. */
-    public static final Map<String, String> LEVEL_VARIABLES = Map.of("measure", NUMBER, "held_s", NUMBER);
+    public static final Map<String, String> LEVEL_VARIABLES = Map.of("measure", NUMBER, "held_s", NUMBER,
+            "open_s", NUMBER);
 
     /** The case a lifecycle rule reads. */
     public static final RuleSchema CASE = new RuleSchema("case", Map.of(
@@ -32,7 +33,10 @@ public record RuleSchema(String root, Map<String, String> fields, Map<String, St
             "case.normal_s", NUMBER,
             "case.age_h", NUMBER,
             "case.level", NUMBER,
-            "case.closed_by_operator", "bool"), Map.of());
+            "case.closed_by_operator", "bool",
+            "case.closed_on_trip", "bool",
+            "case.closed_on_trip_s", NUMBER,
+            "case.off_trip_s", NUMBER), Map.of());
 
     public static RuleSchema of(DataSource source) {
         Map<String, String> fields = new LinkedHashMap<>();
@@ -40,6 +44,19 @@ public record RuleSchema(String root, Map<String, String> fields, Map<String, St
             fields.put(f.path(), f.type());
         }
         return new RuleSchema(source.root(), fields, Map.of());
+    }
+
+    /**
+     * What a lifecycle rule reads: the case, and the source's signal that moved it, so a close rule can read a
+     * device event ({@code case.closed_by_operator || signal.frame.events.exists(...)}).
+     */
+    public static RuleSchema lifecycle(DataSource source) {
+        if (source == null) {
+            return CASE;
+        }
+        Map<String, String> fields = new LinkedHashMap<>(CASE.fields());
+        source.fields().forEach(f -> fields.putIfAbsent(f.path(), f.type()));
+        return new RuleSchema(CASE.root(), fields, Map.of());
     }
 
     public RuleSchema withExtras(Map<String, String> more) {

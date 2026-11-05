@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 import type { RuleSummary } from "./conversations-types";
 
-const api = vi.hoisted(() => ({ useConversationRules: vi.fn() }));
+const api = vi.hoisted(() => ({
+  useConversationRules: vi.fn(),
+  useEventCatalog: () => ({ data: undefined }),
+}));
 vi.mock("./conversations-api", () => api);
 vi.mock("next/navigation", () => ({
   useParams: () => ({ lang: "es" }),
@@ -14,6 +17,7 @@ vi.mock("next/navigation", () => ({
 import SymptomRulesCard from "./symptom-rules-card";
 
 const d = es.pages.userSettings.symptomCatalog;
+const rulesDict = es.pages.userSettings.communications;
 
 const rule = (patch: Partial<RuleSummary>): RuleSummary => ({
   id: "r1",
@@ -39,6 +43,7 @@ const renderCard = (icu = 4, canWrite = true) =>
       icu={icu}
       canWrite={canWrite}
       d={d}
+      rulesDict={rulesDict}
     />
   );
 
@@ -47,7 +52,7 @@ describe("SymptomRulesCard", () => {
     api.useConversationRules.mockReset();
   });
 
-  it("lists the rules that name the symptom at this level, with state, steps and channels", () => {
+  it("shows the rules that name the symptom at this level as the Comunicaciones page's cards", () => {
     api.useConversationRules.mockReturnValue({
       data: [
         rule({}),
@@ -72,22 +77,21 @@ describe("SymptomRulesCard", () => {
     });
     renderCard();
     const list = screen.getByRole("list", { name: "Comunicaciones" });
+    expect(list.className).toContain("md:grid-cols-2");
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(2);
-    expect(items[0].textContent).toContain("Pánico: conductor");
-    expect(items[0].textContent).toContain("En prueba");
-    expect(items[0].textContent).toContain("2 pasos");
-    expect(
-      within(items[0]).getByRole("img", { name: "WhatsApp" })
-    ).toBeTruthy();
-    expect(within(items[0]).getByRole("img", { name: "Correo" })).toBeTruthy();
-    expect(
-      within(items[0])
-        .getByRole("link", { name: "Pánico: conductor" })
-        .getAttribute("href")
-    ).toBe("/es/users/settings/communications/rules/r1");
-    expect(items[1].textContent).toContain("Activa");
-    expect(items[1].textContent).toContain("1 paso");
+
+    // RuleCard: the whole card is the link to the rule.
+    const first = within(items[0]!).getByRole("link");
+    expect(first.getAttribute("href")).toBe(
+      "/es/users/settings/communications/rules/r1"
+    );
+    expect(first.textContent).toContain("Pánico: conductor");
+    expect(first.textContent).toContain("v0.1.0");
+    expect(first.textContent).toContain("Botón de pánico");
+    expect(within(first).getByRole("img", { name: "WhatsApp" })).toBeTruthy();
+    expect(within(first).getByRole("img", { name: "Correo" })).toBeTruthy();
+    expect(items[1]!.textContent).toContain("Por clave del servidor");
   });
 
   it("leaves out a rule whose level is above this one", () => {

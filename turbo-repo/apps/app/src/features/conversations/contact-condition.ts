@@ -9,15 +9,25 @@ export type ContactClause =
   | { kind: "role"; value: string }
   | { kind: "company"; value: string }
   /** The contact's company RUT equals a field of the event, such as carrierRut. */
-  | { kind: "companyRutIs"; field: string };
+  | { kind: "companyRutIs"; field: string }
+  /** The contact's own RUT equals a field of the event, such as driverRut. */
+  | { kind: "nationalIdIs"; field: string };
 
 export type ContactClauseKind = ContactClause["kind"];
+
+/** The clauses that compare the contact with a field of the event instead of a value. */
+export type FieldClause = Extract<ContactClause, { field: string }>;
+
+export function isFieldClause(c: ContactClause): c is FieldClause {
+  return c.kind === "companyRutIs" || c.kind === "nationalIdIs";
+}
 
 export const CLAUSE_KINDS: ContactClauseKind[] = [
   "tag",
   "role",
   "company",
   "companyRutIs",
+  "nationalIdIs",
 ];
 
 const QUOTED = String.raw`(?:'([^'\\]*)'|("(?:[^"\\]|\\.)*"))`;
@@ -27,11 +37,13 @@ const PATTERNS: [ContactClauseKind, RegExp][] = [
   ["company", new RegExp(String.raw`^contact\.company\s*==\s*${QUOTED}$`)],
 ];
 const RUT_IS = /^contact\.companyRut\s*==\s*event\.data\.([A-Za-z_]\w*)$/;
+const NATIONAL_ID_IS =
+  /^contact\.nationalId\s*==\s*event\.data\.([A-Za-z_]\w*)$/;
 
 export function newClause(kind: ContactClauseKind): ContactClause {
-  return kind === "companyRutIs"
-    ? { kind, field: "carrierRut" }
-    : { kind, value: "" };
+  if (kind === "companyRutIs") return { kind, field: "carrierRut" };
+  if (kind === "nationalIdIs") return { kind, field: "driverRut" };
+  return { kind, value: "" };
 }
 
 function quote(value: string) {
@@ -48,6 +60,8 @@ function compileClause(c: ContactClause): string {
       return `contact.company == ${quote(c.value)}`;
     case "companyRutIs":
       return `contact.companyRut == event.data.${c.field}`;
+    case "nationalIdIs":
+      return `contact.nationalId == event.data.${c.field}`;
   }
 }
 
@@ -58,6 +72,8 @@ export function compileClauses(clauses: ContactClause[]): string {
 function parseClause(text: string): ContactClause | null {
   const rut = RUT_IS.exec(text);
   if (rut) return { kind: "companyRutIs", field: rut[1] };
+  const own = NATIONAL_ID_IS.exec(text);
+  if (own) return { kind: "nationalIdIs", field: own[1] };
   for (const [kind, re] of PATTERNS) {
     const m = re.exec(text);
     if (m) {

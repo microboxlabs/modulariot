@@ -5,6 +5,7 @@ import com.microboxlabs.miot.symptoms.domain.ContactCallStats;
 import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
+import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /** Process-local treatment store for unit tests. Not a CDI bean: the running service uses {@link PgTreatmentStore}. */
@@ -108,8 +110,10 @@ public class InMemoryTreatmentStore implements TreatmentStore {
                 a.performedBy(), a.performedAt() == null ? OffsetDateTime.now(ZoneOffset.UTC) : a.performedAt());
         list.add(saved);
         Treatment t = treatments.get(a.treatmentId());
+        TreatmentType type = t.symptomId() < 0 && a.kind() == ActionKind.IGNORE
+                ? TreatmentType.IGNORE_CONDITION : t.type();
         treatments.put(t.id(), new Treatment(t.id(), t.tenantCode(), t.symptomId(), t.assetId(), t.tripId(),
-                t.type(), t.status(), t.openedBy(), t.openedAt(), t.closedBy(), t.closedAt(), t.resolution(),
+                type, t.status(), t.openedBy(), t.openedAt(), t.closedBy(), t.closedAt(), t.resolution(),
                 t.note(), saved.performedAt()));
         return saved;
     }
@@ -150,5 +154,63 @@ public class InMemoryTreatmentStore implements TreatmentStore {
                 .flatMap(t -> actions.getOrDefault(t.id(), List.of()).stream())
                 .filter(a -> a.kind() == ActionKind.CALL && a.contactId() != null)
                 .toList();
+    }
+
+    @Override
+    public synchronized List<TreatmentAction> pendingTelephonyCalls(String tenantCode, String performedBy,
+            OffsetDateTime since) {
+        return actions.values().stream().flatMap(List::stream)
+                .filter(a -> a.tenantCode().equals(tenantCode) && a.kind() == ActionKind.CALL
+                        && performedBy.equals(a.performedBy()) && !a.performedAt().isBefore(since)
+                        && "PENDING".equals(telephonyStatus(a)))
+                .sorted(java.util.Comparator.comparing(TreatmentAction::performedAt)).limit(50).toList();
+    }
+
+    @Override
+    public synchronized Optional<TreatmentAction> updateCallResult(String tenantCode, String actionId,
+            Boolean answered, Integer durationSeconds, Map<String, Object> details) {
+        Object metadata = details == null ? null : details.get("telephony");
+        if (metadata instanceof Map<?, ?> record && "RECORDED".equals(record.get("status"))
+                && record.get("connectionId") instanceof String connection
+                && recordedTelephonyRecordIds(tenantCode, connection).contains(record.get("recordId"))) {
+            return Optional.empty();
+        }
+        for (List<TreatmentAction> list : actions.values()) {
+            for (int i = 0; i < list.size(); i++) {
+                TreatmentAction a = list.get(i);
+                if (a.id().equals(actionId) && a.tenantCode().equals(tenantCode) && a.kind() == ActionKind.CALL
+                        && "PENDING".equals(telephonyStatus(a))) {
+                    TreatmentAction updated = new TreatmentAction(a.id(), a.treatmentId(), a.tenantCode(), a.seq(),
+                            a.kind(), a.contactId(), a.contactName(), a.contactRole(), a.contactPhone(), a.method(),
+                            a.outcomeKey(), a.outcomeLabel(), answered,
+                            durationSeconds == null ? a.durationSeconds() : durationSeconds, a.message(), a.note(),
+                            a.tags(), details == null ? Map.of() : Map.copyOf(details), a.performedBy(),
+                            a.performedAt());
+                    list.set(i, updated);
+                    return Optional.of(updated);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Object telephonyStatus(TreatmentAction a) {
+        return telephonyDetails(a).get("status");
+    }
+
+    @Override
+    public synchronized Set<String> recordedTelephonyRecordIds(String tenantCode, String connectionId) {
+        return actions.values().stream().flatMap(List::stream)
+                .filter(a -> a.tenantCode().equals(tenantCode) && a.kind() == ActionKind.CALL)
+                .map(InMemoryTreatmentStore::telephonyDetails)
+                .filter(t -> "TEAMS_PHONE".equals(t.get("provider")) && "RECORDED".equals(t.get("status"))
+                        && connectionId.equals(t.get("connectionId")))
+                .map(t -> t.get("recordId")).filter(String.class::isInstance).map(String.class::cast)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    private static Map<?, ?> telephonyDetails(TreatmentAction action) {
+        Object value = action.details() == null ? null : action.details().get("telephony");
+        return value instanceof Map<?, ?> m ? m : Map.of();
     }
 }

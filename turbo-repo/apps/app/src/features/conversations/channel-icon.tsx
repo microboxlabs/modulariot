@@ -3,6 +3,7 @@ import { Bell, Code } from "flowbite-react-icons/outline";
 import { Envelope, Whatsapp } from "flowbite-react-icons/solid";
 import { BsMicrosoftTeams } from "react-icons/bs";
 import { FaSlack } from "react-icons/fa";
+import { HiPhone } from "react-icons/hi";
 import { TbWebhook } from "react-icons/tb";
 import { twMerge } from "tailwind-merge";
 
@@ -10,6 +11,7 @@ type Logo = ComponentType<SVGProps<SVGSVGElement>>;
 
 /** Flowbite's logos, as on the sign-in page, and react-icons for brands Flowbite lacks; "preferred" is a bell, anything else code. */
 const LOGOS: Record<string, Logo> = {
+  call: HiPhone,
   whatsapp: Whatsapp,
   email: Envelope,
   slack: FaSlack,
@@ -20,6 +22,17 @@ const LOGOS: Record<string, Logo> = {
 
 export const channelLogo = (channel: string | null | undefined): Logo =>
   (channel && LOGOS[channel]) || Code;
+
+/** A channel's logo at text size, in the logos' gray: the icon of a step's channel pill. */
+export function ChannelGlyph({ channel }: Readonly<{ channel: string }>) {
+  const Logo = channelLogo(channel);
+  return (
+    <Logo
+      aria-hidden
+      className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-gray-400"
+    />
+  );
+}
 
 /** A channel's logo in a bordered square, in the text colour; `size` is in Tailwind units (6 = 24 px). */
 export default function ChannelIcon({

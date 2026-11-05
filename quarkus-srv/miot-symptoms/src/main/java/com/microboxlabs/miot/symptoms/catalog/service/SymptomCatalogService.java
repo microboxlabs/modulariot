@@ -17,6 +17,12 @@ import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
+import com.microboxlabs.miot.core.event.ContactConditions;
+import com.microboxlabs.miot.core.selectable.SelectableService;
+import java.util.function.BiPredicate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Comparator;
@@ -27,9 +33,11 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.jboss.logging.Logger;
 
 /**
  * Symptom definitions and their versions: drafts, validation, publishing
@@ -41,6 +49,7 @@ import java.util.stream.Collectors;
 public class SymptomCatalogService {
 
     static final String ENTITY = "symptom";
+    private static final Logger LOG = Logger.getLogger(SymptomCatalogService.class);
     private static final String VERSION_NOT_FOUND = "version not found: ";
     private static final String VERSION = "version";
     /** Tries at picking a free key when copying a template, for concurrent copies of the same one. */
@@ -52,10 +61,74 @@ public class SymptomCatalogService {
     private final DataSourceService sources;
     private final AuditService audit;
 
+    private final Instance<ContactConditions> contactConditions;
+    private final BiPredicate<String, String> resultExists;
+    private Consumer<SymptomStateChanged> stateChanges = change -> { };
+
     public SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit) {
+        this(store, sources, audit, null);
+    }
+
+    public SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit,
+            Instance<ContactConditions> contactConditions) {
+        this(store, sources, audit, contactConditions, (tenant, result) -> true);
+    }
+
+    @Inject
+    public SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit,
+            Instance<ContactConditions> contactConditions, SelectableService selectables) {
+        this(store, sources, audit, contactConditions,
+                (tenant, result) -> resultExists(selectables, tenant, result));
+    }
+
+    SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit,
+            Instance<ContactConditions> contactConditions, BiPredicate<String, String> resultExists) {
+        this.resultExists = resultExists;
         this.store = store;
         this.sources = sources;
         this.audit = audit;
+        this.contactConditions = contactConditions;
+    }
+
+    @Inject
+    void stateChanges(Event<SymptomStateChanged> bus) {
+        this.stateChanges = bus::fire;
+    }
+
+    /** Who hears that a symptom changed state; tests set it, the container sets the CDI event. */
+    void onStateChange(Consumer<SymptomStateChanged> listener) {
+        this.stateChanges = listener;
+    }
+
+    /** The change is saved: a failing listener does not undo it. */
+    private void stateChanged(String tenantCode, UUID id, SymptomState from, SymptomState to) {
+        if (from == to) {
+            return;
+        }
+        try {
+            stateChanges.accept(new SymptomStateChanged(tenantCode, id, from, to));
+        } catch (RuntimeException e) {
+            LOG.warnf("Symptom %s: state change listener failed (%s)", id, e.getClass().getSimpleName());
+        }
+    }
+
+    private Report checkSpec(String tenantCode, SymptomSpec spec, DataSource source) {
+        Function<String, Optional<String>> problem = condition -> Optional.of("Contact conditions are unavailable");
+        if (contactConditions != null && contactConditions.isResolvable()) {
+            problem = contactConditions.get()::problem;
+        }
+        Map<String, Boolean> checked = new java.util.HashMap<>();
+        return SpecValidator.validate(spec, source, problem,
+                result -> checked.computeIfAbsent(result, code -> resultExists.test(tenantCode, code)));
+    }
+
+    private static boolean resultExists(SelectableService selectables, String tenantCode, String result) {
+        if (selectables == null) return true;
+        try {
+            return selectables.contains(tenantCode, "call_result", result);
+        } catch (NoSuchElementException missingList) {
+            return false;
+        }
     }
 
     /**
@@ -165,7 +238,7 @@ public class SymptomCatalogService {
         }
         String title = name == null || name.isBlank() ? template.name() : name.trim();
         // Checked before anything is written, so a template that does not fit leaves no draft and takes no key.
-        Report report = SpecValidator.validate(template.spec(),
+        Report report = checkSpec(tenantCode, template.spec(),
                 sources.find(tenantCode, template.spec().source()).orElse(null));
         if (!report.publishable()) {
             throw new IllegalStateException("the template does not fit this organization's data source");
@@ -231,15 +304,15 @@ public class SymptomCatalogService {
         if (l.response() == null) {
             return l;
         }
-        return new SymptomSpec.Level(l.icu(), l.applies(), l.when(), withoutTenantNotices(l.response()));
+        return new SymptomSpec.Level(l.icu(), l.applies(), l.when(), withoutTenantNotices(l.response()), l.ignore());
     }
 
-    private static SymptomSpec.Response withoutTenantNotices(SymptomSpec.Response r) {
+    static SymptomSpec.Response withoutTenantNotices(SymptomSpec.Response r) {
         List<SymptomSpec.Notice> notices = r.notices() == null ? null : r.notices().stream()
                 .map(n -> new SymptomSpec.Notice(n.when(), n.channel(), null, null, null))
                 .toList();
         return new SymptomSpec.Response(r.operator(), r.slaMinutes(), r.steps(), notices, r.evidence(),
-                r.ignorable(), r.escalateTo(), r.consequence());
+                r.ignorable(), r.escalateTo(), r.consequence(), r.escalateScope(), r.escalateWho());
     }
 
     /** Creates a symptom under {@code key}, or the next free {@code key-N}, retrying when a concurrent copy wins. */
@@ -338,7 +411,7 @@ public class SymptomCatalogService {
         SymptomDefinition d = require(tenantCode, id);
         SymptomSpec checked = spec != null && !spec.isEmpty() ? spec : store.findDraft(tenantCode, id).map(SymptomVersion::spec)
                 .orElseThrow(() -> new NoSuchElementException("no draft to check"));
-        return SpecValidator.validate(effective(checked, d),
+        return checkSpec(tenantCode, effective(checked, d),
                 sources.find(tenantCode, sourceKey(checked, d)).orElse(null));
     }
 
@@ -395,7 +468,7 @@ public class SymptomCatalogService {
         SymptomSpec spec = v == null ? source.spec() : source.spec().withState(SymptomState.TEST);
         if (v != null) {
             // Checked before anything is written, so a copy that cannot be published leaves nothing behind.
-            Report report = SpecValidator.validate(spec,
+            Report report = checkSpec(tenantCode, spec,
                     sources.find(tenantCode, sourceKey(spec, from)).orElse(null));
             if (!report.publishable()) {
                 throw new IllegalStateException("version " + v + " does not pass its source's checks any more");
@@ -442,6 +515,7 @@ public class SymptomCatalogService {
         SymptomDefinition saved = store.updateDefinition(d.withCurrent(d.currentVersion(), state, actor, now()));
         audit.log(tenantCode, actor, "symptom.state_changed", ENTITY, id.toString(), null,
                 Map.of("state", state.name()));
+        stateChanged(tenantCode, id, d.state(), state);
         return saved;
     }
 
@@ -530,6 +604,7 @@ public class SymptomCatalogService {
         audit.log(tenantCode, actor, rolledBackFrom == null ? "symptom.published" : "symptom.rolled_back", ENTITY,
                 detail.definition().id().toString(), null,
                 Map.of(VERSION, number, "bump", bump.name(), "state", next.name()));
+        stateChanged(tenantCode, detail.definition().id(), detail.definition().state(), next);
         return saved;
     }
 
@@ -540,7 +615,7 @@ public class SymptomCatalogService {
         SymptomSpec spec = effective(draft, d);
         List<Change> changes = SpecDiff.changes(before, spec);
         VersionBump bump = SpecDiff.bump(changes);
-        Report report = SpecValidator.validate(spec, sources.find(tenantCode, sourceKey(spec, d)).orElse(null));
+        Report report = checkSpec(tenantCode, spec, sources.find(tenantCode, sourceKey(spec, d)).orElse(null));
         return new PublishPlan(changes, bump,
                 bump == null ? null : SpecDiff.next(detail.definition().currentVersion(), bump), report);
     }
@@ -560,7 +635,7 @@ public class SymptomCatalogService {
     /** The version in force has no errors against its own source and needs nothing the engine lacks. */
     private boolean activatable(String tenantCode, SymptomDetail detail) {
         SymptomSpec spec = detail.current().spec();
-        Report report = SpecValidator.validate(spec,
+        Report report = checkSpec(tenantCode, spec,
                 sources.find(tenantCode, sourceKey(spec, detail.definition())).orElse(null));
         return report.publishable() && !report.needsTestOnly();
     }

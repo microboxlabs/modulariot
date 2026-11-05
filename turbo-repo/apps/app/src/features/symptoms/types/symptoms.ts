@@ -8,6 +8,8 @@ export interface SymptomDashboard {
   stable: number;
   compromised: number;
   remission: number;
+  /** Engine cases on an "Ignorar condición" hold. */
+  ignored?: number;
 }
 
 /* export interface SymptomTableItem {

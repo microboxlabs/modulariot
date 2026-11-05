@@ -8,8 +8,11 @@ import com.microboxlabs.miot.symptoms.domain.ActionKind;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
+import com.microboxlabs.miot.symptoms.dto.TripPeople;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
+import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
+import com.microboxlabs.miot.symptoms.lostsignal.SignalStateReader.Reported;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -27,11 +30,15 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HexFormat;
-import java.util.List;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -46,17 +53,38 @@ import org.jboss.logging.Logger;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class EngineCaseService {
 
-    private static final Set<String> PAGING = Set.of("p_page", "p_page_size");
+    private static final String PAGE = "p_page";
+    private static final Set<String> PAGING = Set.of(PAGE, "p_page_size");
+    private static final String POSITION_ASSET_ID = "asset_id";
     private static final String TRIP_ID = "p_trip_id";
     private static final String ASSET_ID = "p_asset_id";
     private static final String NAME = "p_symptom_name";
     private static final String LEVEL = "p_icu_code";
     private static final String FROM = "p_start_date_historic";
     private static final String TO = "p_end_date_historic";
-    /** The list filters the cases answer; any other one leaves them out. */
+    private static final String DRIVER = "p_driver_id";
+    private static final String CARRIER = "p_carrier_id";
+    private static final String CARRIER_TAX_ID = "carrier_tax_id";
+    private static final String CONTEXT_FIELD = "context";
+    private static final String LEVEL_FIELD = "level";
+    private static final String DRIVER_FIELD = "driver";
+    private static final String CARRIER_FIELD = "carrier";
+    private static final String ORIGIN_FIELD = "origin";
+    private static final String DESTINATION_FIELD = "destination";
+    private static final String DRIVER_ID = "driver_id";
+    private static final String SECOND_DRIVER_ID = "second_driver_id";
+    private static final String SYMPTOM_ID = "symptom_id";
+    private static final String TYPE_LOAD = "type_load";
+    private static final String ORIGIN = "p_origin";
+    private static final String DESTINATION = "p_destination";
+    /**
+     * The list filters under which the GPS database's page shows the cases first; any other one leaves them out.
+     * The engine-only list ({@link #casesPage}) also answers driver, carrier, origin and destination.
+     */
     private static final Set<String> CASE_FILTERS = Set.of(TRIP_ID, ASSET_ID, NAME, LEVEL, FROM, TO);
     private static final String SYMPTOM_NAME = "symptom_name";
     private static final String CONDITIONS_AGG = "conditions_agg";
+    private static final String START = "start";
     private static final String SYMPTOM_NAMES = "symptom_name_list";
     private static final String ICU_CODE = "icu_code";
     private static final String ICU_CONDITION = "icu_condition";
@@ -66,15 +94,26 @@ public class EngineCaseService {
     /** The keys of the GPS database's counts by condition. */
     private static final Map<Integer, String> COUNTED = Map.of(1, "Under Observation", 2, "Compromised condition",
             3, "Critical condition", 4, "Code Black");
+    private static final String DESCRIPTION = "description";
+    private static final String TREATMENT_TYPE = "treatment_type";
+    private static final String MESSAGE = "message";
+    private static final String TREATMENTS = "treatments";
+    private static final String DRIVER_RESPONSE = "driver_response";
+    /** The treatment type of a note rule's timeline entry. */
+    static final String NOTE_TYPE = "evento del gps";
     private static final String COUNTED_UNDER_TREATMENT = "Under Treatment";
+    /** The count of the open cases a hold covers ("Ignorados"), out of the other counts. */
+    static final String COUNTED_IGNORED = "Ignored";
+    /** {@code p_icu_code} for the open cases a hold covers. */
+    public static final int IGNORED_CODE = 9;
     /** The case's trip while it runs; a finished trip has no row. */
     private static final String TRIP = """
-            SELECT trip_id, asset_id,
-                   (CASE jsonb_typeof(mandate_codes) WHEN 'string' THEN (mandate_codes #>> '{}')::jsonb
-                         ELSE mandate_codes END) -> 0 ->> 'code' AS code,
-                   carrier_name, origin_geofence_label, destination_geofence_label, driver_name, second_driver_name,
-                   type_load, driver_contact_phone
-              FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id::text = $2 AND asset_id = $3
+            SELECT tl.trip_id, tl.asset_id, tl.carrier_name, c.rut AS carrier_tax_id, tl.origin_geofence_label,
+                   tl.destination_geofence_label, tl.driver_name, tl.second_driver_name, tl.type_load,
+                   tl.driver_contact_phone, tl.driver_id, tl.second_driver_id
+              FROM miot_trips.trip_live tl
+              LEFT JOIN miot_fleet.carrier c ON c.tenant_code = tl.tenant_code AND c.id::text = tl.carrier_id
+             WHERE tl.tenant_code = $1 AND tl.trip_id::text = $2 AND tl.asset_id = $3
             """;
     /** How far before the case the map shows the vehicle's signals, unless an earlier case of it is nearer. */
     static final Duration SIGNALS_BEFORE = Duration.ofHours(1);
@@ -86,6 +125,15 @@ public class EngineCaseService {
     @FunctionalInterface
     public interface Forget {
         void episode(String tenantCode, String assetId, UUID definitionId);
+
+        /** The operator closed the case on this trip (null when it had none); the open rule may read it. */
+        default void closed(String tenantCode, String assetId, UUID definitionId, String tripId) {
+            episode(tenantCode, assetId, definitionId);
+        }
+
+        default void staleEpisode(EngineCaseStore.StaleCase c) {
+            episode(c.tenantCode(), c.assetId(), c.definitionId());
+        }
     }
 
     private final EngineCaseStore store;
@@ -93,10 +141,37 @@ public class EngineCaseService {
     private final Function<Tuple, Row> trips;
     private final Clock clock;
     private final SymptomEvents events;
+    private final Vehicles vehicles;
+    private static final String CHECK = "check";
+
+    /** What the lost-signal detector's profiles say about a vehicle now; empty without a profile. */
+    @FunctionalInterface
+    public interface Vehicles {
+        Vehicles NONE = (assetId, now) -> Optional.empty();
+
+        Optional<Reported> reported(String assetId, Instant now);
+    }
 
     @Inject
-    EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, Instance<Pool> pool, SymptomEvents events) {
-        this(store, evaluator::forget, t -> readTrip(pool.get(), t), Clock.systemUTC(), events);
+    EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, Instance<Pool> pool, SymptomEvents events,
+            LostSignalDetector lostSignal) {
+        this(store, new Forget() {
+            @Override
+            public void episode(String tenantCode, String assetId, UUID definitionId) {
+                evaluator.forget(tenantCode, assetId, definitionId);
+            }
+
+            @Override
+            public void closed(String tenantCode, String assetId, UUID definitionId, String tripId) {
+                evaluator.forget(tenantCode, assetId, definitionId, tripId);
+            }
+
+            @Override
+            public void staleEpisode(EngineCaseStore.StaleCase c) {
+                evaluator.forgetStale(c);
+            }
+        }, t -> readTrip(pool.get(), t), Clock.systemUTC(), events,
+                lostSignal::reported);
     }
 
     private static Row readTrip(Pool pool, Tuple key) {
@@ -114,6 +189,12 @@ public class EngineCaseService {
 
     public EngineCaseService(EngineCaseStore store, Forget forget, Function<Tuple, Row> trips, Clock clock,
             SymptomEvents events) {
+        this(store, forget, trips, clock, events, Vehicles.NONE);
+    }
+
+    public EngineCaseService(EngineCaseStore store, Forget forget, Function<Tuple, Row> trips, Clock clock,
+            SymptomEvents events, Vehicles vehicles) {
+        this.vehicles = vehicles;
         this.store = store;
         this.forget = forget;
         this.trips = trips;
@@ -122,33 +203,62 @@ public class EngineCaseService {
     }
 
     /**
-     * Whether the list request's first page shows the cases: it is the first page, and it filters by nothing the
-     * cases cannot answer (driver, carrier, origin, destination).
+     * Whether the list request's first page shows the cases: it is the first page, and it filters by nothing outside
+     * {@link #CASE_FILTERS} (driver, carrier, origin, destination).
      */
     public static boolean showsCases(Map<String, String> filters) {
         if (filters.keySet().stream().anyMatch(k -> !PAGING.contains(k) && !CASE_FILTERS.contains(k)
                 && notBlank(filters.get(k)))) {
             return false;
         }
-        String page = filters.get("p_page");
+        String page = filters.get(PAGE);
         return page == null || page.isBlank() || page.trim().equals("1") || page.trim().equals("0");
     }
 
     /**
-     * The list filters as a case filter. Without dates, the open cases; with them, those active in the range.
-     * A date without an offset is UTC.
+     * The list filters as a case filter. Without dates, the open cases no hold covers; with them, those active in
+     * the range. {@code p_icu_code} {@value #IGNORED_CODE} keeps the open cases a hold covers ("Ignorados"). A date
+     * without an offset is UTC.
      *
      * @throws IllegalArgumentException when the level is not a number or a date is not ISO-8601
      */
     public static EngineCaseStore.CaseFilter filter(Map<String, String> filters) {
         String level = text(filters, LEVEL);
         try {
-            return new EngineCaseStore.CaseFilter(text(filters, TRIP_ID), text(filters, ASSET_ID),
-                    text(filters, NAME), level == null ? null : Integer.valueOf(level), instant(text(filters, FROM)),
-                    instant(text(filters, TO)));
+            EngineCaseStore.CaseFilter f = new EngineCaseStore.CaseFilter(text(filters, TRIP_ID),
+                    text(filters, ASSET_ID), text(filters, NAME), level == null ? null : Integer.valueOf(level),
+                    instant(text(filters, FROM)), instant(text(filters, TO)), text(filters, DRIVER),
+                    text(filters, CARRIER), text(filters, ORIGIN), text(filters, DESTINATION));
+            return Integer.valueOf(IGNORED_CODE).equals(f.level()) ? f.withIgnored() : f;
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(LEVEL + " must be a whole number");
         }
+    }
+
+    /**
+     * Without dates the list is the tower inbox: only the cases whose current level asks for an operator. With
+     * dates it is the history, which keeps every case.
+     */
+    static EngineCaseStore.CaseFilter inbox(EngineCaseStore.CaseFilter filter) {
+        return filter.openOnly() ? filter.forOperator() : filter;
+    }
+
+    /**
+     * The inbox's order, by criticality: the highest level first; within a level, the SLA that runs out soonest
+     * (overdue first, a level without SLA last); then the oldest arrival at the level; then the case id, so a
+     * refresh keeps the order.
+     */
+    static final Comparator<EngineCase> INBOX_ORDER = Comparator
+            .<EngineCase>comparingInt(EngineCase::level).reversed()
+            .thenComparing(EngineCase::slaDeadline, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(c -> c.levelAt() != null ? c.levelAt() : c.openedAt())
+            .thenComparingLong(EngineCase::id);
+
+    /** The store's cases for the list, in the inbox's order when it is the inbox. */
+    private List<EngineCase> listed(String tenantCode, EngineCaseStore.CaseFilter filter) {
+        EngineCaseStore.CaseFilter f = inbox(filter);
+        List<EngineCase> found = store.list(tenantCode, f);
+        return f.operatorOnly() ? found.stream().sorted(INBOX_ORDER).toList() : found;
     }
 
     private static String text(Map<String, String> filters, String name) {
@@ -179,10 +289,11 @@ public class EngineCaseService {
 
     /**
      * The page with the matching cases first; {@code page} null when the GPS database could not be read. A
-     * filtered page holds a trip's or a vehicle's few cases, so they come whole on page 1.
+     * filtered page holds a trip's or a vehicle's few cases, so they come whole on page 1. Without dates only the
+     * cases that need an operator ({@link #inbox}).
      */
     public JsonNode withCases(String tenantCode, Map<String, String> filters, JsonNode page) {
-        List<EngineCase> found = store.list(tenantCode, filter(filters));
+        List<EngineCase> found = listed(tenantCode, filter(filters));
         ObjectNode out = page != null && page.isObject() ? ((ObjectNode) page).deepCopy() : JSON.objectNode();
         ArrayNode rows = JSON.arrayNode();
         found.forEach(c -> rows.add(row(c)));
@@ -209,14 +320,15 @@ public class EngineCaseService {
     }
 
     /**
-     * The counts by condition with the open cases added, each once: under treatment while it has an open
-     * treatment, else at its level. {@code counts} is null when the GPS database could not be read; when the
+     * The counts by condition with the open cases that need an operator added, each once, so they match the inbox
+     * list: under {@value #COUNTED_IGNORED} while a hold
+     * covers it, else under treatment while it has an open treatment, else at its level. {@code counts} is null when the GPS database could not be read; when the
      * open cases cannot be read, the GPS counts are answered alone.
      */
     public JsonNode withOpenCaseCounts(String tenantCode, JsonNode counts) {
-        List<EngineCaseStore.OpenCount> open;
+        EngineCaseStore.TowerCounts engineCounts;
         try {
-            open = store.openCounts(tenantCode);
+            engineCounts = store.towerCounts(tenantCode);
         } catch (RuntimeException e) {
             if (counts == null) {
                 throw e;
@@ -225,11 +337,140 @@ public class EngineCaseService {
             return counts;
         }
         ObjectNode out = counts != null && counts.isObject() ? ((ObjectNode) counts).deepCopy() : JSON.objectNode();
-        for (EngineCaseStore.OpenCount c : open) {
+        for (EngineCaseStore.OpenCount c : engineCounts.active()) {
             String key = c.underTreatment() ? COUNTED_UNDER_TREATMENT : COUNTED.getOrDefault(c.level(), COUNTED.get(1));
             out.put(key, out.path(key).asLong(0) + c.count());
         }
+        long ignored = engineCounts.ignored();
+        if (ignored > 0) {
+            out.put(COUNTED_IGNORED, out.path(COUNTED_IGNORED).asLong(0) + ignored);
+        }
         return out;
+    }
+
+    private static final int PAGE_SIZE = 10;
+
+    /**
+     * One page of the symptom list from the cases alone, in the GPS database function's shape, with totals counted
+     * over the matching cases (at most the store's page of them). Without dates only the cases that need an
+     * operator ({@link #inbox}).
+     *
+     * @param filters already checked by {@code ControlTowerMapService.symptomFilters}
+     */
+    public JsonNode casesPage(String tenantCode, Map<String, String> filters) {
+        EngineCaseStore.CaseFilter filter = filter(filters);
+        if (Integer.valueOf(6).equals(filter.level())) {
+            filter = filter.withOpenTreatment();
+        }
+        List<EngineCase> found = listed(tenantCode, filter);
+        int size = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
+        int page = Math.max(1, number(filters.get(PAGE), 1));
+        int pages = Math.max(1, Math.ceilDiv(found.size(), size));
+        ArrayNode rows = JSON.arrayNode();
+        found.stream().skip((long) (page - 1) * size).limit(size).forEach(c -> rows.add(row(c)));
+        ObjectNode out = JSON.objectNode();
+        out.set("data", rows);
+        out.put("page", page);
+        out.put("page_size", size);
+        out.put("total_rows", found.size());
+        out.put("total_pages", pages);
+        out.put("engine_cases", found.size());
+        ArrayNode names = out.putArray(SYMPTOM_NAMES);
+        found.stream().map(EngineCase::name).distinct().forEach(names::add);
+        return out;
+    }
+
+    private static int number(String value, int otherwise) {
+        try {
+            return value == null || value.isBlank() ? otherwise : Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Paging must be a whole number");
+        }
+    }
+
+    /**
+     * The counts by condition of the cases alone, in the GPS database's keys: the open cases as
+     * {@link #withOpenCaseCounts}, or with {@code from} and {@code to} the cases opened in that range, by their
+     * current level.
+     *
+     * @throws IllegalArgumentException when only one date is given, or a date is not ISO-8601
+     */
+    public JsonNode caseCounts(String tenantCode, String from, String to) {
+        if (notBlank(from) != notBlank(to)) {
+            throw new IllegalArgumentException("Send both from and to, or neither");
+        }
+        if (!notBlank(from)) {
+            return withOpenCaseCounts(tenantCode, null);
+        }
+        Instant start = instant(from.trim());
+        Instant end = instant(to.trim());
+        ObjectNode out = JSON.objectNode();
+        for (EngineCaseStore.LevelCount c : store.openedCounts(tenantCode, start, end)) {
+            String key = COUNTED.getOrDefault(c.level(), COUNTED.get(1));
+            out.put(key, out.path(key).asLong(0) + c.count());
+        }
+        return out;
+    }
+
+    /**
+     * The positions with each vehicle's level from its open cases: {@code symptoms_condition} is the highest level
+     * among them, 0 without one, and {@code associate_symptoms} lists them. The GPS database's own symptom fields
+     * are dropped; {@code speed_limit_condition} stays, as null, so the map's speed filter keeps the vehicle.
+     */
+    public JsonNode withCaseLevels(String tenantCode, JsonNode positions) {
+        Map<String, List<EngineCaseStore.OpenLevel>> byAsset = new HashMap<>();
+        store.openLevels(tenantCode).forEach(l -> byAsset.computeIfAbsent(l.assetId(), a -> new ArrayList<>())
+                .add(l));
+        ArrayNode out = JSON.arrayNode();
+        if (positions == null || !positions.isArray()) {
+            return out;
+        }
+        for (JsonNode p : positions) {
+            if (!p.isObject()) {
+                continue;
+            }
+            ObjectNode position = ((ObjectNode) p).deepCopy();
+            String asset = position.hasNonNull(POSITION_ASSET_ID) ? position.get(POSITION_ASSET_ID).asText()
+                    : position.path("assetid").asText(null);
+            List<EngineCaseStore.OpenLevel> open = asset == null ? List.of() : byAsset.getOrDefault(asset, List.of());
+            position.remove(List.of("speed_limit", "lost_signal", "symptoms", "symptom_condition"));
+            position.putNull("speed_limit_condition");
+            position.put("symptoms_condition", open.stream().mapToInt(EngineCaseStore.OpenLevel::level).max()
+                    .orElse(0));
+            ArrayNode symptoms = position.putArray("associate_symptoms");
+            open.forEach(l -> symptoms.addObject().put(SYMPTOM_NAME, l.name()).put(ICU_CONDITION, l.level()));
+            out.add(position);
+        }
+        return out;
+    }
+
+    /**
+     * The map's summary in the GPS database's shape. Only the symptom counts come from the cases (open ones, by
+     * level); the service and fleet figures have no case equivalent and are 0, as is {@code stable_condition}.
+     */
+    public JsonNode summary(String tenantCode) {
+        Map<Integer, Long> byLevel = new HashMap<>();
+        store.openCounts(tenantCode).forEach(c -> byLevel.merge(Math.clamp(c.level(), 1, 4), c.count(),
+                Long::sum));
+        ObjectNode out = JSON.objectNode();
+        ArrayNode sections = out.putArray("sections");
+        section(sections, "services", List.of("trips", "emergencies", "in_transit", "at_destination",
+                "monitoring_hours_hrs", "monitoring_distance_km"), Map.of());
+        section(sections, "fleet", List.of("monitored_assets", "trucks", "signal_quality_trucks_spm",
+                "signal_delay_trucks_sec", "container", "drivers"), Map.of());
+        section(sections, "symptoms", List.of("stable_condition", "under_observation", "compromised_condition",
+                "critical_condition", "black code"), Map.of("under_observation", byLevel.getOrDefault(1, 0L),
+                        "compromised_condition", byLevel.getOrDefault(2, 0L), "critical_condition",
+                        byLevel.getOrDefault(3, 0L), "black code", byLevel.getOrDefault(4, 0L)));
+        return out;
+    }
+
+    private static void section(ArrayNode sections, String title, List<String> keys, Map<String, Long> values) {
+        ObjectNode section = sections.addObject();
+        section.put("title", title);
+        section.put("icon", "example.svg");
+        ArrayNode items = section.putArray("items");
+        keys.forEach(k -> items.addObject().put("key", k).put("value", values.getOrDefault(k, 0L)));
     }
 
     public boolean hasOpenCases(String tenantCode) {
@@ -243,8 +484,9 @@ public class EngineCaseService {
         r.put("type_of_incidence", c.name());
         r.put(ICU_CODE, String.valueOf(c.level()));
         r.put(ICU_CONDITION, c.treatments() > 0 ? UNDER_TREATMENT : condition(c.level()));
-        r.put("asset_id", c.assetId());
+        r.put(POSITION_ASSET_ID, c.assetId());
         r.put("trip_id", c.tripId());
+        r.put("trip_code", c.tripCode());
         r.put("start_time", c.openedAt().toString());
         if (c.closedAt() != null) {
             r.put("end_time", c.closedAt().toString());
@@ -253,9 +495,178 @@ public class EngineCaseService {
         r.put("duration_sec", Duration.between(c.openedAt(), until).toSeconds());
         r.put("treatment_count", c.treatments());
         r.put("sla_minutes", c.slaMinutes());
+        r.put("sla_since", c.slaStart().toString());
         r.put("recurrence_events", c.recurrence());
-        r.putNull("driver");
+        EngineCase.TripDetails trip = c.trip();
+        r.put(DRIVER_FIELD, trip == null ? null : trip.driver());
+        r.put(CARRIER_FIELD, trip == null ? null : trip.carrier());
+        r.put(ORIGIN_FIELD, trip == null ? null : trip.origin());
+        r.put(DESTINATION_FIELD, trip == null ? null : trip.destination());
+        putHold(r, c);
         return r;
+    }
+
+    /**
+     * {@code ignored}: the hold that covers the case, with {@code until} null while it lasts until the trip ends;
+     * {@code returned_after_ignore_at}: when the case came back to the tower from its latest hold ("Vuelve tras
+     * ignorar"), while it is open and not held again.
+     */
+    private static void putHold(ObjectNode out, EngineCase c) {
+        EngineCase.Ignored h = c.ignored();
+        if (h != null && c.closedAt() == null) {
+            ObjectNode ignored = out.putObject("ignored");
+            ignored.put("treatment_id", h.treatmentId());
+            ignored.put("since", h.since().toString());
+            ignored.put("until", h.until() == null ? null : h.until().toString());
+            ignored.put("until_trip_end", h.untilTripEnd());
+            ignored.put("scope", h.scope());
+            ignored.put("by", h.by());
+        } else if (c.returnedAt() != null && c.closedAt() == null) {
+            out.put("returned_after_ignore_at", c.returnedAt().toString());
+        }
+    }
+
+    /** The RUTs of the case's live trip: drivers and carrier. Empty without a live trip. */
+    public TripPeople tripPeople(String tenantCode, long symptomId) {
+        EngineCase c = find(tenantCode, symptomId);
+        Row t = c.tripId() == null ? null : trips.apply(Tuple.of(tenantCode, c.tripId(), c.assetId()));
+        if (t == null) {
+            return TripPeople.NONE;
+        }
+        return TripPeople.of(t.getString(DRIVER_ID), t.getString(SECOND_DRIVER_ID),
+                t.getString(CARRIER_TAX_ID));
+    }
+
+    /** The most recent cases {@link #scriptSamples} offers. */
+    static final int MAX_SCRIPT_SAMPLES = 10;
+
+    /**
+     * What an operator step's script reads, by case: {@code case} (the symptom, level and where the vehicle was),
+     * {@code condition} (what the rules read when the case reached its level), {@code trip} (route, load, drivers
+     * and carrier, while the trip is live) and {@code vehicle}. A script writes them as {@code {{trip.driver.name}}}.
+     */
+    public JsonNode context(String tenantCode, long symptomId) {
+        return context(tenantCode, find(tenantCode, symptomId));
+    }
+
+    /**
+     * The newest cases of a symptom, each with its {@link #context}, so a script can be read with real data while
+     * it is written. Cases at {@code level} come first when given.
+     */
+    public JsonNode scriptSamples(String tenantCode, String symptomName, Integer level) {
+        if (symptomName == null || symptomName.isBlank()) {
+            throw new IllegalArgumentException("symptom is required");
+        }
+        EngineCaseStore.CaseFilter filter = filter(Map.of(NAME, symptomName, TO, clock.instant().toString()));
+        List<EngineCase> found = new ArrayList<>(store.list(tenantCode, filter));
+        found.sort(java.util.Comparator
+                .comparing((EngineCase c) -> level != null && c.level() == level ? 0 : 1)
+                .thenComparing(EngineCase::openedAt, java.util.Comparator.reverseOrder()));
+        ArrayNode out = JSON.arrayNode();
+        found.stream().limit(MAX_SCRIPT_SAMPLES).forEach(c -> {
+            ObjectNode sample = out.addObject();
+            sample.put(SYMPTOM_ID, c.symptomId());
+            sample.put(POSITION_ASSET_ID, c.assetId());
+            sample.put(ICU_CODE, c.level());
+            sample.put("opened_at", c.openedAt().toString());
+            sample.set(CONTEXT_FIELD, context(tenantCode, find(tenantCode, c.symptomId())));
+        });
+        return out;
+    }
+
+    private ObjectNode context(String tenantCode, EngineCase c) {
+        ObjectNode out = JSON.objectNode();
+        ObjectNode kase = out.putObject("case");
+        kase.put("id", c.symptomId());
+        kase.put("symptom", c.name());
+        kase.put("family", c.family());
+        kase.put(LEVEL_FIELD, c.level());
+        kase.put("levelName", condition(c.level()));
+        kase.put("openedAt", c.openedAt().toString());
+        kase.put("slaMinutes", c.slaMinutes());
+        kase.put("latitude", c.latitude());
+        kase.put("longitude", c.longitude());
+        kase.put("speedKmh", c.speedKmh());
+        JsonNode reached = c.levelContext() != null ? c.levelContext() : c.openingContext();
+        out.set("condition", reached == null ? JSON.objectNode() : reached.deepCopy());
+        ObjectNode vehicle = out.putObject("vehicle");
+        vehicle.put("plate", c.assetId());
+        ObjectNode trip = out.putObject("trip");
+        trip.put("id", c.tripId());
+        trip.put("code", c.tripCode());
+        Row t = c.tripId() == null ? null : trip(tenantCode, c);
+        if (t != null) {
+            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
+            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put("load", t.getString(TYPE_LOAD));
+            trip.putObject(DRIVER_FIELD)
+                    .put("name", t.getString("driver_name"))
+                    .put("rut", t.getString(DRIVER_ID))
+                    .put("phone", t.getString("driver_contact_phone"));
+            trip.putObject("secondDriver")
+                    .put("name", t.getString("second_driver_name"))
+                    .put("rut", t.getString(SECOND_DRIVER_ID));
+            trip.putObject(CARRIER_FIELD)
+                    .put("name", t.getString("carrier_name"))
+                    .put("rut", t.getString(CARRIER_TAX_ID));
+        }
+        return out;
+    }
+
+    /**
+     * A case's life as one ordered list, for the response editor's timeline preview: {@code OPENED},
+     * {@code LEVEL_CHANGED}, {@code NOTED} (the note rule's entries), {@code HELD} (an "Ignorar condición" hold),
+     * {@code ACTION} (each operator action) and {@code CLOSED} with what the rules read when it closed. Entries at
+     * the same time keep that order.
+     */
+    public JsonNode timeline(String tenantCode, long symptomId, List<TreatmentView> treatments) {
+        EngineCase c = find(tenantCode, symptomId);
+        List<ObjectNode> entries = new ArrayList<>();
+        List<EngineCase.LevelStep> steps = c.levels();
+        entries.add(entry("OPENED", c.openedAt()).put(LEVEL_FIELD, steps.isEmpty() ? c.level() : steps.get(0).level()));
+        for (int i = 1; i < steps.size(); i++) {
+            entries.add(entry("LEVEL_CHANGED", steps.get(i).at()).put(LEVEL_FIELD, steps.get(i).level())
+                    .put("previousLevel", steps.get(i - 1).level()));
+        }
+        for (EngineCaseStore.CaseNote n : store.notes(tenantCode, c.id())) {
+            entries.add(entry("NOTED", n.recordedAt()).put("eventType", n.eventType())
+                    .put(DESCRIPTION, n.description()));
+        }
+        Instant until = c.closedAt() != null ? c.closedAt() : clock.instant();
+        for (EngineCase.Ignored h : store.holds(tenantCode, c, until)) {
+            Instant starts = h.since().isBefore(c.openedAt()) ? c.openedAt() : h.since();
+            ObjectNode held = entry("HELD", starts).put("by", h.by()).put("untilTripEnd", h.untilTripEnd());
+            held.put("until", h.until() == null ? null : h.until().toString());
+            entries.add(held);
+        }
+        addTreatmentActions(entries, treatments);
+        if (c.closedAt() != null) {
+            ObjectNode closed = entry("CLOSED", c.closedAt());
+            closed.set(CONTEXT_FIELD, c.closingContext() == null ? JSON.nullNode() : c.closingContext().deepCopy());
+            entries.add(closed);
+        }
+        ArrayNode out = JSON.arrayNode();
+        entries.stream()
+                .sorted(java.util.Comparator.comparing((ObjectNode e) -> Instant.parse(e.path("at").asText())))
+                .forEach(out::add);
+        return out;
+    }
+
+    private static void addTreatmentActions(List<ObjectNode> entries, List<TreatmentView> treatments) {
+        for (TreatmentView t : treatments == null ? List.<TreatmentView>of() : treatments) {
+            for (TreatmentAction a : t.actions()) {
+                entries.add(entry("ACTION", a.performedAt().toInstant()).put("action", a.kind().name())
+                        .put("by", a.performedBy()).put("contact", a.contactName())
+                        .put("outcome", a.outcomeLabel()));
+            }
+        }
+    }
+
+    private static ObjectNode entry(String kind, Instant at) {
+        ObjectNode e = JSON.objectNode();
+        e.put("kind", kind);
+        e.put("at", at.toString());
+        return e;
     }
 
     /** The treatment page's header: the case, and its trip when it had one. */
@@ -263,54 +674,175 @@ public class EngineCaseService {
         EngineCase c = find(tenantCode, symptomId);
         ObjectNode out = JSON.objectNode();
         out.set(CONDITIONS_AGG, JSON.arrayNode());
-        // One timeline entry with the case, which the map selects to load its point.
-        String end = (c.closedAt() != null ? c.closedAt() : c.openedAt()).toString();
+        // One timeline entry with the case, which the map selects to load its point; one block per level step.
+        Instant started = start(c);
+        Instant ended = end(c);
+        String start = started.toString();
+        String end = ended.toString();
         ObjectNode entry = out.putArray("timeline").addObject();
-        entry.put("start", c.openedAt().toString());
+        entry.put(START, start);
         entry.put("end", end);
-        entry.put("symptom_id", c.symptomId());
+        entry.put(SYMPTOM_ID, c.symptomId());
         entry.put(SYMPTOM_NAME, c.name());
-        ObjectNode agg = entry.putArray(CONDITIONS_AGG).addObject();
-        agg.put("start", c.openedAt().toString());
-        agg.put("end", end);
-        agg.put("symptom_id", c.symptomId());
-        agg.put("is_symptom", 1);
-        agg.put("type", c.name());
-        agg.put("symptom_description", c.name());
-        agg.put(ICU_CODE, String.valueOf(c.level()));
-        agg.put(ICU_CONDITION, condition(c.level()));
-        agg.put("count", 1);
-        agg.putNull("assigned_to");
-        agg.set("treatments", JSON.arrayNode());
-        agg.putNull("evidences");
+        ArrayNode levelAggs = entry.putArray(CONDITIONS_AGG);
+        addLevelAggs(levelAggs, c, started, ended);
+        addNotes(levelAggs, store.notes(tenantCode, c.id()));
         ObjectNode symptom = out.putObject("symptom_info");
         symptom.put("id", c.symptomId());
         symptom.put("name", c.name());
         symptom.put("type", c.family());
         symptom.put(ICU_CODE, c.level());
         symptom.put(ICU_CONDITION, condition(c.level()));
+        symptom.put("opened_at", c.openedAt().toString());
+        symptom.put("sla_since", c.slaStart().toString());
+        symptom.put("started_at", start);
+        symptom.put("duration_sec", Duration.between(started, ended).toSeconds());
+        putHold(symptom, c);
+        out.set("level_reason", levelReason(c));
         ObjectNode trip = out.putObject("trip_info");
-        trip.put("asset_id", c.assetId());
+        trip.put(POSITION_ASSET_ID, c.assetId());
         trip.put("trip_id", c.tripId());
+        trip.put("trip_code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
-            trip.put("trip_code", t.getString("code"));
-            trip.put("carrier", t.getString("carrier_name"));
-            trip.put("origin", t.getString("origin_geofence_label"));
-            trip.put("destination", t.getString("destination_geofence_label"));
-            trip.put("driver", t.getString("driver_name"));
+            trip.put(CARRIER_FIELD, t.getString("carrier_name"));
+            trip.put(CARRIER_TAX_ID, t.getString(CARRIER_TAX_ID));
+            trip.put("driver_rut", t.getString(DRIVER_ID));
+            trip.put("second_driver_rut", t.getString(SECOND_DRIVER_ID));
+            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
+            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put(DRIVER_FIELD, t.getString("driver_name"));
             trip.put("driver2", t.getString("second_driver_name"));
-            trip.put("type_load", t.getString("type_load"));
+            trip.put(TYPE_LOAD, t.getString(TYPE_LOAD));
             trip.put("driver_contact", t.getString("driver_contact_phone"));
         }
         return out;
     }
 
-    /** Where the vehicle was when the case opened, as a FeatureCollection with an EWKB point. */
+    /**
+     * The note rule's entries, each in the level step whose time holds the frame that wrote it, as treatments are
+     * placed ({@link #withTreatments}).
+     */
+    static void addNotes(ArrayNode levelAggs, List<EngineCaseStore.CaseNote> notes) {
+        List<ObjectNode> aggs = new ArrayList<>();
+        levelAggs.forEach(agg -> aggs.add((ObjectNode) agg));
+        if (aggs.isEmpty()) {
+            return;
+        }
+        for (EngineCaseStore.CaseNote n : notes) {
+            int step = stepOf(aggs, n.recordedAt().atOffset(java.time.ZoneOffset.UTC));
+            ((ArrayNode) aggs.get(step).get(TREATMENTS)).add(noteRow(n));
+        }
+    }
+
+    private static ObjectNode noteRow(EngineCaseStore.CaseNote n) {
+        ObjectNode row = JSON.objectNode();
+        row.put(TREATMENT_TYPE, NOTE_TYPE);
+        row.put("event_type", n.eventType());
+        row.put("at", n.at().toString());
+        row.putNull("by");
+        ObjectNode description = row.putObject(DESCRIPTION);
+        description.put(MESSAGE, n.description() != null ? n.description() : n.eventType());
+        description.putNull(DRIVER_RESPONSE);
+        return row;
+    }
+
+    /** Keep transition order while bounding times from different clocks to the case interval. */
+    private static void addLevelAggs(ArrayNode aggs, EngineCase c, Instant start, Instant end) {
+        List<EngineCase.LevelStep> steps = c.levels();
+        if (steps.isEmpty()) {
+            addAgg(aggs, c, start.toString(), end.toString(), c.level());
+            return;
+        }
+        Instant from = start;
+        for (int i = 0; i < steps.size(); i++) {
+            Instant to = i + 1 < steps.size() ? steps.get(i + 1).at() : end;
+            if (to.isBefore(from)) {
+                to = from;
+            }
+            if (to.isAfter(end)) {
+                to = end;
+            }
+            addAgg(aggs, c, from.toString(), to.toString(), steps.get(i).level());
+            from = to;
+        }
+    }
+
+    private static void addAgg(ArrayNode aggs, EngineCase c, String start, String end, int level) {
+        ObjectNode agg = aggs.addObject();
+        agg.put(START, start);
+        agg.put("end", end);
+        agg.put(SYMPTOM_ID, c.symptomId());
+        agg.put("is_symptom", 1);
+        agg.put("type", c.name());
+        agg.put("symptom_description", c.name());
+        agg.put(ICU_CODE, String.valueOf(level));
+        agg.put(ICU_CONDITION, condition(level));
+        agg.put("count", 1);
+        agg.putNull("assigned_to");
+        agg.set(TREATMENTS, JSON.arrayNode());
+        agg.putNull("evidences");
+    }
+
+    /**
+     * When the case's condition began: for a lost signal, the last frame before the silence, which comes before
+     * the case opens; else when it opened.
+     */
+    static Instant start(EngineCase c) {
+        Instant lost = lostSince(c.openingContext());
+        return lost != null && lost.isBefore(c.openedAt()) ? lost : c.openedAt();
+    }
+
+    /** When the case closed, or now while it is open. */
+    private Instant end(EngineCase c) {
+        Instant now = clock.instant();
+        Instant end = c.closedAt() != null ? c.closedAt() : now;
+        return end.isBefore(start(c)) ? start(c) : end;
+    }
+
+    /** The last frame before a lost signal ({@code check.loss.last.at}), or null. */
+    static Instant lostSince(JsonNode context) {
+        JsonNode at = context == null ? null : context.path(CHECK).path("loss").path("last").path("at");
+        return contextInstant(at);
+    }
+
+    private static Instant contextInstant(JsonNode at) {
+        if (at == null || !at.isTextual()) {
+            return null;
+        }
+        try {
+            return Instant.parse(at.asText());
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Why the case is at its level: the level, its rule, and what the rules read when the case reached it
+     * ({@code context}, null when it was not kept). For a lost signal, {@code lost_since}. {@code levels} has the
+     * level of each change, oldest first, so the map can color a frame by the level at its time.
+     */
+    private static ObjectNode levelReason(EngineCase c) {
+        ObjectNode reason = JSON.objectNode();
+        reason.put(ICU_CODE, c.level());
+        reason.put(ICU_CONDITION, condition(c.level()));
+        reason.put("rule", c.levelRule());
+        reason.set(CONTEXT_FIELD, c.levelContext() == null ? JSON.nullNode() : c.levelContext().deepCopy());
+        Instant lost = lostSince(c.openingContext());
+        if (lost != null) {
+            reason.put("lost_since", lost.toString());
+        }
+        ArrayNode levels = reason.putArray("levels");
+        c.levels().forEach(step -> levels.addObject().put("at", step.at().toString()).put(ICU_CODE, step.level()));
+        return reason;
+    }
+
+    /** Where the vehicle was when the case's condition began, as a FeatureCollection with an EWKB point. */
     public JsonNode signals(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
         ObjectNode out = JSON.objectNode();
         out.put("type", "FeatureCollection");
+        out.put("closed", c.closedAt() != null);
         ArrayNode features = out.putArray("features");
         if (c.latitude() != null && c.longitude() != null) {
             ObjectNode f = features.addObject();
@@ -318,54 +850,192 @@ public class EngineCaseService {
             f.put("geometry", ewkbPoint(c.longitude(), c.latitude()));
             ObjectNode props = f.putObject("properties");
             props.put("speed", c.speedKmh() == null ? 0 : c.speedKmh());
-            props.put("timestamp", c.openedAt().toString());
+            props.put("timestamp", start(c).toString());
+            props.put(ICU_CODE, c.level());
         }
-        ObjectNode description = out.putObject("description");
-        description.put(SYMPTOM_NAME, c.name());
-        description.put("first_signal_timestamp", c.openedAt().toString());
-        description.put("last_signal_timestamp", c.openedAt().toString());
-        if (c.speedKmh() != null) {
-            description.put("last_reported_speed", c.speedKmh());
-        }
+        out.set(DESCRIPTION, description(c, end(c), reported(c), clock.instant()));
         return out;
+    }
+
+    /** A failed read leaves the popup without the profile's lines. */
+    private Optional<Reported> reported(EngineCase c) {
+        try {
+            return vehicles.reported(c.assetId(), clock.instant());
+        } catch (RuntimeException e) {
+            LOG.debugf("Engine case: vehicle profile not read (%s)", e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * The map popup's lines, with the GPS database's names and formats. A lost signal (a {@code trip_check}
+     * case) adds {@code signal_lag}: while open, now minus the GPS time of the vehicle's newest frame; once
+     * closed, the silence the closing check read (from the last frame before the loss to the one that returned,
+     * or {@code check.loss.silence_s} when it did not return), or nothing without a closing context. Any case
+     * adds the vehicle's usual report interval ({@code median_report_interval}) and the newest frame's engine
+     * status when the detector has a profile; a lost signal falls back to the engine its checks read.
+     */
+    static ObjectNode description(EngineCase c, Instant end, Optional<Reported> reported, Instant now) {
+        ObjectNode d = JSON.objectNode();
+        d.put(SYMPTOM_NAME, c.name());
+        d.put(ICU_CODE, c.level());
+        d.put("first_signal_timestamp", start(c).toString());
+        d.put("last_signal_timestamp", end.toString());
+        if (c.speedKmh() != null) {
+            d.put("last_reported_speed", c.speedKmh());
+        }
+        boolean lost = c.openingContext() != null && c.openingContext().path(CHECK).path("loss").isObject();
+        Long lag = lost ? signalLag(c, reported, now) : null;
+        if (lag != null) {
+            d.put("signal_lag", hms(lag));
+        }
+        reported.map(Reported::medianIntervalS).ifPresent(s -> d.put("median_report_interval", hms(s)));
+        Boolean engine = reported.map(Reported::engineOn).orElse(null);
+        if (engine == null && lost) {
+            engine = contextEngine(c.closingContext(), c.levelContext(), c.openingContext()).orElse(null);
+        }
+        if (engine != null) {
+            d.put("last_reported_engine_status", engine);
+        }
+        return d;
+    }
+
+    private static Long signalLag(EngineCase c, Optional<Reported> reported, Instant now) {
+        if (c.closedAt() == null) {
+            Instant last = reported.map(r -> r.state().lastFrameAt()).orElse(null);
+            return last == null ? null : Math.max(0, Duration.between(last, now).toSeconds());
+        }
+        JsonNode loss = c.closingContext() == null ? null : c.closingContext().path(CHECK).path("loss");
+        if (loss == null || !loss.isObject()) {
+            return null;
+        }
+        if (loss.path("returned").asBoolean(false)) {
+            Instant lostSince = lostSince(c.openingContext());
+            Instant back = contextInstant(loss.path("returned_frame_at"));
+            return lostSince != null && back != null && back.isAfter(lostSince)
+                    ? Duration.between(lostSince, back).toSeconds() : null;
+        }
+        return loss.path("silence_s").isNumber() ? Math.round(loss.path("silence_s").asDouble()) : null;
+    }
+
+    private static Optional<Boolean> contextEngine(JsonNode... contexts) {
+        for (JsonNode context : contexts) {
+            JsonNode engine = context == null ? null
+                    : context.path(CHECK).path("loss").path("last").path("engine");
+            if (engine != null && engine.isBoolean()) {
+                return Optional.of(engine.asBoolean());
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Seconds as the GPS database writes intervals: HH:MM:SS, hours past 24 kept. */
+    static String hms(long seconds) {
+        long s = Math.max(0, seconds);
+        return String.format(java.util.Locale.ROOT, "%02d:%02d:%02d", s / 3600, s % 3600 / 60, s % 60);
     }
 
     /**
      * The header with the case's treatments in its timeline, one entry per call, ignore or invalidate action,
-     * in the shape of the GPS database's treatments. Cancelled treatments and notes are left out.
+     * in the shape of the GPS database's treatments. Each action goes in the level step whose time holds it; one
+     * before the first step goes in the first, one after the last in the last. Cancelled treatments and notes are
+     * left out.
      */
     public static JsonNode withTreatments(JsonNode header, List<TreatmentView> treatments) {
         ObjectNode out = header.deepCopy();
-        ArrayNode rows = JSON.arrayNode();
-        String assignedTo = null;
+        List<ObjectNode> aggs = new ArrayList<>();
+        out.path("timeline").forEach(entry -> entry.path(CONDITIONS_AGG).forEach(agg -> aggs.add((ObjectNode) agg)));
+        List<ArrayNode> rows = new ArrayList<>();
+        // A step is assigned to whoever treated the case during it; a step with no treatment has nobody.
+        List<String> assignees = new ArrayList<>();
+        // The header's own entries (the note rule's) stay; treatments follow them.
+        aggs.forEach(agg -> {
+            rows.add(agg.path(TREATMENTS) instanceof ArrayNode kept ? kept.deepCopy() : JSON.arrayNode());
+            assignees.add(null);
+        });
         for (TreatmentView t : treatments) {
-            if (t.status() == TreatmentStatus.CANCELLED) {
+            if (t.status() == TreatmentStatus.CANCELLED || aggs.isEmpty()) {
                 continue;
             }
-            assignedTo = t.closedBy() != null ? t.closedBy() : t.openedBy();
-            t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE).forEach(a -> rows.add(timelineRow(a)));
-        }
-        for (JsonNode entry : out.path("timeline")) {
-            for (JsonNode agg : entry.path(CONDITIONS_AGG)) {
-                ((ObjectNode) agg).set("treatments", rows.deepCopy());
-                ((ObjectNode) agg).put("assigned_to", assignedTo);
+            String operator = t.closedBy() != null ? t.closedBy() : t.openedBy();
+            t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE).forEach(a -> {
+                int step = stepOf(aggs, a.performedAt());
+                rows.get(step).add(timelineRow(a));
+                assignees.set(step, a.performedBy() != null ? a.performedBy() : t.openedBy());
+            });
+            if (t.status() == TreatmentStatus.CLOSED && t.resolution() != null
+                    && HoldService.ENDINGS.contains(t.resolution())
+                    && t.actions().stream().anyMatch(a -> a.kind() == ActionKind.IGNORE)) {
+                int step = stepOf(aggs, t.closedAt());
+                rows.get(step).add(holdEnd(t));
+                assignees.set(step, operator);
             }
+        }
+        for (int i = 0; i < aggs.size(); i++) {
+            aggs.get(i).set(TREATMENTS, rows.get(i));
+            aggs.get(i).put("assigned_to", assignees.get(i));
         }
         return out;
     }
 
+    /** The index of the last agg that starts at or before {@code when}; the first when none does. */
+    private static int stepOf(List<ObjectNode> aggs, OffsetDateTime when) {
+        if (when == null) {
+            return aggs.size() - 1;
+        }
+        Instant at = when.toInstant();
+        int found = 0;
+        for (int i = 1; i < aggs.size(); i++) {
+            Instant start = contextInstant(aggs.get(i).path(START));
+            if (start != null && !start.isAfter(at)) {
+                found = i;
+            }
+        }
+        return found;
+    }
+
     private static ObjectNode timelineRow(TreatmentAction a) {
         ObjectNode row = JSON.objectNode();
-        ObjectNode description = row.putObject("description");
+        ObjectNode description = row.putObject(DESCRIPTION);
         if (a.kind() == ActionKind.CALL) {
-            row.put("treatment_type", "llamar al conductor");
-            description.put("message", a.message() != null ? a.message() : "Llamado a: " + a.contactName());
-            description.put("driver_response", joined(a.outcomeLabel(), a.note()));
+            row.put(TREATMENT_TYPE, "llamar al conductor");
+            description.put(MESSAGE, a.message() != null ? a.message() : "Llamado a: " + a.contactName());
+            description.put(DRIVER_RESPONSE, joined(a.outcomeLabel(), a.note()));
         } else {
-            row.put("treatment_type", a.kind() == ActionKind.IGNORE ? "ignorar condicion" : "invalidar sintoma");
-            description.put("message", a.outcomeLabel());
-            description.put("driver_response", a.note());
+            row.put(TREATMENT_TYPE, a.kind() == ActionKind.IGNORE ? "ignorar condicion" : "invalidar sintoma");
+            description.put(MESSAGE, a.outcomeLabel());
+            description.put(DRIVER_RESPONSE, a.note());
         }
+        row.put("at", a.performedAt() == null ? null : a.performedAt().toInstant().toString());
+        row.put("by", a.performedBy());
+        if (a.kind() == ActionKind.IGNORE) {
+            boolean tripEnd = Boolean.TRUE.equals(details(a).get(HoldService.UNTIL_TRIP_END));
+            row.put("until_trip_end", tripEnd);
+            row.put("ignored_until", tripEnd || a.performedAt() == null || a.durationSeconds() == null ? null
+                    : a.performedAt().toInstant().plusSeconds(a.durationSeconds()).toString());
+            Object scope = details(a).get(HoldService.SCOPE);
+            row.put("scope", scope == null ? null : scope.toString());
+        }
+        return row;
+    }
+
+    private static Map<String, Object> details(TreatmentAction a) {
+        return a.details() == null ? Map.of() : a.details();
+    }
+
+    /**
+     * The end of a hold: {@code resolution} says how (resolved after ignore, back in the tower, or closed with the
+     * trip), {@code by} who lifted it ({@value HoldService#SYSTEM} when its time ran out).
+     */
+    private static ObjectNode holdEnd(TreatmentView t) {
+        ObjectNode row = JSON.objectNode();
+        row.put(TREATMENT_TYPE, "fin de ignorar");
+        row.put("resolution", t.resolution());
+        row.put("at", t.closedAt() == null ? null : t.closedAt().toInstant().toString());
+        row.put("by", t.closedBy());
+        ObjectNode description = row.putObject(DESCRIPTION);
+        description.put(MESSAGE, t.resolution());
+        description.putNull(DRIVER_RESPONSE);
         return row;
     }
 
@@ -381,12 +1051,12 @@ public class EngineCaseService {
     }
 
     /**
-     * From an hour before the case opened, or from the vehicle's previous case when that opened later, until
-     * the case closed or now; at most {@link #SIGNALS_AT_MOST} after the opening.
+     * From an hour before the case's condition began, or from the vehicle's previous case when that opened later,
+     * until the case closed or now; at most {@link #SIGNALS_AT_MOST} after the start.
      */
     public SignalWindow signalWindow(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
-        Instant opened = c.openedAt();
+        Instant opened = start(c);
         Instant earliest = opened.minus(SIGNALS_BEFORE);
         Instant from = store.previousOpening(tenantCode, c.assetId(), c.id(), earliest, opened).orElse(earliest);
         Instant end = c.closedAt() != null ? c.closedAt() : clock.instant();
@@ -403,12 +1073,40 @@ public class EngineCaseService {
     public void close(String tenantCode, long symptomId, String actor) {
         EngineCase c = find(tenantCode, symptomId);
         if (c.closedAt() == null) {
-            forget.episode(tenantCode, c.assetId(), c.definitionId());
+            forget.closed(tenantCode, c.assetId(), c.definitionId(), c.tripId());
             Instant at = clock.instant();
             if (store.close(tenantCode, c.id(), actor, at)) {
                 events.closedByOperator(tenantCode, c, actor, at);
             }
         }
+    }
+
+    /** The reason a CLOSED transition gives when the symptom's state change closed the case. */
+    public static final String STATE_CHANGE_REASON = com.microboxlabs.miot.symptoms.evaluator.Transition.STATE_CHANGE_REASON;
+
+    /**
+     * Closes the open cases whose state is no longer their symptom's (TEST to ACTIVE, ACTIVE to TEST, or OFF) and
+     * drops their episodes, so the next signal opens a fresh case in the new state. Idempotent: a closed case is
+     * not closed again. A failed episode drop is left to the evaluator, which closes an episode of the old state
+     * itself. Publishes {@code symptom.case.closed} for each.
+     *
+     * @param tenantCode   null for every organization
+     * @param definitionId null for every symptom
+     * @return how many cases it closed
+     */
+    public int closeStaleCases(String tenantCode, UUID definitionId) {
+        Instant at = clock.instant();
+        List<EngineCaseStore.StaleCase> closed = store.closeStale(tenantCode, definitionId, at, STATE_CHANGE_REASON);
+        for (EngineCaseStore.StaleCase c : closed) {
+            try {
+                forget.staleEpisode(c);
+            } catch (RuntimeException e) {
+                LOG.warnf("Engine case %d: episode not dropped after the state change (%s)", c.id(),
+                        e.getClass().getSimpleName());
+            }
+            events.closedByStateChange(c.tenantCode(), c, at);
+        }
+        return closed.size();
     }
 
     /** The trip's details are optional: the header still answers without them. */

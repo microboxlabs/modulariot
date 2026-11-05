@@ -18,6 +18,7 @@ import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import { ConditionsAgg } from "../../types/timeline";
 import { useRouter } from "next/navigation";
 import { lugaresLayout } from "./lugares-layout";
+import { chipText } from "./prototype/header-chip";
 
 export default function GeneralMap({
   dict,
@@ -207,12 +208,11 @@ export default function GeneralMap({
                     icon: <FaUser className="text-gray-900 dark:text-white" />,
                   },
                   {
-                    text: treatmentData?.trip_info?.trip_id ? (
-                      "Trip id: " + treatmentData?.trip_info?.trip_id
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
+                    text: chipText(
+                      loading,
+                      treatmentData?.trip_info?.trip_code?.trim() ||
+                        treatmentData?.trip_info?.trip_id,
+                      (dict.symptoms as I18nRecord).trip as string
                     ),
                   },
                   {

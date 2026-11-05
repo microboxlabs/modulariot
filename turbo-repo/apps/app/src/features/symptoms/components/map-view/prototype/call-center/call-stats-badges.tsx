@@ -1,5 +1,5 @@
 /**
- * PROTOTYPE — the accepted/denied mock call-stats pair shown next to a
+ * The answered/missed call counts shown next to a
  * contact (contacts list row, dialing-step header, "who was called" readout
  * on the results form) — a colored pill per count, not bare icon+number, same
  * chip styling as the role badge next to a name.

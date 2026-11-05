@@ -78,6 +78,30 @@ describe("GET /api/symptoms/table", () => {
     expect(body.symptoms_list).toEqual(["Speed"]);
   });
 
+  it("keeps the server's inbox order and its SLA start", async () => {
+    const row = page.data[0];
+    forwardMock.mockImplementation(async () =>
+      NextResponse.json({
+        ...page,
+        data: [
+          { ...row, id: -5, icu_code: "4", sla_since: "2026-10-08T10:05:00Z" },
+          { ...row, id: -3, icu_code: "3" },
+          { ...row, id: -9, icu_code: "3" },
+        ],
+      })
+    );
+
+    const body = await (await GET(new NextRequest("http://x/t"))).json();
+
+    expect(body.data.map((r: { id: string }) => r.id)).toEqual([
+      "-5",
+      "-3",
+      "-9",
+    ]);
+    expect(body.data[0].slaSince).toBe("2026-10-08T10:05:00Z");
+    expect(body.data[1].slaSince).toBeNull();
+  });
+
   it("sends legacy dates with a space as ISO-8601", async () => {
     await GET(
       new NextRequest(
@@ -88,6 +112,30 @@ describe("GET /api/symptoms/table", () => {
       "/api/v1/orgs/acme/control-tower/map/symptoms?p_start_date_historic=2026-10-15T00%3A00%3A00&p_end_date_historic=2026-10-15T23%3A59%3A59",
       { method: "GET", sessionOnly: true }
     );
+  });
+
+  it("keeps the trip UUID separate from its display code", async () => {
+    const tripId = "00000000-0000-4000-8000-000000000001";
+    forwardMock.mockResolvedValueOnce(
+      NextResponse.json({
+        ...page,
+        data: [
+          {
+            ...page.data[0],
+            id: -1,
+            trip_id: tripId,
+            trip_code: "SERVICE-001",
+          },
+        ],
+      })
+    );
+
+    const body = await (await GET(new NextRequest("http://x/t"))).json();
+
+    expect(body.data[0]).toMatchObject({
+      trip: tripId,
+      tripCode: "SERVICE-001",
+    });
   });
 
   it("forces a carrier organization's tax id over the browser's", async () => {
@@ -113,5 +161,54 @@ describe("GET /api/symptoms/table", () => {
       )
     );
     expect((await GET(new NextRequest("http://x/t"))).status).toBe(503);
+  });
+
+  it("maps the modulith's engine-only page", async () => {
+    forwardMock.mockResolvedValueOnce(
+      NextResponse.json({
+        data: [
+          {
+            id: -4,
+            symptom_name: "Pérdida de señal",
+            type_of_incidence: "Pérdida de señal",
+            icu_code: "2",
+            icu_condition: "COMPROMISED CONDITION",
+            asset_id: "AB12",
+            trip_id: null,
+            trip_code: null,
+            start_time: "2026-10-08T10:00:00Z",
+            duration_sec: 120,
+            treatment_count: 0,
+            sla_minutes: 15,
+            recurrence_events: null,
+            driver: null,
+          },
+        ],
+        page: 2,
+        page_size: 1,
+        total_rows: 3,
+        total_pages: 3,
+        engine_cases: 3,
+        symptom_name_list: ["Pérdida de señal"],
+      })
+    );
+
+    const body = await (
+      await GET(new NextRequest("http://x/t?page=2&limit=1"))
+    ).json();
+
+    expect(body.data[0]).toMatchObject({
+      id: "-4",
+      condition: "compromised condition",
+      licensePlate: "AB12",
+      endDate: null,
+      sla_minutes: 15,
+    });
+    expect(body.pagination).toEqual({
+      total_rows: 3,
+      total_pages: 3,
+      currentPage: 2,
+      page_size: 1,
+    });
   });
 });

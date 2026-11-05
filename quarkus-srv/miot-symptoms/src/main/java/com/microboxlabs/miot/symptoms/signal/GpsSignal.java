@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
@@ -36,6 +37,7 @@ public record GpsSignal(
         @Schema(title = "Vehículo", extensions = @Extension(name = "x-origin", value = "DEVICE"))
         @JsonProperty("asset_id") String assetId,
         @Schema(hidden = true) Instant at,
+        @Schema(hidden = true) @JsonProperty("received_at") Instant receivedAt,
         @Schema(hidden = true) List<String> clients,
         @Schema(hidden = true) String sender,
         @Schema(hidden = true) Map<String, Trip> trips,
@@ -43,7 +45,11 @@ public record GpsSignal(
         Vehicle vehicle,
         Road road,
         Geo geo,
+        @Schema(hidden = true) Map<String, Geo> geos,
         @Schema(title = "Hora local") @JsonProperty("local_hour") Integer localHour,
+        @Schema(title = "Minutos del día", description = "Minutes since local midnight, with the seconds as a "
+                + "fraction: 01:30:30 is 90.5", extensions = @Extension(name = "x-unit", value = "min"))
+        @JsonProperty("local_minutes") Double localMinutes,
         Derived derived,
         @Schema(extensions = @Extension(name = "x-origin", value = "DEVICE")) AssetTrackingData frame) {
 
@@ -80,7 +86,20 @@ public record GpsSignal(
             @JsonProperty("load_type") String loadType,
             @Schema(title = "Patente del remolque", extensions = @Extension(name = "x-origin", value = "TRIP"))
             @JsonProperty("trailer_plate") String trailerPlate,
-            @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) Driver driver) {
+            @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) Driver driver,
+            @Schema(title = "Desvío de la llegada prevista", description = "Predicted arrival (now plus the "
+                    + "remaining time the route's history predicts) minus the estimated arrival; negative when early",
+                    extensions = { @Extension(name = "x-unit", value = "min"),
+                            @Extension(name = "x-origin", value = "CALCULATED"),
+                            @Extension(name = "x-engine", value = "false") })
+            @JsonProperty("eta_deviation_min") Double etaDeviationMin) {
+
+        public Trip(Boolean active, Boolean doubleDriver, String id, String code, String type, String status,
+                Double ageMin, Double lateMin, Origin origin, Destination destination, Integer currentZoneId,
+                Carrier carrier, String loadType, String trailerPlate, Driver driver) {
+            this(active, doubleDriver, id, code, type, status, ageMin, lateMin, origin, destination, currentZoneId,
+                    carrier, loadType, trailerPlate, driver, null);
+        }
 
         /** A vehicle without a trip in progress. */
         public static Trip none() {
@@ -166,11 +185,84 @@ public record GpsSignal(
     @JsonIgnoreProperties(ignoreUnknown = true)
     @RegisterForReflection
     public record Geo(
-            @Schema(title = "En zona autorizada", extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @Schema(title = "En zona autorizada", description = "Inside at least one authorized zone",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
             @JsonProperty("authorized_zone") Boolean authorizedZone,
             @Schema(title = "Zona", extensions = {
                     @Extension(name = "x-type", value = "zone"), @Extension(name = "x-origin", value = "ZONES") })
-            String zone) {
+            String zone,
+            @Schema(title = "En zona de riesgo", description = "Inside at least one risk zone",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @JsonProperty("risk_zone") Boolean riskZone,
+            @Schema(title = "Fuera de zona autorizada", description = "In no zone, or inside a zone that is not "
+                    + "authorized, even where an authorized zone overlaps it",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @JsonProperty("outside_authorized") Boolean outsideAuthorized) {
+
+        public Geo(Boolean authorizedZone, String zone) {
+            this(authorizedZone, zone, null, null);
+        }
+    }
+
+    /**
+     * One of the frame's {@code events} as rules read it, under {@value #FRAME_EVENTS}. The type is open text:
+     * each GPS provider sends its own codes. A missing value reads as an empty text, so a rule needs no
+     * {@code has()}.
+     */
+    @Schema(title = "Eventos del GPS", description = "The device events the frame carries")
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @RegisterForReflection
+    public record FrameEvent(
+            @Schema(title = "Tipo de evento") @JsonProperty("event_type") String eventType,
+            @Schema(title = "Severidad del evento") String severity,
+            @Schema(title = "Descripción del evento") String description,
+            @Schema(title = "Hora del evento", extensions = @Extension(name = "x-type", value = "time"))
+            String timestamp) {
+
+        public static final String FRAME_EVENTS = "signal.frame.events";
+
+        /** The event with each missing value as an empty text. */
+        public FrameEvent {
+            eventType = eventType == null ? "" : eventType;
+            severity = severity == null ? "" : severity;
+            description = description == null ? "" : description;
+            timestamp = timestamp == null ? "" : timestamp;
+        }
+
+        /** The frame's events as rules read them; empty when the frame has none. */
+        public static List<Map<String, Object>> of(Object events) {
+            if (!(events instanceof List<?> list)) {
+                return List.of();
+            }
+            return list.stream().filter(Map.class::isInstance).map(e -> of((Map<?, ?>) e).asMap()).toList();
+        }
+
+        /** The signal with its frame's events as rules read them; a signal without a frame is kept as it is. */
+        @SuppressWarnings("unchecked")
+        public static Map<String, Object> withEvents(Map<String, Object> signal) {
+            if (!(signal.get("frame") instanceof Map<?, ?> frame)) {
+                return signal;
+            }
+            Map<String, Object> f = new LinkedHashMap<>((Map<String, Object>) frame);
+            f.put("events", of(frame.get("events")));
+            Map<String, Object> out = new LinkedHashMap<>(signal);
+            out.put("frame", f);
+            return out;
+        }
+
+        static FrameEvent of(Map<?, ?> event) {
+            return new FrameEvent(text(event.get("event_type")), text(event.get("severity")),
+                    text(event.get("description")), text(event.get("timestamp")));
+        }
+
+        public Map<String, Object> asMap() {
+            return Map.of("event_type", eventType, "severity", severity, "description", description,
+                    "timestamp", timestamp);
+        }
+
+        private static String text(Object value) {
+            return value == null ? null : value.toString();
+        }
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

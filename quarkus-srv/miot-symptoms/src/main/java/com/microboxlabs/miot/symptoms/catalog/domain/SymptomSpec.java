@@ -2,6 +2,10 @@ package com.microboxlabs.miot.symptoms.catalog.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.Duration;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 /**
@@ -75,7 +79,42 @@ public record SymptomSpec(
      * @param when    CEL over {@code measure} and {@code held_s}
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Level(int icu, boolean applies, String when, Response response) {
+    public record Level(int icu, boolean applies, String when, Response response,
+            @JsonInclude(JsonInclude.Include.NON_NULL) Ignore ignore) {
+
+        /** A level without an ignore policy: everything allowed. */
+        public Level(int icu, boolean applies, String when, Response response) {
+            this(icu, applies, when, response, null);
+        }
+    }
+
+    /**
+     * What "Ignorar condición" allows at a level. Each field null for the default.
+     *
+     * @param allowed      the operator may ignore the case at this level; default true
+     * @param maxDuration  the longest hold, ISO-8601 (for example {@code PT30M}); default none. With it, "until the
+     *                     trip ends" is not offered
+     * @param noteRequired a note is required whatever the reason; default only for "Otro"
+     * @param scopes       the scopes offered ({@code CASE}, {@code SYMPTOM}, {@code ALL}); default all
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Ignore(Boolean allowed, @JsonProperty("max_duration") String maxDuration,
+            @JsonProperty("note_required") Boolean noteRequired, List<String> scopes) {
+
+        public static final List<String> VALID_SCOPES = List.of("CASE", "SYMPTOM", "ALL");
+
+        /** The longest hold, or null for none. */
+        public Duration maxDurationValue() {
+            if (maxDuration == null || maxDuration.isBlank()) {
+                return null;
+            }
+            try {
+                return Duration.parse(maxDuration.trim());
+            } catch (DateTimeParseException e) {
+                throw new IllegalArgumentException("ignore.max_duration must be an ISO-8601 duration");
+            }
+        }
     }
 
     /**
@@ -87,8 +126,11 @@ public record SymptomSpec(
      * @param notices     automatic notices
          * @param evidence    what must be recorded to close it
      * @param ignorable   the operator may ignore the condition
-     * @param escalateTo  who is told when the SLA runs out (for example "Jefe de torre"), or null
-     * @param consequence the case counts in the consequence management of whoever caused it
+     * @param escalateTo    the role told when the SLA runs out (for example "Jefe de torre"), or null
+     * @param consequence   the case counts in the consequence management of whoever caused it
+     * @param escalateScope where {@code escalateTo} is looked up, one of {@link Step#SCOPES}; null in older specs
+     * @param escalateWho   who is told when the SLA runs out, as a contact condition like {@link Step#who()};
+     *                      null in older specs, which use {@code escalateTo} and {@code escalateScope}
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Response(
@@ -99,26 +141,109 @@ public record SymptomSpec(
             List<String> evidence,
             boolean ignorable,
             String escalateTo,
-            boolean consequence) {
+            boolean consequence,
+            String escalateScope,
+            String escalateWho) {
 
         /** A response without escalation, outside consequence management. */
         public Response(boolean operator, Integer slaMinutes, List<Step> steps, List<Notice> notices,
                 List<String> evidence, boolean ignorable) {
-            this(operator, slaMinutes, steps, notices, evidence, ignorable, null, false);
+            this(operator, slaMinutes, steps, notices, evidence, ignorable, null, false, null, null);
+        }
+
+        /** A response whose escalation target has no scope. */
+        public Response(boolean operator, Integer slaMinutes, List<Step> steps, List<Notice> notices,
+                List<String> evidence, boolean ignorable, String escalateTo, boolean consequence) {
+            this(operator, slaMinutes, steps, notices, evidence, ignorable, escalateTo, consequence, null, null);
+        }
+
+        /** A response whose escalation target is a scope and a role. */
+        public Response(boolean operator, Integer slaMinutes, List<Step> steps, List<Notice> notices,
+                List<String> evidence, boolean ignorable, String escalateTo, boolean consequence,
+                String escalateScope) {
+            this(operator, slaMinutes, steps, notices, evidence, ignorable, escalateTo, consequence, escalateScope,
+                    null);
         }
     }
 
     /**
-     * One step of the operator's ladder.
+     * One step of the operator's ladder. The people to contact are the book's contacts that meet {@code who}.
      *
-     * @param role          who to contact, as the operator reads it (for example "Conductor"); free text,
-     *                      like a contact's role
+     * @param role          the contact book role (for example "Gerente de Seguridad"); for {@code DRIVER},
+     *                      "Conductor"; for {@code TRIP_CARRIER}, blank means any contact of the carrier
      * @param channel       call, whatsapp, teams, email
      * @param budgetMinutes time for this step within the SLA
-     * @param script        what to say; may use case fields as {@code {{ }}} variables
+     * @param script        the message: what to say, with the case's {@code {{case.…}}}, {@code {{condition.…}}},
+     *                      {@code {{trip.…}}} and {@code {{vehicle.…}}} fields (older names such as
+     *                      {@code {{patente}}} still fill)
+     * @param scope         {@code DRIVER} (the trip's driver), {@code TRIP_CARRIER} (people of the trip's
+     *                      carrier) or {@code ORG} (the organization's own people); null in older specs, read from
+     *                      the role by {@link #effectiveScope()}
+     * @param who           CEL over {@code contact} and {@code event}, the same as a "contacts from the book"
+     *                      audience of the communication rules; {@code event.data} has the trip's
+     *                      {@code driverRut}, {@code secondDriverRut} and {@code carrierRut}. Null in older specs,
+     *                      which use {@code role} and {@code scope}
+     * @param goal          what the call must obtain: the operator's aim, and the instruction a voice agent follows
+     * @param replies       the answers the step expects, each tied to a call result; null in older specs
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Step(String role, String channel, Integer budgetMinutes, String script) {
+    public record Step(String role, String channel, Integer budgetMinutes, String script, String scope,
+            String who, String goal, List<Reply> replies) {
+
+        /**
+         * An answer the step expects.
+         *
+         * @param result the call result it records (an option of the {@code call_result} selectable)
+         * @param says   what the person says or does, so an operator or a voice agent recognises it
+         */
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        public record Reply(String result, String says) {
+        }
+
+        /** A step with its people and no goal or replies. */
+        public Step(String role, String channel, Integer budgetMinutes, String script, String scope, String who) {
+            this(role, channel, budgetMinutes, script, scope, who, null, null);
+        }
+
+        public static final String DRIVER = "DRIVER";
+        public static final String TRIP_CARRIER = "TRIP_CARRIER";
+        public static final String ORG = "ORG";
+        public static final java.util.Set<String> SCOPES = java.util.Set.of(DRIVER, TRIP_CARRIER, ORG);
+
+        /** A step saved before steps had a scope. */
+        public Step(String role, String channel, Integer budgetMinutes, String script) {
+            this(role, channel, budgetMinutes, script, null, null);
+        }
+
+        /** A step whose person is a scope plus a role. */
+        public Step(String role, String channel, Integer budgetMinutes, String script, String scope) {
+            this(role, channel, budgetMinutes, script, scope, null);
+        }
+
+        /** Whether the step names its people with a contact condition. */
+        public boolean hasWho() {
+            return who != null && !who.isBlank();
+        }
+
+        /** The scope, or for an older step: Conductor is the driver, Transportista any carrier contact, else ORG. */
+        public String effectiveScope() {
+            return effectiveScope(scope, role);
+        }
+
+        /** Same reading for a step or an escalation target. */
+        public static String effectiveScope(String scope, String role) {
+            if (scope != null && !scope.isBlank()) {
+                return scope;
+            }
+            String r = role == null ? "" : role.trim();
+            if (r.equalsIgnoreCase("Conductor")) {
+                return DRIVER;
+            }
+            if (r.equalsIgnoreCase("Transportista")) {
+                return TRIP_CARRIER;
+            }
+            return ORG;
+        }
     }
 
     /**
@@ -135,12 +260,27 @@ public record SymptomSpec(
     }
 
     /**
-     * @param open      CEL over {@code case}
-     * @param close     CEL over {@code case}
+     * @param open      CEL over {@code case} and the source
+     * @param close     CEL over {@code case} and the source, such as
+     *                  {@code case.closed_by_operator || signal.frame.events.exists(e, e.event_type == "x")}
      * @param levelDown the level follows the measure down while the case is open; otherwise it never goes down
+     * @param note      optional CEL over {@code case} and the source: when it holds on a signal of an open case
+     *                  that does not close it, the case's timeline gets an entry with the matching device event.
+     *                  Null for none
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Lifecycle(String open, String close, boolean levelDown) {
+    public record Lifecycle(String open, String close, boolean levelDown,
+            @JsonInclude(JsonInclude.Include.NON_NULL) String note) {
+
+        /** A blank note rule is none. */
+        public Lifecycle {
+            note = note == null || note.isBlank() ? null : note;
+        }
+
+        /** A lifecycle without a note rule. */
+        public Lifecycle(String open, String close, boolean levelDown) {
+            this(open, close, levelDown, null);
+        }
 
         /** A lifecycle whose level never goes down. */
         public Lifecycle(String open, String close) {

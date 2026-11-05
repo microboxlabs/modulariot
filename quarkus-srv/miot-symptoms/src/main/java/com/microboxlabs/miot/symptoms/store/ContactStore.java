@@ -19,6 +19,9 @@ public interface ContactStore {
     /** Replaces an existing contact; empty when it does not exist. Throws like {@link #insert}. */
     Optional<Contact> update(Contact contact);
 
+    /** Replaces only the version read by the sync; empty on deletion or a concurrent edit. */
+    Optional<Contact> updateIfUnchanged(Contact contact, OffsetDateTime expectedUpdatedAt);
+
     Optional<Contact> find(String tenantCode, String id);
 
     /** {@code nationalId} is compared as stored, so pass it normalised. */

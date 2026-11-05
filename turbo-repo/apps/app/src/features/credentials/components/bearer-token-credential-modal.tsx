@@ -12,6 +12,9 @@ import {
   GoogleMapsCredentialEditSchema,
   GoogleMapsCredentialSchema,
   MAPBOX_PROVIDER,
+  TELNYX_PROVIDER,
+  TelnyxCredentialEditSchema,
+  TelnyxCredentialSchema,
   MapboxCredentialEditSchema,
   MapboxCredentialSchema,
   RESEND_PROVIDER,
@@ -77,6 +80,15 @@ const GOOGLE_MAPS_CHROME: CredentialFormChrome = {
   logoAltKey: "types.googleMaps.name",
 };
 
+const TELNYX_CHROME: CredentialFormChrome = {
+  typeId: "TELNYX",
+  idPrefix: "telnyx",
+  addTitleKey: "modal.telnyxAddTitle",
+  editTitleKey: "modal.telnyxEditTitle",
+  subtitleKey: "modal.telnyxSubtitle",
+  logoAltKey: "types.telnyx.name",
+};
+
 interface TokenVariant {
   readonly chrome: CredentialFormChrome;
   readonly provider?: string;
@@ -89,7 +101,8 @@ interface TokenVariant {
     | "modal.resendTokenHelp"
     | "modal.whatsappTokenHelp"
     | "modal.mapboxTokenHelp"
-    | "modal.googleMapsTokenHelp";
+    | "modal.googleMapsTokenHelp"
+    | "modal.telnyxTokenHelp";
 }
 
 const BEARER: TokenVariant = {
@@ -132,6 +145,14 @@ const GOOGLE_MAPS: TokenVariant = {
   helpKey: "modal.googleMapsTokenHelp",
 };
 
+const TELNYX: TokenVariant = {
+  chrome: TELNYX_CHROME,
+  provider: TELNYX_PROVIDER,
+  schema: TelnyxCredentialSchema,
+  editSchema: TelnyxCredentialEditSchema,
+  helpKey: "modal.telnyxTokenHelp",
+};
+
 /** Create/edit form for a static bearer token. The token is write-only. */
 export function BearerTokenCredentialModal(
   props: CredentialModalProps<BearerTokenFormData>
@@ -165,6 +186,13 @@ export function GoogleMapsCredentialModal(
   props: CredentialModalProps<BearerTokenFormData>
 ) {
   return <TokenCredentialModal {...props} variant={GOOGLE_MAPS} />;
+}
+
+/** Create/edit form for a Telnyx API key: a bearer token tagged as Telnyx. */
+export function TelnyxCredentialModal(
+  props: CredentialModalProps<BearerTokenFormData>
+) {
+  return <TokenCredentialModal {...props} variant={TELNYX} />;
 }
 
 function TokenCredentialModal(

@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import {
   FlyToInterpolator,
+  type Layer,
+  LineLayer,
   LinearInterpolator,
   ScatterplotLayer,
 } from "deck.gl";
@@ -36,6 +38,9 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { ConditionsAgg } from "@/features/symptoms/types/timeline";
 import ImageSelector from "./image-viewer/image-selector";
 import { useTimelapse } from "../hooks/use-timelapse";
+import { useAssetSignal } from "../hooks/use-asset-signal";
+import { isNewestFrame, isOffline, offlineLabel } from "../utils/signal-state";
+import { pulseWithSignal } from "../utils/signal-tooltip";
 import { logger } from "@/lib/logger";
 import { tr } from "@/features/i18n/tr.service";
 import PulseRange from "./tool-bar/pulse-range";
@@ -66,6 +71,17 @@ import {
   ringCentroid,
 } from "../utils/vehicle-origin";
 import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
+import {
+  type CaseSpan,
+  pointLevel,
+} from "@/features/symptoms/model/level-reason";
+import {
+  dashSegments,
+  frameDelay,
+  hasFramePosition,
+  isLate,
+  silenceGap,
+} from "../utils/frame-delays";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -130,6 +146,53 @@ const INITIAL_VIEW_STATE: ViewStateType = {
   height: 100,
 };
 
+const NO_SPANS: CaseSpan[] = [];
+
+/** The silence connection and late-frame rings, independent of the other map layers. */
+function frameDelayLayers(
+  positions: MapPosition[],
+  lostSince: string | null
+): Layer[] {
+  const layers: Layer[] = [];
+  const gap = silenceGap(positions, lostSince);
+  if (gap) {
+    layers.push(
+      new LineLayer({
+        id: "silence-gap",
+        data: dashSegments(gap.from, gap.to),
+        getSourcePosition: (d) => d.from,
+        getTargetPosition: (d) => d.to,
+        getColor: [255, 255, 255, 230],
+        getWidth: 3,
+        widthUnits: "pixels",
+        parameters: { depthCompare: "always" },
+      })
+    );
+  }
+  const late = positions.filter(hasFramePosition).filter(isLate);
+  if (late.length) {
+    layers.push(
+      new ScatterplotLayer<MapPosition>({
+        id: "late-frames",
+        data: late,
+        getPosition: (d) => [d.longitude, d.latitude],
+        // A late frame is drawn as a gray dot with a white border over its blue
+        // dot (Tailwind gray-400): lateness is context, not an alarm.
+        getRadius: 6,
+        radiusUnits: "pixels",
+        filled: true,
+        getFillColor: [156, 163, 175, 255],
+        stroked: true,
+        getLineColor: [255, 255, 255, 255],
+        getLineWidth: 2,
+        lineWidthUnits: "pixels",
+        parameters: { depthCompare: "always" },
+      })
+    );
+  }
+  return layers;
+}
+
 // The map is tilted, so below this zoom the scroll wheel can pull the camera
 // to the map's edge or to latitude 0, far from the trip.
 const TRIP_MAP_MIN_ZOOM = 2;
@@ -156,6 +219,10 @@ type MapVisualizationProps = {
   onLugaresChange?: (abierto: boolean) => void;
   /** Where a case without a trip opened, marked on the map. */
   casePoint?: CasePoint | null;
+  /** The page's symptom intervals: its frames take the symptom's level color. */
+  caseSpans?: CaseSpan[];
+  /** A lost signal's last frame before the silence: the silence is drawn dashed. */
+  lostSince?: string | null;
 };
 
 export type CasePoint = { longitude: number; latitude: number };
@@ -316,6 +383,8 @@ export default function MapVisualizationTrip({
   licensePlate,
   onLugaresChange,
   casePoint = null,
+  caseSpans = NO_SPANS,
+  lostSince = null,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -458,12 +527,23 @@ export default function MapVisualizationTrip({
     }
   }, [filteredLocationData, caseLng]);
 
+  // The detector's state of the vehicle: its newest position turns gray and
+  // carries "Sin señal · hace N min" while the signal does not arrive.
+  const newestIndex = (positions?.length ?? 0) - 1;
+  const newest = positions?.at(-1);
+  const signal = useAssetSignal(newest?.assetid, newest?.timestamp);
+  const offline =
+    !!newest && isOffline(signal) && isNewestFrame(newest.timestamp, signal);
+  const offlineText = offline ? offlineLabel(signal, dict) : null;
+  const pinOffline = offline && displayPosition === newestIndex;
+
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
     () => ({
       type: "FeatureCollection",
       features:
         positions?.map((item: MapPosition, index: number) => {
+          const symptom = pointLevel(item.timestamp, caseSpans);
           return {
             type: "Feature",
             geometry: {
@@ -472,26 +552,30 @@ export default function MapVisualizationTrip({
             },
             properties: {
               id: index,
+              // Frames stay blue; selecting a symptom rings its frames. The level only shows in the popup.
               icu_code: 0,
+              symptom_level: symptom?.level ?? null,
+              symptom_name: symptom?.name ?? null,
               asset_id: item.assetid,
               rotation: item.heading * (180 / Math.PI),
               latitude: item.latitude,
               longitude: item.longitude,
               speed: item.speed,
               timestamp: item.timestamp,
+              delay_s: frameDelay(item),
+              offline: offline && index === newestIndex,
+              signal_label:
+                offline && index === newestIndex ? offlineText : null,
             },
           };
         }) || [],
     }),
-    [positions]
+    [positions, caseSpans, offline, newestIndex, offlineText]
   );
 
-  useEffect(() => {
-    if (!filteredLocationData || !positions) return;
-
-    // Create a set of matching position indices
+  // A refreshed description must not reopen a dismissed popup or reset a selected frame.
+  const matchingPulseKey = useMemo(() => {
     const matchingIndices = new Set<number>();
-
     if (filteredLocationData && positions) {
       filteredLocationData.features.forEach((filteredItem) => {
         // Find matching position index
@@ -506,21 +590,28 @@ export default function MapVisualizationTrip({
       });
     }
 
-    setSelectedPulse(Array.from(matchingIndices));
+    return Array.from(matchingIndices).join(",");
+  }, [filteredLocationData, positions]);
+
+  useEffect(() => {
+    const indices = matchingPulseKey
+      ? matchingPulseKey.split(",").map(Number)
+      : [];
+    setSelectedPulse(indices);
 
     // A case without a trip has one opening point, not a span of signals to
     // summarise, so its popup waits for the user to pick a pulse.
-    if (matchingIndices.size > 0 && caseLng == null) {
+    if (indices.length > 0 && caseLng == null) {
       setHoverInfo({
         x: 10,
         y: 10,
         object: {
-          elements: Array.from(matchingIndices),
-          description: filteredLocationData?.description,
+          elements: indices,
+          description: {},
         },
       } as PickingInfo<PulseListType>);
     }
-  }, [filteredLocationData, positions, caseLng]);
+  }, [matchingPulseKey, caseLng, selectedTreatmentIndex?.symptom_id]);
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
@@ -700,6 +791,8 @@ export default function MapVisualizationTrip({
                   longitude: info.object?.longitude,
                   speed: info.object?.speed,
                   timestamp: info.object?.timestamp,
+                  delay_s: frameDelay(info.object),
+                  signal_label: pinOffline ? offlineText : null,
                 },
               },
             };
@@ -714,11 +807,17 @@ export default function MapVisualizationTrip({
               zoomToVehicle(mapRef.current, target);
             }
           },
+          offline: pinOffline,
+          label: pinOffline ? offlineText : null,
           updateTriggers: {
             data: positions,
           },
         })
       );
+    }
+
+    if (showPulse && positions?.length) {
+      baseLayers.push(...frameDelayLayers(positions, lostSince));
     }
 
     if (caseLng != null && caseLat != null) {
@@ -743,6 +842,7 @@ export default function MapVisualizationTrip({
   }, [
     caseLng,
     caseLat,
+    lostSince,
     geoJson,
     positions,
     processedGeofence,
@@ -754,6 +854,8 @@ export default function MapVisualizationTrip({
     showStops,
     showGeofences,
     showPulse,
+    pinOffline,
+    offlineText,
   ]);
 
   /** Al cerrar la tarjeta de pulsos: soltar lo seleccionado. */
@@ -858,7 +960,13 @@ export default function MapVisualizationTrip({
             onExitAction={cerrarPulsos}
           >
             <PulseTooltip
-              object={hoverInfo.object as PulseListType | PulseType}
+              object={pulseWithSignal(
+                hoverInfo.object as PulseListType | PulseType,
+                newest?.assetid,
+                signal,
+                dict,
+                filteredLocationData?.description
+              )}
               dict={dict}
             />
           </MapTooltip>

@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   NO_TENANT_FILTERS,
-  PAGE_SIZE,
-  pageOf,
   tenantRows,
   tenantTotals,
   visibleRows,
 } from "./geocoding-tenants-view";
+import { PAGE_SIZE, pageOf } from "./usage-tenants-view";
 
 const PLAN = {
   monthlyPriceUsd: 0,

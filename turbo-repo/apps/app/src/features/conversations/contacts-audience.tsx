@@ -6,11 +6,13 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import CelEditor, {
   type CelField,
+  type CelValues,
 } from "@/features/symptoms/maintainer/cel-editor";
 import type { EditMode } from "@/features/symptoms/maintainer/level-row";
 import SelectableField from "@/features/settings-admin/selectables/field/selectable-field";
 import type { Selectable } from "@/features/settings-admin/selectables/types";
 import { useContacts } from "@/features/symptoms/control-tower/control-tower-api";
+import SampleTree from "@/features/symptoms/maintainer/sample-tree";
 import ModeToggle from "@/features/symptoms/maintainer/ui/mode-toggle";
 import { FIELD } from "@/features/symptoms/maintainer/ui/response-block";
 import Select from "@/features/symptoms/maintainer/ui/select";
@@ -18,25 +20,53 @@ import {
   bookSuggestions,
   CLAUSE_KINDS,
   compileClauses,
+  isFieldClause,
   newClause,
   parseClauses,
   type ContactClause,
   type ContactClauseKind,
   type Suggestion,
 } from "./contact-condition";
+import { contactSamples } from "./contact-samples";
 import type { EventField } from "./conversations-types";
 
 const ICON =
   "rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-red-400";
 
 /** The contact fields and the event's data fields a condition can read. */
+/**
+ * The book's roles and companies, offered inside the quotes of
+ * `contact.role == '` and `contact.company == '`, with how many active
+ * contacts have each. Any other text is still allowed.
+ */
+export function contactCelValues(
+  book: Record<"role" | "company", Suggestion[]>,
+  d: I18nRecord
+): CelValues {
+  const toValues = (list: Suggestion[]) =>
+    list.map((s) => ({
+      value: s.value,
+      detail:
+        s.count === 1
+          ? tr("contactWithValue", d)
+          : tr("contactsWithValue", d, { count: String(s.count) }),
+    }));
+  return {
+    "contact.role": toValues(book.role),
+    "contact.company": toValues(book.company),
+  };
+}
+
 export function contactCelFields(fields: EventField[]): CelField[] {
   return [
+    { path: "contact.id", detail: "string" },
     { path: "contact.name", detail: "string" },
     { path: "contact.role", detail: "string" },
+    { path: "contact.roleKey", detail: "string" },
     { path: "contact.tags", detail: "list" },
     { path: "contact.company", detail: "string" },
     { path: "contact.companyRut", detail: "string" },
+    { path: "contact.nationalId", detail: "string" },
     { path: "contact.position", detail: "string" },
     { path: "contact.member", detail: "bool" },
     { path: "contact.email", detail: "string" },
@@ -122,7 +152,7 @@ function ClauseRow({
           </option>
         ))}
       </Select>
-      {clause.kind === "companyRutIs" ? (
+      {isFieldClause(clause) ? (
         <Select
           aria-label={tr("contactClauseField", d)}
           className={`${FIELD} font-mono`}
@@ -190,6 +220,13 @@ export default function ContactsAudience({
   const { data: contacts } = useContacts();
   const book = useMemo(() => bookSuggestions(contacts ?? []), [contacts]);
   const [mode, setMode] = useState<EditMode>(clauses ? "form" : "expr");
+  const tree = useMemo(
+    () => contactSamples(contacts ?? [], fields),
+    [contacts, fields]
+  );
+  const [sampleIndex, setSampleIndex] = useState(0);
+  const lastSample = Math.max(0, tree.samples.length - 1);
+  if (sampleIndex > lastSample) setSampleIndex(lastSample);
   const setClauses = (next: ContactClause[]) => onChange(compileClauses(next));
 
   return (
@@ -207,7 +244,7 @@ export default function ContactsAudience({
               key={`${i}-${c.kind}`}
               clause={c}
               fields={fields}
-              suggestions={c.kind === "companyRutIs" ? [] : book[c.kind]}
+              suggestions={isFieldClause(c) ? [] : book[c.kind]}
               readOnly={readOnly}
               d={d}
               fieldDict={fieldDict}
@@ -242,14 +279,33 @@ export default function ContactsAudience({
         </div>
       )}
       {mode === "expr" && (
-        <CelEditor
-          readOnly={readOnly}
-          ariaLabel={tr("contactsCel", d)}
-          placeholder="'transportista' in contact.tags && contact.companyRut == event.data.carrierRut"
-          value={condition}
-          fields={contactCelFields(fields)}
-          onChange={onChange}
-        />
+        // Laid out like the rule sheet's { } mode: the book's contacts as a
+        // tree whose fields drag (or click) into the condition beside it.
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          {tree.samples.length > 0 ? (
+            <SampleTree
+              samples={tree.samples}
+              labels={tree.labels}
+              index={sampleIndex}
+              readOnly={readOnly}
+              d={d}
+              onIndex={setSampleIndex}
+            />
+          ) : (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {tr("contactsNoSample", d)}
+            </p>
+          )}
+          <CelEditor
+            readOnly={readOnly}
+            ariaLabel={tr("contactsCel", d)}
+            placeholder="'transportista' in contact.tags && contact.companyRut == event.data.carrierRut"
+            value={condition}
+            fields={contactCelFields(fields)}
+            values={contactCelValues(book, d)}
+            onChange={onChange}
+          />
+        </div>
       )}
     </div>
   );

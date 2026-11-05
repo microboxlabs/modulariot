@@ -33,7 +33,8 @@ public record RuleSchema(String root, Map<String, String> fields, Map<String, St
             "case.normal_s", NUMBER,
             "case.age_h", NUMBER,
             "case.level", NUMBER,
-            "case.closed_by_operator", "bool"), Map.of());
+            "case.closed_by_operator", "bool",
+            "case.off_trip_s", NUMBER), Map.of());
 
     public static RuleSchema of(DataSource source) {
         Map<String, String> fields = new LinkedHashMap<>();

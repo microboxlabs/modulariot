@@ -332,13 +332,15 @@ public final class SpecValidator {
         // A case has held for zero seconds or more.
         List<Double> heldPoints = points.stream().filter(p -> p >= 0).toList();
         Set<String> reported = new HashSet<>();
-        for (double held : heldPoints) {
-            for (double measure : points) {
-                Map<String, Object> vars = Map.of(MEASURE, measure, HELD, held, OPEN, held);
-                List<Level> hits = levels.stream()
-                        .filter(l -> Boolean.TRUE.equals(rules.get(l).run(vars).value()))
-                        .toList();
-                reportOverlaps(out, reported, hits, measure, held);
+        for (double held : mentions(levels, HELD) ? heldPoints : List.of(0.0)) {
+            for (double open : mentions(levels, OPEN) ? heldPoints : List.of(0.0)) {
+                for (double measure : mentions(levels, MEASURE) ? points : List.of(0.0)) {
+                    Map<String, Object> vars = Map.of(MEASURE, measure, HELD, held, OPEN, open);
+                    List<Level> hits = levels.stream()
+                            .filter(l -> Boolean.TRUE.equals(rules.get(l).run(vars).value()))
+                            .toList();
+                    reportOverlaps(out, reported, hits, measure, held, open);
+                }
             }
         }
     }
@@ -450,13 +452,13 @@ public final class SpecValidator {
     }
 
     private static void reportOverlaps(List<Finding> out, Set<String> reported, List<Level> hits, double measure,
-            double held) {
+            double held, double open) {
         for (int i = 0; i + 1 < hits.size(); i++) {
             int a = hits.get(i).icu();
             int b = hits.get(i + 1).icu();
             if (reported.add(a + "-" + b)) {
                 out.add(new Finding(LEVELS, Severity.ERROR, RuleMessage.of("levelsOverlap", "levelA", a, "levelB", b,
-                        MEASURE, number(measure), "held", number(held)), -1));
+                        MEASURE, number(measure), "held", number(held), OPEN, number(open)), -1));
             }
         }
     }

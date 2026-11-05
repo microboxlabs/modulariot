@@ -70,7 +70,7 @@ public class SymptomTools {
             + " e.g. PT30M), note_required, scopes (CASE, SYMPTOM, ALL)} limits \"Ignorar condición\" at the"
             + " level; absent allows everything."
             + " lifecycle: {open, close, levelDown, note}; open, close and note are CEL over case"
-            + " (case.condition_s, case.normal_s, case.age_h, case.level, case.closed_by_operator) and the"
+            + " (case.condition_s, case.normal_s, case.off_trip_s, case.age_h, case.level, case.closed_by_operator) and the"
             + " source's signal, e.g. open case.condition_s >= 0, close case.normal_s >= 120 or"
             + " case.closed_by_operator || signal.frame.events.exists(e, e.event_type == \"main_power_reconnect\");"
             + " levelDown (optional, default false) lets an open case's level follow the measure down; note"

@@ -54,14 +54,15 @@ import { useSymptomNames } from "./use-symptom-names";
 /** CEL paths of an event: its envelope and every data field. */
 export function eventCelFields(info: EventTypeInfo | undefined): CelField[] {
   return [
-    { path: "event.type", detail: "string" },
-    { path: "event.test", detail: "bool" },
-    { path: "event.at", detail: "timestamp" },
-    { path: "event.context.kind", detail: "string" },
-    { path: "event.context.key", detail: "string" },
+    { path: "event.type", type: "string" },
+    { path: "event.test", type: "bool" },
+    { path: "event.at", type: "timestamp" },
+    { path: "event.context.kind", type: "string" },
+    { path: "event.context.key", type: "string" },
     ...(info?.fields ?? []).map((f) => ({
       path: `event.data.${f.name}`,
-      detail: [f.type, f.label].filter(Boolean).join(" · "),
+      type: f.type,
+      description: f.label || undefined,
     })),
   ];
 }

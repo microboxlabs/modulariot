@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef } from "react";
 import {
   autocompletion,
   closeBrackets,
+  type Completion,
   type CompletionContext,
   type CompletionResult,
 } from "@codemirror/autocomplete";
@@ -18,18 +19,35 @@ import { linter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { Annotation, Compartment, EditorState } from "@codemirror/state";
 import {
   EditorView,
+  hoverTooltip,
   keymap,
   placeholder as placeholderExt,
+  type Tooltip,
 } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
-import { completionContext, resolved } from "./cel-completion-context";
+import {
+  completionContext,
+  macroVariables,
+  resolved,
+} from "./cel-completion-context";
 
 export { macroVariables } from "./cel-completion-context";
 
-/** A field the rule can read: its full path and what to show next to it. */
+/**
+ * A field the rule can read: its full path, its type and unit, what it
+ * means, and any other short note (`detail`, such as its origin).
+ */
 export interface CelField {
   path: string;
-  detail: string;
+  type?: string;
+  unit?: string | null;
+  description?: string;
+  detail?: string;
+}
+
+/** Type, unit and note, as shown next to the field's name. */
+export function fieldDetail(f: CelField): string {
+  return [f.type, f.unit, f.detail].filter(Boolean).join(" · ");
 }
 
 /**
@@ -182,6 +200,17 @@ export function completions(
   };
 }
 
+type FieldCompletion = Completion & { description?: string };
+
+/** What the field means, below its name in the completion list. */
+function renderDescription(completion: FieldCompletion): Node | null {
+  if (!completion.description) return null;
+  const node = document.createElement("div");
+  node.className = "cm-cel-description";
+  node.textContent = completion.description;
+  return node;
+}
+
 function fieldCompletions(
   all: CelField[],
   text: string,
@@ -193,10 +222,7 @@ function fieldCompletions(
   // `e.` inside `signal.frame.events.exists(e, …)` completes the list's fields.
   const prefix = `${resolved(text.slice(0, dot), variables)}.`;
   const optional = text.charAt(dot + 1) === "?" ? 1 : 0;
-  const seen = new Map<
-    string,
-    { label: string; type: string; detail?: string; apply?: string }
-  >();
+  const seen = new Map<string, FieldCompletion>();
   for (const f of all) {
     if (!f.path.startsWith(prefix)) continue;
     const rest = f.path.slice(prefix.length);
@@ -206,7 +232,12 @@ function fieldCompletions(
       segment,
       rest.includes(".")
         ? { label: segment, type: "namespace" }
-        : { label: segment, type: "property", detail: f.detail }
+        : {
+            label: segment,
+            type: "property",
+            detail: fieldDetail(f) || undefined,
+            description: f.description || undefined,
+          }
     );
   }
   if (text.includes(".?") && optional === 0) {
@@ -216,6 +247,68 @@ function fieldCompletions(
   return {
     from: from + dot + 1 + optional,
     options: [...seen.values()],
+  };
+}
+
+const isPathChar = (text: string, i: number) =>
+  /[\w.]/.test(text.charAt(i)) ||
+  (text.charAt(i) === "?" && text.charAt(i - 1) === ".");
+
+/**
+ * The field under `pos`, up to the end of the hovered segment: hovering
+ * `trip` in `signal.trip.age_min` reads `signal.trip`. Null when the field is
+ * unknown or has nothing to show.
+ */
+export function fieldAt(
+  text: string,
+  pos: number,
+  fields: CelField[]
+): { from: number; to: number; field: CelField } | null {
+  let from = pos;
+  while (from > 0 && isPathChar(text, from - 1)) from--;
+  let to = pos;
+  while (to < text.length && /\w/.test(text.charAt(to))) to++;
+  const word = text.slice(from, to);
+  if (!/^[A-Za-z_]/.test(word)) return null;
+  const path = resolved(word, macroVariables(text.slice(0, from)));
+  const field = fields.find((f) => f.path === path);
+  if (!field || !(field.description || fieldDetail(field))) return null;
+  return { from, to, field };
+}
+
+function fieldTooltip(
+  view: EditorView,
+  pos: number,
+  fields: CelField[]
+): Tooltip | null {
+  const found = fieldAt(view.state.doc.toString(), pos, fields);
+  if (!found) return null;
+  const { field } = found;
+  return {
+    pos: found.from,
+    end: found.to,
+    above: true,
+    create() {
+      const dom = document.createElement("div");
+      dom.className = "cm-cel-hover";
+      const name = document.createElement("div");
+      name.className = "cm-cel-hover-path";
+      name.textContent = field.path;
+      dom.append(name);
+      if (field.description) {
+        const text = document.createElement("div");
+        text.textContent = field.description;
+        dom.append(text);
+      }
+      const detail = fieldDetail(field);
+      if (detail) {
+        const note = document.createElement("div");
+        note.className = "cm-cel-hover-detail";
+        note.textContent = detail;
+        dom.append(note);
+      }
+      return { dom };
+    },
   };
 }
 
@@ -277,7 +370,15 @@ export default function CelEditor({
           ),
         ],
         icons: false,
+        addToOptions: [
+          {
+            render: (completion) =>
+              renderDescription(completion as FieldCompletion),
+            position: 90,
+          },
+        ],
       }),
+      hoverTooltip((v, pos) => fieldTooltip(v, pos, latest.current.fields)),
       lint,
       EditorView.lineWrapping,
       editable.current.of(EditorView.editable.of(!readOnly)),
@@ -307,6 +408,23 @@ export default function CelEditor({
           minHeight: singleLine ? "auto" : "116px",
         },
         ".cm-line": { padding: "0 10px" },
+        ".cm-tooltip-autocomplete > ul > li": { maxWidth: "28rem" },
+        ".cm-cel-description, .cm-cel-hover-detail": {
+          fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          fontSize: "11.5px",
+          opacity: "0.75",
+          whiteSpace: "normal",
+        },
+        ".cm-cel-hover": {
+          maxWidth: "24rem",
+          padding: "4px 8px",
+          fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          fontSize: "12px",
+        },
+        ".cm-cel-hover-path": {
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          fontWeight: "600",
+        },
       }),
     ];
     if (placeholder) extensions.push(placeholderExt(placeholder));

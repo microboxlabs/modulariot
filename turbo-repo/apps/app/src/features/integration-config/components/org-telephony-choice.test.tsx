@@ -30,9 +30,41 @@ const mocks = vi.hoisted(() => ({
   saveTelephony: vi.fn(),
   month: {
     data: {
-      usage: { usedMinutes: 12, quotaMinutes: 300, pending: 1, chargeUsd: 0.6 },
+      plan: {
+        minutesPerMonth: 300,
+        clMobileUsd: 0.05,
+        clLandlineUsd: 0.03,
+        otherUsd: 0.2,
+        whatsappCallUsd: 0.01,
+        whatsappTemplateUsd: 0.02,
+        enforced: true,
+        updatedBy: null,
+        updatedAt: null,
+      },
+      subscription: null,
+      usage: {
+        periodStart: "2026-11-01T00:00:00Z",
+        periodEnd: "2026-12-01T00:00:00Z",
+        quotaMinutes: 300,
+        usedMinutes: 12,
+        pending: 1,
+        chargeUsd: 0.6,
+        providerCost: null,
+        lines: [
+          {
+            channel: "VOICE",
+            destinationType: "CL_MOBILE",
+            calls: 4,
+            seconds: 700,
+            billedMinutes: 12,
+            chargeUsd: 0.6,
+            providerCost: null,
+          },
+        ],
+      },
     },
-    error: null,
+    isLoading: false,
+    error: null as { status: number } | null,
   },
 }));
 vi.mock("@/features/symptoms/control-tower/telephony-api", () => ({
@@ -44,6 +76,11 @@ vi.mock("@/features/telephony/use-org-telephony-usage", () => ({
 }));
 
 const t = es.pages.integrationConnections.telephonyChoice;
+const u = es.pages.userSettings.telephony.usage;
+const renderChoice = () =>
+  render(
+    <OrgTelephonyChoice dict={d} usageDict={u} orgSlug="mintral" lang="es" />
+  );
 const d = es.pages.integrationConnections as unknown as I18nRecord;
 const select = () =>
   screen.getByLabelText(t.title) as unknown as HTMLSelectElement;
@@ -66,7 +103,7 @@ describe("OrgTelephonyChoice", () => {
 
   it("without a settings row shows no choice yet and saves the first one", async () => {
     setup({ preferred: null });
-    render(<OrgTelephonyChoice dict={d} orgSlug="mintral" />);
+    renderChoice();
     expect(select().value).toBe("");
     expect(select()).toHaveAccessibleDescription(t.hint);
     expect(screen.getByText(t.unsetHint)).toBeInTheDocument();
@@ -81,7 +118,7 @@ describe("OrgTelephonyChoice", () => {
 
   it("with Telnyx chosen lists the platform line and each Teams Phone connection", () => {
     setup({ preferred: "TELNYX" });
-    render(<OrgTelephonyChoice dict={d} orgSlug="mintral" />);
+    renderChoice();
     expect(select().value).toBe("TELNYX");
     const options = Array.from(select().options).map((o) => o.textContent);
     expect(options).toEqual([
@@ -89,12 +126,12 @@ describe("OrgTelephonyChoice", () => {
       t.teams.replace("{name}", "Mintral Teams"),
     ]);
     expect(screen.queryByText(t.unsetHint)).toBeNull();
-    expect(screen.getByText(/12 de 300 minutos/)).toBeInTheDocument();
+    expect(screen.getByText(u.title)).toBeInTheDocument();
   });
 
   it("with Teams Phone chosen shows it in use and can go back to Telnyx", async () => {
     setup({ preferred: "TEAMS_PHONE", active: teams });
-    render(<OrgTelephonyChoice dict={d} orgSlug="mintral" />);
+    renderChoice();
     expect(select().value).toBe("TEAMS_PHONE");
     expect(
       screen.getByText(
@@ -112,7 +149,7 @@ describe("OrgTelephonyChoice", () => {
       preferred: "TELNYX",
       lines: [platform, { ...teams, ready: false }],
     });
-    render(<OrgTelephonyChoice dict={d} orgSlug="mintral" />);
+    renderChoice();
     const option = Array.from(select().options).find(
       (o) => o.value === "TEAMS_PHONE"
     );
@@ -124,7 +161,7 @@ describe("OrgTelephonyChoice", () => {
 
   it("keeps a saved Teams choice visible after its connection is removed", async () => {
     setup({ preferred: "TEAMS_PHONE", active: platform, lines: [platform] });
-    render(<OrgTelephonyChoice dict={d} orgSlug="mintral" />);
+    renderChoice();
     expect(select()).toHaveValue("TEAMS_PHONE");
     expect(
       screen.getByRole("option", { name: t.teamsUnavailable })
@@ -143,7 +180,7 @@ describe("OrgTelephonyChoice", () => {
     mocks.saveTelephony.mockRejectedValueOnce(
       new ControlTowerError("forbidden", 403)
     );
-    render(<OrgTelephonyChoice dict={d} orgSlug="mintral" />);
+    renderChoice();
     fireEvent.change(select(), { target: { value: "TEAMS_PHONE" } });
     expect(await screen.findByRole("alert")).toHaveTextContent(t.forbidden);
     expect(select()).not.toBeDisabled();
@@ -151,14 +188,62 @@ describe("OrgTelephonyChoice", () => {
 
   it("renders nothing without telephony lines or when the API fails", () => {
     setup({ lines: [], active: null });
-    const { container, rerender } = render(
-      <OrgTelephonyChoice dict={d} orgSlug="mintral" />
-    );
+    const { container, rerender } = renderChoice();
     expect(container).toBeEmptyDOMElement();
     mocks.swr.error = new Error("Synthetic load failure");
     setup({});
     mocks.swr.error = new Error("Synthetic load failure");
-    rerender(<OrgTelephonyChoice dict={d} orgSlug="mintral" />);
+    rerender(
+      <OrgTelephonyChoice dict={d} usageDict={u} orgSlug="mintral" lang="es" />
+    );
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("the month's usage under the selector", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("on the platform line shows minutes against the quota, the bar and the charge", () => {
+    setup({ preferred: "TELNYX" });
+    const { container } = renderChoice();
+    const selector = screen.getByLabelText(t.title).closest("section")!;
+    const card = screen.getByText(u.title).closest("section")!;
+    expect(
+      selector.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(screen.getByText("/ 300 minutos")).toBeInTheDocument();
+    expect(
+      container.querySelector("[data-level]")?.getAttribute("data-level")
+    ).toBe("ok");
+    expect(screen.getByText(/Total del mes: .*0,60/)).toBeInTheDocument();
+    expect(screen.queryByText(u.ownTeams)).toBeNull();
+  });
+
+  it("with the organization's Teams Phone says Microsoft bills those calls and shows only platform minutes", () => {
+    setup({ preferred: "TEAMS_PHONE", active: teams });
+    renderChoice();
+    expect(screen.getByText(u.ownTeams)).toBeInTheDocument();
+    expect(screen.getByText("/ 300 minutos")).toBeInTheDocument();
+  });
+
+  it("with the organization's own Telnyx account says Telnyx bills those calls", () => {
+    const own = {
+      ...platform,
+      connectionId: "o1",
+      name: "Propia",
+      managed: false,
+    };
+    setup({ preferred: "TELNYX", active: own, lines: [own] });
+    renderChoice();
+    expect(screen.getByText(u.ownTelnyx)).toBeInTheDocument();
+  });
+
+  it("shows geocoding's forbidden state to someone who is not an owner", () => {
+    setup({ preferred: "TELNYX" });
+    const data = mocks.month.data;
+    Object.assign(mocks.month, { data: null, error: { status: 403 } });
+    renderChoice();
+    expect(screen.getByText(u.forbidden)).toBeInTheDocument();
+    Object.assign(mocks.month, { data, error: null });
   });
 });

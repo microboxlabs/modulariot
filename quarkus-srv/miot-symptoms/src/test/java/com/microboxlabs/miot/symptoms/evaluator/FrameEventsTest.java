@@ -39,6 +39,7 @@ class FrameEventsTest {
     private final List<Object> published = new ArrayList<>();
     private SymptomCatalogService catalog;
     private EvaluatorStream stream;
+    private InMemoryEpisodeRepository episodes;
 
     @BeforeEach
     void setUp() {
@@ -49,9 +50,10 @@ class FrameEventsTest {
         }, store::findDefinition, Clock.systemUTC());
         DataSourceService sources = new DataSourceService(store, SignalSamples.inMemory());
         catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
+        episodes = new InMemoryEpisodeRepository();
         stream = new EvaluatorStream(true, new EvaluatorCatalog(catalog, sources),
                 new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()), Clock.systemUTC(),
-                new InMemoryEpisodeRepository(), SignalSamples.inMemory());
+                episodes, SignalSamples.inMemory());
     }
 
     private UUID publish(String close, String note) {
@@ -157,6 +159,21 @@ class FrameEventsTest {
     }
 
     @Test
+    void aBufferedOlderTripCannotClearTheCurrentTripsCloseMarker() {
+        UUID id = publish("case.condition_s >= 0 && !case.closed_on_trip", "case.closed_by_operator", null);
+        stream.evaluate(signal("2026-01-02T12:00:00Z", "gps_jamming", "T-2"));
+        stream.forget(TENANT, "V1", id, "T-2");
+        Episode marker = episodes.load(TENANT, "V1").find(TENANT, "V1", id).orElseThrow();
+
+        stream.evaluate(signal("2026-01-01T12:00:00Z", "gps_jamming", "T-1"));
+        assertEquals(marker, episodes.load(TENANT, "V1").find(TENANT, "V1", id).orElseThrow());
+        stream.evaluate(signal("2026-01-02T12:01:00Z", "gps_jamming", "T-2"));
+        assertEquals(List.of(Transition.Kind.OPENED), kinds());
+        stream.evaluate(signal("2026-01-03T12:00:00Z", "gps_jamming", "T-3"));
+        assertEquals(List.of(Transition.Kind.OPENED, Transition.Kind.OPENED), kinds());
+    }
+
+    @Test
     void theNoteRuleWritesATimelineEntryWithTheEventAndTheCaseStaysOpen() {
         publish("case.closed_by_operator", RECONNECT);
         stream.evaluate(signal("2026-01-01T12:00:00Z", "main_power_disconnect"));
@@ -195,6 +212,39 @@ class FrameEventsTest {
         stream.evaluate(signal("2026-01-01T12:05:00Z", "main_power_disconnect"));
 
         assertEquals(List.of(Transition.Kind.OPENED), kinds());
+    }
+
+    @Test
+    void bufferedFatigueRepeatsRaiseTheLevelWithoutRewindingSignalState() {
+        var spec = SeedTemplates.get("driver-fatigue-sensor").spec();
+        UUID id = catalog.create(TENANT, "owner@example.com", new CreateRequest("fatigue", "Fatiga", null, null,
+                null, "gps_signal", null, spec)).definition().id();
+        catalog.publish(TENANT, "owner@example.com", id, "Primera versión", null, SymptomState.ACTIVE);
+        stream.evaluate(signal("2026-01-01T12:00:00Z", "FYSS"));
+        stream.evaluate(signal("2026-01-01T12:16:40Z", null));
+        Episode before = episodes.load(TENANT, "V1").find(TENANT, "V1", id).orElseThrow();
+
+        stream.evaluate(signal("2026-01-01T12:15:00Z", "FYSS"));
+        stream.evaluate(signal("2026-01-01T12:05:00Z", "FYSS"));
+
+        assertEquals(List.of(Transition.Kind.OPENED, Transition.Kind.LEVEL_CHANGED), kinds());
+        Episode after = episodes.load(TENANT, "V1").find(TENANT, "V1", id).orElseThrow();
+        assertEquals(3, after.level());
+        assertEquals(before.lastSignalAt(), after.lastSignalAt());
+        assertEquals(before.normalSince(), after.normalSince());
+        assertEquals(before.levelSince(), after.levelSince());
+        assertEquals(before.lastSignalAt(), episodes.load(TENANT, "V1").watermark(TENANT, "V1", "gps_signal").orElseThrow());
+    }
+
+    @Test
+    void lateLifecycleRulesReadTheRetainedOffTripTimer() {
+        publish("case.off_trip_s >= 1200 && " + RECONNECT, null);
+        stream.evaluate(signal("2026-01-01T12:00:00Z", "device_tamper"));
+        stream.evaluate(signal("2026-01-01T12:01:00Z", null).replace("\"active\":true", "\"active\":false"));
+        stream.evaluate(signal("2026-01-01T12:30:00Z", null).replace("\"active\":true", "\"active\":false"));
+        stream.evaluate(signal("2026-01-01T12:25:00Z", "main_power_reconnect")
+                .replace("\"active\":true", "\"active\":false"));
+        assertEquals(List.of(Transition.Kind.OPENED, Transition.Kind.CLOSED), kinds());
     }
 
     @Test

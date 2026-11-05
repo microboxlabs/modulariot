@@ -370,12 +370,23 @@ public final class SpecValidator {
             return;
         }
         List<PreparedRule> rules = levels.stream().map(l -> RuleLanguage.prepare(schema, l.when())).toList();
+        List<Double> ages = byMeasure && mentions(levels, OPEN)
+                ? testPoints(levels).stream().filter(p -> p >= 0).toList() : List.of(1e9);
+        Set<Finding> found = new java.util.LinkedHashSet<>();
+        for (double age : ages) {
+            measureGaps(found, levels, rules, byMeasure, age);
+        }
+        out.addAll(found);
+    }
+
+    private static void measureGaps(Set<Finding> out, List<Level> levels, List<PreparedRule> rules,
+            boolean byMeasure, double age) {
         List<Double> thresholds = levels.stream().flatMap(l -> RuleText.numbers(l.when()).stream()).toList();
         boolean held = !byMeasure;
         boolean seenCovered = false;
         Double gapStart = null;
         for (double point : testPoints(levels)) {
-            boolean covered = covered(rules, byMeasure, point);
+            boolean covered = covered(rules, byMeasure, point, age);
             if (covered && gapStart != null) {
                 out.add(gap(threshold(gapStart, thresholds), threshold(point, thresholds), held));
                 gapStart = null;
@@ -404,8 +415,8 @@ public final class SpecValidator {
     }
 
     /** Whether any level applies at this point of the ladder. */
-    private static boolean covered(List<PreparedRule> rules, boolean byMeasure, double point) {
-        Map<String, Object> vars = byMeasure ? Map.of(MEASURE, point, HELD, 1e9, OPEN, 1e9)
+    private static boolean covered(List<PreparedRule> rules, boolean byMeasure, double point, double age) {
+        Map<String, Object> vars = byMeasure ? Map.of(MEASURE, point, HELD, 1e9, OPEN, age)
                 : Map.of(MEASURE, 0.0, HELD, point, OPEN, point);
         return rules.stream().anyMatch(r -> Boolean.TRUE.equals(r.run(vars).value()));
     }

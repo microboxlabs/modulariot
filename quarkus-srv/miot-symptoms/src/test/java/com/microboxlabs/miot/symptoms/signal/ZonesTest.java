@@ -69,12 +69,24 @@ class ZonesTest {
     }
 
     @Test
-    void aClientWithoutZonesGetsNoGeoAndOtherShapesAreSkipped() {
+    void aClientWithoutZonesIsOutsideAfterASuccessfulLoadAndOtherShapesAreSkipped() {
         Zones zones = zones(Zones.zone("c-1", 1, "0", square(-70.0, -33.0)));
 
-        assertNull(zones.at("c-2", -70.0, -33.0));
+        assertEquals(new GpsSignal.Geo(false, null, false, true), zones.at("c-2", -70.0, -33.0));
         assertNull(Zones.zone("c-1", 3, "0", "{\"type\":\"Point\",\"coordinates\":[0,0]}"));
         assertEquals(1, zones.size());
+    }
+
+    @Test
+    void unavailableZonesDifferFromAKnownEmptySetIncludingAfterTheLastZoneIsDeleted() {
+        Zones zones = new Zones();
+        assertNull(zones.at("c-1", -70.0, -33.0));
+        zones.load(List.of());
+        assertEquals(new GpsSignal.Geo(false, null, false, true), zones.at("c-1", -70.0, -33.0));
+        zones.load(List.of(Zones.zone("c-1", 1, "0", square(-70.0, -33.0))));
+        assertEquals(new GpsSignal.Geo(true, null, false, false), zones.at("c-1", -70.0, -33.0));
+        zones.load(List.of());
+        assertEquals(new GpsSignal.Geo(false, null, false, true), zones.at("c-1", -70.0, -33.0));
     }
 
     @Test

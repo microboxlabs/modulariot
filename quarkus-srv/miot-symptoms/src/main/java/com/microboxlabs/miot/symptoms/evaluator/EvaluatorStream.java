@@ -334,13 +334,8 @@ public class EvaluatorStream {
     public void forget(String tenant, String assetId, java.util.UUID definitionId, String tripId) {
         // Both consumers share the Redis episode hash. Clear the detector before saving the close marker.
         lostSignal.forget(tenant, assetId, definitionId);
-        if (tripId == null) {
-            episodes.forget(tenant, assetId, definitionId);
-        } else {
-            AssetEpisodes state = episodes.load(tenant, assetId);
-            state.save(tenant, Episode.closedOnTrip(definitionId, assetId, tripId, clock.instant()));
-            episodes.save(state);
-        }
+        episodes.operatorClose(tenant, assetId, definitionId,
+                tripId == null ? null : Episode.closedOnTrip(definitionId, assetId, tripId, clock.instant()));
     }
 
     /** Rechecks the latest condition evidence before releasing a hold, then restarts its level timers. */

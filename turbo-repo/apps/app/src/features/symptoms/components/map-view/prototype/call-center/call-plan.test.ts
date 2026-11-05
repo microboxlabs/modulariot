@@ -98,6 +98,7 @@ describe("callPlan", () => {
       carrier: false,
       carrierSelf: false,
       company: null,
+      tags: [],
       driverField: "either",
     });
     expect(ids(plan.others)).toEqual(["oc", "gs-norte", "torre", "torre2"]);
@@ -345,6 +346,44 @@ describe("emptyReason", () => {
     ).toEqual({
       kind: "problem",
       problem: "undeclared field",
+    });
+  });
+
+  it("checks every accepted role, including later alternatives", () => {
+    expect(
+      emptyReason(
+        group(
+          "contact.role == 'Supervisor' || contact.role == 'Jefe de turno'"
+        ),
+        [{ role: "Jefe de turno" }]
+      )
+    ).toEqual({
+      kind: "noMatch",
+      roles: ["Supervisor", "Jefe de turno"],
+      trip: false,
+    });
+  });
+
+  it.each([
+    "!(contact.role == 'Supervisor') && contact.company == 'Empresa Uno'",
+    `contact.position == "contact.role == 'Supervisor'"`,
+    "contact.role == 'Supervisor' || contact.position == 'Despachador'",
+  ])("does not assert a missing role for %s", (who) => {
+    expect(emptyReason(group(who), book).kind).toBe("noMatch");
+  });
+
+  it("does not confuse an event.data literal with a trip reference", () => {
+    expect(
+      emptyReason(
+        group(
+          "contact.role == 'Despachador' && contact.company == 'event.data analytics'"
+        ),
+        book
+      )
+    ).toEqual({
+      kind: "noMatch",
+      roles: ["Despachador"],
+      trip: false,
     });
   });
 

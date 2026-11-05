@@ -5,6 +5,7 @@ import { mutate } from "swr";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
+import en from "@/lang/en.json";
 import { ShowNotification } from "@/features/notifications/notification";
 import CallCenterMenu from "./call-center-menu";
 
@@ -520,6 +521,112 @@ describe("CallCenterMenu", () => {
       ).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Nuevo número" })).toBeNull();
     });
+
+    it.each([
+      [
+        "contact.role == 'Supervisor' && contact.nationalId == event.data.secondDriverRut",
+        { secondDriverRut: "000000027" },
+        { role: "Supervisor", nationalId: "000000027", nationalIdType: "RUT" },
+      ],
+      [
+        "contact.role == 'Despachador' && contact.companyRut == event.data.carrierRut && contact.company == 'Empresa Uno'",
+        {},
+        { role: "Despachador", companyRut: SUR, company: "Empresa Uno" },
+      ],
+      [
+        "contact.role == 'Supervisor' && 'night' in contact.tags",
+        {},
+        { role: "Supervisor", tags: ["night"] },
+      ],
+      [
+        "contact.role == 'Supervisor' && contact.position.startsWith('x')",
+        {},
+        { role: "Supervisor" },
+      ],
+      [
+        CARRIER_SELF,
+        { carrierRut: "20123456789" },
+        {
+          role: "Transportista",
+          nationalId: "20123456789",
+          nationalIdType: "OTRO",
+          companyTaxIdType: "RUC",
+        },
+      ],
+      [
+        "contact.nationalId == event.data.driverRut",
+        { carrierRut: "20123456789" },
+        { role: "Conductor", nationalId: "000000019", nationalIdType: "DNI" },
+      ],
+    ])(
+      "preserves the empty step preset when saving %s",
+      async (who, trip, expected) => {
+        data.match = () => [];
+        data.tripData = { ...data.tripData, ...trip };
+        data.level = levelWith([stepWho(who)]);
+        data.permissions = ["controltower:contact.write"];
+        const user = userEvent.setup();
+        renderMenu();
+        await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+        await saveNewNumber(user, "Contacto Nuevo");
+        await waitFor(() =>
+          expect(data.createContact).toHaveBeenCalledWith(
+            expect.objectContaining(expected)
+          )
+        );
+      }
+    );
+
+    it.each([
+      "!(contact.role == 'Supervisor') && contact.company == 'Empresa Uno'",
+      "contact.role == 'Supervisor' || contact.position == 'x'",
+    ])("does not prefill an excluded or optional role: %s", (who) => {
+      data.permissions = ["controltower:contact.write"];
+      data.match = () => [];
+      data.level = levelWith([stepWho(who)]);
+      renderMenu();
+      expect(screen.queryByRole("button", { name: "Nuevo número" })).toBeNull();
+    });
+
+    it.each([
+      [
+        "contact.role == 'Supervisor' || contact.role == 'Jefe de turno'",
+        "Supervisor or Jefe de turno",
+        "Nobody in the contact book has this role.",
+        null,
+      ],
+      [
+        CARRIER_SELF,
+        "Transportista · Transportes Sur",
+        "No Transportista in the contact book belongs to this trip.",
+        null,
+      ],
+      [
+        "contact.role == 'Transportista' && foo",
+        "Transportista",
+        "The step condition has a problem: undeclared reference",
+        "undeclared reference",
+      ],
+    ])(
+      "renders English titles and empty states: %s",
+      (who, title, message, problem) => {
+        data.match = () => [];
+        data.contacts = [contact("carrier", "Carrier", "Transportista")];
+        data.problem = () => problem;
+        data.level = levelWith([stepWho(who)]);
+        render(
+          <CallCenterMenu
+            dict={en as unknown as I18nRecord}
+            treatmentData={treatment}
+            skippedTo={null}
+            onSkip={vi.fn()}
+            onCall={vi.fn()}
+          />
+        );
+        expect(heading(1).textContent).toBe(title);
+        expect(screen.getByText(message)).toBeTruthy();
+      }
+    );
   });
 
   it("names the missing carrier role and pre-fills it with the company RUT", async () => {

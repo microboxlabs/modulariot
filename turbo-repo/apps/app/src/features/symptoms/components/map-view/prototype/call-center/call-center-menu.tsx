@@ -24,6 +24,7 @@ import { ShowNotification } from "@/features/notifications/notification";
 import {
   DRIVER_ROLE,
   rolesIn,
+  rolesOf,
   type WhoSummary,
 } from "@/features/symptoms/control-tower/step-who";
 import {
@@ -169,25 +170,32 @@ const isRuc = (id: string | undefined) => /^\d{11}$/.test(id ?? "");
 
 /** The role, RUTs and company a contact created from an empty step starts with. */
 function presetFor(
+  who: string,
   summary: WhoSummary | null,
   trip: TowerTripContacts | undefined,
   carrierName: string | undefined
 ): NewContactPreset | undefined {
   const carrierRut = trip?.data.carrierRut;
-  const company = carrierName?.trim() || undefined;
+  const company = summary?.company ?? (carrierName?.trim() || undefined);
+  const preset: NewContactPreset = {
+    role: rolesOf(who, summary)[0] ?? "",
+    company: summary?.company ?? undefined,
+    tags: summary?.tags,
+  };
   let driverRut = trip?.data.driverRut;
   if (summary?.driverField === "second") driverRut = trip?.data.secondDriverRut;
   else if (summary?.driverField === "either")
     driverRut ??= trip?.data.secondDriverRut;
   if (summary?.driver && driverRut)
     return {
-      role: DRIVER_ROLE,
+      ...preset,
+      role: preset.role || DRIVER_ROLE,
       nationalId: driverRut,
       nationalIdType: isRuc(carrierRut) ? "DNI" : "RUT",
     };
   if (summary?.carrierSelf && carrierRut)
     return {
-      role: summary.role ?? "",
+      ...preset,
       nationalId: carrierRut,
       nationalIdType: isRuc(carrierRut) ? "OTRO" : "RUT",
       companyRut: carrierRut,
@@ -196,16 +204,12 @@ function presetFor(
     };
   if (summary?.carrier && carrierRut)
     return {
-      role: summary.role ?? "",
+      ...preset,
       companyRut: carrierRut,
       companyTaxIdType: isRuc(carrierRut) ? "RUC" : "RUT",
       company,
     };
-  if (summary?.role || summary?.company)
-    return {
-      role: summary.role ?? "",
-      company: summary.company ?? undefined,
-    };
+  if (preset.role || preset.company || preset.tags?.length) return preset;
   return undefined;
 }
 
@@ -459,7 +463,7 @@ function StepGroup({
   const preset =
     empty.kind === "problem"
       ? undefined
-      : presetFor(group.summary, trip, carrierName);
+      : presetFor(group.who, group.summary, trip, carrierName);
   const script = callScript(group.step, scriptContext, labels);
   const isDue = index === due;
   const [skipping, setSkipping] = useState(false);

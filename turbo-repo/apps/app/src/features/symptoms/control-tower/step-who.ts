@@ -99,6 +99,8 @@ export interface WhoSummary {
   carrierSelf: boolean;
   /** The company name the condition asks for, if any. */
   company: string | null;
+  /** Tags required by the condition's conjunction. */
+  tags: string[];
 }
 
 const QUOTED = String.raw`(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")`;
@@ -117,13 +119,98 @@ const GUARD_ATOMS = [
   /^contact\.(nationalIdType|companyTaxIdType)\s*==\s*event\.data\.[A-Za-z_]\w*$/,
   /^contact\.companyRut\s*==\s*(''|"")$/,
 ];
-const ROLE_ANYWHERE = new RegExp(
-  String.raw`contact\.role(?:Key)?\s*==\s*${QUOTED}|${QUOTED}\s*==\s*contact\.role(?:Key)?\b`,
-  "g"
-);
+const ESCAPES: Record<string, string> = {
+  a: "\x07",
+  b: "\b",
+  f: "\f",
+  n: "\n",
+  r: "\r",
+  t: "\t",
+  v: "\v",
+  "\\": "\\",
+  "?": "?",
+  '"': '"',
+  "'": "'",
+  "`": "`",
+};
+const ESCAPE =
+  /\\(?:[abfnrtv\\?"'`]|[xX][\da-fA-F]{2}|u[\da-fA-F]{4}|U[\da-fA-F]{8}|[0-3][0-7]{2})/y;
 
-const unquote = (m: RegExpExecArray, at = 1) =>
-  (m[at] ?? m[at + 1] ?? "").replace(/\\(.)/g, "$1");
+/** Decode CEL escapes; an unsupported literal must keep the summary unreadable. */
+function unquote(m: RegExpExecArray): string | null {
+  const text = m[1] ?? m[2] ?? "";
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== "\\") {
+      out += text[i];
+      continue;
+    }
+    ESCAPE.lastIndex = i;
+    const escape = ESCAPE.exec(text)?.[0];
+    if (!escape) return null;
+    const code = escape[1];
+    if (ESCAPES[code] !== undefined) out += ESCAPES[code];
+    else {
+      const octal = /[0-3]/.test(code);
+      const point = Number.parseInt(
+        escape.slice(octal ? 1 : 2),
+        octal ? 8 : 16
+      );
+      if (point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)) return null;
+      out += String.fromCodePoint(point);
+    }
+    i += escape.length - 1;
+  }
+  return out;
+}
+
+interface WhoToken {
+  text: string;
+  quoted: boolean;
+}
+
+const WORD = /[A-Za-z_][\w.]*|==|!=|&&|\|\||\S/y;
+
+/** One pass with opaque strings and comments; never retries a quoted suffix. */
+function quotedEnd(who: string, start: number): number {
+  const ch = who[start];
+  const delimiter = who.startsWith(ch.repeat(3), start) ? ch.repeat(3) : ch;
+  let i = start + delimiter.length;
+  while (i < who.length && !who.startsWith(delimiter, i))
+    i += who[i] === "\\" ? 2 : 1;
+  return Math.min(i + delimiter.length, who.length);
+}
+
+/** Scan once, keeping string values opaque. */
+function tokens(who: string): WhoToken[] {
+  const out: WhoToken[] = [];
+  let i = 0;
+  while (i < who.length) {
+    const ch = who[i];
+    if (who.startsWith("//", i)) {
+      const end = who.indexOf("\n", i);
+      i = end < 0 ? who.length : end + 1;
+    } else if (ch === "'" || ch === '"') {
+      const start = i;
+      i = quotedEnd(who, start);
+      out.push({ text: who.slice(start, i), quoted: true });
+    } else {
+      WORD.lastIndex = i;
+      const word = WORD.exec(who);
+      if (word) out.push({ text: word[0], quoted: false });
+      i = word ? WORD.lastIndex : i + 1;
+    }
+  }
+  return out;
+}
+
+/** Actual trip references, excluding examples inside strings or comments. */
+export function referencesTrip(who: string): boolean {
+  return tokens(who).some(
+    (t) =>
+      !t.quoted && (t.text === "event.data" || t.text.startsWith("event.data."))
+  );
+}
 
 /** Splits at a top-level operator, outside quotes and parentheses; null on unbalanced text. */
 function splitTop(text: string, op: "&&" | "||"): string[] | null {
@@ -188,7 +275,7 @@ function splitEq(text: string): [string, string] | null {
 
 function roleOf(atom: string): string | null {
   const m = ROLE_ATOM.exec(atom);
-  return m ? unquote(m).trim() : null;
+  return m ? (unquote(m)?.trim() ?? null) : null;
 }
 
 /** What each trip field means when the contact's own or company RUT equals it. */
@@ -218,10 +305,19 @@ function readClause(summary: WhoSummary, clause: string): boolean {
   }
   const company = COMPANY_ATOM.exec(atom);
   if (company) {
-    summary.company = unquote(company).trim() || null;
+    const value = unquote(company);
+    if (value === null) return false;
+    summary.company = value.trim() || null;
     return true;
   }
-  if (TAG_ATOM.test(atom) || GUARD_ATOMS.some((g) => g.test(atom))) return true;
+  const tag = TAG_ATOM.exec(atom);
+  if (tag) {
+    const value = unquote(tag);
+    if (value === null) return false;
+    summary.tags.push(value);
+    return true;
+  }
+  if (GUARD_ATOMS.some((g) => g.test(atom))) return true;
   const field = FIELD_ATOM.exec(atom);
   const meaning = field ? TRIP_FIELD_MEANING[`${field[1]}:${field[2]}`] : null;
   if (!meaning) return false;
@@ -242,6 +338,7 @@ export function summarizeWho(who: string): WhoSummary | null {
     carrier: false,
     carrierSelf: false,
     company: null,
+    tags: [],
   };
   if (who === LEGACY_DRIVER_WHO)
     return {
@@ -255,6 +352,9 @@ export function summarizeWho(who: string): WhoSummary | null {
   if (!text) return null;
   const clauses = splitTop(text, "&&");
   if (!clauses) return null;
+  // || binds less tightly: A || B && C does not constrain A by C.
+  if (clauses.length > 1 && (splitTop(text, "||")?.length ?? 0) > 1)
+    return null;
   for (const raw of clauses) if (!readClause(summary, unwrap(raw))) return null;
   summary.role = summary.roles[0] ?? null;
   return summary;
@@ -262,12 +362,24 @@ export function summarizeWho(who: string): WhoSummary | null {
 
 /** The roles a condition names anywhere, in order and without repeats; for titles of conditions `summarizeWho` cannot read. */
 export function rolesIn(who: string): string[] {
+  const parts = tokens(who);
+  const scopes: boolean[] = [];
+  let negated = 0;
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const m of who.matchAll(ROLE_ANYWHERE)) {
-    const role = (m[1] ?? m[2] ?? m[3] ?? m[4] ?? "")
-      .replace(/\\(.)/g, "$1")
-      .trim();
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].quoted) continue;
+    if (parts[i].text === "(") {
+      const excluded = parts[i - 1]?.text === "!";
+      scopes.push(excluded);
+      if (excluded) negated++;
+    } else if (parts[i].text === ")" && scopes.pop()) negated--;
+    if (negated > 0 || parts[i].text !== "==") continue;
+    const left = parts[i - 1];
+    const right = parts[i + 1];
+    if (!left || !right) continue;
+    const atom = normalizeAtom(`${left.text} == ${right.text}`);
+    const role = roleOf(atom);
     if (role && !seen.has(roleKey(role))) {
       seen.add(roleKey(role));
       out.push(role);
@@ -278,7 +390,14 @@ export function rolesIn(who: string): string[] {
 
 /** The roles a step's condition asks for: read from its summary, or found in its text. */
 export function rolesOf(who: string, summary: WhoSummary | null): string[] {
-  return summary ? summary.roles : rolesIn(who);
+  if (summary) return summary.roles;
+  const text = unwrap(who);
+  // Only independently readable conjuncts prove a role requirement. A role
+  // mentioned in an unknown function, negation or optional branch proves none.
+  if ((splitTop(text, "||")?.length ?? 0) !== 1) return [];
+  if (tokens(text).some((t) => !t.quoted && t.text === "?")) return [];
+  const clauses = splitTop(text, "&&") ?? [];
+  return [...new Set(clauses.flatMap((c) => summarizeWho(c)?.roles ?? []))];
 }
 
 /** True when the contact's role is one of `roles`, ignoring case and spaces. */

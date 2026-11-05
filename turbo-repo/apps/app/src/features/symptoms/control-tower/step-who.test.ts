@@ -56,6 +56,7 @@ const NONE = {
   carrier: false,
   carrierSelf: false,
   company: null,
+  tags: [],
 };
 
 describe("summarizeWho", () => {
@@ -155,6 +156,48 @@ describe("summarizeWho", () => {
     expect(summarizeWho("contact.position.startsWith('Jefe')")).toBeNull();
     expect(summarizeWho("")).toBeNull();
   });
+
+  it("keeps quoted operators and required tags", () => {
+    expect(
+      summarizeWho(
+        "contact.role == 'Supervisor' && contact.company == 'Uno && Dos' && 'night' in contact.tags"
+      )
+    ).toEqual({
+      ...NONE,
+      role: "Supervisor",
+      roles: ["Supervisor"],
+      company: "Uno && Dos",
+      tags: ["night"],
+    });
+  });
+
+  it.each([
+    String.raw`\u0053`,
+    String.raw`\U00000053`,
+    String.raw`\x53`,
+    String.raw`\123`,
+  ])("decodes CEL escapes in roles: %s", (escape) => {
+    const who = `contact.role == '${escape}upervisor'`;
+    expect(summarizeWho(who)?.roles).toEqual(["Supervisor"]);
+    expect(rolesIn(who + " && contact.position.startsWith('x')")).toEqual([
+      "Supervisor",
+    ]);
+  });
+
+  it.each([String.raw`\uD800`, String.raw`\U00110000`, String.raw`\q`])(
+    "leaves unsupported literals unreadable: %s",
+    (escape) => {
+      expect(summarizeWho(`contact.role == '${escape}'`)).toBeNull();
+    }
+  );
+
+  it("does not associate an OR branch with a later AND constraint", () => {
+    expect(
+      summarizeWho(
+        "contact.role == 'Supervisor' || contact.role == 'Despachador' && contact.companyRut == event.data.carrierRut"
+      )
+    ).toBeNull();
+  });
 });
 
 describe("rolesIn", () => {
@@ -165,5 +208,31 @@ describe("rolesIn", () => {
       )
     ).toEqual(["Supervisor", "jefe"]);
     expect(rolesIn("contact.position == 'x'")).toEqual([]);
+  });
+
+  it.each([
+    `contact.position == "contact.role == 'Supervisor'"`,
+    `contact.position == """contact.role == 'Supervisor'"""`,
+    "!(contact.role == 'Supervisor') && contact.company == 'Empresa Uno'",
+    "contact.position == 'x' // contact.role == 'Supervisor'",
+  ])("does not extract quoted, commented or negated roles: %s", (who) => {
+    expect(rolesIn(who)).toEqual([]);
+  });
+
+  it("scans long strings with escaped quotes without treating their suffixes as roles", () => {
+    const literal = String.raw`\"`.repeat(10000);
+    expect(
+      rolesIn(
+        `contact.position == "${literal}" && contact.role == 'Supervisor'`
+      )
+    ).toEqual(["Supervisor"]);
+  });
+
+  it("keeps a positive role outside a negated comparison", () => {
+    expect(
+      rolesIn(
+        "!(contact.role == 'Despachador') && contact.role == 'Supervisor'"
+      )
+    ).toEqual(["Supervisor"]);
   });
 });

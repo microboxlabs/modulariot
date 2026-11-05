@@ -11,6 +11,7 @@ import type {
 } from "@/features/symptoms/control-tower/control-tower-api";
 import {
   hasAnyRole,
+  referencesTrip,
   rolesOf,
   summarizeWho,
   whoOf,
@@ -202,7 +203,7 @@ export function emptyReason(
   const roles = rolesOf(group.who, group.summary);
   if (roles.length > 0 && !book.some((t) => hasAnyRole(t.role, roles)))
     return { kind: "noRole" };
-  return { kind: "noMatch", roles, trip: group.who.includes("event.data") };
+  return { kind: "noMatch", roles, trip: referencesTrip(group.who) };
 }
 
 /** Matches name, role or, for a query with digits, the phone. */

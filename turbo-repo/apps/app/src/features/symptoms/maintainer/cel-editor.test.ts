@@ -117,6 +117,47 @@ describe("CEL completions", () => {
     expect(active).toMatchObject({ description: undefined });
   });
 
+  it("shows metadata for top-level level variables as well as nested fields", () => {
+    const doc = "held";
+    const state = EditorState.create({ doc });
+    const fields: CelField[] = [
+      ...FIELDS,
+      {
+        path: "held_s",
+        type: "number",
+        unit: "s",
+        description: "seconds the condition has held",
+      },
+      { path: "measure", type: "number", description: "the measured value" },
+      {
+        path: "open_s",
+        type: "number",
+        unit: "s",
+        description: "seconds since the case opened",
+      },
+    ];
+    const result = completions(() => fields)(
+      new CompletionContext(state, doc.length, true)
+    );
+    expect(result?.options.find((o) => o.label === "held_s")).toMatchObject({
+      type: "variable",
+      detail: "number · s",
+      description: "seconds the condition has held",
+    });
+    expect(result?.options.find((o) => o.label === "measure")).toMatchObject({
+      detail: "number",
+      description: "the measured value",
+    });
+    expect(result?.options.find((o) => o.label === "open_s")).toMatchObject({
+      detail: "number · s",
+      description: "seconds since the case opened",
+    });
+    expect(result?.options.find((o) => o.label === "signal")).toEqual({
+      label: "signal",
+      type: "variable",
+    });
+  });
+
   it("leaves the detail out when a field has nothing to show", () => {
     const doc = "signal.frame.sensors.";
     const state = EditorState.create({ doc });
@@ -126,6 +167,19 @@ describe("CEL completions", () => {
     expect(result?.options[0]).toMatchObject({
       label: "panic_button",
       detail: undefined,
+    });
+  });
+
+  it("does not describe a macro variable as the level variable it shadows", () => {
+    const doc = "signal.frame.events.exists(measure, mea";
+    const state = EditorState.create({ doc });
+    const result = completions(() => [
+      ...FIELDS,
+      { path: "measure", type: "number", description: "the measured value" },
+    ])(new CompletionContext(state, doc.length, true));
+    expect(result?.options.find((o) => o.label === "measure")).toEqual({
+      label: "measure",
+      type: "variable",
     });
   });
 });
@@ -169,5 +223,42 @@ describe("fieldAt", () => {
     expect(fieldAt(rule, rule.indexOf("speed"), FIELDS)?.field.path).toBe(
       "signal.frame.gps.speed"
     );
+  });
+
+  it.each([
+    '"signal.trip.age_min" == "x"',
+    "'signal.trip.age_min' == 'x'",
+    String.raw`"an escaped \" quote and signal.trip.age_min"`,
+    String.raw`'an escaped \' quote and signal.trip.age_min'`,
+    `'''an embedded ' quote and signal.trip.age_min'''`,
+    `"""an embedded " quote and signal.trip.age_min"""`,
+    '"signal.trip.age_min',
+    "true // signal.trip.age_min",
+    '"a string" // signal.trip.age_min',
+  ])(
+    "does not show a field tooltip inside a literal or comment: %s",
+    (rule) => {
+      expect(fieldAt(rule, rule.indexOf("age_min") + 2, FIELDS)).toBeNull();
+    }
+  );
+
+  it.each([
+    '"a string" == "x" && signal.trip.age_min > 0',
+    '"// inside a string" == "x" && signal.trip.age_min > 0',
+    "true // a comment\n&& signal.trip.age_min > 0",
+    String.raw`r"a trailing backslash\" == "x" && signal.trip.age_min > 0`,
+  ])(
+    "shows a field tooltip for code after a literal or comment: %s",
+    (rule) => {
+      expect(
+        fieldAt(rule, rule.indexOf("age_min") + 2, FIELDS)?.field.path
+      ).toBe("signal.trip.age_min");
+    }
+  );
+
+  it("does not bind macro variables from a commented expression", () => {
+    const rule =
+      "true // signal.frame.events.exists(e,\n&& e.event_type == 'x'";
+    expect(fieldAt(rule, rule.indexOf("event_type") + 2, FIELDS)).toBeNull();
   });
 });

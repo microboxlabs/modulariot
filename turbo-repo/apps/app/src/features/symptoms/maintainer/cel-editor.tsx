@@ -27,6 +27,7 @@ import {
 import { tags } from "@lezer/highlight";
 import {
   completionContext,
+  isCodePosition,
   macroVariables,
   resolved,
 } from "./cel-completion-context";
@@ -186,7 +187,13 @@ export function completions(
       return {
         from: word.from,
         options: [
-          ...roots.map((r) => ({ label: r, type: "variable" })),
+          ...roots.map((r) =>
+            fieldCompletion(
+              r,
+              "variable",
+              variables.has(r) ? undefined : all.find((f) => f.path === r)
+            )
+          ),
           ...CONSTANTS.map((c) => ({ label: c, type: "constant" })),
           ...FUNCTIONS.map((f) => ({
             label: f,
@@ -201,6 +208,20 @@ export function completions(
 }
 
 type FieldCompletion = Completion & { description?: string };
+
+function fieldCompletion(
+  label: string,
+  type: string,
+  field?: CelField
+): FieldCompletion {
+  if (!field) return { label, type };
+  return {
+    label,
+    type,
+    detail: fieldDetail(field) || undefined,
+    description: field.description || undefined,
+  };
+}
 
 /** What the field means, below its name in the completion list. */
 function renderDescription(completion: FieldCompletion): Node | null {
@@ -232,12 +253,7 @@ function fieldCompletions(
       segment,
       rest.includes(".")
         ? { label: segment, type: "namespace" }
-        : {
-            label: segment,
-            type: "property",
-            detail: fieldDetail(f) || undefined,
-            description: f.description || undefined,
-          }
+        : fieldCompletion(segment, "property", f)
     );
   }
   if (text.includes(".?") && optional === 0) {
@@ -264,6 +280,7 @@ export function fieldAt(
   pos: number,
   fields: CelField[]
 ): { from: number; to: number; field: CelField } | null {
+  if (!isCodePosition(text, pos)) return null;
   let from = pos;
   while (from > 0 && isPathChar(text, from - 1)) from--;
   let to = pos;

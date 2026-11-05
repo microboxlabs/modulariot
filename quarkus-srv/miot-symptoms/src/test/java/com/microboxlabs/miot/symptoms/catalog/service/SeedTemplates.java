@@ -28,7 +28,8 @@ public final class SeedTemplates {
             "/db/migration/symptoms/V0.12.17__event_symptom_templates.sql");
     /** Migrations that publish new versions as rows of an {@code upgrade} list, applied in this order. */
     static final List<String> UPGRADE_LISTS = List.of(
-            "/db/migration/symptoms/V0.12.17__event_symptom_templates.sql");
+            "/db/migration/symptoms/V0.12.17__event_symptom_templates.sql",
+            "/db/migration/symptoms/V0.12.18__speed_templates_escalation.sql");
 
     private static final String TEXT = "'((?:[^']|'')*)'";
     private static final Pattern ROW = Pattern.compile("\\(" + TEXT + ", " + TEXT + ", " + TEXT + ", (NULL|"

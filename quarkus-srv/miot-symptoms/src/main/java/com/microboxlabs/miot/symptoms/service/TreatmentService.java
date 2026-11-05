@@ -36,6 +36,7 @@ public class TreatmentService {
     static final String ENTITY = "treatment";
     /** On a {@code NOTE}: the operator skipped the level's call script to this step (1-based). */
     public static final String SKIP_TO_STEP = "skipToStep";
+    private static final String SKIP_ID = "skipId";
 
     private final TreatmentStore treatments;
     private final ContactStore contacts;
@@ -135,7 +136,7 @@ public class TreatmentService {
 
     /** The case lock serializes retries, including requests served by different replicas. */
     private Optional<TreatmentAction> retriedSkip(String tenantCode, String actor, Treatment t, AddActionRequest req) {
-        Object skipId = req.details().get("skipId");
+        Object skipId = req.details().get(SKIP_ID);
         if (skipId == null) {
             return Optional.empty();
         }
@@ -145,7 +146,7 @@ public class TreatmentService {
         UUID.fromString(key);
         return treatments.listActions(tenantCode, List.of(t.id())).stream()
                 .filter(a -> a.kind() == ActionKind.NOTE && actor.equals(a.performedBy())
-                        && a.details() != null && key.equals(a.details().get("skipId")))
+                        && a.details() != null && key.equals(a.details().get(SKIP_ID)))
                 .findFirst();
     }
 
@@ -238,7 +239,7 @@ public class TreatmentService {
     }
 
     private static void auditSkipDetails(TreatmentAction saved, Map<String, Object> details) {
-        for (String key : List.of(SKIP_TO_STEP, "level", "version", "skipId", "slaSince")) {
+        for (String key : List.of(SKIP_TO_STEP, "level", "version", SKIP_ID, "slaSince")) {
             if (saved.details().get(key) != null) {
                 details.put(key, saved.details().get(key));
             }

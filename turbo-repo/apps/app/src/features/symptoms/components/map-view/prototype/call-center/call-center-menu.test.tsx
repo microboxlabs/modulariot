@@ -726,12 +726,12 @@ describe("panel scroll", () => {
     await user.click(
       screen.getByRole("button", { name: "Otros contactos (120)" })
     );
-    expect(screen.queryByText("Contacto 049")).toBeTruthy();
+    expect(screen.getByText("Contacto 049")).toBeTruthy();
     expect(screen.queryByText("Contacto 050")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Ver más (70)" }));
-    expect(screen.queryByText("Contacto 099")).toBeTruthy();
+    expect(screen.getByText("Contacto 099")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Ver más (20)" }));
-    expect(screen.queryByText("Contacto 119")).toBeTruthy();
+    expect(screen.getByText("Contacto 119")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Ver más/ })).toBeNull();
 
     await user.type(

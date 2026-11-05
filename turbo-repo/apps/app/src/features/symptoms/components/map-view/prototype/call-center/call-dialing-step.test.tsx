@@ -497,6 +497,12 @@ describe("CallDialingStep", () => {
         es.symptoms.call_teams_no_connection
       );
       expect(screen.queryByText("00:00")).toBeNull();
+      expect(
+        screen.getByRole("link", { name: es.symptoms.call_teams_setup })
+      ).toHaveAttribute(
+        "href",
+        "/es/users/settings/symptoms?section=telephony"
+      );
       fireEvent.click(
         screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
       );
@@ -532,6 +538,9 @@ describe("CallDialingStep", () => {
         );
         expect(
           screen.queryByText(es.symptoms.call_teams_no_connection)
+        ).toBeNull();
+        expect(
+          screen.queryByRole("link", { name: es.symptoms.call_teams_setup })
         ).toBeNull();
         expect(screen.queryByText("00:00")).toBeNull();
       }

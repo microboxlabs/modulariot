@@ -28,6 +28,7 @@ import { FaPhoneAlt } from "react-icons/fa";
 import { HiX } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { telephonySettingsHref } from "@/features/telephony/telephony-settings";
 import { BentoGrid, fieldLabel } from "../prototype-form-kit";
 import {
   ALL_CALL_METHODS,
@@ -74,18 +75,31 @@ function formatDuration(totalSeconds: number): string {
 
 function CallTimer({
   notice,
+  setup,
   showTimer,
   seconds,
 }: Readonly<{
   notice: string | null;
+  /** Where the organization chooses its telephony, shown with the notice. */
+  setup?: { href: string; label: string } | null;
   showTimer: boolean;
   seconds: number;
 }>) {
   if (notice) {
     return (
-      <output className="text-sm font-medium text-amber-700 dark:text-amber-400">
-        {notice}
-      </output>
+      <div className="flex flex-col items-center gap-1">
+        <output className="text-sm font-medium text-amber-700 dark:text-amber-400">
+          {notice}
+        </output>
+        {setup && (
+          <Link
+            href={setup.href}
+            className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+          >
+            {setup.label}
+          </Link>
+        )}
+      </div>
     );
   }
   return (
@@ -237,7 +251,9 @@ export default function CallDialingStep({
     return null;
   };
   // A "teams" press with no Teams Phone line opens nothing.
-  const [teamsNotice, setTeamsNotice] = useState<string | null>(null);
+  const [teamsNotice, setTeamsNotice] = useState<
+    "call_teams_no_number" | "call_teams_no_connection" | null
+  >(null);
   const [teamsCall, setTeamsCall] = useState<{
     startedAt: number;
     connectionId: string;
@@ -386,7 +402,15 @@ export default function CallDialingStep({
           >
             <div className="overflow-hidden">
               <CallTimer
-                notice={teamsNotice}
+                notice={teamsNotice && t(teamsNotice)}
+                setup={
+                  teamsNotice === "call_teams_no_connection"
+                    ? {
+                        href: telephonySettingsHref(lang),
+                        label: t("call_teams_setup"),
+                      }
+                    : null
+                }
                 showTimer={showTimer}
                 seconds={shownSeconds}
               />
@@ -534,7 +558,7 @@ export default function CallDialingStep({
                       const notice = teamsConnection
                         ? "call_teams_no_number"
                         : "call_teams_no_connection";
-                      setTeamsNotice(t(notice));
+                      setTeamsNotice(notice);
                     } else {
                       setTeamsNotice(null);
                     }

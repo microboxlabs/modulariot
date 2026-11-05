@@ -79,7 +79,7 @@ class RouteTemplatesRuleCasesTest {
     }
 
     @Test
-    void rotationRemindsAgainFiveHoursAfterTheOperatorClosedThePreviousReminder() {
+    void rotationRemindsAgainFiveHoursAfterTheOperatorCloseEvenWhenAHoldFinishes() {
         SymptomSpec spec = SeedTemplates.get("double-driver-rotation").spec();
         UUID id = UUID.randomUUID();
         CompiledSymptom symptom = CompiledSymptom.compile(id, "1.0.0", SymptomState.TEST, spec, GPS);
@@ -91,6 +91,9 @@ class RouteTemplatesRuleCasesTest {
             if (at == closeAt) {
                 // What the treatment API does when the operator closes the reminder's treatment.
                 store.save("tenant", Episode.closedOnTrip(id, "vehicle", "T-1", EvalTraces.T0.plusSeconds(at)));
+            }
+            if (at == 1200) {
+                evaluator.finishHold("tenant", "vehicle", EvalTraces.T0.plusSeconds(at), List.of(symptom));
             }
             Signal s = onTrip(at, null, true, 30 + at / 60.0);
             evaluator.evaluate("tenant", "vehicle", EvalTraces.T0.plusSeconds(at), s.root(), List.of(symptom))

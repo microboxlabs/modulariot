@@ -110,6 +110,7 @@ class SignalEvaluatorHoldTest {
         store.save(TENANT, Episode.closedOnTrip(SPEEDING, TRUCK, "T-1", T0));
         evaluator.finishHold(TENANT, TRUCK, T0.plusSeconds(600), symptoms);
         assertEquals("T-1", store.find(TENANT, TRUCK, SPEEDING).orElseThrow().closedOnTrip());
+        assertEquals(T0, store.find(TENANT, TRUCK, SPEEDING).orElseThrow().closedOnTripAt());
     }
 
     @Test

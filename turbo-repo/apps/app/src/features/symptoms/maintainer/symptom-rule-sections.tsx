@@ -11,6 +11,7 @@ import MeasureFields from "./measure-fields";
 import { levelsUseMeasure, withoutMeasure } from "./measure-form";
 import LifecycleExpression from "./lifecycle-expression";
 import SampleTree, {
+  fieldInfos,
   firstOpening,
   unsupportedPaths,
   useSourceSamples,
@@ -44,7 +45,10 @@ export function celField(f: SourceField, d: I18nRecord): CelField {
     type: f.type,
     unit: f.unit,
     detail: originLabel(f.origin, d) || undefined,
-    description: named ? f.label : undefined,
+    description:
+      [named ? f.label : undefined, f.description]
+        .filter(Boolean)
+        .join(" — ") || undefined,
   };
 }
 
@@ -180,6 +184,7 @@ function ActivationSection({
     Math.max(0, samples.length - 1)
   );
   const notInEngine = useMemo(() => unsupportedPaths(fields), [fields]);
+  const infos = useMemo(() => fieldInfos(fields, d), [fields, d]);
   const activation = spec.activation ?? "";
   const { form, update } = useActivationForm(activation, fields, (value) =>
     onChange({ ...spec, activation: value })
@@ -244,6 +249,7 @@ function ActivationSection({
             samples={samples.map((s) => s.sample)}
             index={sampleAt}
             notInEngine={notInEngine}
+            fields={infos}
             readOnly={readOnly}
             d={d}
             onIndex={setSampleIndex}

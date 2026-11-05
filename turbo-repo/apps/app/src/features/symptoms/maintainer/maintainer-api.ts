@@ -261,6 +261,8 @@ export interface SourceField {
   engineSupported: boolean;
   /** The values a list field takes, as rules write them and as people read them. */
   values?: { value: string; label: string }[] | null;
+  /** What the field holds beyond its label, from the schema; absent when the label says it all. */
+  description?: string | null;
 }
 
 export interface DataSource {

@@ -512,8 +512,11 @@ public class SignalEvaluator {
         fields.put("closed_by_operator", false);
         fields.put("off_trip_s", offTripSince == null ? NOT_NORMAL : seconds(offTripSince, at));
         fields.put("closed_on_trip", closedOnTrip != null);
-        fields.put("closed_on_trip_s", closedOnTrip == null ? NOT_NORMAL
-                : closedOnTripAt == null ? FOREVER : seconds(closedOnTripAt, at));
+        double closedOnTripSeconds = NOT_NORMAL;
+        if (closedOnTrip != null) {
+            closedOnTripSeconds = closedOnTripAt == null ? FOREVER : seconds(closedOnTripAt, at);
+        }
+        fields.put("closed_on_trip_s", closedOnTripSeconds);
         return Map.of("case", fields);
     }
 

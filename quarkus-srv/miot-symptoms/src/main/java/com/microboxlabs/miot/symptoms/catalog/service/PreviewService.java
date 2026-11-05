@@ -6,6 +6,8 @@ import com.microboxlabs.miot.symptoms.catalog.cel.RuleResult;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleSchema;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
+import com.microboxlabs.miot.symptoms.catalog.domain.FieldOrigin;
+import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
@@ -79,7 +81,9 @@ public class PreviewService {
             String error) {
     }
 
-    public record Preview(String source, List<SamplePreview> samples, List<CasePreview> cases) {
+    /** @param caseFields the fields of the {@code case} object the case moments show */
+    public record Preview(String source, List<SamplePreview> samples, List<CasePreview> cases,
+            List<SourceField> caseFields) {
     }
 
     /** A fixed case moment: seconds the condition has held, seconds back to normal, hours open, level. */
@@ -110,13 +114,38 @@ public class PreviewService {
             new Scenario("normal", true, 0, 180, 0.5, 3, false),
             new Scenario("closed_by_operator", true, 0, 30, 1, 2, true));
 
+    /**
+     * The case variables in the order the case moments write them, typed by {@link RuleSchema#CASE} and named by
+     * {@link RuleDescriptionService#CASE_LABELS}.
+     */
+    static final List<SourceField> CASE_FIELDS = caseFields();
+
+    @SuppressWarnings("unchecked")
+    private static List<SourceField> caseFields() {
+        Map<String, Object> sample = (Map<String, Object>) SCENARIOS.get(0).sample().get("case");
+        return sample.keySet().stream().map(name -> "case." + name).map(path -> {
+            String label = RuleDescriptionService.CASE_LABELS.getOrDefault(path, path);
+            return new SourceField(path, Character.toUpperCase(label.charAt(0)) + label.substring(1),
+                    RuleSchema.CASE.fields().get(path), unitOf(path), FieldOrigin.CALCULATED, true);
+        }).toList();
+    }
+
+    /** {@code case.age_h} is in hours, the {@code _s} ones in seconds. */
+    private static String unitOf(String path) {
+        if (path.endsWith("_s")) {
+            return "s";
+        }
+        return path.endsWith("_h") ? "h" : null;
+    }
+
     /** Previews {@code spec}, or the draft (else the version in force) when it is null. */
     public Preview preview(String tenantCode, UUID id, SymptomSpec spec) {
         SymptomCatalogService.SymptomDetail detail = catalog.get(tenantCode, id);
         SymptomSpec checked = spec != null && !spec.isEmpty() ? spec : pick(detail);
         String key = checked.source() == null ? detail.definition().sourceKey() : checked.source();
         DataSource source = sources.get(tenantCode, key);
-        return new Preview(source.key(), run(checked, source), cases(checked.lifecycle(), source));
+        return new Preview(source.key(), run(checked, source), cases(checked.lifecycle(), source),
+                CASE_FIELDS);
     }
 
     static List<SamplePreview> run(SymptomSpec spec, DataSource source) {

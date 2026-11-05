@@ -58,7 +58,8 @@ public class RuleDescriptionService {
             "held_s", "segundos que lleva la condición",
             "open_s", "segundos desde que se abrió el caso");
 
-    private static final Map<String, String> CASE_LABELS = Map.of(
+    /** What each case variable holds, as the descriptions and the editor's case fields name it. */
+    static final Map<String, String> CASE_LABELS = Map.of(
             "case.off_trip_s", "segundos fuera de un viaje",
             "case.condition_s", "segundos con la condición presente",
             "case.normal_s", "segundos desde que volvió a la normalidad",

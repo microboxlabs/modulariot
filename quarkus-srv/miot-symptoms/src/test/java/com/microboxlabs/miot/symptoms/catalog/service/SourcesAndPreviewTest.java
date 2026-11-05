@@ -188,4 +188,18 @@ class SourcesAndPreviewTest {
         assertTrue(cases.get(2).error() != null && !cases.get(2).error().isBlank());
         assertTrue(PreviewService.cases(null).isEmpty());
     }
+
+    @Test
+    void theCaseFieldsAreNamedTypedAndInTheMomentsOrder() {
+        List<SourceField> fields = PreviewService.CASE_FIELDS;
+        Map<String, Object> moment = PreviewService.SCENARIOS.get(0).sample();
+
+        assertEquals(((Map<?, ?>) moment.get("case")).keySet().stream().map(k -> "case." + k).toList(),
+                fields.stream().map(SourceField::path).toList());
+        SourceField age = fields.stream().filter(f -> f.path().equals("case.age_h")).findFirst().orElseThrow();
+        assertEquals("Horas desde que se abrió el caso", age.label());
+        assertEquals("number", age.type());
+        assertEquals("h", age.unit());
+        assertTrue(fields.stream().allMatch(f -> f.type() != null && !f.label().startsWith("case.")));
+    }
 }

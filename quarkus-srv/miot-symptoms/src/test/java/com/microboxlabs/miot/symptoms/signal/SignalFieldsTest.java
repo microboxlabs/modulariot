@@ -12,6 +12,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.FieldOrigin;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -59,7 +60,10 @@ class SignalFieldsTest {
         Map<String, SourceField> fields = byPath();
         for (SourceField declared : JSON.readValue(DECLARED, new TypeReference<List<SourceField>>() {
         })) {
-            assertEquals(declared, fields.get(declared.path()), declared.path());
+            SourceField f = fields.get(declared.path());
+            assertNotNull(f, declared.path());
+            assertEquals(declared, new SourceField(f.path(), f.label(), f.type(), f.unit(), f.origin(),
+                    f.engineSupported(), f.values()), declared.path());
         }
     }
 
@@ -85,6 +89,29 @@ class SignalFieldsTest {
                 .toList();
 
         assertEquals(List.of(), missing, "add these paths to " + SignalFields.LABELS);
+    }
+
+    @Test
+    void everyFieldOfBothSourcesHasATitle() {
+        List<SourceField> all = new ArrayList<>(SignalFields.fields());
+        all.addAll(SignalFields.fields(TripCheck.class, TripCheck.ROOT));
+        List<String> untitled = all.stream()
+                .filter(f -> f.label() == null || f.label().equals(f.path().substring(f.path().lastIndexOf('.') + 1)))
+                .map(SourceField::path).toList();
+
+        assertEquals(List.of(), untitled, "give these fields a @Schema title");
+    }
+
+    @Test
+    void passesTheSchemaDescription() {
+        Map<String, SourceField> fields = byPath();
+
+        assertEquals("Dentro de al menos una zona autorizada",
+                fields.get("signal.geo.authorized_zone").description());
+        assertEquals("Los eventos del equipo que trae la trama", fields.get("signal.frame.events").description());
+        assertEquals(null, fields.get("signal.trip.age_min").description());
+        assertEquals("min", fields.get("signal.trip.age_min").unit());
+        assertEquals(FieldOrigin.TRIP, fields.get("signal.trip.age_min").origin());
     }
 
     @Test

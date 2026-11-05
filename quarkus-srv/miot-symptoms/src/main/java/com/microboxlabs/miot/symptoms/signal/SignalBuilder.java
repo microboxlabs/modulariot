@@ -5,6 +5,7 @@ import cl.streamhub.gps.model.EnvelopedMessage;
 import cl.streamhub.gps.model.Event;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,9 +16,9 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
- * Builds {@link GpsSignal}s from GPS frames and the reference cache. What it
- * does not know yet is left out: the vehicle, the road limits, the zones and
- * the derived values.
+ * Builds {@link GpsSignal}s from GPS frames, the reference cache and the
+ * clients' zones. What it does not know yet is left out: the vehicle, the road
+ * limits and the 5-minute average speed.
  */
 public class SignalBuilder {
 
@@ -35,10 +36,16 @@ public class SignalBuilder {
 
     private final ReferenceCache refs;
     private final ZoneId zone;
+    private final Zones zones;
 
     public SignalBuilder(ReferenceCache refs, ZoneId zone) {
+        this(refs, zone, new Zones());
+    }
+
+    public SignalBuilder(ReferenceCache refs, ZoneId zone, Zones zones) {
         this.refs = refs;
         this.zone = zone;
+        this.zones = zones;
     }
 
     /** The signal, or empty when the frame has no vehicle id or time. */
@@ -57,9 +64,29 @@ public class SignalBuilder {
         Boolean moving = frame.getGps() == null ? null : frame.getGps().getSpeed() > MOVING_KMH;
         GpsSignal.Derived derived = new GpsSignal.Derived(moving, null, event(frame, POWER_DISCONNECTED),
                 event(frame, JAMMING));
+        Map<String, GpsSignal.Geo> geos = geos(frame, clients);
+        LocalTime local = at.atZone(zone).toLocalTime();
         // The time the platform's gateway received the frame (X-Request-Timestamp), carried by the envelope.
         return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, message.getTimestamp(), clients, sender,
-                trips.isEmpty() ? null : trips, null, null, null, null, at.atZone(zone).getHour(), derived, frame));
+                trips.isEmpty() ? null : trips, null, null, null, null, geos.isEmpty() ? null : geos,
+                local.getHour(), local.toSecondOfDay() / 60.0, derived, frame));
+    }
+
+    /** Each client's zones at the frame's position; none for a frame without a position or a client without zones. */
+    private Map<String, GpsSignal.Geo> geos(AssetTrackingData frame, List<String> clients) {
+        Map<String, GpsSignal.Geo> out = new LinkedHashMap<>();
+        if (frame.getGps() == null || frame.getGps().getLatitude() == 0 && frame.getGps().getLongitude() == 0) {
+            return out;
+        }
+        double lon = frame.getGps().getLongitude();
+        double lat = frame.getGps().getLatitude();
+        for (String client : clients) {
+            GpsSignal.Geo geo = zones.at(client, lon, lat);
+            if (geo != null) {
+                out.put(client, geo);
+            }
+        }
+        return out;
     }
 
     /** True when one of the frame's events matches, false otherwise: a rule reads it without {@code has()}. */

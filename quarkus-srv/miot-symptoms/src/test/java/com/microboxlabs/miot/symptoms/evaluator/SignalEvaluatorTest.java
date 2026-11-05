@@ -279,9 +279,9 @@ class SignalEvaluatorTest {
         List<CompiledSymptom> one = List.of(CompiledSymptom.compile(stop, "0.1.0", SymptomState.TEST, night,
                 platform));
         Map<String, Object> stopped = Map.of("signal", Map.of(
-                "trip", Map.of("active", true),
+                "trip", Map.of("active", true, "double_driver", false),
                 "derived", Map.of("moving", false),
-                "geo", Map.of("authorized_zone", false),
+                "geo", Map.of("authorized_zone", false, "outside_authorized", true),
                 "local_hour", 23.0));
         List<String> seen = new ArrayList<>();
         for (int sec : new int[] {0, 300, 600, 900, 1200, 1800, 1900}) {

@@ -34,6 +34,7 @@ public record RuleSchema(String root, Map<String, String> fields, Map<String, St
             "case.age_h", NUMBER,
             "case.level", NUMBER,
             "case.closed_by_operator", "bool",
+            "case.closed_on_trip", "bool",
             "case.off_trip_s", NUMBER), Map.of());
 
     public static RuleSchema of(DataSource source) {

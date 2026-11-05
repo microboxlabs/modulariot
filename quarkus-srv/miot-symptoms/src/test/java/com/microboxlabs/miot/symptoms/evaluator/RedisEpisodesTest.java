@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
@@ -10,6 +11,7 @@ import io.vertx.mutiny.redis.client.RedisAPI;
 import io.vertx.redis.client.RedisOptions;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,6 +27,8 @@ class RedisEpisodesTest {
 
     private static final Duration WAIT = Duration.ofSeconds(5);
     private static final String ASSET = "episode-test-" + UUID.randomUUID();
+    private static final String CLOSE_ASSET = ASSET + "-close";
+    private static final String FORGET_ASSET = ASSET + "-forget";
     private static Vertx vertx;
     private static Redis client;
     private static RedisAPI redis;
@@ -41,7 +45,9 @@ class RedisEpisodesTest {
     static void tearDown() {
         if (redis != null) {
             redis.del(List.of(RedisEpisodes.key("tenant-a", ASSET), RedisEpisodes.key("tenant-b", ASSET),
-                    RedisEpisodes.tenantsKey(ASSET))).await().atMost(WAIT);
+                    RedisEpisodes.tenantsKey(ASSET), RedisEpisodes.key("tenant-a", CLOSE_ASSET),
+                    RedisEpisodes.tenantsKey(CLOSE_ASSET), RedisEpisodes.key("tenant-a", FORGET_ASSET),
+                    RedisEpisodes.tenantsKey(FORGET_ASSET))).await().atMost(WAIT);
         }
         if (client != null) {
             client.close();
@@ -84,8 +90,17 @@ class RedisEpisodesTest {
 
         second.forgetStale(tenant, ASSET, id, current.state(), at.minusSeconds(1));
         assertEquals(current, first.load(tenant, ASSET).find(tenant, ASSET, id).orElseThrow());
+        AssetEpisodes beforeSweep = first.load(tenant, ASSET);
+        beforeSweep.save(tenant, current);
         second.forgetStale(tenant, ASSET, id, current.state(), at);
         assertTrue(first.load(tenant, ASSET).find(tenant, ASSET, id).isEmpty());
+        assertThrows(ConcurrentModificationException.class, () -> first.save(beforeSweep));
+
+        Episode marker = Episode.closedOnTrip(id, ASSET, "T-1");
+        second.operatorClose(tenant, ASSET, id, marker);
+        second.forgetStale(tenant, ASSET, id, current.state(), at.plusSeconds(1));
+        assertEquals(marker, first.load(tenant, ASSET).find(tenant, ASSET, id).orElseThrow());
+        second.forget(tenant, ASSET, id);
     }
 
     @Test
@@ -116,5 +131,17 @@ class RedisEpisodesTest {
         redis.del(List.of(RedisEpisodes.key("tenant-b", ASSET))).await().atMost(WAIT);
         resumed.save(resumed.load("tenant-b", ASSET));
         assertTrue(resumed.tenantsWithEpisodes(ASSET).isEmpty());
+    }
+
+    @Test
+    void anOperatorMarkerRejectsStaleWritesAndDeletesAcrossRepositories() {
+        EpisodeRepositoryConcurrencyTest.assertMarkerProtectsSnapshots(
+                new RedisEpisodes(redis, Duration.ofDays(7)), new RedisEpisodes(redis, Duration.ofDays(7)), CLOSE_ASSET);
+    }
+
+    @Test
+    void anOperatorCloseWithoutATripRejectsStaleReopeningAcrossRepositories() {
+        EpisodeRepositoryConcurrencyTest.assertUnmarkedCloseProtectsSnapshot(
+                new RedisEpisodes(redis, Duration.ofDays(7)), new RedisEpisodes(redis, Duration.ofDays(7)), FORGET_ASSET);
     }
 }

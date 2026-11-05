@@ -368,6 +368,27 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void anOperatorsCloseHandsTheCasesTripToTheEvaluator() {
+        List<String> closes = new ArrayList<>();
+        EngineCaseService withTrips = new EngineCaseService(store, new EngineCaseService.Forget() {
+            @Override
+            public void episode(String tenantCode, String assetId, UUID definitionId) {
+                closes.add("episode " + assetId);
+            }
+
+            @Override
+            public void closed(String tenantCode, String assetId, UUID definitionId, String tripId) {
+                closes.add(assetId + " on " + tripId);
+            }
+        }, t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+        store.add(panic(12, "DEMO01"));
+
+        withTrips.close(TENANT, -12, "operator@example.com");
+
+        assertEquals(List.of("DEMO01 on T-1"), closes);
+    }
+
+    @Test
     void closedCasesAreNotCounted() {
         store.add(panic(12, "DEMO01"));
         service.close(TENANT, -12, "operator@example.com");

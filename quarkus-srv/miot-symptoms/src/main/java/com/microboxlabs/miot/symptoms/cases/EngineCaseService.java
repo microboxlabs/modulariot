@@ -126,6 +126,11 @@ public class EngineCaseService {
     public interface Forget {
         void episode(String tenantCode, String assetId, UUID definitionId);
 
+        /** The operator closed the case on this trip (null when it had none); the open rule may read it. */
+        default void closed(String tenantCode, String assetId, UUID definitionId, String tripId) {
+            episode(tenantCode, assetId, definitionId);
+        }
+
         default void staleEpisode(EngineCaseStore.StaleCase c) {
             episode(c.tenantCode(), c.assetId(), c.definitionId());
         }
@@ -154,6 +159,11 @@ public class EngineCaseService {
             @Override
             public void episode(String tenantCode, String assetId, UUID definitionId) {
                 evaluator.forget(tenantCode, assetId, definitionId);
+            }
+
+            @Override
+            public void closed(String tenantCode, String assetId, UUID definitionId, String tripId) {
+                evaluator.forget(tenantCode, assetId, definitionId, tripId);
             }
 
             @Override
@@ -1063,7 +1073,7 @@ public class EngineCaseService {
     public void close(String tenantCode, long symptomId, String actor) {
         EngineCase c = find(tenantCode, symptomId);
         if (c.closedAt() == null) {
-            forget.episode(tenantCode, c.assetId(), c.definitionId());
+            forget.closed(tenantCode, c.assetId(), c.definitionId(), c.tripId());
             Instant at = clock.instant();
             if (store.close(tenantCode, c.id(), actor, at)) {
                 events.closedByOperator(tenantCode, c, actor, at);

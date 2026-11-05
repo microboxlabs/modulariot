@@ -251,7 +251,12 @@ public class TripChecks {
 
     /** Drops the vehicle's episode of the symptom, as when an operator closes its case. */
     public void forget(String tenant, String assetId, UUID definitionId) {
-        episodes.forget(tenant, assetId, definitionId);
+        forget(tenant, assetId, definitionId, null);
+    }
+
+    /** Atomically closes the episode without exposing an empty state before the GPS consumer's marker. */
+    public void forget(String tenant, String assetId, UUID definitionId, Episode marker) {
+        episodes.operatorClose(tenant, assetId, definitionId, marker);
     }
 
     /** Preserves an episode opened after the case the sweep closed. */

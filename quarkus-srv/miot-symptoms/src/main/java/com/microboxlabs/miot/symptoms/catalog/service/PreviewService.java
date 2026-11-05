@@ -93,6 +93,7 @@ public class PreviewService {
             fields.put("age_h", ageH);
             fields.put("level", (double) level);
             fields.put("closed_by_operator", closedByOperator);
+            fields.put("closed_on_trip", false);
             fields.put("off_trip_s", NOT_NORMAL);
             return Map.of("case", fields);
         }

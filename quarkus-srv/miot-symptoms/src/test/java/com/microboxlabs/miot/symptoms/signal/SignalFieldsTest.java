@@ -118,7 +118,8 @@ class SignalFieldsTest {
                         "rampla", "AB1234", new GpsSignal.Driver("d-1", true, GpsSignal.DriverStatus.ACTIVE, false)),
                 new GpsSignal.Vehicle(GpsSignal.WeightCategory.HEAVY, 30000.0),
                 new GpsSignal.Road(90.0, 80.0),
-                new GpsSignal.Geo(false, "Z-1"), 14, new GpsSignal.Derived(true, 40.0, false, false), frame);
+                new GpsSignal.Geo(false, "Z-1", true, true), null, 14, 870.5,
+                new GpsSignal.Derived(true, 40.0, false, false), frame);
         Map<String, Object> root = Map.of(SignalFields.ROOT, JSON.convertValue(signal, new TypeReference<>() {
         }));
 
@@ -126,7 +127,8 @@ class SignalFieldsTest {
                 "signal.trip.late_min", "signal.trip.origin.label",
                 "signal.trip.destination.visited", "signal.trip.carrier.name", "signal.trip.driver.status",
                 "signal.trip.driver.license_expired", "signal.vehicle.weight_category", "signal.frame.gps.speed",
-                "signal.road.maxspeed_osm", "signal.geo.zone", "signal.local_hour", "signal.derived.moving",
+                "signal.road.maxspeed_osm", "signal.geo.zone", "signal.geo.risk_zone",
+                "signal.geo.outside_authorized", "signal.local_hour", "signal.local_minutes", "signal.derived.moving",
                 "signal.derived.speed_avg_5m", "signal.frame.sensors.engine_status",
                 "signal.frame.gps.latitude", "signal.frame.sensors.panic_button")) {
             assertTrue(byPath().containsKey(path), path);

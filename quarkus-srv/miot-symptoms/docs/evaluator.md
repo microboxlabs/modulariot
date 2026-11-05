@@ -10,7 +10,9 @@ Runs published symptom versions on a vehicle's signals and keeps one episode per
 | `MIOT_SYMPTOMS_EVALUATOR_REDIS_URL` | `redis://:password@host:6379`; unset keeps episodes in memory (one replica only) | unset |
 | `MIOT_SYMPTOMS_EVALUATOR_EPISODE_TTL` | How long a vehicle's episodes live after their last write | `P7D` |
 
-Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>`: a field `ep:<symptom id>` per episode (JSON) and `wm:<source>` per watermark. The subscription is `Key_Shared` on `asset_id`, so one vehicle's signals are evaluated in order on one replica. A signal whose Redis, catalog or database call fails is redelivered (twice at most); the transition is written before the episode, and a replay does not write it again.
+Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>`: a field `ep:<symptom id>` per episode (JSON) and `wm:<source>` per watermark. The subscription is `Key_Shared` on `asset_id`, so one vehicle's signals are evaluated in order on one replica. An operator close advances a revision in the episode hash atomically with its marker. Both consumers install the same marker atomically, keeping trip suppression visible between their close operations. A save from an older revision fails and retries with the new state. Transitions and events are still emitted before the guarded save, so this protects close markers without making the database/event side effects atomic with the operator close.
+
+A signal whose Redis, catalog or database call fails is redelivered (twice at most); the transition is written before the episode, and a replay does not write it again.
 
 An expiring set per vehicle, `symptoms:ep-tenants:<asset>`, indexes organizations with unfinished episodes. When an organization leaves the signal's `clients` (for example, its last trip ends), the evaluator reconciles its existing episodes with only the vehicle id, time and `trip.active: false`. An activation that is false on that input starts or advances the normal timer; its lifecycle still decides when to close. An activation needing unavailable GPS fields stays unknown, and operator-only cases stay open. Reconciliation keeps no samples, carries no GPS position or speed, and opens no cases. The index is updated atomically with the episodes and also exists in memory without Redis.
 
@@ -42,7 +44,7 @@ Rule previews use the organization's recent signals. At most one signal per orga
 
 `case.off_trip_s` counts from the first observed off-trip frame of an open case and resets on a trip; it is -1 while on a trip or without trip evidence. Cargo rules require both 1200 seconds off a trip and 1200 seconds without their event.
 
-`case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals.
+`case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals. `case.closed_on_trip` is true when an operator closed a case of the symptom on the trip the signal carries (`trip.id`); an open rule `case.condition_s >= 0 && !case.closed_on_trip` opens no other case on that trip. The episode keeps the trip until a newer ordinary signal of another trip, or of none; buffered frames from older trips cannot clear it.
 
 ## Order, versions and failures
 

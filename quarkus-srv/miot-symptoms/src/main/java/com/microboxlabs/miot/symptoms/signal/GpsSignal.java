@@ -86,7 +86,20 @@ public record GpsSignal(
             @JsonProperty("load_type") String loadType,
             @Schema(title = "Patente del remolque", extensions = @Extension(name = "x-origin", value = "TRIP"))
             @JsonProperty("trailer_plate") String trailerPlate,
-            @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) Driver driver) {
+            @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) Driver driver,
+            @Schema(title = "Desvío de la llegada prevista", description = "Predicted arrival (now plus the "
+                    + "remaining time the route's history predicts) minus the estimated arrival; negative when early",
+                    extensions = { @Extension(name = "x-unit", value = "min"),
+                            @Extension(name = "x-origin", value = "CALCULATED"),
+                            @Extension(name = "x-engine", value = "false") })
+            @JsonProperty("eta_deviation_min") Double etaDeviationMin) {
+
+        public Trip(Boolean active, Boolean doubleDriver, String id, String code, String type, String status,
+                Double ageMin, Double lateMin, Origin origin, Destination destination, Integer currentZoneId,
+                Carrier carrier, String loadType, String trailerPlate, Driver driver) {
+            this(active, doubleDriver, id, code, type, status, ageMin, lateMin, origin, destination, currentZoneId,
+                    carrier, loadType, trailerPlate, driver, null);
+        }
 
         /** A vehicle without a trip in progress. */
         public static Trip none() {

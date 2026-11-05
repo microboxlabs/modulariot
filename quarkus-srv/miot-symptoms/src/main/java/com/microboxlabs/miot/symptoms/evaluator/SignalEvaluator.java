@@ -311,13 +311,14 @@ public class SignalEvaluator {
             Map<String, Object> root) {
         // An operator's close holds for the trip it was on; another trip, or none, clears it.
         String marker = e.closedOnTrip() != null && e.closedOnTrip().equals(tripId(root)) ? e.closedOnTrip() : null;
+        Instant markedAt = marker == null ? null : e.closedOnTripAt();
         if (r.active()
                 && condition(s.open(), lifecycleVars(root,
-                        caseFields(r.conditionSince(), r.normalSince(), null, r.level(), at, marker != null)),
+                        caseFields(r.conditionSince(), r.normalSince(), null, r.level(), at, marker, markedAt)),
                         "lifecycle.open")) {
             if (held) {
                 Episode kept = new Episode(s.definitionId(), s.version(), e.assetId(), null, r.conditionSince(),
-                        r.normalSince(), Map.of(), at, null, r.level(), 0, marker);
+                        r.normalSince(), Map.of(), at, null, r.level(), 0, marker, markedAt);
                 Transition evidence = e.level() == 0
                         ? transition(Kind.HELD, s, e.assetId(), at, r.level(), 0, r.measure())
                         : null;
@@ -329,7 +330,7 @@ public class SignalEvaluator {
             return new Step(opened, transition(Kind.OPENED, s, e.assetId(), at, initial, 0, r.measure()));
         }
         return new Step(new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
-                r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0, marker), null);
+                r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0, marker, markedAt), null);
     }
 
     /** The trip id the source carries ({@code signal.trip.id}, {@code check.trip.id}), or null. */
@@ -432,18 +433,21 @@ public class SignalEvaluator {
     /** The {@code case} object the lifecycle reads. */
     private static Map<String, Object> caseFields(Instant conditionSince, Instant normalSince, Instant openedAt,
             int level, Instant at) {
-        return caseFields(conditionSince, normalSince, openedAt, level, at, false);
+        return caseFields(conditionSince, normalSince, openedAt, level, at, null, null);
     }
 
+    /** @param closedOnTrip the trip an operator closed a case of the symptom on, when it is the signal's */
     private static Map<String, Object> caseFields(Instant conditionSince, Instant normalSince, Instant openedAt,
-            int level, Instant at, boolean closedOnTrip) {
+            int level, Instant at, String closedOnTrip, Instant closedOnTripAt) {
         Map<String, Object> fields = new LinkedHashMap<>();
         fields.put("condition_s", seconds(conditionSince, at));
         fields.put("normal_s", normalSince == null ? NOT_NORMAL : seconds(normalSince, at));
         fields.put("age_h", seconds(openedAt, at) / 3600);
         fields.put("level", (double) level);
         fields.put("closed_by_operator", false);
-        fields.put("closed_on_trip", closedOnTrip);
+        fields.put("closed_on_trip", closedOnTrip != null);
+        fields.put("closed_on_trip_s", closedOnTrip == null ? NOT_NORMAL
+                : closedOnTripAt == null ? FOREVER : seconds(closedOnTripAt, at));
         return Map.of("case", fields);
     }
 

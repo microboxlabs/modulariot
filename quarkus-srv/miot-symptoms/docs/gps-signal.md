@@ -16,7 +16,7 @@ One GPS frame as symptom rules read it, under the CEL root `signal`. The signal 
 | `signal.asset_id` | Vehicle id as the device sends it | frame |
 | `signal.at` | Frame time | frame |
 | `signal.clients` | Client ids the vehicle belongs to | `asset_client_map` |
-| `signal.trip` | `active`, `double_driver`, `id` (the trip's UUID), `code` (service code), `type`, `status` (service status), `age_min`, `late_min`, `origin`, `destination`, `current_zone_id`, `carrier`, `load_type`, `trailer_plate` | `miot_trips.trip_live` of the organization |
+| `signal.trip` | `active`, `double_driver`, `id` (the trip's UUID), `code` (service code), `type`, `status` (service status), `age_min`, `late_min`, `origin`, `destination`, `current_zone_id`, `carrier`, `load_type`, `trailer_plate`; `eta_deviation_min` (not built yet) | `miot_trips.trip_live` of the organization |
 | `signal.trip.carrier` | `id` (tax id), `name` | `miot_fleet.carrier` |
 | `signal.trip.driver` | `id` (fleet id), `registered`, `status`, `license_expired` | `miot_fleet.driver`, found by the trip's `driver_id` (tax id) |
 | `signal.vehicle` | `weight_category`, `weight_kg` | vehicle data |

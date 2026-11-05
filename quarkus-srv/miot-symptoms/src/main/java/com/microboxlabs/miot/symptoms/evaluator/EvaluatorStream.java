@@ -335,7 +335,7 @@ public class EvaluatorStream {
             episodes.forget(tenant, assetId, definitionId);
         } else {
             AssetEpisodes state = episodes.load(tenant, assetId);
-            state.save(tenant, Episode.closedOnTrip(definitionId, assetId, tripId));
+            state.save(tenant, Episode.closedOnTrip(definitionId, assetId, tripId, clock.instant()));
             episodes.save(state);
         }
         lostSignal.forget(tenant, assetId, definitionId);

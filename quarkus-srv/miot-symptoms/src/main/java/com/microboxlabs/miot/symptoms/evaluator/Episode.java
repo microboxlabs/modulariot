@@ -34,7 +34,8 @@ public record Episode(
         Instant openedAt,
         int level,
         double maxMeasure,
-        String closedOnTrip) {
+        String closedOnTrip,
+        Instant closedOnTripAt) {
 
     public Episode {
         levelSince = levelSince == null ? Map.of() : Map.copyOf(levelSince);
@@ -44,18 +45,12 @@ public record Episode(
             Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
             double maxMeasure) {
         this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
-                openedAt, level, maxMeasure, null);
+                openedAt, level, maxMeasure, null, null);
     }
 
-    /** Nothing running, but an operator closed the symptom's case on this trip. */
-    public static Episode closedOnTrip(UUID definitionId, String assetId, String tripId) {
-        return new Episode(definitionId, "", assetId, null, null, null, Map.of(), null, null, 0, 0, tripId);
-    }
-
-    /** The same episode with this operator's trip marker. */
-    Episode marked(String tripId) {
-        return new Episode(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince,
-                lastSignalAt, openedAt, level, maxMeasure, tripId);
+    /** Nothing running, but an operator closed the symptom's case on this trip at {@code at}. */
+    public static Episode closedOnTrip(UUID definitionId, String assetId, String tripId, Instant at) {
+        return new Episode(definitionId, "", assetId, null, null, null, Map.of(), null, null, 0, 0, tripId, at);
     }
 
     public static Episode start(UUID definitionId, String version, String assetId) {

@@ -668,3 +668,66 @@ describe("emergency numbers", () => {
     });
   });
 });
+
+describe("panel scroll", () => {
+  it("scrolls the info, steps and other contacts in one area, with emergency numbers pinned outside it", async () => {
+    data.level = levelWith([
+      { role: "Conductor", channel: "call", budgetMinutes: 2 },
+    ]);
+    renderMenu();
+    const scroll = screen.getByTestId("call-center-scroll");
+    expect(scroll.className).toMatch(/\bmin-h-0\b/);
+    expect(scroll.className).toMatch(/\bflex-1\b/);
+    expect(scroll.className).toMatch(/\boverflow-y-auto\b/);
+    expect(
+      within(scroll).getByText(es.symptoms.proto_section_general)
+    ).toBeTruthy();
+    expect(
+      within(scroll).getByText(es.symptoms.proto_section_who)
+    ).toBeTruthy();
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: /Otros contactos/ }));
+    const search = screen.getByPlaceholderText(
+      es.symptoms.call_center_other_search_placeholder
+    );
+    expect(scroll.contains(search)).toBe(true);
+    expect(search.closest(".sticky")).toBeTruthy();
+
+    const emergency = screen.getByRole("button", {
+      name: "Llamar a Carabineros (133)",
+    });
+    expect(scroll.contains(emergency)).toBe(false);
+  });
+
+  it("renders other contacts a page at a time", async () => {
+    data.contacts = Array.from({ length: 120 }, (_, i) =>
+      contact(`c${i}`, `Contacto ${String(i).padStart(3, "0")}`, "Operador")
+    );
+    data.match = () => [];
+    data.level = levelWith([
+      { role: "Conductor", channel: "call", budgetMinutes: 2 },
+    ]);
+    renderMenu();
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: "Otros contactos (120)" })
+    );
+    expect(screen.queryByText("Contacto 049")).toBeTruthy();
+    expect(screen.queryByText("Contacto 050")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Ver más (70)" }));
+    expect(screen.queryByText("Contacto 099")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Ver más (20)" }));
+    expect(screen.queryByText("Contacto 119")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Ver más/ })).toBeNull();
+
+    await user.type(
+      screen.getByPlaceholderText(
+        es.symptoms.call_center_other_search_placeholder
+      ),
+      "Contacto 11"
+    );
+    expect(screen.getByText("Contacto 115")).toBeTruthy();
+  });
+});

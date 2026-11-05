@@ -7680,6 +7680,7 @@
       "noContacts": "Nadie en la libreta tiene este rol.",
       "otherContacts": "Otros contactos ({n})",
       "newNumber": "Nuevo número",
+      "showMore": "Ver más ({n})",
       "lookupPending": "Cargando contactos del viaje…",
       "tripLookupError": "No se pudieron cargar los contactos del viaje. Inténtalo de nuevo.",
       "levelLookupError": "No se pudo cargar el orden de llamadas.",

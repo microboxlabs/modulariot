@@ -43,6 +43,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * "Ignorar condición" holds against a real database: the tower's lists and counts, the SLA timer and the hold
@@ -191,6 +193,76 @@ class PgHoldsTest {
     }
 
     @Test
+    void theInboxUsesEachCasesVersionEvenAfterAnotherVersionIsPublished() {
+        UUID speeding = symptom("inbox-versions");
+        long originalLoud = open(speeding, TRUCK, now.minusSeconds(600), 3, null);
+        open(speeding, "ORIGINAL-QUIET", now.minusSeconds(500), 1, null);
+        PgIds.query(pool, """
+                INSERT INTO miot_symptoms.symptom_version
+                    (definition_id, tenant_code, version, status, spec, created_by)
+                VALUES ($1, $2, '2.0.0', 'PUBLISHED',
+                    '{"levels":[{"icu":1,"response":{"operator":true}},
+                                {"icu":3,"response":{"operator":false}}]}'::jsonb, 't')
+                """, Tuple.of(speeding, tenant));
+        PgIds.query(pool, "UPDATE miot_symptoms.symptom_definition SET current_version = '2.0.0' WHERE id = $1",
+                Tuple.of(speeding));
+        long newLoud = log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "2.0.0",
+                SymptomState.ACTIVE, "NEW-LOUD", now.minusSeconds(400), 1, 0, 30)), NOWHERE).get(0).caseId();
+        log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "2.0.0", SymptomState.ACTIVE,
+                "NEW-QUIET", now.minusSeconds(300), 3, 0, 30)), NOWHERE);
+
+        assertEquals(List.of(originalLoud, newLoud), inboxIds());
+        assertEquals(2, inboxCounted());
+
+        PgIds.query(pool, "UPDATE miot_symptoms.symptom_version SET spec = to_jsonb(spec::text) WHERE definition_id = $1",
+                Tuple.of(speeding));
+        assertEquals(List.of(originalLoud, newLoud), inboxIds(), "legacy JSON-string specs use the same rule");
+        assertEquals(2, inboxCounted());
+    }
+
+    @Test
+    void heldAndUnderTreatmentCountersFollowTheSameOperatorRuleAsTheirLists() {
+        UUID speeding = symptom("inbox-treatment");
+        long quiet = open(speeding, TRUCK, now.minusSeconds(600), 1, null);
+        long loud = open(speeding, "LOUD", now.minusSeconds(500), 3, null);
+        hold(quiet, now.minusSeconds(60), 1800, "CASE", false);
+        String loudHold = hold(loud, now.minusSeconds(60), 1800, "CASE", false);
+        EngineCaseStore.CaseFilter ignored = EngineCaseStore.CaseFilter.OPEN.withIgnored().forOperator();
+
+        assertEquals(List.of(loud), cases.list(tenant, ignored).stream().map(EngineCase::id).toList());
+        assertEquals(1, cases.towerCounts(tenant).ignored());
+        assertEquals(0, inboxCounted());
+        assertTrue(inboxIds().isEmpty());
+
+        changeLevel(speeding, "LOUD", now.minusSeconds(30), 1, 3);
+        assertTrue(cases.list(tenant, ignored).isEmpty());
+        assertEquals(0, cases.towerCounts(tenant).ignored());
+        end(loudHold, now.minusSeconds(20));
+        treatments.insert(new Treatment(null, tenant, -loud, "LOUD", null, TreatmentType.CALL,
+                TreatmentStatus.OPEN, "ops@example.com", now.atOffset(ZoneOffset.UTC), null, null, null, null,
+                null));
+        EngineCaseStore.CaseFilter treated = EngineCaseStore.CaseFilter.OPEN.withOpenTreatment().forOperator();
+        assertTrue(cases.list(tenant, treated).isEmpty());
+        assertEquals(0, inboxCounted());
+
+        changeLevel(speeding, "LOUD", now.minusSeconds(10), 3, 1);
+        assertEquals(List.of(loud), cases.list(tenant, treated).stream().map(EngineCase::id).toList());
+        assertEquals(1, inboxCounted());
+        assertTrue(cases.towerCounts(tenant).active().get(0).underTreatment());
+    }
+
+    @Test
+    void aLevelWithoutAResponseIsNotInTheInbox() {
+        UUID speeding = symptom("inbox-no-response", """
+                {"levels":[{"icu":3,"applies":true,"when":"true"}]}
+                """);
+        open(speeding, TRUCK, now.minusSeconds(600), 3, null);
+
+        assertTrue(inboxIds().isEmpty());
+        assertEquals(0, inboxCounted());
+    }
+
+    @Test
     void theInboxIsOrderedByLevelThenSlaThenArrivalAtTheLevel() {
         UUID speeding = symptom("order-speeding");
         UUID panic = symptom("order-panic", """
@@ -229,6 +301,8 @@ class PgHoldsTest {
         List<EngineCase> inbox = cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator());
         assertEquals(200, inbox.size());
         assertTrue(inbox.stream().anyMatch(c -> c.id() == black), "the oldest case is the most critical");
+        assertTrue(inbox.stream().anyMatch(c -> c.assetId().equals("DEMO-0")), "earliest SLA is kept");
+        assertFalse(inbox.stream().anyMatch(c -> c.assetId().equals("DEMO-199")), "latest SLAs are cut off");
     }
 
     @Test
@@ -337,10 +411,62 @@ class PgHoldsTest {
                 .filter(d -> d.tenantCode().equals(tenant)).toList();
         assertEquals(2, later.size(), "both cases need attention again after returning");
         assertTrue(later.stream().allMatch(d -> d.levelSince().equals(back)));
+        assertTrue(later.stream().allMatch(d -> cases.find(tenant, d.engineCase().id()).orElseThrow()
+                .slaStart().equals(d.levelSince())), "inbox SLA start equals the timer's start after a hold");
+    }
+
+    @Test
+    void aLevelChangeAfterReturningFromAHoldStartsANewSla() {
+        UUID speeding = symptom("inbox-sla-level");
+        long id = open(speeding, TRUCK, now.minusSeconds(3600), 3, null);
+        String hold = hold(id, now.minusSeconds(3000), 300, "CASE", false);
+        end(hold, now.minusSeconds(2400));
+        changeLevel(speeding, TRUCK, now.minusSeconds(1800), 1, 3);
+        Instant levelAt = now.minusSeconds(1200);
+        changeLevel(speeding, TRUCK, levelAt, 3, 1);
+
+        SlaStore.Due due = due().get(0);
+        EngineCase inbox = cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator()).get(0);
+        assertEquals(id, due.engineCase().id());
+        assertEquals(levelAt, due.levelSince());
+        assertEquals(due.levelSince(), inbox.slaStart());
+        assertEquals(levelAt.plusSeconds(900), inbox.slaDeadline());
+        EngineCaseService service = new EngineCaseService(cases, (t, a, d) -> { }, t -> null,
+                Clock.fixed(now, ZoneOffset.UTC));
+        assertEquals(due.levelSince().toString(), service.casesPage(tenant, Map.of())
+                .path("data").get(0).path("sla_since").asText());
     }
 
     private List<SlaStore.Due> due() {
         return sla.due(now.minusSeconds(7200), now, 100).stream().filter(d -> d.tenantCode().equals(tenant)).toList();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "ALL", "SYMPTOM" })
+    void holdsEndingAfterACaseClosedDoNotReplaceItsLastSlaStart(String scope) {
+        UUID speeding = symptom("closed-sla");
+        long closed = open(speeding, TRUCK, now.minusSeconds(3600), 3, null);
+        String originalHold = hold(closed, now.minusSeconds(3000), 300, "CASE", false);
+        Instant originalReturn = now.minusSeconds(2400);
+        end(originalHold, originalReturn);
+        assertTrue(cases.close(tenant, closed, "ops@example.com", now.minusSeconds(1800)));
+        long next = open(speeding, TRUCK, now.minusSeconds(1200), 3, null);
+        String laterHold = hold(next, now.minusSeconds(1100), 300, scope, false);
+        Instant laterReturn = now.minusSeconds(800);
+        end(laterHold, laterReturn);
+
+        EngineCase history = cases.find(tenant, closed).orElseThrow();
+        assertEquals(originalReturn, history.returnedAt());
+        assertEquals(originalReturn, history.slaStart());
+        assertEquals(laterReturn, cases.find(tenant, next).orElseThrow().slaStart());
+        EngineCaseService service = new EngineCaseService(cases, (t, a, d) -> { }, t -> null,
+                Clock.fixed(now, ZoneOffset.UTC));
+        JsonNode page = service.casesPage(tenant, Map.of("p_start_date_historic", now.minusSeconds(7200).toString(),
+                "p_end_date_historic", now.toString()));
+        List<JsonNode> rows = new ArrayList<>();
+        page.path("data").forEach(rows::add);
+        JsonNode row = rows.stream().filter(r -> r.path("id").asLong() == -closed).findFirst().orElseThrow();
+        assertEquals(originalReturn.toString(), row.path("sla_since").asText());
     }
 
     @Test

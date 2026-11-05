@@ -44,10 +44,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.asset_id, o.at, o.level, o.trip_id,
                    o.latitude, o.longitude, o.speed_kmh, d.name, d.family,
-                   (SELECT c.id FROM miot_symptoms.signal_transitions c
-                     WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
-                       AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id
-                     ORDER BY c.id LIMIT 1) AS closed_id,
+                   closed.id AS closed_id, closed.at AS closed_at,
                    (SELECT count(*) FROM miot_symptoms.treatment t
                      WHERE t.tenant_code = o.tenant_code AND t.symptom_id = -o.id AND t.status = 'OPEN') AS treatments,
                    CASE WHEN o.trip_id IS NOT NULL THEN
@@ -59,17 +56,21 @@ public class PgEngineCases implements EngineCaseStore {
                    ret.returned_at
               FROM miot_symptoms.signal_transitions o
               JOIN miot_symptoms.symptom_definition d ON d.id = o.definition_id AND d.tenant_code = o.tenant_code
+              LEFT JOIN LATERAL (SELECT c.id, c.at FROM miot_symptoms.signal_transitions c
+                     WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
+                       AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id
+                     ORDER BY c.id LIMIT 1) closed ON true
               LEFT JOIN LATERAL (%s) hold ON true
               LEFT JOIN LATERAL (%s) ret ON true
              WHERE o.tenant_code = $1 AND o.kind = 'OPENED' AND o.state = 'ACTIVE'
-            """.formatted(HoldSql.active("o"), HoldSql.returned("o"));
+            """.formatted(HoldSql.active("o"), HoldSql.returned("o", "closed.at"));
 
     /**
      * The case's level is its latest level change before it closed, else the opening one; {@code level_at} is when
      * it reached that level.
      */
     private static final String SELECT = """
-            SELECT x.*, (SELECT c.at FROM miot_symptoms.signal_transitions c WHERE c.id = x.closed_id) AS closed_at,
+            SELECT x.*,
                    COALESCE(lv.level, x.level) AS current_level, COALESCE(lv.at, x.at) AS level_at
               FROM (%s) x
               LEFT JOIN LATERAL (SELECT l.level, l.at FROM miot_symptoms.signal_transitions l

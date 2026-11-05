@@ -3,13 +3,6 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  Button,
-  Label,
-  Spinner,
-  TextInput,
-  ToggleSwitch,
-} from "flowbite-react";
 import { HiOutlineMap } from "react-icons/hi";
 import { toast } from "sonner";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -21,25 +14,57 @@ import {
   type GeocodingPlanDraft,
   type GeocodingPlanError,
 } from "./geocoding-plan-form";
+import UsagePlanSection, {
+  PlanNote,
+  type PlanField,
+} from "./usage-plan-section";
 import { useGeocodingPlan } from "./use-geocoding-plan";
 
-/** Bounds of each number field; prices go to a hundredth of a cent. */
-const NUMBER_LIMITS: Record<
-  keyof Omit<GeocodingPlanDraft, "enforced">,
-  { min: number; max?: number; step: number }
-> = {
-  resolutionsPerMonth: { min: 0, step: 1 },
-  alertPct: { min: 1, max: 100, step: 1 },
-  monthlyPriceUsd: { min: 0, step: 0.01 },
-  overagePriceUsd: { min: 0, step: 0.0001 },
-};
+type NumberKey = keyof Omit<GeocodingPlanDraft, "enforced">;
+
+/** Each number field: its id, label key and bounds; prices go to a hundredth of a cent. */
+const FIELDS: readonly {
+  key: NumberKey;
+  id: string;
+  label: string;
+  min: number;
+  max?: number;
+  step: number;
+}[] = [
+  {
+    key: "resolutionsPerMonth",
+    id: "geo-plan-quota",
+    label: "resolutions",
+    min: 0,
+    step: 1,
+  },
+  {
+    key: "alertPct",
+    id: "geo-plan-alert",
+    label: "alertPct",
+    min: 1,
+    max: 100,
+    step: 1,
+  },
+  {
+    key: "monthlyPriceUsd",
+    id: "geo-plan-price",
+    label: "monthlyPrice",
+    min: 0,
+    step: 0.01,
+  },
+  {
+    key: "overagePriceUsd",
+    id: "geo-plan-overage",
+    label: "overagePrice",
+    min: 0,
+    step: 0.0001,
+  },
+];
 
 interface GeocodingPlanSectionProps {
   readonly dict: I18nRecord;
 }
-
-const SECTION =
-  "rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800";
 
 /**
  * The geocoding plan: prices, the default monthly quota, the alert share and
@@ -80,83 +105,41 @@ export default function GeocodingPlanSection({
     }
   };
 
-  const field = (
-    id: string,
-    key: keyof Omit<GeocodingPlanDraft, "enforced">,
-    label: string
-  ) =>
-    draft && (
-      <div>
-        <Label htmlFor={id}>{label}</Label>
-        <TextInput
-          id={id}
-          type="number"
-          {...NUMBER_LIMITS[key]}
-          value={draft[key]}
-          onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
-        />
-      </div>
-    );
+  const fields: PlanField[] = draft
+    ? FIELDS.map((f) => ({
+        id: f.id,
+        label: trDynamic(f.label, dict),
+        value: draft[f.key],
+        min: f.min,
+        max: f.max,
+        step: f.step,
+        onChange: (value) => setDraft({ ...draft, [f.key]: value }),
+      }))
+    : [];
 
   return (
-    <section className={SECTION}>
-      <div className="flex items-center gap-2">
-        <HiOutlineMap className="h-5 w-5 text-blue-500" />
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-          {tr("title", dict)}
-        </h2>
-      </div>
-      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-        {tr("description", dict)}
-      </p>
-      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-        {tr("providerHint", dict)}
-      </p>
-
-      {isLoading && <Spinner size="sm" className="mt-3" />}
-      {error && (
-        <p className="mt-3 text-sm text-red-600 dark:text-red-400">
-          {tr("loadError", dict)}
-        </p>
-      )}
-
-      {draft && (
+    <UsagePlanSection
+      icon={HiOutlineMap}
+      title={tr("title", dict)}
+      description={tr("description", dict)}
+      hint={tr("providerHint", dict)}
+      isLoading={isLoading}
+      loadError={error ? tr("loadError", dict) : null}
+      enforced={
+        draft && {
+          checked: draft.enforced,
+          label: tr("enforced", dict),
+          help: draft.enforced
+            ? tr("enforcedOn", dict)
+            : tr("enforcedOff", dict),
+          onChange: (enforced) => setDraft({ ...draft, enforced }),
+        }
+      }
+      fields={fields}
+      notes={
         <>
-          <div className="mt-4">
-            <ToggleSwitch
-              checked={draft.enforced}
-              label={tr("enforced", dict)}
-              onChange={(enforced) => setDraft({ ...draft, enforced })}
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {draft.enforced
-                ? tr("enforcedOn", dict)
-                : tr("enforcedOff", dict)}
-            </p>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-            {field(
-              "geo-plan-quota",
-              "resolutionsPerMonth",
-              tr("resolutions", dict)
-            )}
-            {field("geo-plan-alert", "alertPct", tr("alertPct", dict))}
-            {field(
-              "geo-plan-price",
-              "monthlyPriceUsd",
-              tr("monthlyPrice", dict)
-            )}
-            {field(
-              "geo-plan-overage",
-              "overagePriceUsd",
-              tr("overagePrice", dict)
-            )}
-          </div>
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            {tr("countHelp", dict)}
-          </p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <PlanNote first>{tr("countHelp", dict)}</PlanNote>
+          <PlanNote>
             {tr("alertsHint", dict)}{" "}
             <Link
               href={`/${lang}/users/settings/communications?section=rules`}
@@ -164,26 +147,14 @@ export default function GeocodingPlanSection({
             >
               {tr("alertsLink", dict)}
             </Link>
-          </p>
-
-          {problem && (
-            <p className="mt-3 text-sm text-red-600 dark:text-red-400">
-              {trDynamic(`errors.${problem}`, dict)}
-            </p>
-          )}
-
-          <div className="mt-4 flex justify-end">
-            <Button
-              size="sm"
-              color="blue"
-              disabled={isSaving}
-              onClick={() => void submit()}
-            >
-              {isSaving ? tr("saving", dict) : tr("save", dict)}
-            </Button>
-          </div>
+          </PlanNote>
         </>
-      )}
-    </section>
+      }
+      problem={problem && trDynamic(`errors.${problem}`, dict)}
+      isSaving={isSaving}
+      saveLabel={tr("save", dict)}
+      savingLabel={tr("saving", dict)}
+      onSave={() => void submit()}
+    />
   );
 }

@@ -38,7 +38,7 @@ import {
   type TenantFilters,
   type TenantSort,
 } from "./geocoding-tenants-view";
-import { monthOf } from "@/features/geocoding/geocoding-plan-view";
+import { monthOf } from "@/features/metered-usage/usage-view";
 import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
 import PlatformSectionList, {

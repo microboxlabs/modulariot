@@ -21,6 +21,11 @@ import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.Crea
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
+import com.microboxlabs.miot.symptoms.lostsignal.InMemoryLossStore;
+import com.microboxlabs.miot.symptoms.lostsignal.LossSettings;
+import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
+import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector.TickerSettings;
+import com.microboxlabs.miot.symptoms.lostsignal.TripChecks;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.signal.ReferenceCache;
 import com.microboxlabs.miot.symptoms.signal.SignalBuilder;
@@ -97,6 +102,34 @@ class EvaluatorStreamTest {
         return new EvaluatorStream(true, evaluatorCatalog,
                 new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()),
                 Clock.systemUTC(), episodes, samples);
+    }
+
+    @Test
+    void operatorCloseMarkersSurviveTheLostSignalConsumersSharedRepositoryCleanup() {
+        var repository = new InMemoryEpisodeRepository();
+        var meters = new SimpleMeterRegistry();
+        var clock = Clock.systemUTC();
+        var checks = new TripChecks(evaluatorCatalog, repository, log, events,
+                new AuditService(new InMemoryAuditStore()), meters);
+        var detector = new LostSignalDetector(true, new InMemoryLossStore(), LossSettings.defaults(),
+                TickerSettings.defaults(), checks, meters, clock);
+        var consumer = new EvaluatorStream(true, evaluatorCatalog, new EvaluatorStream.Sinks(log, events, meters),
+                clock, repository, samples, LateFrames.NONE, detector);
+        var id = evaluatorCatalog.forSource(DEMO, "gps_signal").symptoms().get(0).definitionId();
+
+        consumer.forget(DEMO, "DEMO01", id, "T-1");
+
+        assertEquals("T-1", repository.load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).orElseThrow().closedOnTrip());
+        consumer.forget(DEMO, "DEMO01", id);
+        assertTrue(repository.load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).isEmpty());
+    }
+
+    @Test
+    void aTenantWithoutItsOwnZonesDoesNotInheritATopLevelGeo() {
+        Map<String, Object> geo = Map.of("risk_zone", true);
+        Map<String, Object> signal = Map.of("geo", geo, "geos", Map.of(OTHER, geo));
+        assertFalse(EvaluatorStream.forTenant(signal, DEMO).containsKey("geo"));
+        assertEquals(geo, EvaluatorStream.forTenant(signal, OTHER).get("geo"));
     }
 
     private static String signal(String at, Boolean panic, String... clients) {

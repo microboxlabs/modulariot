@@ -106,6 +106,13 @@ class SignalEvaluatorHoldTest {
     }
 
     @Test
+    void finishingAHoldPreservesAnOperatorsTripClose() {
+        store.save(TENANT, Episode.closedOnTrip(SPEEDING, TRUCK, "T-1"));
+        evaluator.finishHold(TENANT, TRUCK, T0.plusSeconds(600), symptoms);
+        assertEquals("T-1", store.find(TENANT, TRUCK, SPEEDING).orElseThrow().closedOnTrip());
+    }
+
+    @Test
     void aLateHeldEventKeepsItsEvidenceWithoutChangingTheOrdinaryEpisode() {
         at(100, 80);
         held.set(true);

@@ -201,7 +201,7 @@ applies to every organization of the deployment. The app reads the same env name
 | `GET /map/summary` | GPS database | Same shape. Symptom items count the open cases by level; the services and fleet items and `stable_condition` have no case equivalent and are 0 |
 | `GET /map/symptoms/{id}`, `/signals`, `/positions` with a positive id | GPS database symptom | 404 |
 
-**The inbox lists only cases that need an operator.** Without `from` and `to`, `GET /map/symptoms` and `GET /map/conditions` keep the open cases whose current level has `response.operator: true` in the published version the case runs on. A level with `operator: false`, or without a response, stays out; the case enters when it escalates to a level with `operator: true` and leaves when it goes back down. With `from` and `to` (history), the map positions and a case's own endpoints keep every case.
+**The inbox lists only cases that need an operator.** Without `from` and `to`, `GET /map/symptoms` and `GET /map/conditions` keep the open cases whose current level has `response.operator: true` in the published version the case runs on. A level with `operator: false`, or without a response, stays out; the case enters when it escalates to a level with `operator: true` and leaves when it goes back down. The history (with `from` and `to`), the map positions and a case's own endpoints keep every case.
 
 In engine-only mode, `p_icu_code=6` selects cases with an open treatment, independently of their severity.
 The store applies this predicate before its 200-case limit.

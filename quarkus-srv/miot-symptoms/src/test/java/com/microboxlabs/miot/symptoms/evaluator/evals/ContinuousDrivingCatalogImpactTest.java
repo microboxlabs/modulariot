@@ -32,5 +32,9 @@ class ContinuousDrivingCatalogImpactTest {
 
         assertEquals(new CaseImpact(4, Map.of(2, 1, 3, 2, 4, 1), 4), production);
         assertEquals(production, catalog, "the template gives production's cases on these trips");
+        for (Trace t : traces) {
+            assertEquals(t.expected(), EvalTraces.replay(template, source, t.signals()),
+                    t.id() + ": 2.0.0 gives production's transitions, levels going down included");
+        }
     }
 }

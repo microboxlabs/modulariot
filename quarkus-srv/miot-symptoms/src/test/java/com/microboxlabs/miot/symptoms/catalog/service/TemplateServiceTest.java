@@ -32,7 +32,7 @@ class TemplateServiceTest {
 
     @Test
     void everySeededTemplatePassesTheChecksOfItsPlatformSource() {
-        assertEquals(15, SeedTemplates.all().size());
+        assertEquals(16, SeedTemplates.all().size());
         for (SymptomTemplate t : SeedTemplates.all()) {
             Report report = SpecValidator.validate(t.spec(), sources.find(PLATFORM_TENANT, t.spec().source())
                     .orElse(null));

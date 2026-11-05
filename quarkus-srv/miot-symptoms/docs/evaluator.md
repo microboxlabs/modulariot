@@ -31,6 +31,7 @@ Rule previews use the organization's recent signals. At most one signal per orga
 | Measure | The measure expression; 0 when the version has none |
 | Hold time, threshold rules | A level rule that holds given enough time (`measure >= 21 && held_s >= 60`) counts `held_s` from the first signal where it would hold: how long the measure met that threshold |
 | Hold time, time rules | Any other rule (`held_s >= 600 && held_s < 1200`) counts `held_s` from the start of the activation's run |
+| Case age | `open_s` is the time since the case opened, 0 while none is open. A level rule on it escalates an open case each time the activation holds again, for example a repeated device event (`open_s >= 900`) |
 | Level | The highest level whose rule holds. If none holds while a threshold rule waits for its hold time, the case is at the applying level below it |
 | Condition | Holds while a candidate reaches a level. `case.condition_s` counts from its first signal; `case.normal_s` from the first signal after it stopped, and is -1 while it holds |
 | Open | No case open, the condition holds and the lifecycle's open rule is true |

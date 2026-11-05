@@ -45,7 +45,8 @@ class PgPlatformTemplatesTest {
             "V0.12.8__coverage_days.sql", "V0.12.10__transition_context.sql",
             "V0.12.11__signal_loss_close_level_one.sql", "V0.12.12__contact_sync.sql",
             "V0.12.13__held_transitions.sql", "V0.12.14__ignore_reasons_move_wrong_map.sql",
-            "V0.12.15__noted_transitions.sql");
+            "V0.12.15__noted_transitions.sql", "V0.12.16__tower_settings_telephony.sql",
+            "V0.12.17__event_symptom_templates.sql");
 
     private static Vertx vertx;
     private static Pool pool;
@@ -110,6 +111,16 @@ class PgPlatformTemplatesTest {
                 + " FROM miot_symptoms.symptom_version a, miot_symptoms.symptom_version b"
                 + " WHERE a.tenant_code = '_platform' AND b.tenant_code = '_platform'"
                 + " AND a.version = '2.1.0' AND b.version = '2.2.0' AND a.definition_id = b.definition_id"));
+    }
+
+    @Test
+    void theEventTemplatesAreSeededAndPanicIsAtItsLatestVersion() {
+        assertEquals(List.of("driver-fatigue:1.0.0", "driver-fatigue-sensor:1.0.0", "load-securing-absence:1.0.0",
+                "panic-button:1.1.0", "road-assistance:1.0.0", "stake-side-usage:1.0.0"),
+                rows("SELECT symptom_key || ':' || current_version FROM miot_symptoms.symptom_definition"
+                        + " WHERE tenant_code = '_platform' AND symptom_key IN ('driver-fatigue', 'driver-fatigue-sensor',"
+                        + " 'load-securing-absence', 'panic-button', 'road-assistance', 'stake-side-usage')"
+                        + " ORDER BY symptom_key"));
     }
 
     /** {@code path} of one signal-loss version's spec, such as {@code ->> 'activation'}. */

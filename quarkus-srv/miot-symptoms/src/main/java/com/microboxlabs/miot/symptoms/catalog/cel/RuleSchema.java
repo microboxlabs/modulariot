@@ -24,7 +24,8 @@ public record RuleSchema(String root, Map<String, String> fields, Map<String, St
     private static final String NUMBER = "number";
 
     /** The variables a level condition adds to the source: the measure and how long it has held. */
-    public static final Map<String, String> LEVEL_VARIABLES = Map.of("measure", NUMBER, "held_s", NUMBER);
+    public static final Map<String, String> LEVEL_VARIABLES = Map.of("measure", NUMBER, "held_s", NUMBER,
+            "open_s", NUMBER);
 
     /** The case a lifecycle rule reads. */
     public static final RuleSchema CASE = new RuleSchema("case", Map.of(

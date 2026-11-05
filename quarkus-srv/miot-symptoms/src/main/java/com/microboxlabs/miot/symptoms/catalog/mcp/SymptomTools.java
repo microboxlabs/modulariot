@@ -57,7 +57,7 @@ public class SymptomTools {
             + " levels: the four ICU levels, lowest first, each {icu, applies, when, response}. icu is 1 to 4:"
             + " 1 Bajo observación, 2 Comprometida, 3 Crítica, 4 Código negro. applies=false means the symptom"
             + " never reaches that level. when is CEL over measure (the measure's value) and held_s"
-            + " (seconds the condition has held), e.g. measure >= 11 && measure < 21; the case gets the highest"
+            + " (seconds the condition has held) and open_s (seconds since the case opened, 0 before), e.g. measure >= 11 && measure < 21; the case gets the highest"
             + " level whose when is true. response: {operator, slaMinutes, steps: [{scope, role, channel,"
             + " budgetMinutes, script, goal, replies: [{says, result}], who}] (who is CEL over contact and event.data; older steps use"
             + " scope DRIVER, TRIP_CARRIER or ORG; role is a contact book role,"

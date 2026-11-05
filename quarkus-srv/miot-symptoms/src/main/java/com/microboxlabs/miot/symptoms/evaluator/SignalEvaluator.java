@@ -28,7 +28,8 @@ import java.util.UUID;
  * met that threshold; while it waits, and no level holds, the case is at the
  * applying level below it. Any other rule (such as
  * {@code held_s >= 600 && held_s < 1200}) counts from the start of
- * the activation's run.</li>
+ * the activation's run. {@code open_s} is the time since the case opened,
+ * 0 while none is open.</li>
  * <li>The condition holds while a candidate reaches a level.
  * {@code case.condition_s} counts from its first signal, {@code case.normal_s}
  * from the first signal after it stopped, and is -1 while it holds. The
@@ -52,6 +53,7 @@ public class SignalEvaluator {
     /** {@code case.normal_s} while the condition holds. */
     static final double NOT_NORMAL = -1;
     private static final String SIGNAL = "signal";
+    private static final String OPEN_S = "open_s";
     private static final String LIFECYCLE_CLOSE = "lifecycle.close";
 
     private final EpisodeStore store;
@@ -253,7 +255,7 @@ public class SignalEvaluator {
         Instant candidateSince = firstNonNull(e.candidateSince(), at);
         double measure = measure(s, root);
         Map<Integer, Instant> previous = s.version().equals(e.version()) ? e.levelSince() : Map.of();
-        LevelReading levels = levels(s, root, measure, candidateSince, previous, at);
+        LevelReading levels = levels(s, root, measure, candidateSince, previous, e.openedAt(), at);
         boolean active = levels.level() > 0;
         return new Reading(active, measure, levels.level(), candidateSince, levels.since(),
                 active ? firstNonNull(e.conditionSince(), at) : null,
@@ -265,9 +267,10 @@ public class SignalEvaluator {
 
     /** The highest level that holds; if none does, the level below the lowest one waiting for its hold time. */
     private static LevelReading levels(CompiledSymptom s, Map<String, Object> root, double measure,
-            Instant candidateSince, Map<Integer, Instant> previous, Instant at) {
+            Instant candidateSince, Map<Integer, Instant> previous, Instant openedAt, Instant at) {
         Map<String, Object> vars = new LinkedHashMap<>(root);
         vars.put("measure", measure);
+        vars.put(OPEN_S, openedAt == null ? 0.0 : seconds(openedAt, at));
         Map<Integer, Instant> since = new HashMap<>();
         int reached = 0;
         int floor = 0;

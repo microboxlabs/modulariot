@@ -55,7 +55,8 @@ public class RuleDescriptionService {
 
     private static final Map<String, String> LEVEL_LABELS = Map.of(
             "measure", "valor medido",
-            "held_s", "segundos que lleva la condición");
+            "held_s", "segundos que lleva la condición",
+            "open_s", "segundos desde que se abrió el caso");
 
     private static final Map<String, String> CASE_LABELS = Map.of(
             "case.condition_s", "segundos con la condición presente",

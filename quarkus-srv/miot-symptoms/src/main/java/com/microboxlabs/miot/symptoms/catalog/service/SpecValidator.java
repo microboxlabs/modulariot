@@ -41,6 +41,7 @@ public final class SpecValidator {
     private static final String ACTIVATION = "activation";
     private static final String MEASURE = "measure";
     private static final String HELD = "held_s";
+    private static final String OPEN = "open_s";
 
     /** Severity of a finding. */
     public enum Severity {
@@ -333,7 +334,7 @@ public final class SpecValidator {
         Set<String> reported = new HashSet<>();
         for (double held : heldPoints) {
             for (double measure : points) {
-                Map<String, Object> vars = Map.of(MEASURE, measure, HELD, held);
+                Map<String, Object> vars = Map.of(MEASURE, measure, HELD, held, OPEN, held);
                 List<Level> hits = levels.stream()
                         .filter(l -> Boolean.TRUE.equals(rules.get(l).run(vars).value()))
                         .toList();
@@ -363,7 +364,7 @@ public final class SpecValidator {
      */
     private static void gaps(List<Finding> out, RuleSchema schema, List<Level> levels) {
         boolean byMeasure = mentions(levels, MEASURE);
-        if (!byMeasure && !mentions(levels, HELD)) {
+        if (!byMeasure && !mentions(levels, HELD) && !mentions(levels, OPEN)) {
             return;
         }
         List<PreparedRule> rules = levels.stream().map(l -> RuleLanguage.prepare(schema, l.when())).toList();
@@ -402,8 +403,8 @@ public final class SpecValidator {
 
     /** Whether any level applies at this point of the ladder. */
     private static boolean covered(List<PreparedRule> rules, boolean byMeasure, double point) {
-        Map<String, Object> vars = byMeasure ? Map.of(MEASURE, point, HELD, 1e9)
-                : Map.of(MEASURE, 0.0, HELD, point);
+        Map<String, Object> vars = byMeasure ? Map.of(MEASURE, point, HELD, 1e9, OPEN, 1e9)
+                : Map.of(MEASURE, 0.0, HELD, point, OPEN, point);
         return rules.stream().anyMatch(r -> Boolean.TRUE.equals(r.run(vars).value()));
     }
 

@@ -177,6 +177,8 @@ public class CredentialProfileService {
         }
         Map<String, Object> requestedSecret = safeMap(req.secretConfig());
         boolean rotating = !requestedSecret.isEmpty();
+        boolean retainingPlatformProvider = !PlatformScope.TENANT.equals(tenantCode)
+                && isPlatformOnlyProvider(req.publicConfig());
         for (int attempt = 0; attempt < MAX_SECRET_UPDATE_ATTEMPTS; attempt++) {
             CredentialProfile current = credentialProfileRepository.findByTenantAndId(tenantCode, id);
             if (current == null) {
@@ -185,13 +187,19 @@ public class CredentialProfileService {
             UpdateCredentialProfileParams params = prepareProfileUpdate(
                     tenantCode, actor, id, req, current, requestedSecret);
             invalidateChangedTelephonyCredential(tenantCode, id, params, current);
-            CredentialProfile updated = rotating
-                    ? credentialProfileRepository.updateIfVersion(params, current.secretVersion())
-                    : credentialProfileRepository.update(params);
+            CredentialProfile updated;
+            if (retainingPlatformProvider) {
+                updated = credentialProfileRepository.updateIfProvider(
+                        params, String.valueOf(req.publicConfig().get("provider")), current.secretVersion());
+            } else if (rotating) {
+                updated = credentialProfileRepository.updateIfVersion(params, current.secretVersion());
+            } else {
+                updated = credentialProfileRepository.update(params);
+            }
             if (updated != null) {
                 return toResponse(updated, usagesFor(tenantCode, List.of(updated)).getOrDefault(id, List.of()));
             }
-            if (!rotating) {
+            if (!rotating && !retainingPlatformProvider) {
                 return null;
             }
         }
@@ -340,11 +348,14 @@ public class CredentialProfileService {
      */
     private static void refusePlatformOnlyProvider(String tenantCode, Map<String, Object> requested,
             Map<String, Object> current) {
-        if (PlatformScope.TENANT.equals(tenantCode) || requested == null) return;
+        if (PlatformScope.TENANT.equals(tenantCode) || !isPlatformOnlyProvider(requested)) return;
         Object provider = requested.get("provider");
-        if (provider == null || !PLATFORM_ONLY_PROVIDERS.contains(String.valueOf(provider))) return;
         if (current != null && provider.equals(current.get("provider"))) return;
         throw new PlatformOnlyCredentialException(String.valueOf(provider));
+    }
+
+    private static boolean isPlatformOnlyProvider(Map<String, Object> config) {
+        return config != null && PLATFORM_ONLY_PROVIDERS.contains(String.valueOf(config.get("provider")));
     }
 
     private CredentialTestResponse testManaged(String tenantCode, CredentialProfile profile) {

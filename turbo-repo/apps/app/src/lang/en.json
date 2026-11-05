@@ -5151,6 +5151,8 @@
           "forbidden": "Only an owner of the organization can see the telephony usage.",
           "quotaExhausted": "Minutes used up. Calls on the platform line are refused until next month or until the minutes are raised; the phone is offered instead.",
           "notEnforced": "The minutes are not applied yet: no call is refused, but usage is recorded.",
+          "ownTeams": "The organization calls through its Teams Phone. Microsoft bills those calls and they are not counted here. Only the platform line's minutes (Telnyx) are shown here.",
+          "ownTelnyx": "The organization calls through its own Telnyx account. Telnyx bills those calls to the organization and they are not counted here. Only the platform line's minutes are shown here.",
           "quota": {
             "title": "Minutes",
             "description": "Calls on the platform line this month",
@@ -5698,7 +5700,6 @@
         "inUseNone": "In use: the phone's dialer (no active line)",
         "unsetHint": "The organization has not chosen yet. Until then the line above is used.",
         "notReady": "{name} did not pass its test. It is not used until it does.",
-        "month": "This month: {used} of {quota} minutes · {pending} unconfirmed · {charge}",
         "saved": "Telephony saved.",
         "saveFailed": "Could not save the telephony settings.",
         "forbidden": "Only an owner or admin of the organization can change the telephony.",

@@ -105,4 +105,18 @@ describe("telephony month's usage", () => {
       templates: 0.2,
     });
   });
+
+  it("says Microsoft bills the organization's Teams Phone calls", () => {
+    render(
+      <TelephonyUsage orgSlug="org" lang="es" d={d} ownLine="TEAMS_PHONE" />
+    );
+    expect(screen.getByText(d.ownTeams)).toBeInTheDocument();
+    expect(screen.queryByText(d.ownTelnyx)).not.toBeInTheDocument();
+  });
+
+  it("has no own-line notice on the platform line", () => {
+    render(<TelephonyUsage orgSlug="org" lang="es" d={d} />);
+    expect(screen.queryByText(d.ownTeams)).not.toBeInTheDocument();
+    expect(screen.queryByText(d.ownTelnyx)).not.toBeInTheDocument();
+  });
 });

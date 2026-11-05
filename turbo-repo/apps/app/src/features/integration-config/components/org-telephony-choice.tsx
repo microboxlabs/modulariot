@@ -13,8 +13,9 @@ import {
   type TelephonyProvider,
   type TelephonySetup,
 } from "@/features/symptoms/control-tower/telephony-api";
-import { usd } from "@/features/telephony/telephony-plan";
-import { useOrgTelephonyUsage } from "@/features/telephony/use-org-telephony-usage";
+import TelephonyUsage, {
+  type OwnLine,
+} from "@/features/telephony/telephony-usage";
 
 const MUTED = "text-gray-500 dark:text-gray-400";
 const UNSET = "";
@@ -37,19 +38,33 @@ function inUse(setup: TelephonySetup, d: I18nRecord): string {
     : tr("telephonyChoice.inUseNone", d);
 }
 
+/** The organization's own line in use, or null on the platform's line or none. */
+export function ownLineOf(setup: TelephonySetup): OwnLine | null {
+  const active = setup.active;
+  if (!active || active.managed) return null;
+  return active.provider;
+}
+
 /**
  * The organization's telephony: the platform's Telnyx line or its own Teams
- * Phone connection. Saved on change through the Control Tower telephony API,
- * which creates the settings row when the organization has none. Renders
- * nothing when the organization has no telephony, or the API is unavailable.
+ * Phone connection, then its month's usage of the platform line. Saved on
+ * change through the Control Tower telephony API, which creates the settings
+ * row when the organization has none. Renders nothing when the organization
+ * has no telephony, or the API is unavailable.
  */
 export function OrgTelephonyChoice({
   dict,
+  usageDict,
   orgSlug,
-}: Readonly<{ dict: I18nRecord; orgSlug: string | null }>) {
+  lang,
+}: Readonly<{
+  dict: I18nRecord;
+  /** `pages.userSettings.telephony.usage`. */
+  usageDict: I18nRecord;
+  orgSlug: string | null;
+  lang: string;
+}>) {
   const { data: setup, error } = useTelephony(orgSlug !== null);
-  const managed = setup?.active?.managed === true;
-  const { data: month } = useOrgTelephonyUsage(managed ? orgSlug : null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
 
@@ -76,74 +91,72 @@ export function OrgTelephonyChoice({
   };
 
   return (
-    <section className="flex max-w-3xl flex-col gap-1 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-      <Label
-        htmlFor="org-telephony"
-        className="flex items-center gap-2 font-semibold"
-      >
-        <HiOutlinePhone className="h-4 w-4" />
-        {tr("telephonyChoice.title", dict)}
-      </Label>
-      <p className={`text-xs ${MUTED}`}>{tr("telephonyChoice.hint", dict)}</p>
-      <Select
-        id="org-telephony"
-        sizing="sm"
-        className="mt-1 max-w-md"
-        value={setup.preferred ?? UNSET}
-        disabled={busy}
-        onChange={(e) => void choose(e.target.value)}
-      >
+    <div className="flex flex-col gap-4">
+      <section className="flex max-w-3xl flex-col gap-1 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <Label
+          htmlFor="org-telephony"
+          className="flex items-center gap-2 font-semibold"
+        >
+          <HiOutlinePhone className="h-4 w-4" />
+          {tr("telephonyChoice.title", dict)}
+        </Label>
+        <p className={`text-xs ${MUTED}`}>{tr("telephonyChoice.hint", dict)}</p>
+        <Select
+          id="org-telephony"
+          sizing="sm"
+          className="mt-1 max-w-md"
+          value={setup.preferred ?? UNSET}
+          disabled={busy}
+          onChange={(e) => void choose(e.target.value)}
+        >
+          {setup.preferred === null && (
+            <option value={UNSET} disabled>
+              {tr("telephonyChoice.unset", dict)}
+            </option>
+          )}
+          <option value="TELNYX" disabled={!telnyx}>
+            {telnyx
+              ? lineLabel(telnyx, dict)
+              : tr("telephonyChoice.platform", dict)}
+          </option>
+          {teams.map((line) => (
+            <option
+              key={line.connectionId}
+              value="TEAMS_PHONE"
+              disabled={!line.ready && setup.preferred !== "TEAMS_PHONE"}
+            >
+              {lineLabel(line, dict)}
+            </option>
+          ))}
+        </Select>
+        <p className={`text-xs ${MUTED}`}>{inUse(setup, dict)}</p>
         {setup.preferred === null && (
-          <option value={UNSET} disabled>
-            {tr("telephonyChoice.unset", dict)}
-          </option>
-        )}
-        <option value="TELNYX" disabled={!telnyx}>
-          {telnyx
-            ? lineLabel(telnyx, dict)
-            : tr("telephonyChoice.platform", dict)}
-        </option>
-        {teams.map((line) => (
-          <option
-            key={line.connectionId}
-            value="TEAMS_PHONE"
-            disabled={!line.ready && setup.preferred !== "TEAMS_PHONE"}
-          >
-            {lineLabel(line, dict)}
-          </option>
-        ))}
-      </Select>
-      <p className={`text-xs ${MUTED}`}>{inUse(setup, dict)}</p>
-      {setup.preferred === null && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
-          {tr("telephonyChoice.unsetHint", dict)}
-        </p>
-      )}
-      {managed && month && (
-        <p className={`text-xs ${MUTED}`}>
-          {tr("telephonyChoice.month", dict, {
-            used: String(month.usage.usedMinutes),
-            quota: String(month.usage.quotaMinutes),
-            pending: String(month.usage.pending),
-            charge: usd(month.usage.chargeUsd),
-          })}
-        </p>
-      )}
-      {setup.lines
-        .filter((l) => !l.ready)
-        .map((l) => (
-          <p
-            key={l.connectionId}
-            className="text-xs text-amber-700 dark:text-amber-400"
-          >
-            {tr("telephonyChoice.notReady", dict, { name: l.name })}
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            {tr("telephonyChoice.unsetHint", dict)}
           </p>
-        ))}
-      {failed && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {failed}
-        </p>
-      )}
-    </section>
+        )}
+        {setup.lines
+          .filter((l) => !l.ready)
+          .map((l) => (
+            <p
+              key={l.connectionId}
+              className="text-xs text-amber-700 dark:text-amber-400"
+            >
+              {tr("telephonyChoice.notReady", dict, { name: l.name })}
+            </p>
+          ))}
+        {failed && (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {failed}
+          </p>
+        )}
+      </section>
+      <TelephonyUsage
+        orgSlug={orgSlug}
+        lang={lang}
+        d={usageDict}
+        ownLine={ownLineOf(setup)}
+      />
+    </div>
   );
 }

@@ -170,6 +170,10 @@ export function IntegrationConfigPageContent({
   } = useIntegrationConfig(orgSlug);
   const { isPlatformOwner } = useIsPlatformOwner();
   const telephonyDict = dict?.telephonyChoice as I18nRecord;
+  const telephonyUsageDict = (
+    ((rootDict?.pages as I18nRecord)?.userSettings as I18nRecord)
+      ?.telephony as I18nRecord
+  )?.usage as I18nRecord;
   const { data: telephony } = useTelephony(
     orgSlug !== null && !inPlatformScope
   );
@@ -536,7 +540,12 @@ export function IntegrationConfigPageContent({
             </div>
           )}
           {section === "connections" && !inPlatformScope && (
-            <OrgTelephonyChoice dict={dict} orgSlug={orgSlug} />
+            <OrgTelephonyChoice
+              dict={dict}
+              usageDict={telephonyUsageDict}
+              orgSlug={orgSlug}
+              lang={lang}
+            />
           )}
           {section === "connections" && !isLoading && (
             <ConnectionsList

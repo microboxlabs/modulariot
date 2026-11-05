@@ -158,11 +158,22 @@ function DestinationTable({
 
 function Notices({
   data,
+  ownLine,
   d,
-}: Readonly<{ data: OrgTelephonyPlan; d: I18nRecord }>) {
+}: Readonly<{
+  data: OrgTelephonyPlan;
+  ownLine: OwnLine | null;
+  d: I18nRecord;
+}>) {
   const { plan, usage } = data;
   return (
     <>
+      {ownLine === "TEAMS_PHONE" && (
+        <UsageNotice tone="info">{tr("ownTeams", d)}</UsageNotice>
+      )}
+      {ownLine === "TELNYX" && (
+        <UsageNotice tone="info">{tr("ownTelnyx", d)}</UsageNotice>
+      )}
       {!plan.enforced && (
         <UsageNotice tone="info">{tr("notEnforced", d)}</UsageNotice>
       )}
@@ -175,16 +186,26 @@ function Notices({
   );
 }
 
+/** The organization's own line in use, whose calls the platform does not bill. */
+export type OwnLine = "TEAMS_PHONE" | "TELNYX";
+
 /**
  * An organization's month on the platform's telephony line: minutes against
  * its quota, calls, the plan charge and the usage by destination. The same
- * cards as geocoding's "Uso del mes".
+ * cards as geocoding's "Uso del mes". With `ownLine`, a notice says those
+ * calls are billed elsewhere and not counted here.
  */
 export default function TelephonyUsage({
   orgSlug,
   lang,
   d,
-}: Readonly<{ orgSlug: string | null; lang: string; d: I18nRecord }>) {
+  ownLine = null,
+}: Readonly<{
+  orgSlug: string | null;
+  lang: string;
+  d: I18nRecord;
+  ownLine?: OwnLine | null;
+}>) {
   const [month, setMonth] = useState(() => monthOf(new Date()));
   const { data, isLoading, error } = useOrgTelephonyUsage(orgSlug, month);
   const lines = useMemo(() => {
@@ -210,7 +231,7 @@ export default function TelephonyUsage({
       isLoading={isLoading}
       error={errorText}
     >
-      {data && <Notices data={data} d={d} />}
+      {data && <Notices data={data} ownLine={ownLine} d={d} />}
       {data && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <MinutesCard data={data} d={d} />

@@ -5151,6 +5151,8 @@
           "forbidden": "Solo un dueño de la organización puede ver el uso de telefonía.",
           "quotaExhausted": "Minutos agotados. Las llamadas por la línea de la plataforma se rechazan hasta el próximo mes o hasta que se aumenten los minutos; se ofrece el teléfono.",
           "notEnforced": "Los minutos aún no se aplican: no se rechaza ninguna llamada, pero el uso se registra.",
+          "ownTeams": "La organización llama por su Teams Phone. Esas llamadas las factura Microsoft y no se cuentan aquí. Aquí solo se muestran los minutos de la línea de la plataforma (Telnyx).",
+          "ownTelnyx": "La organización llama por su propia cuenta Telnyx. Esas llamadas las factura Telnyx a la organización y no se cuentan aquí. Aquí solo se muestran los minutos de la línea de la plataforma.",
           "quota": {
             "title": "Minutos",
             "description": "Llamadas por la línea de la plataforma en el mes",
@@ -5698,7 +5700,6 @@
         "inUseNone": "En uso: el marcador del teléfono (sin línea activa)",
         "unsetHint": "La organización aún no elige. Mientras tanto se usa la línea indicada.",
         "notReady": "{name} no pasó su prueba. No se usa hasta que la pase.",
-        "month": "Este mes: {used} de {quota} minutos · {pending} sin confirmar · {charge}",
         "saved": "Telefonía guardada.",
         "saveFailed": "No se pudo guardar la telefonía.",
         "forbidden": "Solo un dueño o administrador de la organización puede cambiar la telefonía.",

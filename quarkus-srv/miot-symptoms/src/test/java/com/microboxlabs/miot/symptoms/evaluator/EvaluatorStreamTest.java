@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import cl.streamhub.gps.model.EnvelopedMessage;
@@ -16,8 +17,8 @@ import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
-import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
@@ -132,6 +133,22 @@ class EvaluatorStreamTest {
         assertEquals(geo, EvaluatorStream.forTenant(signal, OTHER).get("geo"));
     }
 
+    @Test
+    void aStateRejectedOpeningSavesNeitherEpisodeNorWatermark() {
+        InMemoryEpisodeRepository episodes = new InMemoryEpisodeRepository();
+        TransitionLog rejected = (tenant, transitions, place, context) -> {
+            throw new IllegalStateException("Symptom state changed; retry with a fresh catalog");
+        };
+        EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(rejected, events, new SimpleMeterRegistry()),
+                Clock.systemUTC(), episodes, samples);
+
+        String frame = signal("2026-10-22T03:00:30Z", true, DEMO);
+        assertThrows(IllegalStateException.class, () -> s.evaluate(frame));
+        assertTrue(episodes.tenantsWithEpisodes("DEMO01").isEmpty());
+        assertTrue(episodes.load(DEMO, "DEMO01").watermark(DEMO, "DEMO01", "gps_signal").isEmpty());
+    }
+
     private static String signal(String at, Boolean panic, String... clients) {
         String sensors = panic == null ? "{}" : "{\"panic_button\":" + panic + "}";
         return """
@@ -230,7 +247,7 @@ class EvaluatorStreamTest {
                 java.time.Instant.parse("2026-10-22T03:00:00Z"), null, null,
                 java.util.Map.of(4, java.time.Instant.parse("2026-10-22T03:00:00Z")),
                 java.time.Instant.parse("2026-10-22T03:00:30Z"), java.time.Instant.parse("2026-10-22T03:00:30Z"),
-                4, 0, java.time.Instant.parse("2026-10-22T03:00:30Z"));
+                4, 0, SymptomState.TEST, java.time.Instant.parse("2026-10-22T03:00:30Z"));
 
         assertEquals(e, RedisEpisodes.read(RedisEpisodes.write(e)));
     }

@@ -151,6 +151,40 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
+    void eachStateChangeIsHeardOnceAfterItIsSaved() {
+        List<SymptomStateChanged> heard = new java.util.ArrayList<>();
+        service.onStateChange(change -> {
+            assertEquals(change.to(), service.get(TENANT, change.definitionId()).definition().state(), "saved first");
+            heard.add(change);
+        });
+        UUID id = speeding();
+
+        service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.TEST);
+        service.setState(TENANT, OWNER, id, SymptomState.ACTIVE);
+        service.setState(TENANT, OWNER, id, SymptomState.ACTIVE);
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(), Specs.ACTIVATION + " && true"));
+        service.publish(TENANT, OWNER, id, "Segunda", null, null);
+        service.setState(TENANT, OWNER, id, SymptomState.OFF);
+
+        assertEquals(List.of(new SymptomStateChanged(TENANT, id, SymptomState.OFF, SymptomState.TEST),
+                new SymptomStateChanged(TENANT, id, SymptomState.TEST, SymptomState.ACTIVE),
+                new SymptomStateChanged(TENANT, id, SymptomState.ACTIVE, SymptomState.OFF)), heard);
+    }
+
+    @Test
+    void aFailingListenerDoesNotUndoTheStateChange() {
+        service.onStateChange(change -> {
+            throw new IllegalStateException("database down");
+        });
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.TEST);
+
+        service.setState(TENANT, OWNER, id, SymptomState.ACTIVE);
+
+        assertEquals(SymptomState.ACTIVE, service.get(TENANT, id).definition().state());
+    }
+
+    @Test
     void aForkOfAPublishedVersionStartsInTestAtZeroOneZeroAndSaysWhereItCameFrom() {
         UUID id = speeding();
         service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.ACTIVE);

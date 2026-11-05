@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.evaluator.AssetEpisodes;
 import com.microboxlabs.miot.symptoms.evaluator.CompiledSymptom;
@@ -256,6 +257,12 @@ public class TripChecks {
     /** Atomically closes the episode without exposing an empty state before the GPS consumer's marker. */
     public void forget(String tenant, String assetId, UUID definitionId, Episode marker) {
         episodes.operatorClose(tenant, assetId, definitionId, marker);
+    }
+
+    /** Preserves an episode opened after the case the sweep closed. */
+    public void forgetStale(StaleCase c) {
+        episodes.forgetStale(c.tenantCode(), c.assetId(), c.definitionId(),
+                c.test() ? SymptomState.TEST : SymptomState.ACTIVE, c.openedAt());
     }
 
     private List<CompiledSymptom> symptoms(String tenant, Instant now) {

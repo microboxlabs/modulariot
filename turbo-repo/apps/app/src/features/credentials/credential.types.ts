@@ -169,6 +169,8 @@ export interface CredentialTypeDescriptor {
   readonly descriptionKey: string;
   /** False until the backend supports the type — shown but not selectable. */
   readonly available: boolean;
+  /** Only the Plataforma scope may create it; organizations never see it in the picker. */
+  readonly platformOnly?: boolean;
   /**
    * Whether the credential can be verified without a business call. A token
    * grant can be exercised on its own; a bare API key or bearer token has
@@ -268,12 +270,13 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     keyline: "circle",
   },
   {
-    // A bearer token tagged with MAPBOX_PROVIDER: a Mapbox access token for geocoding,
-    // tested against Mapbox's token endpoint (no geocoding, no quota).
+    // A bearer token tagged with MAPBOX_PROVIDER: a Mapbox access token for the
+    // platform's geocoding connection, tested against Mapbox's token endpoint.
     id: "MAPBOX",
     nameKey: "types.mapbox.name",
     descriptionKey: "types.mapbox.description",
     available: true,
+    platformOnly: true,
     supportsTest: true,
     logo: {
       light: "/credential-logos/mapbox-light.svg",
@@ -282,11 +285,13 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     keyline: "circle",
   },
   {
-    // A bearer token tagged with GOOGLE_MAPS_PROVIDER: a Google Maps Platform API key.
+    // A bearer token tagged with GOOGLE_MAPS_PROVIDER: a Google Maps Platform API key
+    // for the platform's geocoding connection.
     id: "GOOGLE_MAPS",
     nameKey: "types.googleMaps.name",
     descriptionKey: "types.googleMaps.description",
     available: true,
+    platformOnly: true,
     supportsTest: false,
     logo: {
       light: "/credential-logos/google-maps-light.svg",
@@ -318,6 +323,22 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     supportsTest: false,
   },
 ];
+
+/**
+ * The types the picker offers in a scope: platform-only types only in Plataforma,
+ * and the unavailable ones after the rest, each group in catalog order.
+ */
+export function pickerCredentialTypes(
+  platformScope: boolean
+): CredentialTypeDescriptor[] {
+  const offered = CREDENTIAL_TYPES.filter(
+    (type) => platformScope || !type.platformOnly
+  );
+  return [
+    ...offered.filter((type) => type.available),
+    ...offered.filter((type) => !type.available),
+  ];
+}
 
 /** Types whose credentials can be verified on their own. */
 export function credentialTypeSupportsTest(typeId: CredentialTypeId): boolean {

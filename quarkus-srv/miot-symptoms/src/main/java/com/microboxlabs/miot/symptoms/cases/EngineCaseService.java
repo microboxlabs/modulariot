@@ -34,8 +34,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
-import java.util.List;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -130,6 +130,10 @@ public class EngineCaseService {
         default void closed(String tenantCode, String assetId, UUID definitionId, String tripId) {
             episode(tenantCode, assetId, definitionId);
         }
+
+        default void staleEpisode(EngineCaseStore.StaleCase c) {
+            episode(c.tenantCode(), c.assetId(), c.definitionId());
+        }
     }
 
     private final EngineCaseStore store;
@@ -161,7 +165,13 @@ public class EngineCaseService {
             public void closed(String tenantCode, String assetId, UUID definitionId, String tripId) {
                 evaluator.forget(tenantCode, assetId, definitionId, tripId);
             }
-        }, t -> readTrip(pool.get(), t), Clock.systemUTC(), events, lostSignal::reported);
+
+            @Override
+            public void staleEpisode(EngineCaseStore.StaleCase c) {
+                evaluator.forgetStale(c);
+            }
+        }, t -> readTrip(pool.get(), t), Clock.systemUTC(), events,
+                lostSignal::reported);
     }
 
     private static Row readTrip(Pool pool, Tuple key) {
@@ -1069,6 +1079,34 @@ public class EngineCaseService {
                 events.closedByOperator(tenantCode, c, actor, at);
             }
         }
+    }
+
+    /** The reason a CLOSED transition gives when the symptom's state change closed the case. */
+    public static final String STATE_CHANGE_REASON = com.microboxlabs.miot.symptoms.evaluator.Transition.STATE_CHANGE_REASON;
+
+    /**
+     * Closes the open cases whose state is no longer their symptom's (TEST to ACTIVE, ACTIVE to TEST, or OFF) and
+     * drops their episodes, so the next signal opens a fresh case in the new state. Idempotent: a closed case is
+     * not closed again. A failed episode drop is left to the evaluator, which closes an episode of the old state
+     * itself. Publishes {@code symptom.case.closed} for each.
+     *
+     * @param tenantCode   null for every organization
+     * @param definitionId null for every symptom
+     * @return how many cases it closed
+     */
+    public int closeStaleCases(String tenantCode, UUID definitionId) {
+        Instant at = clock.instant();
+        List<EngineCaseStore.StaleCase> closed = store.closeStale(tenantCode, definitionId, at, STATE_CHANGE_REASON);
+        for (EngineCaseStore.StaleCase c : closed) {
+            try {
+                forget.staleEpisode(c);
+            } catch (RuntimeException e) {
+                LOG.warnf("Engine case %d: episode not dropped after the state change (%s)", c.id(),
+                        e.getClass().getSimpleName());
+            }
+            events.closedByStateChange(c.tenantCode(), c, at);
+        }
+        return closed.size();
     }
 
     /** The trip's details are optional: the header still answers without them. */

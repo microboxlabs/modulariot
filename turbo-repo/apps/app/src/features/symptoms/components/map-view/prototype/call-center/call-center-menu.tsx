@@ -170,6 +170,9 @@ function methodLabels(dict: I18nRecord): Record<CallMethod, string> {
   ) as Record<CallMethod, string>;
 }
 
+/** Rows of "Otros contactos" rendered per page; the menu re-renders every second for the SLA clock. */
+const OTHERS_PAGE = 50;
+
 const SUBHEADER =
   "flex h-7 shrink-0 items-center border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800/60";
 
@@ -488,7 +491,9 @@ function OtherContacts({
 }>) {
   const [open, setOpen] = useState(!collapsible);
   const [search, setSearch] = useState("");
+  const [limit, setLimit] = useState(OTHERS_PAGE);
   const shown = targets.filter((t) => matchesTarget(t, search));
+  const visible = shown.slice(0, limit);
   const Chevron = open ? HiChevronDown : HiChevronRight;
   return (
     <>
@@ -507,7 +512,7 @@ function OtherContacts({
       )}
       {(!collapsible || open) && (
         <>
-          <div className="flex shrink-0 items-stretch gap-1 border-b border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-800/60">
+          <div className="sticky top-0 z-10 flex shrink-0 items-stretch gap-1 border-b border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-800">
             <div className="relative min-w-0 flex-1">
               <HiOutlineSearch className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
               <input
@@ -519,11 +524,14 @@ function OtherContacts({
                   dict
                 )}
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setLimit(OTHERS_PAGE);
+                }}
               />
             </div>
           </div>
-          {shown.map((target) => (
+          {visible.map((target) => (
             <TargetRow
               key={target.id}
               target={target}
@@ -533,6 +541,15 @@ function OtherContacts({
               onCall={onCall}
             />
           ))}
+          {shown.length > visible.length && (
+            <button
+              type="button"
+              onClick={() => setLimit(limit + OTHERS_PAGE)}
+              className="shrink-0 border-b border-gray-200 bg-white px-3 py-2 text-left text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-blue-500/10"
+            >
+              {tr("showMore", d, { n: String(shown.length - visible.length) })}
+            </button>
+          )}
           {search.trim() && shown.length === 0 && (
             <p className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">
               {tr("symptoms.call_center_contact_none", dict)}
@@ -558,7 +575,7 @@ function OtherContacts({
   );
 }
 
-/** The country's emergency numbers, always in view under the list; each one is called like a contact. */
+/** The country's emergency numbers, pinned under the scrolling body; each one is called like a contact. */
 function EmergencyNumbers({
   dict,
   onCall,
@@ -566,7 +583,7 @@ function EmergencyNumbers({
   const numbers = EMERGENCY_NUMBERS[EMERGENCY_COUNTRY] ?? [];
   if (numbers.length === 0) return null;
   return (
-    <div className="shrink-0 border-t border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+    <div className="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
       <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         {tr("symptoms.call_center_emergency", dict)}
       </h4>
@@ -715,109 +732,114 @@ export default function CallCenterMenu({
 
   return (
     <BentoGrid>
-      <PlainSection title={tr("symptoms.proto_section_general", dict)}>
-        <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
-      </PlainSection>
+      <div
+        data-testid="call-center-scroll"
+        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+      >
+        <PlainSection title={tr("symptoms.proto_section_general", dict)}>
+          <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
+        </PlainSection>
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex h-10 shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800">
-          <h3 className="truncate text-sm font-semibold leading-none text-gray-900 dark:text-white">
-            {tr("symptoms.proto_section_who", dict)}
-          </h3>
-          {steps.length > 0 && level && (
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              v{level.version}
-            </span>
-          )}
-          {steps.length > 0 && sla > 0 && elapsed !== null && (
-            <span
-              className={`ml-auto font-mono text-xs ${elapsed > sla ? "text-red-600 dark:text-red-400" : "text-gray-700 dark:text-gray-300"}`}
-            >
-              SLA {clock(sla - elapsed)}
-            </span>
-          )}
-          {steps.length > 0 && sla > 0 && since === null && (
-            <span className="ml-auto truncate text-xs text-gray-500 dark:text-gray-400">
-              {tr("slaNoStart", d, { min: String(sla / 60) })}
-            </span>
-          )}
-        </div>
-        {steps.length > 0 && (
-          // Announced only when the due step changes, not every second.
-          <p className="sr-only" role="status" aria-live="polite">
-            {tr("dueStep", d, {
-              n: String(due + 1),
-              role: targetText(
-                plan.groups[due]?.who ?? "",
-                plan.groups[due]?.summary ?? null,
-                treatmentData?.trip_info?.carrier,
-                d
-              ),
-            })}
-          </p>
-        )}
-        {addDraft && (
-          <NewNumberPanel
-            dict={dict}
-            initial={addDraft}
-            onSubmit={(draft, action) =>
-              void handleNewNumber(
-                { ...draft, script: addDraft.script },
-                action
-              )
-            }
-            onCancel={() => setAddDraft(null)}
-          />
-        )}
-        {levelFailed && (
-          <div role="alert" className="p-3 text-sm text-red-600">
-            <p>{tr("levelLookupError", d)}</p>
-            <button
-              type="button"
-              onClick={() => void refreshLevel()}
-              className="underline"
-            >
-              {tr("retryLookup", d)}
-            </button>
+        <section className="flex shrink-0 flex-col overflow-clip rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900">
+          <div className="flex h-10 shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800">
+            <h3 className="truncate text-sm font-semibold leading-none text-gray-900 dark:text-white">
+              {tr("symptoms.proto_section_who", dict)}
+            </h3>
+            {steps.length > 0 && level && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                v{level.version}
+              </span>
+            )}
+            {steps.length > 0 && sla > 0 && elapsed !== null && (
+              <span
+                className={`ml-auto font-mono text-xs ${elapsed > sla ? "text-red-600 dark:text-red-400" : "text-gray-700 dark:text-gray-300"}`}
+              >
+                SLA {clock(sla - elapsed)}
+              </span>
+            )}
+            {steps.length > 0 && sla > 0 && since === null && (
+              <span className="ml-auto truncate text-xs text-gray-500 dark:text-gray-400">
+                {tr("slaNoStart", d, { min: String(sla / 60) })}
+              </span>
+            )}
           </div>
-        )}
-        <div
-          className={`min-h-0 flex-1 flex-col overflow-y-auto ${addDraft || levelFailed ? "hidden" : "flex"}`}
-        >
-          {plan.groups.map((group) => (
-            <StepGroup
-              key={`step-${group.index}`}
-              group={group}
-              trip={tripView}
-              onNewNumber={setAddDraft}
-              due={due}
-              elapsed={elapsed}
-              stepEnd={stepEnd}
-              loading={isLoading || Boolean(tripLoading)}
-              lookupFailed={Boolean(bookError || tripError)}
+          {steps.length > 0 && (
+            // Announced only when the due step changes, not every second.
+            <p className="sr-only" role="status" aria-live="polite">
+              {tr("dueStep", d, {
+                n: String(due + 1),
+                role: targetText(
+                  plan.groups[due]?.who ?? "",
+                  plan.groups[due]?.summary ?? null,
+                  treatmentData?.trip_info?.carrier,
+                  d
+                ),
+              })}
+            </p>
+          )}
+          {addDraft && (
+            <NewNumberPanel
+              dict={dict}
+              initial={addDraft}
+              onSubmit={(draft, action) =>
+                void handleNewNumber(
+                  { ...draft, script: addDraft.script },
+                  action
+                )
+              }
+              onCancel={() => setAddDraft(null)}
+            />
+          )}
+          {levelFailed && (
+            <div role="alert" className="p-3 text-sm text-red-600">
+              <p>{tr("levelLookupError", d)}</p>
+              <button
+                type="button"
+                onClick={() => void refreshLevel()}
+                className="underline"
+              >
+                {tr("retryLookup", d)}
+              </button>
+            </div>
+          )}
+          <div
+            className={`flex-col ${addDraft || levelFailed ? "hidden" : "flex"}`}
+          >
+            {plan.groups.map((group) => (
+              <StepGroup
+                key={`step-${group.index}`}
+                group={group}
+                trip={tripView}
+                onNewNumber={setAddDraft}
+                due={due}
+                elapsed={elapsed}
+                stepEnd={stepEnd}
+                loading={isLoading || Boolean(tripLoading)}
+                lookupFailed={Boolean(bookError || tripError)}
+                called={called}
+                treatmentData={treatmentData}
+                scriptContext={scriptContext}
+                labels={labels}
+                canSkip={due < steps.length - 1}
+                dict={dict}
+                d={d}
+                onCall={selectTarget}
+                onSkip={() => onSkip(due + 1)}
+              />
+            ))}
+            <OtherContacts
+              targets={plan.others}
               called={called}
-              treatmentData={treatmentData}
-              scriptContext={scriptContext}
-              labels={labels}
-              canSkip={due < steps.length - 1}
+              collapsible={steps.length > 0}
               dict={dict}
               d={d}
               onCall={selectTarget}
-              onSkip={() => onSkip(due + 1)}
+              onNewNumber={setAddDraft}
             />
-          ))}
-          <OtherContacts
-            targets={plan.others}
-            called={called}
-            collapsible={steps.length > 0}
-            dict={dict}
-            d={d}
-            onCall={selectTarget}
-            onNewNumber={setAddDraft}
-          />
-        </div>
-        <EmergencyNumbers dict={dict} onCall={selectTarget} />
-      </section>
+          </div>
+        </section>
+      </div>
+      <EmergencyNumbers dict={dict} onCall={selectTarget} />
     </BentoGrid>
   );
 }

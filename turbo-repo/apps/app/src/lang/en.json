@@ -7684,6 +7684,7 @@
       "noContacts": "Nobody in the contact book has this role.",
       "otherContacts": "Other contacts ({n})",
       "newNumber": "New number",
+      "showMore": "Show more ({n})",
       "lookupPending": "Loading trip contacts…",
       "tripLookupError": "Could not load the trip contacts. Try again.",
       "levelLookupError": "Could not load the calling order.",

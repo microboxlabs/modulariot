@@ -237,7 +237,7 @@ export default function PrototypeInlineForm({
           "llamar al conductor"
         ),
       component: (
-        <div className="w-full h-full flex flex-row items-start justify-center">
+        <div className="flex h-full min-h-0 w-full flex-col">
           <PrototypeCallCenterFlow
             key={callCenterResetKey}
             dict={dict as I18nRecord}

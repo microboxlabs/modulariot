@@ -17,6 +17,7 @@ public class AssetEpisodes implements EpisodeStore {
 
     private final String tenantCode;
     private final String assetId;
+    private final long closeRevision;
     private final Map<UUID, Episode> episodes;
     private final Map<String, Instant> watermarks;
     private final Set<UUID> saved = new HashSet<>();
@@ -25,8 +26,14 @@ public class AssetEpisodes implements EpisodeStore {
 
     public AssetEpisodes(String tenantCode, String assetId, Map<UUID, Episode> episodes,
             Map<String, Instant> watermarks) {
+        this(tenantCode, assetId, episodes, watermarks, 0);
+    }
+
+    AssetEpisodes(String tenantCode, String assetId, Map<UUID, Episode> episodes,
+            Map<String, Instant> watermarks, long closeRevision) {
         this.tenantCode = tenantCode;
         this.assetId = assetId;
+        this.closeRevision = closeRevision;
         this.episodes = new HashMap<>(episodes);
         this.watermarks = new HashMap<>(watermarks);
     }
@@ -76,6 +83,11 @@ public class AssetEpisodes implements EpisodeStore {
 
     public String assetId() {
         return assetId;
+    }
+
+    /** The operator-close revision captured with this snapshot. */
+    long closeRevision() {
+        return closeRevision;
     }
 
     boolean hasEpisodes() {

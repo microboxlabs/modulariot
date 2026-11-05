@@ -179,8 +179,10 @@ public class SignalStream {
             LOG.infof("Signal builder: loaded %d trips, %d shares", t.size(), s.size());
             return t.size();
         })).chain(n -> loadZones()).invoke(z -> {
-            zones.load(z);
-            LOG.infof("Signal builder: loaded %d zones", z.size());
+            if (gps.configured()) {
+                zones.load(z);
+                LOG.infof("Signal builder: loaded %d zones", z.size());
+            }
         }).replaceWithVoid();
     }
 

@@ -34,7 +34,7 @@ public class Zones {
         }
     }
 
-    private volatile Map<String, List<Zone>> byClient = Map.of();
+    private volatile Map<String, List<Zone>> byClient;
 
     /** Replaces every client's zones. */
     public void load(List<Zone> zones) {
@@ -44,18 +44,20 @@ public class Zones {
     }
 
     public int size() {
-        return byClient.values().stream().mapToInt(List::size).sum();
+        Map<String, List<Zone>> loaded = byClient;
+        return loaded == null ? 0 : loaded.values().stream().mapToInt(List::size).sum();
     }
 
     /**
-     * Where the point is for the client's zones; null when the client has none, so a rule cannot tell "no
-     * zones loaded" from "outside every zone".
+     * Where the point is for the client's zones; null before a successful complete load. A known-empty set
+     * places the point outside every authorized zone.
      */
     public GpsSignal.Geo at(String clientId, double lon, double lat) {
-        List<Zone> zones = byClient.get(clientId);
-        if (zones == null || zones.isEmpty()) {
+        Map<String, List<Zone>> loaded = byClient;
+        if (loaded == null) {
             return null;
         }
+        List<Zone> zones = loaded.getOrDefault(clientId, List.of());
         boolean authorized = false;
         boolean risk = false;
         boolean other = false;

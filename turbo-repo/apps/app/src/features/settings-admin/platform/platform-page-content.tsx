@@ -277,14 +277,15 @@ export default function PlatformPageContent({
       )}
 
       {!isLoading && isPlatformOwner && (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
+        // Below md the menu and the detail stack and scroll together; from md each scrolls on its own.
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 max-md:overflow-y-auto md:grid-cols-[320px_1fr]">
           <PlatformSectionList
             sections={sections}
             selected={selected}
             onSelect={setSelected}
             dict={platformDict}
           />
-          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+          <div className="flex flex-col gap-4 pr-1 md:min-h-0 md:overflow-y-auto">
             {panels[selected]}
           </div>
         </div>

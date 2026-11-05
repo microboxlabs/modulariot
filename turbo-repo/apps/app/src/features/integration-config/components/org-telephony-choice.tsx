@@ -100,9 +100,13 @@ export function OrgTelephonyChoice({
           <HiOutlinePhone className="h-4 w-4" />
           {tr("telephonyChoice.title", dict)}
         </Label>
-        <p className={`text-xs ${MUTED}`}>{tr("telephonyChoice.hint", dict)}</p>
+        <p id="org-telephony-hint" className={`text-xs ${MUTED}`}>
+          {tr("telephonyChoice.hint", dict)}
+        </p>
         <Select
           id="org-telephony"
+          aria-describedby="org-telephony-hint"
+          aria-busy={busy}
           sizing="sm"
           className="mt-1 max-w-md"
           value={setup.preferred ?? UNSET}
@@ -119,6 +123,11 @@ export function OrgTelephonyChoice({
               ? lineLabel(telnyx, dict)
               : tr("telephonyChoice.platform", dict)}
           </option>
+          {setup.preferred === "TEAMS_PHONE" && teams.length === 0 && (
+            <option value="TEAMS_PHONE" disabled>
+              {tr("telephonyChoice.teamsUnavailable", dict)}
+            </option>
+          )}
           {teams.map((line) => (
             <option
               key={line.connectionId}

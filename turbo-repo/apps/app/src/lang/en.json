@@ -5684,7 +5684,7 @@
         "channelLimitHelp": "How many calls the line can carry at once. Empty: 10.",
         "channelLimitInvalid": "Simultaneous calls must be a whole number above 0.",
         "webhookPublicKey": "Webhook public key (optional)",
-        "webhookPublicKeyHelp": "In Telnyx: Account Settings › Keys & Credentials › Public Key. The modulith checks call webhooks with it.",
+        "webhookPublicKeyHelp": "In Telnyx: Account Settings › Keys & Credentials › Public Key. ModularIoT checks call webhooks with it.",
         "webhookUrl": "Webhook URL for the Credential Connection",
         "webhookUrlHelp": "Paste it in Telnyx as the connection's webhook. Shown after saving."
       },
@@ -5694,6 +5694,7 @@
         "platform": "Platform line (Telnyx)",
         "ownTelnyx": "{name} (Telnyx)",
         "teams": "{name} (Teams Phone)",
+        "teamsUnavailable": "Teams Phone (no active connection)",
         "notTested": "{name} (Teams Phone, not tested)",
         "unset": "Not chosen",
         "inUse": "In use: {line}",
@@ -5702,7 +5703,7 @@
         "notReady": "{name} did not pass its test. It is not used until it does.",
         "saved": "Telephony saved.",
         "saveFailed": "Could not save the telephony settings.",
-        "forbidden": "Only an owner or admin of the organization can change the telephony.",
+        "forbidden": "You need permission to change Control Tower settings to change the telephony.",
         "askTeams": "Use {name} as the organization's telephony?",
         "askTeamsAction": "Use Teams Phone"
       }
@@ -7776,6 +7777,9 @@
     "wa_call_refusal_WEEKLY_LIMIT": "Meta allows 2 requests per week to each contact.",
     "wa_call_refusal_SEND_FAILED": "Meta refused the message.",
     "call_center_edit_contact": "Edit contact",
+    "call_center_use_trip_phone": "Use the trip's phone ({phone})",
+    "call_center_trip_phone": "Trip phone:",
+    "call_center_trip_phone_error": "The trip's phone couldn't be saved to the contact.",
     "ladder": {
       "title": "Escalation",
       "anyone": "Anyone",
@@ -7824,7 +7828,8 @@
     "call_quota_exhausted": "The platform's call minutes of this month are used.",
     "call_channels_busy": "Every platform line is in a call. Try again in a moment.",
     "call_use_phone": "Call with the phone",
-    "call_teams_no_connection": "No Teams Phone connection"
+    "call_teams_no_connection": "No Teams Phone connection",
+    "call_teams_no_number": "This contact needs a phone number with a country code to call through Teams Phone."
   },
   "geographic_view": {
     "arrival_delay": "Arrival delay",

@@ -503,6 +503,48 @@ describe("CallDialingStep", () => {
       expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "teams");
     });
 
+    it.each([undefined, "133", "driver@example.com"])(
+      "explains the number problem when a tested Teams connection exists (%s)",
+      (phone) => {
+        const openTeams = vi.fn();
+        render(
+          <CallDialingStep
+            dict={dict}
+            contactName="Luis"
+            contactRole="Transportista"
+            contactPhone={phone}
+            channels={{ teams: "driver@example.com" }}
+            allowedMethods={["teams"]}
+            reason=""
+            line={telnyx}
+            teamsLine={teamsLine}
+            openTeams={openTeams}
+            onCancel={vi.fn()}
+            onConfirm={vi.fn()}
+          />
+        );
+        fireEvent.click(
+          screen.getByRole("button", { name: "Llamada por Microsoft Teams" })
+        );
+        expect(openTeams).not.toHaveBeenCalled();
+        expect(screen.getByRole("status")).toHaveTextContent(
+          es.symptoms.call_teams_no_number
+        );
+        expect(
+          screen.queryByText(es.symptoms.call_teams_no_connection)
+        ).toBeNull();
+        expect(screen.queryByText("00:00")).toBeNull();
+      }
+    );
+
+    it("does not call through an untested Teams connection", () => {
+      const { openTeams } = renderTeams({ ...teamsLine, ready: false });
+      expect(openTeams).not.toHaveBeenCalled();
+      expect(screen.getByRole("status")).toHaveTextContent(
+        es.symptoms.call_teams_no_connection
+      );
+    });
+
     it("keeps the phone button on Telnyx", async () => {
       const openTeams = vi.fn();
       const token = vi.fn().mockRejectedValue(new Error("Synthetic stop"));
@@ -530,6 +572,36 @@ describe("CallDialingStep", () => {
       await waitFor(() => expect(token).toHaveBeenCalled());
       expect(openTeams).not.toHaveBeenCalled();
     });
+
+    it.each(["telephonyPending", "telephonyFailed"])(
+      "waits for a trustworthy telephony setup before enabling Teams (%s)",
+      (state) => {
+        const openTeams = vi.fn();
+        render(
+          <CallDialingStep
+            dict={dict}
+            contactName="Luis"
+            contactRole="Transportista"
+            contactPhone="+56922222222"
+            allowedMethods={["teams"]}
+            reason=""
+            {...{ [state]: true }}
+            openTeams={openTeams}
+            onCancel={vi.fn()}
+            onConfirm={vi.fn()}
+          />
+        );
+        const button = screen.getByRole("button", {
+          name: "Llamada por Microsoft Teams",
+        });
+        expect(button).toBeDisabled();
+        fireEvent.click(button);
+        expect(openTeams).not.toHaveBeenCalled();
+        expect(
+          screen.queryByText(es.symptoms.call_teams_no_connection)
+        ).toBeNull();
+      }
+    );
   });
 
   describe("on the managed line", () => {

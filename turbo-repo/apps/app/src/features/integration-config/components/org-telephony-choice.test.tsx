@@ -105,6 +105,7 @@ describe("OrgTelephonyChoice", () => {
     setup({ preferred: null });
     renderChoice();
     expect(select().value).toBe("");
+    expect(select()).toHaveAccessibleDescription(t.hint);
     expect(screen.getByText(t.unsetHint)).toBeInTheDocument();
     expect(
       screen.getByText(t.inUse.replace("{line}", t.platform))
@@ -156,6 +157,22 @@ describe("OrgTelephonyChoice", () => {
     expect(
       screen.getByText(t.notReady.replace("{name}", "Mintral Teams"))
     ).toBeInTheDocument();
+  });
+
+  it("keeps a saved Teams choice visible after its connection is removed", async () => {
+    setup({ preferred: "TEAMS_PHONE", active: platform, lines: [platform] });
+    renderChoice();
+    expect(select()).toHaveValue("TEAMS_PHONE");
+    expect(
+      screen.getByRole("option", { name: t.teamsUnavailable })
+    ).toBeDisabled();
+    expect(
+      screen.getByText(t.inUse.replace("{line}", t.platform))
+    ).toBeInTheDocument();
+    fireEvent.change(select(), { target: { value: "TELNYX" } });
+    await waitFor(() =>
+      expect(mocks.saveTelephony).toHaveBeenCalledWith("TELNYX")
+    );
   });
 
   it("says who may change it when the API refuses", async () => {

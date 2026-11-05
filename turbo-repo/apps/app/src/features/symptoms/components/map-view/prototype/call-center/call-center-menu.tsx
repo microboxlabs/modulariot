@@ -35,6 +35,7 @@ import {
 } from "@/features/symptoms/control-tower/control-tower-api";
 import {
   type Step,
+  useControlTowerAccess,
   useLevelResponse,
 } from "@/features/symptoms/maintainer/maintainer-api";
 import {
@@ -65,8 +66,10 @@ import {
 } from "./call-method";
 import {
   type CallTarget,
+  isTripDriver,
   type NewContactPreset,
   stepMethod,
+  tripPhoneE164,
   useCallTargets,
 } from "./call-targets";
 import ContactRow from "./contact-row";
@@ -204,6 +207,9 @@ function TargetRow({
   dict,
   d,
   onCall,
+  tripPhone,
+  canEditContacts = false,
+  onUseTripPhone,
 }: Readonly<{
   target: CallTarget;
   calledAt: Date | undefined;
@@ -214,17 +220,41 @@ function TargetRow({
   dict: I18nRecord;
   d: I18nRecord;
   onCall: OnCall;
+  /** The trip's driver phone in E.164; passed only for the trip driver's row. */
+  tripPhone?: string;
+  /** The user can create and edit book contacts. */
+  canEditContacts?: boolean;
+  /** Saves `tripPhone` on the contact and calls it; resolves once done or failed. */
+  onUseTripPhone?: OnUseTripPhone;
 }>) {
   const { lang } = useParams<{ lang: string }>();
+  const [savingTripPhone, setSavingTripPhone] = useState(false);
   const wanted = step ? stepMethod(step.channel) : null;
   const reachable = target.methods.length > 0;
   const unavailable =
     reachable && wanted !== null && !target.methods.includes(wanted);
+  // A book contact with no phone, when the trip has the driver's number.
+  const fallback =
+    tripPhone && target.contactId && !target.phone.trim()
+      ? tripPhone
+      : undefined;
+  const offerFallback = Boolean(fallback && canEditContacts && onUseTripPhone);
+  // The trip phone line below replaces the "no channels" note.
   let note: string | undefined;
-  if (!reachable) note = tr("symptoms.call_center_no_channels", dict);
-  else if (unavailable)
+  if (!fallback && !reachable)
+    note = tr("symptoms.call_center_no_channels", dict);
+  else if (!fallback && unavailable)
     note = tr("unavailableOn", d, { channel: channelLabel(step!.channel, d) });
   const phone = formatChileanPhone(target.phone);
+  const applyTripPhone = async () => {
+    if (!fallback || !onUseTripPhone) return;
+    setSavingTripPhone(true);
+    try {
+      await onUseTripPhone(target, fallback, script);
+    } finally {
+      setSavingTripPhone(false);
+    }
+  };
   const stats = calledAt
     ? {
         lastCallAt: calledAt,
@@ -254,7 +284,31 @@ function TargetRow({
             : undefined
         }
       />
-      {!reachable && target.contactId && (
+      {fallback && offerFallback && (
+        <button
+          type="button"
+          disabled={savingTripPhone}
+          onClick={() => void applyTripPhone()}
+          className="flex w-full items-center gap-1.5 border-b border-gray-200 bg-white px-3 py-2 text-left text-sm font-medium text-blue-600 hover:underline focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-blue-400"
+        >
+          <HiPhone className="h-3.5 w-3.5 shrink-0" />
+          {tr("symptoms.call_center_use_trip_phone", dict, {
+            phone: formatChileanPhone(fallback),
+          })}
+        </button>
+      )}
+      {fallback && !offerFallback && (
+        <p className="border-b border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+          {tr("symptoms.call_center_trip_phone", dict)}{" "}
+          <a
+            href={`tel:${fallback}`}
+            className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+          >
+            {formatChileanPhone(fallback)}
+          </a>
+        </p>
+      )}
+      {!reachable && target.contactId && !offerFallback && (
         <Link
           href={`/${lang}/users/settings/contact-book?edit=${encodeURIComponent(target.contactId)}`}
           className="block border-b border-gray-200 bg-white px-3 py-2 text-sm font-medium text-blue-600 hover:underline focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-blue-400"
@@ -296,6 +350,11 @@ function callScript(
 }
 
 export type OnCall = (target: CallTarget, script?: CallScript) => void;
+type OnUseTripPhone = (
+  target: CallTarget,
+  phone: string,
+  script?: CallScript
+) => Promise<void>;
 type NewCallDraft = NewNumberDraft & { script?: CallScript };
 
 function StepGroup({
@@ -311,11 +370,13 @@ function StepGroup({
   labels,
   trip,
   canSkip,
+  canEditContacts,
   dict,
   d,
   onCall,
   onSkip,
   onNewNumber,
+  onUseTripPhone,
 }: Readonly<{
   group: CallGroup;
   due: number;
@@ -332,13 +393,17 @@ function StepGroup({
   /** The server's answer for the steps' conditions, with the trip's RUTs. */
   trip: TowerTripContacts | undefined;
   canSkip: boolean;
+  canEditContacts: boolean;
   dict: I18nRecord;
   d: I18nRecord;
   onCall: OnCall;
   onSkip: () => void;
   onNewNumber: (draft: NewCallDraft) => void;
+  onUseTripPhone: OnUseTripPhone;
 }>) {
   const carrierName = treatmentData?.trip_info?.carrier;
+  const tripPhone = tripPhoneE164(treatmentData?.trip_info?.driver_contact);
+  const driverRut = trip?.data.driverRut;
   const preset = presetFor(group.summary, trip, carrierName);
   const script = callScript(group.step, scriptContext, labels);
   const { step, index } = group;
@@ -399,6 +464,11 @@ function StepGroup({
           dict={dict}
           d={d}
           onCall={onCall}
+          tripPhone={
+            tripPhone && isTripDriver(target, driverRut) ? tripPhone : undefined
+          }
+          canEditContacts={canEditContacts}
+          onUseTripPhone={onUseTripPhone}
         />
       ))}
       {group.targets.length === 0 && loading && (
@@ -647,7 +717,15 @@ export default function CallCenterMenu({
     error: levelError,
     mutate: refreshLevel,
   } = useLevelResponse(symptom?.name ?? null, symptom?.icu_code ?? null);
-  const { targets, addContact, isLoading, error: bookError } = useCallTargets();
+  const {
+    targets,
+    addContact,
+    saveTripPhone,
+    isLoading,
+    error: bookError,
+  } = useCallTargets();
+  const { can } = useControlTowerAccess();
+  const canEditContacts = can("controltower:contact.write");
   const levelFailed = Boolean(levelError && levelError.status !== 404);
   // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
   const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
@@ -728,6 +806,26 @@ export default function CallCenterMenu({
       }
     }
     selectTarget(newTarget(null, personName, number), script);
+  };
+
+  // Saves the trip's phone on the driver's book contact, then calls that contact.
+  const handleUseTripPhone: OnUseTripPhone = async (target, phone, script) => {
+    if (!target.contactId) return;
+    const version = ++callVersion.current;
+    try {
+      const saved = await saveTripPhone(target.contactId, phone);
+      if (callVersion.current !== version) return;
+      selectTarget(
+        { ...saved, phone: formatChileanPhone(saved.phone) },
+        script
+      );
+    } catch {
+      if (callVersion.current !== version) return;
+      ShowNotification({
+        type: "error",
+        message: tr("symptoms.call_center_trip_phone_error", dict),
+      });
+    }
   };
 
   return (
@@ -821,6 +919,8 @@ export default function CallCenterMenu({
                 scriptContext={scriptContext}
                 labels={labels}
                 canSkip={due < steps.length - 1}
+                canEditContacts={canEditContacts}
+                onUseTripPhone={handleUseTripPhone}
                 dict={dict}
                 d={d}
                 onCall={selectTarget}

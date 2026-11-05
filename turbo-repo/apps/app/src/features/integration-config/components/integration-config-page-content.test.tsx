@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/lang/en.json";
 import type { ReactNode } from "react";
 import type { IntegrationConnection } from "../integration-config.types";
+import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
 const state = vi.hoisted(() => ({
   replace: vi.fn(),
   owner: false,
@@ -18,6 +19,8 @@ const state = vi.hoisted(() => ({
   save: vi.fn(),
   telephony: { preferred: null as string | null, active: null, lines: [] },
   saveTelephony: vi.fn(),
+  revalidateTelephony: vi.fn(),
+  testInstance: vi.fn(),
   params: new URLSearchParams(
     "section=bigquery&source=demo-old&query=demo-plan"
   ),
@@ -39,6 +42,7 @@ vi.mock("../use-integration-config", () => ({
     connections: state.connections,
     removeConnection: state.remove,
     saveConnection: state.save,
+    testInstance: state.testInstance,
     credentials: [],
     isLoading: false,
     error: null,
@@ -107,7 +111,11 @@ vi.mock("sonner", () => ({
   }),
 }));
 vi.mock("@/features/symptoms/control-tower/telephony-api", () => ({
-  useTelephony: () => ({ data: state.telephony, error: undefined }),
+  useTelephony: () => ({
+    data: state.telephony,
+    error: undefined,
+    mutate: state.revalidateTelephony,
+  }),
   saveTelephony: state.saveTelephony,
 }));
 vi.mock("./org-telephony-choice", () => ({
@@ -116,21 +124,26 @@ vi.mock("./org-telephony-choice", () => ({
 vi.mock("./connection-form-modal", () => ({
   ConnectionFormModal: ({
     onSave,
+    onTest,
   }: {
     onSave: (create: Record<string, unknown>) => Promise<unknown>;
+    onTest: (id: string) => Promise<unknown>;
   }) => (
-    <button
-      onClick={() =>
-        void onSave({
-          name: "Mintral Teams",
-          baseUrl: "https://graph.microsoft.com",
-          credentialProfileId: "c1",
-          providerType: "TEAMS_PHONE",
-        })
-      }
-    >
-      Create Teams Phone
-    </button>
+    <>
+      <button onClick={() => void onTest("m1")}>Test Teams Phone</button>
+      <button
+        onClick={() =>
+          void onSave({
+            name: "Mintral Teams",
+            baseUrl: "https://graph.microsoft.com",
+            credentialProfileId: "c1",
+            providerType: "TEAMS_PHONE",
+          })
+        }
+      >
+        Create Teams Phone
+      </button>
+    </>
   ),
 }));
 vi.mock("./integration-delete-dialog", () => ({
@@ -174,6 +187,8 @@ beforeEach(() => {
   state.connections = [];
   state.remove.mockResolvedValue(undefined);
   state.removeManaged.mockResolvedValue(undefined);
+  state.revalidateTelephony.mockResolvedValue(undefined);
+  state.testInstance.mockResolvedValue({ success: true });
   state.params = new URLSearchParams(
     "section=bigquery&source=demo-old&query=demo-plan"
   );
@@ -353,6 +368,7 @@ describe("organization telephony", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create Teams Phone"));
     await waitFor(() => expect(state.ask).toHaveBeenCalled());
+    expect(state.revalidateTelephony).toHaveBeenCalled();
     const [message, options] = state.ask.mock.calls[0] as [
       string,
       { action: { label: string; onClick: () => void } },
@@ -370,5 +386,29 @@ describe("organization telephony", () => {
     fireEvent.click(screen.getByText("Create Teams Phone"));
     await waitFor(() => expect(state.save).toHaveBeenCalled());
     expect(state.ask).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])(
+    "refreshes telephony after a saved connection test (success: %s)",
+    async (success) => {
+      state.testInstance.mockResolvedValueOnce({ success });
+      renderPage();
+      fireEvent.click(screen.getByText("Test Teams Phone"));
+      await waitFor(() => expect(state.revalidateTelephony).toHaveBeenCalled());
+    }
+  );
+
+  it("explains the required permission when choosing the new connection is forbidden", async () => {
+    state.telephony = { preferred: null, active: null, lines: [] };
+    state.saveTelephony.mockRejectedValueOnce(
+      new ControlTowerError("forbidden", 403)
+    );
+    renderPage();
+    fireEvent.click(screen.getByText("Create Teams Phone"));
+    await waitFor(() => expect(state.ask).toHaveBeenCalled());
+    state.ask.mock.calls[0][1].action.onClick();
+    await waitFor(() =>
+      expect(state.failure).toHaveBeenCalledWith(t.forbidden)
+    );
   });
 });

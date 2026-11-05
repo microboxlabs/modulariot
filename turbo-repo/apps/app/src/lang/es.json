@@ -5684,7 +5684,7 @@
         "channelLimitHelp": "Cuántas llamadas puede haber a la vez en esta línea. Vacío: 10.",
         "channelLimitInvalid": "Las llamadas simultáneas deben ser un número entero mayor que 0.",
         "webhookPublicKey": "Clave pública de webhooks (opcional)",
-        "webhookPublicKeyHelp": "En Telnyx: Account Settings › Keys & Credentials › Public Key. Con ella el modulith verifica los webhooks de llamadas.",
+        "webhookPublicKeyHelp": "En Telnyx: Account Settings › Keys & Credentials › Public Key. Con ella ModularIoT verifica los webhooks de llamadas.",
         "webhookUrl": "URL de webhook para la Credential Connection",
         "webhookUrlHelp": "Pégala en Telnyx como webhook de la conexión. Se muestra después de guardar."
       },
@@ -5694,6 +5694,7 @@
         "platform": "Línea de la plataforma (Telnyx)",
         "ownTelnyx": "{name} (Telnyx)",
         "teams": "{name} (Teams Phone)",
+        "teamsUnavailable": "Teams Phone (sin conexión activa)",
         "notTested": "{name} (Teams Phone, sin probar)",
         "unset": "Sin elegir",
         "inUse": "En uso: {line}",
@@ -5702,7 +5703,7 @@
         "notReady": "{name} no pasó su prueba. No se usa hasta que la pase.",
         "saved": "Telefonía guardada.",
         "saveFailed": "No se pudo guardar la telefonía.",
-        "forbidden": "Solo un dueño o administrador de la organización puede cambiar la telefonía.",
+        "forbidden": "Necesitas permiso para cambiar los ajustes de la Torre de control para cambiar la telefonía.",
         "askTeams": "¿Usar {name} como telefonía de la organización?",
         "askTeamsAction": "Usar Teams Phone"
       }
@@ -7776,6 +7777,9 @@
     "wa_call_refusal_WEEKLY_LIMIT": "Meta permite 2 solicitudes por semana a cada contacto.",
     "wa_call_refusal_SEND_FAILED": "Meta rechazó el envío.",
     "call_center_edit_contact": "Editar contacto",
+    "call_center_use_trip_phone": "Usar el teléfono del viaje ({phone})",
+    "call_center_trip_phone": "Teléfono del viaje:",
+    "call_center_trip_phone_error": "No se pudo guardar el teléfono del viaje en el contacto.",
     "ladder": {
       "title": "Escalamiento",
       "anyone": "Cualquiera",
@@ -7824,7 +7828,8 @@
     "call_quota_exhausted": "Se usaron los minutos de llamadas de la plataforma de este mes.",
     "call_channels_busy": "Todas las líneas de la plataforma están en una llamada. Intenta en un momento.",
     "call_use_phone": "Llamar con el teléfono",
-    "call_teams_no_connection": "Sin conexión Teams Phone"
+    "call_teams_no_connection": "Sin conexión Teams Phone",
+    "call_teams_no_number": "Este contacto necesita un número de teléfono con código de país para llamar por Teams Phone."
   },
   "geographic_view": {
     "arrival_delay": "Retraso de llegada",

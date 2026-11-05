@@ -139,3 +139,51 @@ export function fillScriptText(script: string, ctx: Json | undefined): string {
     (all, name: string) => scriptValue(name, ctx) ?? all
   );
 }
+
+/** A filled piece of a script: text, or a field the case has no value for, named for the operator. */
+export type FilledPart = { text: string } | { blank: string };
+
+/** The names of the fields, as `scriptField` in the texts keys them (`trip_driver_name`). */
+export type FieldLabels = Record<string, unknown> | undefined;
+
+const lowerFirst = (s: string) =>
+  /^\p{Lu}\p{Ll}/u.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+
+/** What the operator reads for a variable the case cannot fill: `[nombre del conductor]`. */
+export function blankLabel(name: string, labels: FieldLabels): string {
+  const label = (path: string) => {
+    const key = path.replaceAll(".", "_");
+    const v = labels && Object.hasOwn(labels, key) ? labels[key] : undefined;
+    return lowerFirst(
+      typeof v === "string" && v ? v : (path.split(".").pop() ?? path)
+    );
+  };
+  if (name === ROUTE)
+    return `[${label("trip.origin")} → ${label("trip.destination")}]`;
+  return `[${label(Object.hasOwn(SCRIPT_ALIASES, name) ? SCRIPT_ALIASES[name]! : name)}]`;
+}
+
+/** The script with the case's values in place, and a named blank for each one the case lacks. */
+export function filledParts(
+  script: string,
+  ctx: Json | undefined,
+  labels: FieldLabels
+): FilledPart[] {
+  const out: FilledPart[] = [];
+  for (const part of scriptParts(script, ctx)) {
+    let piece: FilledPart;
+    if ("text" in part) piece = { text: part.text };
+    else if (part.value === null)
+      piece = { blank: blankLabel(part.variable, labels) };
+    else piece = { text: part.value };
+    const last = out.at(-1);
+    if ("text" in piece && last && "text" in last) last.text += piece.text;
+    else out.push(piece);
+  }
+  return out;
+}
+
+/** The parts as plain text, blanks in brackets. */
+export function partsText(parts: readonly FilledPart[]): string {
+  return parts.map((p) => ("text" in p ? p.text : p.blank)).join("");
+}

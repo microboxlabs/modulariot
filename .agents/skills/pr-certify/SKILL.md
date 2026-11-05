@@ -282,9 +282,10 @@ reviewed. Treat stale as unreviewed.
 - **A repo can have several Sonar projects.** `prcert` discovers the keys from the PR's Sonar
   check URLs and requires all of them to be clean. With no Sonar check (a stacked PR), it falls
   back to the projects the repo declares: each `sonar-project.properties` (scoped to its
-  `sonar.sources`) and each workflow step that passes `-Dsonar.projectKey` (scoped to the step's
-  `working-directory`; the Maven scanner has no properties file). Only the projects whose sources
-  the PR touches count; if the PR's file list is truncated, all of them do. A project whose API
+  `sonar.sources` and `sonar.tests`) and each workflow step that passes `-Dsonar.projectKey`
+  (scoped to the step's `working-directory`; the Maven scanner has no properties file). Only the projects whose sources
+  the PR touches count; a complete file list that touches none needs no Sonar analysis. If the
+  PR's file list is truncated, all projects count. A project whose API
   call errors counts as unknown, never as clean.
 - **More than 100 checks truncates the rollup.** `prcert` blocks rather than reporting green on a
   connection it could not read in full.

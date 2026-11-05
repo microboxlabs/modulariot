@@ -511,16 +511,21 @@ def declared_sonar_projects(repo_root):
             continue
         base = os.path.relpath(dirpath, repo_root)
         base = "" if base == "." else base
-        key, sources = None, []
+        key, project_base, sources, tests = None, ".", [], []
         with open(os.path.join(dirpath, "sonar-project.properties")) as fh:
             for line in fh:
                 line = line.strip()
                 if line.startswith("sonar.projectKey="):
                     key = line.split("=", 1)[1].strip()
+                elif line.startswith("sonar.projectBaseDir="):
+                    project_base = line.split("=", 1)[1].strip()
                 elif line.startswith("sonar.sources="):
                     sources = [s.strip() for s in line.split("=", 1)[1].split(",") if s.strip()]
+                elif line.startswith("sonar.tests="):
+                    tests = [s.strip() for s in line.split("=", 1)[1].split(",") if s.strip()]
         if key:
-            roots = [os.path.normpath(os.path.join(base, s)) for s in sources] or [base or "."]
+            base = os.path.join(base, project_base)
+            roots = [os.path.normpath(os.path.join(base, s)) for s in (sources or ["."]) + tests]
             found.append((key, ["" if r == "." else r.replace(os.sep, "/") for r in roots]))
     workflows = os.path.join(repo_root, ".github", "workflows")
     if os.path.isdir(workflows):
@@ -530,6 +535,8 @@ def declared_sonar_projects(repo_root):
             with open(os.path.join(workflows, name)) as fh:
                 lines = fh.read().splitlines()
             for i, line in enumerate(lines):
+                if line.lstrip().startswith("#"):
+                    continue
                 m = SONAR_WORKFLOW_KEY.search(line)
                 if m:
                     found.append((m.group(1), [step_working_directory(lines, i)]))
@@ -541,13 +548,18 @@ def step_working_directory(lines, i):
     start = i
     while start > 0 and not STEP_START.match(lines[start]):
         start -= 1
+    step_indent = len(lines[start]) - len(lines[start].lstrip())
     end = i + 1
-    while end < len(lines) and not STEP_START.match(lines[end]):
+    while end < len(lines):
+        content = lines[end].lstrip()
+        if content and not content.startswith("#") and len(lines[end]) - len(content) <= step_indent:
+            break
         end += 1
     for line in lines[start:end]:
         m = WORKING_DIRECTORY.match(line)
         if m:
-            return m.group(1).strip("'\"").rstrip("/")
+            root = os.path.normpath(m.group(1).strip("'\""))
+            return "" if root == "." else root.replace(os.sep, "/")
     return ""
 
 
@@ -591,6 +603,9 @@ def sonar_state(pr, settings, repo_root, skip=False):
                 "reason": "not queried on this path"}
     keys = sonar_keys(pr, repo_root)
     if not keys:
+        if repo_root and declared_sonar_projects(repo_root) and changed_paths(pr) is not None:
+            return {"provider": "sonar", "available": True, "fresh": True, "verdict": "clean",
+                    "projects": [], "reason": "PR touches no declared SonarCloud project"}
         return {"provider": "sonar", "available": False, "verdict": None,
                 "reason": "no SonarCloud check or sonar-project.properties found"}
     token = os.environ.get(settings["sonarTokenEnv"], "")

@@ -800,15 +800,12 @@ export default function CallCenterMenu({
     () => skippedInCase(treatments, since, symptom?.icu_code),
     [treatments, since, symptom?.icu_code]
   );
+  const timedStep = elapsed === null ? 0 : stepAt(steps, elapsed);
   const due =
     steps.length > 0
       ? Math.min(
           steps.length - 1,
-          Math.max(
-            elapsed === null ? 0 : stepAt(steps, elapsed),
-            skippedTo ?? 0,
-            savedSkip ?? 0
-          )
+          Math.max(timedStep, skippedTo ?? 0, savedSkip ?? 0)
         )
       : -1;
   const stepEnd = steps

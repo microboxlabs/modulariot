@@ -44,10 +44,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.asset_id, o.at, o.level, o.trip_id,
                    o.latitude, o.longitude, o.speed_kmh, d.name, d.family,
-                   (SELECT c.id FROM miot_symptoms.signal_transitions c
-                     WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
-                       AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id
-                     ORDER BY c.id LIMIT 1) AS closed_id,
+                   closed.id AS closed_id, closed.at AS closed_at,
                    (SELECT count(*) FROM miot_symptoms.treatment t
                      WHERE t.tenant_code = o.tenant_code AND t.symptom_id = -o.id AND t.status = 'OPEN') AS treatments,
                    CASE WHEN o.trip_id IS NOT NULL THEN
@@ -59,20 +56,28 @@ public class PgEngineCases implements EngineCaseStore {
                    ret.returned_at
               FROM miot_symptoms.signal_transitions o
               JOIN miot_symptoms.symptom_definition d ON d.id = o.definition_id AND d.tenant_code = o.tenant_code
+              LEFT JOIN LATERAL (SELECT c.id, c.at FROM miot_symptoms.signal_transitions c
+                     WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
+                       AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id
+                     ORDER BY c.id LIMIT 1) closed ON true
               LEFT JOIN LATERAL (%s) hold ON true
               LEFT JOIN LATERAL (%s) ret ON true
              WHERE o.tenant_code = $1 AND o.kind = 'OPENED' AND o.state = 'ACTIVE'
-            """.formatted(HoldSql.active("o"), HoldSql.returned("o"));
+            """.formatted(HoldSql.active("o"), HoldSql.returned("o", "closed.at"));
 
-    /** The case's level is its latest level change before it closed, else the opening one. */
+    /**
+     * The case's level is its latest level change before it closed, else the opening one; {@code level_at} is when
+     * it reached that level.
+     */
     private static final String SELECT = """
-            SELECT x.*, (SELECT c.at FROM miot_symptoms.signal_transitions c WHERE c.id = x.closed_id) AS closed_at,
-                   COALESCE((SELECT l.level FROM miot_symptoms.signal_transitions l
+            SELECT x.*,
+                   COALESCE(lv.level, x.level) AS current_level, COALESCE(lv.at, x.at) AS level_at
+              FROM (%s) x
+              LEFT JOIN LATERAL (SELECT l.level, l.at FROM miot_symptoms.signal_transitions l
                      WHERE l.tenant_code = x.tenant_code AND l.definition_id = x.definition_id
                        AND l.asset_id = x.asset_id AND l.state = 'ACTIVE' AND l.kind = 'LEVEL_CHANGED' AND l.id > x.id
                        AND (x.closed_id IS NULL OR l.id < x.closed_id)
-                     ORDER BY l.id DESC LIMIT 1), x.level) AS current_level
-              FROM (%s) x
+                     ORDER BY l.id DESC LIMIT 1) lv ON true
             """;
 
     /**
@@ -87,17 +92,44 @@ public class PgEngineCases implements EngineCaseStore {
                            jsonb_build_object('l', y.current_level))::numeric::int
                       FROM miot_symptoms.symptom_version v
                      WHERE v.definition_id = y.definition_id AND v.tenant_code = y.tenant_code
-                       AND v.version = y.version AND v.status = 'PUBLISHED') AS sla_minutes
+                       AND v.version = y.version AND v.status = 'PUBLISHED') AS sla_minutes,
+                   %s AS needs_operator
               FROM (%s) y
-            """;
+            """.formatted(needsOperator("y"), "%s");
+
+    /**
+     * Whether the case's current level asks for an operator: {@code response.operator} is true for that level in
+     * the published version the case runs on. False without that version or level, or without a response.
+     */
+    private static String needsOperator(String alias) {
+        return """
+                COALESCE((SELECT jsonb_path_exists(
+                           CASE jsonb_typeof(v.spec) WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END,
+                           'lax $.levels[*] ? (@.icu == $l && @.response.operator == true)',
+                           jsonb_build_object('l', %1$s.current_level))
+                      FROM miot_symptoms.symptom_version v
+                     WHERE v.definition_id = %1$s.definition_id AND v.tenant_code = %1$s.tenant_code
+                       AND v.version = %1$s.version AND v.status = 'PUBLISHED'), false)""".formatted(alias);
+    }
 
     private static final String OPEN = WITH_SLA.formatted(SELECT.formatted(CASES)
             + " WHERE x.closed_id IS NULL ORDER BY x.at DESC LIMIT 200") + " ORDER BY y.at DESC";
     private static final String OPEN_FOR_ASSET = WITH_SLA.formatted(SELECT.formatted(CASES
             + " AND o.asset_id = $2") + " WHERE x.closed_id IS NULL");
     /**
+     * With $10 (the inbox), by criticality: highest level first, then the SLA that runs out soonest (overdue
+     * first, a level without SLA last), then the oldest arrival at the level, then the case id. As
+     * {@code EngineCaseService.INBOX_ORDER}, so the 200 kept are the most critical.
+     */
+    private static final String INBOX_ORDER = """
+            CASE WHEN $10::boolean THEN z.current_level END DESC NULLS LAST,
+            CASE WHEN $10::boolean AND z.sla_minutes > 0 THEN GREATEST(z.level_at, COALESCE(z.returned_at, z.level_at))
+                 + make_interval(mins => z.sla_minutes) END ASC NULLS LAST,
+            CASE WHEN $10::boolean THEN z.level_at END ASC,
+            CASE WHEN $10::boolean THEN z.id END ASC""";
+    /**
      * {@link CaseFilter}: $2 trip, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only, $9
-     * ignored only. Without dates and $9, the open cases no hold covers.
+     * ignored only, $10 operator only. Without dates and $9, the open cases no hold covers.
      */
     private static final String MATCHING = "SELECT * FROM (" + WITH_SLA.formatted(SELECT.formatted(CASES + """
                AND ($2::text IS NULL OR o.trip_id = $2)
@@ -108,9 +140,10 @@ public class PgEngineCases implements EngineCaseStore {
             + ") z WHERE ($7::int IS NULL OR z.current_level = $7)"
             + " AND ($5::timestamptz IS NULL OR z.closed_at IS NULL OR z.closed_at >= $5)"
             + " AND (NOT $8::boolean OR z.treatments > 0)"
+            + " AND (NOT $10::boolean OR z.needs_operator)"
             + " AND CASE WHEN $9::boolean THEN z.hold_id IS NOT NULL AND z.closed_id IS NULL"
             + " WHEN $5::timestamptz IS NULL AND $6::timestamptz IS NULL THEN z.hold_id IS NULL ELSE true END"
-            + " ORDER BY z.at DESC LIMIT 200";
+            + " ORDER BY " + INBOX_ORDER + ", z.at DESC LIMIT 200";
     /** The case's live trip: a trips-module trip id is a UUID. */
     private static final String LIVE_TRIP = """
             t.tenant_code = %s.tenant_code AND t.trip_id = CASE
@@ -119,8 +152,8 @@ public class PgEngineCases implements EngineCaseStore {
     /** A RUT or id without dots, dashes or spaces, upper case; the parameter comes normalized the same way. */
     private static final String PLAIN = "upper(regexp_replace(%s, '[^0-9A-Za-z]', '', 'g'))";
     /**
-     * {@link #MATCHING} that also filters by the case's live trip: $10 either driver's RUT, $11 the carrier's RUT,
-     * $12 the carrier's id, $13 the origin name, $14 the destination name; each normalized as {@link #PLAIN} or
+     * {@link #MATCHING} that also filters by the case's live trip: $11 either driver's RUT, $12 the carrier's RUT,
+     * $13 the carrier's id, $14 the origin name, $15 the destination name; each normalized as {@link #PLAIN} or
      * trimmed and lower case. A case without a live trip matches none.
      */
     private static final String MATCHING_BY_TRIP = MATCHING.replace("AND ($6::timestamptz IS NULL OR o.at < $6)",
@@ -128,19 +161,20 @@ public class PgEngineCases implements EngineCaseStore {
                AND EXISTS (SELECT 1 FROM miot_trips.trip_live t
                     LEFT JOIN miot_fleet.carrier fc ON fc.tenant_code = t.tenant_code AND fc.id::text = t.carrier_id
                    WHERE %s
-                     AND ($10::text IS NULL OR %s = $10 OR %s = $10)
-                     AND ($11::text IS NULL OR %s = $11 OR t.carrier_id = $12)
-                     AND ($13::text IS NULL OR lower(btrim(t.origin_geofence_label)) = $13)
-                     AND ($14::text IS NULL OR lower(btrim(t.destination_geofence_label)) = $14))
+                     AND ($11::text IS NULL OR %s = $11 OR %s = $11)
+                     AND ($12::text IS NULL OR %s = $12 OR t.carrier_id = $13)
+                     AND ($14::text IS NULL OR lower(btrim(t.origin_geofence_label)) = $14)
+                     AND ($15::text IS NULL OR lower(btrim(t.destination_geofence_label)) = $15))
             """.formatted(LIVE_TRIP.formatted("o"), PLAIN.formatted("t.driver_id"),
                     PLAIN.formatted("t.second_driver_id"), PLAIN.formatted("fc.rut")));
     /** The open cases no hold covers. */
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL AND x.hold_id IS NULL) y"
             + " GROUP BY 1, 2";
+    /** The tower inbox's counts: open cases whose current level asks for an operator. */
     private static final String TOWER_COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment,"
             + " y.hold_id IS NOT NULL AS ignored, count(*) AS n FROM (" + SELECT.formatted(CASES) + ") y"
-            + " WHERE y.closed_id IS NULL GROUP BY y.current_level, y.treatments > 0, y.hold_id IS NOT NULL";
+            + " WHERE y.closed_id IS NULL AND " + needsOperator("y") + " GROUP BY y.current_level, y.treatments > 0, y.hold_id IS NOT NULL";
     private static final String IGNORED = "SELECT count(*) AS n FROM (" + CASES + ") x"
             + " WHERE x.closed_id IS NULL AND x.hold_id IS NOT NULL";
     private static final String LEVELS = "SELECT y.asset_id, y.name, y.current_level"
@@ -298,7 +332,7 @@ public class PgEngineCases implements EngineCaseStore {
                 .addString(f.assetId()).addString(f.symptomName())
                 .addOffsetDateTime(f.from() == null ? null : utc(f.from()))
                 .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level())
-                .addBoolean(f.underTreatmentOnly()).addBoolean(f.ignoredOnly());
+                .addBoolean(f.underTreatmentOnly()).addBoolean(f.ignoredOnly()).addBoolean(f.operatorOnly());
         if (!f.byTrip()) {
             cases(MATCHING, args).forEach(r -> out.add(engineCase(r)));
             return out;
@@ -484,7 +518,8 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
                 r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"))).withTrip(trip(r))
-                .withHold(hold(r), instant(r.getOffsetDateTime("returned_at")));
+                .withHold(hold(r), instant(r.getOffsetDateTime("returned_at")))
+                .withLevelAt(instant(r.getOffsetDateTime("level_at")));
     }
 
     private static EngineCase.Ignored hold(Row r) {

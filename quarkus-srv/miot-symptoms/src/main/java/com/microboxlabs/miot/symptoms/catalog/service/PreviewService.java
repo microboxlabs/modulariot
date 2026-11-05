@@ -95,6 +95,7 @@ public class PreviewService {
             fields.put("closed_by_operator", closedByOperator);
             fields.put("closed_on_trip", false);
             fields.put("closed_on_trip_s", -1.0);
+            fields.put("off_trip_s", NOT_NORMAL);
             return Map.of("case", fields);
         }
     }

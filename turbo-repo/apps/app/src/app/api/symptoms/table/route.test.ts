@@ -78,6 +78,30 @@ describe("GET /api/symptoms/table", () => {
     expect(body.symptoms_list).toEqual(["Speed"]);
   });
 
+  it("keeps the server's inbox order and its SLA start", async () => {
+    const row = page.data[0];
+    forwardMock.mockImplementation(async () =>
+      NextResponse.json({
+        ...page,
+        data: [
+          { ...row, id: -5, icu_code: "4", sla_since: "2026-10-08T10:05:00Z" },
+          { ...row, id: -3, icu_code: "3" },
+          { ...row, id: -9, icu_code: "3" },
+        ],
+      })
+    );
+
+    const body = await (await GET(new NextRequest("http://x/t"))).json();
+
+    expect(body.data.map((r: { id: string }) => r.id)).toEqual([
+      "-5",
+      "-3",
+      "-9",
+    ]);
+    expect(body.data[0].slaSince).toBe("2026-10-08T10:05:00Z");
+    expect(body.data[1].slaSince).toBeNull();
+  });
+
   it("sends legacy dates with a space as ISO-8601", async () => {
     await GET(
       new NextRequest(

@@ -234,6 +234,7 @@ public class EvaluatorStream {
         Object trip = trips instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
         out.put("trip", trip != null ? trip : NO_TRIP);
         Object geos = out.remove("geos");
+        out.remove("geo");
         Object geo = geos instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
         if (geo != null) {
             out.put("geo", geo);
@@ -331,6 +332,8 @@ public class EvaluatorStream {
      * reads {@code case.closed_on_trip} true while the vehicle stays on that trip.
      */
     public void forget(String tenant, String assetId, java.util.UUID definitionId, String tripId) {
+        // Both consumers share the Redis episode hash. Clear the detector before saving the close marker.
+        lostSignal.forget(tenant, assetId, definitionId);
         if (tripId == null) {
             episodes.forget(tenant, assetId, definitionId);
         } else {
@@ -338,7 +341,6 @@ public class EvaluatorStream {
             state.save(tenant, Episode.closedOnTrip(definitionId, assetId, tripId, clock.instant()));
             episodes.save(state);
         }
-        lostSignal.forget(tenant, assetId, definitionId);
     }
 
     /** Rechecks the latest condition evidence before releasing a hold, then restarts its level timers. */

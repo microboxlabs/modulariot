@@ -93,7 +93,7 @@ public class SignalEvaluator {
                 continue;
             }
             if (e.open() && closesWithoutSignal(s, caseFields(e.conditionSince(), e.normalSince(), e.openedAt(),
-                    e.level(), at))) {
+                    e.level(), at, e.offTripSince()))) {
                 closed.add(transition(Kind.CLOSED, s, asset, at, e.level(), e.level(), e.maxMeasure()));
                 store.delete(tenant, asset, s.definitionId());
             } else {
@@ -162,7 +162,7 @@ public class SignalEvaluator {
      * event, holds and has no open case takes the frame as a normal step, so a buffered event opens its case. A
      * step that does not open the case is undone, so an older frame never seeds hold-time state. An open case
      * whose close or note rule reads an event runs only those two rules on it, when the frame is not older than
-     * the case. Neither the watermark nor any other episode moves, and an open case opens nothing new.
+     * the case. A repeat may raise the open case's level without changing its timers. The watermark stays, and an open case opens nothing new.
      */
     public Result evaluateLate(String tenantCode, String assetId, Instant at, Map<String, Object> root,
             List<CompiledSymptom> symptoms) {
@@ -175,8 +175,8 @@ public class SignalEvaluator {
             Optional<Episode> before = store.find(tenantCode, assetId, s.definitionId());
             try {
                 if (before.filter(Episode::open).isPresent()) {
-                    if (s.lifecycleOnEvents() && !at.isBefore(before.get().openedAt())) {
-                        lateLifecycle(tenantCode, at, root, s, before.get()).ifPresent(transitions::add);
+                    if (!at.isBefore(before.get().openedAt())) {
+                        lateWhileOpen(tenantCode, at, root, s, before.get(), transitions);
                     }
                 } else {
                     transitions.addAll(lateOpening(tenantCode, assetId, at, root, s, before));
@@ -186,6 +186,33 @@ public class SignalEvaluator {
             }
         }
         return new Result(transitions, errors);
+    }
+
+    private void lateWhileOpen(String tenantCode, Instant at, Map<String, Object> root,
+            CompiledSymptom s, Episode e, List<Transition> transitions) {
+        Optional<Transition> lifecycle = s.lifecycleOnEvents() ? lateLifecycle(tenantCode, at, root, s, e)
+                : Optional.empty();
+        lifecycle.ifPresent(transitions::add);
+        if (lifecycle.filter(t -> t.kind() == Kind.CLOSED).isEmpty()) {
+            lateLevel(tenantCode, at, root, s, e).ifPresent(transitions::add);
+        }
+    }
+
+    /** A buffered repeat may raise a case's level, preserving the latest signal and every run timer. */
+    private Optional<Transition> lateLevel(String tenantCode, Instant at, Map<String, Object> root,
+            CompiledSymptom s, Episode e) {
+        if (!s.opensOnEvents() || (s.state() == SymptomState.ACTIVE
+                && holds.held(tenantCode, e.assetId(), s.definitionId(), e.openedAt()))) {
+            return Optional.empty();
+        }
+        Reading r = read(s, e, root, at);
+        if (r.level() <= e.level()) {
+            return Optional.empty();
+        }
+        store.save(tenantCode, new Episode(e.definitionId(), e.version(), e.assetId(), e.candidateSince(),
+                e.conditionSince(), e.normalSince(), e.levelSince(), e.lastSignalAt(), e.openedAt(), r.level(),
+                Math.max(e.maxMeasure(), r.measure()), e.offTripSince()));
+        return Optional.of(transition(Kind.LEVEL_CHANGED, s, e.assetId(), at, r.level(), e.level(), r.measure()));
     }
 
     /** A buffered event may open a case, but must not leave partial hold-time state behind. */
@@ -207,7 +234,7 @@ public class SignalEvaluator {
     private Optional<Transition> lateLifecycle(String tenantCode, Instant at, Map<String, Object> root,
             CompiledSymptom s, Episode e) {
         Map<String, Object> vars = lifecycleVars(root,
-                caseFields(e.conditionSince(), e.normalSince(), e.openedAt(), e.level(), at));
+                caseFields(e.conditionSince(), e.normalSince(), e.openedAt(), e.level(), at, e.offTripSince()));
         if (condition(s.close(), vars, LIFECYCLE_CLOSE)) {
             Episode closed = new Episode(s.definitionId(), s.version(), e.assetId(), null, null, e.normalSince(),
                     Map.of(), e.lastSignalAt(), null, 0, 0);

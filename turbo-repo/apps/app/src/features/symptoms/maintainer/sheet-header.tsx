@@ -14,6 +14,7 @@ import type {
   SymptomTemplate,
 } from "./maintainer-api";
 import { canonicalFamily, familyLabel } from "./symptom-labels";
+import SymptomName from "./symptom-name";
 import { MUTED } from "./ui/card";
 import { PillSelect } from "./ui/pill";
 import { StateToggle } from "./ui/state";
@@ -242,9 +243,7 @@ export default function SheetHeader({
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            {def.name}
-          </h1>
+          <SymptomName id={def.id} name={def.name} canRename={canWrite} d={d} />
           <VersionMenu
             label={version}
             canFork={canWrite && def.currentVersion !== null}

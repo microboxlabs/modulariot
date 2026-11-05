@@ -182,17 +182,36 @@ export default function CallDialingStep({
   }, []);
 
   const destination = dialNumber(channels?.phone ?? contactPhone);
+  // Provider token/admission APIs require E.164. Service numbers use the
+  // native phone in the same timed call and CALL-result flow.
+  const serviceNumber = destination !== null && !destination.startsWith("+");
   const viaTelnyx = (id: CallMethod) =>
-    id === "phone" && line?.provider === "TELNYX" && destination !== null;
+    id === "phone" &&
+    line?.provider === "TELNYX" &&
+    destination !== null &&
+    !serviceNumber;
   // With Teams Phone both "phone" and "teams" call the number from Teams.
   const viaTeams = (id: CallMethod) =>
     (id === "phone" || id === "teams") &&
     line?.provider === "TEAMS_PHONE" &&
-    destination !== null;
+    destination !== null &&
+    !serviceNumber;
   const [teamsCall, setTeamsCall] = useState<{
     startedAt: number;
     connectionId: string;
   } | null>(null);
+
+  function startManualCall(id: CallMethod) {
+    setBrowserAttempt(false);
+    setTeamsCall(null);
+    setPhase(null);
+    setAnsweredAt(null);
+    setDialError(null);
+    setRefusal(null);
+    setMethod(id);
+    setStarted(true);
+    onStartedChange?.(true);
+  }
 
   async function placeTelnyxCall() {
     cancelledRef.current = false;
@@ -392,6 +411,7 @@ export default function CallDialingStep({
             {destination && (
               <a
                 href={`tel:${destination}`}
+                onClick={() => startManualCall("phone")}
                 className="font-medium text-blue-600 hover:underline dark:text-blue-400"
               >
                 {t("call_use_phone")}
@@ -440,7 +460,9 @@ export default function CallDialingStep({
                   key={id}
                   type="button"
                   disabled={
-                    id === "phone" && (telephonyPending || telephonyFailed)
+                    id === "phone" &&
+                    !serviceNumber &&
+                    (telephonyPending || telephonyFailed)
                   }
                   onClick={() => {
                     if (viaTeams(id) && line) {
@@ -467,10 +489,6 @@ export default function CallDialingStep({
                     }
                     // Opens the channel's app (dialer, WhatsApp chat with the
                     // script typed); the call is timed here either way.
-                    setBrowserAttempt(false);
-                    setPhase(null);
-                    setAnsweredAt(null);
-                    setDialError(null);
                     const link = channelLink(
                       id,
                       channels?.[id] ?? contactPhone,
@@ -479,9 +497,7 @@ export default function CallDialingStep({
                     if (link?.startsWith("https://"))
                       window.open(link, "_blank", "noopener,noreferrer");
                     else if (link) window.location.href = link;
-                    setMethod(id);
-                    setStarted(true);
-                    onStartedChange?.(true);
+                    startManualCall(id);
                   }}
                   title={label}
                   aria-label={label}

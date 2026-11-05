@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
@@ -21,8 +21,6 @@ const data = vi.hoisted(() => ({
   treatmentsId: undefined as unknown,
   createContact: vi.fn(),
   refreshTrip: vi.fn(),
-  timeline: undefined as unknown,
-  timelineError: undefined as Error | undefined,
   context: undefined as unknown,
 }));
 
@@ -39,7 +37,6 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
     return { data: data.treatments };
   },
   useCaseContext: () => ({ data: data.context }),
-  useCaseTimeline: () => ({ data: data.timeline, error: data.timelineError }),
   useTripContacts: (_id: unknown, conditions: string[]) => ({
     mutate: data.refreshTrip,
     isLoading: data.tripLoading,
@@ -53,6 +50,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
 }));
 
 vi.mock("swr", () => ({ mutate: vi.fn() }));
+vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
 
 vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
   useLevelResponse: () => ({
@@ -104,12 +102,12 @@ const levelWith = (steps: unknown[]) => ({
   level: { response: { operator: true, slaMinutes: 10, steps } },
 });
 
-function renderMenu() {
+function renderMenu(treatmentData = treatment) {
   const onCall = vi.fn();
   render(
     <CallCenterMenu
       dict={dict}
-      treatmentData={treatment}
+      treatmentData={treatmentData}
       skippedTo={null}
       onSkip={vi.fn()}
       onCall={onCall}
@@ -158,8 +156,6 @@ beforeEach(() => {
   };
   data.treatments = undefined;
   data.level = undefined;
-  data.timeline = undefined;
-  data.timelineError = undefined;
   data.context = undefined;
   data.createContact.mockImplementation(
     async (body: Record<string, unknown>) => ({ ...body, id: "new-contact" })
@@ -310,9 +306,14 @@ describe("CallCenterMenu", () => {
         script: null,
       },
     ]);
-    data.timeline = [{ kind: "OPENED", at: new Date().toISOString() }];
     const user = userEvent.setup();
-    const onCall = renderMenu();
+    const onCall = renderMenu({
+      ...treatment,
+      symptom_info: {
+        ...treatment.symptom_info,
+        sla_since: new Date().toISOString(),
+      },
+    });
 
     const due = document.querySelector('[aria-current="step"]') as HTMLElement;
     expect(within(due).getByText("Conductor del viaje")).toBeTruthy();
@@ -531,6 +532,12 @@ it("keeps the flat list when no symptom is in force (404)", () => {
 });
 
 describe("SLA from the case", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-05T12:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
   const steps = [
     { role: "Conductor", channel: "call", budgetMinutes: 2 },
     { role: "Jefe de Torre", channel: "call", budgetMinutes: 5 },
@@ -540,12 +547,10 @@ describe("SLA from the case", () => {
 
   it("counts the SLA and the due step from when the case reached its level", () => {
     data.level = levelWith(steps);
-    data.timeline = [
-      { kind: "OPENED", at: ago(600), level: 2 },
-      { kind: "LEVEL_CHANGED", at: ago(150), level: 3, previousLevel: 2 },
-      { kind: "NOTED", at: ago(10) },
-    ];
-    renderMenu();
+    renderMenu({
+      ...treatment,
+      symptom_info: { ...treatment.symptom_info, sla_since: ago(150) },
+    });
     // 10 min SLA, 2:30 at the level: 7:30 left; step 2 ends at 7:00, 4:30 left.
     expect(screen.getByText("SLA 7:30")).toBeTruthy();
     expect(screen.getByText("Paso actual: quedan 4:30")).toBeTruthy();
@@ -555,7 +560,6 @@ describe("SLA from the case", () => {
 
   it("counts again from the end of an ignore hold", () => {
     data.level = levelWith(steps);
-    data.timeline = [{ kind: "OPENED", at: ago(3000), level: 3 }];
     render(
       <CallCenterMenu
         dict={dict}
@@ -564,6 +568,7 @@ describe("SLA from the case", () => {
             ...treatment,
             symptom_info: {
               ...treatment.symptom_info,
+              sla_since: ago(60),
               returned_after_ignore_at: ago(60),
             },
           } as TreatmentsGeneralResponseItem
@@ -578,7 +583,6 @@ describe("SLA from the case", () => {
 
   it("says when the case's start is not known instead of counting from the panel", () => {
     data.level = levelWith(steps);
-    data.timeline = [];
     renderMenu();
     expect(screen.queryByText(/^SLA \d+:\d\d/)).toBeNull();
     expect(screen.getByText("SLA 10 min · sin hora de inicio")).toBeTruthy();
@@ -637,6 +641,9 @@ describe("contact rows", () => {
     expect(
       within(inert as HTMLElement).getByText("Sin canales registrados")
     ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /Editar contacto: Sin canal/ })
+    ).toHaveAttribute("href", "/es/users/settings/contact-book?edit=none");
   });
 });
 
@@ -646,10 +653,15 @@ describe("emergency numbers", () => {
       { role: "Conductor", channel: "call", budgetMinutes: 2 },
     ]);
     const onCall = renderMenu();
-    for (const name of ["Carabineros", "Ambulancia (SAMU)", "Bomberos", "PDI"])
+    for (const [name, number] of [
+      ["Carabineros", "133"],
+      ["Ambulancia (SAMU)", "131"],
+      ["Bomberos", "132"],
+      ["PDI", "134"],
+    ])
       expect(
         screen.getByRole("button", {
-          name: new RegExp(`^Llamar a ${name.replace(/[()]/g, "\\$&")}`),
+          name: `Llamar a ${name} (${number})`,
         })
       ).toBeTruthy();
     await userEvent

@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,123 @@ class EngineCaseServiceTest {
     private static EngineCase at(long id, String asset, Instant opened, Instant closed) {
         return new EngineCase(id, PANIC, "0.1.0", "Botón de pánico", "emergencies", asset, opened, 4, null,
                 -33.4489, -70.6693, 0.0, closed, 0, 2, null);
+    }
+
+    @Test
+    void theInboxListsOnlyCasesWhoseLevelAsksForAnOperator() {
+        store.operatorLevels.put(PANIC, Set.of(2, 3, 4));
+        store.add(engineCase(12, "DEMO01", 1, 0));
+        store.add(engineCase(13, "DEMO02", 3, 0));
+
+        JsonNode page = service.casesPage(TENANT, Map.of());
+        assertEquals(List.of(-13L), ids(page));
+        assertEquals(1, page.path("total_rows").asInt());
+        assertEquals(List.of(-13L), ids(service.withCases(TENANT, Map.of(), null)));
+        JsonNode counts = service.caseCounts(TENANT, null, null);
+        assertEquals(1, counts.path("Critical condition").asInt());
+        assertFalse(counts.has("Under Observation"), "the counts match the list");
+    }
+
+    @Test
+    void aCaseEntersTheInboxWhenItEscalatesAndLeavesWhenItGoesBackDown() {
+        store.operatorLevels.put(PANIC, Set.of(2, 3, 4));
+        store.add(engineCase(12, "DEMO01", 1, 0));
+        assertTrue(ids(service.casesPage(TENANT, Map.of())).isEmpty());
+
+        store.changeLevel(12, 2);
+        assertEquals(List.of(-12L), ids(service.casesPage(TENANT, Map.of())));
+        assertEquals(1, service.caseCounts(TENANT, null, null).path("Compromised condition").asInt());
+
+        store.changeLevel(12, 1);
+        assertTrue(ids(service.casesPage(TENANT, Map.of())).isEmpty());
+        assertTrue(service.caseCounts(TENANT, null, null).isEmpty());
+    }
+
+    @Test
+    void anUnderTreatmentCaseBackAtALevelWithoutOperatorLeavesTheInbox() {
+        store.operatorLevels.put(PANIC, Set.of(3));
+        store.add(engineCase(12, "DEMO01", 1, 1));
+
+        assertTrue(ids(service.casesPage(TENANT, Map.of("p_icu_code", "6"))).isEmpty());
+        assertFalse(service.caseCounts(TENANT, null, null).has("Under Treatment"));
+    }
+
+    @Test
+    void theHistoryKeepsCasesThatNeverAskedForAnOperator() {
+        store.operatorLevels.put(PANIC, Set.of());
+        store.add(engineCase(12, "DEMO01", 1, 0));
+
+        assertEquals(List.of(-12L), ids(service.casesPage(TENANT, Map.of(
+                "p_start_date_historic", "2026-10-22T00:00:00Z", "p_end_date_historic", "2026-10-23T00:00:00Z"))));
+        assertEquals(1, service.caseCounts(TENANT, "2026-10-22T00:00:00Z", "2026-10-23T00:00:00Z")
+                .path("Under Observation").asInt());
+        assertEquals(1, service.withCaseLevels(TENANT, new ObjectMapper().createArrayNode()
+                .add(new ObjectMapper().createObjectNode().put("asset_id", "DEMO01")))
+                .get(0).path("symptoms_condition").asInt(), "the map still shows it");
+    }
+
+    /** A level-{@code level} case that reached it {@code since} seconds from OPENED, with an SLA in minutes. */
+    private static EngineCase ranked(long id, int level, long since, Integer sla) {
+        return new EngineCase(id, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO" + id, OPENED.minusSeconds(3600),
+                level, "T-1", -33.4489, -70.6693, 0.0, null, 0, sla, 1L).withLevelAt(OPENED.plusSeconds(since));
+    }
+
+    @Test
+    void theInboxIsOrderedByLevelThenSlaThenArrivalAtTheLevel() {
+        List<EngineCase> cases = List.of(
+                ranked(1, 2, -600, 1),    // level 2, overdue: after every level 3
+                ranked(2, 3, -2000, null), // level 3 without SLA, older
+                ranked(3, 3, -600, 5),    // overdue by 5 min
+                ranked(4, 3, -1000, null), // level 3 without SLA, newer
+                ranked(5, 4, 0, 30),      // código negro
+                ranked(6, 3, -60, 1),     // overdue by 30 s
+                ranked(7, 3, 0, 10),      // due in 10 min
+                ranked(8, 3, 0, 10),      // same deadline and arrival as 7: by id
+                ranked(9, 3, -600, 5).withHold(null, OPENED)); // back from a hold: its SLA runs from then
+        new ArrayList<>(cases).reversed().forEach(store::add);
+
+        JsonNode page = service.casesPage(TENANT, Map.of("p_page_size", "50"));
+
+        assertEquals(List.of(-5L, -3L, -6L, -9L, -7L, -8L, -2L, -4L, -1L), ids(page));
+        assertEquals(ids(page), ids(service.casesPage(TENANT, Map.of("p_page_size", "50"))), "a refresh keeps it");
+        assertEquals(List.of(-9L, -7L, -8L), ids(service.casesPage(TENANT, Map.of("p_page", "2", "p_page_size",
+                "3"))), "pages follow the order");
+        assertEquals(9, page.path("total_rows").asInt());
+        assertEquals(List.of(-5L, -3L, -6L, -9L, -7L, -8L, -2L, -4L, -1L),
+                ids(service.withCases(TENANT, Map.of(), null)));
+    }
+
+    @Test
+    void theSlaRunsFromTheArrivalAtTheLevel() {
+        EngineCase c = ranked(1, 3, -600, 5);
+        assertEquals(OPENED.minusSeconds(600), c.slaStart());
+        assertEquals(OPENED.minusSeconds(300), c.slaDeadline());
+        assertEquals(OPENED, c.withHold(null, OPENED).slaStart());
+        assertEquals(null, ranked(2, 3, 0, null).slaDeadline());
+        store.add(c);
+        assertEquals(OPENED.minusSeconds(600).toString(),
+                service.casesPage(TENANT, Map.of()).path("data").get(0).path("sla_since").asText());
+        assertEquals(c.slaStart().toString(),
+                service.header(TENANT, -1).path("symptom_info").path("sla_since").asText());
+    }
+
+    @Test
+    void theCallPanelAndInboxShareTheSlaStartAfterAHold() {
+        EngineCase c = ranked(1, 3, -600, 5).withHold(null, OPENED);
+        store.add(c);
+        assertEquals(OPENED.toString(),
+                service.casesPage(TENANT, Map.of()).path("data").get(0).path("sla_since").asText());
+        assertEquals(OPENED.toString(),
+                service.header(TENANT, -1).path("symptom_info").path("sla_since").asText());
+    }
+
+    @Test
+    void theHistoryKeepsItsOwnOrder() {
+        store.add(ranked(1, 1, 0, null));
+        store.add(ranked(2, 4, 0, null));
+        List<Long> history = ids(service.casesPage(TENANT, Map.of("p_start_date_historic", "2026-10-01T00:00:00Z",
+                "p_end_date_historic", "2026-11-01T00:00:00Z")));
+        assertEquals(List.of(-1L, -2L), history, "as the store lists them");
     }
 
     @Test

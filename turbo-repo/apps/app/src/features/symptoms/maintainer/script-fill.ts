@@ -116,19 +116,26 @@ export function scriptParts(
   ctx: Json | undefined
 ): ScriptPart[] {
   const parts: ScriptPart[] = [];
-  let last = 0;
-  for (const match of script.matchAll(VARIABLE)) {
-    const at = match.index ?? 0;
-    if (at > last) parts.push({ text: script.slice(last, at) });
-    const name = match[1] ?? "";
+  let offset = 0;
+  let start = script.indexOf("{{");
+  while (start !== -1) {
+    if (start > offset) parts.push({ text: script.slice(offset, start) });
+    const end = script.indexOf("}}", start + 2);
+    // Include unsupported and unfinished expressions so operator previews
+    // can render named blanks instead of leaking template syntax.
+    const name = script
+      .slice(start + 2, end === -1 ? script.length : end)
+      .replace(/[{}]/g, "")
+      .trim();
     parts.push({
       variable: name,
       value: scriptValue(name, ctx),
       known: isScriptVariable(name, ctx),
     });
-    last = at + match[0].length;
+    offset = end === -1 ? script.length : end + 2;
+    start = script.indexOf("{{", offset);
   }
-  if (last < script.length) parts.push({ text: script.slice(last) });
+  if (offset < script.length) parts.push({ text: script.slice(offset) });
   return parts;
 }
 

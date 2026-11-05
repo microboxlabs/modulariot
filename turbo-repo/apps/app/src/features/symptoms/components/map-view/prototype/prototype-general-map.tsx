@@ -27,6 +27,7 @@ import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import { lugaresLayout } from "../lugares-layout";
 import { caseSpans as spansOf } from "@/features/symptoms/model/level-reason";
+import { useOptionalCallSession } from "./call-center/call-session";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -142,6 +143,22 @@ export default function PrototypeGeneralMap({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFormOpen, selectedOption]);
+
+  // The call bar asks to see its call: open the call panel when the call is this case's.
+  const callSession = useOptionalCallSession();
+  const focusTick = callSession?.focusTick ?? 0;
+  const callCaseId = callSession?.call?.context.caseId ?? null;
+  const thisCaseId =
+    treatmentData?.symptom_info?.id == null
+      ? null
+      : String(treatmentData.symptom_info.id);
+  useEffect(() => {
+    if (focusTick === 0 || pastFormsEnabled) return;
+    if (callCaseId === null || callCaseId !== thisCaseId) return;
+    setSelectedOption("call_driver");
+    setIsFormOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTick, thisCaseId]);
 
   // The call flow stays narrow (1/3) through contacts/dialing/whatsapp — the
   // map is the more useful half of the screen until there's an actual form

@@ -49,6 +49,8 @@ interface SdkCall {
   sipCode?: number;
   telnyxIDs?: { telnyxCallControlId?: string };
   hangup(): Promise<void> | void;
+  muteAudio?(): void;
+  unmuteAudio?(): void;
 }
 
 /** The part of the Telnyx SDK client this module uses. */
@@ -85,6 +87,8 @@ export interface StartCallOptions {
   signal?: AbortSignal;
   onPhase: (phase: CallPhase, answeredAt: number | null) => void;
   onEnd: (result: TelephonyCallResult) => void;
+  /** The provider's id for the call, as soon as it is known. */
+  onCallId?: (callId: string) => void;
   sdk?: SdkFactory;
   now?: () => number;
 }
@@ -92,6 +96,8 @@ export interface StartCallOptions {
 export interface LiveCall {
   /** Ends the call; `onEnd` still fires with the final state. */
   hangup(): void;
+  /** Mutes or unmutes the operator's microphone. */
+  setMuted?(muted: boolean): void;
 }
 
 const RINGING = new Set(["ringing", "early"]);
@@ -129,6 +135,7 @@ export async function startTelnyxCall({
   signal,
   onPhase,
   onEnd,
+  onCallId,
   sdk = loadTelnyx,
   now = Date.now,
 }: StartCallOptions): Promise<LiveCall> {
@@ -138,7 +145,25 @@ export async function startTelnyxCall({
   let ended = false;
   let hangupAsked = false;
   let connectTimeout: ReturnType<typeof setTimeout> | undefined;
+  let reportedId: string | null = null;
   const client = await sdk(token);
+
+  function reportCallId() {
+    const id = call?.telnyxIDs?.telnyxCallControlId || call?.id || null;
+    if (!id || id === reportedId) return;
+    reportedId = id;
+    onCallId?.(id);
+  }
+
+  function setMuted(muted: boolean) {
+    if (!call || ended) return;
+    try {
+      if (muted) call.muteAudio?.();
+      else call.unmuteAudio?.();
+    } catch {
+      // A failed mute leaves the call as it was.
+    }
+  }
 
   function clearConnectTimeout() {
     if (connectTimeout !== undefined) clearTimeout(connectTimeout);
@@ -195,6 +220,7 @@ export async function startTelnyxCall({
         remoteElement: remoteElement ?? undefined,
         ...(clientState ? { clientState } : {}),
       });
+      reportCallId();
     } catch {
       finish("SDK_ERROR", null);
     }
@@ -211,6 +237,7 @@ export async function startTelnyxCall({
     )
       return;
     call = n.call;
+    reportCallId();
     const state = n.call.state ?? "";
     if (state === "active") {
       answeredAt ??= now();
@@ -224,14 +251,14 @@ export async function startTelnyxCall({
   signal?.addEventListener("abort", hangup, { once: true });
   if (signal?.aborted) {
     hangup();
-    return { hangup };
+    return { hangup, setMuted };
   }
   connectTimeout = setTimeout(
     () => finish("CONNECT_TIMEOUT", null),
     CONNECT_TIMEOUT_MS
   );
   onPhase("connecting", null);
-  if (ended) return { hangup };
+  if (ended) return { hangup, setMuted };
   try {
     void Promise.resolve(client.connect()).catch(() =>
       finish("SDK_ERROR", null)
@@ -239,5 +266,5 @@ export async function startTelnyxCall({
   } catch {
     finish("SDK_ERROR", null);
   }
-  return { hangup };
+  return { hangup, setMuted };
 }

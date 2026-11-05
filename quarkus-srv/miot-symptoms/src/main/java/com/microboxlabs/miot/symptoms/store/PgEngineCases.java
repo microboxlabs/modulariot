@@ -64,15 +64,19 @@ public class PgEngineCases implements EngineCaseStore {
              WHERE o.tenant_code = $1 AND o.kind = 'OPENED' AND o.state = 'ACTIVE'
             """.formatted(HoldSql.active("o"), HoldSql.returned("o"));
 
-    /** The case's level is its latest level change before it closed, else the opening one. */
+    /**
+     * The case's level is its latest level change before it closed, else the opening one; {@code level_at} is when
+     * it reached that level.
+     */
     private static final String SELECT = """
             SELECT x.*, (SELECT c.at FROM miot_symptoms.signal_transitions c WHERE c.id = x.closed_id) AS closed_at,
-                   COALESCE((SELECT l.level FROM miot_symptoms.signal_transitions l
+                   COALESCE(lv.level, x.level) AS current_level, COALESCE(lv.at, x.at) AS level_at
+              FROM (%s) x
+              LEFT JOIN LATERAL (SELECT l.level, l.at FROM miot_symptoms.signal_transitions l
                      WHERE l.tenant_code = x.tenant_code AND l.definition_id = x.definition_id
                        AND l.asset_id = x.asset_id AND l.state = 'ACTIVE' AND l.kind = 'LEVEL_CHANGED' AND l.id > x.id
                        AND (x.closed_id IS NULL OR l.id < x.closed_id)
-                     ORDER BY l.id DESC LIMIT 1), x.level) AS current_level
-              FROM (%s) x
+                     ORDER BY l.id DESC LIMIT 1) lv ON true
             """;
 
     /**
@@ -112,6 +116,17 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String OPEN_FOR_ASSET = WITH_SLA.formatted(SELECT.formatted(CASES
             + " AND o.asset_id = $2") + " WHERE x.closed_id IS NULL");
     /**
+     * With $10 (the inbox), by criticality: highest level first, then the SLA that runs out soonest (overdue
+     * first, a level without SLA last), then the oldest arrival at the level, then the case id. As
+     * {@code EngineCaseService.INBOX_ORDER}, so the 200 kept are the most critical.
+     */
+    private static final String INBOX_ORDER = """
+            CASE WHEN $10::boolean THEN z.current_level END DESC NULLS LAST,
+            CASE WHEN $10::boolean AND z.sla_minutes > 0 THEN GREATEST(z.level_at, COALESCE(z.returned_at, z.level_at))
+                 + make_interval(mins => z.sla_minutes) END ASC NULLS LAST,
+            CASE WHEN $10::boolean THEN z.level_at END ASC,
+            CASE WHEN $10::boolean THEN z.id END ASC""";
+    /**
      * {@link CaseFilter}: $2 trip, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only, $9
      * ignored only, $10 operator only. Without dates and $9, the open cases no hold covers.
      */
@@ -127,7 +142,7 @@ public class PgEngineCases implements EngineCaseStore {
             + " AND (NOT $10::boolean OR z.needs_operator)"
             + " AND CASE WHEN $9::boolean THEN z.hold_id IS NOT NULL AND z.closed_id IS NULL"
             + " WHEN $5::timestamptz IS NULL AND $6::timestamptz IS NULL THEN z.hold_id IS NULL ELSE true END"
-            + " ORDER BY z.at DESC LIMIT 200";
+            + " ORDER BY " + INBOX_ORDER + ", z.at DESC LIMIT 200";
     /** The case's live trip: a trips-module trip id is a UUID. */
     private static final String LIVE_TRIP = """
             t.tenant_code = %s.tenant_code AND t.trip_id = CASE
@@ -502,7 +517,8 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
                 r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"))).withTrip(trip(r))
-                .withHold(hold(r), instant(r.getOffsetDateTime("returned_at")));
+                .withHold(hold(r), instant(r.getOffsetDateTime("returned_at")))
+                .withLevelAt(instant(r.getOffsetDateTime("level_at")));
     }
 
     private static EngineCase.Ignored hold(Row r) {

@@ -31,6 +31,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
@@ -218,6 +219,24 @@ public class EngineCaseService {
         return filter.openOnly() ? filter.forOperator() : filter;
     }
 
+    /**
+     * The inbox's order, by criticality: the highest level first; within a level, the SLA that runs out soonest
+     * (overdue first, a level without SLA last); then the oldest arrival at the level; then the case id, so a
+     * refresh keeps the order.
+     */
+    static final Comparator<EngineCase> INBOX_ORDER = Comparator
+            .<EngineCase>comparingInt(EngineCase::level).reversed()
+            .thenComparing(EngineCase::slaDeadline, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(c -> c.levelAt() != null ? c.levelAt() : c.openedAt())
+            .thenComparingLong(EngineCase::id);
+
+    /** The store's cases for the list, in the inbox's order when it is the inbox. */
+    private List<EngineCase> listed(String tenantCode, EngineCaseStore.CaseFilter filter) {
+        EngineCaseStore.CaseFilter f = inbox(filter);
+        List<EngineCase> found = store.list(tenantCode, f);
+        return f.operatorOnly() ? found.stream().sorted(INBOX_ORDER).toList() : found;
+    }
+
     private static String text(Map<String, String> filters, String name) {
         String v = filters.get(name);
         return v == null || v.isBlank() ? null : v.trim();
@@ -250,7 +269,7 @@ public class EngineCaseService {
      * cases that need an operator ({@link #inbox}).
      */
     public JsonNode withCases(String tenantCode, Map<String, String> filters, JsonNode page) {
-        List<EngineCase> found = store.list(tenantCode, inbox(filter(filters)));
+        List<EngineCase> found = listed(tenantCode, filter(filters));
         ObjectNode out = page != null && page.isObject() ? ((ObjectNode) page).deepCopy() : JSON.objectNode();
         ArrayNode rows = JSON.arrayNode();
         found.forEach(c -> rows.add(row(c)));
@@ -319,7 +338,7 @@ public class EngineCaseService {
         if (Integer.valueOf(6).equals(filter.level())) {
             filter = filter.withOpenTreatment();
         }
-        List<EngineCase> found = store.list(tenantCode, inbox(filter));
+        List<EngineCase> found = listed(tenantCode, filter);
         int size = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
         int page = Math.max(1, number(filters.get(PAGE), 1));
         int pages = Math.max(1, Math.ceilDiv(found.size(), size));
@@ -452,6 +471,7 @@ public class EngineCaseService {
         r.put("duration_sec", Duration.between(c.openedAt(), until).toSeconds());
         r.put("treatment_count", c.treatments());
         r.put("sla_minutes", c.slaMinutes());
+        r.put("sla_since", c.slaStart().toString());
         r.put("recurrence_events", c.recurrence());
         EngineCase.TripDetails trip = c.trip();
         r.put(DRIVER_FIELD, trip == null ? null : trip.driver());

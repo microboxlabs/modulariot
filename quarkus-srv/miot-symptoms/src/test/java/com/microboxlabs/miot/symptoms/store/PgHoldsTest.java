@@ -7,7 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
 import com.microboxlabs.miot.symptoms.cases.SlaStore;
@@ -28,10 +30,12 @@ import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -96,6 +100,10 @@ class PgHoldsTest {
     }
 
     private UUID symptom(String key) {
+        return symptom(key, SPEC);
+    }
+
+    private UUID symptom(String key, String spec) {
         UUID id = UUID.randomUUID();
         PgIds.query(pool, """
                 INSERT INTO miot_symptoms.symptom_definition
@@ -106,7 +114,7 @@ class PgHoldsTest {
                 INSERT INTO miot_symptoms.symptom_version
                     (definition_id, tenant_code, version, status, spec, created_by)
                 VALUES ($1, $2, '1.0.0', 'PUBLISHED', $3::text::jsonb, 't')
-                """, Tuple.of(id, tenant, SPEC));
+                """, Tuple.of(id, tenant, spec));
         return id;
     }
 
@@ -180,6 +188,47 @@ class PgHoldsTest {
         assertEquals(List.of(loud), inboxIds(), "back down to operator false");
         assertEquals(1, inboxCounted());
         assertEquals(2, cases.openLevels(tenant).size(), "the map keeps both");
+    }
+
+    @Test
+    void theInboxIsOrderedByLevelThenSlaThenArrivalAtTheLevel() {
+        UUID speeding = symptom("order-speeding");
+        UUID panic = symptom("order-panic", """
+                {"levels":[{"icu":4,"applies":true,"when":"true","response":{"operator":true}}]}
+                """);
+        long black = open(panic, "DEMO09", now.minusSeconds(60), 4, null);
+        long newer = open(speeding, "DEMO02", now.minusSeconds(300), 3, null);
+        long older = open(speeding, "DEMO03", now.minusSeconds(900), 3, null);
+        long escalated = open(speeding, TRUCK, now.minusSeconds(3000), 1, null);
+        changeLevel(speeding, TRUCK, now.minusSeconds(120), 3, 1);
+
+        assertEquals(now.minusSeconds(120), cases.find(tenant, escalated).orElseThrow().levelAt());
+        EngineCaseService service = new EngineCaseService(cases, (t, a, d) -> { }, t -> null,
+                Clock.fixed(now, ZoneOffset.UTC));
+        JsonNode page = service.casesPage(tenant, Map.of("p_page_size", "10"));
+        List<Long> order = new ArrayList<>();
+        page.path("data").forEach(r -> order.add(-r.path("id").asLong()));
+        assertEquals(List.of(black, older, newer, escalated), order,
+                "código negro, then level 3 by the SLA that runs out first: 15 min from reaching the level");
+    }
+
+    @Test
+    void theInboxKeepsTheMostCriticalCasesWithinItsLimit() {
+        UUID speeding = symptom("cap-speeding");
+        UUID panic = symptom("cap-panic", """
+                {"levels":[{"icu":4,"applies":true,"when":"true","response":{"operator":true}}]}
+                """);
+        long black = open(panic, "DEMO-BLACK", now.minusSeconds(7200), 4, null);
+        List<Transition> many = new ArrayList<>();
+        for (int i = 0; i < 205; i++) {
+            many.add(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE, "DEMO-" + i,
+                    now.minusSeconds(600 - i), 3, 0, 30));
+        }
+        log.append(tenant, many, NOWHERE);
+
+        List<EngineCase> inbox = cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator());
+        assertEquals(200, inbox.size());
+        assertTrue(inbox.stream().anyMatch(c -> c.id() == black), "the oldest case is the most critical");
     }
 
     @Test

@@ -55,9 +55,15 @@ public class InMemoryEngineCases implements EngineCaseStore {
 
     /** The case moves to {@code level}, as the evaluator's level change does. */
     public void changeLevel(long caseId, int level) {
+        changeLevel(caseId, level, null);
+    }
+
+    /** The case moves to {@code level} at {@code at}. */
+    public void changeLevel(long caseId, int level, Instant at) {
         cases.replaceAll(c -> c.id() != caseId ? c : new EngineCase(c.id(), c.definitionId(), c.version(), c.name(),
                 c.family(), c.assetId(), c.openedAt(), level, c.tripId(), c.latitude(), c.longitude(),
-                c.speedKmh(), c.closedAt(), c.treatments(), c.slaMinutes(), c.recurrence(), c.tripCode()));
+                c.speedKmh(), c.closedAt(), c.treatments(), c.slaMinutes(), c.recurrence(), c.tripCode())
+                .withLevelAt(at));
     }
 
     /** Capped like the database store's page of open cases. */

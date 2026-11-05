@@ -5149,6 +5149,53 @@
         "copy": "Copiar",
         "copied": "Copiado",
         "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo."
+      },
+      "telephony": {
+        "usage": {
+          "title": "Uso del mes",
+          "description": "Cada llamada por la línea de la plataforma cuenta para los minutos del mes (UTC), redondeada al minuto. Las llamadas y plantillas de WhatsApp se cobran pero no consumen minutos.",
+          "previousMonth": "Mes anterior",
+          "nextMonth": "Mes siguiente",
+          "loadError": "No se pudo cargar el uso de telefonía.",
+          "forbidden": "Solo un dueño de la organización puede ver el uso de telefonía.",
+          "quotaExhausted": "Minutos agotados. Las llamadas por la línea de la plataforma se rechazan hasta el próximo mes o hasta que se aumenten los minutos; se ofrece el teléfono.",
+          "notEnforced": "Los minutos aún no se aplican: no se rechaza ninguna llamada, pero el uso se registra.",
+          "quota": {
+            "title": "Minutos",
+            "description": "Llamadas por la línea de la plataforma en el mes",
+            "unit": "minutos",
+            "remaining": "Quedan {count}",
+            "own": "minutos propios de la organización",
+            "fromPlan": "minutos del plan"
+          },
+          "calls": {
+            "title": "Llamadas",
+            "description": "Llamadas confirmadas, por la línea y por WhatsApp",
+            "pending": "{count} sin confirmar por Telnyx"
+          },
+          "charge": {
+            "title": "Cargo del plan",
+            "description": "Lo que se cobra a la organización según su plan",
+            "calls": "Llamadas",
+            "templates": "Plantillas WhatsApp",
+            "total": "Total del mes: {total}"
+          },
+          "byDestination": {
+            "title": "Por destino",
+            "empty": "Sin llamadas ni plantillas en este mes.",
+            "destination": "Destino",
+            "count": "Llamadas o envíos",
+            "minutes": "Minutos",
+            "charge": "Cobro"
+          },
+          "destinations": {
+            "CL_MOBILE": "Móvil Chile",
+            "CL_LANDLINE": "Fijo Chile",
+            "OTHER": "Otros destinos",
+            "WHATSAPP_CALL": "Llamada WhatsApp",
+            "WHATSAPP_TEMPLATE": "Plantilla WhatsApp"
+          }
+        }
       }
     },
     "integrationJobs": {

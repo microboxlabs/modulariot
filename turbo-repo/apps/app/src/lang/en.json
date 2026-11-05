@@ -5149,6 +5149,53 @@
         "copy": "Copy",
         "copied": "Copied",
         "copyFailed": "Could not copy. Select the text and copy it."
+      },
+      "telephony": {
+        "usage": {
+          "title": "Month's usage",
+          "description": "Each call on the platform line counts toward the month's minutes (UTC), rounded up to a minute. WhatsApp calls and templates are charged but use no minutes.",
+          "previousMonth": "Previous month",
+          "nextMonth": "Next month",
+          "loadError": "Could not load the telephony usage.",
+          "forbidden": "Only an owner of the organization can see the telephony usage.",
+          "quotaExhausted": "Minutes used up. Calls on the platform line are refused until next month or until the minutes are raised; the phone is offered instead.",
+          "notEnforced": "The minutes are not applied yet: no call is refused, but usage is recorded.",
+          "quota": {
+            "title": "Minutes",
+            "description": "Calls on the platform line this month",
+            "unit": "minutes",
+            "remaining": "{count} left",
+            "own": "the organization's own minutes",
+            "fromPlan": "the plan's minutes"
+          },
+          "calls": {
+            "title": "Calls",
+            "description": "Confirmed calls, on the line and by WhatsApp",
+            "pending": "{count} not confirmed by Telnyx"
+          },
+          "charge": {
+            "title": "Plan charge",
+            "description": "What the organization is charged under its plan",
+            "calls": "Calls",
+            "templates": "WhatsApp templates",
+            "total": "Month's total: {total}"
+          },
+          "byDestination": {
+            "title": "By destination",
+            "empty": "No calls or templates this month.",
+            "destination": "Destination",
+            "count": "Calls or sends",
+            "minutes": "Minutes",
+            "charge": "Charge"
+          },
+          "destinations": {
+            "CL_MOBILE": "Chile mobile",
+            "CL_LANDLINE": "Chile landline",
+            "OTHER": "Other destinations",
+            "WHATSAPP_CALL": "WhatsApp call",
+            "WHATSAPP_TEMPLATE": "WhatsApp template"
+          }
+        }
       }
     },
     "integrationJobs": {

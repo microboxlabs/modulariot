@@ -219,12 +219,14 @@ function splitTop(text: string, op: "&&" | "||"): string[] | null {
   const parts: string[] = [];
   let depth = 0;
   let start = 0;
-  for (let i = 0; i < text.length; i++) {
+  let i = 0;
+  while (i < text.length) {
     const ch = text[i];
     if (ch === "'" || ch === '"') {
       const end = quotedEnd(text, i);
       if (end > text.length) return null;
-      i = end - 1;
+      i = end;
+      continue;
     } else if (ch === "(") depth++;
     else if (ch === ")") {
       if (--depth < 0) return null;
@@ -233,6 +235,7 @@ function splitTop(text: string, op: "&&" | "||"): string[] | null {
       start = i + op.length;
       i++;
     }
+    i++;
   }
   if (depth !== 0) return null;
   parts.push(text.slice(start).trim());

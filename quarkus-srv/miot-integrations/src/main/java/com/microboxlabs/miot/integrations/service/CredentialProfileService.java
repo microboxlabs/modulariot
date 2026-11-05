@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.service;
 
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentityUnavailableException;
 import com.microboxlabs.miot.integrations.auth.google.GoogleServiceAccountConfigs;
 import com.microboxlabs.miot.integrations.auth.oauth.OAuth2CredentialConfigs;
@@ -34,6 +35,7 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.jboss.logging.Logger;
@@ -55,6 +57,11 @@ public class CredentialProfileService {
     static final String DEFAULT_ENVIRONMENT = "PRODUCTION";
 
     private static final String MANAGED_MESSAGE = "This credential is managed by the platform";
+    /**
+     * {@code publicConfig.provider} tags of the geocoding providers. Only the platform's GEOCODING connection uses
+     * them; organizations geocode through their managed connection.
+     */
+    static final Set<String> PLATFORM_ONLY_PROVIDERS = Set.of("mapbox", "google_maps");
     private static final int MAX_NAME_LENGTH = 160;
     private static final int MAX_ENVIRONMENT_LENGTH = 40;
     private static final int MAX_SECRET_UPDATE_ATTEMPTS = 5;
@@ -128,6 +135,7 @@ public class CredentialProfileService {
 
         Map<String, Object> publicConfig = safeMap(req.publicConfig());
         refuseManaged(publicConfig);
+        refusePlatformOnlyProvider(tenantCode, publicConfig, null);
         Map<String, Object> secretConfig = safeMap(req.secretConfig());
         if (secretConfig.isEmpty()) {
             throw new IllegalArgumentException("secretConfig is required");
@@ -207,6 +215,7 @@ public class CredentialProfileService {
             throw new IllegalArgumentException(MANAGED_MESSAGE);
         }
         refuseManaged(req.publicConfig());
+        refusePlatformOnlyProvider(tenantCode, req.publicConfig(), current.publicConfig());
         String displayName = req.displayName() == null ? null : requireName(req.displayName());
         List<CredentialProfile> existing = credentialProfileRepository.listByTenant(tenantCode);
         String environment = req.environment() == null ? null : resolveEnvironment(req.environment(), existing);
@@ -323,6 +332,19 @@ public class CredentialProfileService {
         if (ManagedCredentials.isManaged(publicConfig)) {
             throw new IllegalArgumentException("Managed credentials are created by the platform");
         }
+    }
+
+    /**
+     * An organization cannot create a geocoding provider credential, nor retag one into it. One it already has
+     * keeps working and stays editable.
+     */
+    private static void refusePlatformOnlyProvider(String tenantCode, Map<String, Object> requested,
+            Map<String, Object> current) {
+        if (PlatformScope.TENANT.equals(tenantCode) || requested == null) return;
+        Object provider = requested.get("provider");
+        if (provider == null || !PLATFORM_ONLY_PROVIDERS.contains(String.valueOf(provider))) return;
+        if (current != null && provider.equals(current.get("provider"))) return;
+        throw new PlatformOnlyCredentialException(String.valueOf(provider));
     }
 
     private CredentialTestResponse testManaged(String tenantCode, CredentialProfile profile) {

@@ -180,6 +180,57 @@ class CredentialProfileServiceTest {
         assertEquals("Managed credentials are created by the platform", error.getMessage());
     }
 
+    /** Geocoding is a platform service; an organization reaches it through its managed connection. */
+    @Test
+    void refusesAGeocodingProviderCredentialOutsideThePlatformScope() {
+        CredentialProfileService service = service();
+        for (String provider : List.of("mapbox", "google_maps")) {
+            CreateCredentialProfileRequest request = bearer("Maps " + provider, provider);
+            assertThrows(PlatformOnlyCredentialException.class, () -> service.create(TENANT, ACTOR, request));
+        }
+        assertTrue(credentials.rows.isEmpty());
+    }
+
+    @Test
+    void thePlatformScopeCreatesGeocodingProviderCredentials() {
+        CredentialProfileService service = service();
+        for (String provider : List.of("mapbox", "google_maps")) {
+            assertNotNull(service.create("_platform", ACTOR, bearer("Maps " + provider, provider)));
+        }
+    }
+
+    /** Retagging a plain bearer token would be creation by another route. */
+    @Test
+    void refusesToRetagAnOrganizationCredentialAsAGeocodingProvider() {
+        CredentialProfileService service = service();
+        String id = service.create(TENANT, ACTOR, bearer("Plain token", null)).id();
+        UpdateCredentialProfileRequest retag = new UpdateCredentialProfileRequest(
+                null, null, Map.of("provider", "mapbox"), null);
+        assertThrows(PlatformOnlyCredentialException.class, () -> service.update(TENANT, ACTOR, id, retag));
+    }
+
+    /** One an organization already has keeps working and stays editable. */
+    @Test
+    void anExistingOrganizationMapboxCredentialStaysEditable() {
+        CredentialProfileService service = service();
+        CredentialProfileResponse created = service.create("_platform", ACTOR, bearer("Legacy Mapbox", "mapbox"));
+        CredentialProfile legacy = credentials.rows.get(0);
+        credentials.rows.set(0, new CredentialProfile(legacy.id(), TENANT, legacy.displayName(), legacy.credentialType(),
+                legacy.authType(), legacy.environment(), legacy.publicConfig(), legacy.encryptedSecretJson(),
+                legacy.secretPreview(), legacy.secretVersion(), legacy.lastTestedAt(), legacy.lastTestResult(),
+                legacy.createdAt(), legacy.updatedAt(), legacy.createdBy(), legacy.updatedBy()));
+        UpdateCredentialProfileRequest rename = new UpdateCredentialProfileRequest(
+                "Legacy Mapbox renamed", null, Map.of("provider", "mapbox"), Map.of("token", "pk.rotated"));
+        assertNotNull(service.update(TENANT, ACTOR, created.id(), rename));
+        assertEquals("Legacy Mapbox renamed", credentials.lastUpdate.displayName());
+    }
+
+    private static CreateCredentialProfileRequest bearer(String name, String provider) {
+        Map<String, Object> publicConfig = provider == null ? Map.of() : Map.of("provider", provider);
+        return new CreateCredentialProfileRequest(
+                name, CredentialType.BEARER_TOKEN, null, "PRODUCTION", publicConfig, Map.of("token", "pk.synthetic"));
+    }
+
     @Test
     void aManagedCredentialHasNoSecretAndCannotBeEditedOrTested() {
         CredentialProfileService service = service();

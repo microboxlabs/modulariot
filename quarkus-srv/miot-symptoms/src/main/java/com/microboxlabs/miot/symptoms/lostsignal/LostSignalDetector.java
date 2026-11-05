@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
 import com.microboxlabs.miot.core.gps.SignalStates;
+import com.microboxlabs.miot.symptoms.evaluator.Episode;
 import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
 import com.microboxlabs.miot.symptoms.evaluator.Holds;
@@ -104,7 +105,7 @@ public class LostSignalDetector implements SignalStates {
                         new IngestHealth(staleAfter, maxLag), returnGrace)),
                 redis.client().<LossStore>map(c -> new RedisLossStore(c, profileTtl))
                         .orElseGet(InMemoryLossStore::new),
-                // The evaluator's episodes: an operator's close drops them for both.
+                // The evaluator's episodes: an operator's close records the same decision for both consumers.
                 new TripChecks(catalog, redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, episodeTtl))
                         .orElseGet(InMemoryEpisodeRepository::new), transitionLog, events, audit, meters, holds),
                 new ShadowMaps(new PgCoverageStore(pool::get), CoverageSettings.from(ConfigProvider.getConfig()),
@@ -282,8 +283,13 @@ public class LostSignalDetector implements SignalStates {
 
     /** An operator closed the symptom's case for the vehicle. */
     public void forget(String tenant, String assetId, UUID definitionId) {
+        forget(tenant, assetId, definitionId, null);
+    }
+
+    /** Keeps the same trip-close marker as the GPS consumer, including when their repository is shared. */
+    public void forget(String tenant, String assetId, UUID definitionId, Episode marker) {
         if (enabled) {
-            trips.forget(tenant, assetId, definitionId);
+            trips.forget(tenant, assetId, definitionId, marker);
         }
     }
 

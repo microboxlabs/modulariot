@@ -1,210 +1,223 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Button,
-  Label,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Spinner,
-  Select,
-  TextInput,
-} from "flowbite-react";
-import { toast } from "sonner";
+  HiOutlineClock,
+  HiOutlineOfficeBuilding,
+  HiOutlinePhone,
+} from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { formatUsd } from "@/features/metered-usage/usage-view";
 import {
-  currentMonth,
   parseMonthlyMinutes,
-  usd,
-  type OrgTelephonyUsage,
+  TELEPHONY_ALERT_PCT,
 } from "@/features/telephony/telephony-plan";
+import {
+  telephonyTenantRows,
+  telephonyTotals,
+  visibleTelephonyRows,
+  type TelephonyFilters,
+  type TelephonyTenantRow,
+} from "./telephony-tenants-view";
+import UsageQuotaModal, {
+  useUsageQuotaEditor,
+  type UsageQuotaTarget,
+} from "./usage-quota-modal";
+import UsageTenantsTable, {
+  UsageTenantKpi,
+  UsageTenantTableRow,
+} from "./usage-tenants-table";
+import {
+  isFiltering,
+  pageOf,
+  switcherOrgs,
+  type UsageSort,
+} from "./usage-tenants-view";
+import { useTelephonyPlan, useTelephonyTenants } from "./use-telephony-plan";
 import { usePlatformOrganizations } from "./use-platform-organizations";
-import { useTelephonyTenants } from "./use-telephony-plan";
 
-const SECTION =
-  "rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800";
+interface TelephonyTenantsSectionProps {
+  readonly dict: I18nRecord;
+  readonly lang: string;
+  /** Set in the page's filter strip. */
+  readonly filters: TelephonyFilters;
+  readonly sort: UsageSort;
+  readonly month: string;
+  /** The header's Assign minutes button opens the modal for a new organization. */
+  readonly assigning: boolean;
+  readonly onAssignDone: () => void;
+}
 
 /**
- * Every organization on the managed line this month: minutes against its
- * quota, calls Telnyx has not confirmed, what the plan charges and what Telnyx
- * charged the platform. The minutes of one organization are set in a modal.
+ * Every organization on the platform's telephony line in a month: totals, a
+ * filtered, paged table of minutes against the quota, and a modal to give or
+ * change an organization's minutes. Same parts as geocoding's Organizaciones.
  */
 export default function TelephonyTenantsSection({
   dict,
-}: Readonly<{ dict: I18nRecord }>) {
-  const [month, setMonth] = useState(() => currentMonth());
-  const { organizations, isLoading, error, saveMinutes } =
-    useTelephonyTenants(month);
-  const { organizations: allOrganizations } = usePlatformOrganizations(true);
-  const [selectedTenant, setSelectedTenant] = useState("");
-  const [editing, setEditing] = useState<{
-    tenantCode: string;
-    subscription: OrgTelephonyUsage["subscription"];
-  } | null>(null);
+  lang,
+  filters,
+  sort,
+  month,
+  assigning,
+  onAssignDone,
+}: TelephonyTenantsSectionProps) {
+  const [page, setPage] = useState(1);
+  const editor = useUsageQuotaEditor<UsageQuotaTarget & { tenantCode: string }>(
+    assigning,
+    onAssignDone
+  );
+
+  const { plan } = useTelephonyPlan();
+  const {
+    organizations: usage,
+    isLoading,
+    error,
+    saveMinutes,
+  } = useTelephonyTenants(month);
+  const { organizations } = usePlatformOrganizations(true);
+
+  const rows = useMemo(
+    () => telephonyTenantRows(usage, organizations),
+    [usage, organizations]
+  );
+  const totals = useMemo(() => telephonyTotals(rows), [rows]);
+  const shown = useMemo(
+    () => visibleTelephonyRows(rows, filters, sort),
+    [rows, filters, sort]
+  );
+  const current = pageOf(shown, page);
+  const orgs = useMemo(() => switcherOrgs(organizations), [organizations]);
+  const ownMinutes = useMemo(() => {
+    const assigned = new Set(
+      rows.filter((r) => r.subscribed).map((r) => r.tenantCode)
+    );
+    for (const org of organizations) {
+      if (assigned.has(org.tenantClientId)) assigned.add(org.slug);
+    }
+    return assigned;
+  }, [rows, organizations]);
+
+  useEffect(() => setPage(1), [filters, sort, month]);
+
+  const numbers = new Intl.NumberFormat(lang);
 
   return (
-    <section className={SECTION}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            {tr("title", dict)}
-          </h2>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {tr("description", dict)}
-          </p>
-        </div>
-        <TextInput
-          type="month"
-          aria-label={tr("month", dict)}
-          value={month}
-          onChange={(e) => e.target.value && setMonth(e.target.value)}
-        />
-      </div>
-      <div className="mt-4 flex gap-2">
-        <Select
-          aria-label={tr("organization", dict)}
-          value={selectedTenant}
-          onChange={(e) => setSelectedTenant(e.target.value)}
-        >
-          <option value="">{tr("selectOrganization", dict)}</option>
-          {allOrganizations.map((org) => (
-            <option key={org.slug} value={org.slug}>
-              {org.name || org.slug}
-            </option>
-          ))}
-        </Select>
-        <Button
-          disabled={!selectedTenant}
-          onClick={() =>
-            setEditing(
-              organizations.find(
-                (org) => org.tenantCode === selectedTenant
-              ) ?? { tenantCode: selectedTenant, subscription: null }
-            )
-          }
-        >
-          {tr("editMinutes", dict)}
-        </Button>
-      </div>
-      {isLoading && <Spinner size="md" />}
-      {error && (
-        <p className="mt-3 text-sm text-red-600">{tr("loadFailed", dict)}</p>
-      )}
-      {!isLoading && !error && organizations.length === 0 && (
-        <p className="mt-3 text-sm text-gray-500">{tr("empty", dict)}</p>
-      )}
-      {organizations.length > 0 && (
-        <table className="mt-4 w-full text-left text-sm">
-          <thead className="text-xs uppercase text-gray-500 dark:text-gray-400">
-            <tr>
-              <th className="py-2">{tr("organization", dict)}</th>
-              <th>{tr("minutes", dict)}</th>
-              <th>{tr("pending", dict)}</th>
-              <th>{tr("charge", dict)}</th>
-              <th>{tr("providerCost", dict)}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {organizations.map((o) => (
-              <tr key={o.tenantCode}>
-                <td className="py-2 font-medium text-gray-900 dark:text-white">
-                  {o.tenantCode}
-                </td>
-                <td>
-                  {o.usage.usedMinutes} / {o.usage.quotaMinutes}
-                </td>
-                <td>{o.usage.pending}</td>
-                <td>{usd(o.usage.chargeUsd)}</td>
-                <td>{usd(o.usage.providerCost)}</td>
-                <td className="text-right">
-                  <Button size="xs" color="light" onClick={() => setEditing(o)}>
-                    {tr("editMinutes", dict)}
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {editing && (
-        <MinutesModal
-          org={editing}
-          dict={dict}
-          onClose={() => setEditing(null)}
-          onSave={async (minutes) => {
-            await saveMinutes(editing.tenantCode, minutes);
-            toast.success(tr("saved", dict));
-            setEditing(null);
-          }}
-        />
-      )}
-    </section>
+    <>
+      <UsageTenantsTable
+        kpis={
+          <>
+            <UsageTenantKpi
+              icon={HiOutlineOfficeBuilding}
+              title={tr("kpi.subscribed", dict)}
+              value={numbers.format(totals.ownMinutes)}
+              description={tr("kpi.withUsage", dict, {
+                count: numbers.format(rows.length),
+              })}
+            />
+            <UsageTenantKpi
+              icon={HiOutlinePhone}
+              title={tr("kpi.minutes", dict)}
+              value={numbers.format(totals.minutes)}
+              description={tr("kpi.calls", dict, {
+                count: numbers.format(totals.calls),
+              })}
+            />
+            <UsageTenantKpi
+              icon={HiOutlineClock}
+              title={tr("kpi.pending", dict)}
+              value={numbers.format(totals.pending)}
+              description={tr("kpi.pendingHelp", dict)}
+            />
+          </>
+        }
+        charge={{
+          total: totals.chargeUsd,
+          providerCost: totals.providerCostUsd,
+        }}
+        columnKeys={[
+          "organization",
+          "quota",
+          "calls",
+          "pending",
+          "providerCost",
+          "charge",
+          "",
+        ]}
+        isLoading={isLoading}
+        failed={error !== null}
+        filtering={isFiltering(filters)}
+        rows={current.rows}
+        pages={current.pages}
+        page={page}
+        onPage={setPage}
+        total={shown.length}
+        dict={dict}
+        lang={lang}
+      >
+        {current.rows.map((row) => (
+          <UsageTenantTableRow
+            key={row.tenantCode}
+            row={row}
+            alertPct={TELEPHONY_ALERT_PCT}
+            quotaWithoutSubscription
+            lang={lang}
+            dict={dict}
+            onEdit={() =>
+              editor.open({
+                slug: row.slug,
+                tenantCode: row.tenantCode,
+                name: row.displayName,
+                ownQuota: row.ownQuota,
+              })
+            }
+          >
+            <TelephonyCells row={row} lang={lang} />
+          </UsageTenantTableRow>
+        ))}
+      </UsageTenantsTable>
+
+      <UsageQuotaModal<number | null>
+        show={editor.show}
+        target={editor.editing}
+        orgs={orgs}
+        subscribed={ownMinutes}
+        planQuota={plan?.minutesPerMonth ?? 0}
+        idPrefix="telephony-quota"
+        toRequest={(quota) => {
+          const parsed = parseMonthlyMinutes(quota);
+          return parsed.ok
+            ? parsed
+            : { ok: false, error: tr("errors.quota", dict) };
+        }}
+        onClose={editor.close}
+        onSave={async (organization, minutes) => {
+          const tenantCode =
+            editor.editing?.tenantCode ??
+            organizations.find((org) => org.slug === organization)
+              ?.tenantClientId ??
+            organization;
+          await saveMinutes(tenantCode, minutes);
+        }}
+        dict={dict}
+      />
+    </>
   );
 }
 
-function MinutesModal({
-  org,
-  dict,
-  onClose,
-  onSave,
-}: Readonly<{
-  org: { tenantCode: string; subscription: OrgTelephonyUsage["subscription"] };
-  dict: I18nRecord;
-  onClose: () => void;
-  onSave: (minutes: number | null) => Promise<void>;
-}>) {
-  const [value, setValue] = useState(
-    org.subscription?.monthlyMinutes == null
-      ? ""
-      : String(org.subscription.monthlyMinutes)
-  );
-  const [busy, setBusy] = useState(false);
-  const parsed = parseMonthlyMinutes(value);
+function TelephonyCells({
+  row,
+  lang,
+}: Readonly<{ row: TelephonyTenantRow; lang: string }>) {
   return (
-    <Modal show size="md" onClose={onClose} dismissible>
-      <ModalHeader>
-        {tr("editMinutes", dict)} · {org.tenantCode}
-      </ModalHeader>
-      <ModalBody>
-        <Label htmlFor="telephony-org-minutes">
-          {tr("monthlyMinutes", dict)}
-        </Label>
-        <TextInput
-          id="telephony-org-minutes"
-          inputMode="numeric"
-          value={value}
-          color={parsed.ok ? undefined : "failure"}
-          onChange={(e) => setValue(e.target.value)}
-        />
-        <p className="mt-1 text-xs text-gray-500">
-          {tr("monthlyMinutesHelp", dict)}
-        </p>
-      </ModalBody>
-      <ModalFooter className="justify-end">
-        <Button color="alternative" onClick={onClose}>
-          {tr("cancel", dict)}
-        </Button>
-        <Button
-          disabled={busy || !parsed.ok}
-          onClick={async () => {
-            if (!parsed.ok) return;
-            setBusy(true);
-            try {
-              await onSave(parsed.value);
-            } catch {
-              toast.error(tr("saveFailed", dict));
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          {tr("save", dict)}
-        </Button>
-      </ModalFooter>
-    </Modal>
+    <>
+      <td className="px-4 py-2.5">{row.calls.toLocaleString(lang)}</td>
+      <td className="px-4 py-2.5">{row.pending.toLocaleString(lang)}</td>
+      <td className="px-4 py-2.5">{formatUsd(row.providerCostUsd, lang)}</td>
+      <td className="px-4 py-2.5">
+        {row.chargeUsd === null ? "—" : formatUsd(row.chargeUsd, lang)}
+      </td>
+    </>
   );
 }

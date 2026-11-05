@@ -42,4 +42,6 @@ export interface SymptomsTable {
   ignored?: IgnoredInfo | null;
   /** When the case came back to the tower from its latest hold. */
   returned_after_ignore_at?: string | null;
+  /** When the SLA of the case's current level started. */
+  sla_since?: string | null;
 }

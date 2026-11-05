@@ -24,7 +24,10 @@ public interface EngineCaseStore {
 
     record TowerCounts(List<OpenCount> active, long ignored) { }
 
-    /** Counts read from one snapshot by persistent stores. */
+    /**
+     * The tower inbox's counts, read from one snapshot by persistent stores: the open cases whose current level
+     * asks for an operator ({@link CaseFilter#operatorOnly}).
+     */
     default TowerCounts towerCounts(String tenantCode) {
         return new TowerCounts(openCounts(tenantCode), ignoredCount(tenantCode));
     }
@@ -96,33 +99,43 @@ public interface EngineCaseStore {
      * <p>The trip filters match the case's live trip, so a case without one matches none of them. {@code driverId}
      * is the RUT of either driver, {@code carrierId} the carrier's RUT or id; both ignore dots, dashes, spaces and
      * case. {@code origin} and {@code destination} are the whole place name, ignoring case and outer spaces.
+     *
+     * <p>{@code operatorOnly} keeps the cases whose current level has {@code response.operator: true} in the
+     * published version the case runs on: the tower inbox. A level with {@code operator: false} or no response is
+     * left out.
      */
     record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to,
             String driverId, String carrierId, String origin, String destination, boolean underTreatmentOnly,
-            boolean ignoredOnly) {
+            boolean ignoredOnly, boolean operatorOnly) {
 
         public static final CaseFilter OPEN = new CaseFilter(null, null, null, null, null, null);
 
         public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
                 Instant to) {
-            this(tripId, assetId, symptomName, level, from, to, null, null, null, null, false, false);
+            this(tripId, assetId, symptomName, level, from, to, null, null, null, null, false, false, false);
         }
 
         @SuppressWarnings("java:S107")
         public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
                 Instant to, String driverId, String carrierId, String origin, String destination) {
             this(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin, destination, false,
-                    false);
+                    false, false);
         }
 
         public CaseFilter withOpenTreatment() {
             return new CaseFilter(tripId, assetId, symptomName, null, from, to, driverId, carrierId, origin,
-                    destination, true, ignoredOnly);
+                    destination, true, ignoredOnly, operatorOnly);
         }
 
         public CaseFilter withIgnored() {
             return new CaseFilter(tripId, assetId, symptomName, null, from, to, driverId, carrierId, origin,
-                    destination, underTreatmentOnly, true);
+                    destination, underTreatmentOnly, true, operatorOnly);
+        }
+
+        /** Only the cases whose current level asks for an operator: the tower inbox. */
+        public CaseFilter forOperator() {
+            return new CaseFilter(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin,
+                    destination, underTreatmentOnly, ignoredOnly, true);
         }
 
         /** Whether it filters by a field of the case's trip. */

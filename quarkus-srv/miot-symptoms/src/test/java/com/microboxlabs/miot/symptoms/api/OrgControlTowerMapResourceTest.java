@@ -572,7 +572,7 @@ class OrgControlTowerMapResourceTest {
         JsonNode third = (JsonNode) call(subject.symptoms(ORG, query("p_page=3&p_page_size=5"))).getEntity();
 
         assertEquals(5, first.get("data").size());
-        assertEquals(-1, first.get("data").get(0).get("id").asLong());
+        assertEquals(-12, first.get("data").get(0).get("id").asLong(), "same level: the SLA that runs out first");
         assertEquals(12, first.get("total_rows").asInt());
         assertEquals(3, first.get("total_pages").asInt());
         assertEquals(1, first.get("page").asInt());
@@ -662,8 +662,10 @@ class OrgControlTowerMapResourceTest {
         JsonNode rows = ((JsonNode) call(engineOnly().symptoms(ORG, query("p_page_size=10"))).getEntity()).get("data");
 
         assertEquals(3, rows.size());
-        assertTrue(rows.get(2).get("driver").isNull());
-        assertTrue(rows.get(2).get("carrier").isNull());
+        JsonNode noTrip = rows.get(0);
+        assertEquals(-3, noTrip.get("id").asLong());
+        assertTrue(noTrip.get("driver").isNull());
+        assertTrue(noTrip.get("carrier").isNull());
     }
 
     @Test

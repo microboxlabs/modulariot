@@ -360,7 +360,8 @@ class PgCaseStateTest {
                 TRUCK, T0.plusSeconds(10), 4, 4, 5,
                 Map.of("reason", Transition.STATE_CHANGE_REASON, "from", "ACTIVE", "to", "TEST"));
 
-        assertThrows(IllegalStateException.class, () -> log.append(TENANT, List.of(staleCatalogClose), PLACE));
+        List<Transition> transitions = List.of(staleCatalogClose);
+        assertThrows(IllegalStateException.class, () -> log.append(TENANT, transitions, PLACE));
         assertNull(cases.find(TENANT, current).orElseThrow().closedAt());
     }
 

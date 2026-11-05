@@ -110,8 +110,8 @@ class EvaluatorStreamTest {
                 new EvaluatorStream.Sinks(rejected, events, new SimpleMeterRegistry()),
                 Clock.systemUTC(), episodes, samples);
 
-        assertThrows(IllegalStateException.class,
-                () -> s.evaluate(signal("2026-10-22T03:00:30Z", true, DEMO)));
+        String frame = signal("2026-10-22T03:00:30Z", true, DEMO);
+        assertThrows(IllegalStateException.class, () -> s.evaluate(frame));
         assertTrue(episodes.tenantsWithEpisodes("DEMO01").isEmpty());
         assertTrue(episodes.load(DEMO, "DEMO01").watermark(DEMO, "DEMO01", "gps_signal").isEmpty());
     }

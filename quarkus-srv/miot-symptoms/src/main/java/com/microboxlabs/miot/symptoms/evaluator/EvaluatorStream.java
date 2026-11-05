@@ -224,14 +224,20 @@ public class EvaluatorStream {
     private static final Map<String, Object> NO_TRIP = Map.of("active", false, "double_driver", false);
 
     /**
-     * The signal as the organization's rules read it: its own trip as {@code trip}, none of the others, and the
-     * frame's events always a list ({@link GpsSignal.FrameEvent}).
+     * The signal as the organization's rules read it: its own trip as {@code trip} and its own zones as
+     * {@code geo}, none of the others, and the frame's events always a list ({@link GpsSignal.FrameEvent}).
+     * An organization without zones gets no {@code geo}.
      */
     static Map<String, Object> forTenant(Map<String, Object> signal, String tenant) {
         Map<String, Object> out = new LinkedHashMap<>(GpsSignal.FrameEvent.withEvents(signal));
         Object trips = out.remove("trips");
         Object trip = trips instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
         out.put("trip", trip != null ? trip : NO_TRIP);
+        Object geos = out.remove("geos");
+        Object geo = geos instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
+        if (geo != null) {
+            out.put("geo", geo);
+        }
         return out;
     }
 
@@ -317,7 +323,21 @@ public class EvaluatorStream {
      * meets the condition opens a new case.
      */
     public void forget(String tenant, String assetId, java.util.UUID definitionId) {
-        episodes.forget(tenant, assetId, definitionId);
+        forget(tenant, assetId, definitionId, null);
+    }
+
+    /**
+     * As {@link #forget(String, String, java.util.UUID)}, and the episode keeps the case's trip, so the open rule
+     * reads {@code case.closed_on_trip} true while the vehicle stays on that trip.
+     */
+    public void forget(String tenant, String assetId, java.util.UUID definitionId, String tripId) {
+        if (tripId == null) {
+            episodes.forget(tenant, assetId, definitionId);
+        } else {
+            AssetEpisodes state = episodes.load(tenant, assetId);
+            state.save(tenant, Episode.closedOnTrip(definitionId, assetId, tripId));
+            episodes.save(state);
+        }
         lostSignal.forget(tenant, assetId, definitionId);
     }
 

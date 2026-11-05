@@ -33,10 +33,29 @@ public record Episode(
         Instant lastSignalAt,
         Instant openedAt,
         int level,
-        double maxMeasure) {
+        double maxMeasure,
+        String closedOnTrip) {
 
     public Episode {
         levelSince = levelSince == null ? Map.of() : Map.copyOf(levelSince);
+    }
+
+    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
+            Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
+            double maxMeasure) {
+        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
+                openedAt, level, maxMeasure, null);
+    }
+
+    /** Nothing running, but an operator closed the symptom's case on this trip. */
+    public static Episode closedOnTrip(UUID definitionId, String assetId, String tripId) {
+        return new Episode(definitionId, "", assetId, null, null, null, Map.of(), null, null, 0, 0, tripId);
+    }
+
+    /** The same episode with this operator's trip marker. */
+    Episode marked(String tripId) {
+        return new Episode(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince,
+                lastSignalAt, openedAt, level, maxMeasure, tripId);
     }
 
     public static Episode start(UUID definitionId, String version, String assetId) {
@@ -47,9 +66,13 @@ public record Episode(
         return openedAt != null;
     }
 
-    /** Whether there is anything worth keeping: a run of the activation, a level waiting, or an open case. */
+    /**
+     * Whether there is anything worth keeping: a run of the activation, a level waiting, an open case, or the trip
+     * an operator closed a case on.
+     */
     public boolean worthKeeping() {
-        return candidateSince != null || conditionSince != null || !levelSince.isEmpty() || open();
+        return candidateSince != null || conditionSince != null || !levelSince.isEmpty() || open()
+                || closedOnTrip != null;
     }
 
     static double seconds(Instant from, Instant to) {

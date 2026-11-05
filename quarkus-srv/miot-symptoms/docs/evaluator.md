@@ -38,7 +38,7 @@ Rule previews use the organization's recent signals. At most one signal per orga
 | Level change | A case's level only rises, unless the lifecycle's `levelDown` lets it follow the measure down while the condition holds |
 | Close | The lifecycle's close rule is true. If the condition still holds, the next signal starts a new run |
 
-`case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals.
+`case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals. `case.closed_on_trip` is true when an operator closed a case of the symptom on the trip the signal carries (`trip.id`); an open rule `case.condition_s >= 0 && !case.closed_on_trip` opens no other case on that trip. The episode keeps the trip until a signal of another trip, or of none.
 
 ## Order, versions and failures
 

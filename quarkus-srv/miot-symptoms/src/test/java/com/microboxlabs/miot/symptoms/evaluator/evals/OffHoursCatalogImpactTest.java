@@ -26,11 +26,12 @@ class OffHoursCatalogImpactTest {
 
         CaseImpact production = CaseImpact.of(traces.stream().map(Trace::expected).toList());
         CaseImpact catalog = CaseImpact.of(traces.stream()
-                .map(t -> EvalTraces.replay(template, source, t.signals())).toList());
+                .map(t -> EvalTraces.replay(template, EvalTraces.source("gps_signal"), t.signals().stream()
+                        .map(sig -> ZoneTemplatesParityTest.asBuilt(sig, false)).toList())).toList());
         System.out.println("off-hours impact on " + traces.size() + " trips: production " + production
                 + ", catalog template " + catalog);
 
         assertEquals(new CaseImpact(11, Map.of(1, 2, 2, 5, 3, 3, 4, 1), 7), production);
-        assertEquals(new CaseImpact(7, Map.of(1, 1, 2, 3, 3, 1, 4, 2), 7), catalog);
+        assertEquals(production, catalog, "2.0.0 is the GPS database's rule: same cases and top levels");
     }
 }

@@ -46,7 +46,8 @@ class PgPlatformTemplatesTest {
             "V0.12.11__signal_loss_close_level_one.sql", "V0.12.12__contact_sync.sql",
             "V0.12.13__held_transitions.sql", "V0.12.14__ignore_reasons_move_wrong_map.sql",
             "V0.12.15__noted_transitions.sql", "V0.12.16__tower_settings_telephony.sql",
-            "V0.12.17__event_symptom_templates.sql", "V0.12.18__speed_templates_escalation.sql");
+            "V0.12.17__event_symptom_templates.sql", "V0.12.18__speed_templates_escalation.sql",
+            "V0.12.19__zone_and_hour_templates.sql");
 
     private static Vertx vertx;
     private static Pool pool;

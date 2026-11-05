@@ -43,9 +43,12 @@
         "maxspeed_osm": 90.0
       },
       "geo": {
-        "authorized_zone": false
+        "authorized_zone": false,
+        "risk_zone": false,
+        "outside_authorized": true
       },
       "local_hour": 14,
+      "local_minutes": 860.0,
       "derived": {
         "moving": true
       },
@@ -115,9 +118,12 @@
         "maxspeed_osm": 90.0
       },
       "geo": {
-        "authorized_zone": false
+        "authorized_zone": false,
+        "risk_zone": true,
+        "outside_authorized": true
       },
       "local_hour": 9,
+      "local_minutes": 545.5,
       "derived": {
         "moving": true
       },
@@ -182,9 +188,12 @@
       },
       "geo": {
         "authorized_zone": true,
-        "zone": "Planta Norte"
+        "zone": "Planta Norte",
+        "risk_zone": false,
+        "outside_authorized": false
       },
       "local_hour": 11,
+      "local_minutes": 700.0,
       "derived": {
         "moving": true
       },
@@ -252,9 +261,12 @@
         "maxspeed_osm": 100.0
       },
       "geo": {
-        "authorized_zone": false
+        "authorized_zone": false,
+        "risk_zone": false,
+        "outside_authorized": true
       },
       "local_hour": 3,
+      "local_minutes": 192.0,
       "derived": {
         "moving": false
       },

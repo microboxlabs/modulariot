@@ -63,7 +63,8 @@ public class RuleDescriptionService {
             "case.normal_s", "segundos desde que volvió a la normalidad",
             "case.age_h", "horas desde que se abrió el caso",
             "case.level", "nivel del caso",
-            "case.closed_by_operator", "el operador cerró el caso");
+            "case.closed_by_operator", "el operador cerró el caso",
+            "case.closed_on_trip", "el operador ya cerró un caso de este síntoma en el viaje");
 
     /** Who is asking, forwarded to the Harness as on the chat proxy. */
     public record Caller(String authorization, String tenantClientId, String userEmail) {

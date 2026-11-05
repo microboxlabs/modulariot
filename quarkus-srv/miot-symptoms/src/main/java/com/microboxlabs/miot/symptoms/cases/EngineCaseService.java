@@ -124,6 +124,11 @@ public class EngineCaseService {
     @FunctionalInterface
     public interface Forget {
         void episode(String tenantCode, String assetId, UUID definitionId);
+
+        /** The operator closed the case on this trip (null when it had none); the open rule may read it. */
+        default void closed(String tenantCode, String assetId, UUID definitionId, String tripId) {
+            episode(tenantCode, assetId, definitionId);
+        }
     }
 
     private final EngineCaseStore store;
@@ -145,8 +150,17 @@ public class EngineCaseService {
     @Inject
     EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, Instance<Pool> pool, SymptomEvents events,
             LostSignalDetector lostSignal) {
-        this(store, evaluator::forget, t -> readTrip(pool.get(), t), Clock.systemUTC(), events,
-                lostSignal::reported);
+        this(store, new Forget() {
+            @Override
+            public void episode(String tenantCode, String assetId, UUID definitionId) {
+                evaluator.forget(tenantCode, assetId, definitionId);
+            }
+
+            @Override
+            public void closed(String tenantCode, String assetId, UUID definitionId, String tripId) {
+                evaluator.forget(tenantCode, assetId, definitionId, tripId);
+            }
+        }, t -> readTrip(pool.get(), t), Clock.systemUTC(), events, lostSignal::reported);
     }
 
     private static Row readTrip(Pool pool, Tuple key) {
@@ -1017,7 +1031,7 @@ public class EngineCaseService {
     public void close(String tenantCode, long symptomId, String actor) {
         EngineCase c = find(tenantCode, symptomId);
         if (c.closedAt() == null) {
-            forget.episode(tenantCode, c.assetId(), c.definitionId());
+            forget.closed(tenantCode, c.assetId(), c.definitionId(), c.tripId());
             Instant at = clock.instant();
             if (store.close(tenantCode, c.id(), actor, at)) {
                 events.closedByOperator(tenantCode, c, actor, at);

@@ -385,6 +385,19 @@ class EvaluatorStreamTest {
         assertFalse(other.containsKey("trips"));
     }
 
+    @Test
+    void eachOrganizationReadsOnlyItsOwnZones() {
+        Map<String, Object> signal = Map.of("asset_id", "DEMO01", "clients", List.of(DEMO, OTHER),
+                "geos", Map.of(DEMO, Map.of("risk_zone", true, "outside_authorized", true)));
+
+        Map<String, Object> demo = EvaluatorStream.forTenant(signal, DEMO);
+        Map<String, Object> other = EvaluatorStream.forTenant(signal, OTHER);
+
+        assertEquals(Map.of("risk_zone", true, "outside_authorized", true), demo.get("geo"));
+        assertFalse(other.containsKey("geo"), "an organization without zones gets none");
+        assertFalse(demo.containsKey("geos"));
+    }
+
     private static org.eclipse.microprofile.reactive.messaging.Message<byte[]> message(String body,
             List<String> outcomes) {
         return org.eclipse.microprofile.reactive.messaging.Message.of(

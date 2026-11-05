@@ -21,8 +21,9 @@ One GPS frame as symptom rules read it, under the CEL root `signal`. The signal 
 | `signal.trip.driver` | `id` (fleet id), `registered`, `status`, `license_expired` | `miot_fleet.driver`, found by the trip's `driver_id` (tax id) |
 | `signal.vehicle` | `weight_category`, `weight_kg` | vehicle data |
 | `signal.road` | `maxspeed_osm`, `maxspeed_custom` | road network, client limits |
-| `signal.geo` | `authorized_zone`, `zone` | geofences |
+| `signal.geo` | `authorized_zone`, `risk_zone`, `outside_authorized`; `zone` (not built yet) | the GPS database's geofences of the organization |
 | `signal.local_hour` | Hour in the client's time zone | calculated |
+| `signal.local_minutes` | Minutes since local midnight, the seconds as a fraction (01:30:30 is 90.5) | calculated |
 | `signal.derived` | `moving`; `power_disconnected`, `jamming` from the frame's events; `speed_avg_5m` (not evaluated yet) | calculated, device |
 | `signal.frame` | The frame as the device sent it (`AssetTrackingData`), for example `signal.frame.gps.speed` (km/h), `signal.frame.sensors.engine_status`, `signal.frame.sensors.panic_button` | device |
 | `signal.frame.events` | The frame's device events, a list. Each has `event_type`, `severity`, `description` and `timestamp` (the time of the fact, ISO-8601 UTC), all text; a missing one reads `""`. A frame without events reads an empty list | device |
@@ -84,11 +85,12 @@ A device stores events while it has no network and sends them late, after newer 
 | `trip.code` | The first service code of the trip |
 | `trip.driver` | The organization's fleet driver with the trip's `driver_id` (tax id), an `active` one first. `registered` is false when the fleet has no such driver; left out when the trip has no driver. Fleet `inactive` reads `DEACTIVATED`. The tax id, name and phones never reach the signal |
 | `derived.moving` | Frame speed above 10 km/h, as the GPS database's signal function; left out when the frame has no `gps` |
-| `local_hour` | Frame time in `MIOT_SYMPTOMS_SIGNAL_BUILDER_ZONE` (default `America/Santiago`) |
+| `local_hour`, `local_minutes` | Frame time in `MIOT_SYMPTOMS_SIGNAL_BUILDER_ZONE` (default `America/Santiago`) |
+| `geos` | For each client with geofences, where the frame's position is: `authorized_zone` inside a zone of type 0, `risk_zone` inside one of type 1, `outside_authorized` in no zone or inside one that is not of type 0 (even where an authorized one overlaps it), as the GPS database's signal function reads `properties.geofence_type`. A point on an edge is inside. A frame without a position, or a client without geofences, gets none. The evaluator gives each organization its own as `geo`; rules never read `geos` |
 | `derived.power_disconnected`, `derived.jamming` | One of the frame's `events` is of external power disconnected (`ALIMENTACION … DESCONECTADA`, `power … disconnect/cut`) or of GNSS/GSM jamming (`…jamm…`), `_` read as a space, ignoring case; false otherwise. "ALIMENTACION BATERIA" alone (running on battery) does not count |
-| `vehicle`, `road`, `geo`, `derived.speed_avg_5m` | Not built yet: left out |
+| `vehicle`, `road`, `geo.zone`, `derived.speed_avg_5m` | Not built yet: left out |
 
-Trips are loaded from the modulith database and shares (`asset_client_map`) from the GPS database, at start and every `MIOT_SYMPTOMS_SIGNAL_BUILDER_RELOAD_EVERY` (10 min). Between loads, each change of a `trip_live` row sends a notice on the Postgres channel `miot_trips_live` (`{"tenant", "tripId"}`), and the builder reads that row again; shares follow their Debezium topic (a non-durable subscription, so a stopped replica leaves no backlog). Without a trips module the signal has no trips. Frames wait for the first load, which is retried until the databases answer. On wherever the symptoms Pulsar is wired (`MIOT_SYMPTOMS_CDC_ENABLED`, which follows the symptoms component); `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED=false` turns it off. Frames are counted (`miot.symptoms.signal.built`, `.skipped`), never logged.
+Trips are loaded from the modulith database and shares (`asset_client_map`) and geofences from the GPS database, at start and every `MIOT_SYMPTOMS_SIGNAL_BUILDER_RELOAD_EVERY` (10 min). A geofence change reaches the signals at the next load. Between loads, each change of a `trip_live` row sends a notice on the Postgres channel `miot_trips_live` (`{"tenant", "tripId"}`), and the builder reads that row again; shares follow their Debezium topic (a non-durable subscription, so a stopped replica leaves no backlog). Without a trips module the signal has no trips. Frames wait for the first load, which is retried until the databases answer. On wherever the symptoms Pulsar is wired (`MIOT_SYMPTOMS_CDC_ENABLED`, which follows the symptoms component); `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED=false` turns it off. Frames are counted (`miot.symptoms.signal.built`, `.skipped`), never logged.
 
 ## Rule editor fields
 

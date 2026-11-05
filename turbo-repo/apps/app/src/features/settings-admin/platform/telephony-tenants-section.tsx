@@ -3,11 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   HiOutlineClock,
-  HiOutlineCurrencyDollar,
   HiOutlineOfficeBuilding,
   HiOutlinePhone,
 } from "react-icons/hi";
-import { KpiStat } from "@/features/common/components/kpi-stat";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { formatUsd } from "@/features/metered-usage/usage-view";
@@ -26,7 +24,10 @@ import UsageQuotaModal, {
   useUsageQuotaEditor,
   type UsageQuotaTarget,
 } from "./usage-quota-modal";
-import UsageTenantsTable, { UsageTenantTableRow } from "./usage-tenants-table";
+import UsageTenantsTable, {
+  UsageTenantKpi,
+  UsageTenantTableRow,
+} from "./usage-tenants-table";
 import {
   isFiltering,
   pageOf,
@@ -85,10 +86,15 @@ export default function TelephonyTenantsSection({
   );
   const current = pageOf(shown, page);
   const orgs = useMemo(() => switcherOrgs(organizations), [organizations]);
-  const ownMinutes = useMemo(
-    () => new Set(rows.filter((r) => r.subscribed).map((r) => r.slug)),
-    [rows]
-  );
+  const ownMinutes = useMemo(() => {
+    const assigned = new Set(
+      rows.filter((r) => r.subscribed).map((r) => r.slug)
+    );
+    for (const org of organizations) {
+      if (assigned.has(org.tenantClientId)) assigned.add(org.slug);
+    }
+    return assigned;
+  }, [rows, organizations]);
 
   useEffect(() => setPage(1), [filters, sort, month]);
 
@@ -99,67 +105,41 @@ export default function TelephonyTenantsSection({
       <UsageTenantsTable
         kpis={
           <>
-            <KpiStat
-              icon={{ icon: HiOutlineOfficeBuilding }}
-              title={{ text: tr("kpi.subscribed", dict), className: "text-xs" }}
-              value={{
-                text: numbers.format(totals.ownMinutes),
-                className: "text-2xl",
-              }}
-              description={{
-                text: tr("kpi.withUsage", dict, {
-                  count: numbers.format(rows.length),
-                }),
-              }}
-              variant="horizontal"
+            <UsageTenantKpi
+              icon={HiOutlineOfficeBuilding}
+              title={tr("kpi.subscribed", dict)}
+              value={numbers.format(totals.ownMinutes)}
+              description={tr("kpi.withUsage", dict, {
+                count: numbers.format(rows.length),
+              })}
             />
-            <KpiStat
-              icon={{ icon: HiOutlinePhone }}
-              title={{ text: tr("kpi.minutes", dict), className: "text-xs" }}
-              value={{
-                text: numbers.format(totals.minutes),
-                className: "text-2xl",
-              }}
-              description={{
-                text: tr("kpi.calls", dict, {
-                  count: numbers.format(totals.calls),
-                }),
-              }}
-              variant="horizontal"
+            <UsageTenantKpi
+              icon={HiOutlinePhone}
+              title={tr("kpi.minutes", dict)}
+              value={numbers.format(totals.minutes)}
+              description={tr("kpi.calls", dict, {
+                count: numbers.format(totals.calls),
+              })}
             />
-            <KpiStat
-              icon={{ icon: HiOutlineClock }}
-              title={{ text: tr("kpi.pending", dict), className: "text-xs" }}
-              value={{
-                text: numbers.format(totals.pending),
-                className: "text-2xl",
-              }}
-              description={{ text: tr("kpi.pendingHelp", dict) }}
-              variant="horizontal"
-            />
-            <KpiStat
-              icon={{ icon: HiOutlineCurrencyDollar }}
-              title={{ text: tr("kpi.margin", dict), className: "text-xs" }}
-              value={{
-                text: formatUsd(totals.chargeUsd, lang),
-                className: "text-2xl",
-              }}
-              description={{
-                text: tr("kpi.providerCost", dict, {
-                  cost: formatUsd(totals.providerCostUsd, lang),
-                }),
-              }}
-              variant="horizontal"
+            <UsageTenantKpi
+              icon={HiOutlineClock}
+              title={tr("kpi.pending", dict)}
+              value={numbers.format(totals.pending)}
+              description={tr("kpi.pendingHelp", dict)}
             />
           </>
         }
-        columns={[
-          tr("columns.organization", dict),
-          tr("columns.quota", dict),
-          tr("columns.calls", dict),
-          tr("columns.pending", dict),
-          tr("columns.providerCost", dict),
-          tr("columns.charge", dict),
+        charge={{
+          total: totals.chargeUsd,
+          providerCost: totals.providerCostUsd,
+        }}
+        columnKeys={[
+          "organization",
+          "quota",
+          "calls",
+          "pending",
+          "providerCost",
+          "charge",
           "",
         ]}
         isLoading={isLoading}
@@ -209,7 +189,12 @@ export default function TelephonyTenantsSection({
         }}
         onClose={editor.close}
         onSave={async (organization, minutes) => {
-          await saveMinutes(organization, minutes);
+          const tenantCode =
+            editor.editing?.slug ??
+            organizations.find((org) => org.slug === organization)
+              ?.tenantClientId ??
+            organization;
+          await saveMinutes(tenantCode, minutes);
         }}
         dict={dict}
       />

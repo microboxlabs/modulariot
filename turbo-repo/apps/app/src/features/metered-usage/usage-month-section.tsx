@@ -53,7 +53,7 @@ export default function UsageMonthSection({
 
       {isLoading && <Spinner size="md" />}
       {error && <UsageNotice tone="error">{error}</UsageNotice>}
-      {children}
+      {!isLoading && !error && children}
     </section>
   );
 }

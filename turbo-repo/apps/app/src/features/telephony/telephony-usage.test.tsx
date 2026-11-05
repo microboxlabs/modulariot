@@ -8,11 +8,12 @@ import TelephonyUsage, { chargeSplit } from "./telephony-usage";
 const state = vi.hoisted(() => ({
   data: null as OrgTelephonyPlan | null,
   error: null as { status: number } | null,
+  isLoading: false,
 }));
 vi.mock("./use-org-telephony-usage", () => ({
   useOrgTelephonyUsage: () => ({
     data: state.data,
-    isLoading: false,
+    isLoading: state.isLoading,
     error: state.error,
   }),
 }));
@@ -22,6 +23,7 @@ const thisMonth = monthOf(new Date());
 
 beforeEach(() => {
   state.error = null;
+  state.isLoading = false;
   state.data = {
     plan: {
       minutesPerMonth: 100,
@@ -97,6 +99,23 @@ describe("telephony month's usage", () => {
     state.error = { status: 403 };
     render(<TelephonyUsage orgSlug="org" lang="es" d={d} />);
     expect(screen.getByText(d.forbidden)).toBeInTheDocument();
+  });
+
+  it.each([403, 500])("hides cached usage after a %s error", (status) => {
+    state.error = { status };
+    render(<TelephonyUsage orgSlug="org" lang="es" d={d} />);
+    expect(
+      screen.getByText(status === 403 ? d.forbidden : d.loadError)
+    ).toBeInTheDocument();
+    expect(screen.queryByText("/ 100 minutos")).not.toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("hides the previous month's cached usage while the selected month loads", () => {
+    state.isLoading = true;
+    render(<TelephonyUsage orgSlug="org" lang="es" d={d} />);
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.queryByText("/ 100 minutos")).not.toBeInTheDocument();
   });
 
   it("splits the charge into calls and templates", () => {

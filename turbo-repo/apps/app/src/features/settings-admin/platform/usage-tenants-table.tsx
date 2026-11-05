@@ -1,13 +1,39 @@
 "use client";
 
 import type { ReactNode } from "react";
+import type { IconType } from "react-icons";
 import { Badge, Button, Spinner } from "flowbite-react";
-import { HiPencil } from "react-icons/hi";
+import { HiOutlineCurrencyDollar, HiPencil } from "react-icons/hi";
 import CatalogTable from "@/features/common/components/catalog-table";
+import { KpiStat } from "@/features/common/components/kpi-stat";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import QuotaBar from "@/features/metered-usage/quota-bar";
+import { formatUsd } from "@/features/metered-usage/usage-view";
 import type { UsageTenantRow } from "./usage-tenants-view";
+
+/** A platform usage total, with the same presentation in every metered service. */
+export function UsageTenantKpi({
+  icon,
+  title,
+  value,
+  description,
+}: Readonly<{
+  icon: IconType;
+  title: string;
+  value: string;
+  description?: string;
+}>) {
+  return (
+    <KpiStat
+      icon={{ icon }}
+      title={{ text: title, className: "text-xs" }}
+      value={{ text: value, className: "text-2xl" }}
+      description={description ? { text: description } : undefined}
+      variant="horizontal"
+    />
+  );
+}
 
 /**
  * A platform usage screen's body: the KPI tiles, then the table of
@@ -17,7 +43,8 @@ import type { UsageTenantRow } from "./usage-tenants-view";
  */
 export default function UsageTenantsTable({
   kpis,
-  columns,
+  charge,
+  columnKeys,
   isLoading,
   failed,
   filtering,
@@ -31,7 +58,8 @@ export default function UsageTenantsTable({
   children,
 }: Readonly<{
   kpis: ReactNode;
-  columns: string[];
+  charge: { total: number; providerCost: number };
+  columnKeys: readonly string[];
   isLoading: boolean;
   failed: boolean;
   filtering: boolean;
@@ -48,10 +76,21 @@ export default function UsageTenantsTable({
   children: ReactNode;
 }>) {
   const numbers = new Intl.NumberFormat(lang);
+  const columns = columnKeys.map((key) =>
+    key ? trDynamic(`columns.${key}`, dict) : ""
+  );
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         {kpis}
+        <UsageTenantKpi
+          icon={HiOutlineCurrencyDollar}
+          title={tr("kpi.margin", dict)}
+          value={formatUsd(charge.total, lang)}
+          description={tr("kpi.providerCost", dict, {
+            cost: formatUsd(charge.providerCost, lang),
+          })}
+        />
       </div>
 
       {isLoading && <Spinner size="md" />}

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
@@ -126,10 +126,37 @@ describe("telephony organizations", () => {
     await user.click(
       await screen.findByRole("option", { name: /New organization/ })
     );
+    // Headless UI restores focus to its input on the next animation frame.
+    await act(async () => {
+      await new Promise<number>(requestAnimationFrame);
+    });
     await user.type(screen.getByLabelText(dict.modal.quota), "120");
     await user.click(screen.getByRole("button", { name: dict.save }));
     await waitFor(() =>
-      expect(state.saveMinutes).toHaveBeenCalledWith("new-org", 120)
+      expect(state.saveMinutes).toHaveBeenCalledWith("c-new", 120)
+    );
+  });
+
+  it("blocks assigning an organization whose tenant already has its own minutes", async () => {
+    state.usage = [{ ...acmeUsage(), tenantCode: "c-acme" }];
+    const user = userEvent.setup();
+    renderSection(true);
+    await user.click(
+      screen.getByPlaceholderText(dict.modal.searchOrganization)
+    );
+    expect(
+      await screen.findByRole("option", { name: /Transportes Acme/ })
+    ).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("preserves the tenant code when editing an existing quota", async () => {
+    state.usage = [{ ...acmeUsage(), tenantCode: "c-acme" }];
+    const user = userEvent.setup();
+    renderSection();
+    await user.click(screen.getByRole("button", { name: dict.edit }));
+    await user.click(screen.getByRole("button", { name: dict.save }));
+    await waitFor(() =>
+      expect(state.saveMinutes).toHaveBeenCalledWith("c-acme", 500)
     );
   });
 

@@ -2,12 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  HiOutlineCurrencyDollar,
   HiOutlineDatabase,
   HiOutlineOfficeBuilding,
   HiOutlineGlobeAlt,
 } from "react-icons/hi";
-import { KpiStat } from "@/features/common/components/kpi-stat";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { formatUsd } from "@/features/metered-usage/usage-view";
@@ -21,7 +19,10 @@ import {
   type TenantSort,
 } from "./geocoding-tenants-view";
 import { useUsageQuotaEditor } from "./usage-quota-modal";
-import UsageTenantsTable, { UsageTenantTableRow } from "./usage-tenants-table";
+import UsageTenantsTable, {
+  UsageTenantKpi,
+  UsageTenantTableRow,
+} from "./usage-tenants-table";
 import { isFiltering, pageOf, switcherOrgs } from "./usage-tenants-view";
 import {
   useGeocodingPlan,
@@ -92,70 +93,42 @@ export default function GeocodingTenantsSection({
       <UsageTenantsTable
         kpis={
           <>
-            <KpiStat
-              icon={{ icon: HiOutlineOfficeBuilding }}
-              title={{ text: tr("kpi.subscribed", dict), className: "text-xs" }}
-              value={{
-                text: numbers.format(totals.subscribed),
-                className: "text-2xl",
-              }}
-              description={{
-                text: tr("kpi.withUsage", dict, {
-                  count: numbers.format(rows.length),
-                }),
-              }}
-              variant="horizontal"
+            <UsageTenantKpi
+              icon={HiOutlineOfficeBuilding}
+              title={tr("kpi.subscribed", dict)}
+              value={numbers.format(totals.subscribed)}
+              description={tr("kpi.withUsage", dict, {
+                count: numbers.format(rows.length),
+              })}
             />
-            <KpiStat
-              icon={{ icon: HiOutlineGlobeAlt }}
-              title={{
-                text: tr("kpi.providerCalls", dict),
-                className: "text-xs",
-              }}
-              value={{
-                text: numbers.format(totals.providerCalls),
-                className: "text-2xl",
-              }}
-              description={{
-                text: tr("kpi.resolutions", dict, {
-                  count: numbers.format(totals.resolutions),
-                }),
-              }}
-              variant="horizontal"
+            <UsageTenantKpi
+              icon={HiOutlineGlobeAlt}
+              title={tr("kpi.providerCalls", dict)}
+              value={numbers.format(totals.providerCalls)}
+              description={tr("kpi.resolutions", dict, {
+                count: numbers.format(totals.resolutions),
+              })}
             />
-            <KpiStat
-              icon={{ icon: HiOutlineDatabase }}
-              title={{ text: tr("kpi.cache", dict), className: "text-xs" }}
-              value={{
-                text:
-                  totals.cacheHitPct === null ? "—" : `${totals.cacheHitPct}%`,
-                className: "text-2xl",
-              }}
-              variant="horizontal"
-            />
-            <KpiStat
-              icon={{ icon: HiOutlineCurrencyDollar }}
-              title={{ text: tr("kpi.margin", dict), className: "text-xs" }}
-              value={{
-                text: formatUsd(totals.chargeUsd, lang),
-                className: "text-2xl",
-              }}
-              description={{
-                text: tr("kpi.providerCost", dict, {
-                  cost: formatUsd(totals.providerCostUsd, lang),
-                }),
-              }}
-              variant="horizontal"
+            <UsageTenantKpi
+              icon={HiOutlineDatabase}
+              title={tr("kpi.cache", dict)}
+              value={
+                totals.cacheHitPct === null ? "—" : `${totals.cacheHitPct}%`
+              }
             />
           </>
         }
-        columns={[
-          tr("columns.organization", dict),
-          tr("columns.quota", dict),
-          tr("columns.cache", dict),
-          tr("columns.providerCost", dict),
-          tr("columns.charge", dict),
-          tr("columns.onExhausted", dict),
+        charge={{
+          total: totals.chargeUsd,
+          providerCost: totals.providerCostUsd,
+        }}
+        columnKeys={[
+          "organization",
+          "quota",
+          "cache",
+          "providerCost",
+          "charge",
+          "onExhausted",
           "",
         ]}
         isLoading={isLoading}

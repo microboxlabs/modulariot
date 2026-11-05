@@ -9,6 +9,7 @@ import { refreshSymptoms, updateIdentity } from "./maintainer-api";
 import { useSymptomScope } from "./symptom-scope";
 
 const TITLE = "text-2xl font-semibold text-gray-900 dark:text-white";
+const IME_CONFIRM_WINDOW_MS = 50;
 
 /**
  * The symptom's name in the header. Who may edit the symptom renames it in
@@ -33,6 +34,7 @@ export default function SymptomName({
   const inputRef = useRef<HTMLInputElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const restoreFocus = useRef(false);
+  const lastCompositionEndAt = useRef<number | null>(null);
   // Enter saves and unmounts the field; the blur that may follow must not save again.
   const closed = useRef(false);
   const label = tr("renameSymptom", d);
@@ -54,6 +56,7 @@ export default function SymptomName({
 
   const start = () => {
     closed.current = false;
+    lastCompositionEndAt.current = null;
     setEditing(true);
   };
 
@@ -98,12 +101,21 @@ export default function SymptomName({
           aria-label={label}
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          onCompositionEnd={(e) => {
+            lastCompositionEndAt.current = e.timeStamp;
+          }}
           onBlur={() => void commit()}
           onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229)
-              return;
+            if (e.nativeEvent.isComposing) return;
             if (e.key === "Enter") {
               e.preventDefault();
+              // Older Safari can deliver the confirming keydown after compositionend.
+              if (
+                lastCompositionEndAt.current !== null &&
+                Math.abs(e.timeStamp - lastCompositionEndAt.current) <
+                  IME_CONFIRM_WINDOW_MS
+              )
+                return;
               void commit(true);
             } else if (e.key === "Escape") {
               e.preventDefault();

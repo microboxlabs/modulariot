@@ -1,5 +1,6 @@
 import {
   act,
+  createEvent,
   fireEvent,
   render,
   screen,
@@ -116,19 +117,42 @@ describe("SymptomName", () => {
     expect(next).toHaveFocus();
   });
 
-  it.each([{ isComposing: true }, { keyCode: 229 }])(
-    "does not save Enter used by an IME: %j",
-    (nativeEvent) => {
+  it.each(["Enter", "Escape"])(
+    "ignores %s while composing with an IME",
+    (key) => {
       show();
       const input = edit();
       fireEvent.change(input, { target: { value: "速度" } });
-      fireEvent.keyDown(input, { key: "Enter", ...nativeEvent });
+      fireEvent.keyDown(input, { key, isComposing: true });
       expect(input).toHaveFocus();
       expect(mocks.updateIdentity).not.toHaveBeenCalled();
-      fireEvent.keyDown(input, { key: "Escape", ...nativeEvent });
-      expect(input).toHaveFocus();
       fireEvent.keyDown(input, { key: "Escape" });
       expect(screen.queryByRole("textbox")).toBeNull();
+    }
+  );
+
+  it.each([995, 1005])(
+    "ignores an IME confirmation delivered after compositionend at %i ms",
+    async (timeStamp) => {
+      show();
+      const input = edit();
+      fireEvent.change(input, { target: { value: "速度" } });
+      const end = createEvent.compositionEnd(input);
+      Object.defineProperty(end, "timeStamp", { value: 1000 });
+      fireEvent(input, end);
+      const confirm = createEvent.keyDown(input, { key: "Enter" });
+      Object.defineProperty(confirm, "timeStamp", { value: timeStamp });
+      fireEvent(input, confirm);
+      expect(confirm.defaultPrevented).toBe(true);
+      expect(input).toHaveFocus();
+      expect(mocks.updateIdentity).not.toHaveBeenCalled();
+
+      const save = createEvent.keyDown(input, { key: "Enter" });
+      Object.defineProperty(save, "timeStamp", { value: 1100 });
+      fireEvent(input, save);
+      await waitFor(() =>
+        expect(mocks.updateIdentity).toHaveBeenCalledTimes(1)
+      );
     }
   );
 

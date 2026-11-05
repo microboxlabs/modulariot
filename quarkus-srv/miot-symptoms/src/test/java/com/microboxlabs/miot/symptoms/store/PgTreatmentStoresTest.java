@@ -547,6 +547,30 @@ class PgTreatmentStoresTest {
                 audit.list(tenant, "treatment", id, null, null, 10).stream().map(AuditEvent::action).toList());
     }
 
+    @Test
+    void aStepSkipIsReadBackWithWhoAndWhenAfterARestart() {
+        String tenant = tenant();
+        TreatmentService service = new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts,
+                treatments), new AuditService(audit));
+        String id = service.open(tenant, ACTOR, -7L, new OpenTreatmentRequest(TreatmentType.CALL, null, null, null))
+                .treatment().id();
+        service.addAction(tenant, ACTOR, id, new AddActionRequest(ActionKind.NOTE, null, null, null, null, null,
+                null, null, null, null, null, "No contesta", List.of(),
+                Map.of(TreatmentService.SKIP_TO_STEP, 2, "level", 3, "version", 4)));
+
+        TreatmentService restarted = new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts,
+                treatments), new AuditService(audit));
+        TreatmentAction skip = restarted.listForSymptom(tenant, -7L).get(0).actions().get(0);
+
+        assertEquals(ActionKind.NOTE, skip.kind());
+        assertEquals(Map.of(TreatmentService.SKIP_TO_STEP, 2, "level", 3, "version", 4), skip.details());
+        assertEquals("No contesta", skip.note());
+        assertEquals(ACTOR, skip.performedBy());
+        assertTrue(skip.performedAt() != null);
+        assertEquals(2, audit.list(tenant, "treatment", id, null, null, 1).get(0).details()
+                .get(TreatmentService.SKIP_TO_STEP));
+    }
+
     private static String tenant() {
         return "tenant-" + UUID.randomUUID();
     }

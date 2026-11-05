@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
 public class TreatmentService {
 
     static final String ENTITY = "treatment";
+    /** On a {@code NOTE}: the operator skipped the level's call script to this step (1-based). */
+    public static final String SKIP_TO_STEP = "skipToStep";
 
     private final TreatmentStore treatments;
     private final ContactStore contacts;
@@ -104,6 +106,9 @@ public class TreatmentService {
                 && blankToNull(req.outcomeKey()) == null && blankToNull(req.outcomeLabel()) == null) {
             throw new IllegalArgumentException(req.kind() + " needs an outcomeKey or outcomeLabel (the reason)");
         }
+        if (req.kind() == ActionKind.NOTE && req.details() != null && req.details().containsKey(SKIP_TO_STEP)) {
+            requireSkip(t, req);
+        }
         IgnoreHolds.Checked checked = req.kind() == ActionKind.IGNORE
                 ? holds.check(tenantCode, t, req)
                 : unchecked(req);
@@ -117,6 +122,20 @@ public class TreatmentService {
             holds.started(tenantCode, t);
         }
         return saved;
+    }
+
+    /** A step skip names a later step of an engine case's call script and says why. */
+    private static void requireSkip(Treatment t, AddActionRequest req) {
+        if (t.symptomId() >= 0) {
+            throw new IllegalArgumentException(SKIP_TO_STEP + " applies to an engine case (negative symptom id)");
+        }
+        Object step = req.details().get(SKIP_TO_STEP);
+        if (!(step instanceof Integer || step instanceof Long) || ((Number) step).longValue() < 2) {
+            throw new IllegalArgumentException(SKIP_TO_STEP + " must be a step number >= 2");
+        }
+        if (blankToNull(req.note()) == null) {
+            throw new IllegalArgumentException("a step skip needs a note (the reason)");
+        }
     }
 
     private static IgnoreHolds.Checked unchecked(AddActionRequest req) {
@@ -174,6 +193,13 @@ public class TreatmentService {
         }
         if (saved.outcomeLabel() != null) {
             details.put("outcome", saved.outcomeLabel());
+        }
+        if (saved.kind() == ActionKind.NOTE && saved.details() != null
+                && saved.details().get(SKIP_TO_STEP) != null) {
+            details.put(SKIP_TO_STEP, saved.details().get(SKIP_TO_STEP));
+            if (saved.note() != null) {
+                details.put("note", saved.note());
+            }
         }
         if (saved.kind() == ActionKind.IGNORE) {
             if (saved.note() != null) {

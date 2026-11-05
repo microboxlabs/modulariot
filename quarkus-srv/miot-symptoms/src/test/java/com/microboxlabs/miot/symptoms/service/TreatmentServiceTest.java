@@ -123,6 +123,40 @@ class TreatmentServiceTest {
     }
 
     @Test
+    void aStepSkipIsStoredWithWhoWhenAndWhy() {
+        String id = service.open(TENANT, ACTOR, -42L, open(TreatmentType.CALL)).treatment().id();
+
+        var skip = service.addAction(TENANT, ACTOR, id, skip(2, "No contesta"));
+
+        assertEquals(ActionKind.NOTE, skip.kind());
+        assertEquals(2, skip.details().get(TreatmentService.SKIP_TO_STEP));
+        assertEquals("No contesta", skip.note());
+        assertEquals(ACTOR, skip.performedBy());
+        assertTrue(skip.performedAt() != null);
+        var listed = service.listForSymptom(TENANT, -42L).get(0);
+        assertEquals(TreatmentStatus.OPEN, listed.status());
+        assertEquals(List.of(skip.id()), listed.actions().stream().map(a -> a.id()).toList());
+        AuditEvent audited = audit.list(TENANT, null, null, -42L, null, 1).get(0);
+        assertEquals("treatment.action_added", audited.action());
+        assertEquals(2, audited.details().get(TreatmentService.SKIP_TO_STEP));
+        assertEquals("No contesta", audited.details().get("note"));
+    }
+
+    @Test
+    void aStepSkipNeedsALaterStepAReasonAndAnEngineCase() {
+        String engine = service.open(TENANT, ACTOR, -42L, open(TreatmentType.CALL)).treatment().id();
+        String legacy = service.open(TENANT, ACTOR, 42L, open(TreatmentType.CALL)).treatment().id();
+
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, engine, skip(1, "x")));
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, engine, skip(2, " ")));
+        AddActionRequest notANumber = new AddActionRequest(ActionKind.NOTE, null, null, null, null, null, null,
+                null, null, null, null, "x", null, Map.of(TreatmentService.SKIP_TO_STEP, "2"));
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, engine, notANumber));
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, legacy, skip(2, "x")));
+        assertTrue(service.listForSymptom(TENANT, -42L).get(0).actions().isEmpty());
+    }
+
+    @Test
     void anEpisodeOpenedAsACallCanEndIgnored() {
         String id = service.open(TENANT, ACTOR, 42L, open(TreatmentType.CALL)).treatment().id();
         service.addAction(TENANT, ACTOR, id, call(null, "Conductor del viaje", false));
@@ -187,6 +221,11 @@ class TreatmentServiceTest {
 
         assertTrue(opened.created());
         assertTrue(treatments.find(TENANT, opened.treatment().id()).isPresent());
+    }
+
+    private static AddActionRequest skip(int toStep, String reason) {
+        return new AddActionRequest(ActionKind.NOTE, null, null, null, null, null, null, null, null, null, null,
+                reason, null, Map.of(TreatmentService.SKIP_TO_STEP, toStep, "level", 2));
     }
 
     private static OpenTreatmentRequest open(TreatmentType type) {

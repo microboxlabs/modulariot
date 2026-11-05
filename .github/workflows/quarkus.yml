@@ -48,7 +48,7 @@ env:
 
 jobs:
   # ===========================================================================
-  # Build JVM — Compile, Test, Package, and SonarCloud
+  # Build JVM — Compile, Test, Package
   # ===========================================================================
   build-jvm:
     name: Build & Test
@@ -92,25 +92,6 @@ jobs:
         run: ./mvnw clean verify -Dmiot.component.fleet.enabled=true -Dmiot.component.tracking.enabled=true -Dmiot.component.gateway.enabled=true -Dmiot.component.integrations.enabled=true -Dmiot.component.conversational.enabled=true -Dmiot.component.symptoms.enabled=true -Dmiot.component.trips.enabled=true -Dmiot.component.places.enabled=true
         working-directory: quarkus-srv
 
-      - name: SonarCloud Scan
-        # Analysis only — it must never gate the Docker Image publish. On 2026-07-24 the
-        # 'sonar' goal prefix stopped resolving ("No plugin found for prefix 'sonar'") and
-        # failed this job, which skipped `docker-jvm` and stranded every modulith deploy.
-        # continue-on-error keeps a Sonar hiccup from blocking releases; the fully-qualified
-        # goal removes the reliance on prefix resolution that broke.
-        continue-on-error: true
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        run: >
-          ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
-          -Dsonar.projectKey=microboxlabs_modulariot-quarkus
-          -Dsonar.organization=microboxlabs
-          -Dsonar.host.url=https://sonarcloud.io
-          -Dsonar.coverage.exclusions=**/*
-        working-directory: quarkus-srv
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
       - name: Upload JVM artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -122,6 +103,58 @@ jobs:
             quarkus-srv/miot-cli/target/quarkus-app/
             quarkus-srv/Dockerfile
           retention-days: 1
+
+  # ===========================================================================
+  # SonarCloud — Static analysis on compiled classes, in parallel with tests
+  # ===========================================================================
+  # Sonar reads bytecode (sonar.java.binaries) and coverage is excluded, so a
+  # compile is enough. No other job needs this one.
+  sonar:
+    name: SonarCloud
+    if: >
+      (github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release/miot-v'))
+      && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: quarkus-srv/pom.xml
+
+      - name: Compile
+        run: ./mvnw -B compile -DskipTests -Dmiot.component.fleet.enabled=true -Dmiot.component.tracking.enabled=true -Dmiot.component.gateway.enabled=true -Dmiot.component.integrations.enabled=true -Dmiot.component.conversational.enabled=true -Dmiot.component.symptoms.enabled=true -Dmiot.component.trips.enabled=true -Dmiot.component.places.enabled=true
+        working-directory: quarkus-srv
+
+      - name: SonarCloud Scan
+        # Analysis only — it must never gate the Docker Image publish. On 2026-07-24 the
+        # 'sonar' goal prefix stopped resolving ("No plugin found for prefix 'sonar'") and
+        # failed Build & Test, which skipped `docker-jvm` and stranded every modulith deploy.
+        # continue-on-error keeps a Sonar hiccup from blocking releases; the fully-qualified
+        # goal removes the reliance on prefix resolution that broke.
+        continue-on-error: true
+        run: >
+          ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.projectKey=microboxlabs_modulariot-quarkus
+          -Dsonar.organization=microboxlabs
+          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.coverage.exclusions=**/*
+        working-directory: quarkus-srv
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # ===========================================================================
   # Build Native — GraalVM/Mandrel Native Executable

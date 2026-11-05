@@ -41,6 +41,7 @@ public final class SpecValidator {
     private static final String ACTIVATION = "activation";
     private static final String MEASURE = "measure";
     private static final String HELD = "held_s";
+    private static final String OPEN = "open_s";
 
     /** Severity of a finding. */
     public enum Severity {
@@ -331,13 +332,15 @@ public final class SpecValidator {
         // A case has held for zero seconds or more.
         List<Double> heldPoints = points.stream().filter(p -> p >= 0).toList();
         Set<String> reported = new HashSet<>();
-        for (double held : heldPoints) {
-            for (double measure : points) {
-                Map<String, Object> vars = Map.of(MEASURE, measure, HELD, held);
-                List<Level> hits = levels.stream()
-                        .filter(l -> Boolean.TRUE.equals(rules.get(l).run(vars).value()))
-                        .toList();
-                reportOverlaps(out, reported, hits, measure, held);
+        for (double held : mentions(levels, HELD) ? heldPoints : List.of(0.0)) {
+            for (double open : mentions(levels, OPEN) ? heldPoints : List.of(0.0)) {
+                for (double measure : mentions(levels, MEASURE) ? points : List.of(0.0)) {
+                    Map<String, Object> vars = Map.of(MEASURE, measure, HELD, held, OPEN, open);
+                    List<Level> hits = levels.stream()
+                            .filter(l -> Boolean.TRUE.equals(rules.get(l).run(vars).value()))
+                            .toList();
+                    reportOverlaps(out, reported, hits, measure, held, open);
+                }
             }
         }
     }
@@ -363,16 +366,27 @@ public final class SpecValidator {
      */
     private static void gaps(List<Finding> out, RuleSchema schema, List<Level> levels) {
         boolean byMeasure = mentions(levels, MEASURE);
-        if (!byMeasure && !mentions(levels, HELD)) {
+        if (!byMeasure && !mentions(levels, HELD) && !mentions(levels, OPEN)) {
             return;
         }
         List<PreparedRule> rules = levels.stream().map(l -> RuleLanguage.prepare(schema, l.when())).toList();
+        List<Double> ages = byMeasure && mentions(levels, OPEN)
+                ? testPoints(levels).stream().filter(p -> p >= 0).toList() : List.of(1e9);
+        Set<Finding> found = new java.util.LinkedHashSet<>();
+        for (double age : ages) {
+            measureGaps(found, levels, rules, byMeasure, age);
+        }
+        out.addAll(found);
+    }
+
+    private static void measureGaps(Set<Finding> out, List<Level> levels, List<PreparedRule> rules,
+            boolean byMeasure, double age) {
         List<Double> thresholds = levels.stream().flatMap(l -> RuleText.numbers(l.when()).stream()).toList();
         boolean held = !byMeasure;
         boolean seenCovered = false;
         Double gapStart = null;
         for (double point : testPoints(levels)) {
-            boolean covered = covered(rules, byMeasure, point);
+            boolean covered = covered(rules, byMeasure, point, age);
             if (covered && gapStart != null) {
                 out.add(gap(threshold(gapStart, thresholds), threshold(point, thresholds), held));
                 gapStart = null;
@@ -401,9 +415,9 @@ public final class SpecValidator {
     }
 
     /** Whether any level applies at this point of the ladder. */
-    private static boolean covered(List<PreparedRule> rules, boolean byMeasure, double point) {
-        Map<String, Object> vars = byMeasure ? Map.of(MEASURE, point, HELD, 1e9)
-                : Map.of(MEASURE, 0.0, HELD, point);
+    private static boolean covered(List<PreparedRule> rules, boolean byMeasure, double point, double age) {
+        Map<String, Object> vars = byMeasure ? Map.of(MEASURE, point, HELD, 1e9, OPEN, age)
+                : Map.of(MEASURE, 0.0, HELD, point, OPEN, point);
         return rules.stream().anyMatch(r -> Boolean.TRUE.equals(r.run(vars).value()));
     }
 
@@ -449,13 +463,13 @@ public final class SpecValidator {
     }
 
     private static void reportOverlaps(List<Finding> out, Set<String> reported, List<Level> hits, double measure,
-            double held) {
+            double held, double open) {
         for (int i = 0; i + 1 < hits.size(); i++) {
             int a = hits.get(i).icu();
             int b = hits.get(i + 1).icu();
             if (reported.add(a + "-" + b)) {
                 out.add(new Finding(LEVELS, Severity.ERROR, RuleMessage.of("levelsOverlap", "levelA", a, "levelB", b,
-                        MEASURE, number(measure), "held", number(held)), -1));
+                        MEASURE, number(measure), "held", number(held), OPEN, number(open)), -1));
             }
         }
     }

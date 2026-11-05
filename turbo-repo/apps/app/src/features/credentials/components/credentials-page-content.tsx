@@ -10,6 +10,7 @@ import LayoutToggle, {
 import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { isPlatformScope } from "@/features/common/platform-scope";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import {
   DEFAULT_FILTERS,
@@ -319,6 +320,7 @@ export default function CredentialsPageContent({
         show={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onSelect={handleTypeSelected}
+        platformScope={isPlatformScope(orgSlug)}
         dict={credentialsDict}
       />
 

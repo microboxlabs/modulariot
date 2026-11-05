@@ -7,7 +7,7 @@ import java.util.OptionalLong;
 import java.util.UUID;
 
 /**
- * A case the symptom evaluator opened: its ACTIVE OPENED transition. In the Control Tower its symptom id is
+ * A case the symptom evaluator opened: its OPENED transition, ACTIVE or TEST. In the Control Tower its symptom id is
  * {@link #symptomId()}, the transition id negated, so it never meets a GPS database symptom id.
  *
  * @param closedAt    when an operator closed it, or null while open
@@ -27,12 +27,14 @@ import java.util.UUID;
  *                    tower then
  * @param levelAt     when it reached its current level (its latest level change, else its opening), or null when
  *                    not read
+ * @param test        its symptom was in TEST when it opened: it is in no list or count, but can be treated and closed
  */
 public record EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
         Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
         Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode,
         JsonNode openingContext, JsonNode levelContext, String levelRule, List<LevelStep> levels,
-        TripDetails trip, JsonNode closingContext, Ignored ignored, Instant returnedAt, Instant levelAt) {
+        TripDetails trip, JsonNode closingContext, Ignored ignored, Instant returnedAt, Instant levelAt,
+        boolean test) {
 
     /**
      * A hold on the case: since when, until when (null until the trip ends), what it covers and who set it.
@@ -62,7 +64,7 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             JsonNode openingContext, JsonNode levelContext, String levelRule, List<LevelStep> levels) {
         this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
                 speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext, levelContext,
-                levelRule, levels, null, null, null, null, null);
+                levelRule, levels, null, null, null, null, null, false);
     }
 
     @SuppressWarnings("java:S107")
@@ -73,7 +75,7 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             TripDetails trip) {
         this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
                 speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext, levelContext,
-                levelRule, levels, trip, null, null, null, null);
+                levelRule, levels, trip, null, null, null, null, false);
     }
 
     @SuppressWarnings("java:S107")
@@ -82,7 +84,7 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode) {
         this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
                 speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, null, null, null, List.of(), null, null,
-                null, null, null);
+                null, null, null, false);
     }
 
     @SuppressWarnings("java:S107")
@@ -91,37 +93,43 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             Instant closedAt, long treatments, Integer slaMinutes, Long recurrence) {
         this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
                 speedKmh, closedAt, treatments, slaMinutes, recurrence, null, null, null, null, List.of(), null,
-                null, null, null, null);
+                null, null, null, null, false);
     }
 
     public EngineCase withLevel(JsonNode opening, JsonNode context, String rule, List<LevelStep> steps) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, opening, context, rule, steps,
-                trip, closingContext, ignored, returnedAt, levelAt);
+                trip, closingContext, ignored, returnedAt, levelAt, test);
     }
 
     public EngineCase withTrip(TripDetails details) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, details, closingContext, ignored, returnedAt, levelAt);
+                levelContext, levelRule, levels, details, closingContext, ignored, returnedAt, levelAt, test);
     }
 
     public EngineCase withClosing(JsonNode context) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, trip, context, ignored, returnedAt, levelAt);
+                levelContext, levelRule, levels, trip, context, ignored, returnedAt, levelAt, test);
     }
 
     public EngineCase withHold(Ignored hold, Instant returned) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, trip, closingContext, hold, returned, levelAt);
+                levelContext, levelRule, levels, trip, closingContext, hold, returned, levelAt, test);
     }
 
     public EngineCase withLevelAt(Instant at) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, at);
+                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, at, test);
+    }
+
+    public EngineCase withTest(boolean inTest) {
+        return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
+                longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
+                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, inTest);
     }
 
     /** When its current level's SLA started: it reached the level, or came back from a hold after that. */

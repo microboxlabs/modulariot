@@ -55,14 +55,17 @@ public class RuleDescriptionService {
 
     private static final Map<String, String> LEVEL_LABELS = Map.of(
             "measure", "valor medido",
-            "held_s", "segundos que lleva la condición");
+            "held_s", "segundos que lleva la condición",
+            "open_s", "segundos desde que se abrió el caso");
 
     private static final Map<String, String> CASE_LABELS = Map.of(
+            "case.off_trip_s", "segundos fuera de un viaje",
             "case.condition_s", "segundos con la condición presente",
             "case.normal_s", "segundos desde que volvió a la normalidad",
             "case.age_h", "horas desde que se abrió el caso",
             "case.level", "nivel del caso",
-            "case.closed_by_operator", "el operador cerró el caso");
+            "case.closed_by_operator", "el operador cerró el caso",
+            "case.closed_on_trip", "el operador ya cerró un caso de este síntoma en el viaje");
 
     /** Who is asking, forwarded to the Harness as on the chat proxy. */
     public record Caller(String authorization, String tenantClientId, String userEmail) {

@@ -10,9 +10,13 @@ Runs published symptom versions on a vehicle's signals and keeps one episode per
 | `MIOT_SYMPTOMS_EVALUATOR_REDIS_URL` | `redis://:password@host:6379`; unset keeps episodes in memory (one replica only) | unset |
 | `MIOT_SYMPTOMS_EVALUATOR_EPISODE_TTL` | How long a vehicle's episodes live after their last write | `P7D` |
 
-Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>`: a field `ep:<symptom id>` per episode (JSON) and `wm:<source>` per watermark. The subscription is `Key_Shared` on `asset_id`, so one vehicle's signals are evaluated in order on one replica. A signal whose Redis, catalog or database call fails is redelivered (twice at most); the transition is written before the episode, and a replay does not write it again.
+Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>`: a field `ep:<symptom id>` per episode (JSON) and `wm:<source>` per watermark. The subscription is `Key_Shared` on `asset_id`, so one vehicle's signals are evaluated in order on one replica. An operator close advances a revision in the episode hash atomically with its marker. Both consumers install the same marker atomically, keeping trip suppression visible between their close operations. A save from an older revision fails and retries with the new state. Transitions and events are still emitted before the guarded save, so this protects close markers without making the database/event side effects atomic with the operator close.
+
+A signal whose Redis, catalog or database call fails is redelivered (twice at most); the transition is written before the episode, and a replay does not write it again.
 
 An expiring set per vehicle, `symptoms:ep-tenants:<asset>`, indexes organizations with unfinished episodes. When an organization leaves the signal's `clients` (for example, its last trip ends), the evaluator reconciles its existing episodes with only the vehicle id, time and `trip.active: false`. An activation that is false on that input starts or advances the normal timer; its lifecycle still decides when to close. An activation needing unavailable GPS fields stays unknown, and operator-only cases stay open. Reconciliation keeps no samples, carries no GPS position or speed, and opens no cases. The index is updated atomically with the episodes and also exists in memory without Redis.
+
+Previews treat samples independently. Recent signals carry no case age, so `open_s` defaults to 0; they cannot preview repeated-event escalation on an existing case. Samples supplied directly to `PreviewService.run` can include a numeric `open_s`.
 
 Rule previews use the organization's recent signals. At most one signal per organization every 15 s goes to the list `symptoms:samples:<tenant>` (newest 20, expires a day after the last one). The 15 s are checked in Redis (`symptoms:samples:<tenant>:gate`, in the same script as the list), so replicas share them. Only the paths of the rule editor's fields are saved: `schema`, `at`, `clients`, the frame's driver data, lists and times are dropped. An organization with no recent signals previews on the fixed samples in `symptoms/gps-signal-samples.json`.
 
@@ -31,18 +35,21 @@ Rule previews use the organization's recent signals. At most one signal per orga
 | Measure | The measure expression; 0 when the version has none |
 | Hold time, threshold rules | A level rule that holds given enough time (`measure >= 21 && held_s >= 60`) counts `held_s` from the first signal where it would hold: how long the measure met that threshold |
 | Hold time, time rules | Any other rule (`held_s >= 600 && held_s < 1200`) counts `held_s` from the start of the activation's run |
+| Case age | `open_s` is the time since the case opened, 0 while none is open. A level rule on it escalates an open case each time the activation holds again, for example a repeated device event (`open_s >= 900`) |
 | Level | The highest level whose rule holds. If none holds while a threshold rule waits for its hold time, the case is at the applying level below it |
 | Condition | Holds while a candidate reaches a level. `case.condition_s` counts from its first signal; `case.normal_s` from the first signal after it stopped, and is -1 while it holds |
 | Open | No case open, the condition holds and the lifecycle's open rule is true |
 | Level change | A case's level only rises, unless the lifecycle's `levelDown` lets it follow the measure down while the condition holds |
 | Close | The lifecycle's close rule is true. If the condition still holds, the next signal starts a new run |
 
-`case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals.
+`case.off_trip_s` counts from the first observed off-trip frame of an open case and resets on a trip; it is -1 while on a trip or without trip evidence. Cargo rules require both 1200 seconds off a trip and 1200 seconds without their event.
+
+`case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals. `case.closed_on_trip` is true when an operator closed a case of the symptom on the trip the signal carries (`trip.id`); an open rule `case.condition_s >= 0 && !case.closed_on_trip` opens no other case on that trip. The episode keeps the trip until a newer ordinary signal of another trip, or of none; buffered frames from older trips cannot clear it.
 
 ## Order, versions and failures
 
 - Per vehicle and source, a signal not newer than the last one applied is ignored. This watermark is kept even when the episodes are not.
-- A `gps_signal` signal older than the organization's watermark is late: counted as `miot.symptoms.evaluator.late` (tag `sender`, the sending client's first 8 characters) and handed to `LateFrames`. Only the event-driven symptoms run on it: those whose activation reads a device event (`signal.frame.sensors.panic_button`, `signal.derived.power_disconnected`, `signal.derived.jamming`), since a device delivers stored events after a newer fix. They run without moving the watermark, and one with an open case opens nothing new. The other symptoms skip it. A signal with the same time as the watermark is a replay, not late.
+- A `gps_signal` signal older than the organization's watermark is late: counted as `miot.symptoms.evaluator.late` (tag `sender`, the sending client's first 8 characters) and handed to `LateFrames`. Only the event-driven symptoms run on it: those whose activation reads a device event (`signal.frame.sensors.panic_button`, `signal.derived.power_disconnected`, `signal.derived.jamming`), since a device delivers stored events after a newer fix. They run without moving the watermark, and one with an open case opens nothing new. A buffered repeat may raise its level using the event timestamp and case age; it preserves the latest signal and every run timer, never lowers a level, and respects holds. The other symptoms skip it. A signal with the same time as the watermark is a replay, not late.
 - A new version takes over an open case; the levels' hold times start again under its thresholds.
 - An episode is kept while the activation runs, a level waits or a case is open. A vehicle off its candidate costs no storage.
 - A rule that fails on a signal (a missing field, a measure that is not a number) is reported as a `RuleError` for that symptom; its episode stays as it was and the other symptoms still run.

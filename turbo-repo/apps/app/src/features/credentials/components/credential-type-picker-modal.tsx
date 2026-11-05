@@ -13,7 +13,7 @@ import { HiSearch } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
-  CREDENTIAL_TYPES,
+  pickerCredentialTypes,
   type CredentialTypeDescriptor,
   type CredentialTypeId,
 } from "../credential.types";
@@ -23,23 +23,26 @@ interface CredentialTypePickerModalProps {
   readonly show: boolean;
   readonly onClose: () => void;
   readonly onSelect: (typeId: CredentialTypeId) => void;
+  /** The Plataforma scope, the only one offered the platform-only types. */
+  readonly platformScope: boolean;
   readonly dict: I18nRecord;
 }
 
 /**
  * Step 1 of "Add credential": pick the credential type, then fill its form.
- * Types the backend can't issue yet are listed but disabled, so the catalog
+ * Types the backend can't issue yet are listed last and disabled, so the catalog
  * shows where the capability is going without pretending it's there.
  */
 export function CredentialTypePickerModal({
   show,
   onClose,
   onSelect,
+  platformScope,
   dict,
 }: CredentialTypePickerModalProps) {
   const [query, setQuery] = useState("");
 
-  const matches = CREDENTIAL_TYPES.filter((type) =>
+  const matches = pickerCredentialTypes(platformScope).filter((type) =>
     trDynamic(type.nameKey, dict).toLowerCase().includes(query.toLowerCase())
   );
 

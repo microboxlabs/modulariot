@@ -45,7 +45,11 @@ public record GpsSignal(
         Vehicle vehicle,
         Road road,
         Geo geo,
+        @Schema(hidden = true) Map<String, Geo> geos,
         @Schema(title = "Hora local") @JsonProperty("local_hour") Integer localHour,
+        @Schema(title = "Minutos del día", description = "Minutes since local midnight, with the seconds as a "
+                + "fraction: 01:30:30 is 90.5", extensions = @Extension(name = "x-unit", value = "min"))
+        @JsonProperty("local_minutes") Double localMinutes,
         Derived derived,
         @Schema(extensions = @Extension(name = "x-origin", value = "DEVICE")) AssetTrackingData frame) {
 
@@ -168,11 +172,23 @@ public record GpsSignal(
     @JsonIgnoreProperties(ignoreUnknown = true)
     @RegisterForReflection
     public record Geo(
-            @Schema(title = "En zona autorizada", extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @Schema(title = "En zona autorizada", description = "Inside at least one authorized zone",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
             @JsonProperty("authorized_zone") Boolean authorizedZone,
             @Schema(title = "Zona", extensions = {
                     @Extension(name = "x-type", value = "zone"), @Extension(name = "x-origin", value = "ZONES") })
-            String zone) {
+            String zone,
+            @Schema(title = "En zona de riesgo", description = "Inside at least one risk zone",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @JsonProperty("risk_zone") Boolean riskZone,
+            @Schema(title = "Fuera de zona autorizada", description = "In no zone, or inside a zone that is not "
+                    + "authorized, even where an authorized zone overlaps it",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @JsonProperty("outside_authorized") Boolean outsideAuthorized) {
+
+        public Geo(Boolean authorizedZone, String zone) {
+            this(authorizedZone, zone, null, null);
+        }
     }
 
     /**

@@ -51,7 +51,7 @@ import org.jboss.logging.Logger;
  * {@code miot_trips_live} notices; shares are the GPS database's
  * {@code asset_client_map}, kept current from its Debezium topic
  * ({@code signal-asset-client-map}). Both are loaded in full at start and every
- * {@code reload-every}. Off unless {@code miot.symptoms.signal-builder.enabled};
+ * {@code reload-every}, with the GPS database's {@code geofences} ({@link Zones}). Off unless {@code miot.symptoms.signal-builder.enabled};
  * the channels are disabled with it. Frames are never logged, only counted.
  */
 @ApplicationScoped
@@ -105,10 +105,18 @@ public class SignalStream {
             SELECT asset_id, shared_client_id, active, valid_from, valid_to FROM asset_client_map WHERE active
             """;
 
+    /** The GPS database's geofences as GeoJSON, read in full: a few hundred rows. */
+    private static final String ZONES_SQL = """
+            SELECT client_id, geofence_id, properties ->> 'geofence_type' AS geofence_type,
+                   ST_AsGeoJSON(coordinates::geometry) AS shape
+              FROM geofences WHERE coordinates IS NOT NULL
+            """;
+
     private final boolean enabled;
     private final GpsDatabase gps;
     private final Supplier<Pool> pool;
     private final ReferenceCache refs = new ReferenceCache();
+    private final Zones zones = new Zones();
     private final SignalBuilder builder;
     private final TripNoticeReader tripReader;
     private final Counter built;
@@ -125,7 +133,7 @@ public class SignalStream {
         this.listener = new PgNotificationListener(this.pool, vertx, TRIPS_CHANNEL, this::onTripNotice);
         this.tripReader = new TripNoticeReader(refs, id -> this.pool.get().preparedQuery(ONE_TRIP)
                 .execute(Tuple.of(id)).map(SignalStream::trips));
-        this.builder = new SignalBuilder(refs, ZoneId.of(zone));
+        this.builder = new SignalBuilder(refs, ZoneId.of(zone), zones);
         this.built = meters.counter("miot.symptoms.signal.built");
         this.skipped = meters.counter("miot.symptoms.signal.skipped");
     }
@@ -170,7 +178,30 @@ public class SignalStream {
             refs.load(t, s);
             LOG.infof("Signal builder: loaded %d trips, %d shares", t.size(), s.size());
             return t.size();
-        })).replaceWithVoid();
+        })).chain(n -> loadZones()).invoke(z -> {
+            if (gps.configured()) {
+                zones.load(z);
+                LOG.infof("Signal builder: loaded %d zones", z.size());
+            }
+        }).replaceWithVoid();
+    }
+
+    /** No zones without the GPS database; a shape that is not a polygon is skipped. */
+    private Uni<List<Zones.Zone>> loadZones() {
+        if (!gps.configured()) {
+            return Uni.createFrom().item(List.of());
+        }
+        return gps.readPool().query(ZONES_SQL).execute().map(rows -> {
+            List<Zones.Zone> z = new ArrayList<>();
+            rows.forEach(r -> {
+                Zones.Zone zone = r.getString("shape") == null ? null : Zones.zone(r.getString("client_id"),
+                        r.getInteger("geofence_id"), r.getString("geofence_type"), r.getString("shape"));
+                if (zone != null) {
+                    z.add(zone);
+                }
+            });
+            return z;
+        });
     }
 
     /** No trips when the modulith has no trips module. */

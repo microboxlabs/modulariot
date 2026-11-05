@@ -2,7 +2,9 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
 import com.microboxlabs.miot.symptoms.signal.GpsSignal;
@@ -224,14 +226,21 @@ public class EvaluatorStream {
     private static final Map<String, Object> NO_TRIP = Map.of("active", false, "double_driver", false);
 
     /**
-     * The signal as the organization's rules read it: its own trip as {@code trip}, none of the others, and the
-     * frame's events always a list ({@link GpsSignal.FrameEvent}).
+     * The signal as the organization's rules read it: its own trip as {@code trip} and its own zones as
+     * {@code geo}, none of the others, and the frame's events always a list ({@link GpsSignal.FrameEvent}).
+     * An organization without zones gets no {@code geo}.
      */
     static Map<String, Object> forTenant(Map<String, Object> signal, String tenant) {
         Map<String, Object> out = new LinkedHashMap<>(GpsSignal.FrameEvent.withEvents(signal));
         Object trips = out.remove("trips");
         Object trip = trips instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
         out.put("trip", trip != null ? trip : NO_TRIP);
+        Object geos = out.remove("geos");
+        out.remove("geo");
+        Object geo = geos instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
+        if (geo != null) {
+            out.put("geo", geo);
+        }
         return out;
     }
 
@@ -317,8 +326,25 @@ public class EvaluatorStream {
      * meets the condition opens a new case.
      */
     public void forget(String tenant, String assetId, java.util.UUID definitionId) {
-        episodes.forget(tenant, assetId, definitionId);
-        lostSignal.forget(tenant, assetId, definitionId);
+        forget(tenant, assetId, definitionId, null);
+    }
+
+    /**
+     * As {@link #forget(String, String, java.util.UUID)}, and the episode keeps the case's trip, so the open rule
+     * reads {@code case.closed_on_trip} true while the vehicle stays on that trip.
+     */
+    public void forget(String tenant, String assetId, java.util.UUID definitionId, String tripId) {
+        Episode marker = tripId == null ? null : Episode.closedOnTrip(definitionId, assetId, tripId);
+        // Both consumers may share Redis. Neither close may expose an empty episode before installing its marker.
+        lostSignal.forget(tenant, assetId, definitionId, marker);
+        episodes.operatorClose(tenant, assetId, definitionId, marker);
+    }
+
+    /** Drops only the case the sweep closed, preserving a newer episode opened on another replica. */
+    public void forgetStale(StaleCase c) {
+        episodes.forgetStale(c.tenantCode(), c.assetId(), c.definitionId(),
+                c.test() ? SymptomState.TEST : SymptomState.ACTIVE, c.openedAt());
+        lostSignal.forgetStale(c);
     }
 
     /** Rechecks the latest condition evidence before releasing a hold, then restarts its level timers. */

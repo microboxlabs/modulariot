@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import cl.streamhub.gps.model.EnvelopedMessage;
@@ -16,11 +17,16 @@ import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
-import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
+import com.microboxlabs.miot.symptoms.lostsignal.InMemoryLossStore;
+import com.microboxlabs.miot.symptoms.lostsignal.LossSettings;
+import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
+import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector.TickerSettings;
+import com.microboxlabs.miot.symptoms.lostsignal.TripChecks;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.signal.ReferenceCache;
 import com.microboxlabs.miot.symptoms.signal.SignalBuilder;
@@ -97,6 +103,50 @@ class EvaluatorStreamTest {
         return new EvaluatorStream(true, evaluatorCatalog,
                 new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()),
                 Clock.systemUTC(), episodes, samples);
+    }
+
+    @Test
+    void operatorCloseMarkersSurviveTheLostSignalConsumersSharedRepositoryCleanup() {
+        var repository = new InMemoryEpisodeRepository();
+        var meters = new SimpleMeterRegistry();
+        var clock = Clock.systemUTC();
+        var checks = new TripChecks(evaluatorCatalog, repository, log, events,
+                new AuditService(new InMemoryAuditStore()), meters);
+        var detector = new LostSignalDetector(true, new InMemoryLossStore(), LossSettings.defaults(),
+                TickerSettings.defaults(), checks, meters, clock);
+        var consumer = new EvaluatorStream(true, evaluatorCatalog, new EvaluatorStream.Sinks(log, events, meters),
+                clock, repository, samples, LateFrames.NONE, detector);
+        var id = evaluatorCatalog.forSource(DEMO, "gps_signal").symptoms().get(0).definitionId();
+
+        consumer.forget(DEMO, "DEMO01", id, "T-1");
+
+        assertEquals("T-1", repository.load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).orElseThrow().closedOnTrip());
+        consumer.forget(DEMO, "DEMO01", id);
+        assertTrue(repository.load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).isEmpty());
+    }
+
+    @Test
+    void aTenantWithoutItsOwnZonesDoesNotInheritATopLevelGeo() {
+        Map<String, Object> geo = Map.of("risk_zone", true);
+        Map<String, Object> signal = Map.of("geo", geo, "geos", Map.of(OTHER, geo));
+        assertFalse(EvaluatorStream.forTenant(signal, DEMO).containsKey("geo"));
+        assertEquals(geo, EvaluatorStream.forTenant(signal, OTHER).get("geo"));
+    }
+
+    @Test
+    void aStateRejectedOpeningSavesNeitherEpisodeNorWatermark() {
+        InMemoryEpisodeRepository episodes = new InMemoryEpisodeRepository();
+        TransitionLog rejected = (tenant, transitions, place, context) -> {
+            throw new IllegalStateException("Symptom state changed; retry with a fresh catalog");
+        };
+        EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(rejected, events, new SimpleMeterRegistry()),
+                Clock.systemUTC(), episodes, samples);
+
+        String frame = signal("2026-10-22T03:00:30Z", true, DEMO);
+        assertThrows(IllegalStateException.class, () -> s.evaluate(frame));
+        assertTrue(episodes.tenantsWithEpisodes("DEMO01").isEmpty());
+        assertTrue(episodes.load(DEMO, "DEMO01").watermark(DEMO, "DEMO01", "gps_signal").isEmpty());
     }
 
     private static String signal(String at, Boolean panic, String... clients) {
@@ -197,7 +247,7 @@ class EvaluatorStreamTest {
                 java.time.Instant.parse("2026-10-22T03:00:00Z"), null, null,
                 java.util.Map.of(4, java.time.Instant.parse("2026-10-22T03:00:00Z")),
                 java.time.Instant.parse("2026-10-22T03:00:30Z"), java.time.Instant.parse("2026-10-22T03:00:30Z"),
-                4, 0);
+                4, 0, SymptomState.TEST, java.time.Instant.parse("2026-10-22T03:00:30Z"));
 
         assertEquals(e, RedisEpisodes.read(RedisEpisodes.write(e)));
     }
@@ -215,9 +265,9 @@ class EvaluatorStreamTest {
         List<String> args = RedisEpisodes.saveArgs(state, java.time.Duration.ofDays(7));
 
         assertEquals(List.of("2", "symptoms:ep:" + DEMO + ":DEMO01", "symptoms:ep-tenants:DEMO01", "604800",
-                "2", "1", DEMO), args.subList(1, 8));
+                "2", "1", DEMO, "0"), args.subList(1, 9));
         assertEquals("ep:" + gone, args.get(args.size() - 1));
-        assertEquals(13, args.size());
+        assertEquals(14, args.size());
     }
 
     @Test
@@ -242,6 +292,11 @@ class EvaluatorStreamTest {
             @Override
             public void forget(String tenantCode, String assetId, java.util.UUID definitionId) {
                 memory.forget(tenantCode, assetId, definitionId);
+            }
+
+            @Override
+            public void operatorClose(String tenantCode, String assetId, java.util.UUID definitionId, Episode marker) {
+                memory.operatorClose(tenantCode, assetId, definitionId, marker);
             }
         };
         EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog,
@@ -383,6 +438,19 @@ class EvaluatorStreamTest {
         assertEquals(Map.of("active", false, "double_driver", false), other.get("trip"));
         assertFalse(demo.containsKey("trips"));
         assertFalse(other.containsKey("trips"));
+    }
+
+    @Test
+    void eachOrganizationReadsOnlyItsOwnZones() {
+        Map<String, Object> signal = Map.of("asset_id", "DEMO01", "clients", List.of(DEMO, OTHER),
+                "geos", Map.of(DEMO, Map.of("risk_zone", true, "outside_authorized", true)));
+
+        Map<String, Object> demo = EvaluatorStream.forTenant(signal, DEMO);
+        Map<String, Object> other = EvaluatorStream.forTenant(signal, OTHER);
+
+        assertEquals(Map.of("risk_zone", true, "outside_authorized", true), demo.get("geo"));
+        assertFalse(other.containsKey("geo"), "an organization without zones gets none");
+        assertFalse(demo.containsKey("geos"));
     }
 
     private static org.eclipse.microprofile.reactive.messaging.Message<byte[]> message(String body,

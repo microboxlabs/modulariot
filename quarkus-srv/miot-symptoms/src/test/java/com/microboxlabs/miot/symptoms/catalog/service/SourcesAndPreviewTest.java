@@ -82,6 +82,19 @@ class SourcesAndPreviewTest {
     }
 
     @Test
+    void eventPreviewsAcceptAnExplicitCaseAgeAndDefaultToANewCase() {
+        DataSource gps = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory()).get(TENANT, "gps_signal");
+        Map<String, Object> signal = Map.of("trip", Map.of("active", true),
+                "frame", Map.of("events", List.of(Map.of("event_type", "FYSS"))));
+        DataSource samples = new DataSource(gps.id(), gps.tenantCode(), gps.key(), gps.name(), gps.kind(),
+                gps.root(), gps.cadence(), gps.fields(), List.of(Map.of("signal", signal),
+                        Map.of("signal", signal, "open_s", 900)));
+        var previews = PreviewService.run(SeedTemplates.get("driver-fatigue-sensor").spec(), samples);
+        assertEquals(List.of(1, 3), previews.stream().map(SamplePreview::level).toList());
+        assertTrue(previews.stream().allMatch(p -> p.error() == null));
+    }
+
+    @Test
     void recentSignalsReplaceTheFixedSamples() {
         SignalSamples samples = SignalSamples.inMemory();
         samples.keep(TENANT, Map.of("asset_id", "AB1234", "clients", List.of(TENANT),

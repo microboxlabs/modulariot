@@ -9,8 +9,12 @@ import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
+import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
+import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
+import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
+import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.signal.TripCheck;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
@@ -57,6 +61,29 @@ class TripChecksTest {
 
     private UUID template(SymptomState state) {
         return engine.publish(TENANT, "signal-loss", SeedTemplates.get("signal-loss").spec(), state);
+    }
+
+    @Test
+    void aStateRejectedOpeningDoesNotSaveATripCheckEpisode() {
+        template(SymptomState.ACTIVE);
+        var episodes = new InMemoryEpisodeRepository();
+        TransitionLog rejected = (tenant, transitions, place, context) -> {
+            throw new IllegalStateException("Symptom state changed; retry with a fresh catalog");
+        };
+        var trips = new TripChecks(new EvaluatorCatalog(
+                engine.catalog, engine.sources), episodes, rejected, engine.events,
+                new AuditService(engine.audits), meters);
+        var rejecting = new LostSignalDetector(true, store, LossSettings.defaults(),
+                new LostSignalDetector.TickerSettings(Duration.ofMinutes(1), Duration.ofDays(1), Duration.ofSeconds(15),
+                        500, new IngestHealth(Duration.ZERO, Duration.ZERO), Duration.ofMinutes(1)),
+                trips, meters, clock);
+        rejecting.frame("V1", T0, T0.plusSeconds(5), signal());
+        clock.set(T0.plusSeconds(190));
+
+        assertEquals(0, rejecting.tick());
+        assertEquals(1.0, meters.counter("miot.symptoms.lost_signal.check_failed").count());
+        assertTrue(episodes.tenantsWithEpisodes("V1").isEmpty());
+        assertTrue(episodes.load(TENANT, "V1").watermark(TENANT, "V1", TripCheck.KEY).isEmpty());
     }
 
     @Test

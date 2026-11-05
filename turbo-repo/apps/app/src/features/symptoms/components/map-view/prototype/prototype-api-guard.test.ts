@@ -5,6 +5,7 @@ const tower = vi.hoisted(() => ({
   openTreatment: vi.fn(),
   addTreatmentAction: vi.fn(),
   closeTreatment: vi.fn(),
+  revalidateCase: vi.fn(),
 }));
 const legacy = vi.hoisted(() => ({ requestTreatment: vi.fn() }));
 
@@ -74,6 +75,7 @@ describe("treatments on an engine case", () => {
     });
     expect(legacy.requestTreatment).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
+    expect(tower.revalidateCase).toHaveBeenLastCalledWith("-16");
   });
 
   it("ignoring records an IGNORE action with the reason", async () => {
@@ -108,9 +110,12 @@ describe("treatments on an engine case", () => {
       })
     );
     expect(tower.closeTreatment).not.toHaveBeenCalled();
+    expect(tower.revalidateCase).toHaveBeenCalledWith("-16");
 
+    tower.revalidateCase.mockClear();
     await guardedFinishTreatment(base);
     expect(tower.closeTreatment).toHaveBeenCalledWith("t-1", {});
+    expect(tower.revalidateCase).toHaveBeenCalledWith("-16");
   });
 
   it("opening a form records nothing", async () => {
@@ -170,6 +175,7 @@ describe("treatments on a GPS database symptom", () => {
 
     expect(saved.treatment_id).toBe(7);
     expect(tower.openTreatment).not.toHaveBeenCalled();
+    expect(tower.revalidateCase).toHaveBeenCalledWith(gps.symptom_id);
   });
 
   it("finishing has nothing to close", async () => {
@@ -211,6 +217,7 @@ describe("call-step skips", () => {
       },
     });
     expect(tower.closeTreatment).not.toHaveBeenCalled();
+    expect(tower.revalidateCase).toHaveBeenCalledWith(-16);
   });
 
   it("writes nothing for a case outside the Control Tower", async () => {

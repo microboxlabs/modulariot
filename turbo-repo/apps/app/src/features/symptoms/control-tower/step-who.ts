@@ -136,6 +136,16 @@ const ESCAPES: Record<string, string> = {
 const ESCAPE =
   /\\(?:[abfnrtv\\?"'`]|[xX][\da-fA-F]{2}|u[\da-fA-F]{4}|U[\da-fA-F]{8}|[0-3][0-7]{2})/y;
 
+/** Decode one escape without accepting surrogate or out-of-range code points. */
+function decodeEscape(escape: string): string | null {
+  const code = escape[1];
+  if (ESCAPES[code] !== undefined) return ESCAPES[code];
+  const octal = /[0-3]/.test(code);
+  const point = Number.parseInt(escape.slice(octal ? 1 : 2), octal ? 8 : 16);
+  if (point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)) return null;
+  return String.fromCodePoint(point);
+}
+
 /** Decode CEL escapes; an unsupported literal must keep the summary unreadable. */
 function unquote(m: RegExpExecArray): string | null {
   const text = m[1] ?? m[2] ?? "";
@@ -148,17 +158,9 @@ function unquote(m: RegExpExecArray): string | null {
     ESCAPE.lastIndex = i;
     const escape = ESCAPE.exec(text)?.[0];
     if (!escape) return null;
-    const code = escape[1];
-    if (ESCAPES[code] !== undefined) out += ESCAPES[code];
-    else {
-      const octal = /[0-3]/.test(code);
-      const point = Number.parseInt(
-        escape.slice(octal ? 1 : 2),
-        octal ? 8 : 16
-      );
-      if (point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)) return null;
-      out += String.fromCodePoint(point);
-    }
+    const decoded = decodeEscape(escape);
+    if (decoded === null) return null;
+    out += decoded;
     i += escape.length - 1;
   }
   return out;
@@ -178,7 +180,7 @@ function quotedEnd(who: string, start: number): number {
   let i = start + delimiter.length;
   while (i < who.length && !who.startsWith(delimiter, i))
     i += who[i] === "\\" ? 2 : 1;
-  return Math.min(i + delimiter.length, who.length);
+  return i + delimiter.length;
 }
 
 /** Scan once, keeping string values opaque. */
@@ -192,7 +194,7 @@ function tokens(who: string): WhoToken[] {
       i = end < 0 ? who.length : end + 1;
     } else if (ch === "'" || ch === '"') {
       const start = i;
-      i = quotedEnd(who, start);
+      i = Math.min(quotedEnd(who, start), who.length);
       out.push({ text: who.slice(start, i), quoted: true });
     } else {
       WORD.lastIndex = i;
@@ -217,14 +219,13 @@ function splitTop(text: string, op: "&&" | "||"): string[] | null {
   const parts: string[] = [];
   let depth = 0;
   let start = 0;
-  let quote: string | null = null;
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
-    if (quote) {
-      if (ch === "\\") i++;
-      else if (ch === quote) quote = null;
-    } else if (ch === "'" || ch === '"') quote = ch;
-    else if (ch === "(") depth++;
+    if (ch === "'" || ch === '"') {
+      const end = quotedEnd(text, i);
+      if (end > text.length) return null;
+      i = end - 1;
+    } else if (ch === "(") depth++;
     else if (ch === ")") {
       if (--depth < 0) return null;
     } else if (depth === 0 && text.startsWith(op, i)) {
@@ -233,7 +234,7 @@ function splitTop(text: string, op: "&&" | "||"): string[] | null {
       i++;
     }
   }
-  if (quote || depth !== 0) return null;
+  if (depth !== 0) return null;
   parts.push(text.slice(start).trim());
   return parts;
 }
@@ -286,17 +287,8 @@ const TRIP_FIELD_MEANING: Record<string, Partial<WhoSummary>> = {
   "companyRut:carrierRut": { carrier: true },
 };
 
-/** Adds one `&&` clause to the summary; false when the panel cannot name it. */
-function readClause(summary: WhoSummary, clause: string): boolean {
-  const alternatives = splitTop(clause, "||");
-  if (!alternatives) return false;
-  if (alternatives.length > 1) {
-    const roles = alternatives.map((a) => roleOf(normalizeAtom(unwrap(a))));
-    if (summary.roles.length > 0 || roles.some((r) => !r)) return false;
-    summary.roles = roles as string[];
-    return true;
-  }
-  const atom = normalizeAtom(clause);
+/** Read literal role, company and tag criteria; null means a different clause. */
+function readLiteralClause(summary: WhoSummary, atom: string): boolean | null {
   const role = roleOf(atom);
   if (role !== null) {
     if (summary.roles.length > 0) return false;
@@ -317,6 +309,22 @@ function readClause(summary: WhoSummary, clause: string): boolean {
     summary.tags.push(value);
     return true;
   }
+  return null;
+}
+
+/** Adds one `&&` clause to the summary; false when the panel cannot name it. */
+function readClause(summary: WhoSummary, clause: string): boolean {
+  const alternatives = splitTop(clause, "||");
+  if (!alternatives) return false;
+  if (alternatives.length > 1) {
+    const roles = alternatives.map((a) => roleOf(normalizeAtom(unwrap(a))));
+    if (summary.roles.length > 0 || roles.some((r) => !r)) return false;
+    summary.roles = roles as string[];
+    return true;
+  }
+  const atom = normalizeAtom(clause);
+  const literal = readLiteralClause(summary, atom);
+  if (literal !== null) return literal;
   if (GUARD_ATOMS.some((g) => g.test(atom))) return true;
   const field = FIELD_ATOM.exec(atom);
   const meaning = field ? TRIP_FIELD_MEANING[`${field[1]}:${field[2]}`] : null;
@@ -360,7 +368,15 @@ export function summarizeWho(who: string): WhoSummary | null {
   return summary;
 }
 
-/** The roles a condition names anywhere, in order and without repeats; for titles of conditions `summarizeWho` cannot read. */
+/** A literal role on either side of the equality token at `index`. */
+function comparedRole(parts: WhoToken[], index: number): string | null {
+  const left = parts[index - 1];
+  const right = parts[index + 1];
+  if (!left || !right) return null;
+  return roleOf(normalizeAtom(`${left.text} == ${right.text}`));
+}
+
+/** The positive roles a condition names, in order and without repeats; for unreadable conditions' titles. */
 export function rolesIn(who: string): string[] {
   const parts = tokens(who);
   const scopes: boolean[] = [];
@@ -375,11 +391,7 @@ export function rolesIn(who: string): string[] {
       if (excluded) negated++;
     } else if (parts[i].text === ")" && scopes.pop()) negated--;
     if (negated > 0 || parts[i].text !== "==") continue;
-    const left = parts[i - 1];
-    const right = parts[i + 1];
-    if (!left || !right) continue;
-    const atom = normalizeAtom(`${left.text} == ${right.text}`);
-    const role = roleOf(atom);
+    const role = comparedRole(parts, i);
     if (role && !seen.has(roleKey(role))) {
       seen.add(roleKey(role));
       out.push(role);

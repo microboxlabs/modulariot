@@ -168,6 +168,17 @@ function emptyText(reason: EmptyReason, d: I18nRecord) {
 
 const isRuc = (id: string | undefined) => /^\d{11}$/.test(id ?? "");
 
+/** Pick the driver identifier named by the step, including legacy either-driver steps. */
+function driverId(
+  summary: WhoSummary | null,
+  trip: TowerTripContacts | undefined
+) {
+  if (summary?.driverField === "second") return trip?.data.secondDriverRut;
+  if (summary?.driverField === "either")
+    return trip?.data.driverRut ?? trip?.data.secondDriverRut;
+  return trip?.data.driverRut;
+}
+
 /** The role, RUTs and company a contact created from an empty step starts with. */
 function presetFor(
   who: string,
@@ -182,10 +193,7 @@ function presetFor(
     company: summary?.company ?? undefined,
     tags: summary?.tags,
   };
-  let driverRut = trip?.data.driverRut;
-  if (summary?.driverField === "second") driverRut = trip?.data.secondDriverRut;
-  else if (summary?.driverField === "either")
-    driverRut ??= trip?.data.secondDriverRut;
+  const driverRut = driverId(summary, trip);
   if (summary?.driver && driverRut)
     return {
       ...preset,

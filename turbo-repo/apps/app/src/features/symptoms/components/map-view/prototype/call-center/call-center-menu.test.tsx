@@ -21,6 +21,9 @@ const data = vi.hoisted(() => ({
   treatmentsId: undefined as unknown,
   createContact: vi.fn(),
   refreshTrip: vi.fn(),
+  timeline: undefined as unknown,
+  timelineError: undefined as Error | undefined,
+  context: undefined as unknown,
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
@@ -35,7 +38,8 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
     data.treatmentsId = id;
     return { data: data.treatments };
   },
-  useCaseContext: () => ({ data: undefined }),
+  useCaseContext: () => ({ data: data.context }),
+  useCaseTimeline: () => ({ data: data.timeline, error: data.timelineError }),
   useTripContacts: (_id: unknown, conditions: string[]) => ({
     mutate: data.refreshTrip,
     isLoading: data.tripLoading,
@@ -106,7 +110,6 @@ function renderMenu() {
     <CallCenterMenu
       dict={dict}
       treatmentData={treatment}
-      startedAt={Date.now()}
       skippedTo={null}
       onSkip={vi.fn()}
       onCall={onCall}
@@ -155,6 +158,9 @@ beforeEach(() => {
   };
   data.treatments = undefined;
   data.level = undefined;
+  data.timeline = undefined;
+  data.timelineError = undefined;
+  data.context = undefined;
   data.createContact.mockImplementation(
     async (body: Record<string, unknown>) => ({ ...body, id: "new-contact" })
   );
@@ -189,10 +195,13 @@ describe("CallCenterMenu", () => {
         })
       );
       await waitFor(() =>
-        expect(onCall).toHaveBeenCalledWith(expect.anything(), {
-          message: "Step message",
-          goal: "Step goal",
-        })
+        expect(onCall).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            message: "Step message",
+            goal: "Step goal",
+          })
+        )
       );
     }
   );
@@ -214,10 +223,10 @@ describe("CallCenterMenu", () => {
     await user.click(screen.getByRole("button", { name: /Ana Pérez/ }));
     expect(onCall).toHaveBeenCalledWith(
       expect.objectContaining({ contactId: "ana" }),
-      {
+      expect.objectContaining({
         message: "Hola Nombre en el viaje, ¿dónde va el camión?",
-        goal: "Saber dónde va {{patente}}",
-      }
+        goal: "Saber dónde va [patente]",
+      })
     );
   });
 
@@ -301,6 +310,7 @@ describe("CallCenterMenu", () => {
         script: null,
       },
     ]);
+    data.timeline = [{ kind: "OPENED", at: new Date().toISOString() }];
     const user = userEvent.setup();
     const onCall = renderMenu();
 
@@ -518,4 +528,143 @@ it("keeps the flat list when no symptom is in force (404)", () => {
   renderMenu();
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.getByText("Marta Díaz")).toBeTruthy();
+});
+
+describe("SLA from the case", () => {
+  const steps = [
+    { role: "Conductor", channel: "call", budgetMinutes: 2 },
+    { role: "Jefe de Torre", channel: "call", budgetMinutes: 5 },
+  ];
+  const ago = (seconds: number) =>
+    new Date(Date.now() - seconds * 1000).toISOString();
+
+  it("counts the SLA and the due step from when the case reached its level", () => {
+    data.level = levelWith(steps);
+    data.timeline = [
+      { kind: "OPENED", at: ago(600), level: 2 },
+      { kind: "LEVEL_CHANGED", at: ago(150), level: 3, previousLevel: 2 },
+      { kind: "NOTED", at: ago(10) },
+    ];
+    renderMenu();
+    // 10 min SLA, 2:30 at the level: 7:30 left; step 2 ends at 7:00, 4:30 left.
+    expect(screen.getByText("SLA 7:30")).toBeTruthy();
+    expect(screen.getByText("Paso actual: quedan 4:30")).toBeTruthy();
+    const due = document.querySelector('[aria-current="step"]') as HTMLElement;
+    expect(within(due).getByText("5 min")).toBeTruthy();
+  });
+
+  it("counts again from the end of an ignore hold", () => {
+    data.level = levelWith(steps);
+    data.timeline = [{ kind: "OPENED", at: ago(3000), level: 3 }];
+    render(
+      <CallCenterMenu
+        dict={dict}
+        treatmentData={
+          {
+            ...treatment,
+            symptom_info: {
+              ...treatment.symptom_info,
+              returned_after_ignore_at: ago(60),
+            },
+          } as TreatmentsGeneralResponseItem
+        }
+        skippedTo={null}
+        onSkip={vi.fn()}
+        onCall={vi.fn()}
+      />
+    );
+    expect(screen.getByText("SLA 9:00")).toBeTruthy();
+  });
+
+  it("says when the case's start is not known instead of counting from the panel", () => {
+    data.level = levelWith(steps);
+    data.timeline = [];
+    renderMenu();
+    expect(screen.queryByText(/^SLA \d+:\d\d/)).toBeNull();
+    expect(screen.getByText("SLA 10 min · sin hora de inicio")).toBeTruthy();
+    expect(screen.getByText(es.symptoms.ladder.dueNoStart)).toBeTruthy();
+  });
+});
+
+describe("script blanks", () => {
+  it("names a field the case lacks in brackets, never as {{...}}", async () => {
+    data.level = levelWith([
+      {
+        role: "Conductor",
+        who: "contact.role == 'Conductor' && contact.nationalId == event.data.driverRut",
+        channel: "call",
+        budgetMinutes: 2,
+        script: "Hola {{trip.driver.name}} te informamos x, y, z",
+        goal: "Confirmar {{vehicle.plate}}",
+      },
+    ]);
+    data.context = { case: {}, condition: {}, trip: {}, vehicle: {} };
+    const user = userEvent.setup();
+    const onCall = renderMenu();
+    expect(screen.queryByText(/\{\{/)).toBeNull();
+    const blank = screen.getByText("[nombre del conductor]");
+    expect(blank.className).toContain("text-amber-700");
+    expect(screen.getByText("[patente]")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Ana Pérez/ }));
+    expect(onCall).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        message: "Hola [nombre del conductor] te informamos x, y, z",
+        goal: "Confirmar [patente]",
+        messageParts: [
+          { text: "Hola " },
+          { blank: "[nombre del conductor]" },
+          { text: " te informamos x, y, z" },
+        ],
+      })
+    );
+  });
+});
+
+describe("contact rows", () => {
+  it("gives a callable row a hover state and leaves a row without channels inert", () => {
+    data.contacts = [
+      contact("ok", "Con canal", "Jefe de Torre"),
+      contact("none", "Sin canal", "Jefe de Torre", { methods: [] }),
+    ];
+    renderMenu();
+    const row = screen.getByRole("button", { name: /Con canal/ });
+    expect(row.className).toContain("hover:bg-gray-50");
+    expect(row.className).toContain("dark:hover:bg-gray-700");
+    expect(screen.queryByRole("button", { name: /Sin canal/ })).toBeNull();
+    const inert = screen.getByText("Sin canal").closest("div.border-b")!;
+    expect(inert.className).not.toContain("hover:");
+    expect(
+      within(inert as HTMLElement).getByText("Sin canales registrados")
+    ).toBeTruthy();
+  });
+});
+
+describe("emergency numbers", () => {
+  it("shows Chile's numbers and calls one as an emergency contact", async () => {
+    data.level = levelWith([
+      { role: "Conductor", channel: "call", budgetMinutes: 2 },
+    ]);
+    const onCall = renderMenu();
+    for (const name of ["Carabineros", "Ambulancia (SAMU)", "Bomberos", "PDI"])
+      expect(
+        screen.getByRole("button", {
+          name: new RegExp(`^Llamar a ${name.replace(/[()]/g, "\\$&")}`),
+        })
+      ).toBeTruthy();
+    await userEvent
+      .setup()
+      .click(
+        screen.getByRole("button", { name: "Llamar a Carabineros (133)" })
+      );
+    expect(onCall).toHaveBeenCalledWith({
+      id: "emergency:CL:133",
+      personName: "Carabineros",
+      role: "Emergencias – Carabineros",
+      phone: "133",
+      channels: { phone: "133" },
+      methods: ["phone"],
+      stats: null,
+    });
+  });
 });

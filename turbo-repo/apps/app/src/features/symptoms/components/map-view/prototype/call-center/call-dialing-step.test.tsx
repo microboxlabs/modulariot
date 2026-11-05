@@ -233,7 +233,7 @@ describe("CallDialingStep", () => {
       startedAt: "2026-11-04T10:00:00.000Z",
     };
 
-    function renderTelnyx() {
+    function renderTelnyx(contactPhone = "+56 9 1111 1111") {
       let options: StartCallOptions | null = null;
       const hangup = vi.fn(() => options?.onEnd(result));
       const dial = vi.fn(async (o: StartCallOptions) => {
@@ -251,7 +251,7 @@ describe("CallDialingStep", () => {
           dict={dict}
           contactName="Luis"
           contactRole="Transportista"
-          contactPhone="+56 9 1111 1111"
+          contactPhone={contactPhone}
           allowedMethods={["phone"]}
           reason=""
           line={line}
@@ -275,6 +275,18 @@ describe("CallDialingStep", () => {
       expect(opts()?.callerNumber).toBe("+56900000000");
       act(() => opts()?.onEnd(result));
       expect(onConfirm).toHaveBeenCalledWith(42, "phone", result);
+    });
+
+    it("dials an emergency short number as it is", async () => {
+      const { dial, token, opts } = renderTelnyx("133");
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada telefónica" })
+      );
+      await waitFor(() => expect(dial).toHaveBeenCalled());
+      expect(token).toHaveBeenCalledWith(
+        expect.objectContaining({ calleeNumber: "133" })
+      );
+      expect(opts()?.destination).toBe("133");
     });
 
     it("the red button hangs up instead of timing by hand", async () => {
@@ -518,5 +530,28 @@ describe("CallDialingStep", () => {
         screen.getByRole("link", { name: es.symptoms.call_use_phone })
       ).toHaveAttribute("href", "tel:+56911111111");
     });
+  });
+});
+
+describe("script blanks", () => {
+  it("shows the fields the case lacks in amber in the message and the goal", () => {
+    render(
+      <CallDialingStep
+        dict={dict}
+        contactName="Luis"
+        contactRole="Driver"
+        allowedMethods={["phone"]}
+        reason="Hola [nombre del conductor]"
+        reasonParts={[{ text: "Hola " }, { blank: "[nombre del conductor]" }]}
+        goal="Confirmar [patente]"
+        goalParts={[{ text: "Confirmar " }, { blank: "[patente]" }]}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+    expect(screen.getByText("[nombre del conductor]").className).toContain(
+      "text-amber-700"
+    );
+    expect(screen.getByText("[patente]").className).toContain("text-amber-700");
   });
 });

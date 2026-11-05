@@ -39,6 +39,9 @@ import java.util.UUID;
  * measure down while the condition holds. After a case closes, a condition that
  * still holds starts a new run. A new version keeps the open case but restarts
  * the levels' hold times. An episode with nothing running is not kept.</li>
+ * <li>An open case keeps the state it opened in. When the symptom has moved to the other state (TEST and
+ * ACTIVE), the next signal closes that case in its own state ({@link Transition#STATE_CHANGE_REASON}) and does
+ * nothing else; the signal after it may open a case in the new state.</li>
  * <li>While a hold covers an ACTIVE symptom ({@link Holds}), its open case
  * keeps its level and may still close; a case that would open does not, and
  * the first such opening of a run is returned as a {@code HELD} transition.
@@ -92,7 +95,10 @@ public class SignalEvaluator {
             if (e == null) {
                 continue;
             }
-            if (e.open() && closesWithoutSignal(s, caseFields(e.conditionSince(), e.normalSince(), e.openedAt(),
+            if (stale(e, s)) {
+                closed.add(closedByStateChange(e, s, asset, at));
+                store.delete(tenant, asset, s.definitionId());
+            } else if (e.open() && closesWithoutSignal(s, caseFields(e.conditionSince(), e.normalSince(), e.openedAt(),
                     e.level(), at, e.offTripSince()))) {
                 closed.add(transition(Kind.CLOSED, s, asset, at, e.level(), e.level(), e.maxMeasure()));
                 store.delete(tenant, asset, s.definitionId());
@@ -101,7 +107,7 @@ public class SignalEvaluator {
                 e.levelSince().keySet().forEach(level -> restarted.put(level, at));
                 store.save(tenant, new Episode(e.definitionId(), e.version(), asset, at, e.conditionSince(),
                         e.normalSince(), restarted, e.lastSignalAt(), e.openedAt(), e.level(), e.maxMeasure(),
-                        e.offTripSince()));
+                        e.state(), e.offTripSince()));
             }
         }
         return closed;
@@ -169,10 +175,11 @@ public class SignalEvaluator {
         List<Transition> transitions = new ArrayList<>();
         List<RuleError> errors = new ArrayList<>();
         for (CompiledSymptom s : symptoms) {
-            if (!s.eventDriven()) {
+            Optional<Episode> before = store.find(tenantCode, assetId, s.definitionId());
+            if (!s.eventDriven() || before.filter(e -> stale(e, s)).isPresent()) {
+                // A late frame leaves a case of the old state to the next frame in order.
                 continue;
             }
-            Optional<Episode> before = store.find(tenantCode, assetId, s.definitionId());
             try {
                 if (before.filter(Episode::open).isPresent()) {
                     if (!at.isBefore(before.get().openedAt())) {
@@ -211,7 +218,7 @@ public class SignalEvaluator {
         }
         store.save(tenantCode, new Episode(e.definitionId(), e.version(), e.assetId(), e.candidateSince(),
                 e.conditionSince(), e.normalSince(), e.levelSince(), e.lastSignalAt(), e.openedAt(), r.level(),
-                Math.max(e.maxMeasure(), r.measure()), e.offTripSince()));
+                Math.max(e.maxMeasure(), r.measure()), e.state() != null ? e.state() : s.state(), e.offTripSince()));
         return Optional.of(transition(Kind.LEVEL_CHANGED, s, e.assetId(), at, r.level(), e.level(), r.measure()));
     }
 
@@ -255,8 +262,12 @@ public class SignalEvaluator {
 
     private List<Transition> step(String tenantCode, String assetId, Instant at, Map<String, Object> root,
             CompiledSymptom s) {
-        Episode e = store.find(tenantCode, assetId, s.definitionId())
-                .orElseGet(() -> Episode.start(s.definitionId(), s.version(), assetId));
+        Optional<Episode> found = store.find(tenantCode, assetId, s.definitionId());
+        if (found.filter(old -> stale(old, s)).isPresent()) {
+            store.delete(tenantCode, assetId, s.definitionId());
+            return List.of(closedByStateChange(found.get(), s, assetId, at));
+        }
+        Episode e = found.orElseGet(() -> Episode.start(s.definitionId(), s.version(), assetId));
         Reading r = read(s, e, root, at);
         boolean held = s.state() == SymptomState.ACTIVE
                 && holds.held(tenantCode, assetId, s.definitionId(), e.openedAt());
@@ -350,7 +361,7 @@ public class SignalEvaluator {
             }
             int initial = e.level() > 0 ? s.levels().keySet().iterator().next() : r.level();
             Episode opened = new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
-                    r.conditionSince(), r.normalSince(), r.levelSince(), at, at, initial, r.measure(),
+                    r.conditionSince(), r.normalSince(), r.levelSince(), at, at, initial, r.measure(), s.state(),
                     offTrip(root) ? at : null);
             return new Step(opened, transition(Kind.OPENED, s, e.assetId(), at, initial, 0, r.measure()));
         }
@@ -382,8 +393,10 @@ public class SignalEvaluator {
         if (held) {
             since.replaceAll((key, value) -> at);
         }
+        // An episode written before the state was kept takes the symptom's state: a stale one was closed at startup.
         Episode kept = new Episode(s.definitionId(), s.version(), e.assetId(), held ? null : r.candidateSince(),
-                r.conditionSince(), r.normalSince(), since, at, e.openedAt(), level, max, offTripSince);
+                r.conditionSince(), r.normalSince(), since, at, e.openedAt(), level, max,
+                e.state() != null ? e.state() : s.state(), offTripSince);
         Transition changed = level != e.level()
                 ? transition(Kind.LEVEL_CHANGED, s, e.assetId(), at, level, e.level(), r.measure())
                 : null;
@@ -431,6 +444,18 @@ public class SignalEvaluator {
             }
         }
         return Map.of();
+    }
+
+    /** An open case in a state the symptom no longer has: the symptom moved between TEST and ACTIVE. */
+    private static boolean stale(Episode e, CompiledSymptom s) {
+        return e.open() && e.state() != null && e.state() != s.state();
+    }
+
+    /** Closes the case in the state and version it runs on, so its CLOSED row matches its OPENED row. */
+    private static Transition closedByStateChange(Episode e, CompiledSymptom s, String assetId, Instant at) {
+        return new Transition(Kind.CLOSED, s.definitionId(), e.version(), e.state(), assetId, at, e.level(),
+                e.level(), e.maxMeasure(), Map.of("reason", Transition.STATE_CHANGE_REASON, "from", e.state().name(),
+                        "to", s.state().name()));
     }
 
     /** What a lifecycle rule reads: the source's root object and the case. */

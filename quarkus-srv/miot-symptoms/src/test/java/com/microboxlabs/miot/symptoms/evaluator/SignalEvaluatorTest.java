@@ -227,12 +227,13 @@ class SignalEvaluatorTest {
     @Test
     void aNewVersionTakesOverTheOpenCase() {
         at(0, 100);
-        symptoms = List.of(CompiledSymptom.compile(SPEEDING, "1.1.0", SymptomState.ACTIVE, Specs.speeding(),
+        // Same state: a version published in another state closes the case first (SymptomStateChangeTest).
+        symptoms = List.of(CompiledSymptom.compile(SPEEDING, "1.1.0", SymptomState.TEST, Specs.speeding(),
                 Specs.gpsSignal()));
         Result r = at(5, 102);
         assertEquals(List.of("LEVEL_CHANGED:3"), kinds(r));
         assertEquals("1.1.0", r.transitions().get(0).version());
-        assertEquals(SymptomState.ACTIVE, r.transitions().get(0).state());
+        assertEquals(SymptomState.TEST, r.transitions().get(0).state());
         assertEquals(2, r.transitions().get(0).previousLevel());
     }
 

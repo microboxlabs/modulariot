@@ -17,6 +17,7 @@ import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import com.microboxlabs.miot.core.event.ContactConditions;
@@ -32,9 +33,11 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.jboss.logging.Logger;
 
 /**
  * Symptom definitions and their versions: drafts, validation, publishing
@@ -46,6 +49,7 @@ import java.util.stream.Collectors;
 public class SymptomCatalogService {
 
     static final String ENTITY = "symptom";
+    private static final Logger LOG = Logger.getLogger(SymptomCatalogService.class);
     private static final String VERSION_NOT_FOUND = "version not found: ";
     private static final String VERSION = "version";
     /** Tries at picking a free key when copying a template, for concurrent copies of the same one. */
@@ -59,6 +63,7 @@ public class SymptomCatalogService {
 
     private final Instance<ContactConditions> contactConditions;
     private final BiPredicate<String, String> resultExists;
+    private Consumer<SymptomStateChanged> stateChanges = change -> { };
 
     public SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit) {
         this(store, sources, audit, null);
@@ -83,6 +88,28 @@ public class SymptomCatalogService {
         this.sources = sources;
         this.audit = audit;
         this.contactConditions = contactConditions;
+    }
+
+    @Inject
+    void stateChanges(Event<SymptomStateChanged> bus) {
+        this.stateChanges = bus::fire;
+    }
+
+    /** Who hears that a symptom changed state; tests set it, the container sets the CDI event. */
+    void onStateChange(Consumer<SymptomStateChanged> listener) {
+        this.stateChanges = listener;
+    }
+
+    /** The change is saved: a failing listener does not undo it. */
+    private void stateChanged(String tenantCode, UUID id, SymptomState from, SymptomState to) {
+        if (from == to) {
+            return;
+        }
+        try {
+            stateChanges.accept(new SymptomStateChanged(tenantCode, id, from, to));
+        } catch (RuntimeException e) {
+            LOG.warnf("Symptom %s: state change listener failed (%s)", id, e.getClass().getSimpleName());
+        }
     }
 
     private Report checkSpec(String tenantCode, SymptomSpec spec, DataSource source) {
@@ -488,6 +515,7 @@ public class SymptomCatalogService {
         SymptomDefinition saved = store.updateDefinition(d.withCurrent(d.currentVersion(), state, actor, now()));
         audit.log(tenantCode, actor, "symptom.state_changed", ENTITY, id.toString(), null,
                 Map.of("state", state.name()));
+        stateChanged(tenantCode, id, d.state(), state);
         return saved;
     }
 
@@ -576,6 +604,7 @@ public class SymptomCatalogService {
         audit.log(tenantCode, actor, rolledBackFrom == null ? "symptom.published" : "symptom.rolled_back", ENTITY,
                 detail.definition().id().toString(), null,
                 Map.of(VERSION, number, "bump", bump.name(), "state", next.name()));
+        stateChanged(tenantCode, detail.definition().id(), detail.definition().state(), next);
         return saved;
     }
 

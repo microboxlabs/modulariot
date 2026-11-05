@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.redis.client.Redis;
 import io.vertx.mutiny.redis.client.RedisAPI;
@@ -48,6 +49,43 @@ class RedisEpisodesTest {
         if (vertx != null) {
             vertx.close().await().atMost(WAIT);
         }
+    }
+
+    @Test
+    void forgettingACaseDropsItsEpisodeAcrossReplicasAndPreservesTheWatermark() {
+        EpisodeRepository first = new RedisEpisodes(redis, Duration.ofDays(7));
+        EpisodeRepository second = new RedisEpisodes(redis, Duration.ofDays(7));
+        assertForgotten(first, second);
+    }
+
+    static void assertForgotten(EpisodeRepository first, EpisodeRepository second) {
+        String tenant = "tenant-a";
+        UUID id = UUID.randomUUID();
+        Instant at = Instant.parse("2026-10-22T03:00:00Z");
+        AssetEpisodes state = first.load(tenant, ASSET);
+        state.save(tenant, new Episode(id, "1.0.0", ASSET, at, at, null, Map.of(), at, at, 2, 10,
+                SymptomState.TEST));
+        state.setWatermark(tenant, ASSET, "gps_signal", at);
+        first.save(state);
+
+        second.forget(tenant, ASSET, id);
+        second.forget(tenant, ASSET, id);
+
+        assertTrue(first.load(tenant, ASSET).find(tenant, ASSET, id).isEmpty());
+        assertEquals(at, first.load(tenant, ASSET).watermark(tenant, ASSET, "gps_signal").orElseThrow());
+
+        state = first.load(tenant, ASSET);
+        Episode current = new Episode(id, "1.0.0", ASSET, at, at, null, Map.of(), at, at, 2, 10,
+                SymptomState.ACTIVE);
+        state.save(tenant, current);
+        first.save(state);
+        second.forgetStale(tenant, ASSET, id, SymptomState.TEST, at);
+        assertEquals(current, first.load(tenant, ASSET).find(tenant, ASSET, id).orElseThrow());
+
+        second.forgetStale(tenant, ASSET, id, current.state(), at.minusSeconds(1));
+        assertEquals(current, first.load(tenant, ASSET).find(tenant, ASSET, id).orElseThrow());
+        second.forgetStale(tenant, ASSET, id, current.state(), at);
+        assertTrue(first.load(tenant, ASSET).find(tenant, ASSET, id).isEmpty());
     }
 
     @Test

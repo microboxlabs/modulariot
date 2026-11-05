@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,6 +21,8 @@ import java.util.UUID;
  * @param openedAt       when the case opened, or null when no case is open
  * @param level          the case's level; with no case open, 0, or the level of an opening a hold keeps back
  * @param maxMeasure     the highest measure since the case opened
+ * @param state          the symptom's state when the case opened, or null with no case open; null also for an
+ *                       episode written before the state was kept, which takes the symptom's state on its next signal
  * @param offTripSince   first observed off-trip signal while the case is open, reset by an active trip
  */
 @RegisterForReflection
@@ -35,18 +38,29 @@ public record Episode(
         Instant openedAt,
         int level,
         double maxMeasure,
+        SymptomState state,
         Instant offTripSince) {
-
-    @SuppressWarnings("java:S107")
-    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince,
-            Instant conditionSince, Instant normalSince, Map<Integer, Instant> levelSince,
-            Instant lastSignalAt, Instant openedAt, int level, double maxMeasure) {
-        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince,
-                lastSignalAt, openedAt, level, maxMeasure, null);
-    }
 
     public Episode {
         levelSince = levelSince == null ? Map.of() : Map.copyOf(levelSince);
+    }
+
+    /** Without a case open, or without its state. */
+    @SuppressWarnings("java:S107")
+    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
+            Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
+            double maxMeasure) {
+        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
+                openedAt, level, maxMeasure, null, null);
+    }
+
+    /** An episode with its case state, before off-trip evidence is available. */
+    @SuppressWarnings("java:S107")
+    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
+            Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
+            double maxMeasure, SymptomState state) {
+        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
+                openedAt, level, maxMeasure, state, null);
     }
 
     public static Episode start(UUID definitionId, String version, String assetId) {

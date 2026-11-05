@@ -5,6 +5,7 @@ import { mutate } from "swr";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
+import { ShowNotification } from "@/features/notifications/notification";
 import CallCenterMenu from "./call-center-menu";
 
 const data = vi.hoisted(() => ({
@@ -25,6 +26,9 @@ const data = vi.hoisted(() => ({
   refreshTrip: vi.fn(),
   context: undefined as unknown,
   permissions: [] as string[],
+  openTreatment: vi.fn(),
+  addTreatmentAction: vi.fn(),
+  refreshTreatments: vi.fn(),
 }));
 
 // One object for every render; a new one per call re-renders without end.
@@ -44,8 +48,10 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   }),
   useSymptomTreatments: (id: unknown) => {
     data.treatmentsId = id;
-    return { data: data.treatments };
+    return { data: data.treatments, mutate: data.refreshTreatments };
   },
+  openTreatment: data.openTreatment,
+  addTreatmentAction: data.addTreatmentAction,
   useCaseContext: () => ({ data: data.context }),
   useTripContacts: (_id: unknown, conditions: string[]) => ({
     mutate: data.refreshTrip,
@@ -603,6 +609,125 @@ describe("SLA from the case", () => {
     expect(screen.queryByText(/^SLA \d+:\d\d/)).toBeNull();
     expect(screen.getByText("SLA 10 min · sin hora de inicio")).toBeTruthy();
     expect(screen.getByText(es.symptoms.ladder.dueNoStart)).toBeTruthy();
+  });
+});
+
+describe("skipped steps", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-05T12:00:00Z"));
+    data.level = levelWith([
+      { role: "Conductor", channel: "call", budgetMinutes: 2 },
+      { role: "Jefe de Torre", channel: "call", budgetMinutes: 5 },
+    ]);
+    data.openTreatment.mockResolvedValue({ id: "t-1" });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const ago = (seconds: number) =>
+    new Date(Date.now() - seconds * 1000).toISOString();
+  // 30 s at the level: the 2-minute first step is due.
+  const atLevel = () =>
+    ({
+      ...treatment,
+      symptom_info: { ...treatment.symptom_info, sla_since: ago(30) },
+      trip_info: {
+        ...treatment.trip_info,
+        asset_id: "AB12",
+        trip_id: "trip-1",
+      },
+    }) as unknown as TreatmentsGeneralResponseItem;
+  const dueBudget = () =>
+    within(
+      document.querySelector('[aria-current="step"]') as HTMLElement
+    ).getByText(/min$/).textContent;
+  const skipNote = (step: number, performedAt: string) => ({
+    id: "t-1",
+    status: "OPEN",
+    actions: [
+      {
+        kind: "NOTE",
+        note: "No contesta",
+        details: { skipToStep: step },
+        performedBy: "ops@example.com",
+        performedAt,
+      },
+    ],
+  });
+  const mount = (onSkip = vi.fn()) =>
+    render(
+      <CallCenterMenu
+        dict={dict}
+        treatmentData={atLevel()}
+        skippedTo={null}
+        onSkip={onSkip}
+        onCall={vi.fn()}
+      />
+    );
+
+  it("saves the skip on the case and keeps it after a reload", async () => {
+    const user = userEvent.setup({ advanceTimers: () => undefined });
+    data.addTreatmentAction.mockImplementation(async (_id, body) => {
+      const saved = {
+        ...body,
+        performedBy: "ops@example.com",
+        performedAt: ago(0),
+      };
+      data.treatments = [{ id: "t-1", status: "OPEN", actions: [saved] }];
+      return saved;
+    });
+    const onSkip = vi.fn();
+    const first = mount(onSkip);
+    expect(dueBudget()).toBe("2 min");
+
+    await user.click(screen.getByRole("button", { name: /Saltar paso/ }));
+    await user.type(screen.getByLabelText("Por qué se salta"), "No contesta");
+    await user.click(screen.getByRole("button", { name: "Saltar" }));
+
+    await waitFor(() => expect(onSkip).toHaveBeenCalledWith(1));
+    expect(data.openTreatment).toHaveBeenCalledWith(-7, {
+      type: "CALL",
+      assetId: "AB12",
+      tripId: "trip-1",
+    });
+    expect(data.addTreatmentAction).toHaveBeenCalledWith("t-1", {
+      kind: "NOTE",
+      note: "No contesta",
+      details: { skipToStep: 2, level: 3, version: 4 },
+    });
+    expect(data.refreshTreatments).toHaveBeenCalled();
+
+    // A reload: the panel's own state is gone, the case's treatments remain.
+    first.unmount();
+    mount();
+    expect(dueBudget()).toBe("5 min");
+    expect(screen.queryByRole("button", { name: /Saltar paso/ })).toBeNull();
+  });
+
+  it("ignores a skip made before the case reached its current level", () => {
+    data.treatments = [skipNote(2, ago(120))];
+    mount();
+    expect(dueBudget()).toBe("2 min");
+  });
+
+  it("keeps the step when the skip cannot be saved", async () => {
+    const user = userEvent.setup({ advanceTimers: () => undefined });
+    data.addTreatmentAction.mockRejectedValue(new Error("403"));
+    const onSkip = vi.fn();
+    mount(onSkip);
+
+    await user.click(screen.getByRole("button", { name: /Saltar paso/ }));
+    await user.type(screen.getByLabelText("Por qué se salta"), "No contesta");
+    await user.click(screen.getByRole("button", { name: "Saltar" }));
+
+    await waitFor(() =>
+      expect(ShowNotification).toHaveBeenCalledWith({
+        type: "error",
+        message: es.symptoms.ladder.skipError,
+      })
+    );
+    expect(onSkip).not.toHaveBeenCalled();
+    expect(dueBudget()).toBe("2 min");
   });
 });
 

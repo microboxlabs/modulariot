@@ -52,7 +52,14 @@ Action body:
 | `message` | string | What the operator told the contact |
 | `note` | string | What came back, or the operator's note |
 | `tags` | string[] | Option ids from `call_tags` |
-| `details` | object | Anything else. On an engine case's `IGNORE`: `scope` and `until_trip_end` (below) |
+| `details` | object | Anything else. On an engine case's `IGNORE`: `scope` and `until_trip_end` (below). On a `NOTE`: `skipToStep` (below) |
+
+A `NOTE` with `details.skipToStep` records that the operator skipped the
+level's call script to that step (1-based, at least 2). It needs an engine
+case and the reason in `note`. `performedBy` and `performedAt` say who and
+when. The call panel reads the furthest skip made since the case's
+`sla_since` from `listSymptomTreatments`, so a new level or the end of a hold
+starts the script over. The app also sends `level` and `version`.
 
 ### Ignorar condición (engine cases)
 
@@ -292,6 +299,7 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 | Panel opens on a form | `openTreatment` with the form's type |
 | Contact list | `listContacts`, plus the driver from the trip |
 | Add contact | `createContact` |
+| "Saltar paso" | `openTreatment {type: CALL}` then `addTreatmentAction {kind: NOTE, note, details.skipToStep}`; the treatment stays open |
 | "Guardar y hacer otra llamada" | `addTreatmentAction {kind: CALL}` |
 | "Finalizar tratamiento" | `addTreatmentAction {kind: CALL}` then `closeTreatment` |
 | Ignore, from the menu or mid-call | `addTreatmentAction {kind: IGNORE, outcomeKey, durationSeconds, details.scope}`; the treatment stays open while the hold lasts |

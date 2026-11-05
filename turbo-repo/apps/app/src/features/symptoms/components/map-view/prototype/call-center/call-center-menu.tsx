@@ -56,9 +56,11 @@ import {
   callPlan,
   contextOfTreatment,
   matchesTarget,
+  skippedInCase,
   stepAt,
   stepConditions,
 } from "./call-plan";
+import { guardedSkipStep } from "../prototype-api-guard";
 import {
   ALL_CALL_METHODS,
   CALL_METHOD_LABEL_KEYS,
@@ -397,7 +399,7 @@ function StepGroup({
   dict: I18nRecord;
   d: I18nRecord;
   onCall: OnCall;
-  onSkip: () => void;
+  onSkip: (reason: string) => void;
   onNewNumber: (draft: NewCallDraft) => void;
   onUseTripPhone: OnUseTripPhone;
 }>) {
@@ -530,7 +532,7 @@ function StepGroup({
             onClick={() => {
               setSkipping(false);
               setReason("");
-              onSkip();
+              onSkip(reason.trim());
             }}
           >
             {tr("skipConfirm", d)}
@@ -705,7 +707,8 @@ export default function CallCenterMenu({
 }: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
-  /** The step the operator skipped to, if any. */
+  /** The step the operator skipped to in this panel, if any. Skips saved on
+   *  the case's treatments count too, so a reload keeps them. */
   skippedTo: number | null;
   onSkip: (step: number) => void;
   onCall: OnCall;
@@ -729,7 +732,8 @@ export default function CallCenterMenu({
   const levelFailed = Boolean(levelError && levelError.status !== 404);
   // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
   const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
-  const { data: treatments } = useSymptomTreatments(caseId);
+  const { data: treatments, mutate: refreshTreatments } =
+    useSymptomTreatments(caseId);
   const { data: caseContext } = useCaseContext(caseId);
   const scriptContext = useMemo(
     () => caseContext ?? contextOfTreatment(treatmentData),
@@ -769,9 +773,20 @@ export default function CallCenterMenu({
     () => callPlan(steps, targets, called, matches),
     [steps, targets, called, matches]
   );
+  const savedSkip = useMemo(
+    () => skippedInCase(treatments, since),
+    [treatments, since]
+  );
   const due =
     steps.length > 0
-      ? Math.max(elapsed === null ? 0 : stepAt(steps, elapsed), skippedTo ?? 0)
+      ? Math.min(
+          steps.length - 1,
+          Math.max(
+            elapsed === null ? 0 : stepAt(steps, elapsed),
+            skippedTo ?? 0,
+            savedSkip ?? 0
+          )
+        )
       : -1;
   const stepEnd = steps
     .slice(0, due + 1)
@@ -806,6 +821,28 @@ export default function CallCenterMenu({
       }
     }
     selectTarget(newTarget(null, personName, number), script);
+  };
+
+  // Saved before the panel moves on, so the skip is still there after a reload.
+  const handleSkip = async (reason: string) => {
+    const toStep = due + 1;
+    try {
+      if (caseId != null) {
+        await guardedSkipStep({
+          symptomId: caseId,
+          assetId: treatmentData?.trip_info?.asset_id,
+          tripId: treatmentData?.trip_info?.trip_id,
+          toStep,
+          reason,
+          level: symptom?.icu_code,
+          version: level?.version,
+        });
+        void refreshTreatments();
+      }
+      onSkip(toStep);
+    } catch {
+      ShowNotification({ type: "error", message: tr("skipError", d) });
+    }
   };
 
   // Saves the trip's phone on the driver's book contact, then calls that contact.
@@ -924,7 +961,7 @@ export default function CallCenterMenu({
                 dict={dict}
                 d={d}
                 onCall={selectTarget}
-                onSkip={() => onSkip(due + 1)}
+                onSkip={(reason) => void handleSkip(reason)}
               />
             ))}
             <OtherContacts

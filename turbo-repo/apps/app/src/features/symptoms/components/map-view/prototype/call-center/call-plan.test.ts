@@ -7,6 +7,7 @@ import type {
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
 import {
   calledInCase,
+  skippedInCase,
   contextOfTreatment,
   callPlan,
   fillScript,
@@ -218,5 +219,49 @@ describe("stepAt", () => {
     expect(stepAt(steps, 59)).toBe(0);
     expect(stepAt(steps, 60)).toBe(1);
     expect(stepAt(steps, 999)).toBe(1);
+  });
+});
+
+describe("skippedInCase", () => {
+  const note = (details: Record<string, unknown>, performedAt: string) =>
+    ({
+      kind: "NOTE",
+      details,
+      performedAt,
+    }) as unknown as TowerAction;
+  const episode = (...actions: TowerAction[]) =>
+    ({ actions }) as unknown as TowerTreatment;
+  const since = Date.parse("2026-11-05T12:00:00Z");
+
+  it("returns the furthest step skipped since the SLA start, 0-based", () => {
+    const treatments = [
+      episode(note({ skipToStep: 2 }, "2026-11-05T12:01:00Z")),
+      episode(note({ skipToStep: 3 }, "2026-11-05T12:02:00Z")),
+    ];
+    expect(skippedInCase(treatments, since)).toBe(2);
+  });
+
+  it("ignores skips from before the SLA start, plain notes and calls", () => {
+    const treatments = [
+      episode(
+        note({ skipToStep: 3 }, "2026-11-05T11:59:00Z"),
+        note({}, "2026-11-05T12:01:00Z"),
+        note({ skipToStep: "2" }, "2026-11-05T12:01:00Z"),
+        {
+          kind: "CALL",
+          details: { skipToStep: 2 },
+          performedAt: "2026-11-05T12:01:00Z",
+        } as unknown as TowerAction
+      ),
+    ];
+    expect(skippedInCase(treatments, since)).toBeNull();
+    expect(skippedInCase(undefined, since)).toBeNull();
+  });
+
+  it("counts every skip when the SLA start is unknown", () => {
+    const treatments = [
+      episode(note({ skipToStep: 2 }, "2026-11-05T11:00:00Z")),
+    ];
+    expect(skippedInCase(treatments, null)).toBe(1);
   });
 });

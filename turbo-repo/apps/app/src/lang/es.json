@@ -7792,6 +7792,7 @@
       "skip": "Saltar paso",
       "skipReason": "Por qué se salta",
       "skipConfirm": "Saltar",
+      "skipError": "No se pudo guardar el salto de paso. Inténtalo de nuevo.",
       "channelCall": "Llamada",
       "channelWhatsapp": "WhatsApp",
       "channelTeams": "Teams",

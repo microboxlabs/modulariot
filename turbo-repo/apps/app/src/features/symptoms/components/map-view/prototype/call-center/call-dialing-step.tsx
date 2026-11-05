@@ -18,6 +18,10 @@
  * "teams" opens Microsoft Teams whenever the organization has a tested Teams
  * Phone connection, whatever its main line. Without one nothing opens, so the
  * step shows "Sin conexión Teams Phone" instead of a timer.
+ *
+ * The call itself lives in the call session (`call-session.tsx`), not here:
+ * this step can unmount (panel closed, other page) and the call goes on,
+ * shown in the call bar. Remounted, it shows the same call again.
  */
 
 import WhatsAppCallPermission from "./whatsapp-call-permission";
@@ -46,13 +50,7 @@ import {
 import type { FilledPart } from "@/features/symptoms/maintainer/script-fill";
 import ScriptText from "@/features/symptoms/maintainer/script-text";
 import ContactRow from "./contact-row";
-import {
-  pendingTeamsCall,
-  startTelnyxCall,
-  type CallPhase,
-  type LiveCall,
-  type TelephonyCallResult,
-} from "./telnyx-call";
+import { startTelnyxCall, type TelephonyCallResult } from "./telnyx-call";
 import {
   CHANNELS_BUSY,
   QUOTA_EXHAUSTED,
@@ -60,17 +58,13 @@ import {
   reportCallEnded,
   type TelephonyLine,
 } from "@/features/symptoms/control-tower/telephony-api";
-import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
-
-function formatDuration(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const s = Math.floor(totalSeconds % 60)
-    .toString()
-    .padStart(2, "0");
-  return `${m}:${s}`;
-}
+import {
+  callSeconds,
+  useCallSession,
+  useNow,
+  type CallContext,
+} from "./call-session";
+import { OtherCallNotice, formatDuration } from "./call-bar";
 
 function CallTimer({
   notice,
@@ -124,6 +118,8 @@ export default function CallDialingStep({
   endCall = reportCallEnded,
   caseRef = null,
   openTeams = openTeamsCall,
+  sessionKey,
+  callContext,
 }: Readonly<{
   dict: I18nRecord;
   /** The contact's call counts from the book; absent for the driver or a new number. */
@@ -168,52 +164,59 @@ export default function CallDialingStep({
   /** The case the call is about, for the usage ledger. */
   caseRef?: string | null;
   openTeams?: (links: { app: string; web: string }) => void;
+  /** Identifies this step's call in the call session; defaults to the case and contact. */
+  sessionKey?: string;
+  /** What the call bar shows and the case panel restores from. */
+  callContext?: Partial<CallContext>;
 }>) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
   const { lang } = useParams<{ lang: string }>();
+  const session = useCallSession();
   const methods = ALL_CALL_METHODS.filter((m) => allowedMethods.includes(m));
-  const [started, setStarted] = useState(false);
-  const [method, setMethod] = useState<CallMethod>("phone");
+  const key = sessionKey ?? `${caseRef ?? ""}:${contactId ?? contactName}`;
+  // The session's call is this step's when it was started for this contact
+  // and case; any other call that is not over blocks starting a new one.
+  const own = session.call?.key === key ? session.call : null;
+  const other = !own && session.busy ? session.call : null;
+  const started = own?.status === "live";
+  const dropped = own?.status === "dropped" ? own : null;
+  const method: CallMethod = own?.method ?? "phone";
+  const browserAttempt = started && own?.kind === "telnyx";
+  const dialReady = own?.dialReady ?? false;
+  const phase = browserAttempt ? (own?.phase ?? null) : null;
+  const failure = own?.status === "failed" ? own.error : null;
+  const refusal = failure?.refusal ?? null;
+  const teamsNotice = started && own?.notice ? t(own.notice) : null;
+  const now = useNow(started);
+  const shownSeconds = own ? callSeconds(own, now) : 0;
   const [showCancel, setShowCancel] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const startRef = useRef(0);
-  // A browser call through Telnyx: its phase, when it was answered, and the
-  // handle to hang it up. Null for a call timed by hand.
-  const [phase, setPhase] = useState<CallPhase | null>(null);
-  const [answeredAt, setAnsweredAt] = useState<number | null>(null);
-  const [dialError, setDialError] = useState<string | null>(null);
-  // Why the managed line refused the call; the operator can still use the phone.
-  const [refusal, setRefusal] = useState<string | null>(null);
-  const [browserAttempt, setBrowserAttempt] = useState(false);
-  const [dialReady, setDialReady] = useState(false);
-  const liveRef = useRef<LiveCall | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const releaseRef = useRef<(() => void) | null>(null);
-  const cancelledRef = useRef(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const onConfirmRef = useRef(onConfirm);
   onConfirmRef.current = onConfirm;
+  const onStartedChangeRef = useRef(onStartedChange);
+  onStartedChangeRef.current = onStartedChange;
 
+  // An ended call (here or from the call bar, on any page) moves on to the results form.
+  const confirmedRef = useRef<string | null>(null);
+  const ownId = own?.id;
+  const ownStatus = own?.status;
   useEffect(() => {
-    if (!started) return;
-    startRef.current = Date.now();
-    const id = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
-    }, 250);
-    return () => clearInterval(id);
+    if (own?.status !== "ended" || !own.result) return;
+    if (confirmedRef.current === own.id) return;
+    confirmedRef.current = own.id;
+    const r = own.result;
+    if (r.telephony)
+      onConfirmRef.current(r.durationSeconds, r.method, r.telephony);
+    else onConfirmRef.current(r.durationSeconds, r.method);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownId, ownStatus]);
+
+  const reportedStarted = useRef(false);
+  useEffect(() => {
+    if (reportedStarted.current === started) return;
+    reportedStarted.current = started;
+    onStartedChangeRef.current?.(started);
   }, [started]);
-
-  // Leaving the step ends a call still on the line.
-  useEffect(() => {
-    cancelledRef.current = false;
-    return () => {
-      cancelledRef.current = true;
-      abortRef.current?.abort();
-      releaseRef.current?.();
-      liveRef.current?.hangup();
-    };
-  }, []);
 
   const destination = dialNumber(channels?.phone ?? contactPhone);
   // Provider token/admission APIs require E.164. Service numbers use the
@@ -236,101 +239,65 @@ export default function CallDialingStep({
       return teamsConnection;
     return null;
   };
-  // A "teams" press with no Teams Phone line opens nothing.
-  const [teamsNotice, setTeamsNotice] = useState<string | null>(null);
-  const [teamsCall, setTeamsCall] = useState<{
-    startedAt: number;
-    connectionId: string;
-  } | null>(null);
 
-  function startManualCall(id: CallMethod) {
-    setBrowserAttempt(false);
-    setTeamsCall(null);
-    setPhase(null);
-    setAnsweredAt(null);
-    setDialError(null);
-    setRefusal(null);
-    setMethod(id);
-    setStarted(true);
-    onStartedChange?.(true);
+  const startInput = (id: CallMethod) => ({
+    key,
+    context: { ...callContext, caseId: callContext?.caseId ?? caseRef },
+    contactName,
+    contactRole,
+    method: id,
+    calleeNumber: destination,
+  });
+
+  function startManualCall(id: CallMethod, notice: string | null = null) {
+    session.startManual({ ...startInput(id), notice });
   }
 
-  async function placeTelnyxCall() {
-    cancelledRef.current = false;
-    abortRef.current = new AbortController();
-    setDialError(null);
-    setAnsweredAt(null);
-    setBrowserAttempt(true);
-    setDialReady(false);
-    setPhase("connecting");
-    let acquiredRef: string | null = null;
-    let released = false;
-    const release = (callId: string | null = null) => {
-      if (released || !acquiredRef) return;
-      released = true;
-      void endCall(acquiredRef, callId).catch(() => undefined);
-    };
-    releaseRef.current = release;
-    try {
-      const login = await token({
-        calleeNumber: destination ?? "",
-        caseRef: caseRef ?? undefined,
+  function startMethod(id: CallMethod) {
+    const viaTeams = teamsVia(id);
+    if (viaTeams) {
+      const links = teamsCallLinks(destination);
+      if (!links) return;
+      openTeams(links);
+      session.startTeams({
+        ...startInput(id),
+        connectionId: viaTeams.connectionId,
       });
-      acquiredRef = login.callRef ?? null;
-      if (cancelledRef.current) {
-        release();
-        return;
-      }
-      const callRef = acquiredRef;
-      liveRef.current = await dial({
-        token: login.token,
-        callerNumber: login.callerNumber,
-        destination: destination ?? "",
-        remoteElement: audioRef.current,
-        clientState: callRef ? btoa(callRef) : undefined,
-        signal: abortRef.current.signal,
-        onPhase: (next, at) => {
-          setPhase(next);
-          setAnsweredAt(at);
-        },
-        onEnd: (result) => {
-          liveRef.current = null;
-          release(result.callId);
-          if (!cancelledRef.current) {
-            if (!result.callId) {
-              setPhase(null);
-              setDialError(t("call_telnyx_failed"));
-              setStarted(false);
-              onStartedChange?.(false);
-              return;
-            }
-            onConfirmRef.current(result.durationSeconds, "phone", result);
-          }
-        },
-      });
-      setDialReady(true);
-      if (cancelledRef.current) liveRef.current?.hangup();
-    } catch (cause) {
-      release();
-      if (cancelledRef.current) return;
-      setPhase(null);
-      const code = cause instanceof ControlTowerError ? cause.code : undefined;
-      setRefusal(
-        code === QUOTA_EXHAUSTED || code === CHANNELS_BUSY ? code : null
-      );
-      setDialError(cause instanceof Error ? cause.message : String(cause));
-      setStarted(false);
-      onStartedChange?.(false);
+      return;
     }
+    if (viaTelnyx(id)) {
+      session.startTelnyx({
+        ...startInput(id),
+        destination: destination ?? "",
+        caseRef,
+        dial,
+        token,
+        endCall,
+      });
+      return;
+    }
+    // Opens the channel's app (dialer, WhatsApp chat with the script typed);
+    // the call is timed here either way. A "teams" press with no Teams Phone
+    // line opens nothing.
+    let notice: string | null = null;
+    if (id === "teams")
+      notice = teamsConnection
+        ? "call_teams_no_number"
+        : "call_teams_no_connection";
+    const link = channelLink(id, channels?.[id] ?? contactPhone, reason);
+    if (link?.startsWith("https://"))
+      window.open(link, "_blank", "noopener,noreferrer");
+    else if (link) window.location.href = link;
+    startManualCall(id, notice);
   }
 
-  // A Telnyx call counts from the answer; a call timed by hand from the press.
-  let shownSeconds = elapsed;
-  if (phase !== null)
-    shownSeconds =
-      answeredAt === null
-        ? 0
-        : Math.max(0, Math.floor((Date.now() - answeredAt) / 1000));
+  // Buttons to start a call: none while this call is on or cut, or another is open.
+  const idle = !started && !dropped && !other;
+
+  const cancelCall = () => {
+    session.cancel();
+    onCancel(shownSeconds);
+  };
 
   // Both the cancel button and the timer mount at scale-0/opacity-0 first,
   // then flip a frame later so the transition actually plays instead of
@@ -350,8 +317,6 @@ export default function CallDialingStep({
 
   return (
     <BentoGrid>
-      {/* The callee's voice in a browser call. */}
-      <audio ref={audioRef} autoPlay className="hidden" />
       {/* Top quarter: the same static contact row as "a quién llamar",
           instead of a bespoke header — same card, just not clickable. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-100 dark:border-transparent dark:bg-gray-800/40">
@@ -436,7 +401,7 @@ export default function CallDialingStep({
           </div>
         </div>
 
-        {dialError && (
+        {failure && (
           <div
             role="alert"
             className="mx-4 mb-2 shrink-0 text-sm text-red-600 dark:text-red-400"
@@ -445,7 +410,8 @@ export default function CallDialingStep({
             {refusal === CHANNELS_BUSY && <p>{t("call_channels_busy")}</p>}
             {!refusal && (
               <p>
-                {t("call_telnyx_failed")}: {dialError}
+                {t("call_telnyx_failed")}
+                {failure.message ? `: ${failure.message}` : ""}
               </p>
             )}
             {destination && (
@@ -476,7 +442,34 @@ export default function CallDialingStep({
             then press start" step. Once live, they're replaced by the
             confirm/cancel pair. */}
         <div className="flex w-full shrink-0 flex-row items-center justify-center gap-3 p-4 pt-0!">
-          {!started && methods.length === 0 && (
+          {dropped && (
+            <div role="alert" className="flex flex-col items-center gap-2 text-sm">
+              <p className="text-amber-700 dark:text-amber-400">
+                {t("call_dropped_on_reload")} ·{" "}
+                <span className="font-mono tabular-nums">
+                  {formatDuration(shownSeconds)}
+                </span>
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={session.confirm}
+                  className="rounded-lg bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700"
+                >
+                  {t("call_record_result")}
+                </button>
+                <button
+                  type="button"
+                  onClick={session.clear}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  {t("call_again_label")}
+                </button>
+              </div>
+            </div>
+          )}
+          {other && <OtherCallNotice dict={dict} call={other} />}
+          {idle && methods.length === 0 && (
             <div className="flex flex-col items-center gap-1 text-sm">
               <p className="text-gray-700 dark:text-gray-300">
                 {t("call_center_no_channels")}
@@ -491,7 +484,7 @@ export default function CallDialingStep({
               )}
             </div>
           )}
-          {!started &&
+          {idle &&
             methods.map((id) => {
               const Icon = CALL_METHOD_ICONS[id];
               const label = t(CALL_METHOD_LABEL_KEYS[id]);
@@ -503,51 +496,7 @@ export default function CallDialingStep({
                     (id === "teams" || (id === "phone" && !serviceNumber)) &&
                     (telephonyPending || telephonyFailed)
                   }
-                  onClick={() => {
-                    const viaTeams = teamsVia(id);
-                    if (viaTeams) {
-                      const links = teamsCallLinks(destination);
-                      if (!links) return;
-                      openTeams(links);
-                      setBrowserAttempt(false);
-                      setPhase(null);
-                      setTeamsNotice(null);
-                      setTeamsCall({
-                        startedAt: Date.now(),
-                        connectionId: viaTeams.connectionId,
-                      });
-                      setMethod(id);
-                      setStarted(true);
-                      onStartedChange?.(true);
-                      return;
-                    }
-                    if (viaTelnyx(id)) {
-                      setMethod(id);
-                      setStarted(true);
-                      onStartedChange?.(true);
-                      void placeTelnyxCall();
-                      return;
-                    }
-                    // Opens the channel's app (dialer, WhatsApp chat with the
-                    // script typed); the call is timed here either way.
-                    if (id === "teams") {
-                      const notice = teamsConnection
-                        ? "call_teams_no_number"
-                        : "call_teams_no_connection";
-                      setTeamsNotice(t(notice));
-                    } else {
-                      setTeamsNotice(null);
-                    }
-                    const link = channelLink(
-                      id,
-                      channels?.[id] ?? contactPhone,
-                      reason
-                    );
-                    if (link?.startsWith("https://"))
-                      window.open(link, "_blank", "noopener,noreferrer");
-                    else if (link) window.location.href = link;
-                    startManualCall(id);
-                  }}
+                  onClick={() => startMethod(id)}
                   title={label}
                   aria-label={label}
                   className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white shadow-sm transition-colors hover:bg-green-600"
@@ -561,22 +510,7 @@ export default function CallDialingStep({
             <>
               <button
                 type="button"
-                onClick={() => {
-                  // Hanging up a browser call reports its end through onEnd.
-                  if (liveRef.current) liveRef.current.hangup();
-                  else if (teamsCall !== null)
-                    onConfirm(
-                      elapsed,
-                      method,
-                      pendingTeamsCall(
-                        destination ?? "",
-                        teamsCall.startedAt,
-                        Date.now(),
-                        teamsCall.connectionId
-                      )
-                    );
-                  else if (!browserAttempt) onConfirm(elapsed, method);
-                }}
+                onClick={session.confirm}
                 disabled={browserAttempt && !dialReady}
                 title={t("call_modal_confirm")}
                 aria-label={t("call_modal_confirm")}
@@ -586,13 +520,7 @@ export default function CallDialingStep({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  cancelledRef.current = true;
-                  abortRef.current?.abort();
-                  releaseRef.current?.();
-                  liveRef.current?.hangup();
-                  onCancel(elapsed);
-                }}
+                onClick={cancelCall}
                 title={t("call_modal_cancel")}
                 aria-label={t("call_modal_cancel")}
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-700 shadow-sm transition-all duration-300 dark:bg-gray-700 dark:text-gray-200 ${

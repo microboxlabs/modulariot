@@ -27,6 +27,7 @@ import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import { lugaresLayout } from "../lugares-layout";
 import { caseSpans as spansOf } from "@/features/symptoms/model/level-reason";
+import { useOptionalCallSession } from "./call-center/call-session";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -148,6 +149,22 @@ export default function PrototypeGeneralMap({
   // to fill in — then widens to 1/2 for the final treatment form. `null`
   // (debug mode off) means the plain form with no steps in front of it, so
   // it's treated the same as reaching "form". Every other menu keeps 62/38.
+  // The call bar asks to see its call: open this case's call panel when the call is this case's.
+  const callSession = useOptionalCallSession();
+  const focusTick = callSession?.focusTick ?? 0;
+  const callCaseId = callSession?.call?.context.caseId ?? null;
+  const thisCaseId =
+    treatmentData?.symptom_info?.id == null
+      ? null
+      : String(treatmentData.symptom_info.id);
+  useEffect(() => {
+    if (focusTick === 0 || pastFormsEnabled) return;
+    if (callCaseId === null || callCaseId !== thisCaseId) return;
+    setSelectedOption("call_driver");
+    setIsFormOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTick]);
+
   const isCallDriver = selectedOption === "call_driver";
   const isCallFormStep = callFlowStep === "form" || callFlowStep === null;
   // Past forms open as a fixed modal, so the side panel stays at its

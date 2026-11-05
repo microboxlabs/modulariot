@@ -1,12 +1,18 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import PrototypeCallCenterFlow, {
   type CallSnapshot,
 } from "./prototype-call-center-flow";
 import type { CallScript } from "./call-center-menu";
 import type { CallTarget } from "./call-targets";
+import { CallSessionProvider } from "./call-session";
+import type { ReactElement } from "react";
+
+const render = (ui: ReactElement) =>
+  rtlRender(ui, { wrapper: CallSessionProvider });
+beforeEach(() => sessionStorage.clear());
 
 const target = vi.hoisted<CallTarget>(() => ({
   id: "contact-test",
@@ -74,6 +80,7 @@ vi.mock("../prototype-call-driver", () => ({
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   contactsKey: "contacts",
   treatmentsKey: () => "treatments",
+  ControlTowerError: class extends Error {},
 }));
 vi.mock("swr", () => ({ mutate: vi.fn() }));
 const telephony = vi.hoisted(() => ({
@@ -92,6 +99,10 @@ const telephony = vi.hoisted(() => ({
 }));
 vi.mock("@/features/symptoms/control-tower/telephony-api", () => ({
   useTelephony: () => telephony,
+  fetchWebRtcToken: vi.fn(),
+  reportCallEnded: vi.fn().mockResolvedValue(undefined),
+  QUOTA_EXHAUSTED: "telephony_quota_exhausted",
+  CHANNELS_BUSY: "telephony_channels_busy",
 }));
 
 const request: TreatmentsRequest = {

@@ -6,6 +6,7 @@
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import type {
   ScriptContext,
+  TowerAction,
   TowerTreatment,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import {
@@ -43,7 +44,8 @@ export interface CallPlan {
  */
 export function skippedInCase(
   treatments: readonly TowerTreatment[] | undefined,
-  since: number | null
+  since: number | null,
+  level?: number
 ): number | null {
   let furthest: number | null = null;
   for (const t of treatments ?? []) {
@@ -52,11 +54,30 @@ export function skippedInCase(
         action.kind === "NOTE" ? action.details?.[SKIP_TO_STEP] : null;
       if (typeof step !== "number" || !Number.isInteger(step) || step < 2)
         continue;
-      if (since !== null && Date.parse(action.performedAt) < since) continue;
+      if (!skipMatchesCase(action, since, level)) continue;
       furthest = Math.max(furthest ?? 0, step - 1);
     }
   }
   return furthest;
+}
+
+/** A delayed save from an old panel must not advance a new level or resumed hold. */
+function skipMatchesCase(
+  action: TowerAction,
+  since: number | null,
+  level?: number
+): boolean {
+  if (
+    level !== undefined &&
+    action.details?.level !== undefined &&
+    action.details.level !== level
+  )
+    return false;
+  if (since === null) return true;
+  const panelSince = action.details?.slaSince;
+  if (typeof panelSince === "string" && Date.parse(panelSince) !== since)
+    return false;
+  return Date.parse(action.performedAt) >= since;
 }
 
 /**

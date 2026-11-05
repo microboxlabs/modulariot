@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.store;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -554,19 +555,25 @@ class PgTreatmentStoresTest {
                 treatments), new AuditService(audit));
         String id = service.open(tenant, ACTOR, -7L, new OpenTreatmentRequest(TreatmentType.CALL, null, null, null))
                 .treatment().id();
-        service.addAction(tenant, ACTOR, id, new AddActionRequest(ActionKind.NOTE, null, null, null, null, null,
+        Map<String, Object> details = Map.of(TreatmentService.SKIP_TO_STEP, 2, "level", 3, "version", "4",
+                "skipId", UUID.randomUUID().toString());
+        var request = new AddActionRequest(ActionKind.NOTE, null, null, null, null, null,
                 null, null, null, null, null, "No contesta", List.of(),
-                Map.of(TreatmentService.SKIP_TO_STEP, 2, "level", 3, "version", 4)));
+                details);
+        service.addAction(tenant, ACTOR, id, request);
 
         TreatmentService restarted = new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts,
                 treatments), new AuditService(audit));
         TreatmentAction skip = restarted.listForSymptom(tenant, -7L).get(0).actions().get(0);
+        assertEquals(skip, restarted.addAction(tenant, ACTOR, id, request), "a lost response can be retried");
+        assertEquals(1, restarted.get(tenant, id).actions().size());
+        assertEquals(2, audit.list(tenant, "treatment", id, null, null, 10).size());
 
         assertEquals(ActionKind.NOTE, skip.kind());
-        assertEquals(Map.of(TreatmentService.SKIP_TO_STEP, 2, "level", 3, "version", 4), skip.details());
+        assertEquals(details, skip.details());
         assertEquals("No contesta", skip.note());
         assertEquals(ACTOR, skip.performedBy());
-        assertTrue(skip.performedAt() != null);
+        assertNotNull(skip.performedAt());
         assertEquals(2, audit.list(tenant, "treatment", id, null, null, 1).get(0).details()
                 .get(TreatmentService.SKIP_TO_STEP));
     }

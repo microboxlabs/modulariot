@@ -399,7 +399,7 @@ function StepGroup({
   dict: I18nRecord;
   d: I18nRecord;
   onCall: OnCall;
-  onSkip: (reason: string) => void;
+  onSkip: (reason: string) => Promise<boolean>;
   onNewNumber: (draft: NewCallDraft) => void;
   onUseTripPhone: OnUseTripPhone;
 }>) {
@@ -412,6 +412,19 @@ function StepGroup({
   const isDue = index === due;
   const [skipping, setSkipping] = useState(false);
   const [reason, setReason] = useState("");
+  const [savingSkip, setSavingSkip] = useState(false);
+  const confirmSkip = async () => {
+    if (savingSkip) return;
+    setSavingSkip(true);
+    try {
+      if (await onSkip(reason.trim())) {
+        setSkipping(false);
+        setReason("");
+      }
+    } finally {
+      setSavingSkip(false);
+    }
+  };
   let tone = "bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300";
   if (isDue)
     tone =
@@ -523,17 +536,14 @@ function StepGroup({
             className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             placeholder={tr("skipReason", d)}
             value={reason}
+            disabled={savingSkip}
             onChange={(e) => setReason(e.target.value)}
           />
           <button
             type="button"
-            disabled={!reason.trim()}
+            disabled={savingSkip || !reason.trim()}
             className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white disabled:opacity-50"
-            onClick={() => {
-              setSkipping(false);
-              setReason("");
-              onSkip(reason.trim());
-            }}
+            onClick={() => void confirmSkip()}
           >
             {tr("skipConfirm", d)}
           </button>
@@ -744,6 +754,19 @@ export default function CallCenterMenu({
   const parsedSince = Date.parse(symptom?.sla_since ?? "");
   const since = Number.isFinite(parsedSince) ? parsedSince : null;
   const elapsed = useElapsed(since);
+  const skipScope = `${symptom?.id}:${symptom?.icu_code}:${since}:${level?.version}`;
+  const skipRequest = useRef<{
+    scope: string;
+    toStep: number;
+    id: string;
+  } | null>(null);
+  const currentSkipScope = useRef(skipScope);
+  useEffect(() => {
+    currentSkipScope.current = skipScope;
+    return () => {
+      currentSkipScope.current = "";
+    };
+  }, [skipScope]);
   const [addDraft, setAddDraft] = useState<NewCallDraft | null>(null);
   const callVersion = useRef(0);
   useEffect(
@@ -774,8 +797,8 @@ export default function CallCenterMenu({
     [steps, targets, called, matches]
   );
   const savedSkip = useMemo(
-    () => skippedInCase(treatments, since),
-    [treatments, since]
+    () => skippedInCase(treatments, since, symptom?.icu_code),
+    [treatments, since, symptom?.icu_code]
   );
   const due =
     steps.length > 0
@@ -826,6 +849,16 @@ export default function CallCenterMenu({
   // Saved before the panel moves on, so the skip is still there after a reload.
   const handleSkip = async (reason: string) => {
     const toStep = due + 1;
+    if (
+      skipRequest.current?.scope !== skipScope ||
+      skipRequest.current.toStep !== toStep
+    ) {
+      skipRequest.current = {
+        scope: skipScope,
+        toStep,
+        id: crypto.randomUUID(),
+      };
+    }
     try {
       if (caseId != null) {
         await guardedSkipStep({
@@ -836,12 +869,16 @@ export default function CallCenterMenu({
           reason,
           level: symptom?.icu_code,
           version: level?.version,
+          skipId: skipRequest.current.id,
+          slaSince: symptom?.sla_since ?? undefined,
         });
-        void refreshTreatments();
+        void Promise.resolve(refreshTreatments()).catch(() => undefined);
       }
-      onSkip(toStep);
+      if (currentSkipScope.current === skipScope) onSkip(toStep);
+      return true;
     } catch {
       ShowNotification({ type: "error", message: tr("skipError", d) });
+      return false;
     }
   };
 
@@ -942,7 +979,7 @@ export default function CallCenterMenu({
           >
             {plan.groups.map((group) => (
               <StepGroup
-                key={`step-${group.index}`}
+                key={`${skipScope}:step-${group.index}`}
                 group={group}
                 trip={tripView}
                 onNewNumber={setAddDraft}
@@ -961,7 +998,7 @@ export default function CallCenterMenu({
                 dict={dict}
                 d={d}
                 onCall={selectTarget}
-                onSkip={(reason) => void handleSkip(reason)}
+                onSkip={handleSkip}
               />
             ))}
             <OtherContacts

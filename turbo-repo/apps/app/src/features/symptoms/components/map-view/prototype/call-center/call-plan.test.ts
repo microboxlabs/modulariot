@@ -264,4 +264,43 @@ describe("skippedInCase", () => {
     ];
     expect(skippedInCase(treatments, null)).toBe(1);
   });
+
+  it("ignores a stale panel's skip saved after the current level or hold began", () => {
+    const performedAt = "2026-11-05T12:01:00Z";
+    expect(
+      skippedInCase(
+        [episode(note({ skipToStep: 3, level: 2 }, performedAt))],
+        since,
+        3
+      )
+    ).toBeNull();
+    expect(
+      skippedInCase(
+        [
+          episode(
+            note(
+              { skipToStep: 3, level: 3, slaSince: "2026-11-05T11:00:00Z" },
+              performedAt
+            )
+          ),
+        ],
+        since,
+        3
+      )
+    ).toBeNull();
+    expect(
+      skippedInCase(
+        [
+          episode(
+            note(
+              { skipToStep: 2, level: 3, slaSince: "2026-11-05T12:00:00Z" },
+              performedAt
+            )
+          ),
+        ],
+        since,
+        3
+      )
+    ).toBe(1);
+  });
 });

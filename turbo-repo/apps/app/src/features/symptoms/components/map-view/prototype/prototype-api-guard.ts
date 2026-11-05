@@ -165,6 +165,10 @@ export interface StepSkip {
   reason: string;
   level?: number;
   version?: string;
+  /** Reuse for retries of the same skip, including a lost server response. */
+  skipId: string;
+  /** The SLA interval in which the panel was shown; holds restart it too. */
+  slaSince?: string;
 }
 
 /**
@@ -186,6 +190,8 @@ export async function guardedSkipStep(skip: StepSkip): Promise<void> {
       [SKIP_TO_STEP]: skip.toStep + 1,
       level: skip.level,
       version: skip.version,
+      skipId: skip.skipId,
+      slaSince: skip.slaSince,
     },
   });
 }

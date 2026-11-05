@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -132,7 +133,7 @@ class TreatmentServiceTest {
         assertEquals(2, skip.details().get(TreatmentService.SKIP_TO_STEP));
         assertEquals("No contesta", skip.note());
         assertEquals(ACTOR, skip.performedBy());
-        assertTrue(skip.performedAt() != null);
+        assertNotNull(skip.performedAt());
         var listed = service.listForSymptom(TENANT, -42L).get(0);
         assertEquals(TreatmentStatus.OPEN, listed.status());
         assertEquals(List.of(skip.id()), listed.actions().stream().map(a -> a.id()).toList());
@@ -147,13 +148,34 @@ class TreatmentServiceTest {
         String engine = service.open(TENANT, ACTOR, -42L, open(TreatmentType.CALL)).treatment().id();
         String legacy = service.open(TENANT, ACTOR, 42L, open(TreatmentType.CALL)).treatment().id();
 
-        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, engine, skip(1, "x")));
-        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, engine, skip(2, " ")));
+        var firstStep = skip(1, "x");
+        var noReason = skip(2, " ");
+        var valid = skip(2, "x");
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, engine, firstStep));
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, engine, noReason));
         AddActionRequest notANumber = new AddActionRequest(ActionKind.NOTE, null, null, null, null, null, null,
                 null, null, null, null, "x", null, Map.of(TreatmentService.SKIP_TO_STEP, "2"));
         assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, engine, notANumber));
-        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, legacy, skip(2, "x")));
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, legacy, valid));
         assertTrue(service.listForSymptom(TENANT, -42L).get(0).actions().isEmpty());
+    }
+
+    @Test
+    void retryingASkipReturnsTheSavedNoteWithoutAnotherAuditEvent() {
+        String id = service.open(TENANT, ACTOR, -42L, open(TreatmentType.CALL)).treatment().id();
+        var request = new AddActionRequest(ActionKind.NOTE, null, null, null, null, null, null, null,
+                null, null, null, "No contesta", null, Map.of(TreatmentService.SKIP_TO_STEP, 2,
+                        "level", 3, "version", "4", "skipId", "fc70f756-bf67-4203-9ccd-e1f7d3664a12"));
+        var saved = service.addAction(TENANT, ACTOR, id, request);
+        var restarted = new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments),
+                new AuditService(audit));
+
+        assertEquals(saved, restarted.addAction(TENANT, ACTOR, id, request));
+        assertEquals(1, restarted.get(TENANT, id).actions().size());
+        var events = audit.list(TENANT, "treatment", id, null, null, 10);
+        assertEquals(2, events.size(), "one open and one action audit event");
+        assertEquals("4", events.get(0).details().get("version"));
+        assertEquals(3, events.get(0).details().get("level"));
     }
 
     @Test

@@ -59,7 +59,12 @@ level's call script to that step (1-based, at least 2). It needs an engine
 case and the reason in `note`. `performedBy` and `performedAt` say who and
 when. The call panel reads the furthest skip made since the case's
 `sla_since` from `listSymptomTreatments`, so a new level or the end of a hold
-starts the script over. The app also sends `level` and `version`.
+starts the script over. The app also sends `level` and `version`, and a UUID
+`skipId` that it reuses on retries. Under the case's vehicle lock, a repeated
+`skipId` in the operator's treatment returns the saved NOTE without another
+action or audit event.
+It also sends the panel's `slaSince`: the reader excludes a skip from a
+different level or SLA interval even when a delayed save lands after the reset.
 
 ### Ignorar condición (engine cases)
 

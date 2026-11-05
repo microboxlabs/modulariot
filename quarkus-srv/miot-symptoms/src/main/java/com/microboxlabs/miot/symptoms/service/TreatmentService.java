@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -88,7 +89,7 @@ public class TreatmentService {
             throw new IllegalArgumentException("kind is required (CALL, IGNORE, INVALIDATE, NOTE)");
         }
         Treatment t = requireOpen(tenantCode, treatmentId);
-        if (req.kind() == ActionKind.IGNORE) {
+        if (req.kind() == ActionKind.IGNORE || isStepSkip(req)) {
             return holds.locked(tenantCode, t, () -> addCheckedAction(tenantCode, actor, t, req));
         }
         return addCheckedAction(tenantCode, actor, t, req);
@@ -106,8 +107,12 @@ public class TreatmentService {
                 && blankToNull(req.outcomeKey()) == null && blankToNull(req.outcomeLabel()) == null) {
             throw new IllegalArgumentException(req.kind() + " needs an outcomeKey or outcomeLabel (the reason)");
         }
-        if (req.kind() == ActionKind.NOTE && req.details() != null && req.details().containsKey(SKIP_TO_STEP)) {
+        if (isStepSkip(req)) {
             requireSkip(t, req);
+            Optional<TreatmentAction> retried = retriedSkip(tenantCode, actor, t, req);
+            if (retried.isPresent()) {
+                return retried.get();
+            }
         }
         IgnoreHolds.Checked checked = req.kind() == ActionKind.IGNORE
                 ? holds.check(tenantCode, t, req)
@@ -122,6 +127,26 @@ public class TreatmentService {
             holds.started(tenantCode, t);
         }
         return saved;
+    }
+
+    private static boolean isStepSkip(AddActionRequest req) {
+        return req.kind() == ActionKind.NOTE && req.details() != null && req.details().containsKey(SKIP_TO_STEP);
+    }
+
+    /** The case lock serializes retries, including requests served by different replicas. */
+    private Optional<TreatmentAction> retriedSkip(String tenantCode, String actor, Treatment t, AddActionRequest req) {
+        Object skipId = req.details().get("skipId");
+        if (skipId == null) {
+            return Optional.empty();
+        }
+        if (!(skipId instanceof String key)) {
+            throw new IllegalArgumentException("skipId must be a UUID");
+        }
+        UUID.fromString(key);
+        return treatments.listActions(tenantCode, List.of(t.id())).stream()
+                .filter(a -> a.kind() == ActionKind.NOTE && actor.equals(a.performedBy())
+                        && a.details() != null && key.equals(a.details().get("skipId")))
+                .findFirst();
     }
 
     /** A step skip names a later step of an engine case's call script and says why. */
@@ -196,10 +221,7 @@ public class TreatmentService {
         }
         if (saved.kind() == ActionKind.NOTE && saved.details() != null
                 && saved.details().get(SKIP_TO_STEP) != null) {
-            details.put(SKIP_TO_STEP, saved.details().get(SKIP_TO_STEP));
-            if (saved.note() != null) {
-                details.put("note", saved.note());
-            }
+            auditSkipDetails(saved, details);
         }
         if (saved.kind() == ActionKind.IGNORE) {
             if (saved.note() != null) {
@@ -213,6 +235,17 @@ public class TreatmentService {
             }
         }
         return details;
+    }
+
+    private static void auditSkipDetails(TreatmentAction saved, Map<String, Object> details) {
+        for (String key : List.of(SKIP_TO_STEP, "level", "version", "skipId", "slaSince")) {
+            if (saved.details().get(key) != null) {
+                details.put(key, saved.details().get(key));
+            }
+        }
+        if (saved.note() != null) {
+            details.put("note", saved.note());
+        }
     }
 
     public TreatmentView close(String tenantCode, String actor, String treatmentId, CloseTreatmentRequest req) {

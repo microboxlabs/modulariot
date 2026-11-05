@@ -621,6 +621,7 @@ describe("skipped steps", () => {
       { role: "Jefe de Torre", channel: "call", budgetMinutes: 5 },
     ]);
     data.openTreatment.mockResolvedValue({ id: "t-1" });
+    data.addTreatmentAction.mockResolvedValue({});
   });
   afterEach(() => vi.useRealTimers());
 
@@ -693,7 +694,13 @@ describe("skipped steps", () => {
     expect(data.addTreatmentAction).toHaveBeenCalledWith("t-1", {
       kind: "NOTE",
       note: "No contesta",
-      details: { skipToStep: 2, level: 3, version: 4 },
+      details: {
+        skipToStep: 2,
+        level: 3,
+        version: 4,
+        skipId: expect.any(String),
+        slaSince: ago(30),
+      },
     });
     expect(data.refreshTreatments).toHaveBeenCalled();
 
@@ -708,6 +715,28 @@ describe("skipped steps", () => {
     data.treatments = [skipNote(2, ago(120))];
     mount();
     expect(dueBudget()).toBe("2 min");
+  });
+
+  it("blocks another submission while the skip is being saved", async () => {
+    const user = userEvent.setup({ advanceTimers: () => undefined });
+    let finishSave = () => {};
+    data.addTreatmentAction.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSave = resolve;
+        })
+    );
+    const onSkip = vi.fn();
+    mount(onSkip);
+    await user.click(screen.getByRole("button", { name: /Saltar paso/ }));
+    await user.type(screen.getByLabelText("Por qué se salta"), "No contesta");
+    const confirm = screen.getByRole("button", { name: "Saltar" });
+    await user.click(confirm);
+    expect(confirm).toBeDisabled();
+    await user.click(confirm);
+    expect(data.addTreatmentAction).toHaveBeenCalledTimes(1);
+    await act(async () => finishSave());
+    expect(onSkip).toHaveBeenCalledOnce();
   });
 
   it("keeps the step when the skip cannot be saved", async () => {
@@ -728,6 +757,16 @@ describe("skipped steps", () => {
     );
     expect(onSkip).not.toHaveBeenCalled();
     expect(dueBudget()).toBe("2 min");
+    expect(screen.getByLabelText("Por qué se salta")).toHaveValue(
+      "No contesta"
+    );
+    const firstId = data.addTreatmentAction.mock.calls[0]?.[1].details.skipId;
+    data.addTreatmentAction.mockResolvedValueOnce({});
+    await user.click(screen.getByRole("button", { name: "Saltar" }));
+    await waitFor(() => expect(onSkip).toHaveBeenCalledWith(1));
+    expect(data.addTreatmentAction.mock.calls[1]?.[1].details.skipId).toBe(
+      firstId
+    );
   });
 });
 

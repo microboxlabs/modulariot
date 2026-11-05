@@ -12,8 +12,8 @@ describe("trip monitor helpers", () => {
         { path: "mandates[].orderRef", type: "text" },
       ])
     ).toEqual([
-      { path: "trip.status", detail: "text" },
-      { path: "mandates", detail: "list" },
+      { path: "trip.status", type: "text" },
+      { path: "mandates", type: "list" },
     ]);
   });
 

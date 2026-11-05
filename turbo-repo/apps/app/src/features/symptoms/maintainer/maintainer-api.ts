@@ -471,6 +471,24 @@ export function useDataSource(key: string | null) {
   return useSWR<DataSource>(key ? `${sources}/${key}` : null, fetcher);
 }
 
+/** The variables a rule reads besides its source, with what each one means. */
+export interface RuleVariables {
+  /** `case.*`, read by the lifecycle rules. */
+  case: SourceField[];
+  /** `measure`, `held_s` and `open_s`, read by the level rules. */
+  level: SourceField[];
+}
+
+/** The rule variables, described in `locale` (es or en). */
+export function useRuleVariables(locale: string) {
+  const { sources } = useSymptomScope();
+  return useSWR<RuleVariables>(
+    `${sources}/rule-variables?locale=${encodeURIComponent(locale)}`,
+    fetcher,
+    { shouldRetryOnError: false, revalidateOnFocus: false }
+  );
+}
+
 /** Refreshes the list and, when given, one symptom. */
 export async function refreshSymptoms(
   id?: string,

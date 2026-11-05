@@ -63,4 +63,9 @@ final class HoldSql {
         return "SELECT max(t.closed_at) AS returned_at" + covering(o) + " AND t.status = 'CLOSED' AND t.closed_at > "
                 + o + ".at";
     }
+
+    /** A closed case's SLA can restart only while that case is still open. */
+    static String returned(String o, String closedAt) {
+        return returned(o) + " AND (" + closedAt + " IS NULL OR t.closed_at <= " + closedAt + ")";
+    }
 }

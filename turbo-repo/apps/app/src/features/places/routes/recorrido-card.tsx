@@ -45,19 +45,27 @@ export type OnRecorrido = (
   foco?: LatLon
 ) => void;
 
+type OnCategoriaPunto = (
+  id: string,
+  categoria: string | undefined,
+  lista: string | null
+) => void;
+
 /** Abre/cierra la categoría del punto; muestra la elegida, si hay. */
 function BotonCategoriaPunto({
   label,
   categoria,
+  lista,
   abierta,
   onAlternar,
 }: Readonly<{
   label: string;
   categoria: string | undefined;
+  lista: string | null;
   abierta: boolean;
   onAlternar: () => void;
 }>) {
-  const nombre = useNombreCategoriaPunto(categoria);
+  const nombre = useNombreCategoriaPunto(categoria, lista);
   return (
     <button
       type="button"
@@ -131,13 +139,16 @@ function FilaPunto({
   onHover,
   onTipoPunto,
   onCategoriaPunto,
+  listaCategoria,
   dict,
   geocercas,
 }: Readonly<{
   /** Geocercas para elegir como origen o destino. */
   geocercas?: Lugar[];
   onTipoPunto: (id: string, tipo: TipoPunto) => void;
-  onCategoriaPunto?: (id: string, categoria: string | undefined) => void;
+  onCategoriaPunto?: OnCategoriaPunto;
+  /** El seleccionable de las categorías de los puntos del trayecto. */
+  listaCategoria: string | null;
   dict?: I18nRecord;
   resaltado: boolean;
   onHover: (id: string | null) => void;
@@ -198,6 +209,7 @@ function FilaPunto({
           <BotonCategoriaPunto
             label={label}
             categoria={punto.categoria}
+            lista={listaCategoria}
             abierta={abierta}
             onAlternar={() => setAbierta((x) => !x)}
           />
@@ -247,7 +259,8 @@ function FilaPunto({
             <PointCategorySelect
               label={label}
               value={punto.categoria}
-              onChange={(c) => onCategoriaPunto?.(id, c)}
+              lista={listaCategoria}
+              onChange={(c, lista) => onCategoriaPunto?.(id, c, lista)}
               dict={dict ?? {}}
             />
           </div>
@@ -292,7 +305,7 @@ export default function RecorridoCard({
   /** Parada o desvío de un punto intermedio (no cambia la ruta). */
   onTipoPunto?: (id: string, tipo: TipoPunto) => void;
   /** Categoría de un punto intermedio; sin esto no se muestra el selector. */
-  onCategoriaPunto?: (id: string, categoria: string | undefined) => void;
+  onCategoriaPunto?: OnCategoriaPunto;
   /** Diccionario completo (control de la lista de categorías). */
   dict?: I18nRecord;
   className?: string;
@@ -383,6 +396,7 @@ export default function RecorridoCard({
             onHover={onHoverPunto}
             onTipoPunto={onTipoPunto}
             onCategoriaPunto={onCategoriaPunto}
+            listaCategoria={tray.categorias_puntos_lista}
             dict={dict}
             geocercas={geocercas}
           />

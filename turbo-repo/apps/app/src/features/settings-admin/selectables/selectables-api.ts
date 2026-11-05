@@ -53,8 +53,8 @@ async function request<T>(
 
 const fetcher = <T>(url: string) => request<T>(url);
 
-export function useApiSelectables() {
-  return useSWR<Selectable[]>(selectablesKey, fetcher, {
+export function useApiSelectables(enabled = true) {
+  return useSWR<Selectable[]>(enabled ? selectablesKey : null, fetcher, {
     revalidateOnFocus: false,
   });
 }
@@ -94,6 +94,11 @@ export function optionsUrl(
   const query = params.toString();
   const suffix = query ? "?" + query : "";
   return `${BASE}/${key}/options${suffix}`;
+}
+
+/** The options of a dynamic list, outside a hook: to read several at once. */
+export function fetchSelectableOptions(key: string) {
+  return request<SelectableOption[]>(optionsUrl(key));
 }
 
 /**

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import PlaceForm from "./place-form";
+import type { EstadoCodigo } from "../hooks/use-codigo-en-uso";
 import { FORM_VACIO, type FormLugar } from "../places.types";
 
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
@@ -21,16 +22,19 @@ vi.mock("../data/geocoding", () => ({
 function Harness({
   onUbicar,
   inicial = FORM_VACIO,
+  codigoFijo = false,
+  estadoCodigo = null,
 }: {
+  estadoCodigo?: EstadoCodigo | null;
   onUbicar: () => void;
   inicial?: FormLugar;
+  codigoFijo?: boolean;
 }) {
   const [form, setForm] = useState<FormLugar>({ ...inicial });
   return (
     <PlaceForm
       form={form}
       setForm={setForm}
-      cats={[]}
       guardando={false}
       msg={null}
       token="tok"
@@ -40,11 +44,67 @@ function Harness({
       onGuardar={() => undefined}
       onBack={() => undefined}
       onClose={() => undefined}
+      codigoFijo={codigoFijo}
+      estadoCodigo={estadoCodigo}
     />
   );
 }
 
 describe("PlaceForm", () => {
+  it("does not let a saved External ID change", () => {
+    render(
+      <Harness
+        onUbicar={() => undefined}
+        codigoFijo
+        inicial={{ ...FORM_VACIO, external_id: "SCL-01" }}
+      />
+    );
+    const codigo = screen.getByLabelText("External ID");
+    expect(codigo).toHaveValue("SCL-01");
+    expect(codigo).toHaveAttribute("readonly");
+    expect(screen.getByText("No se puede cambiar")).toBeInTheDocument();
+  });
+
+  it("tells when the External ID is already in use", () => {
+    render(
+      <Harness
+        onUbicar={() => undefined}
+        estadoCodigo={{ estado: "en-uso", aviso: "En uso por «Hola»" }}
+      />
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("En uso por «Hola»");
+    expect(screen.getByLabelText("External ID").className).toContain(
+      "border-rose-500"
+    );
+    expect(screen.getByLabelText("External ID en uso")).toBeInTheDocument();
+  });
+
+  it("shows while the External ID is checked, and when it is free", () => {
+    const { rerender } = render(
+      <Harness
+        onUbicar={() => undefined}
+        estadoCodigo={{ estado: "revisando" }}
+      />
+    );
+    expect(
+      screen.getByLabelText("Revisando el External ID")
+    ).toBeInTheDocument();
+    rerender(
+      <Harness onUbicar={() => undefined} estadoCodigo={{ estado: "libre" }} />
+    );
+    expect(screen.getByLabelText("External ID disponible")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("lets a new place write its External ID", () => {
+    render(<Harness onUbicar={() => undefined} />);
+    const codigo = screen.getByLabelText("External ID");
+    expect(codigo).not.toHaveAttribute("readonly");
+    fireEvent.change(codigo, { target: { value: "SCL-02" } });
+    expect(codigo).toHaveValue("SCL-02");
+    expect(screen.queryByText("No se puede cambiar")).not.toBeInTheDocument();
+  });
+
   it("keeps the position search in the form (it comes back with a draft)", () => {
     render(
       <Harness
@@ -185,7 +245,6 @@ describe("PlaceForm", () => {
       <PlaceForm
         form={{ ...FORM_VACIO }}
         setForm={() => undefined}
-        cats={[]}
         guardando={false}
         msg={null}
         onContinuar={() => undefined}

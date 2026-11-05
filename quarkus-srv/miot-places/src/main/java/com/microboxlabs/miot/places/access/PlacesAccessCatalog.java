@@ -29,6 +29,11 @@ public class PlacesAccessCatalog implements AccessCatalog {
     /** Existing map readers retain read access without a new role assignment. */
     public static final String CONTROL_TOWER_VIEW = "controltower:view";
     public static final String GEOFENCE_WRITE = "places:geofence.write";
+    /**
+     * Saving places (geofences, inner geofences, routes) in {@code miot_places}. Declared by the control tower
+     * catalog (miot-symptoms), the same key the app's Lugares editor already checks.
+     */
+    public static final String CONTROL_TOWER_PLACES_EDIT = "controltower:places.edit";
 
     public static final String VIEWER = "PLACES_VIEWER";
     public static final String MAINTAINER = "PLACES_MAINTAINER";

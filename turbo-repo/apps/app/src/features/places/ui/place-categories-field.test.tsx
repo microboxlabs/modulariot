@@ -24,6 +24,12 @@ vi.mock("@/features/settings-admin/selectables/store", () => ({
           { value: "cliente", label: { es: "Cliente" }, color: "green" },
         ],
       },
+      {
+        key: "lista_anterior",
+        mode: "SINGLE",
+        source: { kind: "STATIC" },
+        options: [{ value: "vieja", label: { es: "Vieja" }, color: "red" }],
+      },
     ],
     hydrated: true,
   }),
@@ -79,6 +85,27 @@ describe("CampoCategorias", () => {
     estado.modo = "SINGLE";
   });
 
+  it("names what was saved from its own list, until a pick from the current one replaces it", () => {
+    const onChange = vi.fn();
+    render(
+      <CampoCategorias
+        fieldKey="place_categories"
+        label="Categorías"
+        value={["vieja"]}
+        listaGuardada="lista_anterior"
+        onChange={onChange}
+        dict={{}}
+      />
+    );
+    expect(screen.getByText("Vieja")).toBeInTheDocument();
+    expect(screen.getByTestId("dropdown")).toHaveAttribute("data-value", "");
+    fireEvent.click(screen.getByText("elegir varias"));
+    expect(onChange).toHaveBeenCalledWith(
+      ["bodega", "cliente"],
+      "place_categories"
+    );
+  });
+
   it("shows the picks of a multiple-choice list as removable badges", () => {
     estado.modo = "MULTIPLE";
     const onChange = vi.fn();
@@ -95,7 +122,7 @@ describe("CampoCategorias", () => {
     expect(elegidas).toHaveTextContent("Bodega");
     expect(elegidas).toHaveTextContent("Cliente");
     fireEvent.click(screen.getByLabelText("Quitar Bodega"));
-    expect(onChange).toHaveBeenCalledWith(["cliente"]);
+    expect(onChange).toHaveBeenCalledWith(["cliente"], "place_categories");
   });
 
   it("does not repeat a single pick under the dropdown", () => {
@@ -129,7 +156,10 @@ describe("CampoCategorias", () => {
     expect(dropdown).toHaveAttribute("data-value", "bodega");
     // a multiple-choice list sends several codes joined by comma
     fireEvent.click(screen.getByText("elegir varias"));
-    expect(onChange).toHaveBeenCalledWith(["bodega", "cliente"]);
+    expect(onChange).toHaveBeenCalledWith(
+      ["bodega", "cliente"],
+      "place_categories"
+    );
   });
 
   it("clears from inside the dropdown, with no × beside it", () => {
@@ -146,7 +176,7 @@ describe("CampoCategorias", () => {
     expect(screen.queryByLabelText("Quitar categorías")).toBeNull();
     // single-choice list: "Sin categoría"
     fireEvent.click(screen.getByRole("button", { name: "Sin categoría" }));
-    expect(onChange).toHaveBeenCalledWith([]);
+    expect(onChange).toHaveBeenCalledWith([], null);
   });
 
   it("names the clear option for a multiple-choice list", () => {

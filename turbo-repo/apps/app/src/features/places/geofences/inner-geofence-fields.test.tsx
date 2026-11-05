@@ -7,6 +7,7 @@ import { FORM_VACIO, type FormLugar } from "../places.types";
 const formBase: FormLugar = {
   ...FORM_VACIO,
   name: "Planta Quilicura",
+  external_id: "SCL",
   lat: -33.4,
   lon: -70.6,
   inners: [
@@ -45,7 +46,6 @@ function Harness() {
     <PlaceForm
       form={form}
       setForm={setForm}
-      cats={[]}
       guardando={false}
       msg={null}
       paso="interiores"
@@ -66,7 +66,6 @@ describe("PlaceForm inner step", () => {
       <PlaceForm
         form={formBase}
         setForm={() => undefined}
-        cats={[]}
         guardando={false}
         msg={null}
         paso="interiores"
@@ -126,6 +125,18 @@ describe("PlaceForm inner step", () => {
       screen.getByLabelText("Quitar geocerca interior")
     ).toBeInTheDocument();
     expect(screen.getByTitle("Color de la geocerca")).toBeInTheDocument();
+  });
+
+  it("proposes the geofence's External ID with a number, and lets you change it", () => {
+    render(<Harness />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Agregar Geocerca Interior" })
+    );
+    const codigo = screen.getByLabelText("External ID de la geocerca interior");
+    expect(codigo).toHaveValue("SCL-1");
+    expect(codigo).not.toHaveAttribute("readonly");
+    fireEvent.change(codigo, { target: { value: "SCL-ANDEN" } });
+    expect(codigo).toHaveValue("SCL-ANDEN");
   });
 
   it("lets you define an inner square from the icon selector", () => {

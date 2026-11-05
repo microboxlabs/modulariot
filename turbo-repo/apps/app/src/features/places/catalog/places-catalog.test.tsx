@@ -37,7 +37,6 @@ function importWs(
   return {
     imp: {
       lotes,
-      catDef: "",
       resultado: null,
       decisiones: over.decisiones ?? {},
       seleccion: over.seleccion ?? [],
@@ -53,7 +52,6 @@ function importWs(
     hoverFilaImport: vi.fn(),
     hoverConflictoImport: vi.fn(),
     setImp: vi.fn(),
-    cats: [],
     fileRef: { current: null },
     onArchivos: over.onArchivos ?? vi.fn(),
     confirmarImport: over.confirmarImport ?? vi.fn(),
@@ -89,7 +87,7 @@ describe("PlacesImportCard", () => {
         ws={
           {
             ...importWs(),
-            imp: { catDef: "", resultado: null },
+            imp: { resultado: null },
           } as unknown as PlacesWorkspace
         }
       />
@@ -136,7 +134,8 @@ describe("PlacesImportCard", () => {
     expect(screen.getByText("Importar otro archivo")).toBeInTheDocument();
     expect(screen.queryByText("Seleccionar archivo")).not.toBeInTheDocument();
     expect(screen.queryByText("Radio def.")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Categoría")).toBeInTheDocument();
+    // without PT4 there is no category for the whole import
+    expect(screen.queryByLabelText("Categoría")).not.toBeInTheDocument();
     const zona = document.querySelector("[data-places-import-drop]");
     expect(zona).toContainElement(screen.getByText("Planta"));
     expect(zona).toContainElement(screen.getByText("Importar otro archivo"));

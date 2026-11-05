@@ -59,6 +59,7 @@ const innerSchema = z.looseObject({
   rectVinculado: z.boolean().optional(),
   rect_w_m: finite.optional(),
   rect_h_m: finite.optional(),
+  external_id: z.string().optional(),
 });
 const pointSchema = z.looseObject({
   id: z.string(),
@@ -77,6 +78,7 @@ const placeSchema = z
     color: z.string(),
     category_id: z.string(),
     categorias: z.array(z.string()),
+    categorias_lista: z.string().nullable(),
     address: z.string(),
     external_id: z.string(),
     radius_m: finite,
@@ -113,6 +115,8 @@ const routeSchema = z
     vias: z.array(z.string()),
     recorrido: points,
     categorias: z.array(z.string()),
+    categorias_lista: z.string().nullable(),
+    categorias_puntos_lista: z.string().nullable(),
     confirmado: z.boolean(),
     pasado: z.array(points),
     futuro: z.array(points),

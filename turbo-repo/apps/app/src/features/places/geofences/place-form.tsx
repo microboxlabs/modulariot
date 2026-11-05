@@ -18,16 +18,20 @@ import InnerGeofenceFields from "./inner-geofence-fields";
 import PolyBaseFields, { pistaPoligono, SizeInput } from "./poly-base-fields";
 import GeomIconBar from "./geom-icon-bar";
 import {
+  AvisoCodigoEnUso,
+  AvisoCodigoFijo,
+  IconoEstadoCodigo,
+  inputConIconoCls,
   Field,
   FloatingWindow,
   FormFooter,
   inputCls,
   inputErrorCls,
+  inputFijoCls,
 } from "../ui/form-ui";
 import GeofenceColorPicker from "./geofence-color-picker";
 import {
   colorDeFormLugar,
-  type Categoria,
   type FormLugar,
   type LatLon,
   type PasoLugar,
@@ -42,13 +46,14 @@ import {
   type GeomKind,
 } from "./geofence-editor";
 import type { Sugerencia } from "../data/geocoding";
-import { faltantesPadre } from "./inner-geofences";
+import { conCodigoPadre, faltantesPadre } from "./inner-geofences";
+import { faltaExternalId } from "./place-validation";
 import VersionBadge from "../versioning/version-badge";
+import type { EstadoCodigo } from "../hooks/use-codigo-en-uso";
 
 export default function PlaceForm({
   form,
   setForm,
-  cats,
   guardando,
   msg,
   paso = "geocerca",
@@ -62,14 +67,26 @@ export default function PlaceForm({
   onUbicar,
   dict,
   version,
+  codigoFijo = false,
+  estadoCodigo = null,
+  estadosInteriores,
+  codigoFijoInterior,
 }: Readonly<{
   /** Diccionario completo (control de la lista de categorías). */
   dict?: I18nRecord;
   /** Versión vigente del lugar que se edita. */
   version?: string | null;
+  /** Ya guardado con su External ID: no se cambia (es su llave con StreamHub). */
+  codigoFijo?: boolean;
+  /** Si el External ID escrito ya está en uso. */
+  /** Si el External ID escrito está libre, en uso o se está revisando. */
+  estadoCodigo?: EstadoCodigo | null;
+  /** El estado del External ID de cada geocerca interior, por su id. */
+  estadosInteriores?: Readonly<Record<string, EstadoCodigo>>;
+  /** Interior guardada con su External ID: ese no se cambia. */
+  codigoFijoInterior?: (id: string) => boolean;
   form: FormLugar;
   setForm: Dispatch<SetStateAction<FormLugar>>;
-  cats: Categoria[];
   guardando: boolean;
   msg: string | null;
   paso?: PasoLugar;
@@ -103,6 +120,13 @@ export default function PlaceForm({
 
   const cambiarRadio = (radius_m: number) => set("radius_m", radius_m);
 
+  // las interiores con el código propuesto lo siguen
+  const cambiarCodigo = (codigo: string) =>
+    setForm((f) => conCodigoPadre(f, codigo));
+
+  const cambiarCategorias = (categorias: string[], lista: string | null) =>
+    setForm((f) => ({ ...f, categorias, categorias_lista: lista }));
+
   const cambiarBusqueda = (texto: string) =>
     setForm((f) => ({ ...f, busqueda: texto, ubicadoEn: null }));
 
@@ -123,6 +147,8 @@ export default function PlaceForm({
 
   const sinPunto = () => null;
   const faltan = intento ? faltantesPadre(form) : null;
+  const faltaCodigo = intento && faltaExternalId(form);
+  const codigoEnUso = estadoCodigo?.estado === "en-uso";
 
   const intentarContinuar = () => {
     setIntento(true);
@@ -255,7 +281,7 @@ export default function PlaceForm({
               <Field label="Nombre *">
                 <div className="flex items-center gap-1">
                   <GeofenceColorPicker
-                    color={colorDeFormLugar(form, cats)}
+                    color={colorDeFormLugar(form)}
                     onChange={setColor}
                   />
                   <IconPicker
@@ -273,22 +299,40 @@ export default function PlaceForm({
                 </div>
               </Field>
 
+              <Field
+                label="External ID *"
+                aside={codigoFijo ? <AvisoCodigoFijo /> : undefined}
+              >
+                <div className="relative">
+                  <input
+                    aria-label="External ID"
+                    className={twMerge(
+                      inputCls,
+                      inputConIconoCls,
+                      (faltaCodigo || codigoEnUso) && inputErrorCls,
+                      codigoFijo && inputFijoCls
+                    )}
+                    placeholder="Ej: SCL-01"
+                    aria-invalid={faltaCodigo || codigoEnUso}
+                    readOnly={codigoFijo}
+                    value={form.external_id}
+                    onChange={(e) => cambiarCodigo(e.target.value)}
+                  />
+                  <IconoEstadoCodigo estado={estadoCodigo} />
+                </div>
+                {estadoCodigo?.estado === "en-uso" && (
+                  <AvisoCodigoEnUso aviso={estadoCodigo.aviso} />
+                )}
+              </Field>
+
               <Field label="Categorías">
                 <CampoCategorias
                   fieldKey={CAMPO_CATEGORIAS}
                   label="Categorías"
                   value={form.categorias}
-                  onChange={(c) => set("categorias", c)}
+                  listaGuardada={form.categorias_lista}
+                  onChange={cambiarCategorias}
                   dict={dict ?? {}}
-                />
-              </Field>
-
-              <Field label="External ID">
-                <input
-                  className={inputCls}
-                  placeholder="Opcional"
-                  value={form.external_id}
-                  onChange={(e) => set("external_id", e.target.value)}
                 />
               </Field>
             </div>
@@ -323,6 +367,8 @@ export default function PlaceForm({
             form={form}
             setForm={setForm}
             mostrarErrores={intento}
+            estados={estadosInteriores}
+            codigoFijo={codigoFijoInterior}
           />
         }
       />

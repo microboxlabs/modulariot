@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import TrayectoForm from "./trayecto-form";
+import type { EstadoCodigo } from "../hooks/use-codigo-en-uso";
 
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
 import {
@@ -17,6 +18,7 @@ function setup(
     resaltadoId?: string | null;
     paso?: PasoTrayecto;
     tray?: Partial<FormTrayecto>;
+    estadoCodigo?: EstadoCodigo | null;
   } = {}
 ) {
   const { tray, ...resto } = over;
@@ -305,6 +307,52 @@ describe("TrayectoForm", () => {
       expect(p.onSave).toHaveBeenCalled();
       expect(nombre).toHaveAttribute("aria-invalid", "true");
       expect(nombre).toHaveFocus();
+    });
+  });
+
+  describe("External ID", () => {
+    it("is required and sits right below the name", () => {
+      setup(undefined, { paso: "datos" });
+      const nombre = screen.getByPlaceholderText("Ej: Acceso norte");
+      const codigo = screen.getByLabelText("External ID");
+      expect(
+        nombre.compareDocumentPosition(codigo) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(
+        codigo.compareDocumentPosition(screen.getByText("Tipo")) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(screen.getByText("External ID *")).toBeInTheDocument();
+    });
+
+    it("marks the field when saving without one", () => {
+      setup(undefined, { paso: "datos", tray: { name: "Ruta 5" } });
+      fireEvent.click(screen.getByRole("button", { name: "Guardar trayecto" }));
+      const codigo = screen.getByLabelText("External ID");
+      expect(codigo).toHaveAttribute("aria-invalid", "true");
+      expect(codigo).toHaveFocus();
+    });
+
+    it("tells when it is already in use", () => {
+      setup(undefined, {
+        paso: "datos",
+        estadoCodigo: { estado: "en-uso", aviso: "En uso por «Ruta norte»" },
+      });
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "En uso por «Ruta norte»"
+      );
+    });
+
+    it("can be edited on a saved route", () => {
+      const { setTray } = setup(undefined, {
+        paso: "datos",
+        tray: { id: "r1", name: "Ruta 5", external_id: "R-5" },
+      });
+      const codigo = screen.getByLabelText("External ID");
+      expect(codigo).not.toHaveAttribute("readonly");
+      fireEvent.change(codigo, { target: { value: "R-6" } });
+      expect(setTray).toHaveBeenCalled();
     });
   });
 });

@@ -19,7 +19,16 @@ import {
   normalizarPolyBase,
   type GeomKind,
 } from "./geofence-editor";
-import { inputCls, inputErrorCls } from "../ui/form-ui";
+import {
+  AvisoCodigoEnUso,
+  AvisoCodigoFijo,
+  Field,
+  IconoEstadoCodigo,
+  inputConIconoCls,
+  inputCls,
+  inputErrorCls,
+  inputFijoCls,
+} from "../ui/form-ui";
 import GeofenceColorPicker from "./geofence-color-picker";
 import GeomIconBar from "./geom-icon-bar";
 import PolyBaseFields, { pistaPoligono, SizeInput } from "./poly-base-fields";
@@ -29,12 +38,14 @@ import {
   colorInner,
   faltantesInner,
   hayFaltantes,
+  codigoSugerido,
   nuevoInner,
   SIN_FALTANTES,
   padreTieneGeometria,
   type FaltantesLugar,
 } from "./inner-geofences";
 import type { FormLugar, InnerGeofence } from "../places.types";
+import type { EstadoCodigo } from "../hooks/use-codigo-en-uso";
 
 function innerDetalle(inner: InnerGeofence): string {
   if (inner.geom === "polygon") {
@@ -49,14 +60,59 @@ function innerDetalle(inner: InnerGeofence): string {
   return `Círculo · ${inner.radius_m} m`;
 }
 
+/** El External ID de la interior: obligatorio, sin repetirse y fijo una vez guardado. */
+function CodigoInterior({
+  inner,
+  onChange,
+  falta,
+  estado,
+  fijo,
+}: Readonly<{
+  inner: InnerGeofence;
+  onChange: (next: InnerGeofence) => void;
+  falta: boolean;
+  estado: EstadoCodigo | null;
+  fijo: boolean;
+}>) {
+  const setCodigo = (e: ChangeEvent<HTMLInputElement>) =>
+    onChange({ ...inner, external_id: e.target.value });
+  const invalido = falta || estado?.estado === "en-uso";
+  return (
+    <Field label="External ID *" aside={fijo ? <AvisoCodigoFijo /> : undefined}>
+      <div className="relative">
+        <input
+          aria-label="External ID de la geocerca interior"
+          className={twMerge(
+            inputCls,
+            inputConIconoCls,
+            invalido && inputErrorCls,
+            fijo && inputFijoCls
+          )}
+          placeholder="Ej: SCL-01-A"
+          aria-invalid={invalido}
+          readOnly={fijo}
+          value={inner.external_id ?? ""}
+          onChange={setCodigo}
+        />
+        <IconoEstadoCodigo estado={estado} />
+      </div>
+      {estado?.estado === "en-uso" && <AvisoCodigoEnUso aviso={estado.aviso} />}
+    </Field>
+  );
+}
+
 function InnerEditor({
   inner,
   onChange,
   faltan,
+  estado,
+  codigoFijo,
 }: Readonly<{
   inner: InnerGeofence;
   onChange: (next: InnerGeofence) => void;
   faltan: FaltantesLugar;
+  estado: EstadoCodigo | null;
+  codigoFijo: boolean;
 }>) {
   const kind = geomKindDe(inner);
   const polyBase = normalizarPolyBase(inner.polyBase);
@@ -87,6 +143,13 @@ function InnerEditor({
 
   return (
     <div className="space-y-2 px-2 pb-2">
+      <CodigoInterior
+        inner={inner}
+        onChange={onChange}
+        falta={!!faltan.codigo}
+        estado={estado}
+        fijo={codigoFijo}
+      />
       <GeomIconBar compact value={kind} onChange={setKind} />
       {kind === "circle" && (
         <SizeInput
@@ -128,6 +191,8 @@ function InnerRow({
   onChange,
   onRemove,
   faltan,
+  estado,
+  codigoFijo,
 }: Readonly<{
   inner: InnerGeofence;
   selected: boolean;
@@ -135,6 +200,9 @@ function InnerRow({
   onChange: (next: InnerGeofence) => void;
   onRemove: () => void;
   faltan: FaltantesLugar;
+  /** Si su External ID está libre, en uso o se está revisando. */
+  estado: EstadoCodigo | null;
+  codigoFijo: boolean;
 }>) {
   const elegir = () => onSelect();
   const quitar = () => onRemove();
@@ -147,7 +215,7 @@ function InnerRow({
       className={twMerge(
         "border-b border-gray-100 last:border-b-0 dark:border-gray-700",
         selected && "bg-blue-50 dark:bg-blue-900/20",
-        hayFaltantes(faltan) &&
+        (hayFaltantes(faltan) || estado?.estado === "en-uso") &&
           "bg-rose-50 ring-1 ring-inset ring-rose-400 dark:bg-rose-950/30 dark:ring-rose-700"
       )}
     >
@@ -198,11 +266,20 @@ function InnerRow({
         )}
       </div>
       {selected && (
-        <InnerEditor inner={inner} onChange={onChange} faltan={faltan} />
+        <InnerEditor
+          inner={inner}
+          onChange={onChange}
+          faltan={faltan}
+          estado={estado}
+          codigoFijo={codigoFijo}
+        />
       )}
     </li>
   );
 }
+
+const SIN_ESTADOS: Readonly<Record<string, EstadoCodigo>> = {};
+const sinCodigoFijo = () => false;
 
 function pistaCirculo(ubicada: boolean): string {
   return ubicada
@@ -214,10 +291,16 @@ export default function InnerGeofenceFields({
   form,
   setForm,
   mostrarErrores = false,
+  estados = SIN_ESTADOS,
+  codigoFijo = sinCodigoFijo,
 }: Readonly<{
   form: FormLugar;
   setForm: Dispatch<SetStateAction<FormLugar>>;
   mostrarErrores?: boolean;
+  /** El estado del External ID de cada interior, por su id. */
+  estados?: Readonly<Record<string, EstadoCodigo>>;
+  /** Interior guardada con su External ID: ese no se cambia. */
+  codigoFijo?: (id: string) => boolean;
 }>) {
   const [busca, setBusca] = useState("");
   const padreListo = padreTieneGeometria(form);
@@ -231,7 +314,11 @@ export default function InnerGeofenceFields({
     setBusca("");
     setForm((f) => ({
       ...f,
-      inners: [...f.inners, inner],
+      // propuesto desde el de la geocerca: SCL → SCL-1, SCL-2, …
+      inners: [
+        ...f.inners,
+        { ...inner, external_id: codigoSugerido(f.external_id, f.inners) },
+      ],
       innerEditId: inner.id,
     }));
   };
@@ -290,6 +377,8 @@ export default function InnerGeofenceFields({
               onChange={(next) => cambiarInner(inner.id, next)}
               onRemove={() => quitarInner(inner.id)}
               faltan={mostrarErrores ? faltantesInner(inner) : SIN_FALTANTES}
+              estado={estados[inner.id] ?? null}
+              codigoFijo={codigoFijo(inner.id)}
             />
           ))
         )}

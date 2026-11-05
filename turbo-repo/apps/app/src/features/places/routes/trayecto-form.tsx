@@ -5,6 +5,9 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { twMerge } from "tailwind-merge";
 import {
+  AvisoCodigoEnUso,
+  IconoEstadoCodigo,
+  inputConIconoCls,
   Field,
   FloatingWindow,
   FormFooter,
@@ -33,7 +36,12 @@ import {
 } from "./recorrido";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import VersionBadge from "../versioning/version-badge";
-import { ANCHO_MAX, ANCHO_MIN } from "./trayecto-validation";
+import type { EstadoCodigo } from "../hooks/use-codigo-en-uso";
+import {
+  ANCHO_MAX,
+  ANCHO_MIN,
+  faltaExternalIdTrayecto,
+} from "./trayecto-validation";
 
 function noopElegirMapa() {}
 
@@ -176,6 +184,7 @@ export default function TrayectoForm({
   className,
   dict,
   version,
+  estadoCodigo = null,
   geocercas,
 }: Readonly<{
   /** Geocercas guardadas: se pueden elegir como origen o destino. */
@@ -184,6 +193,8 @@ export default function TrayectoForm({
   dict?: I18nRecord;
   /** Versión vigente del trayecto que se edita. */
   version?: string | null;
+  /** Si el External ID escrito ya está en uso. */
+  estadoCodigo?: EstadoCodigo | null;
   tray: FormTrayecto;
   setTray: Dispatch<SetStateAction<FormTrayecto>>;
   guardando: boolean;
@@ -210,6 +221,8 @@ export default function TrayectoForm({
 }>) {
   const set = <K extends keyof FormTrayecto>(key: K, value: FormTrayecto[K]) =>
     setTray((t) => ({ ...t, [key]: value }));
+  const cambiarCategorias = (categorias: string[], lista: string | null) =>
+    setTray((t) => ({ ...t, categorias, categorias_lista: lista }));
   const cambiarTipo = (kind: FormTrayecto["kind"]) =>
     onTipo ? onTipo(kind) : set("kind", kind);
   const cambiarTipoLocal = (id: string, tipo: TipoPunto) =>
@@ -217,12 +230,17 @@ export default function TrayectoForm({
 
   // guardar sin nombre en la información: el campo se marca y recibe el foco
   const nombreRef = useRef<HTMLInputElement>(null);
+  const codigoRef = useRef<HTMLInputElement>(null);
   const [intento, setIntento] = useState(false);
   const faltaNombre = intento && !tray.name.trim();
+  const faltaCodigo = intento && faltaExternalIdTrayecto(tray);
+  const codigoEnUso = estadoCodigo?.estado === "en-uso";
   const guardar = () => {
     if (paso === "datos") {
       setIntento(true);
       if (!tray.name.trim()) nombreRef.current?.focus();
+      else if (faltaExternalIdTrayecto(tray) || codigoEnUso)
+        codigoRef.current?.focus();
     }
     onSave();
   };
@@ -270,8 +288,8 @@ export default function TrayectoForm({
           resaltadoId={resaltadoId}
           onHoverPunto={onHoverPunto}
           onTipoPunto={onTipoPunto ?? cambiarTipoLocal}
-          onCategoriaPunto={(id, c) =>
-            setTray((t) => cambiarCategoriaPunto(t, id, c))
+          onCategoriaPunto={(id, c, lista) =>
+            setTray((t) => cambiarCategoriaPunto(t, id, c, lista))
           }
           dict={dict}
           geocercas={geocercas}
@@ -303,12 +321,35 @@ export default function TrayectoForm({
             </div>
           </Field>
 
+          <Field label="External ID *">
+            <div className="relative">
+              <input
+                ref={codigoRef}
+                aria-label="External ID"
+                className={twMerge(
+                  inputCls,
+                  inputConIconoCls,
+                  (faltaCodigo || codigoEnUso) && inputErrorCls
+                )}
+                aria-invalid={faltaCodigo || codigoEnUso}
+                placeholder="Ej: SCL-01"
+                value={tray.external_id}
+                onChange={(e) => set("external_id", e.target.value)}
+              />
+              <IconoEstadoCodigo estado={estadoCodigo} />
+            </div>
+            {estadoCodigo?.estado === "en-uso" && (
+              <AvisoCodigoEnUso aviso={estadoCodigo.aviso} />
+            )}
+          </Field>
+
           <Field label="Categorías">
             <CampoCategorias
               fieldKey={CAMPO_CATEGORIAS_TRAYECTO}
               label="Categorías"
               value={tray.categorias}
-              onChange={(c) => set("categorias", c)}
+              listaGuardada={tray.categorias_lista}
+              onChange={cambiarCategorias}
               dict={dict ?? {}}
             />
           </Field>
@@ -331,15 +372,6 @@ export default function TrayectoForm({
             max={ANCHO_MAX}
             onChange={(m) => set("width_m", m)}
           />
-
-          <Field label="External ID">
-            <input
-              className={inputCls}
-              placeholder="Opcional"
-              value={tray.external_id}
-              onChange={(e) => set("external_id", e.target.value)}
-            />
-          </Field>
         </div>
       )}
     </FloatingWindow>

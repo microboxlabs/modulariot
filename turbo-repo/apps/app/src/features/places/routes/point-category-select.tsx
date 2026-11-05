@@ -10,8 +10,11 @@ import CampoCategorias, {
 } from "../ui/place-categories-field";
 
 /** Nombre de la categoría elegida (o el código si ya no está en la lista). */
-export function useNombreCategoriaPunto(value: string | undefined) {
-  const { lang, opciones } = useListaCampo(CAMPO_CATEGORIA_PUNTO);
+export function useNombreCategoriaPunto(
+  value: string | undefined,
+  lista?: string | null
+) {
+  const { lang, opciones } = useListaCampo(CAMPO_CATEGORIA_PUNTO, lista);
   const codigos = value ? value.split(",").filter(Boolean) : [];
   const [primero] = codigos;
   if (!primero) return null;
@@ -29,13 +32,16 @@ export function useNombreCategoriaPunto(value: string | undefined) {
 export default function PointCategorySelect({
   label,
   value,
+  lista = null,
   onChange,
   dict,
 }: Readonly<{
   /** Rótulo del punto ("Parada 1", "Desvío 2"), para el lector de pantalla. */
   label: string;
   value: string | undefined;
-  onChange: (codigo: string | undefined) => void;
+  /** El seleccionable de las categorías de los puntos del trayecto. */
+  lista?: string | null;
+  onChange: (codigo: string | undefined, lista: string | null) => void;
   dict: I18nRecord;
 }>) {
   return (
@@ -43,7 +49,10 @@ export default function PointCategorySelect({
       fieldKey={CAMPO_CATEGORIA_PUNTO}
       label={`Categoría de ${label}`}
       value={value ? value.split(",").filter(Boolean) : []}
-      onChange={(codigos) => onChange(codigos.join(",") || undefined)}
+      listaGuardada={lista}
+      onChange={(codigos, nueva) =>
+        onChange(codigos.join(",") || undefined, nueva)
+      }
       dict={dict}
     />
   );

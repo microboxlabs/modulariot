@@ -49,10 +49,17 @@ function errorVigencia(form: FormLugar): string | null {
   return null;
 }
 
+/**
+ * El External ID es obligatorio: junto a la organización es la llave con la
+ * que la geocerca se encuentra en StreamHub (client_geofence_id).
+ */
+export const faltaExternalId = (form: FormLugar) => !form.external_id.trim();
+
 /** Primer problema que impide guardar el lugar, o null si está listo. */
 export function errorLugar(form: FormLugar): string | null {
   const incompleto = mensajePadreIncompleto(form);
   if (incompleto) return incompleto;
+  if (faltaExternalId(form)) return "Falta el External ID.";
   const forma = errorForma(form);
   if (forma) return forma;
   const vigencia = errorVigencia(form);

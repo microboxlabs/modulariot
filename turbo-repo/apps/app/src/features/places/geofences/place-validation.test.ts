@@ -11,12 +11,14 @@ const tri: LatLon[] = [
 const circulo: FormLugar = {
   ...FORM_VACIO,
   name: "Planta",
+  external_id: "SCL-01",
   lat: -33,
   lon: -70,
 };
 const poligono: FormLugar = {
   ...FORM_VACIO,
   name: "Planta",
+  external_id: "SCL-01",
   geom: "polygon",
   vertices: tri,
   cerrado: true,
@@ -31,6 +33,12 @@ describe("place validation", () => {
   it("asks for the name and the location first", () => {
     expect(errorLugar({ ...circulo, name: " " })).toBe("Falta el nombre.");
     expect(errorLugar({ ...circulo, lat: null })).toMatch(/centro/);
+  });
+
+  it("needs the External ID: it is the geofence's key in StreamHub", () => {
+    expect(errorLugar({ ...circulo, external_id: "  " })).toBe(
+      "Falta el External ID."
+    );
   });
 
   it("rejects a radius or size out of range", () => {
@@ -67,7 +75,13 @@ describe("place validation", () => {
   });
 
   it("checks the inner geofences too", () => {
-    const inner = { ...nuevoInner(), name: "Lote", lat: -33, lon: -70 };
+    const inner = {
+      ...nuevoInner(),
+      name: "Lote",
+      external_id: "LOTE-1",
+      lat: -33,
+      lon: -70,
+    };
     expect(errorLugar({ ...circulo, inners: [inner] })).toBeNull();
     expect(
       errorLugar({ ...circulo, inners: [{ ...inner, name: "" }] })

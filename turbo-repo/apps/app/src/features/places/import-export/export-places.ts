@@ -53,6 +53,7 @@ function propsTrayecto(t: Trayecto) {
     waypoints: waypoints.map(lonLat),
     tipos_puntos: t.tipos_puntos ?? waypoints.map(() => "parada"),
     categorias_puntos: t.categorias_puntos ?? waypoints.map(() => null),
+    categorias_puntos_selectable: t.categorias_puntos_lista ?? null,
   };
 }
 

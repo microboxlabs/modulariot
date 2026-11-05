@@ -9,6 +9,8 @@ import {
   type Lugar,
 } from "../places.types";
 import {
+  codigoSugerido,
+  conCodigoPadre,
   actualizarInner,
   INNER_COLOR_DEF,
   innerDesdeLugar,
@@ -247,5 +249,57 @@ describe("inner geofence persistence", () => {
       lon: 2,
     }));
     expect(next.inners[0]).toMatchObject({ lat: 1, lon: 2, name: "VIP" });
+  });
+});
+
+describe("inner geofence External ID", () => {
+  it("proposes the geofence's code with the next free number", () => {
+    expect(codigoSugerido("SCL", [])).toBe("SCL-1");
+    expect(
+      codigoSugerido("SCL", [
+        { external_id: "scl-1" },
+        { external_id: "SCL-3" },
+        { external_id: "OTRO-9" },
+        { external_id: "SCL-A" },
+      ])
+    ).toBe("SCL-4");
+  });
+
+  it("proposes nothing without the geofence's code", () => {
+    expect(codigoSugerido("  ", [{ external_id: "X-1" }])).toBe("");
+  });
+});
+
+describe("inner geofences follow their geofence's External ID", () => {
+  const form = {
+    ...FORM_VACIO,
+    external_id: "SCL",
+    inners: [
+      { id: "a", external_id: "SCL-1" },
+      { id: "b", external_id: "scl-2" },
+      { id: "c", external_id: "SCL-ANDEN" },
+      { id: "d", external_id: "OTRO-3" },
+    ],
+  } as unknown as typeof FORM_VACIO;
+
+  it("renames the proposed ones and leaves the ones written by hand", () => {
+    const next = conCodigoPadre(form, "PLT");
+    expect(next.external_id).toBe("PLT");
+    expect(next.inners.map((i) => i.external_id)).toEqual([
+      "PLT-1",
+      "PLT-2",
+      "SCL-ANDEN",
+      "OTRO-3",
+    ]);
+  });
+
+  it("empties the proposed ones when the geofence's code is cleared", () => {
+    const next = conCodigoPadre(form, "");
+    expect(next.inners.map((i) => i.external_id)).toEqual([
+      "",
+      "",
+      "SCL-ANDEN",
+      "OTRO-3",
+    ]);
   });
 });

@@ -89,8 +89,6 @@ export default function PlacesMapLayers({
   };
   const verTrayectos = !vistaGeneral && !ocultar?.trayectos;
   const {
-    carrierMode,
-    fcGlobales,
     fcPropios,
     fcTray,
     prevLugarFC,
@@ -108,34 +106,6 @@ export default function PlacesMapLayers({
 
   return (
     <>
-      {carrierMode && (
-        <Source
-          id="globales"
-          type="geojson"
-          tolerance={GEOJSON_EXACTO}
-          data={fcGlobales}
-        >
-          <Layer
-            id="glob-fill"
-            type="fill"
-            {...formas}
-            paint={{
-              "fill-color": ["get", "color"],
-              "fill-opacity": 0.12,
-            }}
-          />
-          <Layer
-            id="glob-line"
-            type="line"
-            {...formas}
-            paint={{
-              "line-color": ["get", "color"],
-              "line-width": 1,
-              "line-dasharray": [2, 2],
-            }}
-          />
-        </Source>
-      )}
       <Source
         id="propios"
         type="geojson"

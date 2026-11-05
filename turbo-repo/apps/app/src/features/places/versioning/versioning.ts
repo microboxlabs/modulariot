@@ -1,6 +1,8 @@
 // Versionado de geocercas y trayectos, con el mismo sistema que los síntomas
 // en Ajustes: versión semántica (mayor.menor.parche), cada cambio del
 // formulario trae su tamaño y la versión recomendada sale del mayor de ellos.
+// Las versiones las guarda miot-places (miot_places.place_version): cada
+// edición manda su tamaño y descripción, y el servidor pone el número.
 import type { VersionBump } from "@/features/symptoms/maintainer/maintainer-api";
 import type {
   FormLugar,
@@ -13,8 +15,10 @@ import type {
 export type { VersionBump };
 export { nextVersion } from "@/features/symptoms/maintainer/publish-dialog";
 
-/** Lo que nunca se versionó (creado antes o recién creado) está en esta. */
+/** Todo lo creado empieza en esta. */
 export const VERSION_INICIAL = "1.0.0";
+
+export type TipoVersionado = "lugar" | "trayecto";
 
 export type CambioVersion = { texto: string; bump: VersionBump };
 

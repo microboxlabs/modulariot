@@ -31,6 +31,8 @@ export default function SymptomName({
   const [value, setValue] = useState(name);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
   // Enter saves and unmounts the field; the blur that may follow must not save again.
   const closed = useRef(false);
   const label = tr("renameSymptom", d);
@@ -40,8 +42,15 @@ export default function SymptomName({
   }, [name, editing, saving]);
 
   useEffect(() => {
-    if (editing) inputRef.current?.select();
-  }, [editing]);
+    if (editing) {
+      // Editing starts only when the user activates the rename button.
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    } else if (!saving && restoreFocus.current) {
+      restoreFocus.current = false;
+      buttonRef.current?.focus();
+    }
+  }, [editing, saving]);
 
   const start = () => {
     closed.current = false;
@@ -50,13 +59,15 @@ export default function SymptomName({
 
   const cancel = () => {
     closed.current = true;
+    restoreFocus.current = true;
     setValue(name);
     setEditing(false);
   };
 
-  const commit = async () => {
+  const commit = async (fromKeyboard = false) => {
     if (closed.current) return;
     closed.current = true;
+    restoreFocus.current = fromKeyboard;
     const trimmed = value.trim();
     setEditing(false);
     if (!trimmed || trimmed === name) {
@@ -67,7 +78,8 @@ export default function SymptomName({
     setSaving(true);
     try {
       await updateIdentity(id, { name: trimmed }, scope);
-      await refreshSymptoms(id, scope);
+      // The PATCH already seeded the definition cache; a refresh failure is not a failed rename.
+      await refreshSymptoms(id, scope).catch(() => undefined);
     } catch {
       setValue(name);
       toast.error(tr("renameSymptomFailed", d));
@@ -83,14 +95,20 @@ export default function SymptomName({
       <h1 className={TITLE}>
         <input
           ref={inputRef}
-          autoFocus
           aria-label={label}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onBlur={() => void commit()}
           onKeyDown={(e) => {
-            if (e.key === "Enter") void commit();
-            else if (e.key === "Escape") cancel();
+            if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229)
+              return;
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void commit(true);
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              cancel();
+            }
           }}
           className="w-full min-w-48 border-b border-gray-400 bg-transparent outline-none focus:border-blue-500 dark:focus:border-blue-500"
         />
@@ -101,6 +119,7 @@ export default function SymptomName({
   return (
     <h1 className={TITLE}>
       <button
+        ref={buttonRef}
         type="button"
         disabled={saving}
         onClick={start}

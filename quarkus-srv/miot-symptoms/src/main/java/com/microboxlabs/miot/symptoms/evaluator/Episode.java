@@ -20,6 +20,7 @@ import java.util.UUID;
  * @param openedAt       when the case opened, or null when no case is open
  * @param level          the case's level; with no case open, 0, or the level of an opening a hold keeps back
  * @param maxMeasure     the highest measure since the case opened
+ * @param offTripSince   first observed off-trip signal while the case is open, reset by an active trip
  */
 @RegisterForReflection
 public record Episode(
@@ -33,7 +34,16 @@ public record Episode(
         Instant lastSignalAt,
         Instant openedAt,
         int level,
-        double maxMeasure) {
+        double maxMeasure,
+        Instant offTripSince) {
+
+    @SuppressWarnings("java:S107")
+    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince,
+            Instant conditionSince, Instant normalSince, Map<Integer, Instant> levelSince,
+            Instant lastSignalAt, Instant openedAt, int level, double maxMeasure) {
+        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince,
+                lastSignalAt, openedAt, level, maxMeasure, null);
+    }
 
     public Episode {
         levelSince = levelSince == null ? Map.of() : Map.copyOf(levelSince);

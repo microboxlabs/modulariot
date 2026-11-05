@@ -29,6 +29,7 @@ public class PreviewService {
 
     /** Sample key for how long the condition has held, in seconds. */
     static final String HELD = "held_s";
+    static final String OPEN = "open_s";
     private static final String NOT_A_CONDITION = "La condición debe dar sí o no.";
 
     private final SymptomCatalogService catalog;
@@ -92,6 +93,7 @@ public class PreviewService {
             fields.put("age_h", ageH);
             fields.put("level", (double) level);
             fields.put("closed_by_operator", closedByOperator);
+            fields.put("off_trip_s", NOT_NORMAL);
             return Map.of("case", fields);
         }
     }
@@ -253,6 +255,7 @@ public class PreviewService {
         Map<String, Object> vars = new LinkedHashMap<>(sample);
         vars.put("measure", value == null ? 0.0 : value);
         vars.put(HELD, sample.get(HELD) instanceof Number n ? n.doubleValue() : 0.0);
+        vars.put(OPEN, sample.get(OPEN) instanceof Number n ? n.doubleValue() : 0.0);
         Integer reached = null;
         for (Map.Entry<Integer, PreparedRule> e : levels.entrySet()) {
             RuleResult r = e.getValue().run(vars);

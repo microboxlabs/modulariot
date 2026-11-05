@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mutate } from "swr";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
@@ -696,6 +697,8 @@ describe("trip phone for a driver with no phone", () => {
     const user = userEvent.setup();
     const onCall = renderMenu(tripWithPhone);
     expect(screen.queryByText("Sin canales registrados")).toBeNull();
+    expect(onCall).not.toHaveBeenCalled();
+    expect(data.updateContact).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: useTripPhone }));
     await waitFor(() => expect(onCall).toHaveBeenCalledTimes(1));
     expect(data.updateContact).toHaveBeenCalledWith("ana", {
@@ -709,6 +712,83 @@ describe("trip phone for a driver with no phone", () => {
         phone: "+56 9 0000 0000",
         methods: ["phone", "whatsapp"],
       })
+    );
+    expect(vi.mocked(mutate).mock.calls).toEqual([
+      ["contacts"],
+      ["contact-facets"],
+      ["contact-reach"],
+    ]);
+  });
+
+  it("waits for the save before dialing and supports keyboard activation", async () => {
+    let finishSave = () => {};
+    data.updateContact.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSave = () =>
+            resolve(
+              contact("ana", "Ana Pérez", "Conductor", {
+                phone: "+56900000000",
+                methods: ["PHONE", "WHATSAPP"],
+              })
+            );
+        })
+    );
+    const user = userEvent.setup();
+    const onCall = renderMenu(tripWithPhone);
+    const button = screen.getByRole("button", { name: useTripPhone });
+    button.focus();
+    await user.keyboard("{Enter}");
+    expect(data.updateContact).toHaveBeenCalledTimes(1);
+    expect(button).toBeDisabled();
+    expect(onCall).not.toHaveBeenCalled();
+    expect(mutate).not.toHaveBeenCalled();
+    await act(async () => finishSave());
+    expect(onCall).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a newer call selection when the trip phone save finishes", async () => {
+    let finishSave = () => {};
+    data.updateContact.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSave = () =>
+            resolve(
+              contact("ana", "Ana Pérez", "Conductor", {
+                phone: "+56900000000",
+              })
+            );
+        })
+    );
+    const user = userEvent.setup();
+    const onCall = renderMenu(tripWithPhone);
+    await user.click(screen.getByRole("button", { name: useTripPhone }));
+    await user.click(
+      screen.getByRole("button", { name: "Llamar a Carabineros (133)" })
+    );
+    await act(async () => finishSave());
+    expect(onCall).toHaveBeenCalledTimes(1);
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({ personName: "Carabineros", phone: "133" })
+    );
+  });
+
+  it("does not substitute the trip phone when an existing channel is selected", async () => {
+    data.contacts = [
+      contact("ana", "Ana Pérez", "Conductor", {
+        phone: null,
+        methods: ["TEAMS"],
+        channels: { teams: "ana@example.com" },
+        nationalId: "000000019",
+      }),
+    ];
+    const onCall = renderMenu(tripWithPhone);
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Llamar Ana Pérez" }));
+    expect(data.updateContact).not.toHaveBeenCalled();
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: "", methods: ["teams"] })
     );
   });
 
@@ -751,6 +831,7 @@ describe("trip phone for a driver with no phone", () => {
       })
     );
     expect(onCall).not.toHaveBeenCalled();
+    expect(mutate).not.toHaveBeenCalled();
     expect(
       screen.getByRole("button", { name: useTripPhone })
     ).not.toBeDisabled();
@@ -782,6 +863,33 @@ describe("trip phone for a driver with no phone", () => {
     renderMenu(tripWithPhone);
     expect(screen.queryByText(/Usar el teléfono del viaje/)).toBeNull();
   });
+
+  it("is not offered when the trip phone is invalid", () => {
+    renderMenu({
+      ...treatment,
+      trip_info: { ...treatment.trip_info, driver_contact: "123" },
+    } as unknown as TreatmentsGeneralResponseItem);
+    expect(screen.queryByText(/Usar el teléfono del viaje/)).toBeNull();
+    expect(screen.queryByRole("link", { name: "123" })).toBeNull();
+    expect(data.updateContact).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])(
+    "does not offer the trip phone under other contacts (write access: %s)",
+    async (canWrite) => {
+      data.permissions = canWrite ? ["controltower:contact.write"] : [];
+      data.match = () => [];
+      renderMenu(tripWithPhone);
+      await userEvent
+        .setup()
+        .click(screen.getByRole("button", { name: /Otros contactos/ }));
+      expect(screen.getByText("Ana Pérez")).toBeTruthy();
+      expect(screen.queryByText(/Usar el teléfono del viaje/)).toBeNull();
+      expect(
+        screen.queryByRole("link", { name: "+56 9 0000 0000" })
+      ).toBeNull();
+    }
+  );
 
   it("is not offered for a matched contact that is not the trip driver", () => {
     data.contacts = [

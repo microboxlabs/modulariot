@@ -10,6 +10,8 @@ import type {
   TowerTreatment,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import {
+  hasAnyRole,
+  rolesOf,
   summarizeWho,
   whoOf,
   type WhoSummary,
@@ -146,8 +148,15 @@ export function callPlan(
   const groups = steps.map((step, index) => {
     const who = whoOf(step);
     const summary = who ? summarizeWho(who) : null;
-    if (summary?.role && !summary.driver && !step.who?.trim())
-      summary.role = step.role?.trim() || summary.role;
+    if (
+      summary?.role &&
+      !summary.driver &&
+      !step.who?.trim() &&
+      step.role?.trim()
+    ) {
+      summary.role = step.role.trim();
+      summary.roles = [summary.role];
+    }
     const ids = new Set(matches[index] ?? []);
     const members = targets.filter((t) => ids.has(t.id));
     for (const t of members) grouped.add(t.id);
@@ -164,6 +173,36 @@ export function callPlan(
     called
   );
   return { groups, others };
+}
+
+/** Why a step lists nobody, in the order the panel checks. */
+export type EmptyReason =
+  /** The server could not evaluate the condition. */
+  | { kind: "problem"; problem: string }
+  | { kind: "driver" }
+  | { kind: "carrier"; role: string | null }
+  /** No active contact of the book has any of the step's roles. */
+  | { kind: "noRole" }
+  /** Contacts have the role, but none meets the rest of the condition. */
+  | { kind: "noMatch"; roles: string[]; trip: boolean };
+
+/**
+ * Why a step lists nobody. `book` is the book's active contacts and
+ * `problem` the server's problem with the step's condition, if any.
+ */
+export function emptyReason(
+  group: Pick<CallGroup, "who" | "summary">,
+  book: readonly Pick<CallTarget, "role">[],
+  problem?: string | null
+): EmptyReason {
+  if (problem?.trim()) return { kind: "problem", problem: problem.trim() };
+  if (group.summary?.driver) return { kind: "driver" };
+  if (group.summary?.carrier)
+    return { kind: "carrier", role: group.summary.role };
+  const roles = rolesOf(group.who, group.summary);
+  if (roles.length > 0 && !book.some((t) => hasAnyRole(t.role, roles)))
+    return { kind: "noRole" };
+  return { kind: "noMatch", roles, trip: group.who.includes("event.data") };
 }
 
 /** Matches name, role or, for a query with digits, the phone. */

@@ -7818,7 +7818,15 @@
       "groupCarrier": "{role} · {company}",
       "groupOrg": "{role} · organization",
       "anyRole": "Any role",
-      "tripCarrier": "trip's carrier"
+      "tripCarrier": "trip's carrier",
+      "secondDriver": "Second trip driver",
+      "matchingContacts": "Contacts that meet the condition",
+      "or": "or",
+      "conditionProblem": "The step condition has a problem: {problem}",
+      "roleNotForTrip": "No {role} in the contact book belongs to this trip.",
+      "roleNoMatch": "No {role} in the contact book meets the step condition.",
+      "noneForTrip": "No contact in the contact book belongs to this trip.",
+      "noneMatch": "No contact in the contact book meets the step condition."
     },
     "call_center_new_save_error": "The contact couldn't be saved to the contact book. The call goes ahead with this number only.",
     "call_phase_connecting": "Connecting…",

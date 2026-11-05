@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { legacyWho, summarizeWho, whoOf } from "./step-who";
+import { legacyWho, rolesIn, summarizeWho, whoOf } from "./step-who";
 
 describe("legacyWho", () => {
   it("reads Conductor as the trip's driver by RUT", () => {
@@ -49,33 +49,121 @@ describe("whoOf", () => {
   });
 });
 
+const NONE = {
+  role: null,
+  roles: [],
+  driver: false,
+  carrier: false,
+  carrierSelf: false,
+  company: null,
+};
+
 describe("summarizeWho", () => {
   it("names the role and whether the trip's driver or carrier is meant", () => {
     expect(summarizeWho(legacyWho("Conductor", null))).toEqual({
+      ...NONE,
       role: "Conductor",
+      roles: ["Conductor"],
       driver: true,
-      carrier: false,
       driverField: "either",
     });
     expect(summarizeWho(legacyWho("Gerente", "TRIP_CARRIER"))).toEqual({
+      ...NONE,
       role: "gerente",
-      driver: false,
+      roles: ["gerente"],
       carrier: true,
+    });
+    expect(summarizeWho(legacyWho("Jefe de torre", null))).toEqual({
+      ...NONE,
+      role: "jefe de torre",
+      roles: ["jefe de torre"],
     });
   });
 
-  it("does not infer a primary-driver or carrier preset for other event fields", () => {
+  it.each([
+    [
+      "contact.role == 'Supervisor'",
+      { role: "Supervisor", roles: ["Supervisor"] },
+    ],
+    [
+      "contact.role == 'Conductor' && contact.nationalId == event.data.driverRut",
+      { role: "Conductor", roles: ["Conductor"], driver: true },
+    ],
+    [
+      "contact.role == 'Conductor' && contact.nationalId == event.data.secondDriverRut",
+      {
+        role: "Conductor",
+        roles: ["Conductor"],
+        driver: true,
+        driverField: "second",
+      },
+    ],
+    [
+      "contact.role == 'Transportista' && contact.nationalId == event.data.carrierRut",
+      { role: "Transportista", roles: ["Transportista"], carrierSelf: true },
+    ],
+    [
+      "contact.role == 'Despachador' && contact.companyRut == event.data.carrierRut",
+      { role: "Despachador", roles: ["Despachador"], carrier: true },
+    ],
+    [
+      "contact.role == 'Despachador' && contact.company == 'Empresa Uno'",
+      { role: "Despachador", roles: ["Despachador"], company: "Empresa Uno" },
+    ],
+    [
+      "contact.role == 'Supervisor' || contact.role == 'Jefe de turno'",
+      { role: "Supervisor", roles: ["Supervisor", "Jefe de turno"] },
+    ],
+    [
+      "(contact.role == 'Supervisor' || contact.role == 'Jefe de turno') && contact.companyRut == event.data.carrierRut",
+      {
+        role: "Supervisor",
+        roles: ["Supervisor", "Jefe de turno"],
+        carrier: true,
+      },
+    ],
+  ])("reads %s", (who, expected) => {
+    expect(summarizeWho(who)).toEqual({ ...NONE, ...expected });
+  });
+
+  it("reads the fields in either order and either side of ==", () => {
+    const expected = {
+      ...NONE,
+      role: "Transportista",
+      roles: ["Transportista"],
+      carrierSelf: true,
+    };
     expect(
-      summarizeWho("contact.nationalId == event.data.secondDriverRut")
-    ).toBeNull();
+      summarizeWho(
+        "contact.nationalId == event.data.carrierRut && contact.role == 'Transportista'"
+      )
+    ).toEqual(expected);
+    expect(
+      summarizeWho(
+        "event.data.carrierRut == contact.nationalId && 'Transportista' == contact.role"
+      )
+    ).toEqual(expected);
+  });
+
+  it("is null for other event fields and for conditions it cannot name", () => {
     expect(
       summarizeWho("contact.companyRut == event.data.otherRut")
     ).toBeNull();
-  });
-
-  it("is null for a condition the clauses cannot say", () => {
     expect(
-      summarizeWho("contact.role == 'A' || contact.role == 'B'")
+      summarizeWho("contact.role == 'A' || contact.company == 'B'")
     ).toBeNull();
+    expect(summarizeWho("contact.position.startsWith('Jefe')")).toBeNull();
+    expect(summarizeWho("")).toBeNull();
+  });
+});
+
+describe("rolesIn", () => {
+  it("finds the roles anywhere in a condition, once each", () => {
+    expect(
+      rolesIn(
+        "contact.role == 'Supervisor' && (contact.position.startsWith('x') || 'Supervisor' == contact.role || contact.roleKey == \"jefe\")"
+      )
+    ).toEqual(["Supervisor", "jefe"]);
+    expect(rolesIn("contact.position == 'x'")).toEqual([]);
   });
 });

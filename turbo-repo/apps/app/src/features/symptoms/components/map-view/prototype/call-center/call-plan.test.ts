@@ -13,9 +13,11 @@ import {
   fillScript,
   matchesTarget,
   driverIds,
+  emptyReason,
   stepAt,
   stepConditions,
 } from "./call-plan";
+import { summarizeWho } from "@/features/symptoms/control-tower/step-who";
 import type { CallTarget } from "./call-targets";
 
 const target = (
@@ -91,8 +93,11 @@ describe("callPlan", () => {
     ]);
     expect(plan.groups[0]!.summary).toEqual({
       role: "Conductor",
+      roles: ["Conductor"],
       driver: true,
       carrier: false,
+      carrierSelf: false,
+      company: null,
       driverField: "either",
     });
     expect(ids(plan.others)).toEqual(["oc", "gs-norte", "torre", "torre2"]);
@@ -302,5 +307,58 @@ describe("skippedInCase", () => {
         3
       )
     ).toBe(1);
+  });
+});
+
+describe("emptyReason", () => {
+  const group = (who: string) => ({ who, summary: summarizeWho(who) });
+  const book = [{ role: "Transportista" }, { role: "Despachador" }];
+  const CARRIER_SELF =
+    "contact.role == 'Transportista' && contact.nationalId == event.data.carrierRut";
+
+  it("says nobody has the role when no contact of the book has it", () => {
+    expect(emptyReason(group("contact.role == 'Supervisor'"), book)).toEqual({
+      kind: "noRole",
+    });
+    expect(
+      emptyReason(group("contact.role == 'X' && foo(contact)"), book)
+    ).toEqual({ kind: "noRole" });
+  });
+
+  it("says no contact with the role matches when some have it", () => {
+    expect(emptyReason(group(CARRIER_SELF), book)).toEqual({
+      kind: "noMatch",
+      roles: ["Transportista"],
+      trip: true,
+    });
+    expect(
+      emptyReason(
+        group("contact.role == ' transportista ' && contact.company == 'Uno'"),
+        book
+      )
+    ).toEqual({ kind: "noMatch", roles: ["transportista"], trip: false });
+  });
+
+  it("shows the server's problem with the condition first", () => {
+    expect(
+      emptyReason(group(CARRIER_SELF), book, " undeclared field ")
+    ).toEqual({
+      kind: "problem",
+      problem: "undeclared field",
+    });
+  });
+
+  it("keeps the driver and carrier messages", () => {
+    expect(
+      emptyReason(group("contact.nationalId == event.data.driverRut"), [])
+    ).toEqual({ kind: "driver" });
+    expect(
+      emptyReason(
+        group(
+          "contact.role == 'Gerente' && contact.companyRut == event.data.carrierRut"
+        ),
+        []
+      )
+    ).toEqual({ kind: "carrier", role: "Gerente" });
   });
 });

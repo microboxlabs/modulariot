@@ -14,6 +14,8 @@ const data = vi.hoisted(() => ({
   tripData: {} as Record<string, string>,
   /** The server's answer for one step condition. */
   match: (() => []) as (condition: string) => string[],
+  /** The server's problem with one step condition. */
+  problem: (() => null) as (condition: string) => string | null,
   level: undefined as unknown,
   levelError: undefined as { status: number } | undefined,
   tripError: undefined as Error | undefined,
@@ -60,7 +62,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
     data: {
       data: data.tripData,
       matches: conditions.map((c) => data.match(c)),
-      problems: conditions.map(() => null),
+      problems: conditions.map((c) => data.problem(c)),
     },
   }),
 }));
@@ -176,6 +178,7 @@ beforeEach(() => {
     if (c.toLowerCase().includes("jefe de torre")) return ["torre"];
     return [];
   };
+  data.problem = () => null;
   data.treatments = undefined;
   data.level = undefined;
   data.context = undefined;
@@ -415,6 +418,108 @@ describe("CallCenterMenu", () => {
         expect.objectContaining({ contactId: "new-contact" })
       )
     );
+  });
+
+  describe("step titles and empty steps", () => {
+    const CARRIER_SELF =
+      "contact.role == 'Transportista' && contact.nationalId == event.data.carrierRut";
+    const stepWho = (who: string) => ({
+      role: null,
+      who,
+      channel: "call",
+      budgetMinutes: 2,
+      script: null,
+    });
+    const heading = (n: number) =>
+      screen.getByText(String(n)).nextElementSibling as HTMLElement;
+
+    it.each([
+      [CARRIER_SELF, "Transportista · Transportes Sur"],
+      ["contact.role == 'Supervisor'", "Supervisor"],
+      [
+        "contact.role == 'Supervisor' || contact.role == 'Jefe de turno'",
+        "Supervisor o Jefe de turno",
+      ],
+      [
+        "contact.company == 'Empresa Uno' && contact.role == 'Despachador'",
+        "Despachador · Empresa Uno",
+      ],
+      [
+        "contact.nationalId == event.data.secondDriverRut",
+        "Segundo conductor del viaje",
+      ],
+      [
+        "contact.role == 'Supervisor' && contact.position.startsWith('x')",
+        "Supervisor",
+      ],
+      [
+        "contact.position == 'x' || contact.companyRut == event.data.otherRut",
+        "Contactos que cumplen la condición",
+      ],
+    ])("titles %s without CEL and keeps it in the tooltip", (who, title) => {
+      data.match = () => [];
+      data.level = levelWith([stepWho(who)]);
+      renderMenu();
+      const el = heading(1);
+      expect(el.textContent).toBe(title);
+      expect(el.textContent).not.toMatch(/contact\.|event\./);
+      expect(el.getAttribute("title")).toBe(who);
+    });
+
+    it("says nobody has the role when no contact of the book has it", () => {
+      data.contacts = [contact("t1", "Contacto Uno", "Despachador")];
+      data.level = levelWith([stepWho(CARRIER_SELF)]);
+      renderMenu();
+      expect(
+        screen.getByText("Nadie en la libreta tiene este rol.")
+      ).toBeTruthy();
+    });
+
+    it("says no contact with the role belongs to the trip, and pre-fills a new one", async () => {
+      data.contacts = [
+        contact("t1", "Contacto Uno", "Transportista"),
+        contact("t2", "Contacto Dos", "transportista"),
+      ];
+      data.match = () => [];
+      data.level = levelWith([stepWho(CARRIER_SELF)]);
+      data.permissions = ["controltower:contact.write"];
+      const user = userEvent.setup();
+      renderMenu();
+      expect(
+        screen.getByText(
+          "Ningún Transportista de la libreta corresponde a este viaje."
+        )
+      ).toBeTruthy();
+      expect(
+        screen.queryByText("Nadie en la libreta tiene este rol.")
+      ).toBeNull();
+
+      await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+      await saveNewNumber(user, "Contacto Nuevo");
+      expect(data.createContact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: "Transportista",
+          nationalId: SUR,
+          companyRut: SUR,
+          company: "Transportes Sur",
+        })
+      );
+    });
+
+    it("shows the server's problem with the condition and offers no new contact", () => {
+      data.contacts = [contact("t1", "Contacto Uno", "Transportista")];
+      data.problem = () => "undeclared reference to 'foo'";
+      data.level = levelWith([
+        stepWho("contact.role == 'Transportista' && foo"),
+      ]);
+      renderMenu();
+      expect(
+        screen.getByText(
+          "La condición del paso tiene un problema: undeclared reference to 'foo'"
+        )
+      ).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Nuevo número" })).toBeNull();
+    });
   });
 
   it("names the missing carrier role and pre-fills it with the company RUT", async () => {

@@ -23,6 +23,7 @@ import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   DRIVER_ROLE,
+  rolesIn,
   type WhoSummary,
 } from "@/features/symptoms/control-tower/step-who";
 import {
@@ -55,6 +56,8 @@ import {
   type CallGroup,
   callPlan,
   contextOfTreatment,
+  type EmptyReason,
+  emptyReason,
   matchesTarget,
   skippedInCase,
   stepAt,
@@ -104,9 +107,13 @@ function clock(seconds: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+function rolesText(roles: readonly string[], d: I18nRecord) {
+  return roles.join(` ${tr("or", d)} `);
+}
+
 /**
- * A step's heading: "Conductor del viaje", "<Rol> · <empresa transportista>",
- * the role, or the condition itself when the clauses cannot say it.
+ * A step's heading: the trip's driver, "<Rol> · <empresa>", the roles, or a
+ * generic title. Never the condition itself; that is in the tooltip.
  */
 function targetText(
   who: string,
@@ -115,51 +122,89 @@ function targetText(
   d: I18nRecord
 ) {
   if (!who.trim()) return tr("anyone", d);
-  if (!summary) return who;
-  if (summary.driver) return tr("driver", d);
-  if (summary.carrier)
+  const roles = summary ? summary.roles : rolesIn(who);
+  const role = roles.length > 0 ? rolesText(roles, d) : null;
+  if (summary?.driver)
+    return summary.driverField === "second"
+      ? tr("secondDriver", d)
+      : tr("driver", d);
+  if (summary?.carrier || summary?.carrierSelf)
     return tr("groupCarrier", d, {
-      role: summary.role ?? tr("anyRole", d),
+      role: role ?? tr("anyRole", d),
       company: carrierName?.trim() || tr("tripCarrier", d),
     });
-  return summary.role ?? who;
+  if (summary?.company)
+    return tr("groupCarrier", d, {
+      role: role ?? tr("anyRole", d),
+      company: summary.company,
+    });
+  return role ?? tr("matchingContacts", d);
 }
 
 /** What an empty step says. */
-function notInBookText(summary: WhoSummary | null, d: I18nRecord) {
-  if (summary?.driver) return tr("driverNotInBook", d);
-  if (summary?.carrier)
-    return summary.role
-      ? tr("carrierRoleNotInBook", d, { role: summary.role })
-      : tr("carrierNotInBook", d);
-  return tr("noContacts", d);
+function emptyText(reason: EmptyReason, d: I18nRecord) {
+  switch (reason.kind) {
+    case "problem":
+      return tr("conditionProblem", d, { problem: reason.problem });
+    case "driver":
+      return tr("driverNotInBook", d);
+    case "noRole":
+      return tr("noContacts", d);
+    case "carrier":
+      return reason.role
+        ? tr("carrierRoleNotInBook", d, { role: reason.role })
+        : tr("carrierNotInBook", d);
+    case "noMatch": {
+      if (reason.roles.length === 0)
+        return reason.trip ? tr("noneForTrip", d) : tr("noneMatch", d);
+      const role = rolesText(reason.roles, d);
+      return reason.trip
+        ? tr("roleNotForTrip", d, { role })
+        : tr("roleNoMatch", d, { role });
+    }
+  }
 }
 
-/** The role and RUTs a contact created from an empty trip step starts with. */
+const isRuc = (id: string | undefined) => /^\d{11}$/.test(id ?? "");
+
+/** The role, RUTs and company a contact created from an empty step starts with. */
 function presetFor(
   summary: WhoSummary | null,
   trip: TowerTripContacts | undefined,
   carrierName: string | undefined
 ): NewContactPreset | undefined {
-  const driverRut =
-    trip?.data.driverRut ??
-    (summary?.driverField === "either"
-      ? trip?.data.secondDriverRut
-      : undefined);
+  const carrierRut = trip?.data.carrierRut;
+  const company = carrierName?.trim() || undefined;
+  let driverRut = trip?.data.driverRut;
+  if (summary?.driverField === "second") driverRut = trip?.data.secondDriverRut;
+  else if (summary?.driverField === "either")
+    driverRut ??= trip?.data.secondDriverRut;
   if (summary?.driver && driverRut)
     return {
       role: DRIVER_ROLE,
       nationalId: driverRut,
-      nationalIdType: /^\d{11}$/.test(trip?.data.carrierRut ?? "")
-        ? "DNI"
-        : "RUT",
+      nationalIdType: isRuc(carrierRut) ? "DNI" : "RUT",
     };
-  if (summary?.carrier && trip?.data.carrierRut)
+  if (summary?.carrierSelf && carrierRut)
     return {
       role: summary.role ?? "",
-      companyRut: trip?.data.carrierRut,
-      companyTaxIdType: /^\d{11}$/.test(trip.data.carrierRut) ? "RUC" : "RUT",
-      company: carrierName?.trim() || undefined,
+      nationalId: carrierRut,
+      nationalIdType: isRuc(carrierRut) ? "OTRO" : "RUT",
+      companyRut: carrierRut,
+      companyTaxIdType: isRuc(carrierRut) ? "RUC" : "RUT",
+      company,
+    };
+  if (summary?.carrier && carrierRut)
+    return {
+      role: summary.role ?? "",
+      companyRut: carrierRut,
+      companyTaxIdType: isRuc(carrierRut) ? "RUC" : "RUT",
+      company,
+    };
+  if (summary?.role || summary?.company)
+    return {
+      role: summary.role ?? "",
+      company: summary.company ?? undefined,
     };
   return undefined;
 }
@@ -371,6 +416,7 @@ function StepGroup({
   scriptContext,
   labels,
   trip,
+  book,
   canSkip,
   canEditContacts,
   dict,
@@ -394,6 +440,8 @@ function StepGroup({
   labels: FieldLabels;
   /** The server's answer for the steps' conditions, with the trip's RUTs. */
   trip: TowerTripContacts | undefined;
+  /** The book's active contacts, to tell "nobody has the role" from "nobody matches". */
+  book: readonly CallTarget[];
   canSkip: boolean;
   canEditContacts: boolean;
   dict: I18nRecord;
@@ -406,9 +454,13 @@ function StepGroup({
   const carrierName = treatmentData?.trip_info?.carrier;
   const tripPhone = tripPhoneE164(treatmentData?.trip_info?.driver_contact);
   const driverRut = trip?.data.driverRut;
-  const preset = presetFor(group.summary, trip, carrierName);
-  const script = callScript(group.step, scriptContext, labels);
   const { step, index } = group;
+  const empty = emptyReason(group, book, trip?.problems?.[index]);
+  const preset =
+    empty.kind === "problem"
+      ? undefined
+      : presetFor(group.summary, trip, carrierName);
+  const script = callScript(group.step, scriptContext, labels);
   const isDue = index === due;
   const [skipping, setSkipping] = useState(false);
   const [reason, setReason] = useState("");
@@ -439,7 +491,7 @@ function StepGroup({
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current text-[10px]">
           {index + 1}
         </span>
-        <span className="min-w-0 flex-1 truncate">
+        <span className="min-w-0 flex-1 truncate" title={group.who}>
           {targetText(group.who, group.summary, carrierName, d)}
         </span>
         <span>{channelLabel(step.channel, d)}</span>
@@ -492,9 +544,7 @@ function StepGroup({
       {group.targets.length === 0 && !loading && (
         <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
           <p className="min-w-0 flex-1">
-            {lookupFailed
-              ? tr("tripLookupError", d)
-              : notInBookText(group.summary, d)}
+            {lookupFailed ? tr("tripLookupError", d) : emptyText(empty, d)}
           </p>
           {preset && !lookupFailed && (
             <button
@@ -979,6 +1029,7 @@ export default function CallCenterMenu({
                 key={`${skipScope}:step-${group.index}`}
                 group={group}
                 trip={tripView}
+                book={targets}
                 onNewNumber={setAddDraft}
                 due={due}
                 elapsed={elapsed}

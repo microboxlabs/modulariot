@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import cl.streamhub.gps.model.EnvelopedMessage;
@@ -16,8 +17,8 @@ import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
-import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
@@ -97,6 +98,22 @@ class EvaluatorStreamTest {
         return new EvaluatorStream(true, evaluatorCatalog,
                 new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()),
                 Clock.systemUTC(), episodes, samples);
+    }
+
+    @Test
+    void aStateRejectedOpeningSavesNeitherEpisodeNorWatermark() {
+        InMemoryEpisodeRepository episodes = new InMemoryEpisodeRepository();
+        TransitionLog rejected = (tenant, transitions, place, context) -> {
+            throw new IllegalStateException("Symptom state changed; retry with a fresh catalog");
+        };
+        EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(rejected, events, new SimpleMeterRegistry()),
+                Clock.systemUTC(), episodes, samples);
+
+        assertThrows(IllegalStateException.class,
+                () -> s.evaluate(signal("2026-10-22T03:00:30Z", true, DEMO)));
+        assertTrue(episodes.tenantsWithEpisodes("DEMO01").isEmpty());
+        assertTrue(episodes.load(DEMO, "DEMO01").watermark(DEMO, "DEMO01", "gps_signal").isEmpty());
     }
 
     private static String signal(String at, Boolean panic, String... clients) {

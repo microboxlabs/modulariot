@@ -3,6 +3,8 @@ package com.microboxlabs.miot.symptoms.store;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
@@ -27,8 +29,8 @@ import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
 import com.microboxlabs.miot.symptoms.dto.CloseTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.OpenTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
-import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
+import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog.Place;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog.Recorded;
 import com.microboxlabs.miot.symptoms.service.AuditService;
@@ -52,9 +54,12 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -214,7 +219,7 @@ class PgCaseStateTest {
         long caseId = open(SymptomState.TEST, 0);
         OrgControlTowerTreatmentsResource resource = treatments();
 
-        assertTrue(caseService.header(TENANT, -caseId) != null, "the case page reads a test case");
+        assertNotNull(caseService.header(TENANT, -caseId), "the case page reads a test case");
         TreatmentView t = (TreatmentView) call(resource.open(ORG, String.valueOf(-caseId),
                 new OpenTreatmentRequest(TreatmentType.CALL, TRUCK, null, null))).getEntity();
         assertEquals(201, call(resource.addAction(ORG, t.id(), new AddActionRequest(ActionKind.NOTE, null, null,
@@ -264,7 +269,7 @@ class PgCaseStateTest {
                   FROM miot_symptoms.signal_transitions WHERE definition_id = $1 AND kind = 'CLOSED'""")
                 .execute(Tuple.of(speeding)).await().atMost(WAIT).iterator().next();
         assertEquals("TEST", row.getString("state"));
-        assertEquals(null, row.getString("closed_by"));
+        assertNull(row.getString("closed_by"));
         assertEquals(EngineCaseService.STATE_CHANGE_REASON, row.getString("reason"));
         assertEquals("ACTIVE", row.getString("target"));
 
@@ -282,13 +287,92 @@ class PgCaseStateTest {
     }
 
     @Test
+    void concurrentReplicasAndClosersWriteOneClose() {
+        long caseId = open(SymptomState.TEST, 0);
+        setState(SymptomState.ACTIVE);
+        List<CompletableFuture<Integer>> attempts = IntStream.range(0, 12)
+                .mapToObj(i -> CompletableFuture.supplyAsync(() -> switch (i % 3) {
+                    case 0 -> cases.closeStale(TENANT, speeding, T0.plusSeconds(100 + i), "state change").size();
+                    case 1 -> cases.close(TENANT, caseId, "ops@example.com", T0.plusSeconds(100 + i)) ? 1 : 0;
+                    default -> append(Kind.CLOSED, SymptomState.TEST, 100 + i, 4).size();
+                })).toList();
+
+        assertEquals(1, attempts.stream().mapToInt(CompletableFuture::join).sum());
+        assertNotNull(cases.find(TENANT, caseId).orElseThrow().closedAt());
+        assertEquals(0, caseService.closeStaleCases(TENANT, speeding));
+    }
+
+    @Test
+    void theSweepLeavesTheCurrentStatesCaseOpen() {
+        long stale = open(SymptomState.TEST, 0);
+        setState(SymptomState.ACTIVE);
+        long current = open(SymptomState.ACTIVE, 10);
+
+        assertEquals(1, caseService.closeStaleCases(TENANT, speeding));
+        assertNotNull(cases.find(TENANT, stale).orElseThrow().closedAt());
+        assertNull(cases.find(TENANT, current).orElseThrow().closedAt());
+        assertEquals(0, caseService.closeStaleCases(null, null));
+    }
+
+    @Test
+    void duplicateOldOpeningsAreClosedTogether() {
+        open(SymptomState.TEST, 0);
+        open(SymptomState.TEST, 10);
+        setState(SymptomState.ACTIVE);
+
+        assertEquals(1, caseService.closeStaleCases(TENANT, speeding));
+        assertEquals(0, caseService.closeStaleCases(TENANT, speeding));
+    }
+
+    @Test
+    void aStateChangeClosesAtTheLatestLevel() {
+        open(SymptomState.TEST, 0);
+        append(Kind.LEVEL_CHANGED, SymptomState.TEST, 10, 2);
+        append(Kind.LEVEL_CHANGED, SymptomState.TEST, 20, 3);
+        setState(SymptomState.ACTIVE);
+
+        var closed = cases.closeStale(TENANT, speeding, T0.plusSeconds(30), "state change");
+
+        assertEquals(1, closed.size());
+        assertEquals(3, closed.getFirst().level());
+        Row row = pool.preparedQuery("SELECT level, previous_level FROM miot_symptoms.signal_transitions "
+                + "WHERE definition_id = $1 AND kind = 'CLOSED'")
+                .execute(Tuple.of(speeding)).await().atMost(WAIT).iterator().next();
+        assertEquals(3, row.getInteger("level"));
+        assertEquals(3, row.getInteger("previous_level"));
+    }
+
+    @Test
+    void aRejectedOpeningRetriesButAReplayDoesNot() {
+        open(SymptomState.TEST, 0);
+        assertTrue(append(Kind.OPENED, SymptomState.TEST, 0, 4).isEmpty());
+        setState(SymptomState.OFF);
+        assertThrows(IllegalStateException.class, () -> append(Kind.OPENED, SymptomState.TEST, 10, 4));
+        setState(SymptomState.TEST);
+        assertEquals(1, append(Kind.OPENED, SymptomState.TEST, 10, 4).size());
+    }
+
+    @Test
+    void aCachedCatalogCannotCloseACaseOfTheCurrentState() {
+        setState(SymptomState.ACTIVE);
+        long current = open(SymptomState.ACTIVE, 0);
+        Transition staleCatalogClose = new Transition(Kind.CLOSED, speeding, "1.0.0", SymptomState.ACTIVE,
+                TRUCK, T0.plusSeconds(10), 4, 4, 5,
+                Map.of("reason", Transition.STATE_CHANGE_REASON, "from", "ACTIVE", "to", "TEST"));
+
+        assertThrows(IllegalStateException.class, () -> log.append(TENANT, List.of(staleCatalogClose), PLACE));
+        assertNull(cases.find(TENANT, current).orElseThrow().closedAt());
+    }
+
+    @Test
     void theLogWritesNothingInAStateOtherThanItsCase() {
         long testCase = open(SymptomState.TEST, 0);
         setState(SymptomState.ACTIVE);
 
         assertTrue(append(Kind.NOTED, SymptomState.ACTIVE, 5, 4).isEmpty(), "a note in the new state");
         assertTrue(append(Kind.LEVEL_CHANGED, SymptomState.ACTIVE, 6, 4).isEmpty());
-        assertTrue(append(Kind.OPENED, SymptomState.TEST, 7, 4).isEmpty(), "an opening in the old state");
+        assertThrows(IllegalStateException.class, () -> append(Kind.OPENED, SymptomState.TEST, 7, 4),
+                "a stale catalog retries without saving an episode");
         assertEquals(List.of(testCase), append(Kind.CLOSED, SymptomState.TEST, 8, 4).stream()
                 .map(Recorded::caseId).toList(), "the old case still closes in its own state");
         assertTrue(append(Kind.CLOSED, SymptomState.TEST, 9, 4).isEmpty(), "but only once");

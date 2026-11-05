@@ -1,10 +1,11 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
 import com.microboxlabs.miot.core.gps.SignalStates;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
-import com.microboxlabs.miot.symptoms.evaluator.Holds;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorRedis;
+import com.microboxlabs.miot.symptoms.evaluator.Holds;
 import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.RedisEpisodes;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
@@ -284,6 +285,13 @@ public class LostSignalDetector implements SignalStates {
     public void forget(String tenant, String assetId, UUID definitionId) {
         if (enabled) {
             trips.forget(tenant, assetId, definitionId);
+        }
+    }
+
+    /** A state-change sweep drops the same old episode in the lost-signal evaluator. */
+    public void forgetStale(StaleCase c) {
+        if (enabled) {
+            trips.forgetStale(c);
         }
     }
 

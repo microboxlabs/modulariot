@@ -1,11 +1,13 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 
 /** Process-local episodes, for tests and for one replica without Redis. */
 public class InMemoryEpisodeRepository implements EpisodeRepository {
@@ -45,9 +47,21 @@ public class InMemoryEpisodeRepository implements EpisodeRepository {
 
     @Override
     public void forget(String tenantCode, String assetId, UUID definitionId) {
+        forgetMatching(tenantCode, assetId, definitionId, e -> true);
+    }
+
+    @Override
+    public void forgetStale(String tenantCode, String assetId, UUID definitionId,
+            SymptomState state, Instant openedAt) {
+        forgetMatching(tenantCode, assetId, definitionId, e -> (e.state() == null || e.state() == state)
+                && (e.openedAt() == null || !e.openedAt().isAfter(openedAt)));
+    }
+
+    private void forgetMatching(String tenantCode, String assetId, UUID definitionId,
+            Predicate<Episode> matches) {
         data.computeIfPresent(new Key(tenantCode, assetId), (k, old) -> {
             Map<UUID, Episode> episodes = new HashMap<>(old.episodes());
-            episodes.remove(definitionId);
+            episodes.computeIfPresent(definitionId, (id, e) -> matches.test(e) ? null : e);
             index(tenantCode, assetId, !episodes.isEmpty());
             return new Snapshot(episodes, old.watermarks());
         });

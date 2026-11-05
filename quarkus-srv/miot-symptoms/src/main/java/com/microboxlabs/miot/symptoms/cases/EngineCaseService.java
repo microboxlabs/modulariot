@@ -34,8 +34,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
-import java.util.List;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -125,6 +125,10 @@ public class EngineCaseService {
     @FunctionalInterface
     public interface Forget {
         void episode(String tenantCode, String assetId, UUID definitionId);
+
+        default void staleEpisode(EngineCaseStore.StaleCase c) {
+            episode(c.tenantCode(), c.assetId(), c.definitionId());
+        }
     }
 
     private final EngineCaseStore store;
@@ -146,7 +150,17 @@ public class EngineCaseService {
     @Inject
     EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, Instance<Pool> pool, SymptomEvents events,
             LostSignalDetector lostSignal) {
-        this(store, evaluator::forget, t -> readTrip(pool.get(), t), Clock.systemUTC(), events,
+        this(store, new Forget() {
+            @Override
+            public void episode(String tenantCode, String assetId, UUID definitionId) {
+                evaluator.forget(tenantCode, assetId, definitionId);
+            }
+
+            @Override
+            public void staleEpisode(EngineCaseStore.StaleCase c) {
+                evaluator.forgetStale(c);
+            }
+        }, t -> readTrip(pool.get(), t), Clock.systemUTC(), events,
                 lostSignal::reported);
     }
 
@@ -1075,7 +1089,7 @@ public class EngineCaseService {
         List<EngineCaseStore.StaleCase> closed = store.closeStale(tenantCode, definitionId, at, STATE_CHANGE_REASON);
         for (EngineCaseStore.StaleCase c : closed) {
             try {
-                forget.episode(c.tenantCode(), c.assetId(), c.definitionId());
+                forget.staleEpisode(c);
             } catch (RuntimeException e) {
                 LOG.warnf("Engine case %d: episode not dropped after the state change (%s)", c.id(),
                         e.getClass().getSimpleName());

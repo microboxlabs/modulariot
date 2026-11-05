@@ -97,7 +97,7 @@ public interface EngineCaseStore {
 
     /** A case {@link #closeStale} closed; {@code id} is its OPENED transition's. */
     record StaleCase(String tenantCode, long id, UUID definitionId, String version, boolean test, String assetId,
-            int level, String tripId, Double latitude, Double longitude, Double speedKmh) {
+            int level, String tripId, Double latitude, Double longitude, Double speedKmh, Instant openedAt) {
 
         public long symptomId() {
             return -id;

@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
@@ -100,7 +101,7 @@ class SymptomStateChangeTest {
         Map<Boolean, SymptomState> openCase = new HashMap<>();
         for (Transition t : written) {
             if (t.kind() == Kind.OPENED) {
-                assertTrue(openCase.get(true) == null, "a case opens only after the previous one closed: " + written);
+                assertNull(openCase.get(true), "a case opens only after the previous one closed: " + written);
                 openCase.put(true, t.state());
             } else {
                 assertEquals(openCase.get(true), t.state(), t.kind() + " in the state of its case: " + written);
@@ -145,7 +146,7 @@ class SymptomStateChangeTest {
                 10));
         assertTrue(before.contains("\"state\":null"), before);
         Episode legacy = RedisEpisodes.read(before.replace(",\"state\":null", ""));
-        assertEquals(null, legacy.state());
+        assertNull(legacy.state());
         assertTrue(legacy.open());
     }
 }

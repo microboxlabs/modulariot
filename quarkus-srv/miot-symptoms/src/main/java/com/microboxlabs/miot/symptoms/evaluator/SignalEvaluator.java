@@ -173,12 +173,9 @@ public class SignalEvaluator {
         List<Transition> transitions = new ArrayList<>();
         List<RuleError> errors = new ArrayList<>();
         for (CompiledSymptom s : symptoms) {
-            if (!s.eventDriven()) {
-                continue;
-            }
             Optional<Episode> before = store.find(tenantCode, assetId, s.definitionId());
-            if (before.filter(e -> stale(e, s)).isPresent()) {
-                // The next frame in order closes it; a late one must not write in the new state on it.
+            if (!s.eventDriven() || before.filter(e -> stale(e, s)).isPresent()) {
+                // A late frame leaves a case of the old state to the next frame in order.
                 continue;
             }
             try {

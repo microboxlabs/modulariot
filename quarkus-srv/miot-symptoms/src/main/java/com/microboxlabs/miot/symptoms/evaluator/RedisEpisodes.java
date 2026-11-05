@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import io.vertx.mutiny.redis.client.RedisAPI;
 import io.vertx.mutiny.redis.client.Response;
 import java.io.IOException;
@@ -128,6 +129,28 @@ public class RedisEpisodes implements EpisodeRepository {
     @Override
     public void forget(String tenantCode, String assetId, UUID definitionId) {
         redis.hdel(List.of(key(tenantCode, assetId), EPISODE + definitionId)).await().atMost(TIMEOUT);
+    }
+
+    private static final String FORGET_STALE = """
+            if redis.call('HGET', KEYS[1], ARGV[1]) == ARGV[2] then
+                return redis.call('HDEL', KEYS[1], ARGV[1])
+            end
+            return 0
+            """;
+
+    @Override
+    public void forgetStale(String tenantCode, String assetId, UUID definitionId,
+            SymptomState state, Instant openedAt) {
+        String field = EPISODE + definitionId;
+        Response value = redis.hget(key(tenantCode, assetId), field).await().atMost(TIMEOUT);
+        if (value == null) {
+            return;
+        }
+        String snapshot = value.toString();
+        Episode e = read(snapshot);
+        if ((e.state() == null || e.state() == state) && (e.openedAt() == null || !e.openedAt().isAfter(openedAt))) {
+            redis.eval(List.of(FORGET_STALE, "1", key(tenantCode, assetId), field, snapshot)).await().atMost(TIMEOUT);
+        }
     }
 
     static String write(Episode e) {

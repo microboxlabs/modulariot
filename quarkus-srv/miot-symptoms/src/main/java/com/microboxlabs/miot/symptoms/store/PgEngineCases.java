@@ -3,12 +3,12 @@ package com.microboxlabs.miot.symptoms.store;
 import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
-import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.CaseFilter;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -41,6 +41,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final Logger LOG = Logger.getLogger(PgEngineCases.class);
     private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final String FROM_SUBQUERY = " FROM (";
+    private static final String ASSET_ID = "asset_id";
 
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.state, o.asset_id, o.at, o.level, o.trip_id,
@@ -284,8 +285,13 @@ public class PgEngineCases implements EngineCaseStore {
     /** Locks the case's OPENED row, so overlapping closes of one case run one after the other. */
     private static final String LOCK = """
             SELECT id FROM miot_symptoms.signal_transitions
-             WHERE tenant_code = $1 AND id = $2 AND kind = 'OPENED'
-               FOR UPDATE
+             WHERE tenant_code = $1 AND id = $2 AND kind = 'OPENED' FOR UPDATE
+            """;
+    private static final String LOCK_DEFINITION = """
+            SELECT d.id FROM miot_symptoms.signal_transitions o
+              JOIN miot_symptoms.symptom_definition d ON d.tenant_code = o.tenant_code AND d.id = o.definition_id
+             WHERE o.tenant_code = $1 AND o.id = $2 AND o.kind = 'OPENED'
+               FOR SHARE OF d
             """;
 
     /** Closes the case unless a CLOSED row already follows its OPENED row; returns the row it wrote. */
@@ -304,10 +310,15 @@ public class PgEngineCases implements EngineCaseStore {
             RETURNING id
             """;
 
-    /** Serializes {@link #closeStale} across replicas, so two sweeps never write two CLOSED rows for one case. */
     /** The startup sweep reads every organization's cases. */
     private static final java.time.Duration SWEEP_TIMEOUT = java.time.Duration.ofMinutes(2);
+    /** Serializes sweeps across replicas. Definition locks also coordinate evaluator, operator and state writes. */
     private static final String SWEEP_LOCK = "SELECT pg_advisory_xact_lock(hashtext('miot_symptoms.close_stale_cases'))";
+    private static final String SWEEP_DEFINITIONS = """
+            SELECT id FROM miot_symptoms.symptom_definition
+             WHERE ($1::varchar IS NULL OR tenant_code = $1) AND ($2::uuid IS NULL OR id = $2)
+             ORDER BY id FOR UPDATE
+            """;
 
     /**
      * Closes every open case whose state is no longer its symptom's ($1 tenant and $2 symptom, each null for any;
@@ -317,11 +328,18 @@ public class PgEngineCases implements EngineCaseStore {
             INSERT INTO miot_symptoms.signal_transitions
                 (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure,
                  trip_id, latitude, longitude, speed_kmh, context)
-            SELECT o.tenant_code, o.definition_id, o.version, o.state, 'CLOSED', o.asset_id, $3, o.level, o.level,
+            SELECT DISTINCT ON (o.tenant_code, o.definition_id, o.asset_id, o.state)
+                   o.tenant_code, o.definition_id, o.version, o.state, 'CLOSED', o.asset_id, $3,
+                   COALESCE(lv.level, o.level), COALESCE(lv.level, o.level),
                    o.measure, o.trip_id, o.latitude, o.longitude, o.speed_kmh,
                    jsonb_build_object('reason', $4::text, 'from', o.state, 'to', d.state)
               FROM miot_symptoms.signal_transitions o
               JOIN miot_symptoms.symptom_definition d ON d.id = o.definition_id AND d.tenant_code = o.tenant_code
+              LEFT JOIN LATERAL (
+                  SELECT l.level FROM miot_symptoms.signal_transitions l
+                   WHERE l.tenant_code = o.tenant_code AND l.definition_id = o.definition_id
+                     AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED' AND l.id > o.id
+                   ORDER BY l.id DESC LIMIT 1) lv ON true
              WHERE o.kind = 'OPENED' AND o.state <> d.state
                AND ($1::varchar IS NULL OR o.tenant_code = $1)
                AND ($2::uuid IS NULL OR o.definition_id = $2)
@@ -329,12 +347,19 @@ public class PgEngineCases implements EngineCaseStore {
                    SELECT 1 FROM miot_symptoms.signal_transitions c
                     WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
                       AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id)
+             ORDER BY o.tenant_code, o.definition_id, o.asset_id, o.state, o.id DESC
             RETURNING tenant_code, definition_id, version, state, asset_id, level, trip_id, latitude, longitude,
                       speed_kmh, (SELECT max(o.id) FROM miot_symptoms.signal_transitions o
                                    WHERE o.tenant_code = signal_transitions.tenant_code
                                      AND o.definition_id = signal_transitions.definition_id
                                      AND o.asset_id = signal_transitions.asset_id
-                                     AND o.state = signal_transitions.state AND o.kind = 'OPENED') AS case_id
+                                     AND o.state = signal_transitions.state AND o.kind = 'OPENED') AS case_id,
+                      (SELECT o.at FROM miot_symptoms.signal_transitions o
+                        WHERE o.tenant_code = signal_transitions.tenant_code
+                          AND o.definition_id = signal_transitions.definition_id
+                          AND o.asset_id = signal_transitions.asset_id
+                          AND o.state = signal_transitions.state AND o.kind = 'OPENED'
+                        ORDER BY o.id DESC LIMIT 1) AS opened_at
             """;
 
     private final Supplier<Pool> pool;
@@ -445,7 +470,7 @@ public class PgEngineCases implements EngineCaseStore {
     public List<OpenLevel> openLevels(String tenantCode) {
         List<OpenLevel> out = new ArrayList<>();
         PgIds.query(pool.get(), LEVELS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenLevel(
-                r.getString("asset_id"), r.getString("name"), r.getInteger("current_level"))));
+                r.getString(ASSET_ID), r.getString("name"), r.getInteger("current_level"))));
         return out;
     }
 
@@ -543,7 +568,9 @@ public class PgEngineCases implements EngineCaseStore {
      */
     @Override
     public boolean close(String tenantCode, long caseId, String actor, Instant at) {
-        return pool.get().withTransaction(conn -> conn.preparedQuery(LOCK).execute(Tuple.of(tenantCode, caseId))
+        return pool.get().withTransaction(conn -> conn.preparedQuery(LOCK_DEFINITION)
+                .execute(Tuple.of(tenantCode, caseId))
+                .flatMap(locked -> conn.preparedQuery(LOCK).execute(Tuple.of(tenantCode, caseId)))
                 .flatMap(locked -> conn.preparedQuery(CLOSE)
                         .execute(Tuple.of(tenantCode, caseId, at.atOffset(ZoneOffset.UTC), actor)))
                 .map(rows -> rows.iterator().hasNext()))
@@ -553,15 +580,16 @@ public class PgEngineCases implements EngineCaseStore {
     @Override
     public List<StaleCase> closeStale(String tenantCode, UUID definitionId, Instant at, String reason) {
         return pool.get().withTransaction(conn -> conn.query(SWEEP_LOCK).execute()
+                .flatMap(locked -> conn.preparedQuery(SWEEP_DEFINITIONS).execute(Tuple.of(tenantCode, definitionId)))
                 .flatMap(locked -> conn.preparedQuery(CLOSE_STALE)
                         .execute(Tuple.of(tenantCode, definitionId, at.atOffset(ZoneOffset.UTC), reason)))
                 .map(rows -> {
                     List<StaleCase> out = new ArrayList<>();
                     rows.forEach(r -> out.add(new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
                             r.getUUID("definition_id"), r.getString("version"),
-                            "TEST".equals(r.getString("state")), r.getString("asset_id"), r.getInteger("level"),
+                            "TEST".equals(r.getString("state")), r.getString(ASSET_ID), r.getInteger("level"),
                             r.getString("trip_id"), r.getDouble("latitude"), r.getDouble("longitude"),
-                            r.getDouble("speed_kmh"))));
+                            r.getDouble("speed_kmh"), r.getOffsetDateTime("opened_at").toInstant())));
                     return out;
                 }))
                 .await().atMost(tenantCode == null ? SWEEP_TIMEOUT : QUERY_TIMEOUT);
@@ -570,7 +598,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static EngineCase engineCase(Row r) {
         OffsetDateTime closed = r.getOffsetDateTime("closed_at");
         return new EngineCase(r.getLong("id"), r.getUUID("definition_id"), r.getString("version"),
-                r.getString("name"), r.getString("family"), r.getString("asset_id"),
+                r.getString("name"), r.getString("family"), r.getString(ASSET_ID),
                 r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),

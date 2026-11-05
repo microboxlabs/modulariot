@@ -381,6 +381,7 @@ export default function PrototypeGeneralMap({
               setSelectedTreatment={setSelectedTreatment}
               setSelectedTreatmentIndex={setSelectedTreatmentIndex}
               licensePlate={treatmentData?.trip_info?.asset_id ?? null}
+              showAppSignalDetailDefault={false}
               onLugaresChange={setLugaresAbierto}
               casePoint={casePoint}
               caseSpans={caseSpans}

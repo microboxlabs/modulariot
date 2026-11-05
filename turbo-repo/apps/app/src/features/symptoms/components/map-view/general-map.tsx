@@ -265,6 +265,7 @@ export default function GeneralMap({
             setSelectedTreatment={setSelectedTreatment}
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
             licensePlate={treatmentData?.trip_info?.asset_id ?? null}
+            showAppSignalDetailDefault={false}
             onLugaresChange={setLugaresAbierto}
           />
         </div>

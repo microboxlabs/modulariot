@@ -55,6 +55,8 @@ describe("current popup signal", () => {
   it("updates the summary from the current description while retaining its selection", () => {
     const captured = {
       elements: [0, 1],
+      appCount: 1,
+      gpsCount: 1,
       description: { signal_lag: "00:05:00" },
     };
     const current = {
@@ -63,6 +65,8 @@ describe("current popup signal", () => {
     };
     expect(pulseWithSignal(captured, "V1", offline, es, current)).toEqual({
       elements: [0, 1],
+      appCount: 1,
+      gpsCount: 1,
       description: current,
     });
     expect(captured.description.signal_lag).toBe("00:05:00");

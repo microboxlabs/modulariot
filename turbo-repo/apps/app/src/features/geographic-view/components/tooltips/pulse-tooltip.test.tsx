@@ -34,6 +34,8 @@ describe("PulseTooltip with an engine case's description", () => {
         dict={dict}
         object={{
           elements: [0],
+          appCount: 0,
+          gpsCount: 0,
           description: {
             symptom_name: "Pérdida de señal",
             signal_lag: "04:06:31",

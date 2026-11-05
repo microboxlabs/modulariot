@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
@@ -31,26 +31,34 @@ import RecurrenceForm from "./recurrence-form";
 import { Problems, problemsFor } from "./rule-problems";
 import RuleDescription, { RuleDescriptionToggle } from "./rule-description";
 import { ICU_LEVELS } from "./symptom-labels";
+import { originLabel } from "./symptom-side-panels";
 import ModeToggle from "./ui/mode-toggle";
 import NumberedSection from "./ui/section";
 
-/** Variables a level rule adds to the source: the measure and how long it has held. */
-export function levelFields(d: I18nRecord): CelField[] {
-  return [
-    { path: "measure", detail: tr("fieldMeasure", d) },
-    { path: "held_s", detail: tr("fieldHeld", d) },
-  ];
+/** A source field or rule variable as the editor shows it: type, unit, origin and meaning. */
+export function celField(f: SourceField, d: I18nRecord): CelField {
+  // A field without a title has its own name as label, which says nothing more.
+  const named = f.label && f.label !== f.path.split(".").at(-1);
+  return {
+    path: f.path,
+    type: f.type,
+    unit: f.unit,
+    detail: originLabel(f.origin, d) || undefined,
+    description: named ? f.label : undefined,
+  };
 }
 
-/** The case a lifecycle rule reads. */
-export function caseFields(d: I18nRecord): CelField[] {
-  return [
-    { path: "case.condition_s", detail: tr("fieldCaseCondition", d) },
-    { path: "case.normal_s", detail: tr("fieldCaseNormal", d) },
-    { path: "case.age_h", detail: tr("fieldCaseAge", d) },
-    { path: "case.level", detail: tr("fieldCaseLevel", d) },
-    { path: "case.closed_by_operator", detail: tr("fieldCaseClosed", d) },
-  ];
+/** The case and level variables, as described by the server; none until they load. */
+const RuleVariablesContext = createContext<{
+  case: CelField[];
+  level: CelField[];
+}>({ case: [], level: [] });
+
+export const RuleVariablesProvider = RuleVariablesContext.Provider;
+
+/** The variables a level rule adds to the source, and the case a lifecycle rule reads. */
+export function useRuleVariableFields() {
+  return useContext(RuleVariablesContext);
 }
 
 function Section({
@@ -311,9 +319,10 @@ export default function SymptomRuleSections({
   const close = problemsFor(findings, "lifecycle.close", d);
   const note = problemsFor(findings, "lifecycle.note", d);
   const recurrence = problemsFor(findings, "recurrence", d);
-  const levelRuleFields = [...sourceFields, ...levelFields(d)];
+  const variables = useRuleVariableFields();
+  const levelRuleFields = [...sourceFields, ...variables.level];
   // The lifecycle reads the case and the signal, so a case can close on a GPS event.
-  const lifecycleFields = [...caseFields(d), ...sourceFields];
+  const lifecycleFields = [...variables.case, ...sourceFields];
   // The levels and the lifecycle are described together, one text per section.
   const levelsText = [
     `medida = ${spec.measure?.expression ?? ""}`,

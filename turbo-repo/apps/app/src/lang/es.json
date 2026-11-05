@@ -7817,7 +7817,15 @@
       "groupCarrier": "{role} · {company}",
       "groupOrg": "{role} · organización",
       "anyRole": "Cualquier rol",
-      "tripCarrier": "transportista del viaje"
+      "tripCarrier": "transportista del viaje",
+      "secondDriver": "Segundo conductor del viaje",
+      "matchingContacts": "Contactos que cumplen la condición",
+      "or": "o",
+      "conditionProblem": "La condición del paso tiene un problema: {problem}",
+      "roleNotForTrip": "Ningún {role} de la libreta corresponde a este viaje.",
+      "roleNoMatch": "Ningún {role} de la libreta cumple la condición del paso.",
+      "noneForTrip": "Ningún contacto de la libreta corresponde a este viaje.",
+      "noneMatch": "Ningún contacto de la libreta cumple la condición del paso."
     },
     "call_center_new_save_error": "No se pudo guardar el contacto en la libreta. La llamada sigue solo con este número.",
     "call_phase_connecting": "Conectando…",

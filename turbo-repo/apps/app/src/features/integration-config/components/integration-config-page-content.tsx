@@ -51,6 +51,7 @@ import {
   saveTelephony,
   useTelephony,
 } from "@/features/symptoms/control-tower/telephony-api";
+import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
 import { OrgTelephonyChoice } from "./org-telephony-choice";
 import { ConnectionsList } from "./connections-list";
 import { ConnectionsToolbar } from "./connections-toolbar";
@@ -170,9 +171,15 @@ export function IntegrationConfigPageContent({
   } = useIntegrationConfig(orgSlug);
   const { isPlatformOwner } = useIsPlatformOwner();
   const telephonyDict = dict?.telephonyChoice as I18nRecord;
-  const { data: telephony } = useTelephony(
+  const { data: telephony, mutate: revalidateTelephony } = useTelephony(
     orgSlug !== null && !inPlatformScope
   );
+
+  function refreshTelephony() {
+    if (!inPlatformScope) {
+      void revalidateTelephony().catch(() => undefined);
+    }
+  }
 
   const [templateModal, setTemplateModal] = useState<{
     open: boolean;
@@ -300,6 +307,19 @@ export function IntegrationConfigPageContent({
     }
   }
 
+  async function chooseTeams() {
+    try {
+      await saveTelephony("TEAMS_PHONE");
+      toast.success(tr("saved", telephonyDict));
+    } catch (cause) {
+      const message =
+        cause instanceof ControlTowerError && cause.status === 403
+          ? tr("forbidden", telephonyDict)
+          : tr("saveFailed", telephonyDict);
+      toast.error(message);
+    }
+  }
+
   /**
    * After a new TEAMS_PHONE connection, an organization that has not chosen its
    * telephony is asked whether to use it.
@@ -310,6 +330,7 @@ export function IntegrationConfigPageContent({
     patch?: UpdateConnectionRequest
   ) {
     const saved = await saveConnection(create, id, patch);
+    refreshTelephony();
     if (
       !id &&
       create &&
@@ -323,12 +344,7 @@ export function IntegrationConfigPageContent({
         duration: 20_000,
         action: {
           label: tr("askTeamsAction", telephonyDict),
-          onClick: () => {
-            saveTelephony("TEAMS_PHONE").then(
-              () => toast.success(tr("saved", telephonyDict)),
-              () => toast.error(tr("saveFailed", telephonyDict))
-            );
-          },
+          onClick: () => void chooseTeams(),
         },
       });
     }
@@ -380,6 +396,7 @@ export function IntegrationConfigPageContent({
       } else {
         await removeConnection(deletingConnection.id);
       }
+      refreshTelephony();
       toast.success(tr("toast.connectionDeleted", dict));
       setDeletingConnection(null);
     } catch (cause) {
@@ -392,10 +409,16 @@ export function IntegrationConfigPageContent({
    * all — every connection is testable, so the action is worth having without opening
    * the record; the same button lives inside the form for the record being edited.
    */
+  async function testConnectionAndRefresh(id: string) {
+    const result = await testInstance(id);
+    refreshTelephony();
+    return result;
+  }
+
   async function handleTest(connection: IntegrationConnection) {
     setTesting(connection.id);
     try {
-      const result = await testInstance(connection.id);
+      const result = await testConnectionAndRefresh(connection.id);
       if (result.success) {
         toast.success(tr("toast.testOk", dict), {
           description: result.message ?? undefined,
@@ -631,7 +654,7 @@ export function IntegrationConfigPageContent({
         onDelete={
           connectionModal.connection ? deleteConnectionFromModal : undefined
         }
-        onTest={testInstance}
+        onTest={testConnectionAndRefresh}
         onTestDraft={testDraft}
         saving={saving}
         dict={dict}

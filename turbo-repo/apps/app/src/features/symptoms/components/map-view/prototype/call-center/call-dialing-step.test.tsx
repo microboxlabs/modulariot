@@ -530,6 +530,36 @@ describe("CallDialingStep", () => {
       await waitFor(() => expect(token).toHaveBeenCalled());
       expect(openTeams).not.toHaveBeenCalled();
     });
+
+    it.each(["telephonyPending", "telephonyFailed"])(
+      "waits for a trustworthy telephony setup before enabling Teams (%s)",
+      (state) => {
+        const openTeams = vi.fn();
+        render(
+          <CallDialingStep
+            dict={dict}
+            contactName="Luis"
+            contactRole="Transportista"
+            contactPhone="+56922222222"
+            allowedMethods={["teams"]}
+            reason=""
+            {...{ [state]: true }}
+            openTeams={openTeams}
+            onCancel={vi.fn()}
+            onConfirm={vi.fn()}
+          />
+        );
+        const button = screen.getByRole("button", {
+          name: "Llamada por Microsoft Teams",
+        });
+        expect(button).toBeDisabled();
+        fireEvent.click(button);
+        expect(openTeams).not.toHaveBeenCalled();
+        expect(
+          screen.queryByText(es.symptoms.call_teams_no_connection)
+        ).toBeNull();
+      }
+    );
   });
 
   describe("on the managed line", () => {

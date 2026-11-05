@@ -68,6 +68,7 @@ describe("OrgTelephonyChoice", () => {
     setup({ preferred: null });
     render(<OrgTelephonyChoice dict={d} orgSlug="mintral" />);
     expect(select().value).toBe("");
+    expect(select()).toHaveAccessibleDescription(t.hint);
     expect(screen.getByText(t.unsetHint)).toBeInTheDocument();
     expect(
       screen.getByText(t.inUse.replace("{line}", t.platform))

@@ -481,8 +481,7 @@ export default function CallDialingStep({
                   key={id}
                   type="button"
                   disabled={
-                    id === "phone" &&
-                    !serviceNumber &&
+                    (id === "teams" || (id === "phone" && !serviceNumber)) &&
                     (telephonyPending || telephonyFailed)
                   }
                   onClick={() => {

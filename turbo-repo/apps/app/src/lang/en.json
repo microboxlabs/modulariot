@@ -5595,7 +5595,7 @@
         "month": "This month: {used} of {quota} minutes · {pending} unconfirmed · {charge}",
         "saved": "Telephony saved.",
         "saveFailed": "Could not save the telephony settings.",
-        "forbidden": "Only an owner or admin of the organization can change the telephony.",
+        "forbidden": "You need permission to change Control Tower settings to change the telephony.",
         "askTeams": "Use {name} as the organization's telephony?",
         "askTeamsAction": "Use Teams Phone"
       }

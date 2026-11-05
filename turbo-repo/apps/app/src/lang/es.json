@@ -5595,7 +5595,7 @@
         "month": "Este mes: {used} de {quota} minutos · {pending} sin confirmar · {charge}",
         "saved": "Telefonía guardada.",
         "saveFailed": "No se pudo guardar la telefonía.",
-        "forbidden": "Solo un dueño o administrador de la organización puede cambiar la telefonía.",
+        "forbidden": "Necesitas permiso para cambiar los ajustes de la Torre de control para cambiar la telefonía.",
         "askTeams": "¿Usar {name} como telefonía de la organización?",
         "askTeamsAction": "Usar Teams Phone"
       }

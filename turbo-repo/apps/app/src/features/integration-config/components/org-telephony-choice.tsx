@@ -84,9 +84,13 @@ export function OrgTelephonyChoice({
         <HiOutlinePhone className="h-4 w-4" />
         {tr("telephonyChoice.title", dict)}
       </Label>
-      <p className={`text-xs ${MUTED}`}>{tr("telephonyChoice.hint", dict)}</p>
+      <p id="org-telephony-hint" className={`text-xs ${MUTED}`}>
+        {tr("telephonyChoice.hint", dict)}
+      </p>
       <Select
         id="org-telephony"
+        aria-describedby="org-telephony-hint"
+        aria-busy={busy}
         sizing="sm"
         className="mt-1 max-w-md"
         value={setup.preferred ?? UNSET}

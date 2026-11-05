@@ -107,6 +107,25 @@ class SpecRulesTest {
     }
 
     @Test
+    void overlapChecksVaryCaseAgeIndependentlyOfConditionTime() {
+        SymptomSpec spec = Specs.withLevels(Specs.speeding(), Specs.levels(
+                "held_s < 10 && open_s >= 20", "open_s >= 20", "false", "false"));
+        Report report = SpecValidator.validate(spec, Specs.gpsSignal());
+        assertTrue(report.findings().stream().anyMatch(f -> f.code().equals("levelsOverlap")));
+    }
+
+    @Test
+    void anOldCasesTerminalLevelDoesNotHideANewCasesMeasureGap() {
+        SymptomSpec spec = Specs.withLevels(Specs.speeding(), Specs.levels(
+                "measure < 5 && open_s < 900", "measure >= 10 && open_s < 900", "false", "open_s >= 900"));
+        var gaps = SpecValidator.validate(spec, Specs.gpsSignal()).findings().stream()
+                .filter(f -> f.code().startsWith("gap")).toList();
+        assertEquals(1, gaps.size(), "repeat ages report the same measure gap once");
+        assertEquals("5", gaps.get(0).params().get("from"));
+        assertEquals("10", gaps.get(0).params().get("to"));
+    }
+
+    @Test
     void levelRulesCountForEngineSupportButStringsDoNot() {
         SymptomSpec levelField = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
                 "measure >= 5 && measure < 11", "measure >= 11 && measure < 21",

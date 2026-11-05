@@ -20,13 +20,22 @@ const data = vi.hoisted(() => ({
   refreshLevel: vi.fn(),
   treatmentsId: undefined as unknown,
   createContact: vi.fn(),
+  updateContact: vi.fn(),
   refreshTrip: vi.fn(),
   context: undefined as unknown,
+  permissions: [] as string[],
+}));
+
+// One object for every render; a new one per call re-renders without end.
+const access = vi.hoisted(() => ({
+  can: (permission: string) => data.permissions.includes(permission),
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   createContact: data.createContact,
+  updateContact: data.updateContact,
   contactsKey: "contacts",
+  contactFacetsKey: "contact-facets",
   useContacts: () => ({
     data: data.contacts,
     isLoading: false,
@@ -49,10 +58,15 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   }),
 }));
 
+vi.mock("@/features/conversations/conversations-api", () => ({
+  contactReachKey: "contact-reach",
+}));
+
 vi.mock("swr", () => ({ mutate: vi.fn() }));
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
 
 vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
+  useControlTowerAccess: () => access,
   useLevelResponse: () => ({
     data: data.level,
     error: data.levelError,
@@ -133,6 +147,7 @@ beforeEach(() => {
   data.tripError = undefined;
   data.bookError = undefined;
   data.tripLoading = false;
+  data.permissions = [];
   vi.clearAllMocks();
   data.contacts = [
     contact("ana", "Ana Pérez", "Conductor", {
@@ -644,6 +659,142 @@ describe("contact rows", () => {
     expect(
       screen.getByRole("link", { name: /Editar contacto: Sin canal/ })
     ).toHaveAttribute("href", "/es/users/settings/contact-book?edit=none");
+  });
+});
+
+describe("trip phone for a driver with no phone", () => {
+  const driverStep = levelWith([
+    { role: "Conductor", scope: "DRIVER", channel: "call", budgetMinutes: 2 },
+  ]);
+  const tripWithPhone = {
+    ...treatment,
+    trip_info: { ...treatment.trip_info, driver_contact: "+56 9 0000 0000" },
+  } as unknown as TreatmentsGeneralResponseItem;
+  const useTripPhone = "Usar el teléfono del viaje (+56 9 0000 0000)";
+
+  beforeEach(() => {
+    data.level = driverStep;
+    data.permissions = ["controltower:contact.write"];
+    data.contacts = [
+      contact("ana", "Ana Pérez", "Conductor", {
+        phone: null,
+        methods: [],
+        channels: null,
+        nationalId: "000000019",
+      }),
+    ];
+    data.updateContact.mockImplementation(
+      async (id: string, body: Record<string, unknown>) =>
+        contact(id, "Ana Pérez", "Conductor", {
+          ...body,
+          nationalId: "000000019",
+        })
+    );
+  });
+
+  it("saves the trip's number on the contact and calls it", async () => {
+    const user = userEvent.setup();
+    const onCall = renderMenu(tripWithPhone);
+    expect(screen.queryByText("Sin canales registrados")).toBeNull();
+    await user.click(screen.getByRole("button", { name: useTripPhone }));
+    await waitFor(() => expect(onCall).toHaveBeenCalledTimes(1));
+    expect(data.updateContact).toHaveBeenCalledWith("ana", {
+      phone: "+56900000000",
+      methods: ["PHONE", "WHATSAPP"],
+      channels: { phone: "+56900000000", whatsapp: "+56900000000" },
+    });
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contactId: "ana",
+        phone: "+56 9 0000 0000",
+        methods: ["phone", "whatsapp"],
+      })
+    );
+  });
+
+  it("keeps the contact's other channels", async () => {
+    data.contacts = [
+      contact("ana", "Ana Pérez", "Conductor", {
+        phone: null,
+        methods: ["TEAMS"],
+        channels: { teams: "ana@example.com" },
+        nationalId: "000000019",
+      }),
+    ];
+    const user = userEvent.setup();
+    renderMenu(tripWithPhone);
+    await user.click(screen.getByRole("button", { name: useTripPhone }));
+    await waitFor(() =>
+      expect(data.updateContact).toHaveBeenCalledWith("ana", {
+        phone: "+56900000000",
+        methods: ["TEAMS", "PHONE", "WHATSAPP"],
+        channels: {
+          teams: "ana@example.com",
+          phone: "+56900000000",
+          whatsapp: "+56900000000",
+        },
+      })
+    );
+  });
+
+  it("shows the error and keeps the row when the update fails", async () => {
+    data.updateContact.mockRejectedValueOnce(new Error("HTTP 500"));
+    const { ShowNotification } =
+      await import("@/features/notifications/notification");
+    const user = userEvent.setup();
+    const onCall = renderMenu(tripWithPhone);
+    await user.click(screen.getByRole("button", { name: useTripPhone }));
+    await waitFor(() =>
+      expect(ShowNotification).toHaveBeenCalledWith({
+        type: "error",
+        message: es.symptoms.call_center_trip_phone_error,
+      })
+    );
+    expect(onCall).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: useTripPhone })
+    ).not.toBeDisabled();
+  });
+
+  it("shows the trip's number as a link to a user who cannot edit contacts", () => {
+    data.permissions = [];
+    renderMenu(tripWithPhone);
+    expect(screen.queryByRole("button", { name: useTripPhone })).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "+56 9 0000 0000" })
+    ).toHaveAttribute("href", "tel:+56900000000");
+    expect(data.updateContact).not.toHaveBeenCalled();
+  });
+
+  it("is not offered when the trip has no phone", () => {
+    renderMenu({
+      ...treatment,
+      trip_info: { ...treatment.trip_info, driver_contact: "" },
+    } as unknown as TreatmentsGeneralResponseItem);
+    expect(screen.queryByText(/Usar el teléfono del viaje/)).toBeNull();
+    expect(screen.getByText("Sin canales registrados")).toBeTruthy();
+  });
+
+  it("is not offered when the contact already has a phone", () => {
+    data.contacts = [
+      contact("ana", "Ana Pérez", "Conductor", { nationalId: "000000019" }),
+    ];
+    renderMenu(tripWithPhone);
+    expect(screen.queryByText(/Usar el teléfono del viaje/)).toBeNull();
+  });
+
+  it("is not offered for a matched contact that is not the trip driver", () => {
+    data.contacts = [
+      contact("ana", "Ana Pérez", "Conductor", {
+        phone: null,
+        methods: [],
+        channels: null,
+        nationalId: "000000027",
+      }),
+    ];
+    renderMenu(tripWithPhone);
+    expect(screen.queryByText(/Usar el teléfono del viaje/)).toBeNull();
+    expect(screen.getByText("Sin canales registrados")).toBeTruthy();
   });
 });
 

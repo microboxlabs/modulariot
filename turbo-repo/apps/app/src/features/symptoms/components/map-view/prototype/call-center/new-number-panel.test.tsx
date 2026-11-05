@@ -10,6 +10,8 @@ import { canSubmitNewNumber, draftFromQuery } from "./new-number-panel";
 const api = vi.hoisted(() => ({
   createContact: vi.fn(),
   mutate: vi.fn(),
+  // One object for every render.
+  access: { can: () => false },
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
@@ -23,6 +25,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
 }));
 
 vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
+  useControlTowerAccess: () => api.access,
   useLevelResponse: () => ({ data: undefined }),
 }));
 

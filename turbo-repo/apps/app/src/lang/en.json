@@ -7659,6 +7659,9 @@
     "wa_call_refusal_WEEKLY_LIMIT": "Meta allows 2 requests per week to each contact.",
     "wa_call_refusal_SEND_FAILED": "Meta refused the message.",
     "call_center_edit_contact": "Edit contact",
+    "call_center_use_trip_phone": "Use the trip's phone ({phone})",
+    "call_center_trip_phone": "Trip phone:",
+    "call_center_trip_phone_error": "The trip's phone couldn't be saved to the contact.",
     "ladder": {
       "title": "Escalation",
       "anyone": "Anyone",

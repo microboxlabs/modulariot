@@ -13,7 +13,11 @@ import type {
   SymptomSpec,
 } from "./maintainer-api";
 import { Problems, problemsFor } from "./rule-problems";
-import SampleTree, { unsupportedPaths, useSourceSamples } from "./sample-tree";
+import SampleTree, {
+  fieldInfos,
+  unsupportedPaths,
+  useSourceSamples,
+} from "./sample-tree";
 
 /** The verdict, saying which conditions of section 1 failed when no case opens. */
 export function levelsVerdict(s: SamplePreview, d: I18nRecord): string {
@@ -58,6 +62,7 @@ export default function LevelsExpression({
 }>) {
   const samples = useSourceSamples(preview, spec.source);
   const notInEngine = useMemo(() => unsupportedPaths(fields), [fields]);
+  const infos = useMemo(() => fieldInfos(fields, d), [fields, d]);
   const shown = preview?.samples[index];
   const measure = spec.measure ?? { expression: "", label: null, unit: null };
   const measureProblems = problemsFor(findings, "measure", d);
@@ -67,6 +72,7 @@ export default function LevelsExpression({
         samples={samples.map((s) => s.sample)}
         index={index}
         notInEngine={notInEngine}
+        fields={infos}
         readOnly={readOnly}
         d={d}
         onIndex={onIndex}

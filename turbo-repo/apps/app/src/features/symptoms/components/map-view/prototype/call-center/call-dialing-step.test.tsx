@@ -56,6 +56,46 @@ function renderStep(
 }
 
 describe("CallDialingStep", () => {
+  it.each(["TELNYX", "TEAMS_PHONE"] as const)(
+    "keeps emergency calls recordable while %s is configured",
+    (provider) => {
+      const onConfirm = vi.fn();
+      const openTeams = vi.fn();
+      const token = vi.fn();
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Carabineros"
+          contactRole="Emergencias – Carabineros"
+          contactPhone="133"
+          allowedMethods={["phone"]}
+          reason=""
+          line={{
+            connectionId: "test",
+            provider,
+            name: "Central",
+            callerNumber: "+56900000000",
+            ready: true,
+          }}
+          telephonyFailed
+          openTeams={openTeams}
+          token={token}
+          onCancel={vi.fn()}
+          onConfirm={onConfirm}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada telefónica" })
+      );
+      expect(openTeams).not.toHaveBeenCalled();
+      expect(token).not.toHaveBeenCalled();
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+      );
+      expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "phone");
+    }
+  );
+
   it("opens the channel-specific WhatsApp recipient", () => {
     const open = vi.spyOn(window, "open").mockReturnValue(null);
     render(
@@ -277,17 +317,21 @@ describe("CallDialingStep", () => {
       expect(onConfirm).toHaveBeenCalledWith(42, "phone", result);
     });
 
-    it("dials an emergency short number as it is", async () => {
-      const { dial, token, opts } = renderTelnyx("133");
-      fireEvent.click(
-        screen.getByRole("button", { name: "Llamada telefónica" })
-      );
-      await waitFor(() => expect(dial).toHaveBeenCalled());
-      expect(token).toHaveBeenCalledWith(
-        expect.objectContaining({ calleeNumber: "133" })
-      );
-      expect(opts()?.destination).toBe("133");
-    });
+    it.each(["133", "131", "132", "134"])(
+      "times a native emergency call to %s with a Telnyx line",
+      (number) => {
+        const { dial, token, onConfirm } = renderTelnyx(number);
+        fireEvent.click(
+          screen.getByRole("button", { name: "Llamada telefónica" })
+        );
+        expect(token).not.toHaveBeenCalled();
+        expect(dial).not.toHaveBeenCalled();
+        fireEvent.click(
+          screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+        );
+        expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "phone");
+      }
+    );
 
     it("the red button hangs up instead of timing by hand", async () => {
       const { dial, hangup, onConfirm } = renderTelnyx();
@@ -501,6 +545,12 @@ describe("CallDialingStep", () => {
     );
 
     it("says the minutes are used and offers the phone", async () => {
+      const onConfirm = vi.fn();
+      const token = vi
+        .fn()
+        .mockRejectedValue(
+          new ControlTowerError("used", 409, "telephony_quota_exhausted")
+        );
       render(
         <CallDialingStep
           dict={dict}
@@ -511,13 +561,9 @@ describe("CallDialingStep", () => {
           reason=""
           line={line}
           dial={vi.fn()}
-          token={vi
-            .fn()
-            .mockRejectedValue(
-              new ControlTowerError("used", 409, "telephony_quota_exhausted")
-            )}
+          token={token}
           onCancel={vi.fn()}
-          onConfirm={vi.fn()}
+          onConfirm={onConfirm}
         />
       );
       fireEvent.click(
@@ -529,6 +575,15 @@ describe("CallDialingStep", () => {
       expect(
         screen.getByRole("link", { name: es.symptoms.call_use_phone })
       ).toHaveAttribute("href", "tel:+56911111111");
+      fireEvent.click(
+        screen.getByRole("link", { name: es.symptoms.call_use_phone })
+      );
+      expect(screen.queryByRole("alert")).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+      );
+      expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "phone");
+      expect(token).toHaveBeenCalledTimes(1);
     });
   });
 });

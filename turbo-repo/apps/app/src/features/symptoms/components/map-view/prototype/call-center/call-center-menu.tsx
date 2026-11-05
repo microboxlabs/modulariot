@@ -8,6 +8,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
   HiChevronDown,
   HiChevronRight,
@@ -28,7 +30,6 @@ import {
   type TowerContact,
   type TowerTripContacts,
   useCaseContext,
-  useCaseTimeline,
   useSymptomTreatments,
   useTripContacts,
 } from "@/features/symptoms/control-tower/control-tower-api";
@@ -74,7 +75,6 @@ import {
   EMERGENCY_NUMBERS,
   emergencyTarget,
 } from "./emergency-numbers";
-import { levelSince } from "./level-since";
 import { formatChileanPhone } from "./format-chilean-phone";
 import NewNumberPanel, {
   draftFromQuery,
@@ -178,10 +178,11 @@ function useElapsed(startedAt: number | null) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (startedAt === null) return;
+    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [startedAt]);
-  return startedAt === null ? null : (now - startedAt) / 1000;
+  return startedAt === null ? null : Math.max(0, (now - startedAt) / 1000);
 }
 
 /** The names of the script's fields, for the blanks the case cannot fill. */
@@ -211,6 +212,7 @@ function TargetRow({
   d: I18nRecord;
   onCall: OnCall;
 }>) {
+  const { lang } = useParams<{ lang: string }>();
   const wanted = step ? stepMethod(step.channel) : null;
   const reachable = target.methods.length > 0;
   const unavailable =
@@ -228,26 +230,37 @@ function TargetRow({
       }
     : target.stats;
   return (
-    <ContactRow
-      personName={target.personName}
-      roleLabel={target.role}
-      phone={phone}
-      stats={stats}
-      recentlyCalled={!!calledAt}
-      justCalledLabel={tr("symptoms.call_center_just_called", dict)}
-      ariaLabel={`${tr("symptoms.call_center_call_button", dict)} ${target.personName}`}
-      methods={target.methods}
-      methodLabels={methodLabels(dict)}
-      unavailableNote={note}
-      onClick={
-        reachable
-          ? () =>
-              script
-                ? onCall({ ...target, phone }, script)
-                : onCall({ ...target, phone })
-          : undefined
-      }
-    />
+    <>
+      <ContactRow
+        personName={target.personName}
+        roleLabel={target.role}
+        phone={phone}
+        stats={stats}
+        recentlyCalled={!!calledAt}
+        justCalledLabel={tr("symptoms.call_center_just_called", dict)}
+        ariaLabel={`${tr("symptoms.call_center_call_button", dict)} ${target.personName}`}
+        methods={target.methods}
+        methodLabels={methodLabels(dict)}
+        unavailableNote={note}
+        onClick={
+          reachable
+            ? () =>
+                script
+                  ? onCall({ ...target, phone }, script)
+                  : onCall({ ...target, phone })
+            : undefined
+        }
+      />
+      {!reachable && target.contactId && (
+        <Link
+          href={`/${lang}/users/settings/contact-book?edit=${encodeURIComponent(target.contactId)}`}
+          className="block border-b border-gray-200 bg-white px-3 py-2 text-sm font-medium text-blue-600 hover:underline focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-blue-400"
+          aria-label={`${tr("symptoms.call_center_edit_contact", dict)}: ${target.personName}`}
+        >
+          {tr("symptoms.call_center_edit_contact", dict)}
+        </Link>
+      )}
+    </>
   );
 }
 
@@ -628,11 +641,9 @@ export default function CallCenterMenu({
     [caseContext, treatmentData]
   );
   const labels = useMemo(() => fieldLabels(dict), [dict]);
-  // The SLA and the steps count from when the case reached its level, as the server does.
-  const { data: timeline, error: timelineError } = useCaseTimeline(caseId);
-  const since = levelSince(timeline, symptom?.returned_after_ignore_at);
-  const startKnown = since !== null;
-  const startPending = caseId !== null && !timeline && !timelineError;
+  // The inbox and this panel share the server's current-level/hold rule.
+  const parsedSince = Date.parse(symptom?.sla_since ?? "");
+  const since = Number.isFinite(parsedSince) ? parsedSince : null;
   const elapsed = useElapsed(since);
   const [addDraft, setAddDraft] = useState<NewCallDraft | null>(null);
   const callVersion = useRef(0);
@@ -725,7 +736,7 @@ export default function CallCenterMenu({
               SLA {clock(sla - elapsed)}
             </span>
           )}
-          {steps.length > 0 && sla > 0 && !startKnown && !startPending && (
+          {steps.length > 0 && sla > 0 && since === null && (
             <span className="ml-auto truncate text-xs text-gray-500 dark:text-gray-400">
               {tr("slaNoStart", d, { min: String(sla / 60) })}
             </span>

@@ -41,6 +41,8 @@ export type TreatmentsSymptomInfoResponse = {
   icu_condition: string;
   /** Engine cases only: when the case opened, and when its condition began. */
   opened_at?: string;
+  /** The server's current-level SLA start, including returns from holds. */
+  sla_since?: string | null;
   started_at?: string;
   duration_sec?: number;
   /** Engine cases on an "Ignorar condición" hold. */

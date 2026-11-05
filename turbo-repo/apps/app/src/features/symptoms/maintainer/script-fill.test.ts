@@ -28,4 +28,14 @@ describe("filledParts", () => {
     expect(blankLabel("constructor", labels)).toBe("[constructor]");
     expect(blankLabel("trip.code", undefined)).toBe("[code]");
   });
+
+  it.each([
+    "Hola {{trip.driver-name}}",
+    "Hola {{trip.driver.name",
+    "Hola {{ {{trip.driver.name}}",
+  ])("hides unsupported or unfinished syntax in %s", (script) => {
+    const text = partsText(filledParts(script, undefined, labels));
+    expect(text).not.toContain("{{");
+    expect(text).toContain("[");
+  });
 });

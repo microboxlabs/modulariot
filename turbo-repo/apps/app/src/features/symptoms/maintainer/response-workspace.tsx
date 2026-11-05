@@ -15,6 +15,7 @@ import type {
   SymptomSpec,
 } from "./maintainer-api";
 import { problemsFor } from "./rule-problems";
+import { fieldInfos } from "./sample-tree";
 import { caseFields } from "./symptom-rule-sections";
 import { ICU_LEVELS } from "./symptom-labels";
 import { CHANGED_DOT } from "./ui/changed";
@@ -214,6 +215,7 @@ export default function ResponseWorkspace({
       sample: c.sample,
       label: trDynamic(`caseScenario_${c.scenario}`, d),
     })),
+    sampleFields: fieldInfos(shownPreview?.caseFields, d),
     onChange: ({ close, note }) =>
       onChange({ ...spec, lifecycle: { ...lifecycle, close, note } }),
   };

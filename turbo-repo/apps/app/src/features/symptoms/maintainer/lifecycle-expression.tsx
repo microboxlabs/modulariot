@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import type { CasePreview, Preview, SymptomSpec } from "./maintainer-api";
 import { Problems } from "./rule-problems";
-import SampleTree from "./sample-tree";
+import SampleTree, { fieldInfos } from "./sample-tree";
 
 type Lifecycle = NonNullable<SymptomSpec["lifecycle"]>;
 
@@ -49,6 +49,8 @@ export default function LifecycleExpression({
   const [cached, setCached] = useState(preview);
   if (preview && preview !== cached) setCached(preview);
   const cases = cached?.cases ?? [];
+  const caseFields = cached?.caseFields;
+  const infos = useMemo(() => fieldInfos(caseFields, d), [caseFields, d]);
   const [index, setIndex] = useState(0);
   const at = Math.min(index, Math.max(0, cases.length - 1));
   const shown = preview?.cases?.[at];
@@ -58,6 +60,7 @@ export default function LifecycleExpression({
         samples={cases.map((c) => c.sample)}
         labels={cases.map((c) => trDynamic(`caseScenario_${c.scenario}`, d))}
         index={at}
+        fields={infos}
         readOnly={readOnly}
         d={d}
         onIndex={setIndex}

@@ -5,13 +5,59 @@ const editor = vi.hoisted(() => ({ insertIntoFocused: vi.fn() }));
 vi.mock("./cel-editor", () => editor);
 
 import type { Preview } from "./maintainer-api";
-import SampleTree, { sampleLabel, useSourceSamples } from "./sample-tree";
+import type { SourceField } from "./maintainer-api";
+import SampleTree, {
+  fieldInfos,
+  fold,
+  sampleLabel,
+  useSourceSamples,
+  visiblePaths,
+} from "./sample-tree";
 
 const d = {
   insertField: "Insertar {path}",
   sampleOf: "Muestra {n} de {total}",
   previousSample: "Anterior",
   nextSample: "Siguiente",
+  fieldFilter: "Filtrar campos",
+  noFieldMatches: "Sin resultados",
+  originTrip: "Viaje",
+};
+
+const FIELDS: SourceField[] = [
+  {
+    path: "signal.trip.age_min",
+    label: "Tiempo en viaje",
+    type: "number",
+    unit: "min",
+    origin: "TRIP",
+    engineSupported: true,
+  },
+  {
+    path: "signal.local_minutes",
+    label: "Minutos del día",
+    description: "Minutos desde la medianoche local",
+    type: "number",
+    unit: "min",
+    origin: null,
+    engineSupported: true,
+  },
+  {
+    path: "signal.vehicle.weight_kg",
+    label: "Peso máximo",
+    type: "number",
+    unit: "kg",
+    origin: null,
+    engineSupported: true,
+  },
+];
+
+const ENRICHED = {
+  signal: {
+    trip: { active: true, age_min: 42 },
+    vehicle: { weight_kg: 28400 },
+    local_minutes: 90.5,
+  },
 };
 
 const SAMPLES = [
@@ -216,5 +262,123 @@ describe("useSourceSamples", () => {
     expect(result.current).toEqual([]);
     rerender({ p: preview("trip_check", 3), source: "trip_check" });
     expect(result.current[0]?.sample).toEqual({ n: 3 });
+  });
+});
+
+describe("fold and visiblePaths", () => {
+  const infos = fieldInfos(FIELDS, d);
+
+  it("folds case and accents without moving the text", () => {
+    expect(fold("Minutos del DÍA")).toBe("minutos del dia");
+    expect(fold("Año")).toHaveLength(3);
+  });
+
+  it("matches the path, the label or the description and keeps the parents", () => {
+    expect([...(visiblePaths(ENRICHED, "age_min", infos) ?? [])]).toEqual([
+      "signal.trip.age_min",
+      "signal.trip",
+      "signal",
+    ]);
+    expect(visiblePaths(ENRICHED, "tiempo EN viaje", infos)).toEqual(
+      new Set(["signal", "signal.trip", "signal.trip.age_min"])
+    );
+    expect(visiblePaths(ENRICHED, "medianoche", infos)).toEqual(
+      new Set(["signal", "signal.local_minutes"])
+    );
+  });
+
+  it("ignores accents in the query and in the fields", () => {
+    expect(
+      visiblePaths(ENRICHED, "dia", infos)?.has("signal.local_minutes")
+    ).toBe(true);
+    expect(
+      visiblePaths(ENRICHED, "PÉSO", infos)?.has("signal.vehicle.weight_kg")
+    ).toBe(true);
+  });
+
+  it("is null without a filter and empty when nothing matches", () => {
+    expect(visiblePaths(ENRICHED, "  ", infos)).toBeNull();
+    expect(visiblePaths(ENRICHED, "zzz", infos)?.size).toBe(0);
+  });
+});
+
+describe("SampleTree with field infos", () => {
+  beforeEach(() => editor.insertIntoFocused.mockReset());
+
+  const renderTree = () =>
+    render(
+      <SampleTree
+        samples={[ENRICHED]}
+        index={0}
+        fields={fieldInfos(FIELDS, d)}
+        readOnly={false}
+        d={d}
+        onIndex={vi.fn()}
+      />
+    );
+
+  it("shows each field's label, description, unit and origin", () => {
+    renderTree();
+    fireEvent.click(screen.getByRole("button", { name: "trip" }));
+    expect(
+      screen.getByLabelText("Insertar signal.trip.age_min").textContent
+    ).toBe("age_min : 42Tiempo en viaje · min · Viaje");
+    expect(
+      screen.getByLabelText("Insertar signal.local_minutes").textContent
+    ).toBe(
+      "local_minutes : 90.5Minutos del día — Minutos desde la medianoche local · min"
+    );
+    // A field the source does not describe shows only its value.
+    expect(
+      screen.getByLabelText("Insertar signal.trip.active").textContent
+    ).toBe("active : true");
+  });
+
+  it("filters as you type, keeps the parents open and marks the match", () => {
+    renderTree();
+    fireEvent.change(screen.getByLabelText("Filtrar campos"), {
+      target: { value: "viaje" },
+    });
+    expect(screen.getByRole("button", { name: "signal" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "trip" }).getAttribute("aria-expanded")
+    ).toBe("true");
+    expect(screen.getByLabelText("Insertar signal.trip.age_min")).toBeTruthy();
+    expect(screen.queryByLabelText("Insertar signal.trip.active")).toBeNull();
+    expect(screen.queryByRole("button", { name: "vehicle" })).toBeNull();
+    expect(screen.getByText("viaje", { selector: "mark" })).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Insertar signal.trip.age_min"));
+    expect(editor.insertIntoFocused).toHaveBeenCalledWith(
+      "signal.trip.age_min"
+    );
+  });
+
+  it("says so when nothing matches", () => {
+    renderTree();
+    fireEvent.change(screen.getByLabelText("Filtrar campos"), {
+      target: { value: "nada que ver" },
+    });
+    expect(screen.getByText("Sin resultados")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "signal" })).toBeNull();
+  });
+
+  it("opens the first group only", () => {
+    render(
+      <SampleTree
+        samples={[{ case: { level: 2 }, signal: { trip: { active: true } } }]}
+        index={0}
+        readOnly={false}
+        d={d}
+        onIndex={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: "case" }).getAttribute("aria-expanded")
+    ).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "signal" })
+        .getAttribute("aria-expanded")
+    ).toBe("false");
   });
 });

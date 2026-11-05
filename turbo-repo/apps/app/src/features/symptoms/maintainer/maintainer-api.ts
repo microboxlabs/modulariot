@@ -261,6 +261,8 @@ export interface SourceField {
   engineSupported: boolean;
   /** The values a list field takes, as rules write them and as people read them. */
   values?: { value: string; label: string }[] | null;
+  /** What the field holds beyond its label, from the schema; absent when the label says it all. */
+  description?: string | null;
 }
 
 export interface DataSource {
@@ -309,6 +311,8 @@ export interface Preview {
   samples: SamplePreview[];
   /** Absent from servers that do not try the lifecycle yet. */
   cases?: CasePreview[];
+  /** The fields of the case object the case moments show. */
+  caseFields?: SourceField[];
 }
 
 export interface CreateSymptomBody {

@@ -27,7 +27,7 @@ import {
 } from "./close-form";
 import { moveRow } from "./condition-form";
 import { Problems } from "./rule-problems";
-import SampleTree from "./sample-tree";
+import SampleTree, { type FieldInfos } from "./sample-tree";
 import { PillNumber, PillSelect } from "./ui/pill";
 import Select from "./ui/select";
 
@@ -44,6 +44,8 @@ export interface LifecycleRules {
   noteProblems: CelProblem[];
   /** The rule's sample case moments, for the { } mode's tree. */
   samples?: { sample: Record<string, unknown>; label: string }[];
+  /** What the tree says about each field of the case moments. */
+  sampleFields?: FieldInfos;
   onChange: (rules: { close: string; note: string | null }) => void;
 }
 
@@ -416,6 +418,7 @@ export function CloseRules({
             samples={samples.map((s) => s.sample)}
             labels={samples.map((s) => s.label)}
             index={Math.min(index, samples.length - 1)}
+            fields={rules.sampleFields}
             readOnly={readOnly}
             d={d}
             onIndex={setIndex}

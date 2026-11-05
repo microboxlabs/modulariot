@@ -139,7 +139,7 @@ class ZoneTemplatesParityTest {
                 closed = true;
                 store.find("tenant", "vehicle", id).filter(Episode::open).ifPresent(e -> out.add(
                         EvalTraces.transition("CLOSED", closeAt, e.level(), e.level())));
-                store.save("tenant", Episode.closedOnTrip(id, "vehicle", "trip-1"));
+                store.save("tenant", Episode.closedOnTrip(id, "vehicle", "trip-1", EvalTraces.T0.plusSeconds(closeAt)));
             }
             Map<String, Object> signal = new LinkedHashMap<>((Map<String, Object>) s.root().get("signal"));
             Map<String, Object> trip = new LinkedHashMap<>((Map<String, Object>) signal.get("trip"));

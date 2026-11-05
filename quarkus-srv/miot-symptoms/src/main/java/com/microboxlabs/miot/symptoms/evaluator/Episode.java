@@ -39,6 +39,7 @@ public record Episode(
         double maxMeasure,
         SymptomState state,
         String closedOnTrip,
+        Instant closedOnTripAt,
         Instant offTripSince) {
 
     public Episode {
@@ -50,15 +51,7 @@ public record Episode(
             Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
             double maxMeasure) {
         this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
-                openedAt, level, maxMeasure, null, null, null);
-    }
-
-    @SuppressWarnings("java:S107")
-    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
-            Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
-            double maxMeasure, String closedOnTrip) {
-        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
-                openedAt, level, maxMeasure, null, closedOnTrip, null);
+                openedAt, level, maxMeasure, null, null, null, null);
     }
 
     @SuppressWarnings("java:S107")
@@ -66,15 +59,15 @@ public record Episode(
             Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
             double maxMeasure, Instant offTripSince) {
         this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
-                openedAt, level, maxMeasure, null, null, offTripSince);
+                openedAt, level, maxMeasure, null, null, null, offTripSince);
     }
 
     @SuppressWarnings("java:S107")
     public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
             Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
-            double maxMeasure, String closedOnTrip, Instant offTripSince) {
+            double maxMeasure, String closedOnTrip, Instant closedOnTripAt) {
         this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
-                openedAt, level, maxMeasure, null, closedOnTrip, offTripSince);
+                openedAt, level, maxMeasure, null, closedOnTrip, closedOnTripAt, null);
     }
 
     /** An episode with its case state, before off-trip evidence is available. */
@@ -83,7 +76,7 @@ public record Episode(
             Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
             double maxMeasure, SymptomState state) {
         this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
-                openedAt, level, maxMeasure, state, null, null);
+                openedAt, level, maxMeasure, state, null, null, null);
     }
 
     @SuppressWarnings("java:S107")
@@ -91,18 +84,25 @@ public record Episode(
             Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
             double maxMeasure, SymptomState state, Instant offTripSince) {
         this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
-                openedAt, level, maxMeasure, state, null, offTripSince);
+                openedAt, level, maxMeasure, state, null, null, offTripSince);
     }
 
-    /** Nothing running, but an operator closed the symptom's case on this trip. */
+    @SuppressWarnings("java:S107")
+    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
+            Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
+            double maxMeasure, String closedOnTrip, Instant closedOnTripAt, Instant offTripSince) {
+        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
+                openedAt, level, maxMeasure, null, closedOnTrip, closedOnTripAt, offTripSince);
+    }
+
+    /** A marker written before its close timestamp was recorded. */
     public static Episode closedOnTrip(UUID definitionId, String assetId, String tripId) {
-        return new Episode(definitionId, "", assetId, null, null, null, Map.of(), null, null, 0, 0, tripId);
+        return closedOnTrip(definitionId, assetId, tripId, null);
     }
 
-    /** The same episode with this operator's trip marker. */
-    Episode marked(String tripId) {
-        return new Episode(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince,
-                lastSignalAt, openedAt, level, maxMeasure, state, tripId, offTripSince);
+    /** Nothing running, but an operator closed the symptom's case on this trip at {@code at}. */
+    public static Episode closedOnTrip(UUID definitionId, String assetId, String tripId, Instant at) {
+        return new Episode(definitionId, "", assetId, null, null, null, Map.of(), null, null, 0, 0, tripId, at);
     }
 
     public static Episode start(UUID definitionId, String version, String assetId) {

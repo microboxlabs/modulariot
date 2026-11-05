@@ -44,7 +44,7 @@ Rule previews use the organization's recent signals. At most one signal per orga
 
 `case.off_trip_s` counts from the first observed off-trip frame of an open case and resets on a trip; it is -1 while on a trip or without trip evidence. Cargo rules require both 1200 seconds off a trip and 1200 seconds without their event.
 
-`case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals. `case.closed_on_trip` is true when an operator closed a case of the symptom on the trip the signal carries (`trip.id`); an open rule `case.condition_s >= 0 && !case.closed_on_trip` opens no other case on that trip. The episode keeps the trip until a newer ordinary signal of another trip, or of none; buffered frames from older trips cannot clear it.
+`case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals. `case.closed_on_trip` is true when an operator closed a case of the symptom on the trip the signal carries (`trip.id`); an open rule `case.condition_s >= 0 && !case.closed_on_trip` opens no other case on that trip. The episode keeps the trip until a newer ordinary signal of another trip, or of none; buffered frames from older trips cannot clear it. `case.closed_on_trip_s` is the time since that close, -1 without one: `!case.closed_on_trip || case.closed_on_trip_s >= 18000` opens again 5 h after it.
 
 ## Order, versions and failures
 

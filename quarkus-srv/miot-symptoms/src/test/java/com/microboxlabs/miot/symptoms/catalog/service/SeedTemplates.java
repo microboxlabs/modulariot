@@ -27,7 +27,8 @@ public final class SeedTemplates {
     static final List<String> MORE = List.of("/db/migration/symptoms/V0.12.6__gps_sabotage_template.sql",
             "/db/migration/symptoms/V0.12.17__event_symptom_templates.sql",
             "/db/migration/symptoms/V0.12.19__zone_and_hour_templates.sql",
-            "/db/migration/symptoms/V0.12.20__driving_and_rest_templates.sql");
+            "/db/migration/symptoms/V0.12.20__driving_and_rest_templates.sql",
+            "/db/migration/symptoms/V0.12.21__route_templates.sql");
     /** Migrations that publish new versions as rows of an {@code upgrade} list, applied in this order. */
     static final List<String> UPGRADE_LISTS = List.of(
             "/db/migration/symptoms/V0.12.17__event_symptom_templates.sql",

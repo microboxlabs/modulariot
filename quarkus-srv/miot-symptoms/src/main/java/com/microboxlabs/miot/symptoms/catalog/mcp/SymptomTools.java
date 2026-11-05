@@ -71,7 +71,7 @@ public class SymptomTools {
             + " level; absent allows everything."
             + " lifecycle: {open, close, levelDown, note}; open, close and note are CEL over case"
             + " (case.condition_s, case.normal_s, case.off_trip_s, case.age_h, case.level, case.closed_by_operator, case.closed_on_trip: an operator already closed a case of the"
-            + " symptom on the signal's trip) and the"
+            + " symptom on the signal's trip; case.closed_on_trip_s: seconds since that close, -1 without one) and the"
             + " source's signal, e.g. open case.condition_s >= 0, close case.normal_s >= 120 or"
             + " case.closed_by_operator || signal.frame.events.exists(e, e.event_type == \"main_power_reconnect\");"
             + " levelDown (optional, default false) lets an open case's level follow the measure down; note"

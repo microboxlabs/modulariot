@@ -46,7 +46,7 @@ class EpisodeRepositoryConcurrencyTest {
         AssetEpisodes staleDelete = evaluator.load(tenant, asset);
         staleDelete.delete(tenant, asset, id);
         staleDelete.delete(tenant, asset, other);
-        Episode marker = Episode.closedOnTrip(id, asset, "trip-2");
+        Episode marker = Episode.closedOnTrip(id, asset, "trip-2", at.plusSeconds(30));
         closer.operatorClose(tenant, asset, id, marker);
 
         assertThrows(ConcurrentModificationException.class, () -> evaluator.save(staleWrite));

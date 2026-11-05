@@ -33,8 +33,15 @@ const deps = [
  */
 let allDepsLoaded = false;
 
-export default function SovosDeps({ onReady }: { onReady?: () => void }) {
+export default function SovosDeps({
+  onReady,
+  onError,
+}: {
+  onReady?: () => void;
+  onError?: (script: string) => void;
+}) {
   const [depsIndex, setDepsIndex] = useState(1);
+  const [failed, setFailed] = useState<string | null>(null);
 
   /**
    * handleDepsLoaded is a function to handle the loading of dependencies.
@@ -63,7 +70,7 @@ export default function SovosDeps({ onReady }: { onReady?: () => void }) {
   const sliceIndex = depsIndex <= deps.length ? depsIndex : deps.length;
   const depsToLoad = deps.slice(0, sliceIndex);
 
-  if (allDepsLoaded) {
+  if (allDepsLoaded || failed) {
     return null;
   }
 
@@ -78,6 +85,10 @@ export default function SovosDeps({ onReady }: { onReady?: () => void }) {
           allDepsLoaded = true;
           handleDepsLoaded();
         }
+      }}
+      onError={() => {
+        setFailed(dep);
+        onError?.(dep);
       }}
     />
   ));

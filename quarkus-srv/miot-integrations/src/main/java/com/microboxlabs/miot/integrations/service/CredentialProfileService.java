@@ -57,6 +57,7 @@ public class CredentialProfileService {
     static final String DEFAULT_ENVIRONMENT = "PRODUCTION";
 
     private static final String MANAGED_MESSAGE = "This credential is managed by the platform";
+    private static final String PROVIDER_KEY = "provider";
     /**
      * {@code publicConfig.provider} tags of the geocoding providers. Only the platform's GEOCODING connection uses
      * them; organizations geocode through their managed connection.
@@ -190,7 +191,7 @@ public class CredentialProfileService {
             CredentialProfile updated;
             if (retainingPlatformProvider) {
                 updated = credentialProfileRepository.updateIfProvider(
-                        params, String.valueOf(req.publicConfig().get("provider")), current.secretVersion());
+                        params, String.valueOf(req.publicConfig().get(PROVIDER_KEY)), current.secretVersion());
             } else if (rotating) {
                 updated = credentialProfileRepository.updateIfVersion(params, current.secretVersion());
             } else {
@@ -349,13 +350,13 @@ public class CredentialProfileService {
     private static void refusePlatformOnlyProvider(String tenantCode, Map<String, Object> requested,
             Map<String, Object> current) {
         if (PlatformScope.TENANT.equals(tenantCode) || !isPlatformOnlyProvider(requested)) return;
-        Object provider = requested.get("provider");
-        if (current != null && provider.equals(current.get("provider"))) return;
+        Object provider = requested.get(PROVIDER_KEY);
+        if (current != null && provider.equals(current.get(PROVIDER_KEY))) return;
         throw new PlatformOnlyCredentialException(String.valueOf(provider));
     }
 
     private static boolean isPlatformOnlyProvider(Map<String, Object> config) {
-        return config != null && PLATFORM_ONLY_PROVIDERS.contains(String.valueOf(config.get("provider")));
+        return config != null && PLATFORM_ONLY_PROVIDERS.contains(String.valueOf(config.get(PROVIDER_KEY)));
     }
 
     private CredentialTestResponse testManaged(String tenantCode, CredentialProfile profile) {

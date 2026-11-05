@@ -336,8 +336,7 @@ export function IntegrationConfigPageContent({
       create &&
       "providerType" in create &&
       create.providerType === "TEAMS_PHONE" &&
-      telephony &&
-      telephony.preferred === null
+      telephony?.preferred === null
     ) {
       const name = create.name;
       toast(tr("askTeams", telephonyDict, { name }), {

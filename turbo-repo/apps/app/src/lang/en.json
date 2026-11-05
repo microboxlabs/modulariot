@@ -5586,6 +5586,7 @@
         "platform": "Platform line (Telnyx)",
         "ownTelnyx": "{name} (Telnyx)",
         "teams": "{name} (Teams Phone)",
+        "teamsUnavailable": "Teams Phone (no active connection)",
         "notTested": "{name} (Teams Phone, not tested)",
         "unset": "Not chosen",
         "inUse": "In use: {line}",

@@ -72,6 +72,35 @@ function formatDuration(totalSeconds: number): string {
   return `${m}:${s}`;
 }
 
+function CallTimer({
+  noTeams,
+  showTimer,
+  seconds,
+  dict,
+}: Readonly<{
+  noTeams: boolean;
+  showTimer: boolean;
+  seconds: number;
+  dict: I18nRecord;
+}>) {
+  if (noTeams) {
+    return (
+      <output className="text-sm font-medium text-amber-700 dark:text-amber-400">
+        {tr("symptoms.call_teams_no_connection", dict)}
+      </output>
+    );
+  }
+  return (
+    <p
+      className={`font-mono text-xl font-semibold tabular-nums text-gray-900 transition-all duration-300 dark:text-white ${
+        showTimer ? "scale-100 opacity-100" : "scale-75 opacity-0"
+      }`}
+    >
+      {formatDuration(seconds)}
+    </p>
+  );
+}
+
 export default function CallDialingStep({
   dict,
   stats,
@@ -355,22 +384,12 @@ export default function CallDialingStep({
             }`}
           >
             <div className="overflow-hidden">
-              {noTeams ? (
-                <p
-                  role="status"
-                  className="text-sm font-medium text-amber-700 dark:text-amber-400"
-                >
-                  {t("call_teams_no_connection")}
-                </p>
-              ) : (
-                <p
-                  className={`font-mono text-xl font-semibold tabular-nums text-gray-900 transition-all duration-300 dark:text-white ${
-                    showTimer ? "scale-100 opacity-100" : "scale-75 opacity-0"
-                  }`}
-                >
-                  {formatDuration(shownSeconds)}
-                </p>
-              )}
+              <CallTimer
+                noTeams={noTeams}
+                showTimer={showTimer}
+                seconds={shownSeconds}
+                dict={dict}
+              />
               {phase !== null && phase !== "active" && (
                 <p className="text-center text-xs text-gray-500 dark:text-gray-400">
                   {t(`call_phase_${phase}`)}

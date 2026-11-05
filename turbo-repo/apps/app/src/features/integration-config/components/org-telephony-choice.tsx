@@ -107,6 +107,11 @@ export function OrgTelephonyChoice({
             ? lineLabel(telnyx, dict)
             : tr("telephonyChoice.platform", dict)}
         </option>
+        {setup.preferred === "TEAMS_PHONE" && teams.length === 0 && (
+          <option value="TEAMS_PHONE" disabled>
+            {tr("telephonyChoice.teamsUnavailable", dict)}
+          </option>
+        )}
         {teams.map((line) => (
           <option
             key={line.connectionId}

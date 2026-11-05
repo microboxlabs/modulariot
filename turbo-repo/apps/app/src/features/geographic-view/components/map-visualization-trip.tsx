@@ -321,6 +321,23 @@ function DistanciaAlOrigen({
 /** El mismo margen que el marco de controles (p-5): 20 px. */
 const MARGEN_CONTROLES_PX = 20;
 
+/** Bottom-right corner on the full map; left and vertically centered when minimized. */
+function selectionCardPlacement(pinToBottomRight: boolean) {
+  if (pinToBottomRight) {
+    return {
+      start_right: true,
+      start_bottom: true,
+      left: SELECTION_CARD_INSET,
+      top: SELECTION_CARD_INSET,
+    };
+  }
+  return {
+    left: MARGEN_CONTROLES_PX,
+    top: MARGEN_CONTROLES_PX,
+    centrarVertical: true,
+  };
+}
+
 /** Papel de una geocerca del viaje según su location_type (1 origen, 2 destino). */
 function papelGeocerca(locationType: unknown, dict: I18nRecord): string {
   if (locationType === 1)
@@ -1012,19 +1029,7 @@ export default function MapVisualizationTrip({
             (20 px, como los demás controles) y centrada en el alto */}
         {hoverInfo && (
           <MapTooltip
-            start_right={pinSelectionCardToCorner}
-            start_bottom={pinSelectionCardToCorner}
-            left={
-              pinSelectionCardToCorner
-                ? SELECTION_CARD_INSET
-                : MARGEN_CONTROLES_PX
-            }
-            top={
-              pinSelectionCardToCorner
-                ? SELECTION_CARD_INSET
-                : MARGEN_CONTROLES_PX
-            }
-            centrarVertical={!pinSelectionCardToCorner}
+            {...selectionCardPlacement(pinSelectionCardToCorner)}
             setHoverInfo={setHoverInfo}
             onExitAction={cerrarPulsos}
           >

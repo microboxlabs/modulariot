@@ -46,3 +46,12 @@ export type WebRtcToken = z.infer<typeof webRtcTokenSchema>;
 export function parseWebRtcToken(payload: unknown): WebRtcToken {
   return webRtcTokenSchema.parse(payload);
 }
+
+/** The organization's tested TEAMS_PHONE connection, if any. Calls on it are reconciled from Graph. */
+export function readyTeamsLine(
+  setup: TelephonySetup | null | undefined
+): TelephonyLine | null {
+  return (
+    setup?.lines.find((l) => l.provider === "TEAMS_PHONE" && l.ready) ?? null
+  );
+}

@@ -107,6 +107,14 @@ public class SymptomEvents {
                 c.latitude(), c.longitude(), c.speedKmh(), null, null, null, null, null), c.test());
     }
 
+    /** The case closed for a reason of the platform, such as its trip ending; {@code closedBy} is the reason. */
+    public void closedBySystem(String tenantCode, EngineCaseStore.StaleCase c, String reason, Instant at) {
+        Name n = name(tenantCode, c.definitionId());
+        publish(SymptomEventCatalog.CLOSED, tenantCode, at, new SymptomCaseData(c.symptomId(), c.definitionId(),
+                c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(), null, null,
+                c.latitude(), c.longitude(), c.speedKmh(), reason, null, null, null, null), c.test());
+    }
+
     /** Cancellation signal for pending notification rules on each case covered by an ignore hold. */
     public void ignored(String tenantCode, EngineCase c, String actor, Instant at) {
         Name n = name(tenantCode, c.definitionId());

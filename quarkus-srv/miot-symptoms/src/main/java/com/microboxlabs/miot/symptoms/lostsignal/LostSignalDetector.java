@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
+import com.microboxlabs.miot.core.db.PgNotificationListener;
 import com.microboxlabs.miot.core.gps.SignalStates;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.evaluator.Episode;
 import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
@@ -18,9 +20,15 @@ import com.microboxlabs.miot.symptoms.service.AuditService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.quarkus.runtime.ShutdownEvent;
+import io.quarkus.runtime.StartupEvent;
 import io.quarkus.scheduler.Scheduled;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
+import io.vertx.core.json.JsonObject;
+import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.sqlclient.Pool;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.Clock;
@@ -42,6 +50,8 @@ import org.jboss.logging.Logger;
  * organizations' {@code trip_check} versions on them ({@link TripChecks}). On wherever the evaluator is; a
  * failure is counted ({@code miot.symptoms.lost_signal.failed}) and never redelivers the signal. It also answers
  * the vehicles' signal state from the same profiles ({@link SignalStateReader}), on any replica with the store.
+ * A trip that ends (the trips module's {@code miot_trips_live} notice, or the next check reading it ended) closes
+ * its open {@code trip_check} cases and is checked no more ({@link TripChecks#endedTrips}).
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -85,6 +95,9 @@ public class LostSignalDetector implements SignalStates {
     }
 
     private volatile long skipUntil;
+    /** The trips module's {@code trip_live} notices, as the signal builder hears them; null outside CDI. */
+    private PgNotificationListener tripNotices;
+    static final String TRIPS_CHANNEL = "miot_trips_live";
 
     @Inject
     LostSignalDetector(@ConfigProperty(name = "miot.symptoms.evaluator.enabled", defaultValue = "false") boolean enabled,
@@ -100,7 +113,8 @@ public class LostSignalDetector implements SignalStates {
             @ConfigProperty(name = "miot.symptoms.lost-signal.return-grace", defaultValue = "PT1M") Duration returnGrace,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration episodeTtl,
             EvaluatorRedis redis, EvaluatorCatalog catalog, TransitionLog transitionLog, SymptomEvents events,
-            AuditService audit, MeterRegistry meters, Instance<Pool> pool, Holds holds) {
+            AuditService audit, MeterRegistry meters, Instance<Pool> pool, Holds holds, EngineCaseStore cases,
+            Vertx vertx) {
         this(new Settings(enabled, settings(profileTtl, minSamples, gapMargin, delayQuantile, maxDelay),
                 new TickerSettings(recheck, maxSilence, Duration.ofSeconds(15), 500,
                         new IngestHealth(staleAfter, maxLag), returnGrace)),
@@ -108,13 +122,63 @@ public class LostSignalDetector implements SignalStates {
                         .orElseGet(InMemoryLossStore::new),
                 // The evaluator's episodes: an operator's close records the same decision for both consumers.
                 new TripChecks(catalog, redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, episodeTtl))
-                        .orElseGet(InMemoryEpisodeRepository::new), transitionLog, events, audit, meters, holds),
+                        .orElseGet(InMemoryEpisodeRepository::new), transitionLog, events, audit, meters, holds,
+                        new PgTripEnds(pool::get, cases)),
                 new ShadowMaps(new PgCoverageStore(pool::get), CoverageSettings.from(ConfigProvider.getConfig()),
                         Clock.systemUTC()),
                 meters, Clock.systemUTC());
         if (enabled) {
             LOG.infof("Lost-signal detector: on, state in %s", redis.client().isPresent() ? "Redis" : "memory");
         }
+        this.tripNotices = new PgNotificationListener(pool::get, vertx, TRIPS_CHANNEL, this::onTripNotice);
+    }
+
+    void onStart(@Observes StartupEvent ignored) {
+        if (enabled && tripNotices != null) {
+            tripNotices.start();
+        }
+    }
+
+    void onStop(@Observes ShutdownEvent ignored) {
+        if (tripNotices != null) {
+            tripNotices.close();
+        }
+    }
+
+    /** A {@code trip_live} row changed; the trip is read off the event loop. */
+    private void onTripNotice(String payload) {
+        String tenant;
+        String tripId;
+        try {
+            JsonObject notice = new JsonObject(payload);
+            tenant = notice.getString("tenant");
+            tripId = notice.getString("tripId");
+        } catch (RuntimeException e) {
+            LOG.debugf("Lost-signal detector: trip notice ignored (%s)", e.getClass().getSimpleName());
+            return;
+        }
+        if (tenant == null || tripId == null) {
+            return;
+        }
+        Infrastructure.getDefaultWorkerPool().execute(() -> {
+            try {
+                tripChanged(tenant, tripId);
+            } catch (RuntimeException e) {
+                // The vehicle's next check reads the trip again and closes its cases then.
+                meters.counter("miot.symptoms.lost_signal.trip_notice_failed").increment();
+                LOG.debugf("Lost-signal detector: trip notice not applied (%s)", e.getClass().getSimpleName());
+            }
+        });
+    }
+
+    /**
+     * One of the organization's trips changed. When it ended (completed, cancelled or gone), its open
+     * {@code trip_check} cases close with {@link TripEnds#REASON}; the vehicle's next check leaves the trip out.
+     *
+     * @return how many cases it closed
+     */
+    public int tripChanged(String tenant, String tripId) {
+        return enabled ? trips.tripChanged(tenant, tripId, clock.instant()) : 0;
     }
 
     private static LossSettings settings(Duration profileTtl, int minSamples, double gapMargin, double delayQuantile,

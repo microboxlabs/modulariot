@@ -362,6 +362,53 @@ public class PgEngineCases implements EngineCaseStore {
                         ORDER BY o.id DESC LIMIT 1) AS opened_at
             """;
 
+    /** Locks the trip's OPENED rows, so an operator's close of one of them and this close run one after the other. */
+    private static final String LOCK_TRIP = """
+            SELECT id FROM miot_symptoms.signal_transitions
+             WHERE tenant_code = $1 AND trip_id = $2 AND kind = 'OPENED' AND definition_id = ANY($3::uuid[])
+             ORDER BY id FOR UPDATE
+            """;
+
+    /**
+     * Closes each open case of the trip ($1 tenant, $2 trip) of the symptoms $3, at its current level, with
+     * {@code closed_by} and the context's {@code reason} $5, at $4.
+     */
+    private static final String CLOSE_TRIP = """
+            INSERT INTO miot_symptoms.signal_transitions
+                (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure,
+                 trip_id, latitude, longitude, speed_kmh, closed_by, context)
+            SELECT DISTINCT ON (o.definition_id, o.asset_id, o.state)
+                   o.tenant_code, o.definition_id, o.version, o.state, 'CLOSED', o.asset_id, $4,
+                   COALESCE(lv.level, o.level), COALESCE(lv.level, o.level),
+                   o.measure, o.trip_id, o.latitude, o.longitude, o.speed_kmh, $5,
+                   jsonb_build_object('reason', $5::text, 'trip_id', o.trip_id)
+              FROM miot_symptoms.signal_transitions o
+              LEFT JOIN LATERAL (
+                  SELECT l.level FROM miot_symptoms.signal_transitions l
+                   WHERE l.tenant_code = o.tenant_code AND l.definition_id = o.definition_id
+                     AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED' AND l.id > o.id
+                   ORDER BY l.id DESC LIMIT 1) lv ON true
+             WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED' AND o.state IN ('ACTIVE', 'TEST')
+               AND o.definition_id = ANY($3::uuid[])
+               AND NOT EXISTS (
+                   SELECT 1 FROM miot_symptoms.signal_transitions c
+                    WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
+                      AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id)
+             ORDER BY o.definition_id, o.asset_id, o.state, o.id DESC
+            RETURNING tenant_code, definition_id, version, state, asset_id, level, trip_id, latitude, longitude,
+                      speed_kmh, (SELECT max(o.id) FROM miot_symptoms.signal_transitions o
+                                   WHERE o.tenant_code = signal_transitions.tenant_code
+                                     AND o.definition_id = signal_transitions.definition_id
+                                     AND o.asset_id = signal_transitions.asset_id
+                                     AND o.state = signal_transitions.state AND o.kind = 'OPENED') AS case_id,
+                      (SELECT o.at FROM miot_symptoms.signal_transitions o
+                        WHERE o.tenant_code = signal_transitions.tenant_code
+                          AND o.definition_id = signal_transitions.definition_id
+                          AND o.asset_id = signal_transitions.asset_id
+                          AND o.state = signal_transitions.state AND o.kind = 'OPENED'
+                        ORDER BY o.id DESC LIMIT 1) AS opened_at
+            """;
+
     private final Supplier<Pool> pool;
 
     @Inject
@@ -583,16 +630,32 @@ public class PgEngineCases implements EngineCaseStore {
                 .flatMap(locked -> conn.preparedQuery(SWEEP_DEFINITIONS).execute(Tuple.of(tenantCode, definitionId)))
                 .flatMap(locked -> conn.preparedQuery(CLOSE_STALE)
                         .execute(Tuple.of(tenantCode, definitionId, at.atOffset(ZoneOffset.UTC), reason)))
-                .map(rows -> {
-                    List<StaleCase> out = new ArrayList<>();
-                    rows.forEach(r -> out.add(new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
-                            r.getUUID("definition_id"), r.getString("version"),
-                            "TEST".equals(r.getString("state")), r.getString(ASSET_ID), r.getInteger("level"),
-                            r.getString("trip_id"), r.getDouble("latitude"), r.getDouble("longitude"),
-                            r.getDouble("speed_kmh"), r.getOffsetDateTime("opened_at").toInstant())));
-                    return out;
-                }))
+                .map(PgEngineCases::staleCases))
                 .await().atMost(tenantCode == null ? SWEEP_TIMEOUT : QUERY_TIMEOUT);
+    }
+
+    @Override
+    public List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason) {
+        if (definitionIds.isEmpty()) {
+            return List.of();
+        }
+        UUID[] ids = definitionIds.toArray(UUID[]::new);
+        return pool.get().withTransaction(conn -> conn.preparedQuery(LOCK_TRIP)
+                .execute(Tuple.of(tenantCode, tripId, ids))
+                .flatMap(locked -> conn.preparedQuery(CLOSE_TRIP)
+                        .execute(Tuple.of(tenantCode, tripId, ids, at.atOffset(ZoneOffset.UTC), reason)))
+                .map(PgEngineCases::staleCases))
+                .await().atMost(QUERY_TIMEOUT);
+    }
+
+    private static List<StaleCase> staleCases(Iterable<Row> rows) {
+        List<StaleCase> out = new ArrayList<>();
+        rows.forEach(r -> out.add(new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
+                r.getUUID("definition_id"), r.getString("version"), "TEST".equals(r.getString("state")),
+                r.getString(ASSET_ID), r.getInteger("level"), r.getString("trip_id"), r.getDouble("latitude"),
+                r.getDouble("longitude"), r.getDouble("speed_kmh"), r.getOffsetDateTime("opened_at").toInstant())));
+        return out;
     }
 
     private static EngineCase engineCase(Row r) {

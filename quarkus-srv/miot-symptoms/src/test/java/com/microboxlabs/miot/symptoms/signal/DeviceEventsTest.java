@@ -145,8 +145,9 @@ class DeviceEventsTest {
     @Test
     void aFailedPublicationForgetsTheIdSoTheProducerCanRetry() {
         channel.fail = true;
+        Request emergency = request(event("app-1", "Emergencia", null));
         assertThrows(DeviceEvents.UnavailableException.class,
-                () -> events.accept(TENANT, request(event("app-1", "Emergencia", null))));
+                () -> events.accept(TENANT, emergency));
         assertTrue(ids.kept.isEmpty());
 
         channel.fail = false;
@@ -155,33 +156,35 @@ class DeviceEventsTest {
 
     @Test
     void everyEventIsCheckedBeforeAnyIsSent() {
-        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> events.accept(TENANT,
-                request(event("ok", "AAS", null), new DeviceEvent("bad", "ABCD12", " ", AT, null, null, null))));
+        IllegalArgumentException e = assertInvalid(request(event("ok", "AAS", null),
+                new DeviceEvent("bad", "ABCD12", " ", AT, null, null, null)));
         assertEquals("events[1].type is required", e.getMessage());
         assertTrue(channel.published.isEmpty());
 
-        assertThrows(IllegalArgumentException.class, () -> events.accept(TENANT, new Request(List.of())));
-        assertThrows(IllegalArgumentException.class, () -> events.accept(TENANT, null));
-        assertThrows(IllegalArgumentException.class, () -> events.accept(TENANT,
-                request(new DeviceEvent("x", "ABCD12", "FYS", null, null, null, null))));
-        assertThrows(IllegalArgumentException.class, () -> events.accept(TENANT,
-                request(new DeviceEvent("x", "ABCD12", "FYS", OffsetDateTime.ofInstant(NOW.plusSeconds(600),
-                        ZoneOffset.UTC), null, null, null))), "in the future");
-        assertThrows(IllegalArgumentException.class, () -> events.accept(TENANT,
-                request(new DeviceEvent("x", "ABCD12", "FYS", AT, null, "critical", null))));
-        assertThrows(IllegalArgumentException.class, () -> events.accept(TENANT,
-                request(new DeviceEvent("x", "ABCD12", "FYS", AT, null, null, "x".repeat(501)))));
+        assertInvalid(new Request(List.of()));
+        assertInvalid(null);
+        assertInvalid(request(new DeviceEvent("x", "ABCD12", "FYS", null, null, null, null)));
+        IllegalArgumentException future = assertInvalid(request(new DeviceEvent("x", "ABCD12", "FYS",
+                OffsetDateTime.ofInstant(NOW.plusSeconds(600), ZoneOffset.UTC), null, null, null)));
+        assertEquals("events[0].occurredAt is in the future", future.getMessage());
+        assertInvalid(request(new DeviceEvent("x", "ABCD12", "FYS", AT, null, "critical", null)));
+        assertInvalid(request(new DeviceEvent("x", "ABCD12", "FYS", AT, null, null, "x".repeat(501))));
         List<DeviceEvent> many = new ArrayList<>();
         for (int i = 0; i <= DeviceEvents.MAX_EVENTS; i++) {
             many.add(event("e" + i, "AAS", null));
         }
-        assertThrows(IllegalArgumentException.class, () -> events.accept(TENANT, new Request(many)));
+        assertInvalid(new Request(many));
+    }
+
+    private IllegalArgumentException assertInvalid(Request request) {
+        return assertThrows(IllegalArgumentException.class, () -> events.accept(TENANT, request));
     }
 
     @Test
     void offUnlessEnabled() {
         DeviceEvents off = new DeviceEvents(false, ids, (t, a) -> List.of(), channel, Clock.systemUTC(), () -> null);
+        Request emergency = request(event("app-1", "Emergencia", null));
         assertThrows(DeviceEvents.UnavailableException.class,
-                () -> off.accept(TENANT, request(event("app-1", "Emergencia", null))));
+                () -> off.accept(TENANT, emergency));
     }
 }

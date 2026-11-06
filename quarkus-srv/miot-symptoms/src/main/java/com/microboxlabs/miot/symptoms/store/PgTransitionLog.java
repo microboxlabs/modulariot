@@ -35,6 +35,7 @@ import java.util.function.Supplier;
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class PgTransitionLog implements TransitionLog {
+    private static final String EVENT_ID = "event_id";
 
     /** State changes and sweeps wait for in-flight writes; vehicles still evaluate concurrently. */
     private static final String LOCK_DEFINITION = """
@@ -120,8 +121,8 @@ public class PgTransitionLog implements TransitionLog {
             Uni<List<Recorded>> chain = locks.map(ignored -> new ArrayList<>());
             for (Transition t : transitions) {
                 JsonObject own = t.detail() == null ? json : new JsonObject(t.detail());
-                if (json != null && json.containsKey("event_id") && t.detail() != null) {
-                    own.put("event_id", json.getString("event_id"));
+                if (json != null && json.containsKey(EVENT_ID) && t.detail() != null) {
+                    own.put(EVENT_ID, json.getString(EVENT_ID));
                 }
                 chain = chain.flatMap(recorded -> conn.preparedQuery(INSERT).execute(params(tenantCode, t, place, own))
                         .map(rows -> addRecorded(recorded, rows, t)));

@@ -60,7 +60,7 @@ public class DeviceEvents {
             VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING event_id
             """;
     private static final String PRUNE = "DELETE FROM miot_symptoms.device_event WHERE received_at < $1";
-    private static final String ASSET_TRIPS = SignalStream.TRIPS.formatted("AND tl.tenant_code = $1 AND tl.asset_id = $2");
+    private static final String ASSET_TRIPS = SignalStream.TRIPS_SQL.formatted("AND tl.tenant_code = $1 AND tl.asset_id = $2");
 
     /** One event as the producer sends it. */
     @Schema(name = "DeviceEvent")
@@ -133,15 +133,8 @@ public class DeviceEvents {
         if (!enabled) {
             throw new UnavailableException("device events are not enabled");
         }
-        List<DeviceEvent> events = request == null || request.events() == null ? List.of() : request.events();
-        if (events.isEmpty() || events.size() > MAX_EVENTS) {
-            throw new IllegalArgumentException("events must have 1 to " + MAX_EVENTS + " elements");
-        }
         Instant now = clock.instant();
-        List<DeviceEvent> checked = new ArrayList<>();
-        for (int i = 0; i < events.size(); i++) {
-            checked.add(check(events.get(i), i, now));
-        }
+        List<DeviceEvent> checked = checkedEvents(request, now);
         int accepted = 0;
         Set<String> inRequest = new HashSet<>();
         for (DeviceEvent e : checked) {
@@ -162,6 +155,18 @@ public class DeviceEvents {
             }
         }
         return new Accepted(accepted, checked.size() - accepted);
+    }
+
+    private static List<DeviceEvent> checkedEvents(Request request, Instant now) {
+        List<DeviceEvent> events = request == null || request.events() == null ? List.of() : request.events();
+        if (events.isEmpty() || events.size() > MAX_EVENTS) {
+            throw new IllegalArgumentException("events must have 1 to " + MAX_EVENTS + " elements");
+        }
+        List<DeviceEvent> checked = new ArrayList<>();
+        for (int i = 0; i < events.size(); i++) {
+            checked.add(check(events.get(i), i, now));
+        }
+        return checked;
     }
 
     private static DeviceEvent check(DeviceEvent e, int i, Instant now) {

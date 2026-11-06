@@ -72,7 +72,7 @@ public class SignalStream {
      * As JSON, so a loaded row and a notified one read alike. Names and phones are not selected: the carrier's
      * tax id and the driver's fleet id, status and license come from the fleet.
      */
-    static final String TRIPS = """
+    static final String TRIPS_SQL = """
             SELECT row_to_json(t)::text AS trip FROM (
                 SELECT tl.trip_id, tl.tenant_code, tl.asset_id, tl.trip_type, tl.status,
                        coalesce((SELECT m.confirmed_at FROM miot_trips.trip_milestone m
@@ -99,8 +99,8 @@ public class SignalStream {
                         ORDER BY status = 'active' DESC LIMIT 1) d ON true
                  WHERE tl.asset_id IS NOT NULL %s) t
             """;
-    private static final String ALL_TRIPS = TRIPS.formatted("");
-    private static final String ONE_TRIP = TRIPS.formatted("AND tl.trip_id = $1");
+    private static final String ALL_TRIPS = TRIPS_SQL.formatted("");
+    private static final String ONE_TRIP = TRIPS_SQL.formatted("AND tl.trip_id = $1");
     private static final String SHARES = """
             SELECT asset_id, shared_client_id, active, valid_from, valid_to FROM asset_client_map WHERE active
             """;

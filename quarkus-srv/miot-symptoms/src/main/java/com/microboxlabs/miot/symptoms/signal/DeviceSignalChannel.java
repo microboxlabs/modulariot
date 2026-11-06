@@ -7,6 +7,7 @@ import io.smallrye.mutiny.subscription.MultiEmitter;
 import io.smallrye.reactive.messaging.pulsar.PulsarOutgoingMessageMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import org.eclipse.microprofile.reactive.messaging.Message;
 import org.eclipse.microprofile.reactive.messaging.Metadata;
 import org.eclipse.microprofile.reactive.messaging.Outgoing;
@@ -19,16 +20,16 @@ import org.eclipse.microprofile.reactive.messaging.Outgoing;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class DeviceSignalChannel {
 
-    private volatile MultiEmitter<? super Message<String>> emitter;
+    private final AtomicReference<MultiEmitter<? super Message<String>>> emitter = new AtomicReference<>();
 
     @Outgoing("device-signals")
     public Multi<Message<String>> signals() {
-        return Multi.createFrom().emitter(e -> emitter = e, BackPressureStrategy.BUFFER);
+        return Multi.createFrom().<Message<String>>emitter(emitter::set, BackPressureStrategy.BUFFER);
     }
 
     /** Publishes the signal keyed by vehicle; throws {@link DeviceEvents.UnavailableException} when it was not taken. */
     public void publish(String assetId, String json) {
-        MultiEmitter<? super Message<String>> e = emitter;
+        MultiEmitter<? super Message<String>> e = emitter.get();
         if (e == null || e.isCancelled()) {
             throw new DeviceEvents.UnavailableException("the signals channel is not connected");
         }

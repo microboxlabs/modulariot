@@ -231,14 +231,13 @@ public class EvaluatorStream {
             Map<String, Object> own = forTenant(signal, tenant);
             samples.keep(tenant, own);
             List<CompiledSymptom> symptoms = symptoms(tenant).stream().filter(CompiledSymptom::eventDriven).toList();
-            if (symptoms.isEmpty()) {
-                continue;
+            if (!symptoms.isEmpty()) {
+                AssetEpisodes state = episodes.load(tenant, assetId);
+                SignalEvaluator.Result result = new SignalEvaluator(state, holds)
+                        .evaluateLate(tenant, assetId, at, Map.of(SignalFields.ROOT, own), symptoms);
+                writeResult(tenant, assetId, own, state, result, true);
+                recorded += result.transitions().size();
             }
-            AssetEpisodes state = episodes.load(tenant, assetId);
-            SignalEvaluator.Result result = new SignalEvaluator(state, holds)
-                    .evaluateLate(tenant, assetId, at, Map.of(SignalFields.ROOT, own), symptoms);
-            writeResult(tenant, assetId, own, state, result, true);
-            recorded += result.transitions().size();
         }
         return recorded;
     }

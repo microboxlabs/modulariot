@@ -45,7 +45,7 @@ class DeviceSignalChannelTest {
     }
 
     @Test
-    void aNegativeAcknowledgementFailsPublication() throws Exception {
+    void aNegativeAcknowledgementFailsPublication() {
         DeviceSignalChannel channel = new DeviceSignalChannel();
         var subscription = channel.signals().subscribe().with(message ->
                 message.nack(new IllegalStateException("rejected")));
@@ -60,6 +60,7 @@ class DeviceSignalChannelTest {
 
     @Test
     void anUnconnectedChannelRejectsPublication() {
-        assertThrows(DeviceEvents.UnavailableException.class, () -> new DeviceSignalChannel().publish("V1", "event"));
+        DeviceSignalChannel channel = new DeviceSignalChannel();
+        assertThrows(DeviceEvents.UnavailableException.class, () -> channel.publish("V1", "event"));
     }
 }

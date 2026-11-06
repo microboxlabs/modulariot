@@ -196,6 +196,16 @@ function driverId(
   return trip?.data.driverRut;
 }
 
+/** Literal and trip-place tags a contact created from an empty step starts with. */
+function presetTags(
+  summary: WhoSummary | null,
+  trip: TowerTripContacts | undefined
+): string[] | undefined {
+  if (!summary) return undefined;
+  const places = summary.places.flatMap((p) => trip?.data[p] ?? []);
+  return [...summary.tags, ...places];
+}
+
 /** The role, RUTs and company a contact created from an empty step starts with. */
 function presetFor(
   who: string,
@@ -205,12 +215,10 @@ function presetFor(
 ): NewContactPreset | undefined {
   const carrierRut = trip?.data.carrierRut;
   const company = summary?.company ?? (carrierName?.trim() || undefined);
-  const placeTags = (summary?.places ?? []).flatMap((p) => trip?.data[p] ?? []);
-  const tags = [...(summary?.tags ?? []), ...placeTags];
   const preset: NewContactPreset = {
     role: rolesOf(who, summary)[0] ?? "",
     company: summary?.company ?? undefined,
-    tags: tags.length ? tags : summary?.tags,
+    tags: presetTags(summary, trip),
   };
   const driverRut = driverId(summary, trip);
   if (summary?.driver && driverRut)

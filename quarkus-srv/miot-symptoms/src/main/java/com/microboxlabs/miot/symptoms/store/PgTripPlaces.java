@@ -41,7 +41,11 @@ public class PgTripPlaces {
 
     @Inject
     PgTripPlaces(Instance<Pool> pool) {
-        this.pool = pool::get;
+        this(pool::get);
+    }
+
+    PgTripPlaces(Supplier<Pool> pool) {
+        this.pool = pool;
     }
 
     public List<TripPlace> places(String tenantCode) {

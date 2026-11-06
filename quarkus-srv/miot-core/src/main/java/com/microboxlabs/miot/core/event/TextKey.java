@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 public final class TextKey {
 
     private static final Pattern MARKS = Pattern.compile("\\p{M}+");
-    private static final Pattern SPACES = Pattern.compile("\\s+");
+    private static final Pattern SPACES = Pattern.compile("[\\s\\uFEFF]+", Pattern.UNICODE_CHARACTER_CLASS);
 
     private TextKey() {
     }

@@ -29,6 +29,19 @@ describe("placeSuggestions", () => {
     ).toEqual([]);
   });
 
+  it("matches and deduplicates with the same spacing rules as step conditions", () => {
+    expect(placeSuggestions(PLACES, [], " planta  PENON ")).toEqual([
+      PLACES[0],
+    ]);
+    expect(
+      placeSuggestions(
+        PLACES,
+        [{ id: "b1", name: "Planta\u00a0 Peñón" }],
+        "planta"
+      )
+    ).toEqual([]);
+  });
+
   it("says how many live trips start and end there", () => {
     expect(placeDetail(PLACES[0], dict)).toBe(
       "Origen de 3 viajes en curso · destino de 1"
@@ -38,6 +51,39 @@ describe("placeSuggestions", () => {
 });
 
 describe("ContactBadgesSection", () => {
+  it("uses the trip spelling for an exact match beyond the suggestion limit", async () => {
+    const user = userEvent.setup();
+    const onCreate = vi.fn((name: string) => ({ id: `id-${name}`, name }));
+    const places = [
+      ...Array.from({ length: 8 }, (_, i) => ({
+        label: `Planta Peñón ${i}`,
+        origins: 20,
+        destinations: 0,
+      })),
+      PLACES[0],
+    ];
+    render(
+      <ContactBadgesSection
+        selectedIds={[]}
+        onChange={() => {}}
+        badges={[]}
+        onCreate={onCreate}
+        onRename={() => true}
+        onDelete={() => {}}
+        places={places}
+        d={dict}
+      />
+    );
+
+    await user.type(screen.getByRole("textbox"), "planta penon");
+    expect(screen.queryByText('Crear "planta penon"')).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /^Planta Peñón Origen/ })
+    ).toBeDefined();
+    await user.keyboard("{Enter}");
+    expect(onCreate).toHaveBeenCalledWith("Planta Peñón");
+  });
+
   it("adds a trip place as a tag written as the trips write it, and keeps free text", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

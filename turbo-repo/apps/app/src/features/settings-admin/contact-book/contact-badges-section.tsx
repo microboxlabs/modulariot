@@ -35,6 +35,11 @@ export function placeSuggestions(
       const label = normalizeLabel(p.label);
       return label.includes(key) && !taken.has(label);
     })
+    .sort(
+      (a, b) =>
+        Number(normalizeLabel(b.label) === key) -
+        Number(normalizeLabel(a.label) === key)
+    )
     .slice(0, MAX_PLACES);
 }
 
@@ -216,7 +221,7 @@ export default function ContactBadgesSection({
     ? badges.filter((b) => normalizeLabel(b.name).includes(key))
     : [];
   const placeMatches = placeSuggestions(places, badges, query);
-  const exactPlace = placeMatches.find((p) => normalizeLabel(p.label) === key);
+  const exactPlace = places.find((p) => normalizeLabel(p.label) === key);
   const selected = badges.filter((b) => selectedIds.includes(b.id));
 
   const toggle = (id: string) =>

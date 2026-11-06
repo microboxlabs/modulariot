@@ -71,6 +71,8 @@ public class EngineCaseService {
     private static final String DRIVER_FIELD = "driver";
     private static final String CARRIER_FIELD = "carrier";
     private static final String ORIGIN_FIELD = "origin";
+    private static final String ORIGIN_LABEL = "origin_geofence_label";
+    private static final String DESTINATION_LABEL = "destination_geofence_label";
     private static final String DESTINATION_FIELD = "destination";
     private static final String DRIVER_ID = "driver_id";
     private static final String SECOND_DRIVER_ID = "second_driver_id";
@@ -536,8 +538,8 @@ public class EngineCaseService {
             return TripPeople.NONE;
         }
         return TripPeople.of(t.getString(DRIVER_ID), t.getString(SECOND_DRIVER_ID), t.getString(CARRIER_TAX_ID))
-                .withRoute(TripRoute.of(t.getString("origin_geofence_label"), t.getInteger("origin_geofence_id"),
-                        t.getString("destination_geofence_label"), t.getInteger("destination_geofence_id")));
+                .withRoute(TripRoute.of(t.getString(ORIGIN_LABEL), t.getInteger("origin_geofence_id"),
+                        t.getString(DESTINATION_LABEL), t.getInteger("destination_geofence_id")));
     }
 
     /** The most recent cases {@link #scriptSamples} offers. */
@@ -599,8 +601,8 @@ public class EngineCaseService {
         trip.put("code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
-            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
-            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put(ORIGIN_FIELD, t.getString(ORIGIN_LABEL));
+            trip.put(DESTINATION_FIELD, t.getString(DESTINATION_LABEL));
             trip.put("load", t.getString(TYPE_LOAD));
             trip.putObject(DRIVER_FIELD)
                     .put("name", t.getString("driver_name"))
@@ -712,8 +714,8 @@ public class EngineCaseService {
             trip.put(CARRIER_TAX_ID, t.getString(CARRIER_TAX_ID));
             trip.put("driver_rut", t.getString(DRIVER_ID));
             trip.put("second_driver_rut", t.getString(SECOND_DRIVER_ID));
-            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
-            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put(ORIGIN_FIELD, t.getString(ORIGIN_LABEL));
+            trip.put(DESTINATION_FIELD, t.getString(DESTINATION_LABEL));
             trip.put(DRIVER_FIELD, t.getString("driver_name"));
             trip.put("driver2", t.getString("second_driver_name"));
             trip.put(TYPE_LOAD, t.getString(TYPE_LOAD));

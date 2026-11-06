@@ -4101,6 +4101,9 @@
         "close": "Close",
         "clauseByClause": "Condition by condition",
         "sampleOf": "Sample {n} of {total}",
+        "fieldFilter": "Filter fields",
+        "clearFieldFilter": "Clear field filter",
+        "noFieldMatches": "No results",
         "sampleHeld": "Held {seconds} s",
         "sampleHeldHelp": "Seconds the sample has met the condition. Level thresholds read it as held_s; it is not a field of the source.",
         "previousSample": "Previous sample",
@@ -4332,13 +4335,6 @@
         "restoreTitle": "Restore version {version}",
         "duplicateHint": "From version {version}. The new symptom starts in test, at 0.1.0, and keeps track of where it came from.",
         "restoreHint": "Publishes these rules as a new version. History is not rewritten.",
-        "fieldMeasure": "number · the measure's result",
-        "fieldHeld": "number · seconds it has held",
-        "fieldCaseCondition": "number · seconds the condition has been on",
-        "fieldCaseNormal": "number · seconds since it went back to normal",
-        "fieldCaseAge": "number · hours since it opened",
-        "fieldCaseLevel": "number · current ICU level",
-        "fieldCaseClosed": "yes/no · an operator closed it",
         "importEngine": "Import from the engine",
         "importDone": "{created} symptom(s) imported as off drafts; {skipped} were already here.",
         "notices": "Automatic notices",
@@ -4457,7 +4453,6 @@
         "planFailed": "The next version could not be worked out.",
         "perShift": "per shift",
         "save": "Save",
-        "teamEdit": "Team",
         "teamNotSet": "team not set",
         "teamTitle": "Operator team",
         "teamIntro": "The operator load card uses these numbers to compare the cases that need an operator with what a shift can handle.",
@@ -4471,6 +4466,7 @@
         "teamSaveFailed": "The team could not be saved.",
         "loading": "Loading…",
         "teamLoadFailed": "The saved team could not be read.",
+        "teamUnsaved": "Discard the unsaved team changes?",
         "cardChanges": "Changes",
         "cardChangesHint": "Rule versions",
         "draftsUnpublished": "unpublished drafts",
@@ -4505,8 +4501,34 @@
         "newRuleForLevel": "New rule for this level",
         "newRuleForLevelName": "{symptom} · {level}",
         "channelPreferred": "Preferred",
-        "telephonyMoved": "The organization's telephony is chosen in Connections.",
-        "telephonyConnections": "Go to Connections"
+        "telephonyMoved": "The organization's telephony is chosen in the Telephony section.",
+        "telephonyGo": "Go to Telephony",
+        "teamSaved": "Team saved.",
+        "menu": {
+          "title": "Sections",
+          "groups": {
+            "catalog": "Catalog",
+            "tower": "Control Tower"
+          },
+          "sections": {
+            "catalog": {
+              "label": "Symptoms",
+              "description": "What is watched and who acts"
+            },
+            "team": {
+              "label": "Team",
+              "description": "Operators and cases per shift"
+            },
+            "telephony": {
+              "label": "Telephony",
+              "description": "The line calls are placed on"
+            },
+            "usage": {
+              "label": "Usage",
+              "description": "The month's telephony minutes and charges"
+            }
+          }
+        }
       },
       "communications": {
         "title": "Communications",
@@ -4689,6 +4711,9 @@
         "previousSample": "Previous sample",
         "nextSample": "Next sample",
         "sampleOf": "Sample {n} of {total}",
+        "fieldFilter": "Filter fields",
+        "clearFieldFilter": "Clear field filter",
+        "noFieldMatches": "No results",
         "contactsNoSample": "No active contacts in the book to show their fields.",
         "contactsHint": "The contact book's active contacts that meet all these conditions. The step's channel picks their email or WhatsApp.",
         "contactsCel": "Condition on the contact",
@@ -5146,6 +5171,26 @@
         "copyFailed": "Could not copy. Select the text and copy it."
       },
       "telephony": {
+        "choice": {
+          "title": "Organization telephony",
+          "hint": "\"Call\" places calls through this line. The Teams button opens Microsoft Teams whenever there is an active Teams Phone connection.",
+          "platform": "Platform line (Telnyx)",
+          "ownTelnyx": "{name} (Telnyx)",
+          "teams": "{name} (Teams Phone)",
+          "teamsUnavailable": "Teams Phone (no active connection)",
+          "noTeamsHint": "To call with Teams, create and test a Teams Phone connection in Settings › Connections, then choose it here.",
+          "notTested": "{name} (Teams Phone, not tested)",
+          "unset": "Not chosen",
+          "inUse": "In use: {line}",
+          "inUseNone": "In use: the phone's dialer (no active line)",
+          "unsetHint": "The organization has not chosen yet. Until then the line above is used.",
+          "notReady": "{name} did not pass its test. It is not used until it does.",
+          "saveFailed": "Could not save the telephony settings.",
+          "forbidden": "You need permission to change Control Tower settings to change the telephony.",
+          "loading": "Loading…",
+          "loadFailed": "Could not load the organization's telephony.",
+          "noLines": "The organization has no telephony lines. Create a Teams Phone or Telnyx connection in Connections, or ask the platform for its line."
+        },
         "usage": {
           "title": "Month's usage",
           "description": "Each call on the platform line counts toward the month's minutes (UTC), rounded up to a minute. WhatsApp calls and templates are charged but use no minutes.",
@@ -5156,6 +5201,7 @@
           "quotaExhausted": "Minutes used up. Calls on the platform line are refused until next month or until the minutes are raised; the phone is offered instead.",
           "notEnforced": "The minutes are not applied yet: no call is refused, but usage is recorded.",
           "ownTeams": "The organization calls through its Teams Phone. Microsoft bills those calls and they are not counted here. Only the platform line's minutes (Telnyx) are shown here.",
+          "setupUnavailable": "The telephony setup is unavailable. Only usage of the platform line is shown; calls on the organization's own line may be billed separately.",
           "ownTelnyx": "The organization calls through its own Telnyx account. Telnyx bills those calls to the organization and they are not counted here. Only the platform line's minutes are shown here.",
           "quota": {
             "title": "Minutes",
@@ -5691,25 +5737,6 @@
         "webhookPublicKeyHelp": "In Telnyx: Account Settings › Keys & Credentials › Public Key. ModularIoT checks call webhooks with it.",
         "webhookUrl": "Webhook URL for the Credential Connection",
         "webhookUrlHelp": "Paste it in Telnyx as the connection's webhook. Shown after saving."
-      },
-      "telephonyChoice": {
-        "title": "Organization telephony",
-        "hint": "\"Call\" places calls through this line. The Teams button opens Microsoft Teams whenever there is an active Teams Phone connection.",
-        "platform": "Platform line (Telnyx)",
-        "ownTelnyx": "{name} (Telnyx)",
-        "teams": "{name} (Teams Phone)",
-        "teamsUnavailable": "Teams Phone (no active connection)",
-        "notTested": "{name} (Teams Phone, not tested)",
-        "unset": "Not chosen",
-        "inUse": "In use: {line}",
-        "inUseNone": "In use: the phone's dialer (no active line)",
-        "unsetHint": "The organization has not chosen yet. Until then the line above is used.",
-        "notReady": "{name} did not pass its test. It is not used until it does.",
-        "saved": "Telephony saved.",
-        "saveFailed": "Could not save the telephony settings.",
-        "forbidden": "You need permission to change Control Tower settings to change the telephony.",
-        "askTeams": "Use {name} as the organization's telephony?",
-        "askTeamsAction": "Use Teams Phone"
       }
     },
     "calendar": {
@@ -7818,13 +7845,32 @@
       "groupCarrier": "{role} · {company}",
       "groupOrg": "{role} · organization",
       "anyRole": "Any role",
-      "tripCarrier": "trip's carrier"
+      "tripCarrier": "trip's carrier",
+      "secondDriver": "Second trip driver",
+      "matchingContacts": "Contacts that meet the condition",
+      "or": "or",
+      "conditionProblem": "The step condition has a problem: {problem}",
+      "roleNotForTrip": "No {role} in the contact book belongs to this trip.",
+      "roleNoMatch": "No {role} in the contact book meets the step condition.",
+      "noneForTrip": "No contact in the contact book belongs to this trip.",
+      "noneMatch": "No contact in the contact book meets the step condition."
     },
     "call_center_new_save_error": "The contact couldn't be saved to the contact book. The call goes ahead with this number only.",
     "call_phase_connecting": "Connecting…",
     "call_phase_ringing": "Ringing…",
     "call_phase_ended": "Call ended",
     "call_telnyx_failed": "Could not call from the browser",
+    "call_bar_label": "Call in progress",
+    "call_bar_back": "Back to the case",
+    "call_mute": "Mute microphone",
+    "call_unmute": "Unmute microphone",
+    "call_ended_pending": "Call ended: its result is not recorded yet",
+    "call_record_result": "Record result",
+    "call_dropped_on_reload": "The call was cut when the page reloaded",
+    "call_failed_short": "The call could not be placed",
+    "call_dismiss": "Dismiss",
+    "call_other_active": "A call with {name} is still open. Finish it before starting another one.",
+    "call_go_to_active": "Go to the call",
     "call_telephony_loading": "Loading telephony settings…",
     "call_telephony_load_failed": "Could not load telephony settings. Reopen the call to try again.",
     "call_telephony_answered": "answered (recorded by the telephony)",
@@ -7834,7 +7880,8 @@
     "call_channels_busy": "Every platform line is in a call. Try again in a moment.",
     "call_use_phone": "Call with the phone",
     "call_teams_no_connection": "No Teams Phone connection",
-    "call_teams_no_number": "This contact needs a phone number with a country code to call through Teams Phone."
+    "call_teams_no_number": "This contact needs a phone number with a country code to call through Teams Phone.",
+    "call_teams_setup": "Set up telephony"
   },
   "geographic_view": {
     "arrival_delay": "Arrival delay",

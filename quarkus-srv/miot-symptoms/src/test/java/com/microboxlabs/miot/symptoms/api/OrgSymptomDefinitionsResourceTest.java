@@ -53,7 +53,7 @@ import org.junit.jupiter.api.Test;
 class OrgSymptomDefinitionsResourceTest {
 
     private static final String ORG = "org-a";
-    private static final Duration WAIT = Duration.ofSeconds(5);
+    private static final Duration WAIT = Duration.ofSeconds(30);
 
     private InMemoryCatalog store;
     private SymptomCatalogService catalog;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCount } from "./team-settings-modal";
+import { parseCount } from "./team-settings";
 
 describe("parseCount", () => {
   it("reads empty as not set", () => {

@@ -15,6 +15,8 @@ function fakeClient() {
     sipCode: undefined as number | undefined,
     telnyxIDs: { telnyxCallControlId: "v3:control-1" },
     hangup: vi.fn(),
+    muteAudio: vi.fn(),
+    unmuteAudio: vi.fn(),
   };
   const client: SdkClient & { fire: (e: string, v?: unknown) => void } = {
     on: (event, cb) => {
@@ -37,6 +39,32 @@ function fakeClient() {
 
 describe("startTelnyxCall", () => {
   afterEach(() => vi.useRealTimers());
+
+  it("reports the call id once known and mutes the microphone", async () => {
+    const { client, call, update } = fakeClient();
+    const onCallId = vi.fn();
+    const live = await startTelnyxCall({
+      token: "jwt",
+      callerNumber: "+56900000000",
+      destination: "+56911111111",
+      onPhase: vi.fn(),
+      onEnd: vi.fn(),
+      onCallId,
+      sdk: async () => client,
+    });
+    client.fire("telnyx.ready");
+    update("ringing");
+    update("active");
+    expect(onCallId).toHaveBeenCalledOnce();
+    expect(onCallId).toHaveBeenCalledWith("v3:control-1");
+    live.setMuted?.(true);
+    expect(call.muteAudio).toHaveBeenCalledOnce();
+    live.setMuted?.(false);
+    expect(call.unmuteAudio).toHaveBeenCalledOnce();
+    update("hangup");
+    live.setMuted?.(true);
+    expect(call.muteAudio).toHaveBeenCalledOnce();
+  });
 
   it("fails and disconnects when the SDK never becomes ready", async () => {
     vi.useFakeTimers();

@@ -92,6 +92,7 @@ export function stepMethod(
 /** What a contact created from an empty trip step starts with. */
 export interface NewContactPreset {
   role: string;
+  tags?: string[];
   nationalId?: string;
   nationalIdType?: string;
   companyTaxIdType?: string;
@@ -195,6 +196,7 @@ export function useCallTargets() {
         companyTaxIdType: input.preset?.companyTaxIdType,
         companyRut: input.preset?.companyRut || undefined,
         company: input.preset?.company || undefined,
+        tags: input.preset?.tags,
       });
       void mutate(contactsKey);
       return saved;

@@ -29,8 +29,8 @@ public record TripCheck(
                 @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED"),
                 @Extension(name = "x-engine", value = "false") })
         @JsonProperty("resting_minutes") Double restingMinutes,
-        @Schema(title = "Minutos de jornada sin descanso largo", description = "Minutes on the trip since the "
-                + "driver's last rest of 8 h, or since the trip started", extensions = {
+        @Schema(title = "Minutos de jornada sin descanso largo", description = "Minutos de viaje desde el último "
+                + "descanso de 8 h del conductor, o desde que empezó el viaje", extensions = {
                 @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED"),
                 @Extension(name = "x-engine", value = "false") })
         @JsonProperty("duty_minutes") Double dutyMinutes,
@@ -47,33 +47,33 @@ public record TripCheck(
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @RegisterForReflection
     public record Loss(
-            @Schema(title = "Segundos sin señal", description = "Since the newest frame was taken",
+            @Schema(title = "Segundos sin señal", description = "Desde que se tomó la última trama",
                     extensions = @Extension(name = "x-unit", value = "s"))
             @JsonProperty("silence_s") Double silenceS,
-            @Schema(title = "Silencio esperado", description = "The vehicle's expected gap plus its sender's delivery delay",
+            @Schema(title = "Silencio esperado", description = "Intervalo normal del vehículo más la demora de entrega de su emisor",
                     extensions = @Extension(name = "x-unit", value = "s"))
             @JsonProperty("expected_s") Double expectedS,
-            @Schema(title = "Silencio sobre lo esperado", description = "silence_s / expected_s")
+            @Schema(title = "Silencio sobre lo esperado", description = "Segundos sin señal divididos por el silencio esperado")
             Double ratio,
             Last last,
-            @Schema(title = "Emisor", description = "The client that sends the vehicle's frames") String sender,
+            @Schema(title = "Emisor", description = "El cliente que envía las tramas del vehículo") String sender,
             @Schema(title = "Volvió la señal") Boolean returned,
-            @Schema(title = "Volvió con relleno", description = "Frames from inside the silence arrived after it")
+            @Schema(title = "Volvió con relleno", description = "Llegaron después tramas tomadas durante el silencio")
             Boolean backfill,
-            @Schema(title = "Zona de baja cobertura", description = "The shadow map says frames arrive delayed or "
-                    + "go missing in the last position's cell")
+            @Schema(title = "Zona de baja cobertura", description = "El mapa de sombra dice que en la celda de la "
+                    + "última posición las tramas llegan tarde o se pierden")
             @JsonProperty("low_coverage_zone") Boolean lowCoverageZone,
-            @Schema(title = "Proporción sin cobertura", description = "The cell's share of delayed and missing "
-                    + "frames, for the sender or the other senders; absent when nobody decided the cell")
+            @Schema(title = "Proporción sin cobertura", description = "Parte de tramas atrasadas o perdidas en la "
+                    + "celda, del emisor o de los demás; vacío si nadie la ha medido")
             @JsonProperty("coverage_share") Double coverageShare,
-            @Schema(title = "Fuente de cobertura", description = "Who decided the cell: sender, consensus or none",
+            @Schema(title = "Fuente de cobertura", description = "Quién midió la celda: sender (el emisor), consensus (los demás) o none",
                     enumeration = {"sender", "consensus", "none"})
             @JsonProperty("coverage_source") String coverageSource,
-            @Schema(title = "Pérdida en grupo", description = "Many of the sender's vehicles are lost at once, "
-                    + "against its usual count")
+            @Schema(title = "Pérdida en grupo", description = "Muchos vehículos del emisor sin señal a la vez, "
+                    + "frente a lo habitual")
             @JsonProperty("cohort_outage") Boolean cohortOutage,
-            @Schema(title = "Unidades cercanas reportando", description = "Vehicles that reported in the last "
-                    + "10 min within 10 km of the last position")
+            @Schema(title = "Unidades cercanas reportando", description = "Vehículos que reportaron en los últimos "
+                    + "10 min a menos de 10 km de la última posición")
             @JsonProperty("nearby_reporting") Double nearbyReporting) {
     }
 

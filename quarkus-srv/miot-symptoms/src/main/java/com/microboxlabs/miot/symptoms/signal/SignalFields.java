@@ -115,7 +115,8 @@ public final class SignalFields {
         if (kind == null && LISTS.containsKey(path)) {
             Class<?> element = LISTS.get(path);
             Schema list = element.getAnnotation(Schema.class);
-            out.add(new SourceField(path, list.title(), RuleLanguage.OBJECTS, null, fieldOrigin, true));
+            out.add(new SourceField(path, list.title(), RuleLanguage.OBJECTS, null, fieldOrigin, true, null,
+                    description(list)));
             walk(JSON.constructType(element), path, fieldOrigin, labels, out, depth + 1);
             return;
         }
@@ -132,7 +133,19 @@ public final class SignalFields {
         }
         boolean engine = !"false".equals(extension(schema, "x-engine"));
         out.add(new SourceField(path, label(p, schema, entry[0]), kind, unit, fieldOrigin, engine,
-                t.isEnumType() ? values(t.getRawClass()) : null));
+                t.isEnumType() ? values(t.getRawClass()) : null, description(schema)));
+    }
+
+    /**
+     * The {@code @Schema} description when it says more than the title; null otherwise. Without a title the
+     * annotation is gps-model's, whose descriptions are English API docs, not text for the editor.
+     */
+    private static String description(Schema schema) {
+        if (schema == null || schema.title().isBlank() || schema.description().isBlank()
+                || schema.description().equals(schema.title())) {
+            return null;
+        }
+        return schema.description();
     }
 
     /** The {@code @Schema} title, else the labels file entry, else the description, else the property name. */

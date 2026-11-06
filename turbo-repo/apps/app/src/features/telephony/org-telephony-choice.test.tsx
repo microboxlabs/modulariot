@@ -122,7 +122,7 @@ describe("OrgTelephonyChoice", () => {
     );
   });
 
-  it("with Telnyx chosen lists the platform line and each Teams Phone connection", () => {
+  it("with Telnyx chosen lists the platform line and the Teams Phone provider", () => {
     setup({ preferred: "TELNYX" });
     renderChoice();
     expect(select().value).toBe("TELNYX");
@@ -133,6 +133,29 @@ describe("OrgTelephonyChoice", () => {
     ]);
     expect(screen.queryByText(t.unsetHint)).toBeNull();
     expect(screen.queryByText(u.title)).toBeNull();
+  });
+
+  it("offers one Teams choice matching the backend's first ready connection", async () => {
+    setup({
+      preferred: "TELNYX",
+      lines: [
+        platform,
+        { ...teams, connectionId: "untested", name: "Untested", ready: false },
+        teams,
+        { ...teams, connectionId: "m2", name: "Second Teams" },
+      ],
+    });
+    renderChoice();
+    const options = Array.from(select().options).filter(
+      (option) => option.value === "TEAMS_PHONE"
+    );
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent(t.teams.replace("{name}", teams.name));
+    expect(options[0]).not.toBeDisabled();
+    fireEvent.change(select(), { target: { value: "TEAMS_PHONE" } });
+    await waitFor(() =>
+      expect(mocks.saveTelephony).toHaveBeenCalledWith("TEAMS_PHONE")
+    );
   });
 
   it("with Teams Phone chosen shows it in use and can go back to Telnyx", async () => {
@@ -169,6 +192,7 @@ describe("OrgTelephonyChoice", () => {
     setup({ preferred: "TEAMS_PHONE", active: platform, lines: [platform] });
     renderChoice();
     expect(select()).toHaveValue("TEAMS_PHONE");
+    expect(screen.getByText(t.noTeamsHint)).toBeInTheDocument();
     expect(
       screen.getByRole("option", { name: t.teamsUnavailable })
     ).toBeDisabled();
@@ -218,6 +242,35 @@ describe("OrgTelephonyUsage", () => {
     ).toBe("ok");
     expect(screen.getByText(/Total del mes: .*0,60/)).toBeInTheDocument();
     expect(screen.queryByText(u.ownTeams)).toBeNull();
+  });
+
+  it("explains that own-line setup is unknown while loading or after a failure", () => {
+    setup({});
+    mocks.swr.data = undefined;
+    mocks.swr.isLoading = true;
+    const { rerender } = renderUsage();
+    expect(screen.getByText(u.setupUnavailable)).toBeInTheDocument();
+    mocks.swr.isLoading = false;
+    mocks.swr.error = new Error("Synthetic setup failure");
+    rerender(
+      <OrgTelephonyUsage
+        dict={u as unknown as I18nRecord}
+        orgSlug="mintral"
+        lang="es"
+      />
+    );
+    expect(screen.getByText(u.setupUnavailable)).toBeInTheDocument();
+    expect(screen.getByText("/ 300 minutos")).toBeInTheDocument();
+    setup({ preferred: "TEAMS_PHONE", active: teams });
+    rerender(
+      <OrgTelephonyUsage
+        dict={u as unknown as I18nRecord}
+        orgSlug="mintral"
+        lang="es"
+      />
+    );
+    expect(screen.queryByText(u.setupUnavailable)).toBeNull();
+    expect(screen.getByText(u.ownTeams)).toBeInTheDocument();
   });
 
   it("with the organization's Teams Phone says Microsoft bills those calls and shows only platform minutes", () => {

@@ -61,9 +61,7 @@ export function OrgTelephonyChoice({
 
   if (isLoading) {
     return (
-      <p role="status" className={`text-sm ${MUTED}`}>
-        {tr("loading", dict)}
-      </p>
+      <output className={`text-sm ${MUTED}`}>{tr("loading", dict)}</output>
     );
   }
   if (error || !setup || setup.lines.length === 0) {
@@ -78,7 +76,9 @@ export function OrgTelephonyChoice({
   }
 
   const telnyx = setup.lines.find((l) => l.provider === "TELNYX");
-  const teams = setup.lines.filter((l) => l.provider === "TEAMS_PHONE");
+  // The API saves a provider and uses its first ready line, not a connection id.
+  const teamsLines = setup.lines.filter((l) => l.provider === "TEAMS_PHONE");
+  const teams = teamsLines.find((l) => l.ready) ?? teamsLines[0];
 
   const choose = async (value: string) => {
     if (value === UNSET) return;
@@ -109,6 +109,9 @@ export function OrgTelephonyChoice({
       <p id="org-telephony-hint" className={`text-xs ${MUTED}`}>
         {tr("hint", dict)}
       </p>
+      {!teams && (
+        <p className={`text-xs ${MUTED}`}>{tr("noTeamsHint", dict)}</p>
+      )}
       <Select
         id="org-telephony"
         aria-describedby="org-telephony-hint"
@@ -127,20 +130,19 @@ export function OrgTelephonyChoice({
         <option value="TELNYX" disabled={!telnyx}>
           {telnyx ? lineLabel(telnyx, dict) : tr("platform", dict)}
         </option>
-        {setup.preferred === "TEAMS_PHONE" && teams.length === 0 && (
+        {setup.preferred === "TEAMS_PHONE" && !teams && (
           <option value="TEAMS_PHONE" disabled>
             {tr("teamsUnavailable", dict)}
           </option>
         )}
-        {teams.map((line) => (
+        {teams && (
           <option
-            key={line.connectionId}
             value="TEAMS_PHONE"
-            disabled={!line.ready && setup.preferred !== "TEAMS_PHONE"}
+            disabled={!teams.ready && setup.preferred !== "TEAMS_PHONE"}
           >
-            {lineLabel(line, dict)}
+            {lineLabel(teams, dict)}
           </option>
-        ))}
+        )}
       </Select>
       <p className={`text-xs ${MUTED}`}>{inUse(setup, dict)}</p>
       {setup.preferred === null && (
@@ -181,13 +183,14 @@ export function OrgTelephonyUsage({
   orgSlug: string | null;
   lang: string;
 }>) {
-  const { data: setup } = useTelephony(orgSlug !== null);
+  const { data: setup, error, isLoading } = useTelephony(orgSlug !== null);
   return (
     <TelephonyUsage
       orgSlug={orgSlug}
       lang={lang}
       d={dict}
       ownLine={setup ? ownLineOf(setup) : null}
+      setupUnavailable={Boolean(error) || isLoading || !setup}
     />
   );
 }

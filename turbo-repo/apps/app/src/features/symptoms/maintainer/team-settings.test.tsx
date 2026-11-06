@@ -1,5 +1,12 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { confirmNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { ControlTowerError } from "../control-tower/control-tower-api";
 import es from "@/lang/es.json";
@@ -13,20 +20,24 @@ const team = vi.hoisted(() => ({
     error: undefined as Error | undefined,
   },
   save: vi.fn(),
+  canSettings: true,
 }));
 vi.mock("./maintainer-api", () => ({
   useTowerTeam: () => team.swr,
   saveTowerTeam: team.save,
+  useControlTowerAccess: () => ({ can: () => team.canSettings }),
 }));
 
 const c = es.pages.userSettings.symptomCatalog;
 const d = c as unknown as I18nRecord;
 
 describe("TeamSettings", () => {
+  afterEach(() => vi.restoreAllMocks());
   beforeEach(() => {
     team.save.mockReset();
     team.swr.data = { operators: 4, shiftHours: 8, capacityPerShift: 20 };
     team.swr.error = undefined;
+    team.canSettings = true;
   });
 
   it("is a section, not a dialog, and links to the Telefonía section", () => {
@@ -57,6 +68,39 @@ describe("TeamSettings", () => {
       })
     );
     expect(await screen.findByText(c.teamSaved)).toBeInTheDocument();
+  });
+
+  it("hides the telephony setup link without settings-update access", () => {
+    team.canSettings = false;
+    render(<TeamSettings d={d} lang="es" />);
+    expect(screen.queryByRole("link", { name: c.telephonyGo })).toBeNull();
+  });
+
+  it("protects a dirty draft and locks its inputs until the submitted values are saved", async () => {
+    let finish = () => {};
+    team.save.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    const confirm = vi.spyOn(globalThis, "confirm").mockReturnValue(false);
+    render(<TeamSettings d={d} lang="es" />);
+    expect(confirmNavigation()).toBe(true);
+    fireEvent.change(screen.getByLabelText(c.teamOperators), {
+      target: { value: "6" },
+    });
+    expect(confirmNavigation()).toBe(false);
+    expect(confirm).toHaveBeenCalledWith(c.teamUnsaved);
+    fireEvent.click(screen.getByRole("button", { name: c.save }));
+    for (const label of [c.teamOperators, c.teamShiftHours, c.teamCapacity]) {
+      expect(screen.getByLabelText(label)).toBeDisabled();
+    }
+    await act(async () => finish());
+    expect(screen.getByLabelText(c.teamOperators)).toHaveValue("6");
+    expect(screen.getByLabelText(c.teamOperators)).not.toBeDisabled();
+    expect(screen.getByText(c.teamSaved)).toBeInTheDocument();
+    expect(confirmNavigation()).toBe(true);
   });
 
   it("blocks an invalid shift and explains a refused save", async () => {

@@ -4466,6 +4466,7 @@
         "teamSaveFailed": "No se pudo guardar el equipo.",
         "loading": "Cargando…",
         "teamLoadFailed": "No se pudo leer el equipo guardado.",
+        "teamUnsaved": "¿Descartar los cambios del equipo sin guardar?",
         "cardChanges": "Cambios",
         "cardChangesHint": "Versiones de las reglas",
         "draftsUnpublished": "borrador sin publicar",
@@ -5177,6 +5178,7 @@
           "ownTelnyx": "{name} (Telnyx)",
           "teams": "{name} (Teams Phone)",
           "teamsUnavailable": "Teams Phone (sin conexión activa)",
+          "noTeamsHint": "Para llamar con Teams, crea y prueba una conexión de Teams Phone en Ajustes › Conexiones y luego elígela aquí.",
           "notTested": "{name} (Teams Phone, sin probar)",
           "unset": "Sin elegir",
           "inUse": "En uso: {line}",
@@ -5199,6 +5201,7 @@
           "quotaExhausted": "Minutos agotados. Las llamadas por la línea de la plataforma se rechazan hasta el próximo mes o hasta que se aumenten los minutos; se ofrece el teléfono.",
           "notEnforced": "Los minutos aún no se aplican: no se rechaza ninguna llamada, pero el uso se registra.",
           "ownTeams": "La organización llama por su Teams Phone. Esas llamadas las factura Microsoft y no se cuentan aquí. Aquí solo se muestran los minutos de la línea de la plataforma (Telnyx).",
+          "setupUnavailable": "La configuración de telefonía no está disponible. Solo se muestra el uso de la línea de la plataforma; las llamadas por la línea propia de la organización pueden facturarse por separado.",
           "ownTelnyx": "La organización llama por su propia cuenta Telnyx. Esas llamadas las factura Telnyx a la organización y no se cuentan aquí. Aquí solo se muestran los minutos de la línea de la plataforma.",
           "quota": {
             "title": "Minutos",

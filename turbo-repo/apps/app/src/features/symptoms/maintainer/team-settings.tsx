@@ -6,8 +6,14 @@ import Link from "next/link";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { telephonySettingsHref } from "@/features/telephony/telephony-settings";
+import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import { ControlTowerError } from "../control-tower/control-tower-api";
-import { saveTowerTeam, useTowerTeam, type TowerTeam } from "./maintainer-api";
+import {
+  saveTowerTeam,
+  useControlTowerAccess,
+  useTowerTeam,
+  type TowerTeam,
+} from "./maintainer-api";
 import { MUTED } from "./ui/card";
 
 /** Bounds the API accepts. */
@@ -73,6 +79,16 @@ function TeamForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [baseline, setBaseline] = useState(() => ({
+    operators: text(team.operators),
+    shiftHours: String(team.shiftHours),
+    capacity: text(team.capacityPerShift),
+  }));
+  const dirty =
+    operators !== baseline.operators ||
+    shiftHours !== baseline.shiftHours ||
+    capacity !== baseline.capacity;
+  useUnsavedNavigation(busy || dirty, tr("teamUnsaved", d));
 
   const ops = parseCount(operators, 0, MAX_OPERATORS);
   const hours = parseCount(shiftHours, 1, 24);
@@ -95,6 +111,7 @@ function TeamForm({
         shiftHours: hours.value,
         capacityPerShift: cap.value,
       });
+      setBaseline({ operators, shiftHours, capacity });
       setSaved(true);
     } catch (e) {
       setError(
@@ -122,6 +139,7 @@ function TeamForm({
         inputMode="numeric"
         className="max-w-xs"
         value={value}
+        disabled={busy}
         color={ok ? undefined : "failure"}
         aria-invalid={!ok}
         aria-describedby={`${id}-hint`}
@@ -190,6 +208,8 @@ export function TelephonyLink({
   d,
   lang,
 }: Readonly<{ d: I18nRecord; lang: string }>) {
+  const { can } = useControlTowerAccess();
+  if (!can("controltower:settings.update")) return null;
   return (
     <p
       className={`border-t border-gray-200 pt-4 text-xs dark:border-gray-700 ${MUTED}`}

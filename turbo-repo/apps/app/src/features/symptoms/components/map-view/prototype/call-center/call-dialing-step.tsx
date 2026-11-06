@@ -33,6 +33,7 @@ import { HiX } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { telephonySettingsHref } from "@/features/telephony/telephony-settings";
+import { useControlTowerAccess } from "@/features/symptoms/maintainer/maintainer-api";
 import { BentoGrid, fieldLabel } from "../prototype-form-kit";
 import {
   ALL_CALL_METHODS,
@@ -67,6 +68,22 @@ import {
 } from "./call-session";
 import { OtherCallNotice, formatDuration } from "./call-bar";
 
+function TelephonySetupLink({
+  href,
+  label,
+}: Readonly<{ href: string; label: string }>) {
+  const { can } = useControlTowerAccess();
+  if (!can("controltower:settings.update")) return null;
+  return (
+    <Link
+      href={href}
+      className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+    >
+      {label}
+    </Link>
+  );
+}
+
 function CallTimer({
   notice,
   setup,
@@ -85,14 +102,7 @@ function CallTimer({
         <output className="text-sm font-medium text-amber-700 dark:text-amber-400">
           {notice}
         </output>
-        {setup && (
-          <Link
-            href={setup.href}
-            className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
-          >
-            {setup.label}
-          </Link>
-        )}
+        {setup && <TelephonySetupLink {...setup} />}
       </div>
     );
   }

@@ -4466,6 +4466,7 @@
         "teamSaveFailed": "The team could not be saved.",
         "loading": "Loading…",
         "teamLoadFailed": "The saved team could not be read.",
+        "teamUnsaved": "Discard the unsaved team changes?",
         "cardChanges": "Changes",
         "cardChangesHint": "Rule versions",
         "draftsUnpublished": "unpublished drafts",
@@ -5177,6 +5178,7 @@
           "ownTelnyx": "{name} (Telnyx)",
           "teams": "{name} (Teams Phone)",
           "teamsUnavailable": "Teams Phone (no active connection)",
+          "noTeamsHint": "To call with Teams, create and test a Teams Phone connection in Settings › Connections, then choose it here.",
           "notTested": "{name} (Teams Phone, not tested)",
           "unset": "Not chosen",
           "inUse": "In use: {line}",
@@ -5199,6 +5201,7 @@
           "quotaExhausted": "Minutes used up. Calls on the platform line are refused until next month or until the minutes are raised; the phone is offered instead.",
           "notEnforced": "The minutes are not applied yet: no call is refused, but usage is recorded.",
           "ownTeams": "The organization calls through its Teams Phone. Microsoft bills those calls and they are not counted here. Only the platform line's minutes (Telnyx) are shown here.",
+          "setupUnavailable": "The telephony setup is unavailable. Only usage of the platform line is shown; calls on the organization's own line may be billed separately.",
           "ownTelnyx": "The organization calls through its own Telnyx account. Telnyx bills those calls to the organization and they are not counted here. Only the platform line's minutes are shown here.",
           "quota": {
             "title": "Minutes",

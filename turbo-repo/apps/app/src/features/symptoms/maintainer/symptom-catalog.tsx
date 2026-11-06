@@ -11,6 +11,7 @@ import {
 import SectionMenu, {
   type SectionMenuEntry,
 } from "@/features/common/components/section-menu";
+import { confirmNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -162,7 +163,7 @@ export default function SymptomCatalog({
   // Who may use each section: the same checks as the API behind it.
   const allowed: Record<SymptomsSection, boolean> = {
     catalog: true,
-    team: !template && canMaintain,
+    team: !template && can("controltower:settings.update"),
     telephony: !template && can("controltower:settings.update"),
     usage:
       !template &&
@@ -238,6 +239,7 @@ export default function SymptomCatalog({
   }
 
   const onSection = (next: SymptomsSection) => {
+    if (next === section || !confirmNavigation()) return;
     const query = new URLSearchParams(params.toString());
     if (next === "catalog") query.delete("section");
     else query.set("section", next);

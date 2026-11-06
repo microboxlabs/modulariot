@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import type { ReactNode } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
@@ -76,6 +77,11 @@ const settings = es.pages.userSettings;
 const m = settings.symptomCatalog.menu;
 const ALL = ["controltower:symptom.edit", "controltower:settings.update"];
 
+function UnsavedTeam() {
+  useUnsavedNavigation(true, "Discard draft?");
+  return null;
+}
+
 function renderCatalog(scope: ReactNode = null, template = false) {
   return render(
     <SymptomScopeProvider value={template ? PLATFORM_TEMPLATES : ORG_SYMPTOMS}>
@@ -95,6 +101,7 @@ const entry = (label: string) =>
   within(menu()).queryByRole("button", { name: new RegExp(`^${label}`) });
 
 describe("Ajustes › Síntomas menu", () => {
+  afterEach(() => vi.restoreAllMocks());
   beforeEach(() => {
     state.params = new URLSearchParams();
     state.replace.mockReset();
@@ -168,9 +175,35 @@ describe("Ajustes › Síntomas menu", () => {
     state.permissions = ["controltower:settings.update"];
     state.role = "MEMBER";
     renderCatalog();
-    expect(entry(m.sections.team.label)).toBeNull();
+    expect(entry(m.sections.team.label)).not.toBeNull();
     expect(entry(m.sections.telephony.label)).not.toBeNull();
     expect(entry(m.sections.usage.label)).toBeNull();
+  });
+
+  it("does not offer team settings to a symptom editor without settings-update access", () => {
+    state.permissions = ["controltower:symptom.edit"];
+    state.role = "MEMBER";
+    state.params = new URLSearchParams("section=team");
+    renderCatalog();
+    expect(entry(m.sections.team.label)).toBeNull();
+    expect(screen.getByText("Catalog stats")).toBeInTheDocument();
+  });
+
+  it("keeps the current section when unsaved changes are not discarded", () => {
+    state.params = new URLSearchParams("section=team&source=shared");
+    const confirm = vi.spyOn(globalThis, "confirm").mockReturnValue(false);
+    renderCatalog(<UnsavedTeam />);
+    fireEvent.click(entry(m.sections.team.label)!);
+    expect(confirm).not.toHaveBeenCalled();
+    fireEvent.click(entry(m.sections.telephony.label)!);
+    expect(confirm).toHaveBeenCalledWith("Discard draft?");
+    expect(state.replace).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true);
+    fireEvent.click(entry(m.sections.telephony.label)!);
+    expect(state.replace).toHaveBeenCalledWith(
+      "/es/users/settings/symptoms?section=telephony&source=shared",
+      { scroll: false }
+    );
   });
 
   it("under the platform scope lists only the templates", () => {

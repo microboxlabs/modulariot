@@ -9,6 +9,7 @@ import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.dto.TripPeople;
+import com.microboxlabs.miot.symptoms.dto.TripRoute;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
@@ -110,7 +111,8 @@ public class EngineCaseService {
     private static final String TRIP = """
             SELECT tl.trip_id, tl.asset_id, tl.carrier_name, c.rut AS carrier_tax_id, tl.origin_geofence_label,
                    tl.destination_geofence_label, tl.driver_name, tl.second_driver_name, tl.type_load,
-                   tl.driver_contact_phone, tl.driver_id, tl.second_driver_id
+                   tl.driver_contact_phone, tl.driver_id, tl.second_driver_id, tl.origin_geofence_id,
+                   tl.destination_geofence_id
               FROM miot_trips.trip_live tl
               LEFT JOIN miot_fleet.carrier c ON c.tenant_code = tl.tenant_code AND c.id::text = tl.carrier_id
              WHERE tl.tenant_code = $1 AND tl.trip_id::text = $2 AND tl.asset_id = $3
@@ -526,15 +528,16 @@ public class EngineCaseService {
         }
     }
 
-    /** The RUTs of the case's live trip: drivers and carrier. Empty without a live trip. */
+    /** The RUTs of the case's live trip (drivers and carrier) and its origin and destination. Empty without one. */
     public TripPeople tripPeople(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
         Row t = c.tripId() == null ? null : trips.apply(Tuple.of(tenantCode, c.tripId(), c.assetId()));
         if (t == null) {
             return TripPeople.NONE;
         }
-        return TripPeople.of(t.getString(DRIVER_ID), t.getString(SECOND_DRIVER_ID),
-                t.getString(CARRIER_TAX_ID));
+        return TripPeople.of(t.getString(DRIVER_ID), t.getString(SECOND_DRIVER_ID), t.getString(CARRIER_TAX_ID))
+                .withRoute(TripRoute.of(t.getString("origin_geofence_label"), t.getInteger("origin_geofence_id"),
+                        t.getString("destination_geofence_label"), t.getInteger("destination_geofence_id")));
     }
 
     /** The most recent cases {@link #scriptSamples} offers. */

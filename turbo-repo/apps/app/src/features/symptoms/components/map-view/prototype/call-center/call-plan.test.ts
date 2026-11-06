@@ -101,6 +101,7 @@ describe("callPlan", () => {
       carrierSelf: false,
       company: null,
       tags: [],
+      places: [],
       driverField: "either",
     });
     expect(ids(plan.others)).toEqual(["oc", "gs-norte", "torre", "torre2"]);

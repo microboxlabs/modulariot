@@ -5,6 +5,7 @@ import { FilterSearchField } from "@/features/credentials/components/filter-sear
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { insertIntoFocused, type CelField } from "./cel-editor";
+import { FIELD_CARET_MIME } from "./cel-field-drop";
 import type { Preview, SourceField } from "./maintainer-api";
 import { originLabel } from "./symptom-side-panels";
 
@@ -297,8 +298,10 @@ function Leaf({
         else insertIntoFocused(text, caret);
       }}
       onDragStart={(e) => {
+        const { text, caret } = ctx.insertText(path);
         e.dataTransfer.effectAllowed = "copy";
-        e.dataTransfer.setData("text/plain", ctx.insertText(path).text);
+        e.dataTransfer.setData("text/plain", text);
+        e.dataTransfer.setData(FIELD_CARET_MIME, String(caret));
       }}
     >
       {text}

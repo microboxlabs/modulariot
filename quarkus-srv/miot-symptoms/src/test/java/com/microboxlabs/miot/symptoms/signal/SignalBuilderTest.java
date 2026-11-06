@@ -395,9 +395,22 @@ class SignalBuilderTest {
     }
 
     @Test
+    void etaDeviationKeepsTenthsOfAMinuteAndZeroIsAKnownPrediction() {
+        JsonObject row = new JsonObject(ROW).put("estimated_arrival_time", "2026-10-21T13:00:00+00:00");
+        String json = frame("ABCD12", 70, false);
+
+        assertEquals(0.1, etaTrip(row, 3607, json).etaDeviationMin());
+        assertEquals(-0.1, etaTrip(row, 3593, json).etaDeviationMin());
+        assertEquals(0.0, etaTrip(row, 3600, json).etaDeviationMin());
+        assertEquals(-60.0, etaTrip(row, 0, json).etaDeviationMin(), "zero remaining time is known");
+    }
+
+    @Test
     void etaDeviationIsMissingWithoutWhatThePredictionNeeds() {
         assertNull(etaTrip(new JsonObject(ROW).put("estimated_arrival_time", null), 3600,
                 frame("ABCD12", 70, false)).etaDeviationMin(), "no estimated arrival");
+        assertNull(etaTrip(new JsonObject(ROW).put("origin_geofence_id", null), 3600,
+                frame("ABCD12", 70, false)).etaDeviationMin(), "no origin");
         assertNull(etaTrip(new JsonObject(ROW).put("destination_geofence_id", null), 3600,
                 frame("ABCD12", 70, false)).etaDeviationMin(), "no destination");
         assertNull(etaTrip(new JsonObject(ROW).put("origin_geofence_id", 25), 3600,
@@ -406,5 +419,16 @@ class SignalBuilderTest {
                 .etaDeviationMin(), "off the cells the route's trips crossed");
         assertNull(etaTrip(new JsonObject(ROW), 3600, frame("ABCD12", 70, false).replace("-33.45", "91"))
                 .etaDeviationMin(), "no position");
+    }
+
+    @Test
+    void anUnknownEtaDeviationIsOmittedFromTheSignalJson() {
+        JsonObject envelope = new JsonObject(frame("ABCD12", 70, false));
+        envelope.getJsonObject("payload").remove("gps");
+        GpsSignal.Trip withoutGps = etaTrip(new JsonObject(ROW), 3600, envelope.encode());
+
+        assertFalse(SignalStream.JSON.valueToTree(withoutGps).has("eta_deviation_min"));
+        GpsSignal.Trip known = etaTrip(new JsonObject(ROW), 7200, frame("ABCD12", 70, false));
+        assertEquals(135.0, SignalStream.JSON.valueToTree(known).get("eta_deviation_min").asDouble());
     }
 }

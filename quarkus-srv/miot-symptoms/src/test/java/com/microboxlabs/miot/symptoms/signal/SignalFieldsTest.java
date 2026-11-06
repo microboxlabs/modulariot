@@ -115,6 +115,18 @@ class SignalFieldsTest {
     }
 
     @Test
+    void etaDeviationIsAvailableToRulesInMinutesFromTheTrip() {
+        SourceField field = byPath().get("signal.trip.eta_deviation_min");
+
+        assertNotNull(field);
+        assertEquals("number", field.type());
+        assertEquals("min", field.unit());
+        assertEquals(FieldOrigin.TRIP, field.origin());
+        assertTrue(field.engineSupported());
+        assertNotNull(field.description());
+    }
+
+    @Test
     void roadProvenanceHasLabelsDescriptionsAndOriginsWhileTenantMapsAreHidden() {
         Map<String, SourceField> fields = byPath();
         for (String name : List.of("osm_way_id", "road_class", "custom_zone_id")) {

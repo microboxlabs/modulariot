@@ -282,6 +282,31 @@ Templates are the symptoms of the reserved tenant `platform`. They have drafts, 
 
 Organizations see a template once a platform owner publishes it.
 
+## Device events
+
+`POST /device-events` (`controltower:event.send`) takes device events that do not travel in the GPS frames and hands each new one to the symptom engine ([gps-signal.md](gps-signal.md#device-events-outside-the-frames)). Use a service account (`miot_sk_` key) with the role `CONTROL_TOWER_EVENT_SENDER`.
+
+```json
+{"events": [{"eventId": "app-1001", "assetId": "ABCD12", "type": "Emergencia",
+             "occurredAt": "2026-10-01T12:00:00-03:00", "code": "109", "severity": "high",
+             "description": "Texto libre"}]}
+```
+
+| Field | Rule |
+|---|---|
+| `events` | 1 to 100, checked before any is sent |
+| `eventId` | Optional, up to 128 characters. A repeat with the same id is not sent again. Without one, the id is derived from `assetId`, `type`, `occurredAt` and `code` |
+| `assetId` | Required, up to 64 characters: the vehicle id of the GPS frames |
+| `type` | Required, up to 64 characters: what rules read as `event_type` |
+| `occurredAt` | Required, ISO 8601 with offset, at most 5 minutes ahead of the server |
+| `code` | Optional, up to 64 characters: the producer's code (`e.code`) |
+| `severity` | Optional: `low`, `medium` or `high` |
+| `description` | Optional, up to 500 characters |
+
+Answers `202 {"accepted": n, "duplicates": m}`. 503 when `miot.symptoms.device-events.enabled` is off or the signals topic did not take an event; the events after it were not sent, and the failed one can be sent again. Event ids are kept 30 days in `miot_symptoms.device_event`, without the payload.
+
+The receipt commits after broker acknowledgement. Concurrent retries wait for that outcome; a failed send or a process stopping before acknowledgement rolls the receipt back. An acknowledgement lost after delivery may cause a broker redelivery, so the evaluator also deduplicates device transitions by event id. Distinct event ids at the same timestamp remain independent. A pending publication is not released by a local request timeout.
+
 ## Roles and permissions
 
 Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerAccessCatalog` lists them and the roles that grant them. Owners and Admins hold every permission.
@@ -295,12 +320,14 @@ Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerA
 | `controltower:symptom.edit` | Symptoms: create, from template, import, identity, draft, fork |
 | `controltower:symptom.publish` | Symptoms: publish, roll back, change state |
 | `controltower:settings.update` | Tower settings |
+| `controltower:event.send` | Device events |
 
 | Role | Permissions |
 |---|---|
 | `CONTROL_TOWER_VIEWER` | view |
 | `CONTROL_TOWER_OPERATOR` | view, case.treat, contact.write |
 | `CONTROL_TOWER_MAINTAINER` | all of the above plus contact.delete, symptom.edit, symptom.publish, settings.update |
+| `CONTROL_TOWER_EVENT_SENDER` | event.send, for an event producer's service account |
 
 `controltower:places.edit` (the app's places editor) is disabled for now: it is not declared, so no one holds it, Owners and Admins included, and the app hides the editor. `ControlTowerAccessCatalog.PLACES_EDIT` lists the steps to turn it back on.
 
@@ -316,7 +343,7 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 | 403 | Not a member, org path mismatch, or a missing control tower permission |
 | 404 | Treatment or contact not found |
 | 409 | Treatment not `OPEN`, closing one with no actions, or a contact's national id already used |
-| 503 | Map data cannot be read: `miot.symptoms.gps.rpc-url` unset, the organization has no Auth0 application, or the GPS database failed |
+| 503 | Device events are off or not published, or map data cannot be read: `miot.symptoms.gps.rpc-url` unset, the organization has no Auth0 application, or the GPS database failed |
 
 ## Treatment screen flow
 
@@ -348,6 +375,7 @@ organization server-side and forward the user's session token.
 | `miot.component.symptoms.enabled` | `MIOT_COMPONENT_SYMPTOMS_ENABLED` | `${miot.component.all.enabled}` | Turns the module on |
 | `miot.symptoms.cdc.enabled` | `MIOT_SYMPTOMS_CDC_ENABLED` | same as the component | Pulsar dispatcher. Set `false` on a modulith that only serves the API |
 | `miot.symptoms.gps.rpc-url` | `MIOT_SYMPTOMS_GPS_RPC_URL` | none | PostgREST in front of the GPS database, for the map endpoints |
+| `miot.symptoms.device-events.enabled` | `MIOT_SYMPTOMS_DEVICE_EVENTS_ENABLED` | `false` | Device events endpoint and its `device-signals` channel to the signals topic |
 | `miot.symptoms.control-tower.demo-seed` | `MIOT_SYMPTOMS_CONTROL_TOWER_DEMO_SEED` | `false` (`true` in `quarkus:dev`) | Seed demo contacts and history. Leave off anywhere real symptoms are shown |
 
 ## Not in this API yet

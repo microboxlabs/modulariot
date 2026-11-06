@@ -343,6 +343,22 @@ class PgCaseStateTest {
     }
 
     @Test
+    void sameTimeDeviceEventsEscalateOncePerEventId() {
+        Transition opening = new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.TEST, TRUCK, T0, 2, 0, 1);
+        Transition escalation = new Transition(Kind.LEVEL_CHANGED, speeding, "1.0.0", SymptomState.TEST,
+                TRUCK, T0, 4, 2, 2);
+        Map<String, Object> first = Map.of("event_id", "cam-105");
+        Map<String, Object> second = Map.of("event_id", "cam-109");
+        long id = log.append(TENANT, List.of(opening), PLACE, first).getFirst().caseId();
+        assertEquals(1, log.append(TENANT, List.of(escalation), PLACE, second).size());
+        assertTrue(log.append(TENANT, List.of(escalation), PLACE, second).isEmpty());
+        assertEquals(4, cases.find(TENANT, id).orElseThrow().level());
+        assertEquals(1, append(Kind.LEVEL_CHANGED, SymptomState.TEST, 0, 3).size(),
+                "a GPS frame keeps its separate timestamp identity");
+        assertTrue(append(Kind.LEVEL_CHANGED, SymptomState.TEST, 0, 3).isEmpty());
+    }
+
+    @Test
     void aRejectedOpeningRetriesButAReplayDoesNot() {
         open(SymptomState.TEST, 0);
         assertTrue(append(Kind.OPENED, SymptomState.TEST, 0, 4).isEmpty());

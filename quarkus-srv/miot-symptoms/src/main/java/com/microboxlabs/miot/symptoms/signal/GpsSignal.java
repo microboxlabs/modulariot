@@ -40,6 +40,8 @@ public record GpsSignal(
         @Schema(hidden = true) @JsonProperty("received_at") Instant receivedAt,
         @Schema(hidden = true) List<String> clients,
         @Schema(hidden = true) String sender,
+        @Schema(hidden = true, description = "Device event identity; absent on GPS frames")
+        @JsonProperty("event_id") String eventId,
         @Schema(hidden = true) Map<String, Trip> trips,
         Trip trip,
         Vehicle vehicle,
@@ -54,6 +56,11 @@ public record GpsSignal(
         @Schema(extensions = @Extension(name = "x-origin", value = "DEVICE")) AssetTrackingData frame) {
 
     public static final String SCHEMA_ID = "miot.gps.signal@1";
+    /**
+     * A signal that carries only device events received outside the GPS frames ({@code DeviceEvents}): no position,
+     * no sensors. The evaluator runs on it only the symptoms that read device events.
+     */
+    public static final String EVENTS_SCHEMA_ID = "miot.gps.signal.events@1";
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -207,7 +214,8 @@ public record GpsSignal(
     /**
      * One of the frame's {@code events} as rules read it, under {@value #FRAME_EVENTS}. The type is open text:
      * each GPS provider sends its own codes. A missing value reads as an empty text, so a rule needs no
-     * {@code has()}.
+     * {@code has()}. {@code code} is the producer's code for the event, sent by the device-events endpoint; GPS
+     * frames have none.
      */
     @Schema(title = "Eventos del GPS", description = "Los eventos del equipo que trae la trama")
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -217,7 +225,8 @@ public record GpsSignal(
             @Schema(title = "Severidad del evento") String severity,
             @Schema(title = "Descripción del evento") String description,
             @Schema(title = "Hora del evento", extensions = @Extension(name = "x-type", value = "time"))
-            String timestamp) {
+            String timestamp,
+            @Schema(title = "Código del evento") String code) {
 
         public static final String FRAME_EVENTS = "signal.frame.events";
 
@@ -227,6 +236,7 @@ public record GpsSignal(
             severity = severity == null ? "" : severity;
             description = description == null ? "" : description;
             timestamp = timestamp == null ? "" : timestamp;
+            code = code == null ? "" : code;
         }
 
         /** The frame's events as rules read them; empty when the frame has none. */
@@ -252,12 +262,12 @@ public record GpsSignal(
 
         static FrameEvent of(Map<?, ?> event) {
             return new FrameEvent(text(event.get("event_type")), text(event.get("severity")),
-                    text(event.get("description")), text(event.get("timestamp")));
+                    text(event.get("description")), text(event.get("timestamp")), text(event.get("code")));
         }
 
         public Map<String, Object> asMap() {
             return Map.of("event_type", eventType, "severity", severity, "description", description,
-                    "timestamp", timestamp);
+                    "timestamp", timestamp, "code", code);
         }
 
         private static String text(Object value) {

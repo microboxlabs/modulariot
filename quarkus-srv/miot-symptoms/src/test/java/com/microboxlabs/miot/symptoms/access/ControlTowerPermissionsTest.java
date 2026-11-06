@@ -14,6 +14,7 @@ import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerAuditResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerContactsResource;
+import com.microboxlabs.miot.symptoms.api.OrgControlTowerDeviceEventsResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerMapResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerSettingsResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerTelephonyResource;
@@ -38,7 +39,7 @@ import org.junit.jupiter.api.Test;
 class ControlTowerPermissionsTest {
 
     private static final List<Class<?>> RESOURCES = List.of(OrgControlTowerAuditResource.class,
-            OrgControlTowerContactsResource.class, OrgControlTowerMapResource.class, OrgControlTowerSettingsResource.class,
+            OrgControlTowerContactsResource.class, OrgControlTowerDeviceEventsResource.class, OrgControlTowerMapResource.class, OrgControlTowerSettingsResource.class,
             OrgControlTowerTelephonyResource.class, OrgControlTowerTreatmentsResource.class, OrgDataSourcesResource.class,
             OrgSymptomDefinitionsResource.class, OrgSymptomFamiliesResource.class);
 
@@ -50,6 +51,7 @@ class ControlTowerPermissionsTest {
     private static final String PUBLISH = ControlTowerAccessCatalog.SYMPTOM_PUBLISH;
     private static final String SETTINGS = ControlTowerAccessCatalog.SETTINGS_UPDATE;
     private static final String PLACES = ControlTowerAccessCatalog.PLACES_EDIT;
+    private static final String EVENT_SEND = ControlTowerAccessCatalog.EVENT_SEND;
 
     /** Every endpoint and the permission it needs. A new endpoint without an entry here fails the test. */
     private static final Map<String, String> EXPECTED = new TreeMap<>(Map.ofEntries(
@@ -64,6 +66,7 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerContactsResource.importContacts", CONTACT_WRITE),
             Map.entry("OrgControlTowerContactsResource.update", CONTACT_WRITE),
             Map.entry("OrgControlTowerContactsResource.delete", CONTACT_DELETE),
+            Map.entry("OrgControlTowerDeviceEventsResource.send", EVENT_SEND),
             Map.entry("OrgControlTowerMapResource.positions", VIEW),
             Map.entry("OrgControlTowerMapResource.summary", VIEW),
             Map.entry("OrgControlTowerMapResource.conditions", VIEW),
@@ -150,6 +153,9 @@ class ControlTowerPermissionsTest {
         assertTrue(operator.containsAll(Set.of(VIEW, TREAT, CONTACT_WRITE)) && !operator.contains(EDIT));
         assertTrue(maintainer.containsAll(Set.of(VIEW, TREAT, CONTACT_WRITE, CONTACT_DELETE, EDIT, PUBLISH,
                 SETTINGS)));
+        Set<String> sender = grant(registry, ControlTowerAccessCatalog.EVENT_SENDER);
+        assertTrue(sender.contains(EVENT_SEND) && !sender.contains(VIEW), "a producer's account only sends events");
+        assertTrue(!viewer.contains(EVENT_SEND) && !operator.contains(EVENT_SEND) && !maintainer.contains(EVENT_SEND));
     }
 
     /** Disabled until the places editor ships, see {@link ControlTowerAccessCatalog#PLACES_EDIT}. */

@@ -15,6 +15,12 @@
  * red button hangs up, and the call's end fills the duration, whether it was
  * answered, and the provider's call id. Without one, it opens `tel:`.
  *
+ * "whatsapp" calls from the browser too when the server has WhatsApp calling
+ * on (`whatsAppCalling`): the server dials the contact on WhatsApp and bridges
+ * it to the browser leg. A contact who has not allowed calls cannot be called;
+ * the permission row above offers the request. "Abrir chat" still opens the
+ * wa.me chat; without WhatsApp calling the WhatsApp button does only that.
+ *
  * "teams" opens Microsoft Teams whenever the organization has a tested Teams
  * Phone connection, whatever its main line. Without one nothing opens, so the
  * step shows "Sin conexión Teams Phone" instead of a timer.
@@ -24,7 +30,9 @@
  * shown in the call bar. Remounted, it shows the same call again.
  */
 
-import WhatsAppCallPermission from "./whatsapp-call-permission";
+import WhatsAppCallPermission, {
+  useWhatsAppCallPermission,
+} from "./whatsapp-call-permission";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -54,6 +62,10 @@ import { startTelnyxCall, type TelephonyCallResult } from "./telnyx-call";
 import {
   CHANNELS_BUSY,
   QUOTA_EXHAUSTED,
+  WHATSAPP_CALL_TAKEN,
+  WHATSAPP_NO_PERMISSION,
+  WHATSAPP_UNAVAILABLE,
+  fetchCallOutcome,
   fetchWebRtcToken,
   reportCallEnded,
   type TelephonyLine,
@@ -110,12 +122,14 @@ export default function CallDialingStep({
   teamsLine = null,
   telephonyPending = false,
   telephonyFailed = false,
+  whatsAppCalling = false,
   onCancel,
   onConfirm,
   onStartedChange,
   dial = startTelnyxCall,
   token = fetchWebRtcToken,
   endCall = reportCallEnded,
+  callOutcome = fetchCallOutcome,
   caseRef = null,
   openTeams = openTeamsCall,
   sessionKey,
@@ -147,6 +161,8 @@ export default function CallDialingStep({
   teamsLine?: TelephonyLine | null;
   telephonyPending?: boolean;
   telephonyFailed?: boolean;
+  /** The server can place WhatsApp calls: the WhatsApp button calls from the browser. */
+  whatsAppCalling?: boolean;
   onCancel: (elapsedSeconds: number) => void;
   /** `result` is set when the provider placed the call and reported how it ended. */
   onConfirm: (
@@ -161,6 +177,7 @@ export default function CallDialingStep({
   dial?: typeof startTelnyxCall;
   token?: typeof fetchWebRtcToken;
   endCall?: typeof reportCallEnded;
+  callOutcome?: typeof fetchCallOutcome;
   /** The case the call is about, for the usage ledger. */
   caseRef?: string | null;
   openTeams?: (links: { app: string; web: string }) => void;
@@ -232,6 +249,22 @@ export default function CallDialingStep({
   const teamsConnection =
     [line, teamsLine].find((l) => l?.provider === "TEAMS_PHONE" && l.ready) ??
     null;
+  const waPhone = channels?.whatsapp ?? contactPhone;
+  const waDestination = dialNumber(waPhone);
+  const waCall =
+    whatsAppCalling &&
+    methods.includes("whatsapp") &&
+    waDestination !== null &&
+    waDestination.startsWith("+");
+  // Same SWR key as the permission row: one request for both.
+  const { data: waPermission } = useWhatsAppCallPermission(
+    waCall ? waPhone : null
+  );
+  // Unknown permission (loading, flow off): Meta decides, and a 403 is shown after.
+  const waBlocked =
+    waCall &&
+    waPermission?.callingEnabled === true &&
+    waPermission.state !== "CAN_CALL";
   const teamsVia = (id: CallMethod): TelephonyLine | null => {
     if (destination === null || serviceNumber) return null;
     if (id === "teams") return teamsConnection;
@@ -253,7 +286,31 @@ export default function CallDialingStep({
     return session.startManual({ ...startInput(id), notice });
   }
 
+  /** Opens the channel's app (dialer, WhatsApp chat with the script typed); the call is timed here. */
+  function openChannel(id: CallMethod, notice: string | null = null) {
+    if (!startManualCall(id, notice)) return;
+    const link = channelLink(id, channels?.[id] ?? contactPhone, reason);
+    if (link?.startsWith("https://"))
+      window.open(link, "_blank", "noopener,noreferrer");
+    else if (link) window.location.href = link;
+  }
+
   function startMethod(id: CallMethod) {
+    if (id === "whatsapp" && waCall) {
+      if (waBlocked || !waDestination) return;
+      session.startTelnyx({
+        ...startInput(id),
+        calleeNumber: waDestination,
+        destination: waDestination,
+        caseRef,
+        channel: "WHATSAPP",
+        dial,
+        token,
+        endCall,
+        outcome: callOutcome,
+      });
+      return;
+    }
     const viaTeams = teamsVia(id);
     if (viaTeams) {
       const links = teamsCallLinks(destination);
@@ -276,20 +333,19 @@ export default function CallDialingStep({
       });
       return;
     }
-    // Opens the channel's app (dialer, WhatsApp chat with the script typed);
-    // the call is timed here either way. A "teams" press with no Teams Phone
-    // line opens nothing.
+    // A "teams" press with no Teams Phone line opens nothing.
     let notice: string | null = null;
     if (id === "teams")
       notice = teamsConnection
         ? "call_teams_no_number"
         : "call_teams_no_connection";
-    if (!startManualCall(id, notice)) return;
-    const link = channelLink(id, channels?.[id] ?? contactPhone, reason);
-    if (link?.startsWith("https://"))
-      window.open(link, "_blank", "noopener,noreferrer");
-    else if (link) window.location.href = link;
+    openChannel(id, notice);
   }
+
+  const methodLabel = (id: CallMethod) => {
+    if (id !== "whatsapp" || !waCall) return t(CALL_METHOD_LABEL_KEYS[id]);
+    return waBlocked ? t("call_wa_no_permission") : t("call_wa_call");
+  };
 
   // Buttons to start a call: none while this call is on or cut, or another is open.
   const idle = !started && !dropped && !other;
@@ -408,6 +464,13 @@ export default function CallDialingStep({
           >
             {refusal === QUOTA_EXHAUSTED && <p>{t("call_quota_exhausted")}</p>}
             {refusal === CHANNELS_BUSY && <p>{t("call_channels_busy")}</p>}
+            {refusal === WHATSAPP_NO_PERMISSION && (
+              <p>{t("call_wa_not_accepted")}</p>
+            )}
+            {refusal === WHATSAPP_UNAVAILABLE && (
+              <p>{t("call_wa_unavailable")}</p>
+            )}
+            {refusal === WHATSAPP_CALL_TAKEN && <p>{t("call_wa_taken")}</p>}
             {!refusal && (
               <p>
                 {t("call_telnyx_failed")}
@@ -422,6 +485,15 @@ export default function CallDialingStep({
               >
                 {t("call_use_phone")}
               </a>
+            )}
+            {method === "whatsapp" && (
+              <button
+                type="button"
+                onClick={() => openChannel("whatsapp")}
+                className="ml-3 font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                {t("call_wa_open_chat")}
+              </button>
             )}
           </div>
         )}
@@ -490,24 +562,34 @@ export default function CallDialingStep({
           {idle &&
             methods.map((id) => {
               const Icon = CALL_METHOD_ICONS[id];
-              const label = t(CALL_METHOD_LABEL_KEYS[id]);
+              const label = methodLabel(id);
               return (
                 <button
                   key={id}
                   type="button"
                   disabled={
-                    (id === "teams" || (id === "phone" && !serviceNumber)) &&
-                    (telephonyPending || telephonyFailed)
+                    ((id === "teams" || (id === "phone" && !serviceNumber)) &&
+                      (telephonyPending || telephonyFailed)) ||
+                    (id === "whatsapp" && waBlocked)
                   }
                   onClick={() => startMethod(id)}
                   title={label}
                   aria-label={label}
-                  className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white shadow-sm transition-colors hover:bg-green-600"
+                  className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white shadow-sm transition-colors hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Icon className="h-5 w-5" />
                 </button>
               );
             })}
+          {idle && waCall && (
+            <button
+              type="button"
+              onClick={() => openChannel("whatsapp")}
+              className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              {t("call_wa_open_chat")}
+            </button>
+          )}
 
           {started && (
             <>

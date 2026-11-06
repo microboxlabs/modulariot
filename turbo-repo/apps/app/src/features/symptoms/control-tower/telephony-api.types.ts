@@ -14,6 +14,8 @@ const setupSchema = z.object({
   preferred: providerSchema.nullable().optional().default(null),
   active: lineSchema.nullable().optional().default(null),
   lines: z.array(lineSchema),
+  /** The WhatsApp button calls from the browser; absent on older responses. */
+  whatsAppCalling: z.boolean().optional(),
 });
 
 const reconcileResultSchema = z.object({
@@ -54,4 +56,26 @@ export function readyTeamsLine(
   return (
     setup?.lines.find((l) => l.provider === "TEAMS_PHONE" && l.ready) ?? null
   );
+}
+
+const callOutcomeSchema = z.object({
+  failure: z.string().nullable().optional().default(null),
+});
+export type CallOutcome = z.infer<typeof callOutcomeSchema>;
+
+export function parseCallOutcome(payload: unknown): CallOutcome {
+  return callOutcomeSchema.parse(payload);
+}
+
+const inboundCallSchema = z.object({
+  id: z.string().min(1),
+  callerNumber: z.string(),
+  callerName: z.string().nullable().optional().default(null),
+  caseRef: z.string().nullable().optional().default(null),
+  since: z.string().datetime({ offset: true }),
+});
+export type InboundWhatsAppCall = z.infer<typeof inboundCallSchema>;
+
+export function parseInboundCalls(payload: unknown): InboundWhatsAppCall[] {
+  return z.array(inboundCallSchema).parse(payload);
 }

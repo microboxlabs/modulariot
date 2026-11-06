@@ -47,6 +47,11 @@ const context = {
       accepted: 1,
       denied: 0,
     },
+    history: {
+      lastCallAt: new Date("2026-10-31T10:00:00Z"),
+      accepted: 5,
+      denied: 2,
+    },
   },
   script: { message: "Step message", goal: "Step goal" },
   defaultMessage: "Default",
@@ -288,6 +293,7 @@ describe("CallSessionProvider", () => {
       contactName: "Synthetic contact",
     });
     expect(s().call?.context.target?.stats?.lastCallAt).toBeInstanceOf(Date);
+    expect(s().call?.context.target?.history).toEqual(context.target.history);
     expect(s().call?.context.script?.goal).toBe("Step goal");
   });
 

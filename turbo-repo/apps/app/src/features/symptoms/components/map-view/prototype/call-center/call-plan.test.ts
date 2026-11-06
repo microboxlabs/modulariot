@@ -205,7 +205,7 @@ describe("callsInCase", () => {
     const calls = callsInCase(caseA);
     expect(calls.get("gs")).toEqual({
       lastCallAt: new Date("2026-11-03T10:05:00Z"),
-      accepted: 2,
+      accepted: 1,
       denied: 1,
     });
     // Case B has its own treatments: nobody was called there.
@@ -220,7 +220,7 @@ describe("callsInCase", () => {
     const treatments = [
       {
         actions: [
-          action({ contactPhone: "912345678" }),
+          action({ contactPhone: "912345678", answered: false }),
           action({ contactRole: "Gerente" }),
         ],
       },
@@ -243,6 +243,62 @@ describe("callsInCase", () => {
     expect(t.stats).toEqual({ lastCallAt: null, accepted: 0, denied: 0 });
     expect(t.history?.accepted).toBe(2);
   });
+
+  it("does not assign a phone-only call to contacts sharing the number", () => {
+    const targets = [
+      withPhone("gs", "+56 9 1234 5678"),
+      withPhone("oc", "912345678"),
+    ];
+    const treatments = [
+      { actions: [action({ contactPhone: "+56912345678" })] },
+    ] as TowerTreatment[];
+    expect(callsInCase(treatments, targets).size).toBe(0);
+  });
+
+  it("keeps country codes when matching numbers with the same last nine digits", () => {
+    const targets = [
+      withPhone("us", "+12025550101"),
+      withPhone("gb", "+442025550101"),
+    ];
+    const treatments = [
+      { actions: [action({ contactPhone: "+12025550101" })] },
+    ] as TowerTreatment[];
+    expect([...callsInCase(treatments, targets).keys()]).toEqual(["us"]);
+  });
+
+  it("uses a stable id even when contacts share a phone", () => {
+    const targets = [
+      withPhone("gs", "+56912345678"),
+      withPhone("oc", "+56912345678"),
+    ];
+    const treatments = [
+      { actions: [action({ contactId: "gs", contactPhone: "+56912345678" })] },
+    ] as TowerTreatment[];
+    expect([...callsInCase(treatments, targets).keys()]).toEqual(["gs"]);
+  });
+
+  it.each([0, 12])(
+    "marks a pending call with duration %s as called without guessing its outcome",
+    (durationSeconds) => {
+      const treatments = [
+        {
+          actions: [
+            action({
+              contactId: "gs",
+              answered: null,
+              durationSeconds,
+              details: { telephony: { status: "PENDING" } },
+            }),
+          ],
+        },
+      ] as TowerTreatment[];
+      expect(callsInCase(treatments).get("gs")).toEqual({
+        lastCallAt: new Date("2026-11-03T10:00:00Z"),
+        accepted: 0,
+        denied: 0,
+      });
+    }
+  );
 });
 
 describe("matchesTarget", () => {

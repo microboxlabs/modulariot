@@ -119,6 +119,15 @@ export function saveCall(
 const methodSchema = z.enum(["phone", "whatsapp", "meet", "teams"]);
 const timestampSchema = z.number().min(0).max(8_640_000_000_000_000);
 const secondsSchema = z.number().nonnegative().finite();
+const callStatsSchema = z.object({
+  lastCallAt: z
+    .string()
+    .datetime({ offset: true })
+    .transform((s) => new Date(s))
+    .nullable(),
+  accepted: secondsSchema,
+  denied: secondsSchema,
+});
 const partsSchema = z.array(
   z.union([z.object({ text: z.string() }), z.object({ blank: z.string() })])
 );
@@ -165,17 +174,8 @@ const storedCallSchema = z.object({
         companyRut: z.string().nullable().optional(),
         nationalId: z.string().nullable().optional(),
         methods: z.array(methodSchema),
-        stats: z
-          .object({
-            lastCallAt: z
-              .string()
-              .datetime({ offset: true })
-              .transform((s) => new Date(s))
-              .nullable(),
-            accepted: secondsSchema,
-            denied: secondsSchema,
-          })
-          .nullable(),
+        stats: callStatsSchema.nullable(),
+        history: callStatsSchema.nullable().optional(),
       })
       .nullable(),
     script: z

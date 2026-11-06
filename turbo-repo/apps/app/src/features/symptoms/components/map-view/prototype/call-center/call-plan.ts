@@ -20,7 +20,7 @@ import {
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
 import { fillScriptText } from "@/features/symptoms/maintainer/script-fill";
 import { SKIP_TO_STEP } from "../prototype-api-guard";
-import type { CallStats, CallTarget } from "./call-targets";
+import { tripPhoneE164, type CallStats, type CallTarget } from "./call-targets";
 
 export interface CallGroup {
   index: number;
@@ -85,30 +85,18 @@ function skipMatchesCase(
 
 const NO_CALLS: CallStats = { lastCallAt: null, accepted: 0, denied: 0 };
 
-/** The last 9 digits of a number, so "+56 9 1234 5678" and "912345678" match. */
+/** Match the same full number, reading legacy national numbers as Chilean. */
 function phoneKey(phone: string | null | undefined): string {
-  const digits = (phone ?? "").replace(/\D/g, "");
-  return digits.length > 9 ? digits.slice(-9) : digits;
+  return tripPhoneE164(phone) ?? "";
 }
 
 function targetPhones(t: CallTarget): string[] {
   return [t.phone, t.channels?.phone, t.channels?.whatsapp]
     .map(phoneKey)
-    .filter((k) => k.length >= 8);
+    .filter(Boolean);
 }
 
-/**
- * The calls made to each contact in this case, by contact id. `treatments`
- * must be the case's own treatments. A CALL action names its contact by id;
- * an older one without an id matches the contact by phone. A legacy
- * role-only call cannot identify a driver assigned later, so it counts for
- * nobody.
- */
-export function callsInCase(
-  treatments: readonly TowerTreatment[] | undefined,
-  targets: readonly CallTarget[] = []
-): Map<string, CallStats> {
-  const out = new Map<string, CallStats>();
+function targetsByPhone(targets: readonly CallTarget[]): Map<string, string[]> {
   const byPhone = new Map<string, string[]>();
   for (const t of targets) {
     if (!t.contactId) continue;
@@ -118,17 +106,33 @@ export function callsInCase(
       byPhone.set(key, ids);
     }
   }
+  return byPhone;
+}
+
+/**
+ * The calls made to each contact in this case, by contact id. `treatments`
+ * must be the case's own treatments. A CALL action names its contact by id;
+ * an older one without an id matches a unique contact by phone. A legacy
+ * role-only call cannot identify a driver assigned later, so it counts for
+ * nobody.
+ */
+export function callsInCase(
+  treatments: readonly TowerTreatment[] | undefined,
+  targets: readonly CallTarget[] = []
+): Map<string, CallStats> {
+  const out = new Map<string, CallStats>();
+  // Most cases have no legacy phone-only calls; don't parse the whole book then.
+  let byPhone: Map<string, string[]> | undefined;
   const mark = (id: string, action: TowerAction) => {
     const at = new Date(action.performedAt);
     const previous = out.get(id) ?? NO_CALLS;
-    const answered = action.answered ?? (action.durationSeconds ?? 0) > 0;
     out.set(id, {
       lastCallAt:
         previous.lastCallAt && previous.lastCallAt >= at
           ? previous.lastCallAt
           : at,
-      accepted: previous.accepted + (answered ? 1 : 0),
-      denied: previous.denied + (answered ? 0 : 1),
+      accepted: previous.accepted + (action.answered === true ? 1 : 0),
+      denied: previous.denied + (action.answered === false ? 1 : 0),
     });
   };
   for (const t of treatments ?? []) {
@@ -139,8 +143,10 @@ export function callsInCase(
         continue;
       }
       const key = phoneKey(action.contactPhone);
-      if (key.length < 8) continue;
-      for (const id of byPhone.get(key) ?? []) mark(id, action);
+      if (!key) continue;
+      byPhone ??= targetsByPhone(targets);
+      const ids = byPhone.get(key) ?? [];
+      if (ids.length === 1) mark(ids[0], action);
     }
   }
   return out;

@@ -138,7 +138,7 @@ class PgCaseStateTest {
 
     @BeforeEach
     void definition() {
-        run("TRUNCATE miot_symptoms.signal_transitions");
+        run("TRUNCATE miot_symptoms.trip_end_effects, miot_symptoms.signal_transitions");
         speeding = UUID.randomUUID();
         pool.preparedQuery("""
                 INSERT INTO miot_symptoms.symptom_definition

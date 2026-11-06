@@ -32,4 +32,10 @@ public interface TransitionLog {
      *        for none
      */
     List<Recorded> append(String tenantCode, List<Transition> transitions, Place place, Map<String, Object> context);
+
+    /** Lost-signal writes must validate and lock the trip state in the same transaction as the transitions. */
+    default List<Recorded> appendTripCheck(String tenantCode, List<Transition> transitions, Place place,
+            Map<String, Object> context) {
+        return append(tenantCode, transitions, place, context);
+    }
 }

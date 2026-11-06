@@ -4,6 +4,7 @@ import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
 
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
+import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
@@ -11,6 +12,7 @@ import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.mutiny.sqlclient.SqlConnection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -36,6 +38,10 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class PgTransitionLog implements TransitionLog {
     private static final String EVENT_ID = "event_id";
+
+    private static final String CHECK_TRIP = """
+            SELECT status FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2 FOR SHARE
+            """;
 
     /** State changes and sweeps wait for in-flight writes; vehicles still evaluate concurrently. */
     private static final String LOCK_DEFINITION = """
@@ -101,12 +107,23 @@ public class PgTransitionLog implements TransitionLog {
     @Override
     public List<Recorded> append(String tenantCode, List<Transition> transitions, Place place,
             Map<String, Object> context) {
+        return append(tenantCode, transitions, place, context, false);
+    }
+
+    @Override
+    public List<Recorded> appendTripCheck(String tenantCode, List<Transition> transitions, Place place,
+            Map<String, Object> context) {
+        return append(tenantCode, transitions, place, context, true);
+    }
+
+    private List<Recorded> append(String tenantCode, List<Transition> transitions, Place place,
+            Map<String, Object> context, boolean checkTrip) {
         if (transitions.isEmpty()) {
             return List.of();
         }
         JsonObject json = context == null ? null : new JsonObject(context);
         return pool.get().withTransaction(conn -> {
-            Uni<Void> locks = Uni.createFrom().voidItem();
+            Uni<Void> locks = lockTrip(conn, tenantCode, place, checkTrip);
             // Stable lock order also covers batches spanning more than one definition or vehicle.
             for (Transition t : transitions.stream().sorted(Comparator
                     .comparing((Transition t) -> t.definitionId().toString()).thenComparing(Transition::assetId))
@@ -129,6 +146,24 @@ public class PgTransitionLog implements TransitionLog {
             }
             return chain;
         }).await().atMost(QUERY_TIMEOUT);
+    }
+
+    /** A lost-signal check must not open a case from a trip-state snapshot taken before completion. */
+    private static Uni<Void> lockTrip(SqlConnection conn, String tenant, Place place, boolean checkTrip) {
+        if (!checkTrip) {
+            return Uni.createFrom().voidItem();
+        }
+        return conn.preparedQuery(CHECK_TRIP).execute(Tuple.of(tenant, TripEnds.uuid(place.tripId())))
+                .invoke(rows -> {
+                    var iterator = rows.iterator();
+                    if (!iterator.hasNext()) {
+                        throw new IllegalStateException("Trip ended; retry the lost-signal check");
+                    }
+                    String status = iterator.next().getString("status");
+                    if ("completed".equals(status) || "cancelled".equals(status)) {
+                        throw new IllegalStateException("Trip ended; retry the lost-signal check");
+                    }
+                }).replaceWithVoid();
     }
 
     /** A cached catalog must retry without saving a phantom episode; a replay duplicate still returns normally. */

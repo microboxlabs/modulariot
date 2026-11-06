@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import java.time.Instant;
 import java.util.ConcurrentModificationException;
 import java.util.Map;
@@ -18,6 +19,26 @@ class EpisodeRepositoryConcurrencyTest {
     void anOperatorMarkerRejectsStaleWritesAndDeletesInMemory() {
         InMemoryEpisodeRepository repository = new InMemoryEpisodeRepository();
         assertMarkerProtectsSnapshots(repository, repository, "memory-close");
+    }
+
+    @Test
+    void aTripCloseRejectsAnEpisodeWhoseOpeningHasNotBeenSavedYet() {
+        InMemoryEpisodeRepository repository = new InMemoryEpisodeRepository();
+        assertTripCloseProtectsSnapshot(repository, repository, "memory-trip-end");
+    }
+
+    static void assertTripCloseProtectsSnapshot(EpisodeRepository evaluator, EpisodeRepository closer, String asset) {
+        String tenant = "tenant-a";
+        UUID id = UUID.randomUUID();
+        Instant at = Instant.parse("2026-10-22T03:00:00Z");
+        AssetEpisodes pending = evaluator.load(tenant, asset);
+        pending.save(tenant, new Episode(id, "1.0.0", asset, at, at, null, Map.of(), at, at, 2, 10,
+                SymptomState.ACTIVE));
+
+        closer.forgetStale(tenant, asset, id, SymptomState.ACTIVE, at);
+
+        assertThrows(ConcurrentModificationException.class, () -> evaluator.save(pending));
+        assertTrue(evaluator.load(tenant, asset).find(tenant, asset, id).isEmpty());
     }
 
     @Test

@@ -95,7 +95,16 @@ public interface EngineCaseStore {
         return List.of();
     }
 
-    /** A case {@link #closeStale} closed; {@code id} is its OPENED transition's. */
+    /**
+     * Closes the open cases of the trip among {@code definitionIds}, whatever their level, with {@code reason} as
+     * {@code closed_by} and in the context, and returns them. A case already closed is left alone.
+     */
+    default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason) {
+        return List.of();
+    }
+
+    /** A case {@link #closeStale} or {@link #closeTrip} closed; {@code id} is its OPENED transition's. */
     record StaleCase(String tenantCode, long id, UUID definitionId, String version, boolean test, String assetId,
             int level, String tripId, Double latitude, Double longitude, Double speedKmh, Instant openedAt) {
 

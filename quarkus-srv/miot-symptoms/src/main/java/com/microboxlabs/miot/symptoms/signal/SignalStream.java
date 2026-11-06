@@ -102,7 +102,11 @@ public class SignalStream {
                        (CASE jsonb_typeof(tl.mandate_codes) WHEN 'string' THEN (tl.mandate_codes #>> '{}')::jsonb
                              ELSE tl.mandate_codes END) -> 0 ->> 'code' AS code,
                        tl.origin_geofence_id, tl.origin_geofence_label, tl.origin_visited, tl.origin_is_internal,
-                       tl.destination_geofence_id, tl.destination_geofence_label, tl.destination_visited,
+                       tl.destination_geofence_id, tl.destination_geofence_label,
+                       tl.destination_visited OR EXISTS (
+                           SELECT 1 FROM miot_trips.trip_milestone m
+                            WHERE m.tenant_code = tl.tenant_code AND m.trip_id = tl.trip_id
+                              AND m.milestone = 'arrival' AND m.status = 'confirmed') AS destination_visited,
                        tl.current_geofence_id, c.rut AS carrier_tax_id, tl.carrier_name, tl.type_load,
                        tl.rampla_plate, tl.driver_id IS NOT NULL AS driver_assigned, d.id AS driver_fleet_id,
                        d.status AS driver_status, d.license_expires AS driver_license_expires

@@ -367,4 +367,44 @@ class SignalBuilderTest {
         assertNull(signal.roads());
         assertNull(signal.geos());
     }
+
+    /** The trip row (origin 32, destination 17, estimated arrival 11:45) and a route cell where the frame is. */
+    private static GpsSignal.Trip etaTrip(JsonObject row, int remainingSeconds, String json) {
+        RouteEtas etas = new RouteEtas();
+        etas.load(List.of(new RouteEtas.Cell(32, 17, RouteEtas.token(-70.66, -33.45), remainingSeconds)));
+        SignalBuilder builder = new SignalBuilder(refs(List.of(ReferenceCache.trip(row)), List.of()),
+                ZoneId.of("America/Santiago"), new Zones(), null, new SpeedZones(),
+                new Bearings(java.time.Duration.ofMinutes(10)), etas);
+        return senderTrip(builder.build(EnvelopedMessage.fromJson(json)).orElseThrow());
+    }
+
+    @Test
+    void etaDeviationIsPositiveWhenThePredictedArrivalIsLate() {
+        GpsSignal.Trip t = etaTrip(new JsonObject(ROW), 7200, frame("ABCD12", 70, false));
+
+        assertEquals(135.0, t.etaDeviationMin(), "12:00 plus 2 h of route is 14:00, 135 min after 11:45");
+    }
+
+    @Test
+    void etaDeviationIsNegativeWhenThePredictedArrivalIsEarly() {
+        JsonObject row = new JsonObject(ROW).put("estimated_arrival_time", "2026-10-21T16:00:00+00:00");
+
+        GpsSignal.Trip t = etaTrip(row, 1800, frame("ABCD12", 0, false));
+
+        assertEquals(-210.0, t.etaDeviationMin(), "12:30 predicted, 16:00 estimated");
+    }
+
+    @Test
+    void etaDeviationIsMissingWithoutWhatThePredictionNeeds() {
+        assertNull(etaTrip(new JsonObject(ROW).put("estimated_arrival_time", null), 3600,
+                frame("ABCD12", 70, false)).etaDeviationMin(), "no estimated arrival");
+        assertNull(etaTrip(new JsonObject(ROW).put("destination_geofence_id", null), 3600,
+                frame("ABCD12", 70, false)).etaDeviationMin(), "no destination");
+        assertNull(etaTrip(new JsonObject(ROW).put("origin_geofence_id", 25), 3600,
+                frame("ABCD12", 70, false)).etaDeviationMin(), "a route without history");
+        assertNull(etaTrip(new JsonObject(ROW), 3600, frame("ABCD12", 70, false).replace("-33.45", "-33.20"))
+                .etaDeviationMin(), "off the cells the route's trips crossed");
+        assertNull(etaTrip(new JsonObject(ROW), 3600, frame("ABCD12", 70, false).replace("-33.45", "91"))
+                .etaDeviationMin(), "no position");
+    }
 }

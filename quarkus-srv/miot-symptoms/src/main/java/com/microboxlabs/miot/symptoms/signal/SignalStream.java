@@ -128,6 +128,17 @@ public class SignalStream {
               FROM geofences WHERE coordinates IS NOT NULL
             """;
 
+    /**
+     * The route history's cells for any start hour and any number of drivers, as the GPS database's signal function
+     * reads them: a few thousand rows.
+     */
+    static final String ROUTE_ETAS_SQL = """
+            SELECT origin_geofence_id::int AS origin_id, destination_geofence_id::int AS destination_id, from_token,
+                   p75_dinamic_eta
+              FROM s2cell_triproute_transition_stats
+             WHERE double_driver IS NULL AND start_hour IS NULL AND p75_dinamic_eta IS NOT NULL
+            """;
+
     /** One tile of the road network: the ways whose box meets it. */
     static final String ROADS_SQL = """
             SELECT osm_id::bigint AS osm_id, fclass, spwlte38::int AS light, spwgt38::int AS heavy,
@@ -148,6 +159,7 @@ public class SignalStream {
     private final Zones zones = new Zones();
     private final SpeedZones speedZones = new SpeedZones();
     private final Bearings bearings = new Bearings(Duration.ofMinutes(10));
+    private final RouteEtas routeEtas = new RouteEtas();
     private final RoadNetwork roads;
     private final SignalBuilder builder;
     private final TripNoticeReader tripReader;
@@ -170,7 +182,7 @@ public class SignalStream {
         this.roadFailures = meters.counter("miot.symptoms.signal.road_tile_failures");
         this.roads = roadSettings.enabled()
                 ? new RoadNetwork(this::ways, roadSettings.maxTiles(), roadSettings.ttl(), Clock.systemUTC()) : null;
-        this.builder = new SignalBuilder(refs, ZoneId.of(zone), zones, roads, speedZones, bearings);
+        this.builder = new SignalBuilder(refs, ZoneId.of(zone), zones, roads, speedZones, bearings, routeEtas);
         if (roads != null) {
             meters.gauge("miot.symptoms.signal.road_tiles", roads, RoadNetwork::tileCount);
             meters.gauge("miot.symptoms.signal.road_bytes", roads, RoadNetwork::bytes);
@@ -224,7 +236,12 @@ public class SignalStream {
                 zones.load(z);
                 LOG.infof("Signal builder: loaded %d zones", z.size());
             }
-        }).chain(z -> loadSpeedZones()).invoke(z -> {
+        }).chain(z -> loadRouteEtas()).invoke(c -> {
+            if (gps.configured()) {
+                routeEtas.load(c);
+                LOG.infof("Signal builder: loaded %d route cells", c.size());
+            }
+        }).chain(c -> loadSpeedZones()).invoke(z -> {
             speedZones.load(z);
             bearings.prune(java.time.Instant.now());
             LOG.infof("Signal builder: loaded %d speed limit zones", z.size());
@@ -245,6 +262,19 @@ public class SignalStream {
                 }
             });
             return z;
+        }).onFailure(SignalStream::undefinedTable).recoverWithItem(e -> List.of());
+    }
+
+    /** No cells without the GPS database or its route history: the signal then has no ETA deviation. */
+    private Uni<List<RouteEtas.Cell>> loadRouteEtas() {
+        if (!gps.configured()) {
+            return Uni.createFrom().item(List.of());
+        }
+        return gps.readPool().query(ROUTE_ETAS_SQL).execute().map(rows -> {
+            List<RouteEtas.Cell> c = new ArrayList<>(rows.size());
+            rows.forEach(r -> c.add(new RouteEtas.Cell(r.getInteger("origin_id"), r.getInteger("destination_id"),
+                    r.getString("from_token"), r.getInteger("p75_dinamic_eta"))));
+            return c;
         }).onFailure(SignalStream::undefinedTable).recoverWithItem(e -> List.of());
     }
 

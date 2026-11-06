@@ -81,6 +81,7 @@ A device stores events while it has no network and sends them late, after newer 
 | `sender` | The sending client (without `@clients`); hidden from rules, read by the evaluator's late counter and the lost-signal detector |
 | `trips` | For each client, its `trip_live` row in progress on the vehicle at the frame time (departed, not ended); `v` trips before `ote`/`otr`, then the latest start. The evaluator gives each organization its own as `trip`, or `{"active": false}`; rules never read `trips` |
 | `trip.age_min`, `trip.late_min` | Minutes from the trip start and from `estimated_arrival_time` to the frame time; `late_min` is negative before the estimated arrival |
+| `trip.destination.visited` | `trip_live.destination_visited` (the geofence engine saw the vehicle at the destination) or a confirmed `arrival` milestone. A confirmed arrival sends the `miot_trips_live` notice, as the departure does |
 | `trip.current_zone_id` | `current_geofence_id`; 0 is left out |
 | `trip.code` | The first service code of the trip |
 | `trip.driver` | The organization's fleet driver with the trip's `driver_id` (tax id), an `active` one first. `registered` is false when the fleet has no such driver; left out when the trip has no driver. Fleet `inactive` reads `DEACTIVATED`. The tax id, name and phones never reach the signal |

@@ -12,6 +12,7 @@ import { FaMicrophone, FaMicrophoneSlash, FaPhoneAlt } from "react-icons/fa";
 import { HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { confirmNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import { CALL_METHOD_ICONS } from "./call-method";
 import {
   callSeconds,
@@ -37,7 +38,10 @@ export function useGoToCall() {
   const session = useCallSession();
   return (call: ActiveCall) => {
     const href = call.context.caseHref;
-    if (href && href.split("?")[0] !== pathname) router.push(href);
+    if (href && href.split("?")[0] !== pathname) {
+      if (!confirmNavigation()) return;
+      router.push(href);
+    }
     session.requestFocus();
   };
 }
@@ -89,7 +93,7 @@ function LiveActions({
         <button
           type="button"
           onClick={() => session.setMuted(!call.muted)}
-          disabled={!call.dialReady}
+          disabled={!call.dialReady || call.phase === "connecting"}
           title={muteLabel}
           aria-label={muteLabel}
           aria-pressed={call.muted}

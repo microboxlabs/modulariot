@@ -250,7 +250,7 @@ export default function CallDialingStep({
   });
 
   function startManualCall(id: CallMethod, notice: string | null = null) {
-    session.startManual({ ...startInput(id), notice });
+    return session.startManual({ ...startInput(id), notice });
   }
 
   function startMethod(id: CallMethod) {
@@ -258,11 +258,11 @@ export default function CallDialingStep({
     if (viaTeams) {
       const links = teamsCallLinks(destination);
       if (!links) return;
-      openTeams(links);
-      session.startTeams({
+      const started = session.startTeams({
         ...startInput(id),
         connectionId: viaTeams.connectionId,
       });
+      if (started) openTeams(links);
       return;
     }
     if (viaTelnyx(id)) {
@@ -284,11 +284,11 @@ export default function CallDialingStep({
       notice = teamsConnection
         ? "call_teams_no_number"
         : "call_teams_no_connection";
+    if (!startManualCall(id, notice)) return;
     const link = channelLink(id, channels?.[id] ?? contactPhone, reason);
     if (link?.startsWith("https://"))
       window.open(link, "_blank", "noopener,noreferrer");
     else if (link) window.location.href = link;
-    startManualCall(id, notice);
   }
 
   // Buttons to start a call: none while this call is on or cut, or another is open.

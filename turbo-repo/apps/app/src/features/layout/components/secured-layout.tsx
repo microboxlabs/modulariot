@@ -16,7 +16,7 @@ import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-
 import { KioskShell } from "./kiosk-shell";
 import { NoOrganizationGate } from "@/features/settings-admin/team/no-organization-gate";
 import { isEcmConfigured } from "@/features/common/providers/alfresco-api/ecm-config";
-import { CallSessionProvider } from "@/features/symptoms/components/map-view/prototype/call-center/call-session";
+import { ScopedCallSessionProvider } from "@/features/symptoms/components/map-view/prototype/call-center/call-session";
 import CallBar from "@/features/symptoms/components/map-view/prototype/call-center/call-bar";
 
 const isHarnessSettingsEnabled = process.env.ENABLE_HARNESS_SETTINGS === "true";
@@ -44,9 +44,9 @@ export default async function SecuredLayout({
   return (
     <RuntimeConfigProvider>
       <SidebarProvider>
-        <KioskShell>
-          {/* The operator's call outlives the page that started it. */}
-          <CallSessionProvider>
+        {/* Keep the call above wrappers that can change with navigation. */}
+        <ScopedCallSessionProvider userId={session.user.id}>
+          <KioskShell>
             <CallBar dict={dictionary as I18nRecord} />
             <SseListener
               dictionary={dictionary}
@@ -93,8 +93,8 @@ export default async function SecuredLayout({
               </LayoutContent>
             </div>
             <FooterSecuredLayout messages={dict} />
-          </CallSessionProvider>
-        </KioskShell>
+          </KioskShell>
+        </ScopedCallSessionProvider>
       </SidebarProvider>
     </RuntimeConfigProvider>
   );

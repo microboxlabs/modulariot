@@ -28,11 +28,13 @@ import {
   reportCallEnded,
 } from "@/features/symptoms/control-tower/telephony-api";
 import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { CallMethod } from "./call-method";
 import {
   dropAfterReload,
   loadCall,
   saveCall,
+  CALL_SESSION_STORAGE_KEY,
   type ActiveCall,
   type CallContext,
   type CallKind,
@@ -140,15 +142,37 @@ interface Engine {
 let counter = 0;
 const newId = () => `${Date.now().toString(36)}-${(counter++).toString(36)}`;
 
+/** Only restore calls belonging to the signed-in operator and active organization. */
+export function ScopedCallSessionProvider({
+  userId,
+  children,
+}: Readonly<PropsWithChildren<{ userId: string }>>) {
+  const { activeOrg } = useOrgScopes();
+  const storageKey =
+    userId && activeOrg
+      ? `${CALL_SESSION_STORAGE_KEY}:${JSON.stringify([userId, activeOrg.slug])}`
+      : null;
+  return (
+    <CallSessionProvider key={storageKey} storageKey={storageKey}>
+      {children}
+    </CallSessionProvider>
+  );
+}
+
 export function CallSessionProvider({
   children,
   endCall: releaseAfterReload = reportCallEnded,
   now = Date.now,
-}: PropsWithChildren<{
-  /** Test seam: frees a browser call's channel after a reload. */
-  endCall?: typeof reportCallEnded;
-  now?: () => number;
-}>) {
+  storageKey = CALL_SESSION_STORAGE_KEY,
+}: Readonly<
+  PropsWithChildren<{
+    /** Test seam: frees a browser call's channel after a reload. */
+    endCall?: typeof reportCallEnded;
+    now?: () => number;
+    /** Null while the operator's organization is unresolved: do not restore or start a call. */
+    storageKey?: string | null;
+  }>
+>) {
   const [call, setCall] = useState<ActiveCall | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [focusTick, setFocusTick] = useState(0);
@@ -160,7 +184,7 @@ export function CallSessionProvider({
   // Restore after a reload. A browser call did not survive it: free its
   // channel (the server ignores this once Telnyx admitted the call) and show it as cut.
   useEffect(() => {
-    const stored = loadCall();
+    const stored = storageKey ? loadCall(storageKey) : null;
     if (stored) {
       const restored = dropAfterReload(stored, now());
       if (
@@ -178,8 +202,8 @@ export function CallSessionProvider({
   }, []);
 
   useEffect(() => {
-    if (hydrated) saveCall(call);
-  }, [call, hydrated]);
+    if (hydrated && storageKey) saveCall(call, storageKey);
+  }, [call, hydrated, storageKey]);
 
   const liveBrowserCall = call?.kind === "telnyx" && call.status === "live";
   useEffect(() => {
@@ -191,7 +215,8 @@ export function CallSessionProvider({
     // Stamps when the page was left, so a restored call's time stops there.
     const left = () => {
       const current = callRef.current;
-      if (current) saveCall({ ...current, leftAt: Date.now() });
+      if (current && storageKey)
+        saveCall({ ...current, leftAt: Date.now() }, storageKey);
     };
     window.addEventListener("beforeunload", warn);
     window.addEventListener("pagehide", left);
@@ -199,7 +224,7 @@ export function CallSessionProvider({
       window.removeEventListener("beforeunload", warn);
       window.removeEventListener("pagehide", left);
     };
-  }, [liveBrowserCall]);
+  }, [liveBrowserCall, storageKey]);
 
   const stopEngine = useCallback(() => {
     const eng = engine.current;
@@ -219,6 +244,7 @@ export function CallSessionProvider({
   }, []);
 
   const canStart = () => {
+    if (!storageKey) return false;
     const current = callRef.current;
     return !current || current.status === "failed";
   };
@@ -431,7 +457,7 @@ export function CallSessionProvider({
   const setMuted = (muted: boolean) => {
     const current = callRef.current;
     const live = engine.current?.live;
-    if (!current || !live?.setMuted) return;
+    if (!current || current.phase === "connecting" || !live?.setMuted) return;
     live.setMuted(muted);
     patch(current.id, { muted });
   };

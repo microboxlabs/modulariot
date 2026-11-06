@@ -15,6 +15,7 @@ import {
   type CallSession,
 } from "./call-session";
 import type { StartCallOptions } from "./telnyx-call";
+import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 
 const nav = vi.hoisted(() => ({ push: vi.fn(), pathname: "/es/home" }));
 vi.mock("next/navigation", () => ({
@@ -106,6 +107,29 @@ describe("CallBar", () => {
     expect(s().focusTick).toBe(1);
   });
 
+  it("keeps the current draft and focus when navigation is declined", () => {
+    function Draft() {
+      useUnsavedNavigation(true, "Unsaved draft");
+      return null;
+    }
+    const confirm = vi.spyOn(globalThis, "confirm").mockReturnValue(false);
+    render(
+      <CallSessionProvider>
+        <Probe />
+        <Draft />
+        <CallBar dict={dict} />
+      </CallSessionProvider>
+    );
+    act(() => {
+      s().startManual(call);
+    });
+    fireEvent.click(screen.getByTitle(es.symptoms.call_bar_back));
+    expect(confirm).toHaveBeenCalledWith("Unsaved draft");
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(s().focusTick).toBe(0);
+    confirm.mockRestore();
+  });
+
   it("marks the call as done from any page and asks to record it", () => {
     mount();
     act(() => {
@@ -160,8 +184,15 @@ describe("CallBar", () => {
     const mute = await screen.findByRole("button", {
       name: es.symptoms.call_mute,
     });
+    await waitFor(() => expect(options).not.toBeNull());
+    expect(mute).toBeDisabled();
+    fireEvent.click(mute);
+    expect(live.setMuted).not.toHaveBeenCalled();
+    expect(s().call?.muted).toBe(false);
+    act(() => {
+      options?.onPhase("ringing", null);
+    });
     await waitFor(() => expect(mute).toBeEnabled());
-    expect(options).not.toBeNull();
     fireEvent.click(mute);
     expect(live.setMuted).toHaveBeenCalledWith(true);
     expect(
@@ -175,7 +206,13 @@ describe("CallBar", () => {
       JSON.stringify({
         id: "a",
         key: call.key,
-        context: { ...call.context, target: null, script: null },
+        context: {
+          ...call.context,
+          target: null,
+          script: null,
+          defaultMessage: "",
+          message: "",
+        },
         contactName: call.contactName,
         contactRole: call.contactRole,
         method: "phone",

@@ -2,11 +2,25 @@ import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CallSessionProvider,
+  ScopedCallSessionProvider,
   useCallSession,
   type CallSession,
 } from "./call-session";
-import { CALL_SESSION_STORAGE_KEY } from "./call-session-store";
+import {
+  CALL_SESSION_STORAGE_KEY,
+  clearSavedCalls,
+} from "./call-session-store";
 import type { StartCallOptions } from "./telnyx-call";
+
+const scope = vi.hoisted(() => ({ slug: "org-1" as string | null }));
+vi.mock(
+  "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
+  () => ({
+    useOrgScopes: () => ({
+      activeOrg: scope.slug ? { slug: scope.slug } : null,
+    }),
+  })
+);
 
 let session: CallSession | null = null;
 function Probe() {
@@ -77,9 +91,82 @@ function browserCall() {
 beforeEach(() => {
   sessionStorage.clear();
   session = null;
+  scope.slug = "org-1";
 });
 
 describe("CallSessionProvider", () => {
+  it("discards saved call details on logout without clearing other storage", () => {
+    sessionStorage.setItem(CALL_SESSION_STORAGE_KEY, "legacy-call");
+    sessionStorage.setItem(
+      `${CALL_SESSION_STORAGE_KEY}:operator:org-1`,
+      "call-1"
+    );
+    sessionStorage.setItem(
+      `${CALL_SESSION_STORAGE_KEY}:operator:org-2`,
+      "call-2"
+    );
+    sessionStorage.setItem("other-feature", "draft");
+    clearSavedCalls();
+    expect(sessionStorage.length).toBe(1);
+    expect(sessionStorage.getItem("other-feature")).toBe("draft");
+  });
+
+  it("isolates restored calls by user and organization", () => {
+    const tree = (userId: string) => (
+      <ScopedCallSessionProvider userId={userId}>
+        <Probe />
+      </ScopedCallSessionProvider>
+    );
+    const view = render(tree("operator-1"));
+    act(() => {
+      s().startManual(manual);
+    });
+    const id = s().call?.id;
+    scope.slug = "org-2";
+    view.rerender(tree("operator-1"));
+    expect(s().call).toBeNull();
+    scope.slug = "org-1";
+    view.rerender(tree("operator-2"));
+    expect(s().call).toBeNull();
+    view.rerender(tree("operator-1"));
+    expect(s().call?.id).toBe(id);
+  });
+
+  it("does not restore or start a call before the organization is known", () => {
+    scope.slug = null;
+    render(
+      <ScopedCallSessionProvider userId="operator-1">
+        <Probe />
+      </ScopedCallSessionProvider>
+    );
+    let started = true;
+    act(() => {
+      started = s().startManual(manual);
+    });
+    expect(started).toBe(false);
+    expect(s().call).toBeNull();
+  });
+
+  it.each([
+    { method: "obsolete" },
+    { context: {} },
+    { startedAt: 9e15 },
+    { result: { durationSeconds: "bad" } },
+  ])("ignores malformed persisted data: %j", (fields) => {
+    const first = mount();
+    act(() => {
+      s().startManual(manual);
+    });
+    const stored = s().call;
+    first.unmount();
+    sessionStorage.setItem(
+      CALL_SESSION_STORAGE_KEY,
+      JSON.stringify({ ...stored, ...fields })
+    );
+    mount();
+    expect(s().call).toBeNull();
+  });
+
   it("keeps the call when the panel that started it unmounts", () => {
     function Panel() {
       useCallSession();
@@ -312,6 +399,12 @@ describe("CallSessionProvider", () => {
       });
     });
     await waitFor(() => expect(s().call?.dialReady).toBe(true));
+    act(() => s().setMuted(true));
+    expect(live.setMuted).not.toHaveBeenCalled();
+    expect(s().call?.muted).toBe(false);
+    act(() => {
+      opts()?.onPhase("active", Date.now());
+    });
     act(() => s().setMuted(true));
     expect(live.setMuted).toHaveBeenCalledWith(true);
     expect(s().call?.muted).toBe(true);

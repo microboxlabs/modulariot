@@ -4,6 +4,7 @@
  * WebRTC login token.
  */
 
+import { z } from "zod/v3";
 import type { CallMethod } from "./call-method";
 import type { CallScript } from "./call-center-menu";
 import type { CallTarget } from "./call-targets";
@@ -71,57 +72,169 @@ export interface ActiveCall {
 
 export const CALL_SESSION_STORAGE_KEY = "miot.call-session.v1";
 
-type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+type StorageLike = Pick<
+  Storage,
+  "getItem" | "setItem" | "removeItem" | "length" | "key"
+>;
 
 function storage(): StorageLike | null {
   try {
-    return typeof window === "undefined" ? null : window.sessionStorage;
+    return globalThis.window === undefined ? null : window.sessionStorage;
   } catch {
     return null;
   }
 }
 
-export function saveCall(call: ActiveCall | null, store = storage()) {
+/** Signing out must discard call details, including calls saved in other organizations. */
+export function clearSavedCalls(store = storage()) {
   if (!store) return;
   try {
-    if (call) store.setItem(CALL_SESSION_STORAGE_KEY, JSON.stringify(call));
-    else store.removeItem(CALL_SESSION_STORAGE_KEY);
+    for (let index = store.length - 1; index >= 0; index--) {
+      const key = store.key(index);
+      if (
+        key === CALL_SESSION_STORAGE_KEY ||
+        key?.startsWith(`${CALL_SESSION_STORAGE_KEY}:`)
+      )
+        store.removeItem(key);
+    }
+  } catch {
+    // Storage may be blocked; signing out must still work.
+  }
+}
+
+export function saveCall(
+  call: ActiveCall | null,
+  key = CALL_SESSION_STORAGE_KEY,
+  store = storage()
+) {
+  if (!store) return;
+  try {
+    if (call) store.setItem(key, JSON.stringify(call));
+    else store.removeItem(key);
   } catch {
     // Full or blocked storage: the call still works, it just won't survive a reload.
   }
 }
 
-const isObject = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && v !== null;
+const methodSchema = z.enum(["phone", "whatsapp", "meet", "teams"]);
+const timestampSchema = z.number().min(0).max(8_640_000_000_000_000);
+const secondsSchema = z.number().nonnegative().finite();
+const partsSchema = z.array(
+  z.union([z.object({ text: z.string() }), z.object({ blank: z.string() })])
+);
+const telephonySchema = z.object({
+  provider: z.enum(["TELNYX", "TEAMS_PHONE"]),
+  status: z.enum(["RECORDED", "PENDING"]).optional(),
+  answered: z.boolean(),
+  durationSeconds: secondsSchema,
+  hangupCause: z.string().nullable(),
+  sipCode: z.number().finite().nullable(),
+  callId: z.string().nullable(),
+  connectionId: z.string().optional(),
+  calleeNumber: z.string(),
+  startedAt: z.string().datetime({ offset: true }),
+  endedAt: z.string().datetime({ offset: true }).optional(),
+});
 
-export function loadCall(store = storage()): ActiveCall | null {
+/** Storage can be stale or malformed; validate everything the bar and form read. */
+const storedCallSchema = z.object({
+  id: z.string(),
+  key: z.string(),
+  context: z.object({
+    caseId: z.string().nullable(),
+    caseHref: z.string().startsWith("/").nullable(),
+    caseLabel: z.string().nullable(),
+    target: z
+      .object({
+        id: z.string(),
+        contactId: z.string().optional(),
+        personName: z.string(),
+        role: z.string(),
+        phone: z.string(),
+        channels: z
+          .object({
+            phone: z.string().optional(),
+            whatsapp: z.string().optional(),
+            meet: z.string().optional(),
+            teams: z.string().optional(),
+            email: z.string().optional(),
+          })
+          .nullable()
+          .optional(),
+        company: z.string().nullable().optional(),
+        companyRut: z.string().nullable().optional(),
+        nationalId: z.string().nullable().optional(),
+        methods: z.array(methodSchema),
+        stats: z
+          .object({
+            lastCallAt: z
+              .string()
+              .datetime({ offset: true })
+              .transform((s) => new Date(s))
+              .nullable(),
+            accepted: secondsSchema,
+            denied: secondsSchema,
+          })
+          .nullable(),
+      })
+      .nullable(),
+    script: z
+      .object({
+        message: z.string(),
+        goal: z.string(),
+        messageParts: partsSchema.optional(),
+        goalParts: partsSchema.optional(),
+      })
+      .nullable(),
+    defaultMessage: z.string(),
+    message: z.string(),
+  }),
+  contactName: z.string(),
+  contactRole: z.string(),
+  method: methodSchema,
+  kind: z.enum(["manual", "teams", "telnyx"]),
+  status: z.enum(["live", "ended", "dropped", "failed"]),
+  startedAt: timestampSchema,
+  phase: z.enum(["connecting", "ringing", "active", "ended"]).nullable(),
+  answeredAt: timestampSchema.nullable(),
+  dialReady: z.boolean(),
+  callRef: z.string().nullable(),
+  providerCallId: z.string().nullable(),
+  calleeNumber: z.string().nullable(),
+  teamsConnectionId: z.string().nullable(),
+  notice: z.string().nullable(),
+  error: z
+    .object({ refusal: z.string().nullable(), message: z.string().nullable() })
+    .nullable(),
+  result: z
+    .object({
+      durationSeconds: secondsSchema,
+      method: methodSchema,
+      telephony: telephonySchema.nullable(),
+    })
+    .nullable(),
+  muted: z.boolean(),
+  leftAt: timestampSchema.nullable(),
+});
+
+export function loadCall(
+  key = CALL_SESSION_STORAGE_KEY,
+  store = storage()
+): ActiveCall | null {
   if (!store) return null;
   let raw: string | null;
   try {
-    raw = store.getItem(CALL_SESSION_STORAGE_KEY);
+    raw = store.getItem(key);
   } catch {
     return null;
   }
   if (!raw) return null;
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    const parsed = storedCallSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }
-  if (
-    !isObject(parsed) ||
-    typeof parsed.id !== "string" ||
-    typeof parsed.key !== "string" ||
-    typeof parsed.startedAt !== "number" ||
-    !isObject(parsed.context)
-  )
-    return null;
-  const call = parsed as unknown as ActiveCall;
-  const stats = call.context.target?.stats;
-  if (stats && typeof stats.lastCallAt === "string")
-    stats.lastCallAt = new Date(stats.lastCallAt);
-  return call;
 }
 
 /** A browser call cannot outlive its page: after a reload it is reported as cut. */

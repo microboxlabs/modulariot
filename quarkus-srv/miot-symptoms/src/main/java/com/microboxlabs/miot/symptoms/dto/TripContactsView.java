@@ -7,7 +7,8 @@ import java.util.Map;
  * The contact book's people for a case, one list per contact condition (an operator step's {@code who}).
  *
  * @param data     {@code event.data} the conditions were read with: the trip's {@code driverRut},
- *                 {@code secondDriverRut} and {@code carrierRut}, normalized; empty without a live trip
+ *                 {@code secondDriverRut} and {@code carrierRut}, normalized, and its {@code origin},
+ *                 {@code destination}, their keys and geofence ids; empty without a live trip
  * @param matches  for each condition, in order, the ids of the active contacts that meet it
  * @param problems for each condition, its compile problem, or null
  */

@@ -40,6 +40,7 @@ public class SignalBuilder {
     private final RoadNetwork roads;
     private final SpeedZones speedZones;
     private final Bearings bearings;
+    private final RouteEtas routeEtas;
 
     public SignalBuilder(ReferenceCache refs, ZoneId zone) {
         this(refs, zone, new Zones());
@@ -52,12 +53,19 @@ public class SignalBuilder {
     /** @param roads null when the builder has no road network */
     public SignalBuilder(ReferenceCache refs, ZoneId zone, Zones zones, RoadNetwork roads, SpeedZones speedZones,
             Bearings bearings) {
+        this(refs, zone, zones, roads, speedZones, bearings, new RouteEtas());
+    }
+
+    /** @param roads null when the builder has no road network */
+    public SignalBuilder(ReferenceCache refs, ZoneId zone, Zones zones, RoadNetwork roads, SpeedZones speedZones,
+            Bearings bearings, RouteEtas routeEtas) {
         this.refs = refs;
         this.zone = zone;
         this.zones = zones;
         this.roads = roads;
         this.speedZones = speedZones;
         this.bearings = bearings;
+        this.routeEtas = routeEtas;
     }
 
     /** The signal, or empty when the frame has no vehicle id or time. */
@@ -71,7 +79,9 @@ public class SignalBuilder {
         String sender = sender(message.getClientId());
         List<String> clients = refs.clientsAt(assetId, sender, at);
         Map<String, GpsSignal.Trip> trips = new LinkedHashMap<>();
-        refs.tripsAt(assetId, at, clients).forEach((client, t) -> trips.put(client, trip(t, at)));
+        Double lon = hasPosition(frame) ? frame.getGps().getLongitude() : null;
+        Double lat = hasPosition(frame) ? frame.getGps().getLatitude() : null;
+        refs.tripsAt(assetId, at, clients).forEach((client, t) -> trips.put(client, trip(t, at, lon, lat)));
         Boolean moving = frame.getGps() == null ? null : frame.getGps().getSpeed() > MOVING_KMH;
         GpsSignal.Derived derived = new GpsSignal.Derived(moving, null, event(frame, POWER_DISCONNECTED),
                 event(frame, JAMMING));
@@ -155,8 +165,13 @@ public class SignalBuilder {
                 .anyMatch(t -> t != null && type.matcher(t.replace('_', ' ')).find());
     }
 
-    /** The trip in progress as the signal carries it, timed against the frame. */
+    /** The trip in progress as the signal carries it, timed against the frame; without a position. */
     GpsSignal.Trip trip(ReferenceCache.Trip t, Instant at) {
+        return trip(t, at, null, null);
+    }
+
+    /** The trip in progress as the signal carries it, timed against the frame at {@code lon}, {@code lat}. */
+    GpsSignal.Trip trip(ReferenceCache.Trip t, Instant at, Double lon, Double lat) {
         ReferenceCache.TripDetails d = t.details();
         GpsSignal.Origin origin = d.originId() == null && d.originLabel() == null ? null
                 : new GpsSignal.Origin(d.originId(), d.originLabel(), d.originVisited(), d.originInternal());
@@ -167,7 +182,21 @@ public class SignalBuilder {
         Integer currentZone = d.currentGeofenceId() == null || d.currentGeofenceId() == 0 ? null : d.currentGeofenceId();
         return new GpsSignal.Trip(true, t.doubleDriver(), t.tripId(), d.code(), t.tripType(), t.status(),
                 minutes(t.startTime(), at), minutes(d.eta(), at), origin, destination, currentZone, carrier,
-                d.loadType(), d.trailerPlate(), driver(d, at));
+                d.loadType(), d.trailerPlate(), driver(d, at), etaDeviation(d, at, lon, lat));
+    }
+
+    /**
+     * Minutes from the trip's estimated arrival to the predicted one: the frame's time plus what the route's past
+     * trips took from the frame's S2 cell to the destination. Positive when the trip will arrive late, negative
+     * when early. Null without an estimated arrival, an origin, a destination or a position, and off the cells
+     * the route's past trips crossed, as in the GPS database's signal function.
+     */
+    Double etaDeviation(ReferenceCache.TripDetails d, Instant at, Double lon, Double lat) {
+        if (d.eta() == null || d.originId() == null || d.destinationId() == null || lon == null || lat == null) {
+            return null;
+        }
+        Integer remaining = routeEtas.remainingSeconds(d.originId(), d.destinationId(), lon, lat);
+        return remaining == null ? null : minutes(d.eta(), at.plusSeconds(remaining));
     }
 
     /** The fleet's id, status and license of the trip's driver; null when the trip names none. */

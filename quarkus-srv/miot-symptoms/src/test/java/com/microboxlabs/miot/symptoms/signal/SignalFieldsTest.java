@@ -139,7 +139,7 @@ class SignalFieldsTest {
     }
 
     @Test
-    void leavesOutOptionalReadingsThatCannotBeMissing() {
+    void leavesOutOptionalReadingsOutsideTheRuleSchema() {
         Map<String, SourceField> fields = byPath();
 
         assertTrue(fields.containsKey("signal.frame.gps.latitude"), "required primitives stay");

@@ -335,7 +335,7 @@ class SignalBuilderTest {
     }
 
     @Test
-    void aHeadingFilterRequiresAReadingAndAcceptsAnExplicitZero() {
+    void aHeadingFilterRequiresAReadingAndAcceptsAnExplicitZero() throws Exception {
         SpeedZones own = new SpeedZones();
         own.load(List.of(SpeedZones.zone(SENDER, 5, new SpeedZones.Limits(40, null, null, null, 0), """
                 {"type":"Polygon","coordinates":[[[-70.7,-33.5],[-70.6,-33.5],[-70.6,-33.4],[-70.7,-33.4],[-70.7,-33.5]]]}
@@ -345,9 +345,15 @@ class SignalBuilderTest {
         String missing = frame("ABCD12", 70, false);
 
         assertNull(builder.build(EnvelopedMessage.fromJson(missing)).orElseThrow().roads());
+        String publishedMissing = SignalStream.JSON.writeValueAsString(EnvelopedMessage.fromJson(missing));
+        assertNull(builder.build(EnvelopedMessage.fromJson(publishedMissing)).orElseThrow().roads(),
+                "the tracking publisher must preserve the missing reading");
         String north = missing.replace("\"speed\":70.0", "\"speed\":70.0,\"heading\":0");
         assertEquals(new GpsSignal.Road(null, 40.0, null, null, 5),
                 builder.build(EnvelopedMessage.fromJson(north)).orElseThrow().roads().get(SENDER));
+        String publishedNorth = SignalStream.JSON.writeValueAsString(EnvelopedMessage.fromJson(north));
+        assertEquals(40.0, builder.build(EnvelopedMessage.fromJson(publishedNorth)).orElseThrow()
+                .roads().get(SENDER).maxspeedCustom());
     }
 
     @Test

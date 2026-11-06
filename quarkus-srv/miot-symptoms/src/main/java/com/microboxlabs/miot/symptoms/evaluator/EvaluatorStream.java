@@ -226,9 +226,10 @@ public class EvaluatorStream {
     private static final Map<String, Object> NO_TRIP = Map.of("active", false, "double_driver", false);
 
     /**
-     * The signal as the organization's rules read it: its own trip as {@code trip} and its own zones as
-     * {@code geo}, none of the others, and the frame's events always a list ({@link GpsSignal.FrameEvent}).
-     * An organization without zones gets no {@code geo}.
+     * The signal as the organization's rules read it: its own trip as {@code trip}, its own zones as
+     * {@code geo} and its limits as {@code road}, none of the others, and the frame's events always a list
+     * ({@link GpsSignal.FrameEvent}). An organization without zones gets no {@code geo}; one without a known
+     * limit at the position gets no {@code road}. A signal without {@code roads} keeps its {@code road}.
      */
     static Map<String, Object> forTenant(Map<String, Object> signal, String tenant) {
         Map<String, Object> out = new LinkedHashMap<>(GpsSignal.FrameEvent.withEvents(signal));
@@ -240,6 +241,13 @@ public class EvaluatorStream {
         Object geo = geos instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
         if (geo != null) {
             out.put("geo", geo);
+        }
+        if (out.get("roads") instanceof Map<?, ?> byClient) {
+            out.remove("roads");
+            out.remove("road");
+            if (byClient.get(tenant) != null) {
+                out.put("road", byClient.get(tenant));
+            }
         }
         return out;
     }

@@ -144,7 +144,7 @@ class SignalFieldsTest {
                         new GpsSignal.Destination(17, "SPC", false), 4, new GpsSignal.Carrier("1-9", "Transportes"),
                         "rampla", "AB1234", new GpsSignal.Driver("d-1", true, GpsSignal.DriverStatus.ACTIVE, false)),
                 new GpsSignal.Vehicle(GpsSignal.WeightCategory.HEAVY, 30000.0),
-                new GpsSignal.Road(90.0, 80.0),
+                new GpsSignal.Road(90.0, 80.0, 1L, "primary", 3), null,
                 new GpsSignal.Geo(false, "Z-1", true, true), null, 14, 870.5,
                 new GpsSignal.Derived(true, 40.0, false, false), frame);
         Map<String, Object> root = Map.of(SignalFields.ROOT, JSON.convertValue(signal, new TypeReference<>() {

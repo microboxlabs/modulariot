@@ -44,6 +44,7 @@ public record GpsSignal(
         Trip trip,
         Vehicle vehicle,
         Road road,
+        @Schema(hidden = true) Map<String, Road> roads,
         Geo geo,
         @Schema(hidden = true) Map<String, Geo> geos,
         @Schema(title = "Hora local") @JsonProperty("local_hour") Integer localHour,
@@ -174,11 +175,28 @@ public record GpsSignal(
     @JsonIgnoreProperties(ignoreUnknown = true)
     @RegisterForReflection
     public record Road(
-            @Schema(title = "Límite de la vía", extensions = {
+            @Schema(title = "Límite de la vía", description = "Límite OSM de la vía más cercana a menos de 11 m "
+                    + "(la principal antes que un enlace), para la categoría de peso del vehículo (pesado si no se "
+                    + "conoce); sin dato si no hay vía cerca o la vía no tiene límite", extensions = {
                     @Extension(name = "x-unit", value = "km/h"), @Extension(name = "x-origin", value = "ROAD_NETWORK") })
             @JsonProperty("maxspeed_osm") Double maxspeedOsm,
-            @Schema(title = "Límite propio", extensions = @Extension(name = "x-unit", value = "km/h"))
-            @JsonProperty("maxspeed_custom") Double maxspeedCustom) {
+            @Schema(title = "Límite propio", description = "Límite que fija la organización para la zona, en el "
+                    + "sentido de avance; sin dato fuera de sus zonas",
+                    extensions = @Extension(name = "x-unit", value = "km/h"))
+            @JsonProperty("maxspeed_custom") Double maxspeedCustom,
+            @Schema(title = "Vía OSM", description = "Id OSM de la vía de la que sale el límite de la vía",
+                    extensions = @Extension(name = "x-origin", value = "ROAD_NETWORK"))
+            @JsonProperty("osm_way_id") Long osmWayId,
+            @Schema(title = "Tipo de vía", description = "Clase OSM de esa vía: motorway, trunk, primary, "
+                    + "residential…", extensions = @Extension(name = "x-origin", value = "ROAD_NETWORK"))
+            @JsonProperty("road_class") String roadClass,
+            @Schema(title = "Zona de límite propio", description = "Zona de la organización de la que sale el "
+                    + "límite propio", extensions = @Extension(name = "x-origin", value = "TENANT_SETTINGS"))
+            @JsonProperty("custom_zone_id") Integer customZoneId) {
+
+        public Road(Double maxspeedOsm, Double maxspeedCustom) {
+            this(maxspeedOsm, maxspeedCustom, null, null, null);
+        }
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

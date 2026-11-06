@@ -306,4 +306,31 @@ class SignalBuilderTest {
         assertEquals(GpsSignal.DriverStatus.DEACTIVATED,
                 senderTrip(build(refs(List.of(row), List.of()), frame("ABCD12", 70, false))).driver().status());
     }
+
+    @Test
+    void eachClientGetsTheRoadLimitAndItsOwnLimitAtThePosition() {
+        Share share = new Share("ABCD12", "other-1", true, null, null);
+        ReferenceCache refs = refs(List.of(), List.of(share));
+        RoadNetwork roads = RoadNetwork.of(List.of(RoadNetworkTest.way(42, "primary", 70, 60, 80, -33.45)));
+        roads.ensure(-70.66, -33.45).await().indefinitely();
+        SpeedZones own = new SpeedZones();
+        own.load(List.of(SpeedZones.zone("other-1", 5, 40, null, null, null, null, """
+                {"type":"Polygon","coordinates":[[[-70.7,-33.5],[-70.6,-33.5],[-70.6,-33.4],[-70.7,-33.4],[-70.7,-33.5]]]}
+                """)));
+        SignalBuilder builder = new SignalBuilder(refs, ZoneId.of("America/Santiago"), new Zones(), roads, own,
+                new Bearings(java.time.Duration.ofMinutes(10)));
+
+        GpsSignal s = builder.build(EnvelopedMessage.fromJson(frame("ABCD12", 70, false))).orElseThrow();
+
+        assertNull(s.road(), "the evaluator gives each organization its own");
+        assertEquals(new GpsSignal.Road(60.0, null, 42L, "primary", null), s.roads().get(SENDER));
+        assertEquals(new GpsSignal.Road(60.0, 40.0, 42L, "primary", 5), s.roads().get("other-1"));
+    }
+
+    @Test
+    void noRoadsWhenNoLimitIsKnown() {
+        SignalBuilder builder = new SignalBuilder(refs(List.of(), List.of()), ZoneId.of("America/Santiago"),
+                new Zones(), RoadNetwork.of(List.of()), new SpeedZones(), new Bearings(java.time.Duration.ofMinutes(10)));
+        assertNull(builder.build(EnvelopedMessage.fromJson(frame("ABCD12", 70, false))).orElseThrow().roads());
+    }
 }

@@ -17,8 +17,8 @@ import java.util.regex.Pattern;
 
 /**
  * Builds {@link GpsSignal}s from GPS frames, the reference cache and the
- * clients' zones. What it does not know yet is left out: the vehicle, the road
- * limits and the 5-minute average speed.
+ * clients' zones, the road network's limits and each client's own limits. What
+ * it does not know yet is left out: the vehicle and the 5-minute average speed.
  */
 public class SignalBuilder {
 
@@ -37,15 +37,27 @@ public class SignalBuilder {
     private final ReferenceCache refs;
     private final ZoneId zone;
     private final Zones zones;
+    private final RoadNetwork roads;
+    private final SpeedZones speedZones;
+    private final Bearings bearings;
 
     public SignalBuilder(ReferenceCache refs, ZoneId zone) {
         this(refs, zone, new Zones());
     }
 
     public SignalBuilder(ReferenceCache refs, ZoneId zone, Zones zones) {
+        this(refs, zone, zones, null, new SpeedZones(), new Bearings(Duration.ofMinutes(10)));
+    }
+
+    /** @param roads null when the builder has no road network */
+    public SignalBuilder(ReferenceCache refs, ZoneId zone, Zones zones, RoadNetwork roads, SpeedZones speedZones,
+            Bearings bearings) {
         this.refs = refs;
         this.zone = zone;
         this.zones = zones;
+        this.roads = roads;
+        this.speedZones = speedZones;
+        this.bearings = bearings;
     }
 
     /** The signal, or empty when the frame has no vehicle id or time. */
@@ -65,10 +77,12 @@ public class SignalBuilder {
         GpsSignal.Derived derived = new GpsSignal.Derived(moving, null, event(frame, POWER_DISCONNECTED),
                 event(frame, JAMMING));
         Map<String, GpsSignal.Geo> geos = geos(frame, clients);
+        Map<String, GpsSignal.Road> roadsByClient = roads(frame, assetId, at, clients);
         LocalTime local = at.atZone(zone).toLocalTime();
         // The time the platform's gateway received the frame (X-Request-Timestamp), carried by the envelope.
         return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, message.getTimestamp(), clients, sender,
-                trips.isEmpty() ? null : trips, null, null, null, null, geos.isEmpty() ? null : geos,
+                trips.isEmpty() ? null : trips, null, null, null, roadsByClient.isEmpty() ? null : roadsByClient, null,
+                geos.isEmpty() ? null : geos,
                 local.getHour(), local.toSecondOfDay() / 60.0, derived, frame));
     }
 
@@ -85,6 +99,34 @@ public class SignalBuilder {
             if (geo != null) {
                 out.put(client, geo);
             }
+        }
+        return out;
+    }
+
+    /**
+     * Each client's limits at the frame's position: the road network's, the same for every client, and the
+     * client's own. A client gets none when neither is known. The road limit is for a heavy vehicle until the
+     * signal knows the vehicle, as the GPS database's speed function does without a weight.
+     */
+    private Map<String, GpsSignal.Road> roads(AssetTrackingData frame, String assetId, Instant at,
+            List<String> clients) {
+        Map<String, GpsSignal.Road> out = new LinkedHashMap<>();
+        if (frame.getGps() == null || frame.getGps().getLatitude() == 0 && frame.getGps().getLongitude() == 0) {
+            return out;
+        }
+        double lon = frame.getGps().getLongitude();
+        double lat = frame.getGps().getLatitude();
+        Integer bearing = bearings.next(assetId, at, lon, lat);
+        RoadNetwork.Limit osm = roads == null ? null : roads.at(lon, lat, GpsSignal.WeightCategory.HEAVY);
+        Double heading = frame.getGps().getHeading();
+        for (String client : clients) {
+            SpeedZones.Limit own = speedZones.at(client, lon, lat, heading, bearing);
+            if (osm == null && own == null) {
+                continue;
+            }
+            out.put(client, new GpsSignal.Road(osm == null ? null : osm.maxspeed(), own == null ? null : own.maxspeed(),
+                    osm == null ? null : osm.wayId(), osm == null ? null : osm.roadClass(),
+                    own == null ? null : own.zoneId()));
         }
         return out;
     }

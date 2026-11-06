@@ -41,6 +41,8 @@ export interface MapPosition {
   signal?: SignalState | null;
   /** Offline by `signal`: the pin is drawn gray. */
   lost_signal?: boolean;
+  /** The frame reports the engine off: the pin is drawn gray with its normal face. */
+  engine_off?: boolean;
   trip_id: string;
   symptoms: Symptom[];
   associate_symptoms: Symptom[];
@@ -112,6 +114,7 @@ export interface PulseProps {
 export interface MapPositionProperties {
   properties: {
     lost_signal?: boolean;
+    engine_off?: boolean;
     signal?: SignalState | null;
     associate_symptoms: any;
     symptoms_condition: boolean;

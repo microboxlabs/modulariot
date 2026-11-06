@@ -59,3 +59,36 @@ describe("live position asset aliases", () => {
     ).toEqual(signal);
   });
 });
+
+describe("live position engine state", () => {
+  it.each([
+    { engine: { sensors: { engine_status: false } }, off: true },
+    { engine: { engine_status: "off" }, off: true },
+    {
+      engine: { sensors: { engine_status: true }, engine_status: "off" },
+      off: false,
+    },
+    { engine: { engine_status: null }, off: false },
+    { engine: {}, off: false },
+  ])("maps $engine without declaring lost signal", async ({ engine, off }) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json([
+          {
+            asset_id: "AB12",
+            timestamp: AT,
+            location: "0101000020E610000000000000008051C000000000008040C0",
+            ...engine,
+          },
+        ])
+      )
+    );
+    const { result } = renderHook(() => useMapPositions(), { wrapper });
+    await waitFor(() => expect(result.current.positions).toHaveLength(1));
+    expect(result.current.positions[0]).toMatchObject({
+      engine_off: off,
+      lost_signal: false,
+    });
+  });
+});

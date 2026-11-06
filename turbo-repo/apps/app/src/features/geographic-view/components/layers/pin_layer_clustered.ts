@@ -245,7 +245,8 @@ export class PinLayer extends CompositeLayer<any> {
             d.properties.cluster
               ? d.properties.highest_speed_limit
               : d.properties.speed_limit_condition,
-            d.properties.lost_signal
+            d.properties.lost_signal,
+            !d.properties.cluster && d.properties.engine_off === true
           ),
           width: 300,
           height: 500,

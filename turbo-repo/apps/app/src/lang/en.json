@@ -7904,6 +7904,7 @@
     "signal_offline": "No signal",
     "signal_offline_minutes": "No signal · {n} min ago",
     "signal_offline_hours": "No signal · {n} h ago",
+    "engine_off": "Engine off",
     "streets": "streets",
     "satelital": "satelital",
     "outdoors": "outdoors",

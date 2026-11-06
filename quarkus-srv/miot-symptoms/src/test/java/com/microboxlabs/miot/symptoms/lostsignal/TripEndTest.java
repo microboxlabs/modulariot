@@ -258,7 +258,7 @@ class TripEndTest {
         tripsModule.states.put("T-1", new TripEnds.State(false, true));
 
         LossStore.Vehicle v = store.vehicle("V1");
-        TripChecks.Ended read = engine.trips(meters, tripsModule).endedTrips("V1", v,
+        TripChecks.Ended read = engine.trips(meters, tripsModule).endedTrips(v,
                 v.check() == null ? CheckState.NONE : v.check(), clock.instant());
 
         Map<String, Object> destination = (Map<String, Object>) read.vehicle().watch().trips().get(TENANT)

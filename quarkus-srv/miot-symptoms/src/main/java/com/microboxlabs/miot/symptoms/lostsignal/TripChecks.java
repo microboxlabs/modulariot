@@ -126,7 +126,7 @@ public class TripChecks {
      * escalates a case on it. A trip whose arrival was confirmed since the newest frame reads
      * {@code trip.destination.visited} true. Fails when the trips cannot be read.
      */
-    public Ended endedTrips(String assetId, LossStore.Vehicle v, CheckState c, Instant now) {
+    public Ended endedTrips(LossStore.Vehicle v, CheckState c, Instant now) {
         Map<String, String> ids = tripIds(v.watch());
         Map<String, TripEnds.State> states = ids.isEmpty() ? Map.of() : ends.states(ids);
         if (states.isEmpty()) {

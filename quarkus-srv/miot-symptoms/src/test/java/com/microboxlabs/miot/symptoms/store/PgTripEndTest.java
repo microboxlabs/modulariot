@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
@@ -179,8 +180,8 @@ class PgTripEndTest {
         assertEquals(TripEnds.REASON, row.getString("closed_by"));
         assertEquals(TripEnds.REASON, row.getString("reason"));
         assertEquals(4, row.getInteger("level"));
-        assertTrue(cases.find(tenant, kept).orElseThrow().closedAt() == null, "another symptom stays open");
-        assertTrue(cases.find(tenant, otherTrip).orElseThrow().closedAt() == null, "another trip stays open");
+        assertNull(cases.find(tenant, kept).orElseThrow().closedAt(), "another symptom stays open");
+        assertNull(cases.find(tenant, otherTrip).orElseThrow().closedAt(), "another trip stays open");
         assertTrue(ends.close(tenant, tripId, List.of(lost), now).isEmpty(), "closed once");
     }
 }

@@ -56,12 +56,10 @@ public class MarkLost implements LossTicker.DueCheck {
     Outcome run(String assetId, Instant now) {
         LossStore.Vehicle v = store.vehicle(assetId);
         CheckState c = v.check() == null ? CheckState.NONE : v.check();
-        if (v.watch() != null && !v.watch().trips().isEmpty()) {
-            // A trip that ended is checked no more, even when no frame said so.
-            TripChecks.Ended ended = trips.endedTrips(assetId, v, c, now);
-            v = ended.vehicle();
-            c = ended.check();
-        }
+        // A trip that ended is checked no more, even when no frame said so.
+        TripChecks.Ended ended = trips.endedTrips(v, c, now);
+        v = ended.vehicle();
+        c = ended.check();
         Instant seen = v.deadline();
         String sender = v.watch() == null ? null : v.watch().sender();
         if (v.profile() == null || v.watch() == null || v.watch().trips().isEmpty()) {

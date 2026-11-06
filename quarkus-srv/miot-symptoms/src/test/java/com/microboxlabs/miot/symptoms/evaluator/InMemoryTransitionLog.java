@@ -21,7 +21,9 @@ class InMemoryTransitionLog implements TransitionLog {
         List<Recorded> out = new ArrayList<>();
         for (Transition t : transitions) {
             boolean note = t.kind() == Transition.Kind.NOTED;
-            if (!held.add(tenantCode + "/" + t.definitionId() + "/" + t.assetId() + "/" + t.at() + "/" + note)) {
+            Object identity = context != null && context.containsKey("event_id")
+                    ? "event:" + context.get("event_id") : "frame:" + t.at();
+            if (!held.add(tenantCode + "/" + t.definitionId() + "/" + t.assetId() + "/" + identity + "/" + note)) {
                 continue;
             }
             recorded.add(t);

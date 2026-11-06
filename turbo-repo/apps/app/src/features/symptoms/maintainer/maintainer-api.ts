@@ -350,7 +350,8 @@ export type ControlTowerPermission =
   | "controltower:contact.delete"
   | "controltower:symptom.edit"
   | "controltower:symptom.publish"
-  | "controltower:settings.update";
+  | "controltower:settings.update"
+  | "controltower:event.send";
 
 export interface ControlTowerAccess {
   baseRole: "OWNER" | "ADMIN" | "MEMBER" | null;

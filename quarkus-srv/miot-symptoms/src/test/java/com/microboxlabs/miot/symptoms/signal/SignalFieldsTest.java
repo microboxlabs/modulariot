@@ -139,7 +139,7 @@ class SignalFieldsTest {
     @Test
     void everyFieldIsAPathOfTheSerializedSignal() throws Exception {
         AssetTrackingData frame = JSON.readValue(FRAME, AssetTrackingData.class);
-        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, null, List.of("client-1"), "client-1", null,
+        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, null, List.of("client-1"), "client-1", null, null,
                 new GpsSignal.Trip(true, false, "T-1", "SVC-1", "v", "in_transit", 30.0, -5.0, new GpsSignal.Origin(32, "ANF", true, true),
                         new GpsSignal.Destination(17, "SPC", false), 4, new GpsSignal.Carrier("1-9", "Transportes"),
                         "rampla", "AB1234", new GpsSignal.Driver("d-1", true, GpsSignal.DriverStatus.ACTIVE, false)),
@@ -190,7 +190,7 @@ class SignalFieldsTest {
         Map<String, Object> read = GpsSignal.FrameEvent.withEvents(signal);
 
         assertEquals(List.of(Map.of("event_type", "device_tamper", "severity", "", "description", "",
-                "timestamp", "2026-01-01T12:00:00Z")), ((Map<?, ?>) read.get("frame")).get("events"));
+                "timestamp", "2026-01-01T12:00:00Z", "code", "")), ((Map<?, ?>) read.get("frame")).get("events"));
         assertEquals(List.of(), ((Map<?, ?>) GpsSignal.FrameEvent.withEvents(Map.of("frame", Map.of()))
                 .get("frame")).get("events"), "a frame without events reads an empty list");
     }

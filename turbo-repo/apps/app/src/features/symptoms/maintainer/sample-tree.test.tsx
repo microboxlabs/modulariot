@@ -91,6 +91,21 @@ describe("sampleLabel", () => {
 describe("SampleTree", () => {
   beforeEach(() => editor.insertIntoFocused.mockReset());
 
+  it("preserves a formatter's caret even when its text is the unchanged path", () => {
+    render(
+      <SampleTree
+        samples={SAMPLES}
+        index={0}
+        readOnly={false}
+        d={d}
+        onIndex={vi.fn()}
+        insertText={(path) => ({ text: path, caret: 3 })}
+      />
+    );
+    fireEvent.click(screen.getByLabelText("Insertar signal.zone"));
+    expect(editor.insertIntoFocused).toHaveBeenCalledWith("signal.zone", 3);
+  });
+
   it("inserts a field's path on click and offers it to drag", () => {
     render(
       <SampleTree

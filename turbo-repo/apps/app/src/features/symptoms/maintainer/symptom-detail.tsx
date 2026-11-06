@@ -50,7 +50,8 @@ import SymptomRuleSections, {
   changedLevels,
   RuleVariablesProvider,
 } from "./symptom-rule-sections";
-import { FieldsPanel, PreviewPanel, ReviewPanel } from "./symptom-side-panels";
+import { FieldsPanel } from "./fields-panel";
+import { PreviewPanel, ReviewPanel } from "./symptom-side-panels";
 import { pendingError } from "./pending-error";
 import {
   isTemplateScope,

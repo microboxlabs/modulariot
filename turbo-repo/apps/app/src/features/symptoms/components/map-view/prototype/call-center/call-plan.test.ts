@@ -7,6 +7,8 @@ import type {
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
 import {
   calledInCase,
+  callsInCase,
+  withCaseCalls,
   skippedInCase,
   contextOfTreatment,
   callPlan,
@@ -177,6 +179,126 @@ describe("calledInCase", () => {
     expect(calledInCase(treatments).has("ana")).toBe(false);
     expect(calledInCase(undefined).size).toBe(0);
   });
+});
+
+describe("callsInCase", () => {
+  const withPhone = (id: string, phone: string) => ({
+    ...target(id, "Gerente"),
+    phone,
+  });
+
+  it("counts answered and unanswered calls of this case's treatments only", () => {
+    const caseA = [
+      {
+        actions: [
+          action({ contactId: "gs", answered: true }),
+          action({
+            contactId: "gs",
+            answered: false,
+            performedAt: "2026-11-03T10:05:00Z",
+          }),
+          action({ contactId: "gs", answered: null, durationSeconds: 12 }),
+          action({ kind: "NOTE", contactId: "gs" }),
+        ],
+      },
+    ] as TowerTreatment[];
+    const calls = callsInCase(caseA);
+    expect(calls.get("gs")).toEqual({
+      lastCallAt: new Date("2026-11-03T10:05:00Z"),
+      accepted: 1,
+      denied: 1,
+    });
+    // Case B has its own treatments: nobody was called there.
+    expect(callsInCase([] as TowerTreatment[]).has("gs")).toBe(false);
+  });
+
+  it("matches an older call without a contact id by phone, never by role", () => {
+    const targets = [
+      withPhone("gs", "+56 9 1234 5678"),
+      withPhone("oc", "+56 9 8765 4321"),
+    ];
+    const treatments = [
+      {
+        actions: [
+          action({ contactPhone: "912345678", answered: false }),
+          action({ contactRole: "Gerente" }),
+        ],
+      },
+    ] as TowerTreatment[];
+    const calls = callsInCase(treatments, targets);
+    expect([...calls.keys()]).toEqual(["gs"]);
+    expect(calls.get("gs")?.denied).toBe(1);
+  });
+
+  it("gives every target zero calls when the case has none", () => {
+    const [t] = withCaseCalls(
+      [
+        {
+          ...target("gs", "Gerente"),
+          history: { lastCallAt: null, accepted: 2, denied: 1 },
+        },
+      ],
+      new Map()
+    );
+    expect(t.stats).toEqual({ lastCallAt: null, accepted: 0, denied: 0 });
+    expect(t.history?.accepted).toBe(2);
+  });
+
+  it("does not assign a phone-only call to contacts sharing the number", () => {
+    const targets = [
+      withPhone("gs", "+56 9 1234 5678"),
+      withPhone("oc", "912345678"),
+    ];
+    const treatments = [
+      { actions: [action({ contactPhone: "+56912345678" })] },
+    ] as TowerTreatment[];
+    expect(callsInCase(treatments, targets).size).toBe(0);
+  });
+
+  it("keeps country codes when matching numbers with the same last nine digits", () => {
+    const targets = [
+      withPhone("us", "+12025550101"),
+      withPhone("gb", "+442025550101"),
+    ];
+    const treatments = [
+      { actions: [action({ contactPhone: "+12025550101" })] },
+    ] as TowerTreatment[];
+    expect([...callsInCase(treatments, targets).keys()]).toEqual(["us"]);
+  });
+
+  it("uses a stable id even when contacts share a phone", () => {
+    const targets = [
+      withPhone("gs", "+56912345678"),
+      withPhone("oc", "+56912345678"),
+    ];
+    const treatments = [
+      { actions: [action({ contactId: "gs", contactPhone: "+56912345678" })] },
+    ] as TowerTreatment[];
+    expect([...callsInCase(treatments, targets).keys()]).toEqual(["gs"]);
+  });
+
+  it.each([0, 12])(
+    "marks a pending call with duration %s as called without guessing its outcome",
+    (durationSeconds) => {
+      const treatments = [
+        {
+          actions: [
+            action({
+              contactId: "gs",
+              answered: null,
+              durationSeconds,
+              details: { telephony: { status: "PENDING" } },
+            }),
+          ],
+        },
+      ] as TowerTreatment[];
+      expect(callsInCase(treatments).get("gs")).toEqual({
+        lastCallAt: new Date("2026-11-03T10:00:00Z"),
+        accepted: 0,
+        denied: 0,
+      });
+    }
+  );
 });
 
 describe("matchesTarget", () => {

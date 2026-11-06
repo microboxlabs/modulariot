@@ -50,6 +50,7 @@ import {
 import type { FilledPart } from "@/features/symptoms/maintainer/script-fill";
 import ScriptText from "@/features/symptoms/maintainer/script-text";
 import ContactRow from "./contact-row";
+import { callStatsTitle } from "./call-stats-badges";
 import { startTelnyxCall, type TelephonyCallResult } from "./telnyx-call";
 import {
   CHANNELS_BUSY,
@@ -96,6 +97,7 @@ function CallTimer({
 export default function CallDialingStep({
   dict,
   stats,
+  history,
   contactName,
   contactRole,
   contactPhone,
@@ -122,8 +124,10 @@ export default function CallDialingStep({
   callContext,
 }: Readonly<{
   dict: I18nRecord;
-  /** The contact's call counts from the book; absent for the driver or a new number. */
+  /** The contact's call counts in this case; absent for a new number. */
   stats?: CallStats | null;
+  /** The contact's call counts in all cases, for the counters' tooltip. */
+  history?: CallStats | null;
   contactName: string;
   contactRole: string;
   contactPhone?: string;
@@ -329,6 +333,7 @@ export default function CallDialingStep({
               method
             )}
             stats={stats}
+            statsTitle={callStatsTitle(stats, history, dict)}
             pulsing={started}
             bgClassName="bg-white dark:bg-gray-800/40"
           />

@@ -351,6 +351,7 @@ export default function PrototypeCallCenterFlow({
         <CallDialingStep
           dict={dict}
           stats={activeContact?.stats}
+          history={activeContact?.history}
           contactName={activePersonName}
           contactRole={activeRole}
           contactPhone={activePhone}

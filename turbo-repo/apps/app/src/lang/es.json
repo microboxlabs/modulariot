@@ -7712,6 +7712,8 @@
     "call_center_last_call_label": "Última llamada hace",
     "call_center_last_call_suffix": "",
     "call_center_just_called": "Recién llamado",
+    "call_center_stats_case": "En este caso: contestadas {answered}, sin respuesta {missed}",
+    "call_center_stats_all": "En todos los casos: contestadas {answered}, sin respuesta {missed}",
     "proto_call_title_contacts": "¿A quién vas a contactar?",
     "proto_call_title_dialing": "Llamada",
     "proto_call_title_calling": "Llamada en progreso",

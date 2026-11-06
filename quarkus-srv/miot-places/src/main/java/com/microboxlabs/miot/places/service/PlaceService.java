@@ -112,7 +112,7 @@ public class PlaceService {
             Place created = store.insert(place(tenantCode, null, kind, request, actor, FIRST_VERSION));
             List<Place> inners = saveInners(tenantCode, created, request.inners(), actor);
             Saved saved = new Saved(created, inners);
-            record(saved, null, null, List.of(), actor);
+            recordVersion(saved, null, null, List.of(), actor);
             return saved;
         });
     }
@@ -143,7 +143,7 @@ public class PlaceService {
                     ? store.children(tenantCode, id)
                     : saveInners(tenantCode, changed, request.inners(), actor);
             Saved saved = new Saved(changed, inners);
-            record(saved, bump, reason, changes, actor);
+            recordVersion(saved, bump, reason, changes, actor);
             return saved;
         });
     }
@@ -200,29 +200,10 @@ public class PlaceService {
         }
         Map<UUID, Place> current = store.children(tenantCode, parent.id()).stream()
                 .collect(Collectors.toMap(Place::id, Function.identity()));
-        List<UUID> ids = new ArrayList<>();
-        Set<UUID> kept = new HashSet<>();
-        for (PlaceRequest r : requested) {
-            if (r == null) {
-                throw new IllegalArgumentException("an inner geofence is required");
-            }
-            inner(r, parent.id());
-            String rawId = text(r.id(), "inners.id", 64);
-            UUID innerId = rawId == null ? null : uuid(rawId, "inners.id");
-            if (innerId != null && !current.containsKey(innerId)) {
-                throw new IllegalArgumentException("inner geofence " + innerId + " is not one of this geofence's");
-            }
-            if (innerId != null && !kept.add(innerId)) {
-                throw new IllegalArgumentException("inner geofence " + innerId + " comes twice");
-            }
-            if (innerId != null) {
-                sameCode(current.get(innerId), text(r.externalCode(), "inners.externalCode", 128));
-            }
-            ids.add(innerId);
-        }
+        List<UUID> ids = innerIds(requested, current, parent.id());
         for (UUID gone : current.keySet()) {
             // the ones left out go first, so a new one can take a code they freed
-            if (!kept.contains(gone)) {
+            if (!ids.contains(gone)) {
                 store.delete(tenantCode, gone, actor);
             }
         }
@@ -233,6 +214,34 @@ public class PlaceService {
             saved.add(innerId == null ? store.insert(p) : store.update(p).orElseThrow(() -> notFound(innerId)));
         }
         return saved;
+    }
+
+    /**
+     * The current inner geofence each requested one replaces, in order, or null for a new one. Each id must be one
+     * of this geofence's and come once; its code cannot change.
+     */
+    private static List<UUID> innerIds(List<PlaceRequest> requested, Map<UUID, Place> current, UUID parentId) {
+        List<UUID> ids = new ArrayList<>();
+        Set<UUID> kept = new HashSet<>();
+        for (PlaceRequest r : requested) {
+            if (r == null) {
+                throw new IllegalArgumentException("an inner geofence is required");
+            }
+            inner(r, parentId);
+            String rawId = text(r.id(), "inners.id", 64);
+            UUID innerId = rawId == null ? null : uuid(rawId, "inners.id");
+            if (innerId != null) {
+                if (!current.containsKey(innerId)) {
+                    throw new IllegalArgumentException("inner geofence " + innerId + " is not one of this geofence's");
+                }
+                if (!kept.add(innerId)) {
+                    throw new IllegalArgumentException("inner geofence " + innerId + " comes twice");
+                }
+                sameCode(current.get(innerId), text(r.externalCode(), "inners.externalCode", 128));
+            }
+            ids.add(innerId);
+        }
+        return ids;
     }
 
     /** An item of {@code inners}: an inner geofence of this geofence, with no inners or version of its own. */
@@ -288,7 +297,7 @@ public class PlaceService {
     }
 
     /** Keeps the version with the place as it was saved. */
-    private void record(Saved saved, String bump, String reason, List<String> changes, String actor) {
+    private void recordVersion(Saved saved, String bump, String reason, List<String> changes, String actor) {
         Place p = saved.place();
         store.insertVersion(new PlaceVersion(null, p.id(), p.tenantCode(), p.currentVersion(), bump, reason,
                 json(changes), json(PlaceView.of(p, saved.inners())), actor, null));

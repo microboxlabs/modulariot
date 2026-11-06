@@ -48,6 +48,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class OrgPlacesResource extends OrgResourceSupport {
 
     private static final String ORG = "organizationId";
+    private static final String PLACE_ID = "placeId";
 
     private final PlaceService places;
 
@@ -91,9 +92,9 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @Operation(operationId = "getPlace", summary = "One place; a geofence with its inner geofences")
     @PermissionsAllowed(value = {PlacesAccessCatalog.VIEW, PlacesAccessCatalog.CONTROL_TOWER_VIEW},
             permission = OrgPermission.class, params = ORG)
-    public Uni<Response> get(@PathParam(ORG) String organizationId, @PathParam("placeId") String placeId) {
+    public Uni<Response> get(@PathParam(ORG) String organizationId, @PathParam(PLACE_ID) String placeId) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(view(places.getWithInners(tenant, uuid(placeId, "placeId")))).build());
+        return work(() -> Response.ok(view(places.getWithInners(tenant, uuid(placeId, PLACE_ID)))).build());
     }
 
     @GET
@@ -101,9 +102,9 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @Operation(operationId = "listPlaceVersions", summary = "The versions of a geofence or route, oldest first")
     @PermissionsAllowed(value = {PlacesAccessCatalog.VIEW, PlacesAccessCatalog.CONTROL_TOWER_VIEW},
             permission = OrgPermission.class, params = ORG)
-    public Uni<Response> versions(@PathParam(ORG) String organizationId, @PathParam("placeId") String placeId) {
+    public Uni<Response> versions(@PathParam(ORG) String organizationId, @PathParam(PLACE_ID) String placeId) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(places.versions(tenant, uuid(placeId, "placeId")).stream()
+        return work(() -> Response.ok(places.versions(tenant, uuid(placeId, PLACE_ID)).stream()
                 .map(PlaceVersionView::of).toList()).build());
     }
 
@@ -125,11 +126,11 @@ public class OrgPlacesResource extends OrgResourceSupport {
             summary = "Replaces a geofence, with its inner geofences, or route as its next version")
     @PermissionsAllowed(value = PlacesAccessCatalog.CONTROL_TOWER_PLACES_EDIT,
             permission = OrgPermission.class, params = ORG)
-    public Uni<Response> update(@PathParam(ORG) String organizationId, @PathParam("placeId") String placeId,
+    public Uni<Response> update(@PathParam(ORG) String organizationId, @PathParam(PLACE_ID) String placeId,
             PlaceRequest request) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(view(places.update(tenant, uuid(placeId, "placeId"), request, actor)))
+        return work(() -> Response.ok(view(places.update(tenant, uuid(placeId, PLACE_ID), request, actor)))
                 .build());
     }
 
@@ -138,11 +139,11 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @Operation(operationId = "deletePlace", summary = "Deletes a geofence, with its inner geofences, or route")
     @PermissionsAllowed(value = PlacesAccessCatalog.CONTROL_TOWER_PLACES_EDIT,
             permission = OrgPermission.class, params = ORG)
-    public Uni<Response> delete(@PathParam(ORG) String organizationId, @PathParam("placeId") String placeId) {
+    public Uni<Response> delete(@PathParam(ORG) String organizationId, @PathParam(PLACE_ID) String placeId) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
         return work(() -> {
-            places.delete(tenant, uuid(placeId, "placeId"), actor);
+            places.delete(tenant, uuid(placeId, PLACE_ID), actor);
             return Response.noContent().build();
         });
     }

@@ -188,25 +188,26 @@ class PgPlaceStoreTest {
         Place nueva = service.create(TENANT, request("geofence", "scl", "Planta nueva", SQUARE), ACTOR).place();
         assertEquals(nueva.id(), store.findByCode(TENANT, "SCL").orElseThrow().id());
         assertTrue(store.findByCode("other-client", "SCL").isEmpty());
-        assertThrows(IllegalStateException.class,
-                () -> service.create(TENANT, request("geofence", "SCL", "Repetida", SQUARE), ACTOR));
+        var request = request("geofence", "SCL", "Repetida", SQUARE);
+        assertThrows(IllegalStateException.class, () -> service.create(TENANT, request, ACTOR));
     }
 
     @Test
     void theDatabaseHoldsTheRulesToo() {
         Place planta = service.create(TENANT, request("geofence", "SCL", "Planta", SQUARE), ACTOR).place();
-        assertThrows(IllegalStateException.class,
-                () -> service.create(TENANT, request("geofence", "SCL", "Repetida", SQUARE), ACTOR));
-        assertThrows(IllegalStateException.class,
-                () -> service.create(TENANT, request("geofence", "scl", "Repetida en minúsculas", SQUARE), ACTOR));
+        var request = request("geofence", "SCL", "Repetida", SQUARE);
+        assertThrows(IllegalStateException.class, () -> service.create(TENANT, request, ACTOR));
+        var request2 = request("geofence", "scl", "Repetida en minúsculas", SQUARE);
+        assertThrows(IllegalStateException.class, () -> service.create(TENANT, request2, ACTOR));
         // another organization can have the same code
         service.create("other-client", request("geofence", "SCL", "Ajena", SQUARE), ACTOR);
         // a code is the organization's, whatever the kind, as client_geofence_id is in the GPS
-        assertThrows(IllegalStateException.class,
-                () -> service.create(TENANT, request("route", "SCL", "Ruta SCL", LINE), ACTOR));
+        var request3 = request("route", "SCL", "Ruta SCL", LINE);
+        assertThrows(IllegalStateException.class, () -> service.create(TENANT, request3, ACTOR));
         // the same version twice
-        assertThrows(IllegalStateException.class, () -> store.insertVersion(new PlaceVersion(null, planta.id(),
-                TENANT, "1.0.0", null, null, "[]", "{}", ACTOR, null)));
+        var placeVersion = new PlaceVersion(null, planta.id(),
+                TENANT, "1.0.0", null, null, "[]", "{}", ACTOR, null);
+        assertThrows(IllegalStateException.class, () -> store.insertVersion(placeVersion));
 
         String point = """
                 {"type":"Feature","geometry":{"type":"Point","coordinates":[-70,-33]},"properties":{"radius_m":20}}""";
@@ -222,20 +223,23 @@ class PgPlaceStoreTest {
         assertThrows(IllegalArgumentException.class, () -> insertRaw("geofence", null, "Punto", point));
         assertThrows(IllegalArgumentException.class,
                 () -> insertRaw("geofence", null, "Círculo sin radio", circleWithoutRadius));
-        assertThrows(IllegalArgumentException.class, () -> insertRaw("route", planta.id(), "Ruta con padre", LINE));
+        var plantaId = planta.id();
+        assertThrows(IllegalArgumentException.class, () -> insertRaw("route", plantaId, "Ruta con padre", LINE));
         assertThrows(IllegalArgumentException.class, () -> insertRaw("inner_geofence", null, "Huérfana", polygon));
         assertThrows(IllegalArgumentException.class, () -> insertRaw("route", null, "Ruta polígono", SQUARE));
         assertThrows(IllegalArgumentException.class, () -> insertRaw("geofence", null, "Moño", bowtie));
         for (String bad : List.of("{}", "[\"planta\"]", "{\"selectable\":\"lista\",\"values\":[]}",
                 "{\"selectable\":\" \",\"values\":[\"planta\"]}", "{\"values\":[\"planta\"]}")) {
-            assertThrows(IllegalArgumentException.class, () -> store.insert(new Place(null, TENANT, "route", null,
+            var place = new Place(null, TENANT, "route", null,
                     UUID.randomUUID().toString(), "Ruta", null, null, null, bad, "{}", LINE, null, null, "1.0.0", null,
-                    ACTOR, null, null)), bad);
+                    ACTOR, null, null);
+            assertThrows(IllegalArgumentException.class, () -> store.insert(place), bad);
         }
         assertThrows(IllegalArgumentException.class, () -> insertRaw("geofence", null, null, "Sin código", SQUARE));
         assertThrows(IllegalArgumentException.class, () -> insertRaw("route", null, null, "Ruta sin código", LINE));
+        var plantaId2 = planta.id();
         assertThrows(IllegalArgumentException.class,
-                () -> insertRaw("inner_geofence", planta.id(), null, "Interior sin código", SQUARE));
+                () -> insertRaw("inner_geofence", plantaId2, null, "Interior sin código", SQUARE));
         assertThrows(IllegalArgumentException.class,
                 () -> insertRaw("geofence", null, " SCL2", "Con espacio", SQUARE));
         assertThrows(IllegalArgumentException.class, () -> insertRaw("geofence", null, "   ", SQUARE));

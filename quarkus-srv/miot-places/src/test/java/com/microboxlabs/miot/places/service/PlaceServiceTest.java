@@ -130,8 +130,8 @@ class PlaceServiceTest {
         }
 
         String noRadius = "{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-70,-33]}}";
-        assertThrows(IllegalArgumentException.class,
-                () -> service.create(TENANT, request("geofence", "Sin radio", noRadius), ACTOR));
+        var request = request("geofence", "Sin radio", noRadius);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, request, ACTOR));
     }
 
     @Test
@@ -191,21 +191,27 @@ class PlaceServiceTest {
         Place otra = geofence("Otra");
         VersionRequest v = new VersionRequest("PATCH", null, null);
 
-        assertThrows(IllegalArgumentException.class,
-                () -> service.create(TENANT, request("inner_geofence", "Suelta", CIRCLE), ACTOR));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.update(TENANT, anden.id(), edit(request(null, "Andén", CIRCLE), "PATCH"), ACTOR));
-        assertThrows(IllegalArgumentException.class, () -> service.delete(TENANT, anden.id(), ACTOR));
-        assertThrows(IllegalArgumentException.class, () -> service.versions(TENANT, anden.id()));
+        var request = request("inner_geofence", "Suelta", CIRCLE);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, request, ACTOR));
+        var andenId = anden.id();
+        var edit = edit(request(null, "Andén", CIRCLE), "PATCH");
+        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, andenId, edit, ACTOR));
+        var andenId2 = anden.id();
+        assertThrows(IllegalArgumentException.class, () -> service.delete(TENANT, andenId2, ACTOR));
+        var andenId3 = anden.id();
+        assertThrows(IllegalArgumentException.class, () -> service.versions(TENANT, andenId3));
         // another geofence's inner geofence, or the same one twice
-        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, otra.id(),
-                geofenceWith("Otra", List.of(inner(anden.id(), "Robada")), v), ACTOR));
-        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, planta.place().id(),
-                geofenceWith("Planta", List.of(inner(anden.id(), "A"), inner(anden.id(), "B")), v), ACTOR));
+        var otraId = otra.id();
+        var geofenceWith = geofenceWith("Otra", List.of(inner(anden.id(), "Robada")), v);
+        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, otraId, geofenceWith, ACTOR));
+        var plantaId = planta.place().id();
+        var geofenceWith2 = geofenceWith("Planta", List.of(inner(anden.id(), "A"), inner(anden.id(), "B")), v);
+        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, plantaId, geofenceWith2, ACTOR));
         // a route has none
-        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, new PlaceRequest("route", null,
+        var placeRequest = new PlaceRequest("route", null,
                 CODE, "Ruta", null, null, null, null, null, json(LINE), null, null, null,
-                List.of(inner(null, "Andén")), null), ACTOR));
+                List.of(inner(null, "Andén")), null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, placeRequest, ACTOR));
     }
 
     @Test
@@ -213,12 +219,15 @@ class PlaceServiceTest {
         Place planta = geofence("Planta");
         PlaceRequest base = request(null, "Planta", SQUARE);
 
-        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, planta.id(), base, ACTOR),
+        var plantaId = planta.id();
+        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, plantaId, base, ACTOR),
                 "an edit without a version");
+        var plantaId2 = planta.id();
+        var edit = edit(base, "HUGE");
+        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, plantaId2, edit, ACTOR));
+        var edit2 = edit(request("geofence", "Con versión", SQUARE), "MAJOR");
         assertThrows(IllegalArgumentException.class,
-                () -> service.update(TENANT, planta.id(), edit(base, "HUGE"), ACTOR));
-        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT,
-                edit(request("geofence", "Con versión", SQUARE), "MAJOR"), ACTOR), "a new place takes no version");
+                () -> service.create(TENANT, edit2, ACTOR), "a new place takes no version");
 
         List<String> seen = List.of("PATCH", "MINOR", "PATCH", "MAJOR", "PATCH").stream()
                 .map(b -> service.update(TENANT, planta.id(), edit(base, b), ACTOR).place().currentVersion())
@@ -233,12 +242,16 @@ class PlaceServiceTest {
     @Test
     void aGeofenceAndARouteNeedTheirCode() {
         for (String code : java.util.Arrays.asList(null, "", "   ")) {
-            assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, new PlaceRequest("geofence",
+            var placeRequest = new PlaceRequest("geofence",
                     null, code, "Sin código", null, null, null, null, null, json(SQUARE), null, null, null, null,
-                    null), ACTOR), "geofence code «" + code + "»");
-            assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, new PlaceRequest("route",
+                    null);
+            assertThrows(IllegalArgumentException.class,
+                    () -> service.create(TENANT, placeRequest, ACTOR), "geofence code «" + code + "»");
+            var placeRequest2 = new PlaceRequest("route",
                     null, code, "Sin código", null, null, null, null, null, json(LINE), null, null, null, null,
-                    null), ACTOR), "route code «" + code + "»");
+                    null);
+            assertThrows(IllegalArgumentException.class,
+                    () -> service.create(TENANT, placeRequest2, ACTOR), "route code «" + code + "»");
         }
     }
 
@@ -251,8 +264,9 @@ class PlaceServiceTest {
 
         PlaceRequest noCode = new PlaceRequest(null, null, null, "Ruta", null, null, null, null, null, json(LINE),
                 null, null, null, null, null);
-        assertThrows(IllegalArgumentException.class,
-                () -> service.update(TENANT, ruta.id(), edit(noCode, "PATCH"), ACTOR));
+        var rutaId = ruta.id();
+        var edit = edit(noCode, "PATCH");
+        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, rutaId, edit, ACTOR));
     }
 
     @Test
@@ -266,15 +280,18 @@ class PlaceServiceTest {
         PlaceRequest otherCode = new PlaceRequest(null, null, "SCL-2", "Planta", null, null, null, null, null,
                 json(SQUARE), null, null, null, null, null);
 
-        assertThrows(IllegalArgumentException.class,
-                () -> service.update(TENANT, planta.place().id(), edit(otherCode, "PATCH"), ACTOR));
-        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, planta.place().id(),
-                geofenceWith("Planta", List.of(innerWithCode(anden, "Andén", "AND-2"), inner(patio, "Patio")),
-                        new VersionRequest("PATCH", null, null)), ACTOR));
+        var plantaId = planta.place().id();
+        var edit = edit(otherCode, "PATCH");
+        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, plantaId, edit, ACTOR));
+        var plantaId2 = planta.place().id();
+        var geofenceWith = geofenceWith("Planta", List.of(innerWithCode(anden, "Andén", "AND-2"), inner(patio, "Patio")),
+                        new VersionRequest("PATCH", null, null));
+        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, plantaId2, geofenceWith, ACTOR));
 
-        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, planta.place().id(),
-                geofenceWith("Planta", List.of(innerWithCode(anden, "Andén", "AND-1"),
-                        innerWithCode(patio, "Patio", null)), new VersionRequest("PATCH", null, null)), ACTOR),
+        var plantaId3 = planta.place().id();
+        var geofenceWith2 = geofenceWith("Planta", List.of(innerWithCode(anden, "Andén", "AND-1"),
+                        innerWithCode(patio, "Patio", null)), new VersionRequest("PATCH", null, null));
+        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, plantaId3, geofenceWith2, ACTOR),
                 "an inner geofence needs its code too");
         PlaceService.Saved edited = service.update(TENANT, planta.place().id(),
                 geofenceWith("Planta", List.of(innerWithCode(anden, "Andén", "AND-1"), inner(patio, "Patio")),
@@ -302,8 +319,8 @@ class PlaceServiceTest {
         assertNull(service.create(TENANT, withCategories(null), ACTOR).place().categoriesJson());
         assertNull(service.create(TENANT, withCategories(new PlaceRequest.Categories("lista", List.of(" ", ""))),
                 ACTOR).place().categoriesJson(), "no values, nothing to look up");
-        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT,
-                withCategories(new PlaceRequest.Categories(" ", List.of("planta"))), ACTOR));
+        var withCategories = withCategories(new PlaceRequest.Categories(" ", List.of("planta")));
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, withCategories, ACTOR));
     }
 
     @Test
@@ -320,13 +337,14 @@ class PlaceServiceTest {
         assertEquals("1.0.0", route.currentVersion());
 
         Place parent = geofence("Planta");
-        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, new PlaceRequest("route",
+        var placeRequest = new PlaceRequest("route",
                 parent.id().toString(), null, "Con padre", null, null, null, null, null, json(LINE), null, null, null,
-                null, null), ACTOR));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.create(TENANT, request("route", "Polígono", SQUARE), ACTOR));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.create(TENANT, request("geofence", "Línea", LINE), ACTOR));
+                null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, placeRequest, ACTOR));
+        var request = request("route", "Polígono", SQUARE);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, request, ACTOR));
+        var request2 = request("geofence", "Línea", LINE);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, request2, ACTOR));
     }
 
     @Test
@@ -337,24 +355,24 @@ class PlaceServiceTest {
                 {"type":"Feature","geometry":{"type":"Point","coordinates":[-33,-170]},"properties":{"radius_m":5}}""";
         String bare = "{\"type\":\"Polygon\",\"coordinates\":[[[-70,-33],[-70,-32],[-69,-32],[-70,-33]]]}";
         for (String shape : List.of(open, latLon, bare)) {
-            assertThrows(IllegalArgumentException.class,
-                    () -> service.create(TENANT, request("geofence", "Mala", shape), ACTOR), shape);
+            var request = request("geofence", "Mala", shape);
+            assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, request, ACTOR), shape);
         }
-        assertThrows(IllegalArgumentException.class,
-                () -> service.create(TENANT, new PlaceRequest("geofence", null, null, "Sin forma", null, null, null,
-                        null, null, null, null, null, null, null, null), ACTOR));
+        var placeRequest = new PlaceRequest("geofence", null, null, "Sin forma", null, null, null,
+                        null, null, null, null, null, null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, placeRequest, ACTOR));
     }
 
     @Test
     void needsAKnownKindANameAndAnOrderedValidity() {
-        assertThrows(IllegalArgumentException.class,
-                () -> service.create(TENANT, request("zone", "Zona", SQUARE), ACTOR));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.create(TENANT, request("geofence", "  ", SQUARE), ACTOR));
+        var request = request("zone", "Zona", SQUARE);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, request, ACTOR));
+        var request2 = request("geofence", "  ", SQUARE);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, request2, ACTOR));
         OffsetDateTime now = OffsetDateTime.now();
-        assertThrows(IllegalArgumentException.class,
-                () -> service.create(TENANT, new PlaceRequest("geofence", null, CODE, "Al revés", null, null, null,
-                        null, null, json(SQUARE), now, now.minusDays(1), null, null, null), ACTOR));
+        var placeRequest = new PlaceRequest("geofence", null, CODE, "Al revés", null, null, null,
+                        null, null, json(SQUARE), now, now.minusDays(1), null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, placeRequest, ACTOR));
         assertTrue(store.list(TENANT, null, null, null, 10, 0).isEmpty());
     }
 
@@ -367,12 +385,15 @@ class PlaceServiceTest {
         assertEquals("luis@x.cl", renamed.updatedBy());
         assertEquals("circle", json(renamed.geojson()).path("properties").path("shape").asText());
 
-        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, planta.id(),
-                edit(request("route", "Ahora ruta", LINE), "MAJOR"), ACTOR));
-        assertThrows(NoSuchElementException.class, () -> service.update(TENANT, UUID.randomUUID(),
-                edit(request(null, "Nadie", SQUARE), "PATCH"), ACTOR));
-        assertThrows(NoSuchElementException.class, () -> service.update("other-client", planta.id(),
-                edit(request(null, "Ajena", SQUARE), "PATCH"), ACTOR));
+        var plantaId = planta.id();
+        var edit = edit(request("route", "Ahora ruta", LINE), "MAJOR");
+        assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, plantaId, edit, ACTOR));
+        var randomUUID = UUID.randomUUID();
+        var edit2 = edit(request(null, "Nadie", SQUARE), "PATCH");
+        assertThrows(NoSuchElementException.class, () -> service.update(TENANT, randomUUID, edit2, ACTOR));
+        var plantaId2 = planta.id();
+        var edit3 = edit(request(null, "Ajena", SQUARE), "PATCH");
+        assertThrows(NoSuchElementException.class, () -> service.update("other-client", plantaId2, edit3, ACTOR));
     }
 
     @Test
@@ -387,7 +408,8 @@ class PlaceServiceTest {
         assertEquals(List.of(planta.inners().get(0).id(), planta.place().id()), store.deleted);
         assertEquals(Set.of(puerto.place().id(), puerto.inners().get(0).id()),
                 Set.copyOf(store.list(TENANT, null, null, null, 10, 0).stream().map(Place::id).toList()));
-        assertThrows(NoSuchElementException.class, () -> service.delete(TENANT, planta.place().id(), ACTOR));
+        var plantaId = planta.place().id();
+        assertThrows(NoSuchElementException.class, () -> service.delete(TENANT, plantaId, ACTOR));
     }
 
     @Test

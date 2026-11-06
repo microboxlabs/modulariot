@@ -122,9 +122,9 @@ class OrgPlacesResourceTest {
     }
 
     @Test
-    void anotherOrganizationInThePathIsForbidden() {
-        WebApplicationException e = assertThrows(WebApplicationException.class,
-                () -> resource.create("other", circle("Ajena")));
+    void anotherOrganizationInThePathIsForbidden() throws Exception {
+        var circle = circle("Ajena");
+        WebApplicationException e = assertThrows(WebApplicationException.class, () -> resource.create("other", circle));
         assertEquals(403, e.getResponse().getStatus());
     }
 

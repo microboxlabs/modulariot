@@ -26,6 +26,9 @@ public class PgPlaceStore implements PlaceStore {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final String ACTIVE = " AND is_active";
+    private static final String SELECT = "SELECT ";
+    private static final String FROM = " FROM ";
+    private static final String UPDATE = "UPDATE ";
     private static final String COLUMNS = """
             id, tenant_code, kind, parent_id, external_code, name, icon, color, address,
             categories::text AS categories, metadata::text AS metadata, geojson::text AS geojson, valid_from,
@@ -74,13 +77,13 @@ public class PgPlaceStore implements PlaceStore {
 
     @Override
     public Optional<Place> find(String tenantCode, UUID id) {
-        return first(query("SELECT " + COLUMNS + " FROM " + table + " WHERE tenant_code = $1 AND id = $2"
+        return first(query(SELECT + COLUMNS + FROM + table + " WHERE tenant_code = $1 AND id = $2"
                 + ACTIVE + PgTx.lock(), Tuple.of(tenantCode, id)));
     }
 
     @Override
     public Optional<CodeOwner> findByCode(String tenantCode, String code) {
-        RowIterator<Row> it = query("SELECT id, name, kind FROM " + table
+        RowIterator<Row> it = query(SELECT + "id, name, kind" + FROM + table
                 + " WHERE tenant_code = $1 AND lower(external_code) = lower($2)"
                 + ACTIVE, Tuple.of(tenantCode, code)).iterator();
         if (!it.hasNext()) {
@@ -92,8 +95,8 @@ public class PgPlaceStore implements PlaceStore {
 
     @Override
     public List<Place> list(String tenantCode, String kind, UUID parentId, String q, int limit, long offset) {
-        StringBuilder sql = new StringBuilder("SELECT ").append(COLUMNS)
-                .append(" FROM ").append(table).append(" WHERE tenant_code = $1").append(ACTIVE);
+        StringBuilder sql = new StringBuilder(SELECT).append(COLUMNS)
+                .append(FROM).append(table).append(" WHERE tenant_code = $1").append(ACTIVE);
         Tuple params = Tuple.of(tenantCode);
         if (kind != null) {
             params.addString(kind);
@@ -117,13 +120,13 @@ public class PgPlaceStore implements PlaceStore {
 
     @Override
     public List<Place> children(String tenantCode, UUID parentId) {
-        return query("SELECT " + COLUMNS + " FROM " + table + " WHERE tenant_code = $1 AND parent_id = $2" + ACTIVE
+        return query(SELECT + COLUMNS + FROM + table + " WHERE tenant_code = $1 AND parent_id = $2" + ACTIVE
                 + " ORDER BY name, id", Tuple.of(tenantCode, parentId)).stream().map(PgPlaceStore::place).toList();
     }
 
     @Override
     public Optional<Place> update(Place p) {
-        return first(query("UPDATE " + table + """
+        return first(query(UPDATE + table + """
                  SET parent_id = $3, external_code = $4, name = $5, icon = $6, color = $7, address = $8,
                     categories = $9::text::jsonb, metadata = $10::text::jsonb, geojson = $11::text::jsonb,
                     valid_from = $12, valid_until = $13, current_version = $14, updated_by = $15
@@ -138,13 +141,13 @@ public class PgPlaceStore implements PlaceStore {
 
     @Override
     public boolean delete(String tenantCode, UUID id, String actor) {
-        return query("UPDATE " + table + " SET is_active = FALSE, updated_by = $3"
+        return query(UPDATE + table + " SET is_active = FALSE, updated_by = $3"
                 + " WHERE tenant_code = $1 AND id = $2" + ACTIVE, Tuple.of(tenantCode, id, actor)).rowCount() > 0;
     }
 
     @Override
     public int deleteChildren(String tenantCode, UUID parentId, String actor) {
-        return query("UPDATE " + table + " SET is_active = FALSE, updated_by = $3"
+        return query(UPDATE + table + " SET is_active = FALSE, updated_by = $3"
                 + " WHERE tenant_code = $1 AND parent_id = $2" + ACTIVE, Tuple.of(tenantCode, parentId, actor))
                 .rowCount();
     }
@@ -163,7 +166,7 @@ public class PgPlaceStore implements PlaceStore {
 
     @Override
     public List<PlaceVersion> versions(String tenantCode, UUID placeId) {
-        return query("SELECT " + VERSION_COLUMNS + " FROM " + versionTable
+        return query(SELECT + VERSION_COLUMNS + FROM + versionTable
                 + " WHERE tenant_code = $1 AND place_id = $2 ORDER BY created_at, id", Tuple.of(tenantCode, placeId))
                 .stream().map(PgPlaceStore::version).toList();
     }

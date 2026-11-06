@@ -15,8 +15,10 @@ type PinPosition = {
 const WHITE: [number, number, number, number] = [255, 255, 255, 255];
 
 /**
- * The vehicle's current position. `offline` draws it gray and `label`, when
- * set, is written beside it ("Sin señal · hace 12 min").
+ * The vehicle's current position. `offline` draws it gray with the
+ * disconnected face; `engineOff` draws it gray with its normal face. Offline
+ * wins. `label`, when set, is written beside a gray pin ("Sin señal · hace
+ * 12 min", "Motor apagado").
  */
 export class PinLayer extends CompositeLayer<any> {
   static readonly layerName = "PinLayer";
@@ -30,6 +32,7 @@ export class PinLayer extends CompositeLayer<any> {
       (d: PinPosition | undefined) => !!d
     );
     const offline = this.props.offline === true;
+    const engineOff = !offline && this.props.engineOff === true;
     const label: string | null = this.props.label ?? null;
 
     const layers: Layer[] = [
@@ -37,7 +40,7 @@ export class PinLayer extends CompositeLayer<any> {
         id: "IconLayer-base",
         data,
         getIcon: (_d: PinPosition) => ({
-          url: createSVGIcon(1, offline),
+          url: createSVGIcon(1, offline, engineOff),
           width: 300,
           height: 500,
           anchorX: 150,
@@ -49,7 +52,7 @@ export class PinLayer extends CompositeLayer<any> {
         getSize: (_d: PinPosition) => getIconSize(1),
         updateTriggers: {
           ...this.props.updateTriggers,
-          getIcon: [offline],
+          getIcon: [offline, engineOff],
         },
         pickable: true,
         parameters: {
@@ -57,7 +60,7 @@ export class PinLayer extends CompositeLayer<any> {
         },
       }) as Layer,
     ];
-    if (offline && label) {
+    if ((offline || engineOff) && label) {
       layers.push(
         new TextLayer({
           id: "offline-label",

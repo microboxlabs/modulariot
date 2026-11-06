@@ -41,3 +41,31 @@ describe("PinLayer", () => {
     expect(getText(position)).toBe("Sin señal · hace 12 min");
   });
 });
+
+describe("PinLayer with the engine off", () => {
+  it("draws the pin gray with its normal face and the engine-off label", () => {
+    const layers = render({ engineOff: true, label: "Motor apagado" });
+    expect(iconUrl(layers)).toBe(createSVGIcon(1, false, true));
+    expect(iconUrl(layers)).not.toBe(createSVGIcon(1, true));
+    expect(layers).toHaveLength(2);
+    const { getText } = layers[1].props as unknown as {
+      getText: (d: unknown) => string;
+    };
+    expect(getText(position)).toBe("Motor apagado");
+  });
+
+  it("draws the offline pin when the signal is also lost", () => {
+    const layers = render({
+      offline: true,
+      engineOff: true,
+      label: "Sin señal · hace 12 min",
+    });
+    expect(iconUrl(layers)).toBe(createSVGIcon(1, true));
+  });
+
+  it("keeps today's pin when the engine state is unknown", () => {
+    const layers = render({ label: null });
+    expect(iconUrl(layers)).toBe(createSVGIcon(1, false));
+    expect(layers).toHaveLength(1);
+  });
+});

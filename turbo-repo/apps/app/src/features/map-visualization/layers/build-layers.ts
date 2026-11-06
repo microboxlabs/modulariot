@@ -139,10 +139,10 @@ function geoJsonPointsToPinData(
     lost_signal:
       ((f.properties as Record<string, unknown>)?.lost_signal as boolean) ??
       false,
+    ...f.properties,
     engine_off:
       ((f.properties as Record<string, unknown>)?.engine_off as boolean) ??
       isEngineOffFrame(f.properties as Record<string, unknown>),
-    ...f.properties,
   }));
 }
 

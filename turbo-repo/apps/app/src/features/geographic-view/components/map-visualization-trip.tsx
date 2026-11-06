@@ -205,6 +205,8 @@ type MapVisualizationProps = {
   isLoading: boolean;
   error: Error | null;
   filteredLocationData: TreatmentsLocationResponseItem | null;
+  /** The case's engine report, independent of the selected timeline entry. */
+  reportedEngineStatus?: boolean | null;
   dict: I18nRecord;
   selectedTreatmentIndex: ConditionsAgg | null;
   setSelectedTreatment?: (
@@ -376,6 +378,7 @@ export default function MapVisualizationTrip({
   positions,
   isLoading,
   filteredLocationData,
+  reportedEngineStatus,
   dict,
   selectedTreatmentIndex,
   setSelectedTreatment,
@@ -539,11 +542,11 @@ export default function MapVisualizationTrip({
   const pinOffline = offline && displayPosition === newestIndex;
   // Engine off on the newest frame turns the pin gray with its normal face and
   // labels it "Motor apagado". Lost signal wins.
-  const reportedEngine =
-    filteredLocationData?.description?.last_reported_engine_status;
-  const engineOff = newestEngineOff(newest, reportedEngine);
+  const engineOff = newestEngineOff(newest, reportedEngineStatus);
   const engineText = engineOffLabel(engineOff, offline, dict);
   const pinEngineOff = !!engineText && displayPosition === newestIndex;
+  const pinLabel =
+    displayPosition === newestIndex ? offlineText ?? engineText : null;
   const engineLabel = useMemo(
     () =>
       newest && engineText
@@ -825,7 +828,7 @@ export default function MapVisualizationTrip({
           },
           offline: pinOffline,
           engineOff: pinEngineOff,
-          label: pinOffline ? offlineText : pinEngineOff ? engineText : null,
+          label: pinLabel,
           updateTriggers: {
             data: positions,
           },
@@ -874,6 +877,7 @@ export default function MapVisualizationTrip({
     pinOffline,
     offlineText,
     pinEngineOff,
+    pinLabel,
     engineText,
   ]);
 

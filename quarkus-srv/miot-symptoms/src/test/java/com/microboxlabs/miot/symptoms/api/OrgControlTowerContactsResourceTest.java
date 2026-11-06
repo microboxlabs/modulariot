@@ -20,7 +20,7 @@ class OrgControlTowerContactsResourceTest {
         org.setOrganizationId("org-test");
         TenantContext tenant = new TenantContext();
         tenant.setClientId("tenant-test");
-        var resource = new OrgControlTowerContactsResource(tenant, org, null, null, null, null, unavailable());
+        var resource = new OrgControlTowerContactsResource(tenant, org, null, null, null, null, unavailable(), null);
 
         var response = resource.trip("org-test", new TripContactsRequest("-1", List.of("true")))
                 .await().atMost(Duration.ofSeconds(5));

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import VersionDialog, { type VersionPendiente } from "./version-dialog";
 
@@ -59,6 +59,38 @@ describe("VersionDialog", () => {
     });
     fireEvent.click(guardar());
     expect(onConfirmar).toHaveBeenCalledWith("MAJOR", "Nueva bodega");
+  });
+
+  it("moves through the type menu by keyboard; Escape closes only the menu", async () => {
+    const onCancelar = vi.fn();
+    render(
+      <VersionDialog
+        pendiente={pendiente}
+        onCancelar={onCancelar}
+        onConfirmar={vi.fn()}
+      />
+    );
+    const tipo = screen.getByRole("button", { name: /Tipo de actualización/ });
+    fireEvent.click(tipo);
+    const menu = await screen.findByRole("menu");
+    // the selected type takes the focus, and the arrows move it
+    await waitFor(() =>
+      expect(screen.getByRole("menuitem", { name: /Menor/ })).toHaveFocus()
+    );
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(screen.getByRole("menuitem", { name: /Parche/ })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole("menuitem", { name: /Parche/ }), {
+      key: "Escape",
+    });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(onCancelar).not.toHaveBeenCalled();
+    await waitFor(() => expect(tipo).toHaveFocus());
+    // open again, Escape on the button itself
+    fireEvent.click(tipo);
+    await screen.findByRole("menu");
+    fireEvent.keyDown(tipo, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(onCancelar).not.toHaveBeenCalled();
   });
 
   it("opens as the blurred absolute modal and cancels with Escape", () => {

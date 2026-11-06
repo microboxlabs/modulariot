@@ -3,10 +3,11 @@
 // Al guardar una geocerca o un trayecto editado: qué cambió, de qué tamaño
 // es la actualización (con la recomendada marcada), la versión que queda y
 // una descripción para el historial. Como el diálogo de publicar síntomas.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   autoUpdate,
   flip,
+  FloatingFocusManager,
   FloatingPortal,
   offset,
   shift,
@@ -15,6 +16,7 @@ import {
   useDismiss,
   useFloating,
   useInteractions,
+  useListNavigation,
   useRole,
 } from "@floating-ui/react";
 import { Button, Label, Textarea } from "flowbite-react";
@@ -128,11 +130,35 @@ function TamanoDropdown({
     ],
     whileElementsMounted: autoUpdate,
   });
-  const { getReferenceProps, getFloatingProps } = useInteractions([
-    useClick(context),
-    useDismiss(context),
-    useRole(context, { role: "menu" }),
-  ]);
+  const [activo, setActivo] = useState<number | null>(null);
+  const opcionesRef = useRef<Array<HTMLElement | null>>([]);
+  const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions(
+    [
+      useClick(context),
+      useDismiss(context),
+      useRole(context, { role: "menu" }),
+      useListNavigation(context, {
+        listRef: opcionesRef,
+        activeIndex: activo,
+        selectedIndex: TAMANOS.findIndex((t) => t.bump === bump),
+        onNavigate: setActivo,
+        loop: true,
+      }),
+    ]
+  );
+  // Escape con el foco en el botón cierra solo el menú: el modal escucha sus
+  // teclas en el propio diálogo, así que se corta antes de que llegue ahí
+  useEffect(() => {
+    const boton = refs.domReference.current;
+    if (!abierto || !(boton instanceof HTMLElement)) return;
+    const soloElMenu = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setAbierto(false);
+    };
+    boton.addEventListener("keydown", soloElMenu);
+    return () => boton.removeEventListener("keydown", soloElMenu);
+  }, [abierto, refs.domReference]);
   const elegido = TAMANOS.find((t) => t.bump === bump) ?? TAMANOS[0]!;
   const elegir = (b: VersionBump) => {
     setAbierto(false);
@@ -157,29 +183,36 @@ function TamanoDropdown({
       </button>
       {abierto && (
         <FloatingPortal>
-          <div
-            ref={refs.setFloating}
-            style={floatingStyles}
-            {...getFloatingProps()}
-            className="z-900 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 text-xs shadow-lg dark:border-gray-600 dark:bg-gray-700"
-          >
-            {TAMANOS.map((t) => (
-              <button
-                key={t.bump}
-                type="button"
-                role="menuitem"
-                onClick={() => elegir(t.bump)}
-                className={`flex w-full cursor-pointer items-center px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-600 dark:focus:bg-gray-600 ${t.bump === bump ? "bg-gray-100 dark:bg-gray-600" : ""}`}
-              >
-                <DetalleTamano
-                  nombre={t.nombre}
-                  por={t.por}
-                  version={nextVersion(actual, t.bump)}
-                  recomendado={recomendado === t.bump}
-                />
-              </button>
-            ))}
-          </div>
+          {/* lleva el foco al menú y lo devuelve al botón al cerrarse */}
+          <FloatingFocusManager context={context} modal={false}>
+            <div
+              ref={refs.setFloating}
+              style={floatingStyles}
+              {...getFloatingProps()}
+              className="z-900 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 text-xs shadow-lg dark:border-gray-600 dark:bg-gray-700"
+            >
+              {TAMANOS.map((t, i) => (
+                <button
+                  key={t.bump}
+                  type="button"
+                  role="menuitem"
+                  ref={(nodo) => {
+                    opcionesRef.current[i] = nodo;
+                  }}
+                  tabIndex={activo === i ? 0 : -1}
+                  {...getItemProps({ onClick: () => elegir(t.bump) })}
+                  className={`flex w-full cursor-pointer items-center px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-600 dark:focus:bg-gray-600 ${t.bump === bump ? "bg-gray-100 dark:bg-gray-600" : ""}`}
+                >
+                  <DetalleTamano
+                    nombre={t.nombre}
+                    por={t.por}
+                    version={nextVersion(actual, t.bump)}
+                    recomendado={recomendado === t.bump}
+                  />
+                </button>
+              ))}
+            </div>
+          </FloatingFocusManager>
         </FloatingPortal>
       )}
     </>

@@ -216,8 +216,8 @@ describe("saved places", () => {
     );
   });
 
-  it("round-trips a route with its stops", () => {
-    const body = requestDesdeTrayecto(trayecto);
+  it("round-trips a route with its stops and its width", () => {
+    const body = requestDesdeTrayecto({ ...trayecto, width_m: 45 });
     expect(body.kind).toBe("route");
     expect(body.geojson.geometry.type).toBe("LineString");
     const { lugares, trayectos } = guardadosDesdePlaces([vista("t-1", body)]);
@@ -225,7 +225,7 @@ describe("saved places", () => {
     expect(trayectos[0]).toEqual({
       ...trayecto,
       trayecto_id: "t-1",
-      width_m: null,
+      width_m: 45,
       version: "1.0.0",
     });
   });
@@ -254,6 +254,21 @@ describe("saved places", () => {
     });
     expect(body.inners?.[1]?.id).toBeNull();
     expect(placeRequestSchema.safeParse(body).success).toBe(true);
+  });
+
+  it("keeps every metadata value when one of them is nested", () => {
+    const body = requestDesdeLugar(lugar({ metadata: null }), null);
+    const [leido] = guardadosDesdePlaces([
+      placeViewSchema.parse({
+        ...vista("p-1", body),
+        metadata: { turno: "B", piso: 2, details: { zone: "A" } },
+      }),
+    ]).lugares;
+    expect(leido?.metadata).toMatchObject({
+      turno: "B",
+      piso: "2",
+      details: '{"zone":"A"}',
+    });
   });
 
   it("reads the server's version of a geofence; an inner one has none", () => {

@@ -161,7 +161,7 @@ import {
 import { errorLugar, faltaExternalId } from "../geofences/place-validation";
 import { bloqueaCodigo, useCodigoEnUso } from "./use-codigo-en-uso";
 import { useCodigosInteriores } from "./use-codigos-interiores";
-import { useLugaresConNombresDeCategoria } from "./use-nombres-categorias";
+import { useNombresDeCategoria } from "./use-nombres-categorias";
 import {
   errorTrayecto,
   faltaExternalIdTrayecto,
@@ -302,6 +302,10 @@ const MAX_ZOOM_CREAR = 15;
 const ZOOM_DIRECCION = 16;
 // Tope al crear un círculo: el radio de 20 m cabe entero (nivel edificio).
 const MAX_ZOOM_CIRCULO = 22;
+// Al ir a una geocerca: qué parte del mapa ocupa (a lo ancho y a lo alto) y
+// hasta dónde acerca una muy chica.
+const PARTE_DE_LA_VISTA = 0.6;
+const MAX_ZOOM_IR = 19;
 
 // El tipo guardado manda: un círculo puede venir del servidor con su
 // polígono proyectado y no debe abrirse como polígono de 48 vértices.
@@ -663,9 +667,14 @@ export function usePlacesWorkspace(
   );
   const local = useLocalPlaces(storageScope);
   const lugaresGuardados = useMemo(() => guardados?.lugares ?? [], [guardados]);
-  const conNombres = useLugaresConNombresDeCategoria(lugaresGuardados);
-  const propios = conNombres;
-  const trayectos = useMemo(() => guardados?.trayectos ?? [], [guardados]);
+  const trayectosGuardados = useMemo(
+    () => guardados?.trayectos ?? [],
+    [guardados]
+  );
+  const { lugares: propios, trayectos } = useNombresDeCategoria(
+    lugaresGuardados,
+    trayectosGuardados
+  );
   /** Ids de lo guardado en miot-places: se editan y borran ahí. */
   const idsGuardados = useMemo(
     () =>
@@ -1406,14 +1415,31 @@ export function usePlacesWorkspace(
   };
 
   // Clic en el nombre de la lista: ir al lugar (con zoom de ciudad).
+  /**
+   * Ir a una geocerca: el zoom depende de su tamaño. Ella y sus interiores
+   * quedan enteras en la vista, ocupando una parte (no todo el mapa).
+   */
   const irALugar = (l: Lugar) => {
-    const p = anclaLugar(l);
-    if (p)
-      mapRef.current?.flyTo({
-        center: [p[1], p[0]],
-        zoom: 13,
-        duration: 400,
+    const map = mapRef.current;
+    const hijos = todosLugares.filter((x) => parentPlaceId(x) === l.place_id);
+    const pts = [l, ...hijos].flatMap((x) => {
+      const forma = formaDeLugar(x);
+      return forma ? contorno(forma) : [];
+    });
+    if (map && pts.length > 0) {
+      const el = map.getContainer();
+      const libre = (1 - PARTE_DE_LA_VISTA) / 2;
+      const x = el.clientWidth * libre;
+      const y = el.clientHeight * libre;
+      encuadrarCaja(map, cajaDePuntos(pts), {
+        margen: { top: y, bottom: y, left: x, right: x },
+        maxZoom: MAX_ZOOM_IR,
+        duration: 600,
       });
+      return;
+    }
+    const p = anclaLugar(l);
+    if (p) map?.flyTo({ center: [p[1], p[0]], zoom: 13, duration: 400 });
   };
 
   // Clic en el nombre de un trayecto: ir a él en el mapa.

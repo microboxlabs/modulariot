@@ -1,5 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { conNombresDeCategoria } from "./use-nombres-categorias";
+import { describe, expect, it, vi } from "vitest";
+import { fetchSelectableOptions } from "@/features/settings-admin/selectables/selectables-api";
+import {
+  conNombresDeCategoria,
+  opcionesDeCodigos,
+  trayectosConNombres,
+} from "./use-nombres-categorias";
+
+vi.mock("@/features/settings-admin/selectables/selectables-api", () => ({
+  fetchSelectableOptions: vi.fn(),
+  useApiSelectables: vi.fn(),
+}));
 import {
   CATEGORIAS_KEY,
   CATEGORIAS_LISTA_KEY,
@@ -61,5 +71,47 @@ describe("conNombresDeCategoria", () => {
     const streamhub = lugar({ category: "Zona de riesgo" });
     const [l] = conNombresDeCategoria([streamhub], opciones, "es");
     expect(l).toBe(streamhub);
+  });
+
+  it("names a route's categories from its own list", () => {
+    const ruta = {
+      trayecto_id: "t",
+      name: "Ruta",
+      kind: "vial",
+      width_m: null,
+      points: [],
+      waypoints: null,
+      parent_name: null,
+      ajustado: null,
+      external_id: null,
+      categorias: ["fatiga", "ya_no_esta"],
+      categorias_lista: "familias",
+    };
+    const [t] = trayectosConNombres([ruta], opciones, "es");
+    expect(t?.categorias_nombres).toBe("Fatiga, ya_no_esta");
+    const sin = { ...ruta, categorias: [] };
+    expect(trayectosConNombres([sin], opciones, "es")[0]).toBe(sin);
+  });
+
+  it("looks up a saved code that is not among the first options", async () => {
+    const primera = { value: "a", label: { es: "A" } };
+    const lejana = { value: "z9", label: { es: "Zona 9" } };
+    vi.mocked(fetchSelectableOptions).mockImplementation(async (_key, q) =>
+      q?.search === "z9"
+        ? [{ value: "z90", label: { es: "Zona 90" } }, lejana]
+        : [primera]
+    );
+    expect(await opcionesDeCodigos("zonas", ["a", "z9"])).toEqual([
+      primera,
+      lejana,
+    ]);
+    expect(fetchSelectableOptions).toHaveBeenCalledWith("zonas", {
+      limit: 200,
+    });
+    expect(fetchSelectableOptions).toHaveBeenCalledWith("zonas", {
+      search: "z9",
+      limit: 200,
+    });
+    expect(fetchSelectableOptions).toHaveBeenCalledTimes(2);
   });
 });

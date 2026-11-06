@@ -1,5 +1,6 @@
 import {
   INNER_RADIO_DEFAULT,
+  INNER_RADIO_MIN,
   INNER_RECT_H_DEF,
   INNER_RECT_W_DEF,
   aplicarFormaBase,
@@ -67,7 +68,37 @@ export function puntoDentroDelPadre(form: FormLugar, p: LatLon): boolean {
   return puntoEnPoligono(p, form.vertices);
 }
 
-export function nuevoInner(): InnerGeofence {
+/** Ancho y alto (m) de la geocerca: el diámetro de su círculo o la caja de su polígono. */
+function medidasDelPadre(
+  form: FormLugar
+): { ancho: number; alto: number } | null {
+  if (!padreTieneGeometria(form)) return null;
+  if (form.geom === "circle") {
+    const diametro = 2 * form.radius_m;
+    return { ancho: diametro, alto: diametro };
+  }
+  const lats = form.vertices.map(([lat]) => lat);
+  const lons = form.vertices.map(([, lon]) => lon);
+  const sur = Math.min(...lats);
+  const norte = Math.max(...lats);
+  const oeste = Math.min(...lons);
+  const este = Math.max(...lons);
+  const medio = (sur + norte) / 2;
+  return {
+    ancho: distanciaM([medio, oeste], [medio, este]),
+    alto: distanciaM([sur, oeste], [norte, oeste]),
+  };
+}
+
+const mitad = (m: number) => Math.max(INNER_RADIO_MIN, Math.round(m / 2));
+
+/**
+ * Una geocerca interior nueva, de la mitad del tamaño de su geocerca: así cabe
+ * dentro en vez de taparla. Sin la forma de la geocerca, las medidas fijas.
+ */
+export function nuevoInner(padre?: FormLugar): InnerGeofence {
+  const medidas = padre ? medidasDelPadre(padre) : null;
+  const lado = medidas ? Math.min(medidas.ancho, medidas.alto) : null;
   return {
     id: `local-inner-${crypto.randomUUID()}`,
     name: "",
@@ -75,14 +106,14 @@ export function nuevoInner(): InnerGeofence {
     geom: "circle",
     lat: null,
     lon: null,
-    radius_m: INNER_RADIO_DEFAULT,
+    radius_m: lado ? mitad(lado / 2) : INNER_RADIO_DEFAULT,
     vertices: [],
     cerrado: false,
     color: INNER_COLOR_DEF,
     polyBase: "libre",
     rectVinculado: false,
-    rect_w_m: INNER_RECT_W_DEF,
-    rect_h_m: INNER_RECT_H_DEF,
+    rect_w_m: medidas ? mitad(medidas.ancho) : INNER_RECT_W_DEF,
+    rect_h_m: medidas ? mitad(medidas.alto) : INNER_RECT_H_DEF,
   };
 }
 

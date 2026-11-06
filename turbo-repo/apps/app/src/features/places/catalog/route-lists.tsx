@@ -11,13 +11,13 @@ import {
   type MarcasLista,
 } from "./list-card";
 import type { Trayecto } from "../places.types";
+import { longitudM, textoDistancia } from "../routes/recorrido";
 
+/** Como en los lugares: sus categorías y, después, cuánto mide. */
 function detalleTrayecto(t: Trayecto): string {
-  const partes = [t.kind];
-  if (t.ajustado) partes.push("ajustado");
-  if (t.width_m) partes.push(`${t.width_m} m`);
-  partes.push(`${t.points.length} pts`);
-  return partes.join(" · ");
+  const categorias =
+    t.categorias_nombres || t.categorias?.join(", ") || "sin categoría";
+  return `${categorias} · ${textoDistancia(longitudM(t.points))}`;
 }
 
 export function TrayectoList({

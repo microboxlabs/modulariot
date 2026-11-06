@@ -97,8 +97,8 @@ export function optionsUrl(
 }
 
 /** The options of a dynamic list, outside a hook: to read several at once. */
-export function fetchSelectableOptions(key: string) {
-  return request<SelectableOption[]>(optionsUrl(key));
+export function fetchSelectableOptions(key: string, query?: OptionsQuery) {
+  return request<SelectableOption[]>(optionsUrl(key, query));
 }
 
 /**

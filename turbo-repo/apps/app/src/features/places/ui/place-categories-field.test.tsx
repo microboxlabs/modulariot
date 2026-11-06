@@ -5,6 +5,7 @@ import CampoCategorias, { AJUSTES_PARA_TODOS } from "./place-categories-field";
 const estado = vi.hoisted(() => ({
   role: "MEMBER",
   modo: "SINGLE" as "SINGLE" | "MULTIPLE",
+  vinculos: {} as Record<string, string> | undefined,
 }));
 
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
@@ -39,6 +40,7 @@ vi.mock("@/features/settings-admin/selectables/field-bindings", () => ({
 }));
 vi.mock("@/features/settings-admin/selectables/selectables-api", () => ({
   useSelectableOptions: () => ({ data: undefined }),
+  useSelectableBindings: () => ({ data: estado.vinculos }),
 }));
 // the treatment view's selector: only what it gets and what it sends back
 vi.mock(
@@ -83,6 +85,48 @@ describe("CampoCategorias", () => {
   beforeEach(() => {
     estado.role = "MEMBER";
     estado.modo = "SINGLE";
+    estado.vinculos = {};
+  });
+
+  it("gives codes saved without a list the field's list, once its binding is known", () => {
+    const onChange = vi.fn();
+    estado.vinculos = undefined;
+    const { rerender } = render(
+      <CampoCategorias
+        fieldKey="place_categories"
+        label="Categorías"
+        value={["bodega"]}
+        onChange={onChange}
+        dict={{}}
+      />
+    );
+    expect(onChange).not.toHaveBeenCalled();
+    estado.vinculos = {};
+    rerender(
+      <CampoCategorias
+        fieldKey="place_categories"
+        label="Categorías"
+        value={["bodega"]}
+        onChange={onChange}
+        dict={{}}
+      />
+    );
+    expect(onChange).toHaveBeenCalledWith(["bodega"], "place_categories");
+  });
+
+  it("leaves codes that already have their list alone", () => {
+    const onChange = vi.fn();
+    render(
+      <CampoCategorias
+        fieldKey="place_categories"
+        label="Categorías"
+        value={["vieja"]}
+        listaGuardada="lista_anterior"
+        onChange={onChange}
+        dict={{}}
+      />
+    );
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("names what was saved from its own list, until a pick from the current one replaces it", () => {

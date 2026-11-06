@@ -55,6 +55,7 @@ const propsTrayecto = z.object({
     .catch(undefined),
   categorias_puntos: z.array(z.string().nullable()).optional().catch(undefined),
   categorias_puntos_selectable: z.string().optional().catch(undefined),
+  width_m: z.number().positive().optional().catch(undefined),
 });
 
 /** Un lugar como lo sirve miot-places (`PlaceView`). */
@@ -68,10 +69,8 @@ export const placeViewSchema = z.object({
   color: texto,
   address: texto,
   categories: categoriasSchema.nullable().catch(null),
-  metadata: z
-    .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
-    .nullable()
-    .catch(null),
+  // cualquier JSON: uno anidado no puede dejar sin los demás datos
+  metadata: z.record(z.string(), z.unknown()).nullable().catch(null),
   geojson: z.object({
     type: z.literal("Feature"),
     geometry: geometria,
@@ -267,6 +266,7 @@ export function requestDesdeTrayecto(t: Trayecto): PlaceRequest {
     kind: t.kind,
     ajustado: !!t.ajustado,
   };
+  if (t.width_m) properties.width_m = t.width_m;
   if (t.waypoints?.length) properties.waypoints = t.waypoints.map(aGeo);
   if (t.tipos_puntos?.length) properties.tipos_puntos = t.tipos_puntos;
   if (t.categorias_puntos?.length) {
@@ -294,11 +294,15 @@ export function requestDesdeTrayecto(t: Trayecto): PlaceRequest {
   };
 }
 
+/** Un valor de metadata como texto del formulario; uno anidado, como su JSON. */
+const textoDeDato = (val: unknown): string =>
+  typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
+
 /** metadata de la app: la libre más icono, color, categorías y padre. */
 function metadataDeLugar(v: PlaceView): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, val] of Object.entries(v.metadata ?? {})) {
-    out[k] = String(val);
+    out[k] = textoDeDato(val);
   }
   if (v.icon) out[ICON_KEY] = v.icon;
   if (v.color) out[COLOR_KEY] = v.color;
@@ -379,7 +383,7 @@ export function trayectoDesdePlace(v: PlaceView): Trayecto | null {
     trayecto_id: v.id,
     name: v.name,
     kind: props.kind ?? "vial",
-    width_m: null,
+    width_m: props.width_m ?? null,
     points: g.coordinates.map(aApp),
     waypoints: props.waypoints?.map(aApp) ?? null,
     parent_name: null,

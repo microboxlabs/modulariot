@@ -82,6 +82,37 @@ describe("places versioning", () => {
     expect(bumpRecomendado([])).toBeNull();
   });
 
+  it("saves the same categories taken from another list", () => {
+    const antes = { ...lugar, categorias_lista: "categorias_lugar" };
+    expect(
+      cambiosLugar(antes, { ...antes, categorias_lista: "zonas" })
+    ).toEqual([
+      {
+        texto: "Categorías: de la lista «categorias_lugar» a «zonas»",
+        bump: "MINOR",
+      },
+    ]);
+    const conPunto: FormTrayecto = {
+      ...tray,
+      recorrido: tray.recorrido.map((p) =>
+        p.id === "m1" ? { ...p, categoria: "carga" } : p
+      ),
+      categorias_puntos_lista: "puntos",
+    };
+    expect(
+      cambiosTrayecto(conPunto, {
+        ...conPunto,
+        categorias_puntos_lista: "otros_puntos",
+      })
+    ).toEqual([
+      {
+        texto:
+          "Categorías de los puntos: de la lista «puntos» a «otros_puntos»",
+        bump: "MINOR",
+      },
+    ]);
+  });
+
   it("lists interior geofences added, reshaped and removed", () => {
     const antes = { ...lugar, inners: [inner] };
     expect(

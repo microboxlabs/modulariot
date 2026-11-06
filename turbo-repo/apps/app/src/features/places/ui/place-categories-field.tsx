@@ -5,11 +5,15 @@
 // seleccionable (Ajustes › Seleccionables) y es la lista la que decide si se
 // elige una o varias. A la derecha, para quien puede configurarla, el control
 // de lista (engranaje o el nombre de la lista vinculada).
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { useFieldSelectableBinding } from "@/features/settings-admin/selectables/field-bindings";
-import { useSelectableOptions } from "@/features/settings-admin/selectables/selectables-api";
+import {
+  useSelectableBindings,
+  useSelectableOptions,
+} from "@/features/settings-admin/selectables/selectables-api";
 import { useSelectables } from "@/features/settings-admin/selectables/store";
 import { OptionBadge } from "@/features/settings-admin/selectables/field/field-parts";
 import { pickText } from "@/features/settings-admin/selectables/localized";
@@ -55,10 +59,13 @@ export function useListaCampo(fieldKey: string, listaGuardada?: string | null) {
   const puedeConfigurar = AJUSTES_PARA_TODOS || activeOrg?.role === "OWNER";
   const { selectables, hydrated } = useSelectables(FALLO);
   const [listaKey] = useFieldSelectableBinding(fieldKey, FALLO);
+  // hasta que lleguen los vínculos, `listaKey` es la clave del campo y no su lista
+  const { data: vinculos, error: falloVinculos } = useSelectableBindings();
+  const listo = hydrated && (vinculos !== undefined || !!falloVinculos);
   const buscada = listaGuardada ?? listaKey;
   const lista = selectables.find((s) => s.key === buscada);
   const opciones = useOpcionesLista(lista);
-  return { lang, puedeConfigurar, hydrated, lista, opciones };
+  return { lang, puedeConfigurar, hydrated, listo, lista, opciones };
 }
 
 /**
@@ -90,10 +97,16 @@ export default function CampoCategorias({
   /** Diccionario completo (textos del selector y del control de lista). */
   dict: I18nRecord;
 }>) {
-  const { puedeConfigurar, lista, lang } = useListaCampo(fieldKey);
+  const { puedeConfigurar, lista, lang, listo } = useListaCampo(fieldKey);
   const { opciones } = useListaCampo(fieldKey, listaGuardada);
   const listaActual = lista?.key ?? fieldKey;
   const deOtraLista = !!listaGuardada && listaGuardada !== listaActual;
+  // guardado en este navegador antes de que se guardara la lista: sus códigos
+  // son de la del campo. Sin ella, guardarlo en el servidor los perdería.
+  const sinLista = listo && value.length > 0 && !listaGuardada;
+  useEffect(() => {
+    if (sinLista) onChange(value, listaActual);
+  }, [sinLista, value, listaActual, onChange]);
   // SelectableDropdown habla con un texto: varias van unidas por coma
   const elegir = (o: { id: string }) => {
     const codigos = o.id.split(",").filter(Boolean);

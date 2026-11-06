@@ -20,6 +20,7 @@ import {
   mensajeInnerIncompleto,
   faltantesPadre,
   mensajePadreIncompleto,
+  nuevoInner,
   padreTieneGeometria,
   parentPlaceId,
   puntoDentroDelPadre,
@@ -51,6 +52,33 @@ describe("inner geofence geometry", () => {
     expect(puntoDentroDelPadre(form, [-32, -70])).toBe(false);
     expect(padreTieneGeometria(form)).toBe(true);
     expect(padreTieneGeometria(FORM_VACIO)).toBe(false);
+  });
+
+  it("starts a new inner geofence at half its geofence's size", () => {
+    // the default 20 m geofence: a 10 m circle, a 20 m square
+    const circulo = { ...FORM_VACIO, lat: -33.45, lon: -70.66 };
+    expect(nuevoInner(circulo)).toMatchObject({
+      radius_m: 10,
+      rect_w_m: 20,
+      rect_h_m: 20,
+    });
+    // a polygon about 200 m wide and 100 m tall
+    const poligono = {
+      ...FORM_VACIO,
+      geom: "polygon" as const,
+      vertices: [
+        [-33.45, -70.66],
+        [-33.45, -70.657855],
+        [-33.4491, -70.657855],
+        [-33.4491, -70.66],
+      ] as [number, number][],
+    };
+    const inner = nuevoInner(poligono);
+    expect(inner.radius_m).toBe(25);
+    expect(inner.rect_w_m).toBeCloseTo(100, -1);
+    expect(inner.rect_h_m).toBeCloseTo(50, -1);
+    // without the geofence's shape, the fixed sizes
+    expect(nuevoInner(FORM_VACIO).radius_m).toBe(40);
   });
 });
 

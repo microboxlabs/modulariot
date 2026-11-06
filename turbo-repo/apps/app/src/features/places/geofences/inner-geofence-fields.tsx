@@ -310,7 +310,7 @@ export default function InnerGeofenceFields({
     : form.inners;
 
   const agregarInterior = () => {
-    const inner = nuevoInner();
+    const inner = nuevoInner(form);
     setBusca("");
     setForm((f) => ({
       ...f,

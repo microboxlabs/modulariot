@@ -45,6 +45,27 @@ const mismaLista = (a: string[], b: string[]) =>
   [...a].sort(porTexto).join("|") === [...b].sort(porTexto).join("|");
 const citar = (s: string) => (s.trim() ? `«${s.trim()}»` : "vacío");
 
+/**
+ * Los mismos códigos tomados de otra lista: no cambian las categorías, pero sí
+ * dónde se buscan sus nombres. Si cambian los códigos, eso ya lo dice su cambio.
+ */
+function cambioDeLista(
+  que: string,
+  antes: { codigos: string[]; lista?: string | null },
+  despues: { codigos: string[]; lista?: string | null }
+): CambioVersion[] {
+  const listaAntes = antes.lista ?? null;
+  const listaDespues = despues.lista ?? null;
+  if (despues.codigos.length === 0 || listaAntes === listaDespues) return [];
+  if (!mismaLista(antes.codigos, despues.codigos)) return [];
+  return [
+    {
+      texto: `${que}: de la lista ${citar(listaAntes ?? "")} a ${citar(listaDespues ?? "")}`,
+      bump: "MINOR",
+    },
+  ];
+}
+
 /** "2 agregadas, 1 quitada" entre dos listas de códigos. */
 function diferenciaLista(antes: string[], despues: string[]): string {
   const agregadas = despues.filter((c) => !antes.includes(c)).length;
@@ -178,6 +199,13 @@ export function cambiosLugar(
       texto: `Categorías: ${diferenciaLista(antes.categorias, despues.categorias)}`,
       bump: "MINOR",
     });
+  out.push(
+    ...cambioDeLista(
+      "Categorías",
+      { codigos: antes.categorias, lista: antes.categorias_lista },
+      { codigos: despues.categorias, lista: despues.categorias_lista }
+    )
+  );
   if (antes.category_id !== despues.category_id)
     out.push({ texto: "Categoría del lugar cambiada", bump: "MINOR" });
   const vigAntes = textoVigencia(antes.active_from, antes.active_until);
@@ -205,6 +233,9 @@ export function cambiosLugar(
 
 const ubicados = (t: FormTrayecto): Parada[] =>
   t.recorrido.filter((p) => p.punto);
+
+const categoriasDePuntos = (t: FormTrayecto): string[] =>
+  t.recorrido.flatMap((p) => (p.categoria ? [p.categoria] : []));
 
 /** El recorrido: origen, destino o puntos intermedios distintos son MAYOR. */
 function cambiosRecorrido(
@@ -287,6 +318,24 @@ export function cambiosTrayecto(
       texto: `Categorías: ${diferenciaLista(antes.categorias, despues.categorias)}`,
       bump: "MINOR",
     });
+  out.push(
+    ...cambioDeLista(
+      "Categorías",
+      { codigos: antes.categorias, lista: antes.categorias_lista },
+      { codigos: despues.categorias, lista: despues.categorias_lista }
+    ),
+    ...cambioDeLista(
+      "Categorías de los puntos",
+      {
+        codigos: categoriasDePuntos(antes),
+        lista: antes.categorias_puntos_lista,
+      },
+      {
+        codigos: categoriasDePuntos(despues),
+        lista: despues.categorias_puntos_lista,
+      }
+    )
+  );
   out.push(
     ...cambioTexto("Nombre", antes.name, despues.name, "PATCH"),
     ...cambioTexto(

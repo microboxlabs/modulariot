@@ -114,13 +114,14 @@ describe("PlaceForm inner step", () => {
       screen.getByRole("button", { name: "Agregar Geocerca Interior" })
     );
     expect(screen.getByPlaceholderText("Ej: Lote VIP")).toHaveValue("");
-    expect(screen.getByLabelText("Radio")).toHaveValue("40");
+    // half the 20 m geofence, so it starts inside it
+    expect(screen.getByLabelText("Radio")).toHaveValue("10");
     fireEvent.mouseDown(screen.getByLabelText("Radio"), {
       button: 0,
       clientX: 100,
     });
     fireEvent.mouseMove(window, { clientX: 140 });
-    expect(screen.getByLabelText("Radio")).toHaveValue("140");
+    expect(screen.getByLabelText("Radio")).toHaveValue("110");
     expect(
       screen.getByLabelText("Quitar geocerca interior")
     ).toBeInTheDocument();

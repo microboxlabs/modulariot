@@ -65,6 +65,8 @@ export type Trayecto = {
   categorias_puntos?: (string | null)[] | null;
   /** El seleccionable de `categorias`, donde buscar sus nombres. */
   categorias_lista?: string | null;
+  /** Los nombres de `categorias`, unidos por coma: solo para mostrar y buscar. */
+  categorias_nombres?: string | null;
   /** El seleccionable de `categorias_puntos`. */
   categorias_puntos_lista?: string | null;
   /** Versión vigente en el servidor. */

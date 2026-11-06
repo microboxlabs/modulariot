@@ -51,7 +51,7 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
     private static final String EXPIRE = "UPDATE " + T
             + " SET status = 'EXPIRED' WHERE status IN ('STARTED', 'ENDED') AND started_at < $1";
     private static final String LATEST_CALLER = "SELECT tenant_code FROM " + T + " " + """
-             WHERE managed AND channel = 'VOICE' AND external_id IS NOT NULL AND source IS NOT NULL AND regexp_replace(callee_number, '\\D', '', 'g') = $1
+             WHERE managed AND channel IN ('VOICE', 'WHATSAPP_CALL') AND external_id IS NOT NULL AND source IS NOT NULL AND regexp_replace(callee_number, '\\D', '', 'g') = $1
                AND started_at > $2
              ORDER BY started_at DESC LIMIT 1""";
     private static final String BILLED = "SELECT coalesce(sum(billed_minutes), 0) AS m FROM " + T + " " + """

@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.integrations.telephony;
 
 import com.microboxlabs.miot.core.auth.PlatformScope;
+import com.microboxlabs.miot.core.telephony.InboundCall;
+import com.microboxlabs.miot.core.telephony.WhatsAppCallPermissions;
 import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
@@ -20,8 +22,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 /**
  * {@link Telephony} from the organization's TELNYX and TEAMS_PHONE connections. An organization without its own
@@ -45,23 +49,34 @@ public class IntegrationsTelephony implements Telephony {
     private final TelephonyUsageStore usage;
     private final TelephonyPlanService plan;
     private final Clock clock;
+    private final WhatsAppCalls whatsApp;
+    private final WhatsAppCallPermissions permissions;
 
     @Inject
     public IntegrationsTelephony(IntegrationConnectionRepository repository, TelnyxWebRtcTokens telnyx,
-            TeamsCallRecords teams, TelephonyUsageStore usage, TelephonyPlanService plan) {
-        this(repository::findActiveByProvider, telnyx, teams, usage, plan, Clock.systemUTC());
+            TeamsCallRecords teams, TelephonyUsageStore usage, TelephonyPlanService plan, WhatsAppCalls whatsApp,
+            WhatsAppCallPermissions permissions) {
+        this(repository::findActiveByProvider, telnyx, teams, usage, plan, Clock.systemUTC(), whatsApp, permissions);
     }
 
-    /** {@code connections}: the tenant's connection of a provider, or null. */
+    /** {@code connections}: the tenant's connection of a provider, or null. No WhatsApp calling. */
     public IntegrationsTelephony(BiFunction<String, ProviderType, IntegrationConnection> connections,
             TelnyxWebRtcTokens telnyx, TeamsCallRecords teams, TelephonyUsageStore usage, TelephonyPlanService plan,
             Clock clock) {
+        this(connections, telnyx, teams, usage, plan, clock, null, null);
+    }
+
+    public IntegrationsTelephony(BiFunction<String, ProviderType, IntegrationConnection> connections,
+            TelnyxWebRtcTokens telnyx, TeamsCallRecords teams, TelephonyUsageStore usage, TelephonyPlanService plan,
+            Clock clock, WhatsAppCalls whatsApp, WhatsAppCallPermissions permissions) {
         this.connections = connections;
         this.telnyx = telnyx;
         this.teams = teams;
         this.usage = usage;
         this.plan = plan;
         this.clock = clock;
+        this.whatsApp = whatsApp;
+        this.permissions = permissions;
     }
 
     @Override
@@ -86,13 +101,87 @@ public class IntegrationsTelephony implements Telephony {
     @Override
     public WebRtcToken webRtcToken(String tenantCode, String connectionId, String operator, String calleeNumber,
             String caseRef) {
-        TelephonyLine line = lines(tenantCode).stream()
+        TelephonyLine line = telnyxLine(tenantCode, connectionId);
+        String callee = PhoneNumbers.e164(calleeNumber);
+        if (callee == null) throw new IllegalArgumentException("An E.164 callee is required");
+        return reserve(tenantCode, line, operator, callee, caseRef, UsageRow.VOICE,
+                TelephonyPlanService.destinationType(callee), ref -> { }, ref -> { });
+    }
+
+    /** WhatsApp calls go through the platform's Telnyx account, so only the managed line reaches them. */
+    @Override
+    public boolean whatsAppCalling(String tenantCode) {
+        return whatsApp != null && whatsApp.enabled() && lines(tenantCode).stream()
+                .anyMatch(l -> l.provider() == TelephonyProvider.TELNYX && l.managed() && l.ready());
+    }
+
+    @Override
+    public WebRtcToken whatsAppCall(String tenantCode, String connectionId, String operator, String calleeNumber,
+            String caseRef) {
+        TelephonyLine line = whatsAppLine(tenantCode, connectionId);
+        String callee = PhoneNumbers.e164(calleeNumber);
+        if (callee == null) throw new IllegalArgumentException("An E.164 callee is required");
+        Optional<Boolean> allowed = permissions == null ? Optional.empty() : permissions.allows(tenantCode, callee);
+        if (allowed.isPresent() && !allowed.get()) {
+            throw new TelephonyUnavailableException(TelephonyUnavailableException.WHATSAPP_NO_PERMISSION,
+                    "The contact has not allowed WhatsApp calls");
+        }
+        return reserve(tenantCode, line, operator, callee, caseRef, UsageRow.WHATSAPP_CALL, UsageRow.WHATSAPP_CALL,
+                ref -> { }, ref -> { });
+    }
+
+    @Override
+    public List<InboundCall> ringingWhatsAppCalls(String tenantCode) {
+        if (!whatsAppCalling(tenantCode)) return List.of();
+        return whatsApp.ringing(tenantCode).stream()
+                .map(c -> new InboundCall(c.id(), c.callerNumber(), c.callerName(), c.caseRef(), c.createdAt()))
+                .toList();
+    }
+
+    @Override
+    public WebRtcToken answerWhatsAppCall(String tenantCode, String connectionId, String operator,
+            String inboundCallId) {
+        TelephonyLine line = whatsAppLine(tenantCode, connectionId);
+        InboundWhatsAppCall call = whatsApp.inbound(inboundCallId)
+                .filter(c -> tenantCode.equals(c.tenantCode()) && c.connectionId().equals(connectionId))
+                .orElseThrow(() -> new TelephonyUnavailableException(TelephonyUnavailableException.WHATSAPP_CALL_TAKEN,
+                        "The WhatsApp call is no longer ringing"));
+        return reserve(tenantCode, line, operator, call.callerNumber(), call.caseRef(), UsageRow.WHATSAPP_CALL,
+                UsageRow.WHATSAPP_INBOUND, ref -> whatsApp.claim(tenantCode, inboundCallId, ref), whatsApp::unclaim);
+    }
+
+    @Override
+    public Optional<String> callFailure(String tenantCode, String callRef) {
+        if (whatsApp == null) return Optional.empty();
+        return usage.find(callRef).filter(r -> r.tenantCode().equals(tenantCode))
+                .flatMap(r -> whatsApp.failure(r.id()));
+    }
+
+    private TelephonyLine telnyxLine(String tenantCode, String connectionId) {
+        return lines(tenantCode).stream()
                 .filter(l -> l.provider() == TelephonyProvider.TELNYX && l.connectionId().equals(connectionId))
                 .findFirst()
                 .orElseThrow(() -> new TelephonyUnavailableException("The organization has no Telnyx line"));
+    }
+
+    private TelephonyLine whatsAppLine(String tenantCode, String connectionId) {
+        TelephonyLine line = telnyxLine(tenantCode, connectionId);
+        if (whatsApp == null || !whatsApp.enabled() || !line.managed()) {
+            throw new TelephonyUnavailableException(TelephonyUnavailableException.WHATSAPP_UNAVAILABLE,
+                    "WhatsApp calling is not configured for this line");
+        }
+        return line;
+    }
+
+    /**
+     * Holds a channel of the line with a STARTED row and issues the operator's login. {@code claim} runs under the
+     * line's lock after the row is written; {@code release} undoes it when the login fails.
+     */
+    private WebRtcToken reserve(String tenantCode, TelephonyLine line, String operator, String callee,
+            String caseRef, String channel, String destinationType, Consumer<String> claim,
+            Consumer<String> release) {
+        String connectionId = line.connectionId();
         String connectionTenant = line.managed() ? PlatformScope.TENANT : tenantCode;
-        String callee = PhoneNumbers.e164(calleeNumber);
-        if (callee == null) throw new IllegalArgumentException("An E.164 callee is required");
         Instant now = clock.instant();
         IntegrationConnection connection = connections.apply(connectionTenant, ProviderType.TELNYX);
         String ref = UUID.randomUUID().toString();
@@ -103,9 +192,10 @@ public class IntegrationsTelephony implements Telephony {
                 throw new TelephonyUnavailableException(TelephonyUnavailableException.CHANNELS_BUSY,
                         "All " + limit + " channels of the line are in a call; try again in a moment");
             }
-            usage.insert(new UsageRow(ref, tenantCode, UsageRow.VOICE, line.managed(), connectionId, null, caseRef,
-                    callee, TelephonyPlanService.destinationType(callee), UsageRow.STARTED, null, null, null, null,
+            usage.insert(new UsageRow(ref, tenantCode, channel, line.managed(), connectionId, null, caseRef,
+                    callee, destinationType, UsageRow.STARTED, null, null, null, null,
                     null, null, now, null, null));
+            claim.accept(ref);
             return true;
         });
         TelnyxWebRtcTokens.Issued issued;
@@ -125,6 +215,7 @@ public class IntegrationsTelephony implements Telephony {
             usage.locked(connectionId, () -> {
                 UsageRow row = usage.find(ref).orElseThrow();
                 if (UsageRow.STARTED.equals(row.status())) usage.update(row.retired());
+                release.accept(ref);
                 return true;
             });
             throw failure;
@@ -146,6 +237,8 @@ public class IntegrationsTelephony implements Telephony {
                     r.caseRef(), r.calleeNumber(), r.destinationType(), UsageRow.ENDED, r.answeredAt(), r.seconds(),
                     r.billedMinutes(), r.providerCost(), r.providerCurrency(), r.source(), r.startedAt(), clock.instant(),
                     r.confirmedAt()));
+            // An operator who gave up before their leg was admitted leaves the WhatsApp call ringing.
+            if (whatsApp != null && UsageRow.WHATSAPP_CALL.equals(r.channel())) whatsApp.unclaim(callRef);
             return true;
         });
     }

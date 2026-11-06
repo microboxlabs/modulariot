@@ -102,6 +102,50 @@ public class TelnyxClient {
                 + ",\"timeout_secs\":30,\"time_limit_secs\":" + timeLimitSeconds + "}");
     }
 
+    /** A WhatsApp leg to dial on the WhatsApp Call Control application. */
+    public record WhatsAppDial(String connectionId, String to, String from, String sipUsername, String sipPassword,
+            String mediaEncryption, String clientState, String commandId, String linkTo, int timeLimitSeconds) {
+
+        @Override
+        public String toString() {
+            return "WhatsAppDial[connectionId=" + connectionId + ", to=" + to + ", sipPassword=<redacted>]";
+        }
+    }
+
+    /** {@code POST /v2/calls}: Telnyx's documented outbound call to WhatsApp over SIP (TLS, OPUS). */
+    public HttpResponse<String> dialWhatsApp(String apiKey, WhatsAppDial d) throws IOException, InterruptedException {
+        String body = "{\"connection_id\":" + json(d.connectionId()) + ",\"to\":" + json(d.to())
+                + ",\"from\":" + json(d.from()) + ",\"sip_auth_username\":" + json(d.sipUsername())
+                + ",\"sip_auth_password\":" + json(d.sipPassword())
+                + ",\"sip_transport_protocol\":\"TLS\",\"media_encryption\":" + json(d.mediaEncryption())
+                + ",\"preferred_codecs\":\"OPUS\",\"client_state\":" + json(d.clientState())
+                + ",\"command_id\":" + json(d.commandId()) + ",\"link_to\":" + json(d.linkTo())
+                + ",\"timeout_secs\":45,\"time_limit_secs\":" + d.timeLimitSeconds() + "}";
+        return http.send(request(apiKey, "/v2/calls")
+                .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build());
+    }
+
+    /** Joins {@code callId} with {@code otherCallId}. */
+    public HttpResponse<String> bridge(String apiKey, String callId, String otherCallId, String commandId)
+            throws IOException, InterruptedException {
+        return command(apiKey, callId, "bridge", "{\"call_control_id\":" + json(otherCallId) + ",\"command_id\":"
+                + json(commandId) + "}");
+    }
+
+    /** Answers an incoming call; Telnyx echoes {@code clientState} on its later events. */
+    public HttpResponse<String> answer(String apiKey, String callId, String clientState, String commandId)
+            throws IOException, InterruptedException {
+        return command(apiKey, callId, "answer", "{\"client_state\":" + json(clientState) + ",\"command_id\":"
+                + json(commandId) + "}");
+    }
+
+    /** Text to speech on an answered call, in Spanish. */
+    public HttpResponse<String> speak(String apiKey, String callId, String text, String clientState)
+            throws IOException, InterruptedException {
+        return command(apiKey, callId, "speak", "{\"payload\":" + json(text)
+                + ",\"voice\":\"female\",\"language\":\"es-ES\",\"client_state\":" + json(clientState) + "}");
+    }
+
     public HttpResponse<String> hangup(String apiKey, String callId) throws IOException, InterruptedException {
         return command(apiKey, callId, "hangup", "{}");
     }

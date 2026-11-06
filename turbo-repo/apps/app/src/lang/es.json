@@ -4453,7 +4453,6 @@
         "planFailed": "No se pudo calcular la próxima versión.",
         "perShift": "por turno",
         "save": "Guardar",
-        "teamEdit": "Equipo",
         "teamNotSet": "equipo sin definir",
         "teamTitle": "Equipo de operadores",
         "teamIntro": "Con estos datos la tarjeta Carga de operadores compara los casos que exigen gestión con lo que un turno puede atender.",
@@ -4467,6 +4466,7 @@
         "teamSaveFailed": "No se pudo guardar el equipo.",
         "loading": "Cargando…",
         "teamLoadFailed": "No se pudo leer el equipo guardado.",
+        "teamUnsaved": "¿Descartar los cambios del equipo sin guardar?",
         "cardChanges": "Cambios",
         "cardChangesHint": "Versiones de las reglas",
         "draftsUnpublished": "borrador sin publicar",
@@ -4501,8 +4501,34 @@
         "newRuleForLevel": "Nueva regla para este nivel",
         "newRuleForLevelName": "{symptom} · {level}",
         "channelPreferred": "Preferido",
-        "telephonyMoved": "La telefonía de la organización se elige en Conexiones.",
-        "telephonyConnections": "Ir a Conexiones"
+        "telephonyMoved": "La telefonía de la organización se elige en la sección Telefonía.",
+        "telephonyGo": "Ir a Telefonía",
+        "teamSaved": "Equipo guardado.",
+        "menu": {
+          "title": "Secciones",
+          "groups": {
+            "catalog": "Catálogo",
+            "tower": "Torre de Control"
+          },
+          "sections": {
+            "catalog": {
+              "label": "Síntomas",
+              "description": "Qué se vigila y quién actúa"
+            },
+            "team": {
+              "label": "Equipo",
+              "description": "Operadores y casos por turno"
+            },
+            "telephony": {
+              "label": "Telefonía",
+              "description": "La línea por la que salen las llamadas"
+            },
+            "usage": {
+              "label": "Uso",
+              "description": "Minutos y cargos de telefonía del mes"
+            }
+          }
+        }
       },
       "communications": {
         "title": "Comunicaciones",
@@ -5145,6 +5171,26 @@
         "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo."
       },
       "telephony": {
+        "choice": {
+          "title": "Telefonía de la organización",
+          "hint": "Las llamadas de \"Llamar a\" salen por esta línea. El botón Teams abre Microsoft Teams siempre que haya una conexión Teams Phone activa.",
+          "platform": "Línea de la plataforma (Telnyx)",
+          "ownTelnyx": "{name} (Telnyx)",
+          "teams": "{name} (Teams Phone)",
+          "teamsUnavailable": "Teams Phone (sin conexión activa)",
+          "noTeamsHint": "Para llamar con Teams, crea y prueba una conexión de Teams Phone en Ajustes › Conexiones y luego elígela aquí.",
+          "notTested": "{name} (Teams Phone, sin probar)",
+          "unset": "Sin elegir",
+          "inUse": "En uso: {line}",
+          "inUseNone": "En uso: el marcador del teléfono (sin línea activa)",
+          "unsetHint": "La organización aún no elige. Mientras tanto se usa la línea indicada.",
+          "notReady": "{name} no pasó su prueba. No se usa hasta que la pase.",
+          "saveFailed": "No se pudo guardar la telefonía.",
+          "forbidden": "Necesitas permiso para cambiar los ajustes de la Torre de control para cambiar la telefonía.",
+          "loading": "Cargando…",
+          "loadFailed": "No se pudo cargar la telefonía de la organización.",
+          "noLines": "La organización no tiene líneas de telefonía. Crea una conexión Teams Phone o Telnyx en Conexiones, o pide a la plataforma su línea."
+        },
         "usage": {
           "title": "Uso del mes",
           "description": "Cada llamada por la línea de la plataforma cuenta para los minutos del mes (UTC), redondeada al minuto. Las llamadas y plantillas de WhatsApp se cobran pero no consumen minutos.",
@@ -5155,6 +5201,7 @@
           "quotaExhausted": "Minutos agotados. Las llamadas por la línea de la plataforma se rechazan hasta el próximo mes o hasta que se aumenten los minutos; se ofrece el teléfono.",
           "notEnforced": "Los minutos aún no se aplican: no se rechaza ninguna llamada, pero el uso se registra.",
           "ownTeams": "La organización llama por su Teams Phone. Esas llamadas las factura Microsoft y no se cuentan aquí. Aquí solo se muestran los minutos de la línea de la plataforma (Telnyx).",
+          "setupUnavailable": "La configuración de telefonía no está disponible. Solo se muestra el uso de la línea de la plataforma; las llamadas por la línea propia de la organización pueden facturarse por separado.",
           "ownTelnyx": "La organización llama por su propia cuenta Telnyx. Esas llamadas las factura Telnyx a la organización y no se cuentan aquí. Aquí solo se muestran los minutos de la línea de la plataforma.",
           "quota": {
             "title": "Minutos",
@@ -5690,25 +5737,6 @@
         "webhookPublicKeyHelp": "En Telnyx: Account Settings › Keys & Credentials › Public Key. Con ella ModularIoT verifica los webhooks de llamadas.",
         "webhookUrl": "URL de webhook para la Credential Connection",
         "webhookUrlHelp": "Pégala en Telnyx como webhook de la conexión. Se muestra después de guardar."
-      },
-      "telephonyChoice": {
-        "title": "Telefonía de la organización",
-        "hint": "Las llamadas de \"Llamar a\" salen por esta línea. El botón Teams abre Microsoft Teams siempre que haya una conexión Teams Phone activa.",
-        "platform": "Línea de la plataforma (Telnyx)",
-        "ownTelnyx": "{name} (Telnyx)",
-        "teams": "{name} (Teams Phone)",
-        "teamsUnavailable": "Teams Phone (sin conexión activa)",
-        "notTested": "{name} (Teams Phone, sin probar)",
-        "unset": "Sin elegir",
-        "inUse": "En uso: {line}",
-        "inUseNone": "En uso: el marcador del teléfono (sin línea activa)",
-        "unsetHint": "La organización aún no elige. Mientras tanto se usa la línea indicada.",
-        "notReady": "{name} no pasó su prueba. No se usa hasta que la pase.",
-        "saved": "Telefonía guardada.",
-        "saveFailed": "No se pudo guardar la telefonía.",
-        "forbidden": "Necesitas permiso para cambiar los ajustes de la Torre de control para cambiar la telefonía.",
-        "askTeams": "¿Usar {name} como telefonía de la organización?",
-        "askTeamsAction": "Usar Teams Phone"
       }
     },
     "calendar": {
@@ -7852,7 +7880,8 @@
     "call_channels_busy": "Todas las líneas de la plataforma están en una llamada. Intenta en un momento.",
     "call_use_phone": "Llamar con el teléfono",
     "call_teams_no_connection": "Sin conexión Teams Phone",
-    "call_teams_no_number": "Este contacto necesita un número de teléfono con código de país para llamar por Teams Phone."
+    "call_teams_no_number": "Este contacto necesita un número de teléfono con código de país para llamar por Teams Phone.",
+    "call_teams_setup": "Configurar la telefonía"
   },
   "geographic_view": {
     "arrival_delay": "Retraso de llegada",

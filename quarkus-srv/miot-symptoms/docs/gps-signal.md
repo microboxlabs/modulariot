@@ -20,7 +20,7 @@ One GPS frame as symptom rules read it, under the CEL root `signal`. The signal 
 | `signal.trip.carrier` | `id` (tax id), `name` | `miot_fleet.carrier` |
 | `signal.trip.driver` | `id` (fleet id), `registered`, `status`, `license_expired` | `miot_fleet.driver`, found by the trip's `driver_id` (tax id) |
 | `signal.vehicle` | `weight_category`, `weight_kg` | vehicle data |
-| `signal.road` | `maxspeed_osm`, `osm_way_id`, `road_class`; `maxspeed_custom`, `custom_zone_id` | the GPS database's `osm_roads_weight`; the organization's `miot_symptoms.speed_limit_zone` |
+| `signal.road` | `maxspeed_osm`, `osm_way_id`, `road_class`; `maxspeed_custom`, `custom_zone_id` | the speed database's `osm_roads_weight` (the GPS database's without it); the organization's custom speed polygons in the speed database |
 | `signal.geo` | `authorized_zone`, `risk_zone`, `outside_authorized`; `zone` (not built yet) | the GPS database's geofences of the organization |
 | `signal.local_hour` | Hour in the client's time zone | calculated |
 | `signal.local_minutes` | Minutes since local midnight, the seconds as a fraction (01:30:30 is 90.5) | calculated |
@@ -104,12 +104,39 @@ The evaluator runs only the event-driven symptoms on it, as on a late frame (tab
 | `local_hour`, `local_minutes` | Frame time in `MIOT_SYMPTOMS_SIGNAL_BUILDER_ZONE` (default `America/Santiago`) |
 | `geos` | For each client after a successful complete geofence load, where the frame's position is: `authorized_zone` inside a zone of type 0, `risk_zone` inside one of type 1, `outside_authorized` in no zone or inside one that is not of type 0 (even where an authorized one overlaps it), as the GPS database's signal function reads `properties.geofence_type`. A point on an edge is inside. A client with a known-empty set is outside every zone. A frame without a position, or an unavailable geofence source, gets none. The evaluator gives each organization its own as `geo`; rules never read `geos` |
 | `derived.power_disconnected`, `derived.jamming` | One of the frame's `events` is of external power disconnected (`ALIMENTACION … DESCONECTADA`, `power … disconnect/cut`) or of GNSS/GSM jamming (`…jamm…`), `_` read as a space, ignoring case; false otherwise. "ALIMENTACION BATERIA" alone (running on battery) does not count |
-| `roads` | For each client with a known limit at the position. `maxspeed_osm`: the `osm_roads_weight` road nearest the point within 0.0001° (about 11 m, planar degrees), a main road before a `_link`, then the nearer; its limit for a heavy vehicle (`spwgt38`), else `maxspeed`. No road near, or a nearest road without a limit, gives none. `osm_way_id` and `road_class` name that road. `maxspeed_custom`: the client's first zone (lowest id) that covers the point and, when the zone has a `heading`, matches the device heading (same quadrant or less than 90° apart). With `forward_from`/`forward_to` the bearing of travel (azimuth from the vehicle's previous position, kept per vehicle for 10 min) picks `speed_forward` or `speed_backward`; otherwise the zone has one limit. `custom_zone_id` names the zone. The evaluator gives each organization its own as `road`; rules never read `roads` |
+| `roads` | For each client with a known limit at the position. `maxspeed_osm`: the `osm_roads_weight` road nearest the point within 0.0001° (about 11 m, planar degrees), a main road before a `_link`, then the nearer; its limit for a heavy vehicle (`spwgt38`), else `maxspeed`. No road near, or a nearest road without a limit, gives none. `osm_way_id` and `road_class` name that road. `maxspeed_custom`: the client's first custom polygon (lowest id) that covers the point and, when the polygon has an `azimuth_degree`, matches the device heading (same quadrant or less than 90° apart). On a site with a bearing range, the bearing of travel (azimuth from the vehicle's previous position, kept per vehicle for 10 min; at the same position, the last bearing) picks `speed_forward` inside the range and `speed_backward` outside; on a `one-limit` site the polygon has one limit, `speed_backward` else `speed_forward`. `custom_zone_id` is the polygon's id. The evaluator gives each organization its own as `road`; rules never read `roads` |
 | `vehicle`, `geo.zone`, `derived.speed_avg_5m` | Not built yet: left out. Until `vehicle` is built, `maxspeed_osm` is the heavy-vehicle limit |
 
 Trips are loaded from the modulith database and shares (`asset_client_map`), geofences and the route history (`s2cell_triproute_transition_stats`) from the GPS database, at start and every `MIOT_SYMPTOMS_SIGNAL_BUILDER_RELOAD_EVERY` (10 min). A geofence change reaches the signals at the next load. Between loads, each change of a `trip_live` row sends a notice on the Postgres channel `miot_trips_live` (`{"tenant", "tripId"}`), and the builder reads that row again; shares follow their Debezium topic (a non-durable subscription, so a stopped replica leaves no backlog). Without a trips module the signal has no trips. Frames wait for the first load, which is retried until the databases answer. On wherever the symptoms Pulsar is wired (`MIOT_SYMPTOMS_CDC_ENABLED`, which follows the symptoms component); `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED=false` turns it off. Frames are counted (`miot.symptoms.signal.built`, `.skipped`), never logged.
 
-Road limits are read by tiles of 0.02° (about 2 km): the first frame in a tile waits for one query of its ways, and the tile is kept for `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_TTL` (24 h). At most `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_MAX_TILES` (5,000) tiles are kept; the least recently read goes first. A tile that fails to load gives no road limit and is read again on the next frame in it. Gauges: `miot.symptoms.signal.road_tiles`, `.road_bytes`; counter `.road_tile_failures`. `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_ENABLED=false` turns road limits off. Speed limit zones are read in full with the other references.
+Road limits are read by tiles of 0.02° (about 2 km): the first frame in a tile waits for one query of its ways, and the tile is kept for `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_TTL` (24 h). At most `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_MAX_TILES` (5,000) tiles are kept; the least recently read goes first. A tile that fails to load gives no road limit and is read again on the next frame in it. Gauges: `miot.symptoms.signal.road_tiles`, `.road_bytes`; counter `.road_tile_failures`. `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_ENABLED=false` turns road limits off.
+
+### Speed database
+
+OSM limits and custom speed polygons come from the legacy speed database, the one the legacy speed function reads, with its own read-only login. Without it, OSM limits come from the GPS database's `osm_roads_weight` and signals have no custom limit.
+
+| Property | Env | Default | Meaning |
+|---|---|---|---|
+| `miot.speed.db.host` | `MIOT_SPEED_DB_HOST` | none | Unset: no speed database |
+| `miot.speed.db.port` | `MIOT_SPEED_DB_PORT` | `5432` | |
+| `miot.speed.db.name` | `MIOT_SPEED_DB_NAME` | none | Database name |
+| `miot.speed.db.username` | `MIOT_SPEED_DB_USERNAME` | none | |
+| `miot.speed.db.password` | `MIOT_SPEED_DB_PASSWORD` | none | |
+| `miot.speed.db.max-size` | `MIOT_SPEED_DB_MAX_SIZE` | `2` | Pool size |
+| `miot.symptoms.speed.custom-tracks.tenant` | `MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_TENANT` | none | Organization (GPS client id) the polygons belong to. Unset: no custom limits |
+| `miot.symptoms.speed.custom-tracks.table` | `MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_TABLE` | none | Polygon table, optionally `schema.table`. Unset: no custom limits |
+| `miot.symptoms.speed.custom-tracks.sites."<code>"` | `MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_SITES_<CODE>` | none | Rule for the rows whose `client` is `<code>` (case ignored): `<from>-<to>` or `one-limit` |
+
+The polygon table has the columns `id`, `client` (a site code), `geom` (4326), `speed_forward`, `speed_backward`, `azimuth_degree` and `order`. It is read in full at start and every `reload-every`; a failed read keeps the polygons loaded before. Site rules replace the legacy function's rules per site:
+
+| Legacy | Site rule |
+|---|---|
+| `speed_forward` when the bearing of travel is in a range, else `speed_backward` | `<from>-<to>` in degrees, wrapping past 360 (`270-90` is forward from 270 through 0 to 90) |
+| `coalesce(speed_backward, speed_forward)` | `one-limit` |
+| `order` compared with the previous signal's, else the previous direction (when the bearing is unknown) | the vehicle's last bearing |
+| a site with only the `order` rule | not set: its rows are not loaded, so they give no limit |
+
+Where polygons overlap, the lowest id applies (the legacy function takes any one).
 
 Frames waiting for the same tile share its query, and empty tiles are cached too. Disconnected parts of a road stay separate when measuring distance. Invalid positions never trigger a road query. A custom zone with a heading filter requires a supplied, finite heading; an explicit 0° is valid. A missing bearing of travel gives no directional limit unless both directions have the same limit. Unknown limits remain absent from the signal.
 

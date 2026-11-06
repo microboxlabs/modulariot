@@ -3937,7 +3937,8 @@
           "LEVEL_CHANGED": "Pasa a {level}",
           "NOTED": "Nota: {event}",
           "HELD": "Condición ignorada · {by}",
-          "CLOSED": "Se cierra"
+          "CLOSED": "Se cierra",
+          "CLOSED_TRIP_ENDED": "Se cierra · Viaje finalizado"
         },
         "timelineAction": {
           "CALL": "Llamada",

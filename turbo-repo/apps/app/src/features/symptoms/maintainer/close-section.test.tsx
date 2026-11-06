@@ -46,6 +46,11 @@ vi.mock(
               at: "2026-01-01T00:02:00Z",
               context: { case: {} },
             },
+            {
+              kind: "CLOSED",
+              at: "2026-01-01T00:03:00Z",
+              context: { reason: "trip_ended", trip_id: "T-1" },
+            },
           ],
       error: stable.entriesError,
       mutate: stable.retryEntries,
@@ -293,5 +298,21 @@ describe("CaseTimelinePreview", () => {
       />
     );
     expect(screen.getAllByText("Close rule")).toHaveLength(1);
+  });
+
+  it("names the trip's end as the reason of a system close", () => {
+    render(
+      <CaseTimelinePreview
+        symptomName="Synthetic symptom"
+        icu={4}
+        d={{
+          timelineTitle: "Timeline",
+          fromCloseRule: "Close rule",
+          timeline: { CLOSED: "Closes", CLOSED_TRIP_ENDED: "Closes · Trip ended" },
+        }}
+      />
+    );
+    expect(screen.getByText("Closes · Trip ended")).toBeInTheDocument();
+    expect(screen.getAllByText("Closes")).toHaveLength(2);
   });
 });

@@ -3937,7 +3937,8 @@
           "LEVEL_CHANGED": "Moves to {level}",
           "NOTED": "Note: {event}",
           "HELD": "Condition ignored · {by}",
-          "CLOSED": "Closes"
+          "CLOSED": "Closes",
+          "CLOSED_TRIP_ENDED": "Closes · Trip ended"
         },
         "timelineAction": {
           "CALL": "Call",

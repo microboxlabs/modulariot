@@ -6,7 +6,7 @@
  * `quarkus-srv/miot-symptoms/docs/control-tower-api.md`.
  */
 
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import { z } from "zod/v3";
 import useSWRInfinite from "swr/infinite";
 
@@ -227,6 +227,39 @@ const fetcher = <T>(path: string) => request<T>(path);
 /** SWR keys are the full proxy URLs, so they never collide with other app keys. */
 export const treatmentsKey = (symptomId: number | string) =>
   `${BASE}/symptoms/${symptomId}/treatments`;
+
+const GENERAL_KEY = "/app/api/treatments/general?id=";
+const LOCATION_KEY = "/app/api/treatments/location?";
+
+/**
+ * True for every SWR key that shows one case: its Control Tower treatments,
+ * timeline and context, the general-treatments data (the case timeline and
+ * side info), its map signals, and the symptom lists and inbox.
+ */
+export function isCaseKey(symptomId: number | string, key: unknown): boolean {
+  if (typeof key !== "string") return false;
+  const id = String(symptomId);
+  if (key === treatmentsKey(id)) return true;
+  if (key.startsWith(`${BASE}/map/symptoms/${id}/`)) return true;
+  if (key === `${GENERAL_KEY}${id}`) return true;
+  if (key.startsWith(LOCATION_KEY)) {
+    return (
+      new URLSearchParams(key.slice(LOCATION_KEY.length)).get("symptom_id") ===
+      id
+    );
+  }
+  return key.startsWith("/app/api/symptoms");
+}
+
+/** Refetches every view of a case; accepts the active cache's scoped mutator. */
+export async function revalidateCase(
+  symptomId: number | string | null | undefined,
+  revalidate = mutate
+): Promise<void> {
+  if (symptomId == null || symptomId === "") return;
+  await revalidate((key) => isCaseKey(symptomId, key));
+}
+
 export const contactsKey = `${BASE}/contacts`;
 export const contactFacetsKey = `${BASE}/contacts/facets`;
 export const tripContactsPath = `${BASE}/contacts/trip`;

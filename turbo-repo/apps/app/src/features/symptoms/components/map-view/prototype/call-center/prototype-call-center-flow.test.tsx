@@ -84,7 +84,7 @@ vi.mock("../prototype-call-driver", () => ({
 }));
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   contactsKey: "contacts",
-  treatmentsKey: () => "treatments",
+  revalidateCase: vi.fn(),
   ControlTowerError: class extends Error {},
 }));
 vi.mock("swr", () => ({ mutate: vi.fn() }));

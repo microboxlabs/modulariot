@@ -27,7 +27,7 @@ import {
   closeTreatment,
   contactsKey,
   openTreatment,
-  treatmentsKey,
+  revalidateCase,
   type AddActionBody,
   type TowerAction,
   type TowerTreatment,
@@ -63,7 +63,7 @@ export function TreatmentSessionProvider({
   const opening = useRef<Promise<TowerTreatment | null> | null>(null);
 
   const refresh = useCallback(() => {
-    if (symptomId) void mutate(treatmentsKey(symptomId));
+    void revalidateCase(symptomId);
   }, [symptomId]);
 
   const ensureOpen = useCallback(

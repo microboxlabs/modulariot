@@ -1,5 +1,9 @@
 package cl.streamhub.gps.model;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonSetter;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
@@ -52,7 +56,7 @@ public class Gps {
         required = false, //
         extensions = {@Extension(name = "x-order", value = "5", parseValue = true)} //
     )
-    private double heading;
+    private Double heading;
 
     @Schema(
         description = "Accuracy of the GPS data",
@@ -102,11 +106,24 @@ public class Gps {
         this.speed = speed;
     }
 
+    @JsonIgnore
     public double getHeading() {
+        return heading == null ? 0 : heading;
+    }
+
+    /** The device reading, or null when omitted; zero is a valid northward heading. */
+    @JsonGetter("heading")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public Double headingOrNull() {
         return heading;
     }
 
     public void setHeading(double heading) {
+        this.heading = heading;
+    }
+
+    @JsonSetter("heading")
+    public void readHeading(Double heading) {
         this.heading = heading;
     }
 

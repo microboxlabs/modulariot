@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.lostsignal;
 
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.duty.DutyChecks;
 import com.microboxlabs.miot.symptoms.evaluator.AssetEpisodes;
 import com.microboxlabs.miot.symptoms.evaluator.CompiledSymptom;
 import com.microboxlabs.miot.symptoms.evaluator.Episode;
@@ -370,7 +371,9 @@ public class TripChecks {
     private List<CompiledSymptom> symptoms(String tenant, Instant now) {
         Cached c = versions.get(tenant);
         if (c == null || c.at().plus(VERSIONS_TTL).isBefore(now)) {
-            c = new Cached(now, catalog.forSource(tenant, SOURCE).symptoms());
+            // The symptoms that read the duty counters run on each frame's check instead.
+            c = new Cached(now, catalog.forSource(tenant, SOURCE).symptoms().stream()
+                    .filter(s -> !DutyChecks.readsCounters(s)).toList());
             versions.put(tenant, c);
         }
         return c.symptoms();

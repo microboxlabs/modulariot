@@ -16,7 +16,8 @@ const mocks = vi.hoisted(() => ({
   disabled: false,
   notify: vi.fn(),
 }));
-vi.mock("../control-tower/control-tower-api", () => ({
+vi.mock("../control-tower/control-tower-api", async (importActual) => ({
+  ...(await importActual<object>()),
   resumeTreatment: mocks.resume,
 }));
 vi.mock("./map-view/prototype/prototype-api-guard", () => ({
@@ -72,7 +73,7 @@ function showTreatment() {
 
 beforeEach(() => {
   mocks.disabled = false;
-  mocks.resume.mockReset().mockResolvedValue({});
+  mocks.resume.mockReset().mockResolvedValue({ symptomId: -7 });
   mocks.notify.mockReset();
   vi.stubGlobal(
     "fetch",

@@ -122,7 +122,7 @@ Each check runs the organization's TEST and ACTIVE `trip_check` versions with th
 | `check.loss.last.lat`, `.lon`, `.speed`, `.engine` | The newest frame |
 | `check.loss.sender` | The client that sends the frames |
 | `check.loss.returned`, `check.loss.backfill` | Only on the return check |
-| `check.driving_minutes`, `check.resting_minutes` | Declared for the continuous-driving rules, not computed (`x-engine: false`, TEST only) |
+| `check.driving_minutes`, `check.resting_minutes`, `check.duty_minutes` | Not on these checks. The duty tracker writes them on each frame, and the symptoms that read them run there instead ([duty-tracker.md](duty-tracker.md)) |
 
 The case's trip, driver and position are the trip's and the newest frame's.
 

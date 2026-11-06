@@ -1,0 +1,12 @@
+{
+  "t05/continuous-driving": "Production's GPS gate kept other frames of a device that alternates a stale and a live position with long gaps; the tracker opens 3 h earlier and its level sequence differs",
+  "t05/continuous-resting": "Same trip: duty starts at another frame, so the case opens 3 h earlier; the later levels match",
+  "t09/continuous-driving": "Production closed the first case and never opened a second one; the tracker opens one more at level 2 after a long signal gap counted as driving",
+  "t10/continuous-resting": "A device that alternates a stale and a live position: production saw the night as one 9 h stop and restarted duty; the replay's gate keeps a frame 83 km from the stale one and breaks the stop, so duty is not restarted",
+  "t11/continuous-resting": "Legacy defect: past 16 h 15 min the legacy rest keeps counting while driving, so its level falls to 1 on the road; the tracker's rest is 0 while moving, so the case goes back to level 4",
+  "t14/continuous-resting": "Legacy defect, as t11",
+  "t16/continuous-resting": "Legacy defect, as t11: production's rest counted from a stop before the driving and gave level 1",
+  "t26/continuous-resting": "Legacy defect, as t11",
+  "t31/continuous-driving": "Production ran this vehicle's frames out of order (level changes go back in time) and flapped 1-2-3-4 dozens of times",
+  "t31/continuous-resting": "Same vehicle: duplicate frames; the tracker opens 3 min earlier"
+}

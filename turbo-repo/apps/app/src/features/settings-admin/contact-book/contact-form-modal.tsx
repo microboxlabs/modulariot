@@ -9,6 +9,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { ALL_CALL_METHODS } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
+import { useTripPlaces } from "@/features/symptoms/control-tower/control-tower-api";
 import { useOrgMembers } from "../hooks/use-org-members";
 import ContactBadgesSection from "./contact-badges-section";
 import ContactRoleSection from "./contact-role-section";
@@ -182,6 +183,7 @@ export default function ContactFormModal({
 }>) {
   const d = dict?.contactBook as I18nRecord;
   const { badges, ensure, rename, remove } = useContactBadges();
+  const tripPlaces = useTripPlaces();
   const { activeOrg } = useOrgScopes();
   const { members, isLoading } = useOrgMembers(
     show ? (activeOrg?.slug ?? null) : null
@@ -345,6 +347,7 @@ export default function ContactFormModal({
               onCreate={ensure}
               onRename={handleRenameBadge}
               onDelete={handleDeleteBadge}
+              places={tripPlaces}
               d={d}
             />
           </SectionCard>

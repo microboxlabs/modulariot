@@ -50,3 +50,44 @@ describe("PulseTooltip with an engine case's description", () => {
     expect(text).toContain("Apagado");
   });
 });
+
+describe("PulseTooltip on the newest frame", () => {
+  const frame = {
+    asset_id: "V1",
+    icu_code: 0,
+    rotation: 0,
+    latitude: 0,
+    longitude: 0,
+    speed: 0,
+    timestamp: "2026-01-01T00:00:00Z",
+  };
+
+  it("shows the engine-off label", () => {
+    const { container } = render(
+      <PulseTooltip
+        dict={dict}
+        object={{ properties: { ...frame, engine_label: "Motor apagado" } }}
+      />
+    );
+    expect(container.querySelector("[data-engine-off]")?.textContent).toBe(
+      "Motor apagado"
+    );
+  });
+
+  it("shows only the lost-signal label when both apply", () => {
+    const { container } = render(
+      <PulseTooltip
+        dict={dict}
+        object={{
+          properties: {
+            ...frame,
+            signal_label: "Sin señal · hace 12 min",
+            engine_label: "Motor apagado",
+          },
+        }}
+      />
+    );
+    expect(container.querySelector("[data-engine-off]")).toBeNull();
+    expect(container.textContent).toContain("Sin señal · hace 12 min");
+  });
+});

@@ -115,6 +115,32 @@ class SignalFieldsTest {
     }
 
     @Test
+    void etaDeviationIsAvailableToRulesInMinutesFromTheTrip() {
+        SourceField field = byPath().get("signal.trip.eta_deviation_min");
+
+        assertNotNull(field);
+        assertEquals("number", field.type());
+        assertEquals("min", field.unit());
+        assertEquals(FieldOrigin.TRIP, field.origin());
+        assertTrue(field.engineSupported());
+        assertNotNull(field.description());
+    }
+
+    @Test
+    void roadProvenanceHasLabelsDescriptionsAndOriginsWhileTenantMapsAreHidden() {
+        Map<String, SourceField> fields = byPath();
+        for (String name : List.of("osm_way_id", "road_class", "custom_zone_id")) {
+            SourceField field = fields.get("signal.road." + name);
+            assertNotNull(field);
+            assertNotNull(field.description());
+            assertTrue(field.engineSupported());
+            assertEquals(name.equals("custom_zone_id") ? FieldOrigin.TENANT_SETTINGS : FieldOrigin.ROAD_NETWORK,
+                    field.origin());
+        }
+        assertTrue(fields.keySet().stream().noneMatch(p -> p.startsWith("signal.roads")));
+    }
+
+    @Test
     void leavesOutDriverDataListsAndHiddenParts() {
         Map<String, SourceField> fields = byPath();
 
@@ -125,7 +151,7 @@ class SignalFieldsTest {
     }
 
     @Test
-    void leavesOutOptionalReadingsThatCannotBeMissing() {
+    void leavesOutOptionalReadingsOutsideTheRuleSchema() {
         Map<String, SourceField> fields = byPath();
 
         assertTrue(fields.containsKey("signal.frame.gps.latitude"), "required primitives stay");
@@ -139,12 +165,12 @@ class SignalFieldsTest {
     @Test
     void everyFieldIsAPathOfTheSerializedSignal() throws Exception {
         AssetTrackingData frame = JSON.readValue(FRAME, AssetTrackingData.class);
-        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, null, List.of("client-1"), "client-1", null,
+        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, null, List.of("client-1"), "client-1", null, null,
                 new GpsSignal.Trip(true, false, "T-1", "SVC-1", "v", "in_transit", 30.0, -5.0, new GpsSignal.Origin(32, "ANF", true, true),
                         new GpsSignal.Destination(17, "SPC", false), 4, new GpsSignal.Carrier("1-9", "Transportes"),
                         "rampla", "AB1234", new GpsSignal.Driver("d-1", true, GpsSignal.DriverStatus.ACTIVE, false)),
                 new GpsSignal.Vehicle(GpsSignal.WeightCategory.HEAVY, 30000.0),
-                new GpsSignal.Road(90.0, 80.0),
+                new GpsSignal.Road(90.0, 80.0, 1L, "primary", 3), null,
                 new GpsSignal.Geo(false, "Z-1", true, true), null, 14, 870.5,
                 new GpsSignal.Derived(true, 40.0, false, false), frame);
         Map<String, Object> root = Map.of(SignalFields.ROOT, JSON.convertValue(signal, new TypeReference<>() {
@@ -190,7 +216,7 @@ class SignalFieldsTest {
         Map<String, Object> read = GpsSignal.FrameEvent.withEvents(signal);
 
         assertEquals(List.of(Map.of("event_type", "device_tamper", "severity", "", "description", "",
-                "timestamp", "2026-01-01T12:00:00Z")), ((Map<?, ?>) read.get("frame")).get("events"));
+                "timestamp", "2026-01-01T12:00:00Z", "code", "")), ((Map<?, ?>) read.get("frame")).get("events"));
         assertEquals(List.of(), ((Map<?, ?>) GpsSignal.FrameEvent.withEvents(Map.of("frame", Map.of()))
                 .get("frame")).get("events"), "a frame without events reads an empty list");
     }

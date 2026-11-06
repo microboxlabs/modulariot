@@ -3,17 +3,32 @@ package com.microboxlabs.miot.symptoms.dto;
 import java.util.List;
 
 /**
- * The RUTs of a case's trip: its driver and second driver, and its carrier company. Empty when the case has no live
- * trip or the trip does not say.
+ * The RUTs of a case's trip: its driver and second driver, and its carrier company; and the trip's origin and
+ * destination. Empty when the case has no live trip or the trip does not say.
  *
  * @param driverRuts the driver's RUT, then the second driver's, as the trip stores them
  * @param carrierRut the carrier company's tax id, or null
+ * @param route the trip's origin and destination; never null
  */
-public record TripPeople(List<String> driverRuts, String carrierRut, String driverRut, String secondDriverRut) {
+public record TripPeople(List<String> driverRuts, String carrierRut, String driverRut, String secondDriverRut,
+        TripRoute route) {
+
+    public TripPeople {
+        route = route == null ? TripRoute.NONE : route;
+    }
+
+    public TripPeople(List<String> driverRuts, String carrierRut, String driverRut, String secondDriverRut) {
+        this(driverRuts, carrierRut, driverRut, secondDriverRut, TripRoute.NONE);
+    }
 
     public TripPeople(List<String> driverRuts, String carrierRut) {
         this(driverRuts, carrierRut, driverRuts.isEmpty() ? null : driverRuts.get(0),
                 driverRuts.size() > 1 ? driverRuts.get(1) : null);
+    }
+
+    /** The same people on {@code route}. */
+    public TripPeople withRoute(TripRoute route) {
+        return new TripPeople(driverRuts, carrierRut, driverRut, secondDriverRut, route);
     }
 
     public static final TripPeople NONE = new TripPeople(List.of(), null);
@@ -27,6 +42,7 @@ public record TripPeople(List<String> driverRuts, String carrierRut, String driv
                 .toList();
         return new TripPeople(drivers, clean(carrierRut), clean(driverRut), clean(secondDriverRut));
     }
+
     private static String clean(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }

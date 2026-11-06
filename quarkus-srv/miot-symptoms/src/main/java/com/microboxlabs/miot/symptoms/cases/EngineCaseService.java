@@ -9,6 +9,7 @@ import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.dto.TripPeople;
+import com.microboxlabs.miot.symptoms.dto.TripRoute;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
@@ -70,6 +71,8 @@ public class EngineCaseService {
     private static final String DRIVER_FIELD = "driver";
     private static final String CARRIER_FIELD = "carrier";
     private static final String ORIGIN_FIELD = "origin";
+    private static final String ORIGIN_LABEL = "origin_geofence_label";
+    private static final String DESTINATION_LABEL = "destination_geofence_label";
     private static final String DESTINATION_FIELD = "destination";
     private static final String DRIVER_ID = "driver_id";
     private static final String SECOND_DRIVER_ID = "second_driver_id";
@@ -110,7 +113,8 @@ public class EngineCaseService {
     private static final String TRIP = """
             SELECT tl.trip_id, tl.asset_id, tl.carrier_name, c.rut AS carrier_tax_id, tl.origin_geofence_label,
                    tl.destination_geofence_label, tl.driver_name, tl.second_driver_name, tl.type_load,
-                   tl.driver_contact_phone, tl.driver_id, tl.second_driver_id
+                   tl.driver_contact_phone, tl.driver_id, tl.second_driver_id, tl.origin_geofence_id,
+                   tl.destination_geofence_id
               FROM miot_trips.trip_live tl
               LEFT JOIN miot_fleet.carrier c ON c.tenant_code = tl.tenant_code AND c.id::text = tl.carrier_id
              WHERE tl.tenant_code = $1 AND tl.trip_id::text = $2 AND tl.asset_id = $3
@@ -526,15 +530,16 @@ public class EngineCaseService {
         }
     }
 
-    /** The RUTs of the case's live trip: drivers and carrier. Empty without a live trip. */
+    /** The RUTs of the case's live trip (drivers and carrier) and its origin and destination. Empty without one. */
     public TripPeople tripPeople(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
         Row t = c.tripId() == null ? null : trips.apply(Tuple.of(tenantCode, c.tripId(), c.assetId()));
         if (t == null) {
             return TripPeople.NONE;
         }
-        return TripPeople.of(t.getString(DRIVER_ID), t.getString(SECOND_DRIVER_ID),
-                t.getString(CARRIER_TAX_ID));
+        return TripPeople.of(t.getString(DRIVER_ID), t.getString(SECOND_DRIVER_ID), t.getString(CARRIER_TAX_ID))
+                .withRoute(TripRoute.of(t.getString(ORIGIN_LABEL), t.getInteger("origin_geofence_id"),
+                        t.getString(DESTINATION_LABEL), t.getInteger("destination_geofence_id")));
     }
 
     /** The most recent cases {@link #scriptSamples} offers. */
@@ -596,8 +601,8 @@ public class EngineCaseService {
         trip.put("code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
-            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
-            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put(ORIGIN_FIELD, t.getString(ORIGIN_LABEL));
+            trip.put(DESTINATION_FIELD, t.getString(DESTINATION_LABEL));
             trip.put("load", t.getString(TYPE_LOAD));
             trip.putObject(DRIVER_FIELD)
                     .put("name", t.getString("driver_name"))
@@ -709,8 +714,8 @@ public class EngineCaseService {
             trip.put(CARRIER_TAX_ID, t.getString(CARRIER_TAX_ID));
             trip.put("driver_rut", t.getString(DRIVER_ID));
             trip.put("second_driver_rut", t.getString(SECOND_DRIVER_ID));
-            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
-            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put(ORIGIN_FIELD, t.getString(ORIGIN_LABEL));
+            trip.put(DESTINATION_FIELD, t.getString(DESTINATION_LABEL));
             trip.put(DRIVER_FIELD, t.getString("driver_name"));
             trip.put("driver2", t.getString("second_driver_name"));
             trip.put(TYPE_LOAD, t.getString(TYPE_LOAD));

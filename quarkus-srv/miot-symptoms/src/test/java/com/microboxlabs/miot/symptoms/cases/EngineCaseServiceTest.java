@@ -15,8 +15,12 @@ import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
+import com.microboxlabs.miot.symptoms.dto.TripPeople;
+import com.microboxlabs.miot.symptoms.dto.TripRoute;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
+import io.vertx.mutiny.sqlclient.Row;
+import java.lang.reflect.Proxy;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -941,6 +945,28 @@ class EngineCaseServiceTest {
 
         assertEquals(List.of("DEMO01/" + PANIC), forgotten);
         assertTrue(store.open(TENANT).isEmpty());
+    }
+
+    @Test
+    void tripPeopleReadsTheRouteOfTheCasesTripAndAssetInItsTenant() {
+        store.add(panic(12, "DEMO01"));
+        Map<String, Object> columns = Map.of("driver_id", "1-9", "carrier_tax_id", "76",
+                "origin_geofence_label", "  Planta Peñón ", "origin_geofence_id", 12,
+                "destination_geofence_label", "Bodega Sur", "destination_geofence_id", 34);
+        Row row = Row.newInstance((io.vertx.sqlclient.Row) Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class<?>[] {io.vertx.sqlclient.Row.class},
+                (proxy, method, args) -> columns.get(args[0])));
+        var subject = new EngineCaseService(store, (tenant, asset, definition) -> {
+        }, key -> {
+            assertEquals(TENANT, key.getString(0));
+            assertEquals("T-1", key.getString(1));
+            assertEquals("DEMO01", key.getString(2));
+            return row;
+        }, Clock.fixed(OPENED, ZoneOffset.UTC));
+
+        assertEquals(TripPeople.of("1-9", null, "76")
+                .withRoute(TripRoute.of("Planta Peñón", 12, "Bodega Sur", 34)),
+                subject.tripPeople(TENANT, -12));
     }
 
     @Test

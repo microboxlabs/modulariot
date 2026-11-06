@@ -25,6 +25,7 @@ import {
   DRIVER_ROLE,
   rolesIn,
   rolesOf,
+  type TripPlace,
   type WhoSummary,
 } from "@/features/symptoms/control-tower/step-who";
 import {
@@ -141,7 +142,21 @@ function targetText(
       role: role ?? tr("anyRole", d),
       company: summary.company,
     });
+  if (summary?.places.length) {
+    const place = placesText(summary.places, d);
+    return role
+      ? tr("groupTripPlace", d, { role, place })
+      : tr("contactsTripPlace", d, { place });
+  }
   return role ?? tr("matchingContacts", d);
+}
+
+/** "origen del viaje", "destino del viaje" or both. */
+function placesText(places: readonly TripPlace[], d: I18nRecord) {
+  if (places.length > 1) return tr("tripOriginAndDestination", d);
+  return places[0] === "origin"
+    ? tr("tripOrigin", d)
+    : tr("tripDestination", d);
 }
 
 /** What an empty step says. */
@@ -181,6 +196,16 @@ function driverId(
   return trip?.data.driverRut;
 }
 
+/** Literal and trip-place tags a contact created from an empty step starts with. */
+function presetTags(
+  summary: WhoSummary | null,
+  trip: TowerTripContacts | undefined
+): string[] | undefined {
+  if (!summary) return undefined;
+  const places = summary.places.flatMap((p) => trip?.data[p] ?? []);
+  return [...summary.tags, ...places];
+}
+
 /** The role, RUTs and company a contact created from an empty step starts with. */
 function presetFor(
   who: string,
@@ -193,7 +218,7 @@ function presetFor(
   const preset: NewContactPreset = {
     role: rolesOf(who, summary)[0] ?? "",
     company: summary?.company ?? undefined,
-    tags: summary?.tags,
+    tags: presetTags(summary, trip),
   };
   const driverRut = driverId(summary, trip);
   if (summary?.driver && driverRut)

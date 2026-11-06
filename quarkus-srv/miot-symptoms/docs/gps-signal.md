@@ -110,6 +110,8 @@ Trips are loaded from the modulith database and shares (`asset_client_map`) and 
 
 Road limits are read by tiles of 0.02° (about 2 km): the first frame in a tile waits for one query of its ways, and the tile is kept for `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_TTL` (24 h). At most `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_MAX_TILES` (5,000) tiles are kept; the least recently read goes first. A tile that fails to load gives no road limit and is read again on the next frame in it. Gauges: `miot.symptoms.signal.road_tiles`, `.road_bytes`; counter `.road_tile_failures`. `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_ENABLED=false` turns road limits off. Speed limit zones are read in full with the other references.
 
+Frames waiting for the same tile share its query, and empty tiles are cached too. Disconnected parts of a road stay separate when measuring distance. Invalid positions never trigger a road query. A custom zone with a heading filter requires a supplied, finite heading; an explicit 0° is valid. A missing bearing of travel gives no directional limit unless both directions have the same limit. Unknown limits remain absent from the signal.
+
 ## Rule editor fields
 
 | Annotation | Field property |
@@ -123,6 +125,6 @@ Road limits are read by tiles of 0.02° (about 2 km): the first frame in a tile 
 
 A list rules read is declared in `SignalFields.LISTS` with the type of its elements (`GpsSignal.FrameEvent` for `signal.frame.events`). The list is a field of type `objects`; its element's fields are the paths under it, labelled by their `@Schema` titles.
 
-Not fields: `signal.frame.asset_id` (same as `signal.asset_id`), driver data (read it from the trip), peripherals, metrics and other lists, and optional readings that gps-model holds as primitives (`gps.altitude`, `gps.heading`, `gps.satellites`, `gps.accuracy`). A primitive reads 0 when the device did not send it, so a rule could not tell a missing reading from a zero one. `gps.speed` is a field anyway: a frame without speed reads 0, as a stopped vehicle.
+Not fields: `signal.frame.asset_id` (same as `signal.asset_id`), driver data (read it from the trip), peripherals, metrics and other lists, and optional readings that gps-model exposes as primitives (`gps.altitude`, `gps.heading`, `gps.satellites`, `gps.accuracy`). A primitive reads 0 when the device did not send it, so a rule could not tell a missing reading from a zero one. The builder uses the nullable heading reading internally for custom limits. `gps.speed` is a field anyway: a frame without speed reads 0, as a stopped vehicle.
 
 To add a field: add it to `GpsSignal` (or to gps-model for frame fields) with its annotations. A frame field also needs a label in `gps-signal-labels.properties`; `SignalFieldsTest` fails until it has one.

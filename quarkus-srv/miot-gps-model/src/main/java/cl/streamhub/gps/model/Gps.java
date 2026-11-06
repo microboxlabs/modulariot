@@ -52,7 +52,7 @@ public class Gps {
         required = false, //
         extensions = {@Extension(name = "x-order", value = "5", parseValue = true)} //
     )
-    private double heading;
+    private Double heading;
 
     @Schema(
         description = "Accuracy of the GPS data",
@@ -103,10 +103,15 @@ public class Gps {
     }
 
     public double getHeading() {
+        return heading == null ? 0 : heading;
+    }
+
+    /** The device reading, or null when omitted; zero is a valid northward heading. */
+    public Double headingOrNull() {
         return heading;
     }
 
-    public void setHeading(double heading) {
+    public void setHeading(Double heading) {
         this.heading = heading;
     }
 

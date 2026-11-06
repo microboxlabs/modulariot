@@ -16,6 +16,10 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class SpeedZones {
 
+    /** The limits and optional direction filters attached to a zone. */
+    public record Limits(Integer forward, Integer backward, Integer forwardFrom, Integer forwardTo, Integer heading) {
+    }
+
     /** One zone; polygons as {@link Zones.Zone} reads them. */
     public record Zone(String tenant, int id, Integer forward, Integer backward, Integer forwardFrom,
             Integer forwardTo, Integer heading, List<List<double[][]>> polygons) {
@@ -28,7 +32,7 @@ public class SpeedZones {
             if (heading == null) {
                 return true;
             }
-            if (deviceHeading == null) {
+            if (deviceHeading == null || !Double.isFinite(deviceHeading)) {
                 return false;
             }
             int h = (int) Math.round(deviceHeading);
@@ -38,12 +42,16 @@ public class SpeedZones {
         /** The limit for the bearing of travel; null when the zone has no limit that way or the bearing is needed and unknown. */
         Integer limit(Integer bearing) {
             if (forwardFrom == null || forwardTo == null) {
-                return positive(forward) != null ? positive(forward) : positive(backward);
+                return positive(positive(forward) != null ? forward : backward);
             }
             if (bearing == null) {
                 return forward != null && forward.equals(backward) ? positive(forward) : null;
             }
             return positive(within(bearing, forwardFrom, forwardTo) ? forward : backward);
+        }
+
+        private static Integer positive(Integer v) {
+            return v == null || v <= 0 ? null : v;
         }
     }
 
@@ -112,11 +120,11 @@ public class SpeedZones {
     }
 
     /** A zone from a GeoJSON polygon; null for another shape. */
-    public static Zone zone(String tenant, int id, Integer forward, Integer backward, Integer forwardFrom,
-            Integer forwardTo, Integer heading, String geoJson) {
+    public static Zone zone(String tenant, int id, Limits limits, String geoJson) {
         Zones.Zone shape = Zones.zone(tenant, id, null, geoJson);
         return shape == null ? null
-                : new Zone(tenant, id, forward, backward, forwardFrom, forwardTo, heading, shape.polygons());
+                : new Zone(tenant, id, limits.forward(), limits.backward(), limits.forwardFrom(), limits.forwardTo(),
+                        limits.heading(), shape.polygons());
     }
 
     /** 1 to 4 for 0–90, 91–180, 181–270, 271–360; 0 outside. */
@@ -135,9 +143,5 @@ public class SpeedZones {
 
     static boolean within(int bearing, int from, int to) {
         return from <= to ? bearing >= from && bearing <= to : bearing >= from || bearing <= to;
-    }
-
-    private static Integer positive(Integer v) {
-        return v == null || v <= 0 ? null : v;
     }
 }

@@ -63,8 +63,7 @@ public class SignalBuilder {
     /** The signal, or empty when the frame has no vehicle id or time. */
     public Optional<GpsSignal> build(EnvelopedMessage message) {
         AssetTrackingData frame = message.getPayload();
-        if (frame == null || frame.getAssetId() == null || frame.getAssetId().isBlank()
-                || frame.getTimestamp() == null) {
+        if (!validFrame(frame)) {
             return Optional.empty();
         }
         String assetId = frame.getAssetId();
@@ -89,7 +88,7 @@ public class SignalBuilder {
     /** Each client's zones at the frame's position; none for a frame without a position or a client without zones. */
     private Map<String, GpsSignal.Geo> geos(AssetTrackingData frame, List<String> clients) {
         Map<String, GpsSignal.Geo> out = new LinkedHashMap<>();
-        if (frame.getGps() == null || frame.getGps().getLatitude() == 0 && frame.getGps().getLongitude() == 0) {
+        if (!hasPosition(frame)) {
             return out;
         }
         double lon = frame.getGps().getLongitude();
@@ -111,24 +110,43 @@ public class SignalBuilder {
     private Map<String, GpsSignal.Road> roads(AssetTrackingData frame, String assetId, Instant at,
             List<String> clients) {
         Map<String, GpsSignal.Road> out = new LinkedHashMap<>();
-        if (frame.getGps() == null || frame.getGps().getLatitude() == 0 && frame.getGps().getLongitude() == 0) {
+        if (!hasPosition(frame)) {
             return out;
         }
         double lon = frame.getGps().getLongitude();
         double lat = frame.getGps().getLatitude();
         Integer bearing = bearings.next(assetId, at, lon, lat);
         RoadNetwork.Limit osm = roads == null ? null : roads.at(lon, lat, GpsSignal.WeightCategory.HEAVY);
-        Double heading = frame.getGps().getHeading();
+        Double heading = frame.getGps().headingOrNull();
         for (String client : clients) {
             SpeedZones.Limit own = speedZones.at(client, lon, lat, heading, bearing);
             if (osm == null && own == null) {
                 continue;
             }
-            out.put(client, new GpsSignal.Road(osm == null ? null : osm.maxspeed(), own == null ? null : own.maxspeed(),
-                    osm == null ? null : osm.wayId(), osm == null ? null : osm.roadClass(),
-                    own == null ? null : own.zoneId()));
+            out.put(client, road(osm, own));
         }
         return out;
+    }
+
+    private static GpsSignal.Road road(RoadNetwork.Limit osm, SpeedZones.Limit own) {
+        return new GpsSignal.Road(osm == null ? null : osm.maxspeed(), own == null ? null : own.maxspeed(),
+                osm == null ? null : osm.wayId(), osm == null ? null : osm.roadClass(),
+                own == null ? null : own.zoneId());
+    }
+
+    static boolean validFrame(AssetTrackingData frame) {
+        return frame != null && frame.getAssetId() != null && !frame.getAssetId().isBlank()
+                && frame.getTimestamp() != null;
+    }
+
+    static boolean hasPosition(AssetTrackingData frame) {
+        if (frame == null || frame.getGps() == null) {
+            return false;
+        }
+        double lon = frame.getGps().getLongitude();
+        double lat = frame.getGps().getLatitude();
+        return Double.isFinite(lon) && Double.isFinite(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90
+                && (lon != 0 || lat != 0);
     }
 
     /** True when one of the frame's events matches, false otherwise: a rule reads it without {@code has()}. */

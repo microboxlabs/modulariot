@@ -17,7 +17,8 @@ CREATE TABLE miot_symptoms.speed_limit_zone (
     active         BOOLEAN      NOT NULL DEFAULT true,
     updated_by     VARCHAR(255) NOT NULL,
     updated_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT chk_speed_limit_zone_speed CHECK (speed_forward > 0 OR speed_backward > 0),
+    CONSTRAINT chk_speed_limit_zone_speed CHECK ((speed_forward IS NOT NULL OR speed_backward IS NOT NULL)
+        AND (speed_forward IS NULL OR speed_forward > 0) AND (speed_backward IS NULL OR speed_backward > 0)),
     CONSTRAINT chk_speed_limit_zone_range CHECK ((forward_from IS NULL) = (forward_to IS NULL)
         AND (forward_from IS NULL OR forward_from BETWEEN 0 AND 360 AND forward_to BETWEEN 0 AND 360)),
     CONSTRAINT chk_speed_limit_zone_heading CHECK (heading IS NULL OR heading BETWEEN 0 AND 360)

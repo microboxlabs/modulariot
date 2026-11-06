@@ -115,6 +115,20 @@ class SignalFieldsTest {
     }
 
     @Test
+    void roadProvenanceHasLabelsDescriptionsAndOriginsWhileTenantMapsAreHidden() {
+        Map<String, SourceField> fields = byPath();
+        for (String name : List.of("osm_way_id", "road_class", "custom_zone_id")) {
+            SourceField field = fields.get("signal.road." + name);
+            assertNotNull(field);
+            assertNotNull(field.description());
+            assertTrue(field.engineSupported());
+            assertEquals(name.equals("custom_zone_id") ? FieldOrigin.TENANT_SETTINGS : FieldOrigin.ROAD_NETWORK,
+                    field.origin());
+        }
+        assertTrue(fields.keySet().stream().noneMatch(p -> p.startsWith("signal.roads")));
+    }
+
+    @Test
     void leavesOutDriverDataListsAndHiddenParts() {
         Map<String, SourceField> fields = byPath();
 

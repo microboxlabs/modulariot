@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 
 /**
@@ -33,6 +34,24 @@ public class RoadNetwork {
 
     /** One {@code osm_roads_weight} row; {@code wkb} is its line as WKB. */
     public record Way(long id, String roadClass, Integer light, Integer heavy, Integer maxspeed, byte[] wkb) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Way w && id == w.id && Objects.equals(roadClass, w.roadClass)
+                    && Objects.equals(light, w.light) && Objects.equals(heavy, w.heavy)
+                    && Objects.equals(maxspeed, w.maxspeed) && Arrays.equals(wkb, w.wkb);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * Objects.hash(id, roadClass, light, heavy, maxspeed) + Arrays.hashCode(wkb);
+        }
+
+        @Override
+        public String toString() {
+            return "Way[id=" + id + ", roadClass=" + roadClass + ", light=" + light + ", heavy=" + heavy
+                    + ", maxspeed=" + maxspeed + ", wkb=" + Arrays.toString(wkb) + "]";
+        }
     }
 
     /** The limit of the road at a point, and the road it comes from. */
@@ -56,6 +75,9 @@ public class RoadNetwork {
     private final Map<Long, Uni<Tile>> loading = new java.util.concurrent.ConcurrentHashMap<>();
 
     public RoadNetwork(Source source, int maxTiles, Duration ttl, Clock clock) {
+        if (maxTiles <= 0 || ttl.isNegative() || ttl.isZero()) {
+            throw new IllegalArgumentException("Road tiles require a positive capacity and TTL");
+        }
         this.source = source;
         this.maxTiles = maxTiles;
         this.ttl = ttl;
@@ -156,7 +178,7 @@ public class RoadNetwork {
             List<Way> kept = new ArrayList<>(ways.size());
             for (Way w : ways) {
                 double[] line = lineString(w.wkb());
-                if (line != null && line.length >= 4) {
+                if (line.length >= 4) {
                     lines.add(line);
                     kept.add(w);
                 }
@@ -180,36 +202,7 @@ public class RoadNetwork {
             }
             int p = 0;
             for (int i = 0; i < n; i++) {
-                Way w = kept.get(i);
-                ids[i] = w.id();
-                classes[i] = w.roadClass() == null ? null : w.roadClass().intern();
-                light[i] = speed(w.light());
-                heavy[i] = speed(w.heavy());
-                maxspeed[i] = speed(w.maxspeed());
-                link[i] = w.roadClass() != null && w.roadClass().endsWith("_link");
-                start[i] = p;
-                double[] l = lines.get(i);
-                double minX = Double.MAX_VALUE;
-                double minY = Double.MAX_VALUE;
-                double maxX = -Double.MAX_VALUE;
-                double maxY = -Double.MAX_VALUE;
-                for (int j = 0; j < l.length; j += 2) {
-                    xy[p++] = (float) (l[j] - x0);
-                    xy[p++] = (float) (l[j + 1] - y0);
-                    minX = Math.min(minX, l[j]);
-                    maxX = Math.max(maxX, l[j]);
-                    minY = Math.min(minY, l[j + 1]);
-                    maxY = Math.max(maxY, l[j + 1]);
-                }
-                int cx0 = cell(minX - NEAR_DEG - x0);
-                int cx1 = cell(maxX + NEAR_DEG - x0);
-                int cy0 = cell(minY - NEAR_DEG - y0);
-                int cy1 = cell(maxY + NEAR_DEG - y0);
-                for (int cx = cx0; cx <= cx1; cx++) {
-                    for (int cy = cy0; cy <= cy1; cy++) {
-                        cells.get(cy * CELLS + cx).add(i);
-                    }
-                }
+                p = indexWay(kept.get(i), i, lines.get(i), p, cells);
             }
             start[n] = p;
             cellStart = new int[CELLS * CELLS + 1];
@@ -228,12 +221,46 @@ public class RoadNetwork {
             }
         }
 
+        private int indexWay(Way w, int i, double[] line, int p, List<List<Integer>> cells) {
+            ids[i] = w.id();
+            classes[i] = w.roadClass() == null ? null : w.roadClass().intern();
+            light[i] = speed(w.light());
+            heavy[i] = speed(w.heavy());
+            maxspeed[i] = speed(w.maxspeed());
+            link[i] = w.roadClass() != null && w.roadClass().endsWith("_link");
+            start[i] = p;
+            double minX = Double.MAX_VALUE;
+            double minY = Double.MAX_VALUE;
+            double maxX = -Double.MAX_VALUE;
+            double maxY = -Double.MAX_VALUE;
+            for (int j = 0; j < line.length; j += 2) {
+                xy[p++] = (float) (line[j] - x0);
+                xy[p++] = (float) (line[j + 1] - y0);
+                if (Double.isFinite(line[j]) && Double.isFinite(line[j + 1])) {
+                    minX = Math.min(minX, line[j]);
+                    maxX = Math.max(maxX, line[j]);
+                    minY = Math.min(minY, line[j + 1]);
+                    maxY = Math.max(maxY, line[j + 1]);
+                }
+            }
+            int cx0 = cell(minX - NEAR_DEG - x0);
+            int cx1 = cell(maxX + NEAR_DEG - x0);
+            int cy0 = cell(minY - NEAR_DEG - y0);
+            int cy1 = cell(maxY + NEAR_DEG - y0);
+            for (int cx = cx0; cx <= cx1; cx++) {
+                for (int cy = cy0; cy <= cy1; cy++) {
+                    cells.get(cy * CELLS + cx).add(i);
+                }
+            }
+            return p;
+        }
+
         static Tile of(double x0, double y0, List<Way> ways) {
             return new Tile(x0, y0, ways);
         }
 
         private static int cell(double offset) {
-            return Math.max(0, Math.min(CELLS - 1, (int) Math.floor(offset / CELL_DEG)));
+            return Math.clamp((int) Math.floor(offset / CELL_DEG), 0, CELLS - 1);
         }
 
         private static short speed(Integer kmh) {
@@ -281,7 +308,10 @@ public class RoadNetwork {
         private double distance(int i, double px, double py) {
             double best = Double.MAX_VALUE;
             for (int j = start[i]; j + 3 < start[i + 1]; j += 2) {
-                best = Math.min(best, segment(px, py, xy[j], xy[j + 1], xy[j + 2], xy[j + 3]));
+                double d = segment(px, py, xy[j], xy[j + 1], xy[j + 2], xy[j + 3]);
+                if (Double.isFinite(d)) {
+                    best = Math.min(best, d);
+                }
             }
             return Math.sqrt(best);
         }
@@ -291,7 +321,7 @@ public class RoadNetwork {
             double dy = by - ay;
             double len = dx * dx + dy * dy;
             double t = len == 0 ? 0 : ((px - ax) * dx + (py - ay) * dy) / len;
-            t = Math.max(0, Math.min(1, t));
+            t = Math.clamp(t, 0, 1);
             double ex = px - (ax + t * dx);
             double ey = py - (ay + t * dy);
             return ex * ex + ey * ey;
@@ -300,14 +330,18 @@ public class RoadNetwork {
 
     /**
      * The {@code [x, y, x, y, …]} points of a WKB or EWKB {@code LineString}, or of every line of a
-     * {@code MultiLineString} joined; null for another shape.
+     * {@code MultiLineString} separated by NaN pairs, so disconnected lines never create a road between them.
+     * Empty for another shape or invalid WKB.
      */
     static double[] lineString(byte[] wkb) {
         if (wkb == null || wkb.length < 9) {
-            return null;
+            return new double[0];
         }
-        ByteBuffer b = ByteBuffer.wrap(wkb);
-        return read(b);
+        try {
+            return read(ByteBuffer.wrap(wkb));
+        } catch (java.nio.BufferUnderflowException | IllegalArgumentException e) {
+            return new double[0];
+        }
     }
 
     private static double[] read(ByteBuffer b) {
@@ -320,36 +354,52 @@ public class RoadNetwork {
             b.getInt();
         }
         int base = (type & 0x0fffffff) % 1000;
-        if (base == 2) {
-            int n = b.getInt();
-            double[] out = new double[n * 2];
-            for (int i = 0; i < n; i++) {
-                out[i * 2] = b.getDouble();
-                out[i * 2 + 1] = b.getDouble();
-                if (z) {
-                    b.getDouble();
-                }
-                if (m) {
-                    b.getDouble();
-                }
-            }
-            return out;
+        return switch (base) {
+            case 2 -> readLine(b, 2 + (z ? 1 : 0) + (m ? 1 : 0));
+            case 5 -> readMultiLine(b);
+            default -> new double[0];
+        };
+    }
+
+    private static double[] readLine(ByteBuffer b, int dimensions) {
+        int n = b.getInt();
+        if (n < 0 || n > b.remaining() / (dimensions * Double.BYTES)) {
+            throw new IllegalArgumentException("Invalid WKB point count");
         }
-        if (base == 5) {
-            int n = b.getInt();
-            double[] out = new double[0];
-            for (int i = 0; i < n; i++) {
-                double[] part = read(b);
-                if (part == null) {
-                    return null;
-                }
-                double[] joined = Arrays.copyOf(out, out.length + part.length);
-                System.arraycopy(part, 0, joined, out.length, part.length);
-                out = joined;
-            }
-            return out;
+        double[] out = new double[n * 2];
+        for (int i = 0; i < n; i++) {
+            out[i * 2] = b.getDouble();
+            out[i * 2 + 1] = b.getDouble();
+            b.position(b.position() + (dimensions - 2) * Double.BYTES);
         }
-        return null;
+        return out;
+    }
+
+    private static double[] readMultiLine(ByteBuffer b) {
+        int n = b.getInt();
+        if (n < 0 || n > b.remaining() / 9) {
+            throw new IllegalArgumentException("Invalid WKB line count");
+        }
+        List<double[]> parts = new ArrayList<>(n);
+        int length = 0;
+        for (int i = 0; i < n; i++) {
+            double[] part = read(b);
+            if (part.length >= 4) {
+                parts.add(part);
+                length += part.length + 2;
+            }
+        }
+        double[] out = new double[Math.max(0, length - 2)];
+        int offset = 0;
+        for (double[] part : parts) {
+            if (offset > 0) {
+                out[offset++] = Double.NaN;
+                out[offset++] = Double.NaN;
+            }
+            System.arraycopy(part, 0, out, offset, part.length);
+            offset += part.length;
+        }
+        return out;
     }
 
     /** A network over fixed ways, for tests and the benchmark. */
@@ -361,7 +411,7 @@ public class RoadNetwork {
 
     private static boolean meets(Way w, double[] box) {
         double[] l = lineString(w.wkb());
-        if (l == null) {
+        if (l.length == 0) {
             return false;
         }
         double minX = Double.MAX_VALUE;
@@ -369,10 +419,12 @@ public class RoadNetwork {
         double maxX = -Double.MAX_VALUE;
         double maxY = -Double.MAX_VALUE;
         for (int j = 0; j < l.length; j += 2) {
-            minX = Math.min(minX, l[j]);
-            maxX = Math.max(maxX, l[j]);
-            minY = Math.min(minY, l[j + 1]);
-            maxY = Math.max(maxY, l[j + 1]);
+            if (Double.isFinite(l[j]) && Double.isFinite(l[j + 1])) {
+                minX = Math.min(minX, l[j]);
+                maxX = Math.max(maxX, l[j]);
+                minY = Math.min(minY, l[j + 1]);
+                maxY = Math.max(maxY, l[j + 1]);
+            }
         }
         return minX <= box[2] && maxX >= box[0] && minY <= box[3] && maxY >= box[1];
     }

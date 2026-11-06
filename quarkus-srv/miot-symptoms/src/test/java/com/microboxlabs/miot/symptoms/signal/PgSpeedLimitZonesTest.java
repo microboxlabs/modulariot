@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.signal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
@@ -18,7 +19,7 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 /**
  * The speed limit zones table and the signal builder's query against a real database. Skipped unless
- * {@code -Dmiot.symptoms.test.pg-url=...} is set; the {@code miot_symptoms} schema is dropped and re-created.
+ * {@code -Dmiot.symptoms.test.pg-url=...} is set. Requires a scratch database without a speed_limit_zone table.
  */
 @EnabledIfSystemProperty(named = "miot.symptoms.test.pg-url", matches = ".+")
 class PgSpeedLimitZonesTest {
@@ -26,6 +27,7 @@ class PgSpeedLimitZonesTest {
     private static final Duration WAIT = Duration.ofSeconds(10);
     private static Vertx vertx;
     private static Pool pool;
+    private static boolean created;
 
     @BeforeAll
     static void migrate() throws Exception {
@@ -33,18 +35,28 @@ class PgSpeedLimitZonesTest {
         pool = PgBuilder.pool()
                 .connectingTo(PgConnectOptions.fromUri(System.getProperty("miot.symptoms.test.pg-url")))
                 .using(vertx).build();
-        pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
-        pool.query("CREATE SCHEMA miot_symptoms").execute().await().atMost(WAIT);
+        pool.query("CREATE SCHEMA IF NOT EXISTS miot_symptoms").execute().await().atMost(WAIT);
         try (InputStream in = PgSpeedLimitZonesTest.class.getResourceAsStream(
-                "/db/migration/symptoms/V0.12.22__speed_limit_zones.sql")) {
+                "/db/migration/symptoms/V0.12.23__speed_limit_zones.sql")) {
             pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+            created = true;
         }
     }
 
     @AfterAll
     static void close() {
-        pool.close().await().atMost(WAIT);
-        vertx.close().await().atMost(WAIT);
+        try {
+            if (created) {
+                pool.query("DROP TABLE miot_symptoms.speed_limit_zone").execute().await().atMost(WAIT);
+            }
+        } finally {
+            if (pool != null) {
+                pool.close().await().atMost(WAIT);
+            }
+            if (vertx != null) {
+                vertx.close().await().atMost(WAIT);
+            }
+        }
     }
 
     @Test
@@ -62,13 +74,25 @@ class PgSpeedLimitZonesTest {
 
         List<SpeedZones.Zone> zones = new ArrayList<>();
         pool.query(SignalStream.SPEED_ZONES_SQL).execute().await().atMost(WAIT).forEach(r -> zones.add(
-                SpeedZones.zone(r.getString("tenant_code"), r.getInteger("id"), r.getInteger("speed_forward"),
+                SpeedZones.zone(r.getString("tenant_code"), r.getInteger("id"), new SpeedZones.Limits(r.getInteger("speed_forward"),
                         r.getInteger("speed_backward"), r.getInteger("forward_from"), r.getInteger("forward_to"),
-                        r.getInteger("heading"), r.getString("shape"))));
+                        r.getInteger("heading")), r.getString("shape"))));
         SpeedZones own = new SpeedZones();
         own.load(zones);
 
         assertEquals(1, own.size());
         assertEquals(40, own.at("org-1", -70.65, -33.45, null, 180).maxspeed());
+    }
+
+    @Test
+    void zonesRequireAtLeastOneLimitAndEverySuppliedLimitMustBePositive() {
+        for (String limits : List.of("NULL, NULL", "0, NULL", "NULL, -1", "60, -1")) {
+            var failure = assertThrows(io.vertx.pgclient.PgException.class, () -> pool.query("""
+                    INSERT INTO miot_symptoms.speed_limit_zone
+                        (tenant_code, shape, speed_forward, speed_backward, updated_by)
+                    VALUES ('invalid', '{}', %s, 'test')
+                    """.formatted(limits)).execute().await().atMost(WAIT));
+            assertEquals("23514", failure.getSqlState());
+        }
     }
 }

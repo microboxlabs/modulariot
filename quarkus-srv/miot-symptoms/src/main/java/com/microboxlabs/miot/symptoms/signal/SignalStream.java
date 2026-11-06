@@ -15,6 +15,8 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.scheduler.Scheduled;
+import io.smallrye.config.ConfigMapping;
+import io.smallrye.config.WithDefault;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.pulsar.PulsarOutgoingMessageMetadata;
@@ -68,6 +70,19 @@ public class SignalStream {
 
     static final String TRIPS_CHANNEL = "miot_trips_live";
     private static final String UNDEFINED_TABLE = "42P01";
+    private static final String SHAPE = "shape";
+
+    @ConfigMapping(prefix = "miot.symptoms.signal-builder.roads")
+    public interface RoadSettings {
+        @WithDefault("true")
+        boolean enabled();
+
+        @WithDefault("5000")
+        int maxTiles();
+
+        @WithDefault("24h")
+        Duration ttl();
+    }
 
     /**
      * As JSON, so a loaded row and a notified one read alike. Names and phones are not selected: the carrier's
@@ -144,9 +159,7 @@ public class SignalStream {
 
     SignalStream(@ConfigProperty(name = "miot.symptoms.signal-builder.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.signal-builder.zone", defaultValue = "America/Santiago") String zone,
-            @ConfigProperty(name = "miot.symptoms.signal-builder.roads.enabled", defaultValue = "true") boolean roadsOn,
-            @ConfigProperty(name = "miot.symptoms.signal-builder.roads.max-tiles", defaultValue = "5000") int maxTiles,
-            @ConfigProperty(name = "miot.symptoms.signal-builder.roads.ttl", defaultValue = "24h") Duration roadsTtl,
+            RoadSettings roadSettings,
             GpsDatabase gps, Instance<Pool> pool, Vertx vertx, MeterRegistry meters) {
         this.enabled = enabled;
         this.gps = gps;
@@ -155,7 +168,8 @@ public class SignalStream {
         this.tripReader = new TripNoticeReader(refs, id -> this.pool.get().preparedQuery(ONE_TRIP)
                 .execute(Tuple.of(id)).map(SignalStream::trips));
         this.roadFailures = meters.counter("miot.symptoms.signal.road_tile_failures");
-        this.roads = roadsOn ? new RoadNetwork(this::ways, maxTiles, roadsTtl, Clock.systemUTC()) : null;
+        this.roads = roadSettings.enabled()
+                ? new RoadNetwork(this::ways, roadSettings.maxTiles(), roadSettings.ttl(), Clock.systemUTC()) : null;
         this.builder = new SignalBuilder(refs, ZoneId.of(zone), zones, roads, speedZones, bearings);
         if (roads != null) {
             meters.gauge("miot.symptoms.signal.road_tiles", roads, RoadNetwork::tileCount);
@@ -222,10 +236,10 @@ public class SignalStream {
         return pool.get().query(SPEED_ZONES_SQL).execute().map(rows -> {
             List<SpeedZones.Zone> z = new ArrayList<>();
             rows.forEach(r -> {
-                SpeedZones.Zone zone = r.getString("shape") == null ? null : SpeedZones.zone(r.getString("tenant_code"),
-                        r.getInteger("id"), r.getInteger("speed_forward"), r.getInteger("speed_backward"),
-                        r.getInteger("forward_from"), r.getInteger("forward_to"), r.getInteger("heading"),
-                        r.getString("shape"));
+                SpeedZones.Zone zone = r.getString(SHAPE) == null ? null : SpeedZones.zone(r.getString("tenant_code"),
+                        r.getInteger("id"), new SpeedZones.Limits(r.getInteger("speed_forward"), r.getInteger("speed_backward"),
+                                r.getInteger("forward_from"), r.getInteger("forward_to"), r.getInteger("heading")),
+                        r.getString(SHAPE));
                 if (zone != null) {
                     z.add(zone);
                 }
@@ -260,8 +274,8 @@ public class SignalStream {
         return gps.readPool().query(ZONES_SQL).execute().map(rows -> {
             List<Zones.Zone> z = new ArrayList<>();
             rows.forEach(r -> {
-                Zones.Zone zone = r.getString("shape") == null ? null : Zones.zone(r.getString("client_id"),
-                        r.getInteger("geofence_id"), r.getString("geofence_type"), r.getString("shape"));
+                Zones.Zone zone = r.getString(SHAPE) == null ? null : Zones.zone(r.getString("client_id"),
+                        r.getInteger("geofence_id"), r.getString("geofence_type"), r.getString(SHAPE));
                 if (zone != null) {
                     z.add(zone);
                 }
@@ -332,10 +346,11 @@ public class SignalStream {
             message = null;
         }
         EnvelopedMessage read = message;
-        var gpsPart = read == null || read.getPayload() == null ? null : read.getPayload().getGps();
-        if (roads == null || gpsPart == null || gpsPart.getLatitude() == 0 && gpsPart.getLongitude() == 0) {
+        if (roads == null || read == null || !SignalBuilder.validFrame(read.getPayload())
+                || !SignalBuilder.hasPosition(read.getPayload())) {
             return publish(in, read);
         }
+        var gpsPart = read.getPayload().getGps();
         return roads.ensure(gpsPart.getLongitude(), gpsPart.getLatitude()).onItem()
                 .transformToMulti(x -> publish(in, read));
     }

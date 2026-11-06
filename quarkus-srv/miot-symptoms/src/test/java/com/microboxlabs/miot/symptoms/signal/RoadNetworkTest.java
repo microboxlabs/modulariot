@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.signal;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.symptoms.signal.GpsSignal.WeightCategory;
 import io.smallrye.mutiny.Uni;
@@ -12,7 +13,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -104,11 +107,76 @@ class RoadNetworkTest {
         byte[] one = wkb(1, 2, 3, 4);
         ByteBuffer multi = ByteBuffer.allocate(9 + one.length * 2).order(ByteOrder.LITTLE_ENDIAN);
         multi.put((byte) 1).putInt(5).putInt(2).put(one).put(one);
-        assertArrayEquals(new double[] {1, 2, 3, 4, 1, 2, 3, 4}, RoadNetwork.lineString(multi.array()));
+        assertArrayEquals(new double[] {1, 2, 3, 4, Double.NaN, Double.NaN, 1, 2, 3, 4},
+                RoadNetwork.lineString(multi.array()));
 
         ByteBuffer point = ByteBuffer.allocate(21).order(ByteOrder.LITTLE_ENDIAN);
         point.put((byte) 1).putInt(1).putDouble(1).putDouble(2);
-        assertNull(RoadNetwork.lineString(point.array()));
+        assertArrayEquals(new double[0], RoadNetwork.lineString(point.array()));
+    }
+
+    @Test
+    void disconnectedLinesNeverCreateARoadAcrossTheGap() {
+        byte[] west = wkb(-70.68, -33.45, -70.67, -33.45);
+        byte[] east = wkb(-70.63, -33.45, -70.62, -33.45);
+        ByteBuffer multi = ByteBuffer.allocate(9 + west.length + east.length).order(ByteOrder.LITTLE_ENDIAN);
+        multi.put((byte) 1).putInt(5).putInt(2).put(west).put(east);
+        RoadNetwork roads = RoadNetwork.of(List.of(new RoadNetwork.Way(1, "primary", 50, 50, 50, multi.array())));
+
+        assertNull(at(roads, -70.65, -33.45, WeightCategory.HEAVY), "no segment between the parts");
+        assertEquals(50, at(roads, -70.675, -33.45, WeightCategory.HEAVY).maxspeed());
+        assertEquals(50, at(roads, -70.625, -33.45, WeightCategory.HEAVY).maxspeed());
+    }
+
+    @Test
+    void invalidWkbDoesNotHideValidWaysOrAllocateFromAnUncheckedCount() {
+        byte[] invalid = ByteBuffer.allocate(9).order(ByteOrder.LITTLE_ENDIAN)
+                .put((byte) 1).putInt(2).putInt(Integer.MAX_VALUE).array();
+        RoadNetwork roads = RoadNetwork.of(List.of(new RoadNetwork.Way(1, "primary", 90, 90, 90, invalid),
+                way(2, "service", 30, 30, 30, -33.45)));
+
+        assertArrayEquals(new double[0], RoadNetwork.lineString(invalid));
+        assertArrayEquals(new double[0], RoadNetwork.lineString(new byte[3]));
+        assertEquals(30, at(roads, -70.65, -33.45, WeightCategory.HEAVY).maxspeed());
+    }
+
+    @Test
+    void simultaneousFramesShareOneTileReadAndCachedFramesNeverReadAgain() {
+        AtomicInteger reads = new AtomicInteger();
+        CompletableFuture<List<RoadNetwork.Way>> rows = new CompletableFuture<>();
+        RoadNetwork roads = new RoadNetwork((a, b, c, d) -> {
+            reads.incrementAndGet();
+            return Uni.createFrom().completionStage(rows);
+        }, 2, Duration.ofHours(1), Clock.systemUTC());
+        List<CompletableFuture<Void>> waiting = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            waiting.add(roads.ensure(-70.65, -33.45).subscribeAsCompletionStage());
+        }
+        assertEquals(1, reads.get(), "one GPS query for all waiting frames");
+        rows.complete(List.of(way(1, "primary", 50, 50, 50, -33.45)));
+        CompletableFuture.allOf(waiting.toArray(CompletableFuture<?>[]::new)).join();
+        for (int i = 0; i < 1000; i++) {
+            assertEquals(50, at(roads, -70.65, -33.45, WeightCategory.HEAVY).maxspeed());
+        }
+        assertEquals(1, reads.get(), "cached frames perform no GPS reads");
+    }
+
+    @Test
+    void anEmptyTileIsCachedAndInvalidCacheSettingsAreRejected() {
+        AtomicInteger reads = new AtomicInteger();
+        RoadNetwork.Source source = (a, b, c, d) -> {
+            reads.incrementAndGet();
+            return Uni.createFrom().item(List.of());
+        };
+        RoadNetwork roads = new RoadNetwork(source, 2, Duration.ofHours(1), Clock.systemUTC());
+
+        assertNull(at(roads, -70.65, -33.45, WeightCategory.HEAVY));
+        assertNull(at(roads, -70.65, -33.45, WeightCategory.HEAVY));
+        assertEquals(1, reads.get());
+        assertThrows(IllegalArgumentException.class,
+                () -> new RoadNetwork(source, 0, Duration.ofHours(1), Clock.systemUTC()));
+        assertThrows(IllegalArgumentException.class,
+                () -> new RoadNetwork(source, 1, Duration.ZERO, Clock.systemUTC()));
     }
 
     @Test

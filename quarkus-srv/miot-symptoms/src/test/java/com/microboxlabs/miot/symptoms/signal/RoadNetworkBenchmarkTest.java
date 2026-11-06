@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.symptoms.signal;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import com.microboxlabs.miot.symptoms.signal.GpsSignal.WeightCategory;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,10 +13,10 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 /**
  * Lookup time and memory of {@link RoadNetwork} on synthetic tiles shaped like the GPS database's: an average
  * tile of 40 ways and 570 points, and the densest of 900 ways and 6,000 points. Run with
- * {@code -Dmiot.symptoms.benchmark=true}; it prints and asserts nothing.
+ * {@code -Dmiot.symptoms.benchmark=true}; it reports lookup timings and checks the retained tiles.
  */
 @EnabledIfSystemProperty(named = "miot.symptoms.benchmark", matches = "true")
-class RoadNetworkBenchmark {
+class RoadNetworkBenchmarkTest {
 
     private static List<RoadNetwork.Way> ways(Random r, double x0, double y0, int count, int points) {
         List<RoadNetwork.Way> out = new ArrayList<>(count);
@@ -77,8 +80,7 @@ class RoadNetworkBenchmark {
         long after = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
         System.out.printf("1,821 average tiles: %.1f MB of arrays, %.1f MB of heap%n", arrays / 1e6,
                 (after - before) / 1e6);
-        if (kept.isEmpty()) {
-            throw new IllegalStateException();
-        }
+        assertEquals(1821, kept.size());
+        assertTrue(arrays > 0);
     }
 }

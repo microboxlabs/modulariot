@@ -314,7 +314,7 @@ class SignalBuilderTest {
         RoadNetwork roads = RoadNetwork.of(List.of(RoadNetworkTest.way(42, "primary", 70, 60, 80, -33.45)));
         roads.ensure(-70.66, -33.45).await().indefinitely();
         SpeedZones own = new SpeedZones();
-        own.load(List.of(SpeedZones.zone("other-1", 5, 40, null, null, null, null, """
+        own.load(List.of(SpeedZones.zone("other-1", 5, new SpeedZones.Limits(40, null, null, null, null), """
                 {"type":"Polygon","coordinates":[[[-70.7,-33.5],[-70.6,-33.5],[-70.6,-33.4],[-70.7,-33.4],[-70.7,-33.5]]]}
                 """)));
         SignalBuilder builder = new SignalBuilder(refs, ZoneId.of("America/Santiago"), new Zones(), roads, own,
@@ -332,5 +332,33 @@ class SignalBuilderTest {
         SignalBuilder builder = new SignalBuilder(refs(List.of(), List.of()), ZoneId.of("America/Santiago"),
                 new Zones(), RoadNetwork.of(List.of()), new SpeedZones(), new Bearings(java.time.Duration.ofMinutes(10)));
         assertNull(builder.build(EnvelopedMessage.fromJson(frame("ABCD12", 70, false))).orElseThrow().roads());
+    }
+
+    @Test
+    void aHeadingFilterRequiresAReadingAndAcceptsAnExplicitZero() {
+        SpeedZones own = new SpeedZones();
+        own.load(List.of(SpeedZones.zone(SENDER, 5, new SpeedZones.Limits(40, null, null, null, 0), """
+                {"type":"Polygon","coordinates":[[[-70.7,-33.5],[-70.6,-33.5],[-70.6,-33.4],[-70.7,-33.4],[-70.7,-33.5]]]}
+                """)));
+        SignalBuilder builder = new SignalBuilder(refs(List.of(), List.of()), ZoneId.of("America/Santiago"),
+                new Zones(), null, own, new Bearings(java.time.Duration.ofMinutes(10)));
+        String missing = frame("ABCD12", 70, false);
+
+        assertNull(builder.build(EnvelopedMessage.fromJson(missing)).orElseThrow().roads());
+        String north = missing.replace("\"speed\":70.0", "\"speed\":70.0,\"heading\":0");
+        assertEquals(new GpsSignal.Road(null, 40.0, null, null, 5),
+                builder.build(EnvelopedMessage.fromJson(north)).orElseThrow().roads().get(SENDER));
+    }
+
+    @Test
+    void invalidCoordinatesNeverAcquireLimits() {
+        SignalBuilder builder = new SignalBuilder(refs(List.of(), List.of()), ZoneId.of("America/Santiago"));
+        String invalid = frame("ABCD12", 70, false).replace("-33.45", "91");
+
+        GpsSignal signal = builder.build(EnvelopedMessage.fromJson(invalid)).orElseThrow();
+
+        assertFalse(SignalBuilder.hasPosition(signal.frame()));
+        assertNull(signal.roads());
+        assertNull(signal.geos());
     }
 }

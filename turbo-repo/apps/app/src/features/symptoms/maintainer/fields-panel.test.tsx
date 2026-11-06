@@ -77,6 +77,17 @@ describe("withAllFields", () => {
       signal: { speed: 1, trip: { age_min: undefined }, events: undefined },
     });
   });
+
+  it.each([null, undefined])(
+    "keeps catalog fields below a %s sample object without changing the sample",
+    (trip) => {
+      const sample = { signal: { speed: 1, trip } };
+      expect(withAllFields(sample, FIELDS)).toEqual({
+        signal: { speed: 1, trip: { age_min: undefined }, events: undefined },
+      });
+      expect(sample).toEqual({ signal: { speed: 1, trip } });
+    }
+  );
 });
 
 describe("FieldsPanel", () => {
@@ -138,4 +149,88 @@ describe("FieldsPanel", () => {
       "speedVelocidad — Velocidad reportada por el GPS · km/h"
     );
   });
+
+  it("keeps missing fields available while navigating samples", () => {
+    render(
+      <FieldsPanel
+        source={{
+          ...SOURCE,
+          samples: [...SOURCE.samples, { signal: { trip: null } }],
+        }}
+        d={d}
+      />
+    );
+    fireEvent.click(screen.getByLabelText("Siguiente"));
+    fireEvent.change(filter(), { target: { value: "age_min" } });
+    expect(
+      screen.getByLabelText("Insertar signal.trip.age_min")
+    ).toHaveTextContent("Tiempo en viaje");
+    fireEvent.click(screen.getByLabelText("Anterior"));
+    expect(screen.getByLabelText("Insertar signal.trip.age_min")).toBeTruthy();
+  });
+
+  it.each([
+    ["signal.road.maxspeed_osm", "Límite de la vía", "number", "ROAD_NETWORK"],
+    ["signal.road.maxspeed_custom", "Límite propio", "number", null],
+    ["signal.road.osm_way_id", "Vía OSM", "number", "ROAD_NETWORK"],
+    ["signal.road.road_class", "Tipo de vía", "text", "ROAD_NETWORK"],
+    [
+      "signal.road.custom_zone_id",
+      "Zona de límite propio",
+      "number",
+      "TENANT_SETTINGS",
+    ],
+    ["signal.trip.eta_deviation_min", "Desvío de llegada", "number", "TRIP"],
+    ["signal.trip.origin.internal", "Origen interno", "bool", "TRIP"],
+    [
+      "signal.derived.power_disconnected",
+      "Alimentación desconectada",
+      "bool",
+      "DEVICE",
+    ],
+    ["signal.derived.jamming", "Inhibición de señal", "bool", "DEVICE"],
+    ["signal.frame.events.code", "Código del evento", "text", "DEVICE"],
+    ["check.driving_minutes", "Minutos conduciendo", "number", "CALCULATED"],
+    ["check.resting_minutes", "Minutos de descanso", "number", "CALCULATED"],
+    ["check.duty_minutes", "Minutos de jornada", "number", "CALCULATED"],
+  ] satisfies [string, string, string, SourceField["origin"]][])(
+    "shows and inserts the new catalog field %s even without a sample value",
+    (path, label, type, origin) => {
+      const field: SourceField = {
+        path,
+        label,
+        type,
+        origin,
+        unit: null,
+        engineSupported: true,
+        description: `Descripción de ${label}`,
+      };
+      const root = path.split(".")[0]!;
+      const isMember = path === "signal.frame.events.code";
+      const fields = isMember
+        ? [{ ...FIELDS[2]!, path: "signal.frame.events" }, field]
+        : [field];
+      render(
+        <FieldsPanel
+          source={{ ...SOURCE, root, fields, samples: [{ [root]: {} }] }}
+          d={d}
+        />
+      );
+      fireEvent.change(filter(), { target: { value: label } });
+      const insertedPath = isMember ? "signal.frame.events" : path;
+      const leaf = screen.getByLabelText(`Insertar ${insertedPath}`);
+      expect(leaf).toHaveTextContent(label);
+      if (!isMember) expect(leaf).toHaveTextContent(field.description!);
+      fireEvent.click(leaf);
+      if (isMember) {
+        const text = 'signal.frame.events.exists(e, e.event_type == "")';
+        expect(editor.insertIntoFocused).toHaveBeenLastCalledWith(
+          text,
+          text.length - 2
+        );
+      } else {
+        expect(editor.insertIntoFocused).toHaveBeenLastCalledWith(path);
+      }
+    }
+  );
 });

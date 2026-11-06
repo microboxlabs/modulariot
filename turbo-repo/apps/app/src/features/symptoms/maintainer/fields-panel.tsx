@@ -40,12 +40,9 @@ export function withAllFields(
     const keys = f.path.split(".");
     let at: Json = out;
     for (const key of keys.slice(0, -1)) {
-      if (!(key in at)) at[key] = {};
-      const next = at[key];
-      if (!isObject(next)) {
-        at = {};
-        break;
-      }
+      const value = at[key];
+      const next = isObject(value) ? value : {};
+      at[key] = next;
       at = next;
     }
     const last = keys.at(-1) as string;

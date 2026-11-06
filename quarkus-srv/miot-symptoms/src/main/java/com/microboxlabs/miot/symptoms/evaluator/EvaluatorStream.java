@@ -5,11 +5,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.duty.DutyChecks;
+import com.microboxlabs.miot.symptoms.duty.DutyStore;
+import com.microboxlabs.miot.symptoms.duty.InMemoryDutyStore;
+import com.microboxlabs.miot.symptoms.duty.RedisDutyStore;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
 import com.microboxlabs.miot.symptoms.signal.GpsSignal;
 import com.microboxlabs.miot.symptoms.signal.SignalFields;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
+import com.microboxlabs.miot.symptoms.signal.TripCheck;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.common.annotation.Blocking;
@@ -44,8 +49,11 @@ import org.jboss.logging.Logger;
  * and handed to {@link LateFrames}; the symptoms do not run on it. Every signal
  * also goes to the {@link LostSignalDetector}. A signal of device events only
  * ({@value GpsSignal#EVENTS_SCHEMA_ID}) runs only the symptoms that read device
- * events, as a late frame does, and does not reach the detector. On wherever
- * the symptoms Pulsar is wired ({@code miot.symptoms.evaluator.enabled}).
+ * events, as a late frame does, and does not reach the detector. Each frame of
+ * an organization with {@code trip_check} symptoms that read the duty counters
+ * also goes through its duty tracker, and those symptoms run on the frame's
+ * check ({@link DutyChecks}). On wherever the symptoms Pulsar is wired
+ * ({@code miot.symptoms.evaluator.enabled}).
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -70,7 +78,9 @@ public class EvaluatorStream {
     private final LateFrames lateFrames;
     private final LostSignalDetector lostSignal;
     private final Holds holds;
+    private final DutyChecks duty;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
+    private final Map<String, Cached> dutyVersions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
     }
@@ -85,7 +95,8 @@ public class EvaluatorStream {
                 // Also when not consuming: closing a case drops its episode in the Redis the consumers use.
                 redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, ttl))
                         .orElseGet(InMemoryEpisodeRepository::new),
-                samples, lateFrames.isResolvable() ? lateFrames.get() : LateFrames.NONE, lostSignal, holds);
+                samples, lateFrames.isResolvable() ? lateFrames.get() : LateFrames.NONE, lostSignal, holds,
+                redis.api().<DutyStore>map(api -> new RedisDutyStore(api, ttl)).orElseGet(InMemoryDutyStore::new));
         if (enabled) {
             LOG.infof("Symptom evaluator: on, episodes in %s",
                     episodes instanceof RedisEpisodes ? "Redis" : "memory");
@@ -110,6 +121,14 @@ public class EvaluatorStream {
     @SuppressWarnings("java:S107") // As above, with the holds the evaluator reads.
     EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
             SignalSamples samples, LateFrames lateFrames, LostSignalDetector lostSignal, Holds holds) {
+        this(enabled, catalog, sinks, clock, episodes, samples, lateFrames, lostSignal, holds, new InMemoryDutyStore());
+    }
+
+    @SuppressWarnings("java:S107") // As above, with where the duty counters are kept.
+    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
+            SignalSamples samples, LateFrames lateFrames, LostSignalDetector lostSignal, Holds holds,
+            DutyStore dutyStore) {
+        this.duty = new DutyChecks(dutyStore);
         this.holds = holds;
         this.lateFrames = lateFrames;
         this.lostSignal = lostSignal;
@@ -199,9 +218,11 @@ public class EvaluatorStream {
         boolean late = false;
         for (Object client : clients) {
             if (client instanceof String tenant) {
-                Evaluated e = evaluate(tenant, assetId, instant, forTenant(signal, tenant), false);
+                Map<String, Object> own = forTenant(signal, tenant);
+                Evaluated e = evaluate(tenant, assetId, instant, own, false);
                 recorded += e.transitions();
                 late |= e.late();
+                recorded += duty(tenant, assetId, instant, own);
             }
         }
         for (String tenant : episodes.tenantsWithEpisodes(assetId)) {
@@ -319,6 +340,29 @@ public class EvaluatorStream {
         return new Evaluated(result.transitions().size(), late);
     }
 
+    /**
+     * The frame through the organization's duty tracker, and the symptoms that read its counters on the check it
+     * gives. The tracker's state is written last: a failure before it replays the frame, and the frame is then
+     * applied again from the same state. A frame not newer than the last one applied changes nothing.
+     */
+    private int duty(String tenant, String assetId, Instant at, Map<String, Object> signal) {
+        List<CompiledSymptom> symptoms = dutySymptoms(tenant);
+        if (symptoms.isEmpty()) {
+            return 0;
+        }
+        DutyChecks.Check c = duty.apply(tenant, assetId, at, signal).orElse(null);
+        if (c == null) {
+            meters.counter("miot.symptoms.duty.skipped").increment();
+            return 0;
+        }
+        AssetEpisodes state = episodes.load(tenant, assetId);
+        SignalEvaluator.Result result = new SignalEvaluator(state, holds).evaluateUnder(DutyChecks.WATERMARK, tenant,
+                assetId, at, Map.of(TripCheck.ROOT, c.check()), symptoms);
+        writeResult(tenant, assetId, signal, state, result, false, c.context());
+        duty.save(tenant, assetId, c.next());
+        return result.transitions().size();
+    }
+
     /** Hands a late frame to the late hook; true when an event-driven symptom still has to run on it. */
     private boolean lateRuns(String tenant, String assetId, Instant at, Instant newest, Map<String, Object> signal,
             List<CompiledSymptom> symptoms) {
@@ -335,12 +379,17 @@ public class EvaluatorStream {
      * what it already holds; then the episodes and the counters. */
     private void writeResult(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
             SignalEvaluator.Result result, boolean late) {
+        Object eventId = signal.get("event_id");
+        writeResult(tenant, assetId, signal, state, result, late, GpsSignal.EVENTS_SCHEMA_ID.equals(signal.get("schema"))
+                && eventId instanceof String ? Map.of("event_id", eventId) : null);
+    }
+
+    @SuppressWarnings("java:S107") // As above, with the context the transitions keep.
+    private void writeResult(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
+            SignalEvaluator.Result result, boolean late, Map<String, Object> context) {
         if (!result.transitions().isEmpty()) {
             TransitionLog.Place place = place(signal);
             // Only the changes new to the log: a replayed signal publishes nothing twice.
-            Object eventId = signal.get("event_id");
-            Map<String, Object> context = GpsSignal.EVENTS_SCHEMA_ID.equals(signal.get("schema"))
-                    && eventId instanceof String ? Map.of("event_id", eventId) : null;
             List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, result.transitions(), place, context);
             events.transitions(tenant, recorded.stream()
                     .filter(r -> !holds.held(tenant, assetId, r.transition().definitionId(), Instant.EPOCH))
@@ -379,6 +428,10 @@ public class EvaluatorStream {
         // Both consumers may share Redis. Neither close may expose an empty episode before installing its marker.
         lostSignal.forget(tenant, assetId, definitionId, marker);
         episodes.operatorClose(tenant, assetId, definitionId, marker);
+        if (dutySymptoms(tenant).stream().anyMatch(s -> s.definitionId().equals(definitionId)
+                && DutyChecks.readsDuty(s))) {
+            duty.restartDuty(tenant, assetId);
+        }
     }
 
     /** Drops only the case the sweep closed, preserving a newer episode opened on another replica. */
@@ -392,7 +445,7 @@ public class EvaluatorStream {
     public void finishHold(IgnoreHold h) {
         AssetEpisodes state = episodes.load(h.tenantCode(), h.assetId());
         List<CompiledSymptom> covered = Stream.concat(catalog.forSource(h.tenantCode(), SOURCE).symptoms().stream(),
-                catalog.forSource(h.tenantCode(), "trip_check").symptoms().stream())
+                catalog.forSource(h.tenantCode(), TripCheck.KEY).symptoms().stream())
                 .filter(s -> state.find(h.tenantCode(), h.assetId(), s.definitionId())
                         .map(e -> h.covers(h.assetId(), s.definitionId(), e.openedAt())).orElse(false))
                 .toList();
@@ -425,6 +478,18 @@ public class EvaluatorStream {
 
     private static Double number(Object value) {
         return value instanceof Number n ? n.doubleValue() : null;
+    }
+
+    /** The organization's {@code trip_check} symptoms that read the duty counters. */
+    private List<CompiledSymptom> dutySymptoms(String tenant) {
+        Instant now = clock.instant();
+        Cached c = dutyVersions.get(tenant);
+        if (c == null || c.at().plus(VERSIONS_TTL).isBefore(now)) {
+            c = new Cached(now, catalog.forSource(tenant, TripCheck.KEY).symptoms().stream()
+                    .filter(DutyChecks::readsCounters).toList());
+            dutyVersions.put(tenant, c);
+        }
+        return c.symptoms();
     }
 
     private List<CompiledSymptom> symptoms(String tenant) {

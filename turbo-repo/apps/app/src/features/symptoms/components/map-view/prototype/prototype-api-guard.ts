@@ -209,11 +209,14 @@ export async function guardedRequestTreatment(
   engine: EngineTreatmentOptions = {}
 ): Promise<TreatmentsRequest> {
   if (isPrototypeApiDisabled()) return payload;
-  const saved = isEngineCase(payload)
-    ? await saveEngineTreatment(payload, engine)
-    : await requestTreatment(payload);
-  void revalidateCase(payload.symptom_id);
-  return saved;
+  try {
+    return isEngineCase(payload)
+      ? await saveEngineTreatment(payload, engine)
+      : await requestTreatment(payload);
+  } finally {
+    // An action can be committed even when closing its case subsequently fails.
+    void revalidateCase(payload.symptom_id);
+  }
 }
 
 /**
@@ -225,8 +228,11 @@ export async function guardedFinishTreatment(
   progress?: EngineTreatmentProgress
 ): Promise<void> {
   if (isPrototypeApiDisabled() || !isEngineCase(payload)) return;
-  await finishEngineTreatment(payload, progress);
-  void revalidateCase(payload.symptom_id);
+  try {
+    await finishEngineTreatment(payload, progress);
+  } finally {
+    void revalidateCase(payload.symptom_id);
+  }
 }
 
 /**

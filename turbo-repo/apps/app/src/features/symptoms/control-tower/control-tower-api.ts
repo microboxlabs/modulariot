@@ -251,12 +251,13 @@ export function isCaseKey(symptomId: number | string, key: unknown): boolean {
   return key.startsWith("/app/api/symptoms");
 }
 
-/** Refetches everything that shows the case, after a save changed it. */
+/** Refetches every view of a case; accepts the active cache's scoped mutator. */
 export async function revalidateCase(
-  symptomId: number | string | null | undefined
+  symptomId: number | string | null | undefined,
+  revalidate = mutate
 ): Promise<void> {
   if (symptomId == null || symptomId === "") return;
-  await mutate((key) => isCaseKey(symptomId, key));
+  await revalidate((key) => isCaseKey(symptomId, key));
 }
 
 export const contactsKey = `${BASE}/contacts`;

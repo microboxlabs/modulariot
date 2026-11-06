@@ -134,6 +134,7 @@ describe("treatments on an engine case", () => {
     await expect(
       guardedRequestTreatment({ ...base }, { progress })
     ).rejects.toThrow("case close failed");
+    expect(tower.revalidateCase).toHaveBeenCalledWith(base.symptom_id);
     await guardedRequestTreatment({ ...base }, { progress });
 
     expect(tower.openTreatment).toHaveBeenCalledTimes(1);
@@ -153,6 +154,7 @@ describe("treatments on an engine case", () => {
     await expect(guardedFinishTreatment(base, progress)).rejects.toThrow(
       "case close failed"
     );
+    expect(tower.revalidateCase).toHaveBeenCalledWith(base.symptom_id);
     await guardedFinishTreatment(base, progress);
 
     expect(tower.openTreatment).toHaveBeenCalledTimes(1);

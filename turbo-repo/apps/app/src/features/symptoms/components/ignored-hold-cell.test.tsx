@@ -73,7 +73,7 @@ function showTreatment() {
 
 beforeEach(() => {
   mocks.disabled = false;
-  mocks.resume.mockReset().mockResolvedValue({});
+  mocks.resume.mockReset().mockResolvedValue({ symptomId: -7 });
   mocks.notify.mockReset();
   vi.stubGlobal(
     "fetch",

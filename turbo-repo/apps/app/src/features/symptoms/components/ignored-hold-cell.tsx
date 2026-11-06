@@ -7,7 +7,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { ShowNotification } from "@/features/notifications/notification";
 import { isPrototypeApiDisabled } from "./map-view/prototype/prototype-api-guard";
 import {
-  isCaseKey,
+  revalidateCase,
   resumeTreatment,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import {
@@ -43,13 +43,7 @@ export default function IgnoredHoldCell({
     setBusy(true);
     try {
       const resumed = await resumeTreatment(info.treatment_id);
-      await mutate(
-        (key) =>
-          (typeof key === "string" &&
-            (key.startsWith("/app/api/symptoms") ||
-              key.startsWith("/app/api/treatments"))) ||
-          (resumed?.symptomId != null && isCaseKey(resumed.symptomId, key))
-      );
+      await revalidateCase(resumed.symptomId, mutate);
       ShowNotification({ type: "success", message: t("resume_done") });
     } catch {
       ShowNotification({ type: "error", message: t("resume_error") });

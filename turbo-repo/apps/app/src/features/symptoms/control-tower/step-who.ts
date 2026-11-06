@@ -1,7 +1,7 @@
 /**
  * Who an operator step contacts: a condition on each contact of the book, the
  * same CEL as a communication rule's "contacts from the book" audience. The
- * trip's RUTs are `event.data`: driverRut, secondDriverRut and carrierRut.
+ * trip's RUTs, origin and destination are `event.data`.
  */
 
 import {
@@ -21,7 +21,12 @@ const CARRIER_TYPE =
   " && has(event.data.carrierIdType) && contact.companyTaxIdType == event.data.carrierIdType";
 const ORG_ONLY = " && contact.companyRut == ''";
 
-/** The fields of `event.data` a step's condition can read: the case trip's RUTs. */
+/**
+ * The fields of `event.data` a step's condition can read: the case trip's
+ * RUTs, origin and destination. A field the trip does not have is missing.
+ * The `…Key` fields are written as `contact.tagKeys`: lower case, without
+ * accents and with single spaces, so they match whatever the case or accents.
+ */
 export const TRIP_FIELDS: EventField[] = [
   { name: "driverRut", type: "string", label: "RUT del conductor" },
   {
@@ -30,6 +35,46 @@ export const TRIP_FIELDS: EventField[] = [
     label: "RUT del segundo conductor",
   },
   { name: "carrierRut", type: "string", label: "RUT del transportista" },
+  {
+    name: "origin",
+    type: "string",
+    label: "Origen del viaje",
+    description:
+      "El origen del viaje tal como lo escribe el viaje. Compáralo con contact.tags solo si la etiqueta está escrita igual.",
+  },
+  {
+    name: "originKey",
+    type: "string",
+    label: "Origen del viaje, para comparar",
+    description:
+      "El origen en minúsculas, sin tildes y con un solo espacio entre palabras. Compáralo con contact.tagKeys: event.data.originKey in contact.tagKeys.",
+  },
+  {
+    name: "originId",
+    type: "int",
+    label: "Geocerca de origen",
+    description: "El número de la geocerca de origen del viaje.",
+  },
+  {
+    name: "destination",
+    type: "string",
+    label: "Destino del viaje",
+    description:
+      "El destino del viaje tal como lo escribe el viaje. Compáralo con contact.tags solo si la etiqueta está escrita igual.",
+  },
+  {
+    name: "destinationKey",
+    type: "string",
+    label: "Destino del viaje, para comparar",
+    description:
+      "El destino en minúsculas, sin tildes y con un solo espacio entre palabras. Compáralo con contact.tagKeys: event.data.destinationKey in contact.tagKeys.",
+  },
+  {
+    name: "destinationId",
+    type: "int",
+    label: "Geocerca de destino",
+    description: "El número de la geocerca de destino del viaje.",
+  },
 ];
 
 const roleKey = (role: string | null | undefined) =>
@@ -101,7 +146,12 @@ export interface WhoSummary {
   company: string | null;
   /** Tags required by the condition's conjunction. */
   tags: string[];
+  /** The trip's places the contact's tags must include: its origin, its destination or both. */
+  places: TripPlace[];
 }
+
+/** A trip place a step can find a contact by, through the contact's tags. */
+export type TripPlace = "origin" | "destination";
 
 const QUOTED = String.raw`(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")`;
 const ROLE_ATOM = new RegExp(
@@ -111,6 +161,9 @@ const COMPANY_ATOM = new RegExp(
   String.raw`^contact\.company\s*==\s*${QUOTED}$`
 );
 const TAG_ATOM = new RegExp(String.raw`^${QUOTED}\s+in\s+contact\.tags$`);
+/** The trip's place in the contact's tags: as written, or both sides as keys. */
+const PLACE_ATOM =
+  /^event\.data\.(origin|destination)(?:\s+in\s+contact\.tags|Key\s+in\s+contact\.tagKeys)$/;
 const FIELD_ATOM =
   /^contact\.(nationalId|companyRut)\s*==\s*event\.data\.([A-Za-z_]\w*)$/;
 /** Checks that narrow a match without changing who it is: id types, presence, organisation-only. */
@@ -305,6 +358,12 @@ function readLiteralClause(summary: WhoSummary, atom: string): boolean | null {
     summary.company = value.trim() || null;
     return true;
   }
+  const place = PLACE_ATOM.exec(atom);
+  if (place) {
+    const which = place[1] as TripPlace;
+    if (!summary.places.includes(which)) summary.places.push(which);
+    return true;
+  }
   const tag = TAG_ATOM.exec(atom);
   if (tag) {
     const value = unquote(tag);
@@ -350,6 +409,7 @@ export function summarizeWho(who: string): WhoSummary | null {
     carrierSelf: false,
     company: null,
     tags: [],
+    places: [],
   };
   if (who === LEGACY_DRIVER_WHO)
     return {

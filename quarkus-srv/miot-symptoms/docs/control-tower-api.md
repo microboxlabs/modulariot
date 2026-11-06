@@ -131,7 +131,8 @@ Each level of a symptom version may set `ignore`:
 |---|---|---|
 | `listContacts` | `GET /contacts?active` | `controltower:view` |
 | `getContact` | `GET /contacts/{contactId}` | `controltower:view` |
-| `matchTripContacts` | `POST /contacts/trip` | `controltower:view`. The book's people for each step condition, with the case trip's RUTs |
+| `matchTripContacts` | `POST /contacts/trip` | `controltower:view`. The book's people for each step condition, with the case trip's RUTs, origin and destination |
+| `contactTripPlaces` | `GET /contacts/trip-places` | `controltower:view`. The live trips' origins and destinations, offered as contact tags |
 | `createContact` | `POST /contacts` | `controltower:contact.write`. Operators add contacts from the call panel |
 | `importContacts` | `POST /contacts/import` | `controltower:contact.write`. Body `{contacts: [...]}`, up to 1000 |
 | `updateContact` | `PATCH /contacts/{contactId}` | `controltower:contact.write` |
@@ -171,12 +172,32 @@ communication rule's "contacts from the book" audience. It answers
 
 | Field | Meaning |
 |---|---|
-| `data` | `event.data` the conditions read: the case trip's `driverRut`, `secondDriverRut` and `carrierRut`, normalized, when the trip has them |
+| `data` | `event.data` the conditions read, each field only when the trip has it (table below) |
 | `matches` | For each condition, in order, the ids of the active contacts that meet it |
 | `problems` | For each condition, its compile problem, or null |
 
-`contact` has `role`, `tags`, `company`, `companyRut`, `nationalId`,
-`position`, `member`, `email` and `whatsapp`; a missing text is `''`. Only
+`event.data`:
+
+| Field | Meaning |
+|---|---|
+| `driverRut`, `secondDriverRut`, `carrierRut` | The trip's RUTs, without dots or dashes, upper case, with `driverIdType`, `secondDriverIdType` and `carrierIdType` |
+| `origin`, `destination` | The trip's origin and destination, as the trip writes them |
+| `originKey`, `destinationKey` | The same in lower case, without accents and with single spaces |
+| `originId`, `destinationId` | The geofence ids |
+
+`contact` has `role`, `roleKey`, `tags`, `tagKeys`, `company`, `companyRut`,
+`nationalId`, `position`, `member`, `email` and `whatsapp`; a missing text is
+`''`. `tagKeys` are the tags written as `originKey`, so
+`contact.role == 'CAT' && event.data.originKey in contact.tagKeys` finds the
+CAT whose tags include the trip's origin, whatever the case, accents or
+spacing. `event.data.origin in contact.tags` matches only a tag written
+exactly as the trip writes the place.
+
+`contactTripPlaces` returns `[{label, origins, destinations}]`: each place of
+the live trips once, ignoring case, accents and spacing, as most trips write
+it, with how many trips start and end there; the busiest first, at most 300.
+
+Only
 engine cases (negative ids) have a trip; for other cases `data` is empty, so a
 condition that reads it meets nobody. At most 20 conditions per request. 503
 when the communication rules component is off.
@@ -282,7 +303,7 @@ Organizations see a template once a platform owner publishes it.
 | `severity` | Optional: `low`, `medium` or `high` |
 | `description` | Optional, up to 500 characters |
 
-Answers `202 {"accepted": n, "duplicates": m}`. 503 when `miot.symptoms.device-events.enabled` is off or the signals topic did not take an event; the events after it were not sent, and the failed one can be sent again. Event ids are kept 30 days in `miot_symptoms.device_event`, without the payload.
+Answers `202 {"accepted": n, "duplicates": m}`. 503 when the signal builder is off (`miot.symptoms.signal-builder.enabled`) or the signals topic did not take an event; the events after it were not sent, and the failed one can be sent again. Event ids are kept 30 days in `miot_symptoms.device_event`, without the payload.
 
 The receipt commits after broker acknowledgement. Concurrent retries wait for that outcome; a failed send or a process stopping before acknowledgement rolls the receipt back. An acknowledgement lost after delivery may cause a broker redelivery, so the evaluator also deduplicates device transitions by event id. Distinct event ids at the same timestamp remain independent. A pending publication is not released by a local request timeout.
 
@@ -354,7 +375,6 @@ organization server-side and forward the user's session token.
 | `miot.component.symptoms.enabled` | `MIOT_COMPONENT_SYMPTOMS_ENABLED` | `${miot.component.all.enabled}` | Turns the module on |
 | `miot.symptoms.cdc.enabled` | `MIOT_SYMPTOMS_CDC_ENABLED` | same as the component | Pulsar dispatcher. Set `false` on a modulith that only serves the API |
 | `miot.symptoms.gps.rpc-url` | `MIOT_SYMPTOMS_GPS_RPC_URL` | none | PostgREST in front of the GPS database, for the map endpoints |
-| `miot.symptoms.device-events.enabled` | `MIOT_SYMPTOMS_DEVICE_EVENTS_ENABLED` | `false` | Device events endpoint and its `device-signals` channel to the signals topic |
 | `miot.symptoms.control-tower.demo-seed` | `MIOT_SYMPTOMS_CONTROL_TOWER_DEMO_SEED` | `false` (`true` in `quarkus:dev`) | Seed demo contacts and history. Leave off anywhere real symptoms are shown |
 
 ## Not in this API yet

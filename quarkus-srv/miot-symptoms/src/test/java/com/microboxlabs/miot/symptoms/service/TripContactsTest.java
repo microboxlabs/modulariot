@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.core.event.ContactConditions;
+import com.microboxlabs.miot.core.event.TextKey;
 import com.microboxlabs.miot.symptoms.dto.TripContactsView;
 import com.microboxlabs.miot.symptoms.dto.TripPeople;
+import com.microboxlabs.miot.symptoms.dto.TripRoute;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryContactStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryTreatmentStore;
@@ -98,4 +100,27 @@ class TripContactsTest {
                 ContactService.tripData(TripPeople.of("12345674", null, "20100000009")));
     }
 
+    @Test
+    void tripDataHasTheOriginAndDestinationWithTheirKeysAndGeofences() {
+        TripPeople trip = TripPeople.of(null, null, null)
+                .withRoute(TripRoute.of("  Planta  Peñón ", 12, "Bodega Sur", null));
+
+        assertEquals(Map.of("origin", "Planta  Peñón", "originKey", "planta penon", "originId", 12,
+                "destination", "Bodega Sur", "destinationKey", "bodega sur"), ContactService.tripData(trip));
+    }
+
+    @Test
+    void tripDataLeavesOutAMissingOrBlankOriginAndDestination() {
+        assertEquals(Map.of(), ContactService.tripData(TripPeople.NONE));
+        assertEquals(Map.of("destinationId", 7),
+                ContactService.tripData(TripPeople.NONE.withRoute(TripRoute.of(" ", null, null, 7))));
+        assertEquals(TripRoute.NONE, new TripPeople(List.of(), null, null, null, null).route());
+    }
+
+    @Test
+    void textKeysIgnoreCaseAccentsAndSpacing() {
+        assertEquals("planta norte", TextKey.of("  PLANTA \t Norte "));
+        assertEquals("penon", TextKey.of("Peñón"));
+        assertEquals("", TextKey.of(null));
+    }
 }

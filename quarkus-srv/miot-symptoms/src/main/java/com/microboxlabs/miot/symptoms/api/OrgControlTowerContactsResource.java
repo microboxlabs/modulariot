@@ -15,6 +15,7 @@ import com.microboxlabs.miot.symptoms.dto.TripPeople;
 import com.microboxlabs.miot.core.event.ContactConditions;
 import jakarta.enterprise.inject.Instance;
 import com.microboxlabs.miot.symptoms.service.ContactService;
+import com.microboxlabs.miot.symptoms.store.PgTripPlaces;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -51,6 +52,7 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
     private final ContactService contacts;
     private final EngineCaseService cases;
     private final Instance<ContactConditions> conditions;
+    private final PgTripPlaces tripPlaces;
 
     @Inject
     public OrgControlTowerContactsResource(
@@ -60,8 +62,10 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             SecurityIdentity identity,
             ContactService contacts,
             EngineCaseService cases,
-            Instance<ContactConditions> conditions) {
+            Instance<ContactConditions> conditions,
+            PgTripPlaces tripPlaces) {
         super(tenantContext, organizationContext, roleService, identity);
+        this.tripPlaces = tripPlaces;
         this.contacts = contacts;
         this.cases = cases;
         this.conditions = conditions;
@@ -118,6 +122,19 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
         return work(() -> Response.ok(contacts.facets(tenant)).build());
     }
 
+    @GET
+    @Path("/trip-places")
+    @Operation(operationId = "contactTripPlaces", summary = "The origins and destinations of the live trips",
+            description = "Each place once, ignoring case, accents and spacing, written as most trips write it, "
+                    + "with how many live trips start and end there; the busiest first, at most 300. The contact "
+                    + "book offers them as tags, so a step can find a contact by event.data.origin or destination.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> tripPlaces(@PathParam("organizationId") String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(tripPlaces.places(tenant)).build());
+    }
+
     private static String value(String raw) {
         return raw == null || raw.isBlank() ? null : raw.trim();
     }
@@ -134,7 +151,9 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
     @Path("/trip")
     @Operation(operationId = "matchTripContacts", summary = "The book's people for each step of a case",
             description = "Evaluates each contact condition (an operator step's who) against the active contacts, "
-                    + "with event.data holding the case trip's driverRut, secondDriverRut and carrierRut. Same CEL "
+                    + "with event.data holding the case trip's driverRut, secondDriverRut and carrierRut, its origin "
+                    + "and destination (as the trip names them), originKey and destinationKey (lower case, without "
+                    + "accents, single spaces; compare with contact.tagKeys) and originId and destinationId. Same CEL "
                     + "and contact fields as a communication rule's book audience. Only engine cases (negative ids) "
                     + "have a trip; for other cases event.data is empty. 404 when the engine case is not the "
                     + "organization's; 503 when the communication rules component is off.")

@@ -487,6 +487,7 @@ describe("MapVisualizationTrip signal state", () => {
       signal_offline: "Sin señal",
       signal_offline_minutes: "Sin señal · hace {n} min",
       signal_offline_hours: "Sin señal · hace {n} h",
+      engine_off: "Motor apagado",
     },
   } as unknown as I18nRecord;
 
@@ -494,6 +495,7 @@ describe("MapVisualizationTrip signal state", () => {
     id: string;
     props: {
       offline?: boolean;
+      engineOff?: boolean;
       label?: string | null;
       data?: {
         features?: {
@@ -509,7 +511,7 @@ describe("MapVisualizationTrip signal state", () => {
   const layer = (id: string) =>
     (mapState.layers as Drawn[]).find((l) => l.id === id);
 
-  function show(signal: unknown) {
+  function show(signal: unknown, reportedEngine?: boolean) {
     signalNow.value = signal;
     render(
       <MapVisualizationTrip
@@ -517,7 +519,12 @@ describe("MapVisualizationTrip signal state", () => {
         positions={frames as never}
         isLoading={false}
         error={null}
-        filteredLocationData={null}
+        filteredLocationData={{
+          type: "FeatureCollection",
+          features: [],
+          description: { last_reported_engine_status: reportedEngine },
+        }}
+        reportedEngineStatus={reportedEngine}
         dict={withLabels}
         selectedTreatmentIndex={null}
       />
@@ -556,5 +563,30 @@ describe("MapVisualizationTrip signal state", () => {
       last_frame_at: "2026-11-03T11:55:00Z",
     });
     expect(layer("PinLayer")?.props.offline).toBe(false);
+  });
+
+  it("uses the case's reported engine status when its frames have none", () => {
+    show({ state: "online" }, false);
+    expect(layer("PinLayer")?.props).toMatchObject({
+      engineOff: true,
+      offline: false,
+      label: "Motor apagado",
+    });
+  });
+
+  it("lets lost signal win over the case's reported engine-off status", () => {
+    show(
+      {
+        state: "offline",
+        offline_since: new Date(Date.now() - 12 * 60_000).toISOString(),
+        last_frame_at: frames[1].timestamp,
+      },
+      false
+    );
+    expect(layer("PinLayer")?.props).toMatchObject({
+      engineOff: false,
+      offline: true,
+      label: "Sin señal · hace 12 min",
+    });
   });
 });

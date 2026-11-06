@@ -57,9 +57,31 @@ const NONE = {
   carrierSelf: false,
   company: null,
   tags: [],
+  places: [],
 };
 
 describe("summarizeWho", () => {
+  it("reads a role and the trip's origin in the tags as that role of the origin", () => {
+    expect(
+      summarizeWho("contact.role == 'CAT' && event.data.origin in contact.tags")
+    ).toEqual({ ...NONE, role: "CAT", roles: ["CAT"], places: ["origin"] });
+    expect(
+      summarizeWho(
+        "contact.roleKey == 'cat' && has(event.data.originKey) && event.data.originKey in contact.tagKeys"
+      )
+    ).toEqual({ ...NONE, role: "cat", roles: ["cat"], places: ["origin"] });
+    expect(
+      summarizeWho(
+        "event.data.destinationKey in contact.tagKeys && event.data.originKey in contact.tagKeys"
+      )
+    ).toEqual({ ...NONE, places: ["destination", "origin"] });
+  });
+
+  it("does not read a place key compared with the tags as written", () => {
+    expect(summarizeWho("event.data.originKey in contact.tags")).toBeNull();
+    expect(summarizeWho("event.data.origin in contact.tagKeys")).toBeNull();
+  });
+
   it("names the role and whether the trip's driver or carrier is meant", () => {
     expect(summarizeWho(legacyWho("Conductor", null))).toEqual({
       ...NONE,

@@ -25,6 +25,7 @@ import {
   DRIVER_ROLE,
   rolesIn,
   rolesOf,
+  type TripPlace,
   type WhoSummary,
 } from "@/features/symptoms/control-tower/step-who";
 import {
@@ -53,8 +54,8 @@ import {
   PlainSection,
 } from "../prototype-form-kit";
 import {
-  calledInCase,
   type CallGroup,
+  callsInCase,
   callPlan,
   contextOfTreatment,
   type EmptyReason,
@@ -63,7 +64,9 @@ import {
   skippedInCase,
   stepAt,
   stepConditions,
+  withCaseCalls,
 } from "./call-plan";
+import { callStatsTitle } from "./call-stats-badges";
 import { guardedSkipStep } from "../prototype-api-guard";
 import {
   ALL_CALL_METHODS,
@@ -139,7 +142,21 @@ function targetText(
       role: role ?? tr("anyRole", d),
       company: summary.company,
     });
+  if (summary?.places.length) {
+    const place = placesText(summary.places, d);
+    return role
+      ? tr("groupTripPlace", d, { role, place })
+      : tr("contactsTripPlace", d, { place });
+  }
   return role ?? tr("matchingContacts", d);
+}
+
+/** "origen del viaje", "destino del viaje" or both. */
+function placesText(places: readonly TripPlace[], d: I18nRecord) {
+  if (places.length > 1) return tr("tripOriginAndDestination", d);
+  return places[0] === "origin"
+    ? tr("tripOrigin", d)
+    : tr("tripDestination", d);
 }
 
 /** What an empty step says. */
@@ -179,6 +196,16 @@ function driverId(
   return trip?.data.driverRut;
 }
 
+/** Literal and trip-place tags a contact created from an empty step starts with. */
+function presetTags(
+  summary: WhoSummary | null,
+  trip: TowerTripContacts | undefined
+): string[] | undefined {
+  if (!summary) return undefined;
+  const places = summary.places.flatMap((p) => trip?.data[p] ?? []);
+  return [...summary.tags, ...places];
+}
+
 /** The role, RUTs and company a contact created from an empty step starts with. */
 function presetFor(
   who: string,
@@ -191,7 +218,7 @@ function presetFor(
   const preset: NewContactPreset = {
     role: rolesOf(who, summary)[0] ?? "",
     company: summary?.company ?? undefined,
-    tags: summary?.tags,
+    tags: presetTags(summary, trip),
   };
   const driverRut = driverId(summary, trip);
   if (summary?.driver && driverRut)
@@ -314,20 +341,14 @@ function TargetRow({
       setSavingTripPhone(false);
     }
   };
-  const stats = calledAt
-    ? {
-        lastCallAt: calledAt,
-        accepted: target.stats?.accepted ?? 0,
-        denied: target.stats?.denied ?? 0,
-      }
-    : target.stats;
   return (
     <>
       <ContactRow
         personName={target.personName}
         roleLabel={target.role}
         phone={phone}
-        stats={stats}
+        stats={target.stats}
+        statsTitle={callStatsTitle(target.stats, target.history, dict)}
         recentlyCalled={!!calledAt}
         justCalledLabel={tr("symptoms.call_center_just_called", dict)}
         ariaLabel={`${tr("symptoms.call_center_call_button", dict)} ${target.personName}`}
@@ -837,8 +858,20 @@ export default function CallCenterMenu({
     },
     []
   );
-  const selectTarget: OnCall = (target, script) => {
+  const calls = useMemo(
+    () => callsInCase(treatments, targets),
+    [treatments, targets]
+  );
+  const caseTargets = useMemo(
+    () => withCaseCalls(targets, calls),
+    [targets, calls]
+  );
+  // The dialing step and results form show the same per-case counts as the list.
+  const selectTarget: OnCall = (picked, script) => {
     callVersion.current += 1;
+    const target = picked.contactId
+      ? withCaseCalls([picked], calls)[0]
+      : picked;
     if (script) onCall(target, script);
     else onCall(target);
   };
@@ -853,10 +886,14 @@ export default function CallCenterMenu({
     error: tripError,
   } = useTripContacts(symptom?.id, conditions);
   const matches = tripView?.matches;
-  const called = useMemo(() => calledInCase(treatments), [treatments]);
+  const called = useMemo(() => {
+    const out = new Map<string, Date>();
+    for (const [id, c] of calls) if (c.lastCallAt) out.set(id, c.lastCallAt);
+    return out;
+  }, [calls]);
   const plan = useMemo(
-    () => callPlan(steps, targets, called, matches),
-    [steps, targets, called, matches]
+    () => callPlan(steps, caseTargets, called, matches),
+    [steps, caseTargets, called, matches]
   );
   const savedSkip = useMemo(
     () => skippedInCase(treatments, since, symptom?.icu_code),

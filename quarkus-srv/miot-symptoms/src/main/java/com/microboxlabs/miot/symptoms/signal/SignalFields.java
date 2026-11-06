@@ -36,10 +36,12 @@ public final class SignalFields {
 
     /**
      * Frame parts rules do not read: the vehicle id is {@code signal.asset_id}, driver data comes from the
-     * trip, and peripherals and metrics are lists rules do not read. Events are read through {@link #LISTS}.
+     * trip, and peripherals and metrics are lists rules do not read. The nullable heading is reserved for
+     * custom limit matching. Events are read through {@link #LISTS}.
      */
     static final Set<String> SKIPPED = Set.of("signal.frame.asset_id", "signal.frame.driver_info",
-            "signal.frame.co_driver_info", "signal.frame.peripherals", "signal.frame.metrics");
+            "signal.frame.co_driver_info", "signal.frame.peripherals", "signal.frame.metrics",
+            "signal.frame.gps.heading");
 
     /**
      * Lists rules read as lists of objects ({@value RuleLanguage#OBJECTS}), with the type whose fields their

@@ -15,6 +15,8 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.scheduler.Scheduled;
+import io.smallrye.config.ConfigMapping;
+import io.smallrye.config.WithDefault;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.pulsar.PulsarOutgoingMessageMetadata;
@@ -29,6 +31,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Instance;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -67,6 +70,19 @@ public class SignalStream {
 
     static final String TRIPS_CHANNEL = "miot_trips_live";
     private static final String UNDEFINED_TABLE = "42P01";
+    private static final String SHAPE = "shape";
+
+    @ConfigMapping(prefix = "miot.symptoms.signal-builder.roads")
+    public interface RoadSettings {
+        @WithDefault("true")
+        boolean enabled();
+
+        @WithDefault("5000")
+        int maxTiles();
+
+        @WithDefault("24h")
+        Duration ttl();
+    }
 
     /**
      * As JSON, so a loaded row and a notified one read alike. Names and phones are not selected: the carrier's
@@ -112,20 +128,50 @@ public class SignalStream {
               FROM geofences WHERE coordinates IS NOT NULL
             """;
 
+    /**
+     * The route history's cells for any start hour and any number of drivers, as the GPS database's signal function
+     * reads them: a few thousand rows.
+     */
+    static final String ROUTE_ETAS_SQL = """
+            SELECT origin_geofence_id::int AS origin_id, destination_geofence_id::int AS destination_id, from_token,
+                   p75_dinamic_eta
+              FROM s2cell_triproute_transition_stats
+             WHERE double_driver IS NULL AND start_hour IS NULL AND p75_dinamic_eta IS NOT NULL
+            """;
+
+    /** One tile of the road network: the ways whose box meets it. */
+    static final String ROADS_SQL = """
+            SELECT osm_id::bigint AS osm_id, fclass, spwlte38::int AS light, spwgt38::int AS heavy,
+                   maxspeed::int AS maxspeed, ST_AsBinary(geom) AS wkb
+              FROM osm_roads_weight WHERE geom && ST_MakeEnvelope($1, $2, $3, $4, 4326)
+            """;
+
+    /** Each organization's own speed limits, read in full. */
+    static final String SPEED_ZONES_SQL = """
+            SELECT tenant_code, id, speed_forward, speed_backward, forward_from, forward_to, heading, shape::text AS shape
+              FROM miot_symptoms.speed_limit_zone WHERE active
+            """;
+
     private final boolean enabled;
     private final GpsDatabase gps;
     private final Supplier<Pool> pool;
     private final ReferenceCache refs = new ReferenceCache();
     private final Zones zones = new Zones();
+    private final SpeedZones speedZones = new SpeedZones();
+    private final Bearings bearings = new Bearings(Duration.ofMinutes(10));
+    private final RouteEtas routeEtas = new RouteEtas();
+    private final RoadNetwork roads;
     private final SignalBuilder builder;
     private final TripNoticeReader tripReader;
     private final Counter built;
     private final Counter skipped;
+    private final Counter roadFailures;
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
     private final PgNotificationListener listener;
 
     SignalStream(@ConfigProperty(name = "miot.symptoms.signal-builder.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.signal-builder.zone", defaultValue = "America/Santiago") String zone,
+            RoadSettings roadSettings,
             GpsDatabase gps, Instance<Pool> pool, Vertx vertx, MeterRegistry meters) {
         this.enabled = enabled;
         this.gps = gps;
@@ -133,7 +179,14 @@ public class SignalStream {
         this.listener = new PgNotificationListener(this.pool, vertx, TRIPS_CHANNEL, this::onTripNotice);
         this.tripReader = new TripNoticeReader(refs, id -> this.pool.get().preparedQuery(ONE_TRIP)
                 .execute(Tuple.of(id)).map(SignalStream::trips));
-        this.builder = new SignalBuilder(refs, ZoneId.of(zone), zones);
+        this.roadFailures = meters.counter("miot.symptoms.signal.road_tile_failures");
+        this.roads = roadSettings.enabled()
+                ? new RoadNetwork(this::ways, roadSettings.maxTiles(), roadSettings.ttl(), Clock.systemUTC()) : null;
+        this.builder = new SignalBuilder(refs, ZoneId.of(zone), zones, roads, speedZones, bearings, routeEtas);
+        if (roads != null) {
+            meters.gauge("miot.symptoms.signal.road_tiles", roads, RoadNetwork::tileCount);
+            meters.gauge("miot.symptoms.signal.road_bytes", roads, RoadNetwork::bytes);
+        }
         this.built = meters.counter("miot.symptoms.signal.built");
         this.skipped = meters.counter("miot.symptoms.signal.skipped");
     }
@@ -183,7 +236,64 @@ public class SignalStream {
                 zones.load(z);
                 LOG.infof("Signal builder: loaded %d zones", z.size());
             }
+        }).chain(z -> loadRouteEtas()).invoke(c -> {
+            if (gps.configured()) {
+                routeEtas.load(c);
+                LOG.infof("Signal builder: loaded %d route cells", c.size());
+            }
+        }).chain(c -> loadSpeedZones()).invoke(z -> {
+            speedZones.load(z);
+            bearings.prune(java.time.Instant.now());
+            LOG.infof("Signal builder: loaded %d speed limit zones", z.size());
         }).replaceWithVoid();
+    }
+
+    /** No zones when the modulith has no speed limit zones table yet; a shape that is not a polygon is skipped. */
+    private Uni<List<SpeedZones.Zone>> loadSpeedZones() {
+        return pool.get().query(SPEED_ZONES_SQL).execute().map(rows -> {
+            List<SpeedZones.Zone> z = new ArrayList<>();
+            rows.forEach(r -> {
+                SpeedZones.Zone zone = r.getString(SHAPE) == null ? null : SpeedZones.zone(r.getString("tenant_code"),
+                        r.getInteger("id"), new SpeedZones.Limits(r.getInteger("speed_forward"), r.getInteger("speed_backward"),
+                                r.getInteger("forward_from"), r.getInteger("forward_to"), r.getInteger("heading")),
+                        r.getString(SHAPE));
+                if (zone != null) {
+                    z.add(zone);
+                }
+            });
+            return z;
+        }).onFailure(SignalStream::undefinedTable).recoverWithItem(e -> List.of());
+    }
+
+    /** No cells without the GPS database or its route history: the signal then has no ETA deviation. */
+    private Uni<List<RouteEtas.Cell>> loadRouteEtas() {
+        if (!gps.configured()) {
+            return Uni.createFrom().item(List.of());
+        }
+        return gps.readPool().query(ROUTE_ETAS_SQL).execute().map(rows -> {
+            List<RouteEtas.Cell> c = new ArrayList<>(rows.size());
+            rows.forEach(r -> c.add(new RouteEtas.Cell(r.getInteger("origin_id"), r.getInteger("destination_id"),
+                    r.getString("from_token"), r.getInteger("p75_dinamic_eta"))));
+            return c;
+        }).onFailure(SignalStream::undefinedTable).recoverWithItem(e -> List.of());
+    }
+
+    /** No ways without the GPS database. */
+    private Uni<List<RoadNetwork.Way>> ways(double minLon, double minLat, double maxLon, double maxLat) {
+        if (!gps.configured()) {
+            return Uni.createFrom().item(List.of());
+        }
+        return gps.readPool().preparedQuery(ROADS_SQL).execute(Tuple.of(minLon, minLat, maxLon, maxLat))
+                .map(rows -> {
+                    List<RoadNetwork.Way> w = new ArrayList<>(rows.size());
+                    rows.forEach(r -> w.add(new RoadNetwork.Way(r.getLong("osm_id"), r.getString("fclass"),
+                            r.getInteger("light"), r.getInteger("heavy"), r.getInteger("maxspeed"),
+                            r.getBuffer("wkb").getBytes())));
+                    return w;
+                }).onFailure().invoke(e -> {
+                    roadFailures.increment();
+                    LOG.debugf("Signal builder: road tile not read (%s)", rootCause(e));
+                });
     }
 
     /** No zones without the GPS database; a shape that is not a polygon is skipped. */
@@ -194,8 +304,8 @@ public class SignalStream {
         return gps.readPool().query(ZONES_SQL).execute().map(rows -> {
             List<Zones.Zone> z = new ArrayList<>();
             rows.forEach(r -> {
-                Zones.Zone zone = r.getString("shape") == null ? null : Zones.zone(r.getString("client_id"),
-                        r.getInteger("geofence_id"), r.getString("geofence_type"), r.getString("shape"));
+                Zones.Zone zone = r.getString(SHAPE) == null ? null : Zones.zone(r.getString("client_id"),
+                        r.getInteger("geofence_id"), r.getString("geofence_type"), r.getString(SHAPE));
                 if (zone != null) {
                     z.add(zone);
                 }
@@ -256,11 +366,29 @@ public class SignalStream {
         return Uni.createFrom().completionStage(ready::copy).onItem().transformToMulti(x -> buildNow(in));
     }
 
+    /** The frame's road tile is loaded first, so its signal has the road limit. */
     private Multi<Message<String>> buildNow(Message<byte[]> in) {
+        EnvelopedMessage message;
+        try {
+            message = EnvelopedMessage.fromJson(new String(in.getPayload(), StandardCharsets.UTF_8));
+        } catch (RuntimeException e) {
+            LOG.debugf("Signal builder: frame not read (%s)", rootCause(e));
+            message = null;
+        }
+        EnvelopedMessage read = message;
+        if (roads == null || read == null || !SignalBuilder.validFrame(read.getPayload())
+                || !SignalBuilder.hasPosition(read.getPayload())) {
+            return publish(in, read);
+        }
+        var gpsPart = read.getPayload().getGps();
+        return roads.ensure(gpsPart.getLongitude(), gpsPart.getLatitude()).onItem()
+                .transformToMulti(x -> publish(in, read));
+    }
+
+    private Multi<Message<String>> publish(Message<byte[]> in, EnvelopedMessage message) {
         GpsSignal signal;
         try {
-            signal = builder.build(EnvelopedMessage.fromJson(new String(in.getPayload(), StandardCharsets.UTF_8)))
-                    .orElse(null);
+            signal = message == null ? null : builder.build(message).orElse(null);
         } catch (RuntimeException e) {
             LOG.debugf("Signal builder: frame not read (%s)", rootCause(e));
             signal = null;

@@ -97,6 +97,7 @@ function renderCall(
       initialCallTargetName={person.name}
       initialCallTargetPhone={person.phone}
       initialCallTargetRole={person.role}
+      initialCallTargetStats={{ lastCallAt: null, accepted: 1, denied: 2 }}
       initialDraft={{ ...draft, saved, resultadoId }}
       callDurationSeconds={30}
       callTelephony={callTelephony}
@@ -115,6 +116,14 @@ beforeEach(() => {
 });
 
 describe("engine call treatment form", () => {
+  it("labels the results form's call counts as belonging to this case", () => {
+    renderCall();
+    expect(
+      screen.getByTitle("En este caso: contestadas 1, sin respuesta 2")
+        .textContent
+    ).toBe("12");
+  });
+
   it.each([
     ["Carabineros", "133"],
     ["Ambulancia (SAMU)", "131"],

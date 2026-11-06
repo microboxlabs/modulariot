@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
+import type MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
 import GeneralMap from "./general-map";
 import PrototypeGeneralMap from "./prototype/prototype-general-map";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
@@ -34,7 +36,25 @@ vi.mock("next/image", () => ({ default: () => null }));
 vi.mock("@/features/symptoms/side-info", () => ({ default: () => null }));
 vi.mock("./prototype/prototype-side-info", () => ({ default: () => null }));
 vi.mock("@/features/geographic-view/components/map-visualization-trip", () => ({
-  default: () => null,
+  default: ({
+    reportedEngineStatus,
+    filteredLocationData,
+    setSelectedTreatment,
+    setSelectedTreatmentIndex,
+  }: ComponentProps<typeof MapVisualizationTrip>) => (
+    <button
+      type="button"
+      data-testid="select-pulse"
+      data-engine-off={String(reportedEngineStatus === false)}
+      data-selected-location={String(!!filteredLocationData)}
+      onClick={() => {
+        setSelectedTreatment?.(null);
+        setSelectedTreatmentIndex?.(null);
+      }}
+    >
+      Select pulse
+    </button>
+  ),
 }));
 vi.mock("../tag-manager", () => ({
   default: ({ tags }: Readonly<{ tags: { text: ReactNode }[] }>) => (
@@ -78,6 +98,53 @@ describe.each([
   ["original", GeneralMap],
   ["prototype", PrototypeGeneralMap],
 ] as const)("%s map trip chip", (_name, Component) => {
+  it("keeps the case's engine report after selecting a pulse", () => {
+    const condition = {
+      assigned_to: "",
+      start: "2026-11-03T11:00:00Z",
+      end: "2026-11-03T11:48:00Z",
+      icu_code: "1",
+      is_symptom: 1,
+      symptom_id: -1,
+      icu_condition: "UNDER OBSERVATION",
+      count: 1,
+      symptom_description: "Demo symptom",
+      treatments: [],
+      type: "demo symptom",
+      evidences: null,
+    };
+    general.mockReturnValue({
+      treatmentData: {
+        ...data,
+        timeline: [{ conditions_agg: [condition] }],
+      },
+      loading: false,
+    });
+    location.mockImplementation((_trip, name, id) => ({
+      data:
+        name && id === "-1"
+          ? {
+              type: "FeatureCollection",
+              features: [],
+              description: { last_reported_engine_status: false },
+            }
+          : null,
+      error: null,
+      isLoading: false,
+    }));
+    render(
+      <Component dict={es} id="-1" tripId={tripId} assetId="vehicle-demo" />
+    );
+    const pulse = screen.getByTestId("select-pulse");
+    expect(pulse).toHaveAttribute("data-selected-location", "true");
+    expect(pulse).toHaveAttribute("data-engine-off", "true");
+
+    fireEvent.click(pulse);
+
+    expect(pulse).toHaveAttribute("data-selected-location", "false");
+    expect(pulse).toHaveAttribute("data-engine-off", "true");
+  });
+
   it("shows the service code with the Spanish label and queries positions by UUID", () => {
     general.mockReturnValue({
       treatmentData: {

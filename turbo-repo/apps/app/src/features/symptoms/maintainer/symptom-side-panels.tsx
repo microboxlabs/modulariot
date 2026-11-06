@@ -4,15 +4,7 @@ import { HiCheckCircle, HiExclamation, HiXCircle } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import ConditionIcon from "../components/condition-icon";
-import { insertIntoFocused } from "./cel-editor";
-import { inList, OBJECTS } from "./condition-form";
-import type {
-  DataSource,
-  FieldOrigin,
-  Preview,
-  SourceField,
-  ValidationReport,
-} from "./maintainer-api";
+import type { FieldOrigin, Preview, ValidationReport } from "./maintainer-api";
 import { findingText } from "./rule-problems";
 import { ICU_LEVELS } from "./symptom-labels";
 
@@ -48,34 +40,6 @@ const ORIGIN_KEY: Record<FieldOrigin, string> = {
 
 export function originLabel(origin: FieldOrigin | null, d: I18nRecord) {
   return origin ? trDynamic(ORIGIN_KEY[origin], d) : "";
-}
-
-/** A sample value as text; objects and arrays are shown as JSON. */
-function sampleText(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    typeof value === "bigint"
-  ) {
-    return String(value);
-  }
-  return JSON.stringify(value) ?? "";
-}
-
-function valueAt(
-  sample: Record<string, unknown> | undefined,
-  path: string
-): unknown {
-  return path
-    .split(".")
-    .reduce<unknown>(
-      (o, k) =>
-        o && typeof o === "object"
-          ? (o as Record<string, unknown>)[k]
-          : undefined,
-      sample
-    );
 }
 
 /** The checks: whether it can be published, and each finding. */
@@ -170,75 +134,6 @@ export function PreviewPanel({
               ) : (
                 <span className="w-6 text-center">—</span>
               )}
-            </li>
-          );
-        })}
-      </ul>
-    </Panel>
-  );
-}
-
-/** The source's fields with type, origin and the first sample's value. Clicking one inserts it in the editor used last. */
-/** What clicking a field writes: its path, or for a list a condition on its elements to fill in. */
-export function fieldText(f: SourceField): string {
-  return f.type === OBJECTS
-    ? `${f.path}.exists(e, e.event_type == "")`
-    : f.path;
-}
-
-export function FieldsPanel({
-  source,
-  d,
-}: Readonly<{ source: DataSource | undefined; d: I18nRecord }>) {
-  const sample = source?.samples?.[0];
-  // A list's own fields are read inside the condition the list writes.
-  const all = source?.fields ?? [];
-  const shown = all.filter((f) => !inList(f.path, all));
-  return (
-    <Panel
-      title={
-        source ? tr("fieldsOf", d, { source: source.name }) : tr("fields", d)
-      }
-    >
-      <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-        {tr("fieldsHint", d)}
-      </p>
-      <ul className="flex flex-col gap-0.5">
-        {shown.map((f) => {
-          const value = valueAt(sample, f.path);
-          return (
-            <li key={f.path}>
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  const text = fieldText(f);
-                  insertIntoFocused(
-                    text,
-                    f.type === OBJECTS ? text.length - 2 : text.length
-                  );
-                }}
-                className="flex w-full items-baseline gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <span className="min-w-0 flex-1 truncate font-mono text-gray-900 dark:text-gray-100">
-                  {f.path}
-                </span>
-                {value !== undefined && (
-                  <span className="shrink-0 font-mono text-gray-500 dark:text-gray-400">
-                    {sampleText(value)}
-                  </span>
-                )}
-                {f.origin && (
-                  <span className="shrink-0 rounded bg-gray-100 px-1.5 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                    {originLabel(f.origin, d)}
-                  </span>
-                )}
-                {!f.engineSupported && (
-                  <span className="shrink-0 text-[10px] text-yellow-700 dark:text-yellow-400">
-                    {tr("testOnlyField", d)}
-                  </span>
-                )}
-              </button>
             </li>
           );
         })}

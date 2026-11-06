@@ -12,7 +12,7 @@ import {
 } from "react-icons/hi";
 import type { IconType } from "react-icons";
 import { textoCluster, type BadgeMapa } from "./place-name-layer";
-import { categoriasDeLugar } from "../places.types";
+import { categoriasDeLugar, listaDeLugar } from "../places.types";
 
 /**
  * Nombres que se listan en el tooltip de un cluster; el resto queda en
@@ -22,8 +22,11 @@ export const MAX_NOMBRES_CLUSTER = 5;
 /** Separación entre el cursor y el tooltip. */
 const DESPLAZAMIENTO_PX = 14;
 
-function CategoriasDelLugar({ codigos }: Readonly<{ codigos: string[] }>) {
-  const { lang, opciones } = useListaCampo(CAMPO_CATEGORIAS);
+function CategoriasDelLugar({
+  codigos,
+  lista,
+}: Readonly<{ codigos: string[]; lista: string | null }>) {
+  const { lang, opciones } = useListaCampo(CAMPO_CATEGORIAS, lista);
   if (codigos.length === 0) {
     return (
       <p className="text-[11px] text-gray-500 dark:text-gray-400">
@@ -67,8 +70,12 @@ function ContenidoLugar({ badge }: Readonly<{ badge: BadgeMapa }>) {
       )}
       {lugar && (
         <>
-          <CategoriasDelLugar codigos={categoriasDeLugar(lugar)} />
-          {lugar.category && (
+          <CategoriasDelLugar
+            codigos={categoriasDeLugar(lugar)}
+            lista={listaDeLugar(lugar)}
+          />
+          {/* una geocerca de StreamHub trae su propio texto; una de Lugares, sus categorías */}
+          {lugar.category && categoriasDeLugar(lugar).length === 0 && (
             <p className="text-[11px] text-gray-600 dark:text-gray-300">
               <span className="text-gray-500 dark:text-gray-400">
                 Categoría de alerta:

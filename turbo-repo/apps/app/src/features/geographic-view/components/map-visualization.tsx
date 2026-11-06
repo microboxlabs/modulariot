@@ -216,7 +216,9 @@ export default function MapVisualization({
     // el mapa y, a su lado, la barra de Lugares: al abrirla el mapa se
     // angosta (su centro sigue siendo el de lo que se ve) y sus controles se
     // mueven con su borde
-    <div className="flex h-full w-full overflow-hidden">
+    // isolate: el mapa es su propia capa, así ningún z de adentro (controles,
+    // filtros, la barra de Lugares) queda sobre la barra superior y sus menús
+    <div className="isolate flex h-full w-full overflow-hidden">
       <div className="relative h-full min-w-0 flex-1 overflow-hidden">
         <MapVisualizationGeneric
           rounded={false}

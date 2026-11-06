@@ -9,6 +9,8 @@ import {
   type Lugar,
 } from "../places.types";
 import {
+  codigoSugerido,
+  conCodigoPadre,
   actualizarInner,
   INNER_COLOR_DEF,
   innerDesdeLugar,
@@ -18,6 +20,7 @@ import {
   mensajeInnerIncompleto,
   faltantesPadre,
   mensajePadreIncompleto,
+  nuevoInner,
   padreTieneGeometria,
   parentPlaceId,
   puntoDentroDelPadre,
@@ -49,6 +52,33 @@ describe("inner geofence geometry", () => {
     expect(puntoDentroDelPadre(form, [-32, -70])).toBe(false);
     expect(padreTieneGeometria(form)).toBe(true);
     expect(padreTieneGeometria(FORM_VACIO)).toBe(false);
+  });
+
+  it("starts a new inner geofence at half its geofence's size", () => {
+    // the default 20 m geofence: a 10 m circle, a 20 m square
+    const circulo = { ...FORM_VACIO, lat: -33.45, lon: -70.66 };
+    expect(nuevoInner(circulo)).toMatchObject({
+      radius_m: 10,
+      rect_w_m: 20,
+      rect_h_m: 20,
+    });
+    // a polygon about 200 m wide and 100 m tall
+    const poligono = {
+      ...FORM_VACIO,
+      geom: "polygon" as const,
+      vertices: [
+        [-33.45, -70.66],
+        [-33.45, -70.657855],
+        [-33.4491, -70.657855],
+        [-33.4491, -70.66],
+      ] as [number, number][],
+    };
+    const inner = nuevoInner(poligono);
+    expect(inner.radius_m).toBe(25);
+    expect(inner.rect_w_m).toBeCloseTo(100, -1);
+    expect(inner.rect_h_m).toBeCloseTo(50, -1);
+    // without the geofence's shape, the fixed sizes
+    expect(nuevoInner(FORM_VACIO).radius_m).toBe(40);
   });
 });
 
@@ -247,5 +277,57 @@ describe("inner geofence persistence", () => {
       lon: 2,
     }));
     expect(next.inners[0]).toMatchObject({ lat: 1, lon: 2, name: "VIP" });
+  });
+});
+
+describe("inner geofence External ID", () => {
+  it("proposes the geofence's code with the next free number", () => {
+    expect(codigoSugerido("SCL", [])).toBe("SCL-1");
+    expect(
+      codigoSugerido("SCL", [
+        { external_id: "scl-1" },
+        { external_id: "SCL-3" },
+        { external_id: "OTRO-9" },
+        { external_id: "SCL-A" },
+      ])
+    ).toBe("SCL-4");
+  });
+
+  it("proposes nothing without the geofence's code", () => {
+    expect(codigoSugerido("  ", [{ external_id: "X-1" }])).toBe("");
+  });
+});
+
+describe("inner geofences follow their geofence's External ID", () => {
+  const form = {
+    ...FORM_VACIO,
+    external_id: "SCL",
+    inners: [
+      { id: "a", external_id: "SCL-1" },
+      { id: "b", external_id: "scl-2" },
+      { id: "c", external_id: "SCL-ANDEN" },
+      { id: "d", external_id: "OTRO-3" },
+    ],
+  } as unknown as typeof FORM_VACIO;
+
+  it("renames the proposed ones and leaves the ones written by hand", () => {
+    const next = conCodigoPadre(form, "PLT");
+    expect(next.external_id).toBe("PLT");
+    expect(next.inners.map((i) => i.external_id)).toEqual([
+      "PLT-1",
+      "PLT-2",
+      "SCL-ANDEN",
+      "OTRO-3",
+    ]);
+  });
+
+  it("empties the proposed ones when the geofence's code is cleared", () => {
+    const next = conCodigoPadre(form, "");
+    expect(next.inners.map((i) => i.external_id)).toEqual([
+      "",
+      "",
+      "SCL-ANDEN",
+      "OTRO-3",
+    ]);
   });
 });

@@ -321,15 +321,14 @@ Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerA
 | `controltower:symptom.publish` | Symptoms: publish, roll back, change state |
 | `controltower:settings.update` | Tower settings |
 | `controltower:event.send` | Device events |
+| `controltower:places.edit` | None here: the app's places editor (geofences and routes) and the places API in miot-places |
 
 | Role | Permissions |
 |---|---|
 | `CONTROL_TOWER_VIEWER` | view |
 | `CONTROL_TOWER_OPERATOR` | view, case.treat, contact.write |
-| `CONTROL_TOWER_MAINTAINER` | all of the above plus contact.delete, symptom.edit, symptom.publish, settings.update |
+| `CONTROL_TOWER_MAINTAINER` | all of the above plus contact.delete, symptom.edit, symptom.publish, settings.update, places.edit |
 | `CONTROL_TOWER_EVENT_SENDER` | event.send, for an event producer's service account |
-
-`controltower:places.edit` (the app's places editor) is disabled for now: it is not declared, so no one holds it, Owners and Admins included, and the app hides the editor. `ControlTowerAccessCatalog.PLACES_EDIT` lists the steps to turn it back on.
 
 With Alfresco membership, a member who holds no control tower role is an Operator, as before the roles existed. The organization's own M2M client is one too.
 

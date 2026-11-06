@@ -26,7 +26,6 @@ import ExternalGeofencesList, {
   filtrarExternas,
 } from "./external-geofences-list";
 import { SelectionBar, useSeleccionLista } from "./list-selection";
-import { inputCls } from "../ui/form-ui";
 import { ACCEPT_IMPORT, esArchivoImport } from "../import-export/import-places";
 import AddButton from "./add-button";
 import ExportButton from "./export-button";
@@ -45,16 +44,8 @@ export function PlacesImportCard({
   ws: PlacesWorkspace;
   className?: string;
 }>) {
-  const {
-    imp,
-    setImp,
-    cats,
-    fileRef,
-    onArchivos,
-    confirmarImport,
-    guardando,
-    abrirImport,
-  } = ws;
+  const { imp, fileRef, onArchivos, confirmarImport, guardando, abrirImport } =
+    ws;
   const [arrastrando, setArrastrando] = useState(false);
   const profundidadArrastre = useRef(0);
   const lotes = imp.lotes ?? [];
@@ -159,19 +150,6 @@ export function PlacesImportCard({
                 />
               ))}
             </div>
-            <select
-              aria-label="Categoría"
-              className={inputCls}
-              value={imp.catDef}
-              onChange={(e) => setImp({ ...imp, catDef: e.target.value })}
-            >
-              <option value="">Sin categoría</option>
-              {(cats ?? []).map((c) => (
-                <option key={c.category_id} value={c.category_id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
           </>
         ) : (
           <label

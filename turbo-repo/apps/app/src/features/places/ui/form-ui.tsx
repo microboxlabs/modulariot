@@ -2,7 +2,8 @@
 
 import type { ReactNode } from "react";
 import { Button, ButtonGroup } from "flowbite-react";
-import { HiX } from "react-icons/hi";
+import { HiCheck, HiX } from "react-icons/hi";
+import type { EstadoCodigo } from "../hooks/use-codigo-en-uso";
 import { twMerge } from "tailwind-merge";
 
 export const inputCls =
@@ -10,6 +11,74 @@ export const inputCls =
 
 export const inputErrorCls =
   "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 dark:border-rose-500";
+
+/** Un External ID ya guardado: se ve y se copia, pero no se edita. */
+export const inputFijoCls =
+  "cursor-not-allowed text-gray-500 focus:border-gray-200 focus:bg-gray-50 focus:ring-0 dark:text-gray-400 dark:focus:border-gray-600 dark:focus:bg-gray-700/60";
+
+/** Aviso junto a la etiqueta de un External ID ya guardado. */
+export function AvisoCodigoFijo() {
+  return (
+    <span className="font-normal text-gray-400 dark:text-gray-500">
+      No se puede cambiar
+    </span>
+  );
+}
+
+/** Espacio a la derecha del campo para el ícono de su estado. */
+export const inputConIconoCls = "pr-8";
+
+const ICONO_ESTADO =
+  "pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2";
+
+/** Revisando, en uso (x) o libre (✓), dentro del campo del External ID. */
+export function IconoEstadoCodigo({
+  estado,
+}: Readonly<{ estado: EstadoCodigo | null }>) {
+  if (!estado) return null;
+  if (estado.estado === "revisando") {
+    return (
+      <output
+        aria-label="Revisando el External ID"
+        className={twMerge(
+          ICONO_ESTADO,
+          "h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 motion-reduce:animate-none dark:border-gray-600 dark:border-t-blue-400"
+        )}
+      />
+    );
+  }
+  if (estado.estado === "en-uso") {
+    return (
+      <HiX
+        role="img"
+        aria-label="External ID en uso"
+        className={twMerge(
+          ICONO_ESTADO,
+          "h-4 w-4 text-rose-600 dark:text-rose-400"
+        )}
+      />
+    );
+  }
+  return (
+    <HiCheck
+      role="img"
+      aria-label="External ID disponible"
+      className={twMerge(
+        ICONO_ESTADO,
+        "h-4 w-4 text-green-600 dark:text-green-400"
+      )}
+    />
+  );
+}
+
+/** Aviso bajo un External ID que ya está en uso. */
+export function AvisoCodigoEnUso({ aviso }: Readonly<{ aviso: string }>) {
+  return (
+    <output className="block text-[11px] font-medium text-rose-700 dark:text-rose-300">
+      {aviso}
+    </output>
+  );
+}
 
 /** Floating card over the map: header, optional full-width toolbar, scrollable body, sticky footer. */
 export function FloatingWindow({

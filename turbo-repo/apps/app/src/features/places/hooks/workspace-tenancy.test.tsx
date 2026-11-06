@@ -1,6 +1,13 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FORM_VACIO, TRAY_VACIO, type LatLon } from "../places.types";
+import {
+  FORM_VACIO,
+  PARENT_KEY,
+  TRAY_VACIO,
+  type LatLon,
+  type Lugar,
+  type Trayecto,
+} from "../places.types";
 import { lugarDesdeForm } from "../data/local-store";
 import { placesStorageKey } from "../data/storage-key";
 
@@ -22,14 +29,11 @@ vi.mock(
     useOrgScopes: () => ({ activeOrg: state.org ? { slug: state.org } : null }),
   })
 );
-vi.mock("@/features/auth/hooks/use-carrier-mode", () => ({
-  useCarrierMode: () => ({ carrierMode: true }),
-}));
 vi.mock("@/features/runtime-config/runtime-config-context", () => ({
   useRuntimeConfig: () => ({ MAPBOX_API_KEY: state.token }),
 }));
 vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }));
 import type { MapMouseEvent } from "react-map-gl";
 import { recorridoDesdePts } from "../routes/recorrido";
@@ -37,6 +41,15 @@ import { guardarBorrador } from "../data/draft-store";
 import { usePlacesEnMapa } from "./use-places-en-mapa";
 vi.mock("../map/place-name-layer", () => ({ capasNombresGeocercas: () => [] }));
 import { usePlacesWorkspace } from "./use-places-workspace";
+
+/** El External ID se revisa tras dejar de escribir; hasta entonces no se guarda. */
+const esperarCodigos = (result: {
+  current: ReturnType<typeof usePlacesWorkspace>;
+}) =>
+  waitFor(() => {
+    expect(result.current.estadoCodigoLugar?.estado).not.toBe("revisando");
+    expect(result.current.estadoCodigoTrayecto?.estado).not.toBe("revisando");
+  });
 
 beforeEach(() => {
   globalThis.localStorage.clear();
@@ -85,7 +98,10 @@ describe("Places workspace identity", () => {
     vi.stubGlobal("fetch", fetch);
     renderHook(() => usePlacesWorkspace({ current: null }));
     const reads = state.swr.mock.calls.filter(([key]) => key !== null);
-    expect(reads.length).toBeGreaterThanOrEqual(5);
+    // only miot-places: StreamHub's geofences are moving into Lugares
+    expect([...new Set(reads.map(([key]) => key[0]))].sort()).toEqual([
+      "/app/api/places/items",
+    ]);
     for (const [key, loader] of reads) {
       expect(key[1]).toBe(JSON.stringify([state.user, state.org]));
       await loader(key);
@@ -98,31 +114,356 @@ describe("Places workspace identity", () => {
   });
 });
 
-describe("Places browser-only creation", () => {
-  it("stores new places locally and never writes to StreamHub or PT4", async () => {
+describe("Places deletion", () => {
+  it("deletes a saved route in miot-places", async () => {
+    const route: Trayecto = {
+      trayecto_id: "22222222-2222-2222-2222-222222222222",
+      name: "Demo route",
+      kind: "vial",
+      width_m: null,
+      points: [
+        [1, 1],
+        [2, 2],
+      ],
+      waypoints: null,
+      parent_name: null,
+      ajustado: false,
+      external_id: null,
+    };
+    state.swr.mockImplementation((key: readonly string[] | null) => ({
+      data:
+        key?.[0] === "/app/api/places/items"
+          ? { lugares: [], trayectos: [route] }
+          : undefined,
+      mutate: vi.fn(),
+    }));
+    const fetch = vi.fn().mockResolvedValue({ ok: true, status: 204 });
+    vi.stubGlobal("fetch", fetch);
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    act(() => result.current.borrarTrayecto(route));
+    await act(async () => {
+      result.current.confirmacion?.accion();
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      `/app/api/places/items/${route.trayecto_id}`,
+      { method: "DELETE" }
+    );
+  });
+});
+
+describe("Places versions", () => {
+  const padre: Lugar = {
+    place_id: "33333333-3333-3333-3333-333333333333",
+    name: "Demo plant",
+    address: null,
+    category: null,
+    category_id: null,
+    geometry_type: "polygon",
+    color: null,
+    center: [-33.5, -70.5],
+    polygon: [
+      [-33, -70],
+      [-32, -70],
+      [-32, -69],
+    ],
+    radius_m: null,
+    metadata: {},
+    external_id: "DEMO-PLANT",
+    active_from: null,
+    active_until: null,
+    version: "1.2.0",
+  };
+  const hijo: Lugar = {
+    ...padre,
+    place_id: "44444444-4444-4444-4444-444444444444",
+    name: "Demo dock",
+    geometry_type: "circle",
+    center: [-32.5, -69.5],
+    polygon: null,
+    radius_m: 20,
+    metadata: { [PARENT_KEY]: padre.place_id },
+    version: null,
+  };
+
+  const conGuardados = () => {
+    state.swr.mockImplementation((key: readonly string[] | null) => ({
+      data:
+        key?.[0] === "/app/api/places/items"
+          ? { lugares: [padre, hijo], trayectos: [] }
+          : undefined,
+      mutate: vi.fn(),
+    }));
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ id: padre.place_id }),
+    });
+    vi.stubGlobal("fetch", fetch);
+    return fetch;
+  };
+
+  it("asks for the version of an edit and sends it with every inner geofence", async () => {
+    const fetch = conGuardados();
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    act(() => result.current.editarLugar(padre));
+    act(() => result.current.setForm((f) => ({ ...f, name: "Demo plant 2" })));
+    await esperarCodigos(result);
+    await act(async () => {
+      await result.current.guardarLugar();
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(result.current.versionPendiente?.actual).toBe("1.2.0");
+
+    await act(async () => {
+      result.current.confirmarVersion("PATCH", "Renamed");
+    });
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe(`/app/api/places/items/${padre.place_id}`);
+    expect(init.method).toBe("PUT");
+    const body = JSON.parse(init.body);
+    expect(body.version).toEqual({
+      bump: "PATCH",
+      reason: "Renamed",
+      changes: ["Nombre: «Demo plant» → «Demo plant 2»"],
+    });
+    expect(body.inners).toHaveLength(1);
+    expect(body.inners[0]).toMatchObject({
+      id: hijo.place_id,
+      kind: "inner_geofence",
+    });
+  });
+
+  it("saves nothing when an edit changes nothing", async () => {
+    const fetch = conGuardados();
+    const { toast } = await import("sonner");
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    act(() => result.current.editarLugar(padre));
+    await esperarCodigos(result);
+    await act(async () => {
+      await result.current.guardarLugar();
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(result.current.versionPendiente).toBeNull();
+    expect(toast.info).toHaveBeenCalledWith("No hay cambios que guardar.");
+  });
+
+  it("removes an inner geofence as a minor version of its geofence", async () => {
+    const fetch = conGuardados();
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    act(() => result.current.borrarLugar(hijo));
+    await act(async () => {
+      result.current.confirmacion?.accion();
+    });
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe(`/app/api/places/items/${padre.place_id}`);
+    expect(init.method).toBe("PUT");
+    const body = JSON.parse(init.body);
+    expect(body.inners).toEqual([]);
+    expect(body.version).toMatchObject({
+      bump: "MINOR",
+      changes: ["Geocerca interior quitada: «Demo dock»"],
+    });
+  });
+});
+
+describe("Places External ID in use", () => {
+  const enUso = {
+    inUse: true,
+    placeId: "p-otra",
+    name: "Hola",
+    kind: "geofence",
+  };
+  const texto = "En uso por «Hola»";
+  const conCodigoTomado = () => {
+    state.swr.mockImplementation((key: readonly string[] | null) => ({
+      data: key?.[0]?.includes("code-usage") ? enUso : undefined,
+      mutate: vi.fn(),
+    }));
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
-    const { result, rerender } = renderHook(() =>
-      usePlacesWorkspace({ current: null })
-    );
+    return fetch;
+  };
+  it("does not save a place with a code in use and says why", async () => {
+    const fetch = conCodigoTomado();
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
     act(() => {
       result.current.setModo("lugar");
       result.current.setForm({
         ...FORM_VACIO,
         name: "Demo draft",
+        external_id: "DEMO-1",
         lat: 1,
         lon: 1,
       });
     });
+    await waitFor(() =>
+      expect(result.current.estadoCodigoLugar).toEqual({
+        estado: "en-uso",
+        aviso: texto,
+      })
+    );
+
+    await esperarCodigos(result);
+
     await act(async () => {
       await result.current.guardarLugar();
     });
+    // the field says why; nothing above the buttons
+    expect(result.current.msg).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
-    expect(result.current.todosLugares.map((place) => place.name)).toEqual([
-      "Demo draft",
-    ]);
-    state.org = "demo-org-b";
-    rerender();
+
+    act(() => result.current.continuarAInteriores());
+    expect(result.current.pasoLugar).toBe("geocerca");
+  });
+
+  it("does not save a route with a code in use and says why", async () => {
+    const fetch = conCodigoTomado();
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    const points: [number, number][] = [
+      [1, 1],
+      [2, 2],
+    ];
+    act(() => {
+      result.current.setModo("trayecto");
+      result.current.setTray({
+        ...TRAY_VACIO,
+        name: "Demo route",
+        external_id: "DEMO-R1",
+        confirmado: true,
+        pts: points,
+        recorrido: recorridoDesdePts(points),
+      });
+    });
+    await waitFor(() =>
+      expect(result.current.estadoCodigoTrayecto).toEqual({
+        estado: "en-uso",
+        aviso: texto,
+      })
+    );
+
+    await esperarCodigos(result);
+
+    await act(async () => {
+      await result.current.guardarTrayecto();
+    });
+    // the field says why; nothing above the buttons
+    expect(result.current.msg).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("Places creation", () => {
+  const nuevoLugar = (result: {
+    current: ReturnType<typeof usePlacesWorkspace>;
+  }) =>
+    act(() => {
+      result.current.setModo("lugar");
+      result.current.setForm({
+        ...FORM_VACIO,
+        name: "Demo draft",
+        external_id: "DEMO-1",
+        lat: 1,
+        lon: 1,
+      });
+    });
+
+  it("saves a new place in miot-places, never in StreamHub or PT4", async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ id: "11111111-1111-1111-1111-111111111111" }),
+    });
+    vi.stubGlobal("fetch", fetch);
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    nuevoLugar(result);
+    await esperarCodigos(result);
+    await act(async () => {
+      await result.current.guardarLugar();
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe("/app/api/places/items");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toMatchObject({
+      kind: "geofence",
+      name: "Demo draft",
+      geojson: {
+        geometry: { type: "Point", coordinates: [1, 1] },
+        properties: { radius_m: 20 },
+      },
+    });
+    expect(result.current.modo).toBe("ver");
+    expect(result.current.local.lugares).toEqual([]);
+  });
+
+  it("shows an error and saves nothing when the server does not answer", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    const { toast } = await import("sonner");
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    nuevoLugar(result);
+    await esperarCodigos(result);
+    await act(async () => {
+      await result.current.guardarLugar();
+    });
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining("No se pudo guardar")
+    );
+    expect(result.current.modo).toBe("lugar");
+    expect(result.current.form.name).toBe("Demo draft");
+    expect(result.current.todosLugares).toEqual([]);
+    expect(result.current.local.lugares).toEqual([]);
+  });
+
+  it("does not keep a route in this browser when the server does not answer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue({ ok: false, status: 503, json: async () => ({}) })
+    );
+    const points: LatLon[] = [
+      [1, 1],
+      [2, 2],
+    ];
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    act(() => {
+      result.current.setModo("trayecto");
+      result.current.setTray({
+        ...TRAY_VACIO,
+        name: "Demo route",
+        external_id: "DEMO-R1",
+        kind: "interno",
+        confirmado: true,
+        pts: points,
+        recorrido: recorridoDesdePts(points),
+      });
+    });
+    await esperarCodigos(result);
+    await act(async () => {
+      await result.current.guardarTrayecto();
+    });
+    expect(result.current.modo).toBe("trayecto");
+    expect(result.current.local.trayectos).toEqual([]);
+  });
+
+  it("shows why the server refused the place and keeps the form open", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          error: "another current place of that kind already has that code",
+        }),
+      })
+    );
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    nuevoLugar(result);
+    await esperarCodigos(result);
+    await act(async () => {
+      await result.current.guardarLugar();
+    });
+    expect(result.current.modo).toBe("lugar");
     expect(result.current.todosLugares).toEqual([]);
   });
 
@@ -305,6 +646,7 @@ it.each([
       tray: {
         ...TRAY_VACIO,
         name: "Demo route",
+        external_id: "DEMO-R1",
         kind,
         confirmado: true,
         pts: points,

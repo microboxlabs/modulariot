@@ -1,6 +1,8 @@
 // Versionado de geocercas y trayectos, con el mismo sistema que los síntomas
 // en Ajustes: versión semántica (mayor.menor.parche), cada cambio del
 // formulario trae su tamaño y la versión recomendada sale del mayor de ellos.
+// Las versiones las guarda miot-places (miot_places.place_version): cada
+// edición manda su tamaño y descripción, y el servidor pone el número.
 import type { VersionBump } from "@/features/symptoms/maintainer/maintainer-api";
 import type {
   FormLugar,
@@ -13,8 +15,10 @@ import type {
 export type { VersionBump };
 export { nextVersion } from "@/features/symptoms/maintainer/publish-dialog";
 
-/** Lo que nunca se versionó (creado antes o recién creado) está en esta. */
+/** Todo lo creado empieza en esta. */
 export const VERSION_INICIAL = "1.0.0";
+
+export type TipoVersionado = "lugar" | "trayecto";
 
 export type CambioVersion = { texto: string; bump: VersionBump };
 
@@ -40,6 +44,27 @@ const mismaLista = (a: string[], b: string[]) =>
   a.length === b.length &&
   [...a].sort(porTexto).join("|") === [...b].sort(porTexto).join("|");
 const citar = (s: string) => (s.trim() ? `«${s.trim()}»` : "vacío");
+
+/**
+ * Los mismos códigos tomados de otra lista: no cambian las categorías, pero sí
+ * dónde se buscan sus nombres. Si cambian los códigos, eso ya lo dice su cambio.
+ */
+function cambioDeLista(
+  que: string,
+  antes: { codigos: string[]; lista?: string | null },
+  despues: { codigos: string[]; lista?: string | null }
+): CambioVersion[] {
+  const listaAntes = antes.lista ?? null;
+  const listaDespues = despues.lista ?? null;
+  if (despues.codigos.length === 0 || listaAntes === listaDespues) return [];
+  if (!mismaLista(antes.codigos, despues.codigos)) return [];
+  return [
+    {
+      texto: `${que}: de la lista ${citar(listaAntes ?? "")} a ${citar(listaDespues ?? "")}`,
+      bump: "MINOR",
+    },
+  ];
+}
 
 /** "2 agregadas, 1 quitada" entre dos listas de códigos. */
 function diferenciaLista(antes: string[], despues: string[]): string {
@@ -174,6 +199,13 @@ export function cambiosLugar(
       texto: `Categorías: ${diferenciaLista(antes.categorias, despues.categorias)}`,
       bump: "MINOR",
     });
+  out.push(
+    ...cambioDeLista(
+      "Categorías",
+      { codigos: antes.categorias, lista: antes.categorias_lista },
+      { codigos: despues.categorias, lista: despues.categorias_lista }
+    )
+  );
   if (antes.category_id !== despues.category_id)
     out.push({ texto: "Categoría del lugar cambiada", bump: "MINOR" });
   const vigAntes = textoVigencia(antes.active_from, antes.active_until);
@@ -201,6 +233,9 @@ export function cambiosLugar(
 
 const ubicados = (t: FormTrayecto): Parada[] =>
   t.recorrido.filter((p) => p.punto);
+
+const categoriasDePuntos = (t: FormTrayecto): string[] =>
+  t.recorrido.flatMap((p) => (p.categoria ? [p.categoria] : []));
 
 /** El recorrido: origen, destino o puntos intermedios distintos son MAYOR. */
 function cambiosRecorrido(
@@ -283,6 +318,24 @@ export function cambiosTrayecto(
       texto: `Categorías: ${diferenciaLista(antes.categorias, despues.categorias)}`,
       bump: "MINOR",
     });
+  out.push(
+    ...cambioDeLista(
+      "Categorías",
+      { codigos: antes.categorias, lista: antes.categorias_lista },
+      { codigos: despues.categorias, lista: despues.categorias_lista }
+    ),
+    ...cambioDeLista(
+      "Categorías de los puntos",
+      {
+        codigos: categoriasDePuntos(antes),
+        lista: antes.categorias_puntos_lista,
+      },
+      {
+        codigos: categoriasDePuntos(despues),
+        lista: despues.categorias_puntos_lista,
+      }
+    )
+  );
   out.push(
     ...cambioTexto("Nombre", antes.name, despues.name, "PATCH"),
     ...cambioTexto(

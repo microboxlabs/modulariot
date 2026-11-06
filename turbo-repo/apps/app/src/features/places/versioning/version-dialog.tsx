@@ -3,14 +3,23 @@
 // Al guardar una geocerca o un trayecto editado: qué cambió, de qué tamaño
 // es la actualización (con la recomendada marcada), la versión que queda y
 // una descripción para el historial. Como el diálogo de publicar síntomas.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  Button,
-  Dropdown,
-  DropdownItem,
-  Label,
-  Textarea,
-} from "flowbite-react";
+  autoUpdate,
+  flip,
+  FloatingFocusManager,
+  FloatingPortal,
+  offset,
+  shift,
+  size,
+  useClick,
+  useDismiss,
+  useFloating,
+  useInteractions,
+  useListNavigation,
+  useRole,
+} from "@floating-ui/react";
+import { Button, Label, Textarea } from "flowbite-react";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { HiChevronDown } from "react-icons/hi";
 import {
@@ -86,7 +95,11 @@ function DetalleTamano({
   );
 }
 
-/** Tipo de actualización en un desplegable, como los del resto del sistema. */
+/**
+ * Tipo de actualización en un desplegable, como los del resto del sistema. El
+ * menú va en un portal sobre el modal (no el Dropdown de Flowbite, que lo deja
+ * dentro y el contenido con scroll del modal lo corta).
+ */
 function TamanoDropdown({
   actual,
   bump,
@@ -98,49 +111,111 @@ function TamanoDropdown({
   recomendado: VersionBump | null;
   onElegir: (b: VersionBump) => void;
 }>) {
+  const [abierto, setAbierto] = useState(false);
+  const { refs, floatingStyles, context } = useFloating({
+    open: abierto,
+    onOpenChange: setAbierto,
+    placement: "bottom-start",
+    middleware: [
+      offset(4),
+      flip({ padding: 8 }),
+      shift({ padding: 8 }),
+      size({
+        padding: 8,
+        apply({ rects, availableHeight, elements }) {
+          elements.floating.style.width = `${rects.reference.width}px`;
+          elements.floating.style.maxHeight = `${Math.min(availableHeight, 240)}px`;
+        },
+      }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
+  const [activo, setActivo] = useState<number | null>(null);
+  const opcionesRef = useRef<Array<HTMLElement | null>>([]);
+  const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions(
+    [
+      useClick(context),
+      useDismiss(context),
+      useRole(context, { role: "menu" }),
+      useListNavigation(context, {
+        listRef: opcionesRef,
+        activeIndex: activo,
+        selectedIndex: TAMANOS.findIndex((t) => t.bump === bump),
+        onNavigate: setActivo,
+        loop: true,
+      }),
+    ]
+  );
+  // Escape con el foco en el botón cierra solo el menú: el modal escucha sus
+  // teclas en el propio diálogo, así que se corta antes de que llegue ahí
+  useEffect(() => {
+    const boton = refs.domReference.current;
+    if (!abierto || !(boton instanceof HTMLElement)) return;
+    const soloElMenu = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setAbierto(false);
+    };
+    boton.addEventListener("keydown", soloElMenu);
+    return () => boton.removeEventListener("keydown", soloElMenu);
+  }, [abierto, refs.domReference]);
   const elegido = TAMANOS.find((t) => t.bump === bump) ?? TAMANOS[0]!;
+  const elegir = (b: VersionBump) => {
+    setAbierto(false);
+    onElegir(b);
+  };
   return (
-    <div className="relative w-full">
-      <Dropdown
-        label={false}
-        placement="bottom-start"
-        theme={{
-          floating: {
-            base: "z-30 max-h-60 w-full overflow-y-auto rounded-lg",
-            content: "py-1 text-xs",
-          },
-        }}
-        renderTrigger={() => (
-          <button
-            type="button"
-            id="version-tipo"
-            className={`${dropdownTriggerBaseClass} ${dropdownDefaultBorderClass}`}
-          >
-            <DetalleTamano
-              nombre={elegido.nombre}
-              version={nextVersion(actual, elegido.bump)}
-              recomendado={recomendado === elegido.bump}
-            />
-            <HiChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-          </button>
-        )}
+    <>
+      <button
+        type="button"
+        ref={refs.setReference}
+        {...getReferenceProps()}
+        // después de las props del menú, que traen su propio id: el Label la nombra por este
+        id="version-tipo"
+        className={`${dropdownTriggerBaseClass} ${dropdownDefaultBorderClass}`}
       >
-        {TAMANOS.map((t) => (
-          <DropdownItem
-            key={t.bump}
-            onClick={() => onElegir(t.bump)}
-            className={t.bump === bump ? "bg-gray-100 dark:bg-gray-600" : ""}
-          >
-            <DetalleTamano
-              nombre={t.nombre}
-              por={t.por}
-              version={nextVersion(actual, t.bump)}
-              recomendado={recomendado === t.bump}
-            />
-          </DropdownItem>
-        ))}
-      </Dropdown>
-    </div>
+        <DetalleTamano
+          nombre={elegido.nombre}
+          version={nextVersion(actual, elegido.bump)}
+          recomendado={recomendado === elegido.bump}
+        />
+        <HiChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+      </button>
+      {abierto && (
+        <FloatingPortal>
+          {/* lleva el foco al menú y lo devuelve al botón al cerrarse */}
+          <FloatingFocusManager context={context} modal={false}>
+            <div
+              ref={refs.setFloating}
+              style={floatingStyles}
+              {...getFloatingProps()}
+              className="z-900 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 text-xs shadow-lg dark:border-gray-600 dark:bg-gray-700"
+            >
+              {TAMANOS.map((t, i) => (
+                <button
+                  key={t.bump}
+                  type="button"
+                  role="menuitem"
+                  ref={(nodo) => {
+                    opcionesRef.current[i] = nodo;
+                  }}
+                  tabIndex={activo === i ? 0 : -1}
+                  {...getItemProps({ onClick: () => elegir(t.bump) })}
+                  className={`flex w-full cursor-pointer items-center px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-600 dark:focus:bg-gray-600 ${t.bump === bump ? "bg-gray-100 dark:bg-gray-600" : ""}`}
+                >
+                  <DetalleTamano
+                    nombre={t.nombre}
+                    por={t.por}
+                    version={nextVersion(actual, t.bump)}
+                    recomendado={recomendado === t.bump}
+                  />
+                </button>
+              ))}
+            </div>
+          </FloatingFocusManager>
+        </FloatingPortal>
+      )}
+    </>
   );
 }
 

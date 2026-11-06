@@ -890,7 +890,9 @@ export default function MapVisualizationTrip({
   return (
     // el mapa y, a su lado, la barra de Lugares (no encima): al abrirla el
     // mapa se angosta y sus controles se mueven con su borde
-    <div className="flex h-full w-full overflow-hidden">
+    // isolate: el mapa es su propia capa, así ningún z de adentro (controles,
+    // filtros, la barra de Lugares) queda sobre la barra superior y sus menús
+    <div className="isolate flex h-full w-full overflow-hidden">
       <div className="relative h-full min-w-0 flex-1 overflow-hidden">
         {(pictures_list.length > 0 || timelapse) && !minimized ? (
           <div className="z-[700] absolute top-0 left-0 h-full pointer-events-none">

@@ -1,8 +1,9 @@
 "use client";
 
-// Respaldo local (localStorage) para lugares y trayectos mientras el backend
-// PT4 (PostgREST :3011) no esté disponible. Los ids locales llevan prefijo
-// "local-" para que guardar/borrar no intente ir al servidor.
+// Lugares y trayectos que quedaron guardados en este navegador (antes,
+// cuando el servidor no respondía). Ya no se guarda nada nuevo aquí: se
+// siguen mostrando para subirlos (al guardarlos van al servidor) o borrarlos.
+// Sus ids llevan el prefijo "local-".
 import { useCallback, useEffect, useState } from "react";
 import type {
   Categoria,
@@ -24,8 +25,6 @@ const EMPTY: LocalData = { lugares: [], trayectos: [] };
 
 export const isLocalId = (id: string | null | undefined): boolean =>
   !!id?.startsWith(LOCAL_PREFIX);
-
-export const newLocalId = (): string => `${LOCAL_PREFIX}${crypto.randomUUID()}`;
 
 export function readLocal(scope: string | null): LocalData {
   const key = placesStorageKey(STORAGE_KEY, scope);
@@ -173,6 +172,8 @@ export function trayectoDesdeForm(
     external_id: tray.external_id || null,
     icon: tray.icon || null,
     categorias: tray.categorias.length > 0 ? tray.categorias : null,
+    categorias_lista: tray.categorias.length > 0 ? tray.categorias_lista : null,
+    categorias_puntos_lista: tray.categorias_puntos_lista,
     tipos_puntos: tiposUbicados(tray),
     categorias_puntos: categoriasUbicadas(tray),
   };

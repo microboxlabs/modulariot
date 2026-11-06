@@ -45,6 +45,8 @@ export type FilaImport = {
   tipos_puntos?: TipoPunto[];
   /** Trayecto: categoría de cada waypoint (null = sin categoría). */
   categorias_puntos?: (string | null)[];
+  /** Trayecto: el seleccionable de esas categorías. */
+  categorias_puntos_selectable?: string;
   kind?: "vial" | "interno";
   width_m?: number;
   ajustado?: boolean;
@@ -286,6 +288,9 @@ function filaLinea(
         : waypoints.map(() => "parada"),
     ...(categorias?.length === waypoints.length
       ? { categorias_puntos: categorias }
+      : {}),
+    ...(typeof props?.categorias_puntos_selectable === "string"
+      ? { categorias_puntos_selectable: props.categorias_puntos_selectable }
       : {}),
     kind,
     width_m: Number.isFinite(ancho) && ancho > 0 ? ancho : undefined,

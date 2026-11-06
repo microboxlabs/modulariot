@@ -217,16 +217,26 @@ export function waypointsDirections(tipos: TipoPunto[]): string | null {
 export function cambiarCategoriaPunto(
   t: FormTrayecto,
   id: string,
-  categoria: string | undefined
+  categoria: string | undefined,
+  lista: string | null = t.categorias_puntos_lista
 ): FormTrayecto {
+  // un trayecto usa un solo seleccionable para sus puntos: elegir de otro
+  // (se cambió la lista del campo) deja sin categoría a los que venían del anterior
+  const otraLista =
+    !!categoria &&
+    !!t.categorias_puntos_lista &&
+    lista !== t.categorias_puntos_lista;
+  const sinCategoria = (p: Parada) => {
+    const sin = { ...p };
+    delete sin.categoria;
+    return sin;
+  };
   return {
     ...t,
+    categorias_puntos_lista: categoria ? lista : t.categorias_puntos_lista,
     recorrido: t.recorrido.map((p) => {
-      if (p.id !== id) return p;
-      if (categoria) return { ...p, categoria };
-      const sin = { ...p };
-      delete sin.categoria;
-      return sin;
+      if (p.id !== id) return otraLista ? sinCategoria(p) : p;
+      return categoria ? { ...p, categoria } : sinCategoria(p);
     }),
   };
 }

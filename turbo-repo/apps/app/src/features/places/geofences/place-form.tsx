@@ -51,6 +51,11 @@ import { faltaExternalId } from "./place-validation";
 import VersionBadge from "../versioning/version-badge";
 import type { EstadoCodigo } from "../hooks/use-codigo-en-uso";
 
+/** El punto del lugar, solo si quedó ubicado desde la búsqueda. */
+function puntoUbicado({ ubicadoEn, lat, lon }: FormLugar): LatLon | null {
+  return ubicadoEn && lat != null && lon != null ? [lat, lon] : null;
+}
+
 export default function PlaceForm({
   form,
   setForm,
@@ -100,7 +105,7 @@ export default function PlaceForm({
   onUbicar?: (punto: LatLon, radioM: number) => void;
 }>) {
   // la búsqueda va en el formulario: así vuelve con el borrador al recargar
-  const { busqueda, ubicadoEn } = form;
+  const { busqueda } = form;
   const [intento, setIntento] = useState(false);
 
   const set = <K extends keyof FormLugar>(key: K, value: FormLugar[K]) =>
@@ -192,10 +197,7 @@ export default function PlaceForm({
                 label="Ubicar en el mapa"
                 value={{
                   texto: busqueda,
-                  punto:
-                    ubicadoEn && form.lat != null && form.lon != null
-                      ? [form.lat, form.lon]
-                      : null,
+                  punto: puntoUbicado(form),
                 }}
                 token={token}
                 cerca={cerca ?? sinPunto}

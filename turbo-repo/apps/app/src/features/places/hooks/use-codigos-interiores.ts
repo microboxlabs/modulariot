@@ -114,7 +114,8 @@ export function useCodigosInteriores({
     // lo respondido es de otros textos mientras se sigue escribiendo
     const revisando = consultada !== clave || isLoading;
     // sin respuesta (falló la consulta), no se dice nada: el guardado lo revisa
-    const usos = revisando ? null : error ? {} : (data ?? {});
+    const respondidos = error ? {} : (data ?? {});
+    const usos = revisando ? null : respondidos;
     return estadosDeInteriores(inners, padre, usos, fija);
   }, [
     activo,

@@ -38,8 +38,7 @@ export function IconoEstadoCodigo({
   if (!estado) return null;
   if (estado.estado === "revisando") {
     return (
-      <span
-        role="img"
+      <output
         aria-label="Revisando el External ID"
         className={twMerge(
           ICONO_ESTADO,
@@ -75,12 +74,9 @@ export function IconoEstadoCodigo({
 /** Aviso bajo un External ID que ya está en uso. */
 export function AvisoCodigoEnUso({ aviso }: Readonly<{ aviso: string }>) {
   return (
-    <p
-      role="status"
-      className="text-[11px] font-medium text-rose-700 dark:text-rose-300"
-    >
+    <output className="block text-[11px] font-medium text-rose-700 dark:text-rose-300">
       {aviso}
-    </p>
+    </output>
   );
 }
 

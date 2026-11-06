@@ -153,8 +153,7 @@ function anilloCerrado(vertices: LatLon[]): [number, number][] {
   const ring = vertices.map(aGeo);
   const [primero] = ring;
   const ultimo = ring.at(-1);
-  const cerrado =
-    primero && ultimo && primero[0] === ultimo[0] && primero[1] === ultimo[1];
+  const cerrado = primero?.[0] === ultimo?.[0] && primero?.[1] === ultimo?.[1];
   if (primero && !cerrado) ring.push([...primero]);
   return ring;
 }

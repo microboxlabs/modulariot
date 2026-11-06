@@ -89,7 +89,7 @@ describe("saved places", () => {
     expect(body.categories).toBeNull();
     expect(
       requestDesdeTrayecto({ ...trayecto, categorias: [] }).categories
-    ).toBe(null);
+    ).toBeNull();
   });
 
   it("keeps the selectable of a route's categories and of its points", () => {

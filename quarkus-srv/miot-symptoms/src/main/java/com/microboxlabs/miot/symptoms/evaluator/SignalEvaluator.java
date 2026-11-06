@@ -146,21 +146,38 @@ public class SignalEvaluator {
         List<RuleError> errors = new ArrayList<>();
         Map<String, List<CompiledSymptom>> bySource = new LinkedHashMap<>();
         symptoms.forEach(s -> bySource.computeIfAbsent(s.sourceKey(), k -> new ArrayList<>()).add(s));
-        bySource.forEach((sourceKey, group) -> {
-            Optional<Instant> last = store.watermark(tenantCode, assetId, sourceKey);
-            if (last.isPresent() && !at.isAfter(last.get())) {
-                return;
-            }
-            for (CompiledSymptom s : group) {
-                try {
-                    transitions.addAll(step(tenantCode, assetId, at, root, s));
-                } catch (RuleFailure f) {
-                    errors.add(new RuleError(s.definitionId(), s.version(), f.section, f.getMessage()));
-                }
-            }
-            store.setWatermark(tenantCode, assetId, sourceKey, at);
-        });
+        bySource.forEach((sourceKey, group) -> run(sourceKey, tenantCode, assetId, at, root, group, transitions,
+                errors));
         return new Result(transitions, errors);
+    }
+
+    /**
+     * As {@link #evaluate}, with every symptom under the watermark {@code watermark} instead of its source's, for
+     * checks of one source that come from two producers with their own clocks.
+     */
+    public Result evaluateUnder(String watermark, String tenantCode, String assetId, Instant at,
+            Map<String, Object> root, List<CompiledSymptom> symptoms) {
+        List<Transition> transitions = new ArrayList<>();
+        List<RuleError> errors = new ArrayList<>();
+        run(watermark, tenantCode, assetId, at, root, symptoms, transitions, errors);
+        return new Result(transitions, errors);
+    }
+
+    @SuppressWarnings("java:S107") // The evaluation's inputs and the two lists it fills.
+    private void run(String watermark, String tenantCode, String assetId, Instant at, Map<String, Object> root,
+            List<CompiledSymptom> group, List<Transition> transitions, List<RuleError> errors) {
+        Optional<Instant> last = store.watermark(tenantCode, assetId, watermark);
+        if (last.isPresent() && !at.isAfter(last.get())) {
+            return;
+        }
+        for (CompiledSymptom s : group) {
+            try {
+                transitions.addAll(step(tenantCode, assetId, at, root, s));
+            } catch (RuleFailure f) {
+                errors.add(new RuleError(s.definitionId(), s.version(), f.section, f.getMessage()));
+            }
+        }
+        store.setWatermark(tenantCode, assetId, watermark, at);
     }
 
     /**

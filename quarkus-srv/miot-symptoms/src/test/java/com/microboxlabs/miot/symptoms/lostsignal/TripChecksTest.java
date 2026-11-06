@@ -87,6 +87,19 @@ class TripChecksTest {
     }
 
     @Test
+    void theSymptomsThatReadTheDutyCountersDoNotRunOnTheLostSignalChecks() {
+        UUID loss = template(SymptomState.ACTIVE);
+        engine.publish(TENANT, "continuous-driving", SeedTemplates.get("continuous-driving").spec(),
+                SymptomState.ACTIVE);
+        frame(0, 5);
+
+        tickUntil(190);
+        assertEquals(List.of(loss), engine.recorded.stream().map(Transition::definitionId).toList());
+        assertEquals(0.0, meters.counter("miot.symptoms.evaluator.rule_errors").count(),
+                "a check without the counters would fail its rules");
+    }
+
+    @Test
     void theTemplateOpensWhenTheSilencePassesTheExpectedAndRisesAtL() {
         UUID id = template(SymptomState.ACTIVE);
         frame(0, 5);
@@ -302,8 +315,10 @@ class TripChecksTest {
             assertTrue(paths.contains(path), path);
         }
         assertFalse(paths.contains("check.loss.last.at"));
-        assertFalse(source.fields().stream().filter(f -> f.path().equals("check.driving_minutes")).findFirst()
-                .orElseThrow().engineSupported(), "nothing computes it yet");
+        for (String counter : List.of("check.driving_minutes", "check.resting_minutes", "check.duty_minutes")) {
+            assertTrue(source.fields().stream().filter(f -> f.path().equals(counter)).findFirst().orElseThrow()
+                    .engineSupported(), "the duty tracker computes " + counter);
+        }
         assertEquals(2, source.samples().size());
     }
 }

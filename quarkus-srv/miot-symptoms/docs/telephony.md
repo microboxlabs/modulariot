@@ -116,8 +116,73 @@ Provider contracts: [parked credential connections](https://developers.telnyx.co
 | Plan and minutes | Settings › Plataforma › Telefonía; `GET/PUT /api/v1/platform/telephony-plan` |
 | Organization's month | `GET /api/v1/orgs/{organizationId}/telephony-usage` |
 
-Prices are per billed minute: Chile mobile (`+56 9` and 8 digits), Chile landline (any other `+56`), other destinations, WhatsApp call. WhatsApp templates are priced each. A template is recorded when it is sent through the platform's WhatsApp account for an organization. A WhatsApp call is recorded from the `calls` webhook, once WhatsApp calling is on.
+Prices are per billed minute: Chile mobile (`+56 9` and 8 digits), Chile landline (any other `+56`), other destinations, WhatsApp call. WhatsApp templates are priced each. A template is recorded when it is sent through the platform's WhatsApp account for an organization. A WhatsApp call is recorded from its Telnyx WhatsApp leg (see [WhatsApp calls](#whatsapp-calls)).
 
 ## Calls back to the shared number
 
 An incoming call to the shared number belongs to the organization of the latest managed call to that caller in the last 24 hours, else to the platform's voicemail or notice. The webhook makes this decision and logs it (`InboundRouter`). Answering and transferring the call needs a Telnyx Call Control application. That is not built.
+
+## WhatsApp calls
+
+The business number has WhatsApp voice calls and SIP on at Meta, pointed at the SIP subdomain of a Telnyx Call Control application. All WhatsApp calls are SIP between Meta and Telnyx; Meta's calling webhooks are not used. The application's webhook is the managed line's: `https://<modulith>/webhooks/telnyx/{connectionId}`.
+
+Only the managed line reaches WhatsApp: the WhatsApp application is in the platform's Telnyx account. An organization with its own TELNYX line keeps the wa.me chat.
+
+### Configuration
+
+WhatsApp calling is off while any required key is missing. The WhatsApp button then opens the chat.
+
+| Key | Required | Value |
+| --- | --- | --- |
+| `miot.integrations.whatsapp-calling.connection-id` | yes | id of the WhatsApp Call Control application, e.g. `<call-control-app-id>` |
+| `miot.integrations.whatsapp-calling.sip-host` | yes | Meta's SIP host for the business number, e.g. `<meta-sip-host>` |
+| `miot.integrations.whatsapp-calling.business-number` | yes | the business number, E.164, e.g. `+<business-digits>` |
+| `miot.integrations.whatsapp-calling.sip-username` | yes | Meta's SIP user: the business digits without `+` |
+| `miot.integrations.whatsapp-calling.sip-password` | yes, secret | Meta's SIP user password; set it from a secret |
+| `miot.integrations.whatsapp-calling.media-encryption` | yes | `DTLS`, or `SRTP` when the number uses SDES |
+| `miot.integrations.whatsapp-calling.ring-timeout` | no (`45s`) | how long a contact's call rings in the tower |
+| `miot.integrations.whatsapp-calling.unanswered-message` | no | text spoken to a caller nobody answers |
+| `miot.integrations.whatsapp-calling.ring-check` | no (`5s`) | how often ringing calls are checked for the timeout |
+
+As environment variables: `MIOT_INTEGRATIONS_WHATSAPP_CALLING_CONNECTION_ID`, and so on.
+
+### Operator calls a contact
+
+1. The app asks `POST /webrtc-token {calleeNumber, caseRef, channel: "WHATSAPP"}`. The server refuses with 409 `whatsapp_no_permission` when the contact has not allowed calls, and `whatsapp_calling_unavailable` when WhatsApp calling is off for the line. A `WHATSAPP_CALL` row reserves a channel.
+2. The browser dials as for a PSTN call. Its leg is parked and admitted (see above).
+3. On admission the server sends `POST /v2/calls` on the WhatsApp application: `to` `sip:+<contact digits>@wa.meta.vc:5061;transport=tls`, `from` `sip:+<business digits>@<sip-host>`, SIP auth, TLS, the media encryption, OPUS, `link_to` the parked leg.
+4. When WhatsApp answers, the server bridges the parked leg and the WhatsApp leg.
+5. When either leg hangs up, the server hangs up the other. The WhatsApp leg's answer and hangup confirm the row.
+
+A SIP 403 ("No Approved Call Permission Found") is kept for the row. The app reads it with `GET /calls/{callRef}` (`{failure: "whatsapp_no_permission"}`) and shows "el conductor no ha aceptado las llamadas".
+
+The app checks the permission with `GET /api/v1/orgs/{organizationId}/conversations/whatsapp-call-permissions?phone=` before calling. Without permission the button is disabled and the permission row offers the request.
+
+### Contact calls the tower
+
+1. `call.initiated`, direction incoming, on the WhatsApp application: the server reads the caller from `from`.
+2. The caller's organization is the one organization whose contact book has an active contact with that phone or WhatsApp number (trip drivers are synced into the book). Else the organization of the latest managed call to that number in 24 hours. The case is the latest open treatment with a call to that contact.
+3. A known caller's call rings (it is not answered) and is listed in `GET /whatsapp-calls` for the organization's operators. The app shows it with "Contestar".
+4. "Contestar" asks `POST /whatsapp-calls/{id}/answer`, a login with a reservation. 409 `whatsapp_call_taken` when another operator took it or it ended. The browser dials; on admission the server answers the WhatsApp leg and bridges it to the operator's leg.
+5. An unknown caller, or a call nobody takes within `ring-timeout`, is answered, hears `unanswered-message`, and is hung up.
+
+| Endpoint (under `/control-tower/telephony`) | Permission | Result |
+| --- | --- | --- |
+| `GET /calls/{callRef}` | `controltower:case.treat` | `{failure}`: why the provider ended the call before it connected, or null |
+| `GET /whatsapp-calls` | `controltower:case.treat` | ringing calls: `id`, `callerNumber`, `callerName`, `caseRef`, `since` |
+| `POST /whatsapp-calls/{id}/answer` | `controltower:case.treat` | `{token, callerNumber, expiresAt, callRef}` |
+
+`GET /telephony` answers `whatsAppCalling: true` when the active line is the managed one and the configuration is complete.
+
+### Metering
+
+WhatsApp calls are `WHATSAPP_CALL` rows in `telephony_usage`, confirmed by the WhatsApp leg's webhook, rounded up to a whole minute.
+
+| Destination type | Price |
+| --- | --- |
+| `WHATSAPP_CALL` (operator calls) | the plan's WhatsApp call price per minute |
+| `WHATSAPP_INBOUND` (contact calls) | 0: free on Meta's side; minutes are shown |
+
+WhatsApp minutes do not count against the voice quota. The detail-record reconcile skips the operator's parked leg of a WhatsApp call.
+
+Migration `V0.6.42` adds `telephony_whatsapp_legs` (the WhatsApp leg and Meta's refusal per row) and `whatsapp_inbound_calls`.

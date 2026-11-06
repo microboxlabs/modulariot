@@ -450,6 +450,18 @@ describe("CallCenterMenu", () => {
         "Segundo conductor del viaje",
       ],
       [
+        "contact.role == 'CAT' && event.data.origin in contact.tags",
+        "CAT del origen del viaje",
+      ],
+      [
+        "contact.role == 'CAT' && event.data.destinationKey in contact.tagKeys",
+        "CAT del destino del viaje",
+      ],
+      [
+        "event.data.originKey in contact.tagKeys && event.data.destinationKey in contact.tagKeys",
+        "Contactos del origen y destino del viaje",
+      ],
+      [
         "contact.role == 'Supervisor' && contact.position.startsWith('x')",
         "Supervisor",
       ],
@@ -504,6 +516,29 @@ describe("CallCenterMenu", () => {
           companyRut: SUR,
           company: "Transportes Sur",
         })
+      );
+    });
+
+    it("pre-fills a new contact of the origin's role with the trip's origin as a tag", async () => {
+      data.contacts = [contact("t1", "Contacto Uno", "CAT")];
+      data.match = () => [];
+      data.tripData = { origin: "Planta Norte", originKey: "planta norte" };
+      data.level = levelWith([
+        stepWho(
+          "contact.role == 'CAT' && event.data.originKey in contact.tagKeys"
+        ),
+      ]);
+      data.permissions = ["controltower:contact.write"];
+      const user = userEvent.setup();
+      renderMenu();
+      expect(
+        screen.getByText("Ningún CAT de la libreta corresponde a este viaje.")
+      ).toBeTruthy();
+
+      await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+      await saveNewNumber(user, "Contacto Nuevo");
+      expect(data.createContact).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "CAT", tags: ["Planta Norte"] })
       );
     });
 

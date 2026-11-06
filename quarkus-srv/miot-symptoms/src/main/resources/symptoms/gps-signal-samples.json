@@ -11,6 +11,7 @@
         "status": "EN TRANSITO",
         "age_min": 95.0,
         "late_min": -20.0,
+        "eta_deviation_min": -45.0,
         "origin": {
           "id": 32,
           "label": "Planta Norte",
@@ -230,6 +231,7 @@
         "status": "EN TRANSITO",
         "age_min": 610.0,
         "late_min": 150.0,
+        "eta_deviation_min": 210.0,
         "origin": {
           "id": 32,
           "label": "Planta Norte",

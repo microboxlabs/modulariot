@@ -128,13 +128,25 @@ public class SignalEvaluator {
      */
     public Result reconcile(String tenantCode, String assetId, Instant at, Map<String, Object> root,
             List<CompiledSymptom> symptoms) {
-        List<CompiledSymptom> inactive = symptoms.stream()
+        return evaluate(tenantCode, assetId, at, root, inactive(tenantCode, assetId, root, symptoms));
+    }
+
+    /** Reconciles a producer's existing episodes under its own clock. */
+    public Result reconcileUnder(String watermark, String tenantCode, String assetId, Instant at,
+            Map<String, Object> root, List<CompiledSymptom> symptoms) {
+        List<CompiledSymptom> inactive = inactive(tenantCode, assetId, root, symptoms);
+        return inactive.isEmpty() ? new Result(List.of(), List.of())
+                : evaluateUnder(watermark, tenantCode, assetId, at, root, inactive);
+    }
+
+    private List<CompiledSymptom> inactive(String tenantCode, String assetId, Map<String, Object> root,
+            List<CompiledSymptom> symptoms) {
+        return symptoms.stream()
                 .filter(s -> store.find(tenantCode, assetId, s.definitionId()).isPresent())
                 .filter(s -> {
                     RuleResult activation = s.activation().run(root);
                     return activation.ok() && Boolean.FALSE.equals(activation.value());
                 }).toList();
-        return evaluate(tenantCode, assetId, at, root, inactive);
     }
 
     /**

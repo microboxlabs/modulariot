@@ -2,6 +2,8 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
@@ -11,6 +13,7 @@ import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.duty.DutyChecks;
+import com.microboxlabs.miot.symptoms.duty.DutyState;
 import com.microboxlabs.miot.symptoms.duty.InMemoryDutyStore;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
@@ -21,10 +24,12 @@ import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -41,6 +46,8 @@ class EvaluatorDutyTest {
     private SymptomCatalogService catalog;
     private EvaluatorCatalog evaluatorCatalog;
     private EvaluatorStream stream;
+    private SymptomEvents events;
+    private final InMemoryEpisodeRepository episodes = new InMemoryEpisodeRepository();
     private UUID driving;
     private UUID resting;
     private int at;
@@ -49,7 +56,7 @@ class EvaluatorDutyTest {
     @BeforeEach
     void setUp() {
         InMemoryCatalog store = new InMemoryCatalog();
-        SymptomEvents events = new SymptomEvents(e -> CompletableFuture.completedFuture(e), store::findDefinition,
+        events = new SymptomEvents(e -> CompletableFuture.completedFuture(e), store::findDefinition,
                 Clock.systemUTC());
         DataSourceService sources = new DataSourceService(store, SignalSamples.inMemory());
         catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
@@ -58,8 +65,7 @@ class EvaluatorDutyTest {
         resting = publish("continuous-resting");
         stream = new EvaluatorStream(true, evaluatorCatalog,
                 new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()), Clock.systemUTC(),
-                new InMemoryEpisodeRepository(), SignalSamples.inMemory(), LateFrames.NONE, LostSignalDetector.off(),
-                Holds.NONE, duty);
+                episodes, SignalSamples.inMemory(), LateFrames.NONE, LostSignalDetector.off(), Holds.NONE, duty);
     }
 
     private UUID publish(String key) {
@@ -155,6 +161,145 @@ class EvaluatorDutyTest {
         assertEquals(recorded, log.recorded.size());
         drive(1);
         assertEquals(recorded, log.recorded.size(), "the next frame still reads 271 min: level 1, no change");
+    }
+
+    @Test
+    void losingSignalAccessClosesDutyCasesAndEndsTheirTrip() {
+        stream.evaluate(frame(0, 0));
+        drive(975);
+        assertTrue(episodes.load(DEMO, ASSET).find(DEMO, ASSET, driving).orElseThrow().open());
+        assertTrue(episodes.load(DEMO, ASSET).find(DEMO, ASSET, resting).orElseThrow().open());
+        int recorded = log.recorded.size();
+        String gone = frame(at + 60, metres)
+                .replace("\"clients\":[\"" + DEMO + "\"]", "\"clients\":[]");
+
+        assertEquals(2, stream.evaluate(gone));
+        assertEquals(Kind.CLOSED, of(driving).get(of(driving).size() - 1).kind());
+        assertEquals(Kind.CLOSED, of(resting).get(of(resting).size() - 1).kind());
+        assertNull(duty.load(DEMO, ASSET).state().drive());
+        assertNull(duty.load(DEMO, ASSET).state().rest());
+        assertEquals(0, stream.evaluate(gone), "a reconciliation replay publishes nothing twice");
+        at += 120;
+        stream.evaluate(frame(at, metres));
+        assertEquals(recorded + 2, log.recorded.size(), "the same trip starts with fresh counters on return");
+    }
+
+    @Test
+    void olderFramesCannotReconcileNewerDutyCases() {
+        stream.evaluate(frame(0, 0));
+        drive(270);
+        var before = duty.load(DEMO, ASSET).state();
+        String old = frame(at - 60, metres)
+                .replace("\"clients\":[\"" + DEMO + "\"]", "\"clients\":[]");
+
+        assertEquals(0, stream.evaluate(old));
+        assertEquals(1, of(driving).size());
+        assertEquals(before, duty.load(DEMO, ASSET).state());
+    }
+
+    @Test
+    void aFailedDutyWriteReplaysAfterTheEpisodeWriteAndSurvivesAConsumerRestart() {
+        stream.evaluate(frame(0, 0));
+        drive(269);
+        InMemoryDutyStore failing = new InMemoryDutyStore() {
+            @Override
+            public Loaded load(String tenant, String asset) {
+                return duty.load(tenant, asset);
+            }
+
+            @Override
+            public void save(String tenant, String asset, DutyState state) {
+                throw new IllegalStateException("Redis down");
+            }
+        };
+        EvaluatorStream broken = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()), Clock.systemUTC(), episodes,
+                SignalSamples.inMemory(), LateFrames.NONE, LostSignalDetector.off(), Holds.NONE, failing);
+        String opening = frame(at + 60, metres + 1000);
+        assertThrows(IllegalStateException.class, () -> broken.evaluate(opening));
+        assertEquals(1, of(driving).size());
+        assertEquals(T0.plusSeconds(at), duty.load(DEMO, ASSET).state().at(), "the state write failed");
+
+        stream = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()), Clock.systemUTC(), episodes,
+                SignalSamples.inMemory(), LateFrames.NONE, LostSignalDetector.off(), Holds.NONE, duty);
+        assertEquals(0, stream.evaluate(opening), "the saved watermark suppresses the replayed transition");
+        assertEquals(T0.plusSeconds(at + 60), duty.load(DEMO, ASSET).state().at());
+        assertEquals(1, of(driving).size());
+        at += 60;
+        metres += 1000;
+        drive(30);
+        assertEquals(List.of(1, 2), of(driving).stream().map(Transition::level).toList(),
+                "the next level includes the replayed minute exactly once");
+    }
+
+    @Test
+    void anOperatorCloseDuringTheDutyReadCannotReopenItsCase() {
+        stream.evaluate(frame(0, 0));
+        drive(975);
+        AtomicBoolean close = new AtomicBoolean(true);
+        InMemoryDutyStore interleaving = new InMemoryDutyStore() {
+            @Override
+            public Loaded load(String tenant, String asset) {
+                Loaded loaded = duty.load(tenant, asset);
+                if (close.getAndSet(false)) {
+                    stream.forget(tenant, asset, resting);
+                }
+                return loaded;
+            }
+
+            @Override
+            public void save(String tenant, String asset, DutyState state) {
+                duty.save(tenant, asset, state);
+            }
+
+            @Override
+            public void restartDuty(String tenant, String asset) {
+                duty.restartDuty(tenant, asset);
+            }
+        };
+        stream = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()), Clock.systemUTC(), episodes,
+                SignalSamples.inMemory(), LateFrames.NONE, LostSignalDetector.off(), Holds.NONE, interleaving);
+        String next = frame(at + 60, metres + 1000);
+
+        assertThrows(ConcurrentModificationException.class, () -> stream.evaluate(next));
+        assertEquals(1, of(resting).size(), "no reopening was logged before the invalidated save");
+        assertEquals(0, stream.evaluate(next), "the replay sees the restart");
+        assertEquals(1, of(resting).size());
+        assertEquals(1, duty.load(DEMO, ASSET).state().restarts());
+        assertEquals(0.0, duty.load(DEMO, ASSET).state().rest().dutyS());
+    }
+
+    @Test
+    void aFrameAfterEpisodeCloseAlreadySeesTheDutyRestart() {
+        stream.evaluate(frame(0, 0));
+        drive(975);
+        InMemoryEpisodeRepository interleaving = new InMemoryEpisodeRepository() {
+            @Override
+            public AssetEpisodes load(String tenant, String asset) {
+                return episodes.load(tenant, asset);
+            }
+
+            @Override
+            public void save(AssetEpisodes changes) {
+                episodes.save(changes);
+            }
+
+            @Override
+            public void operatorClose(String tenant, String asset, UUID id, Episode marker) {
+                episodes.operatorClose(tenant, asset, id, marker);
+                assertEquals(0, stream.evaluate(frame(at + 60, metres + 1000)));
+            }
+        };
+        stream = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()), Clock.systemUTC(), interleaving,
+                SignalSamples.inMemory(), LateFrames.NONE, LostSignalDetector.off(), Holds.NONE, duty);
+
+        stream.forget(DEMO, ASSET, resting);
+
+        assertEquals(1, of(resting).size(), "an interleaved frame cannot publish a new case");
+        assertEquals(1, duty.load(DEMO, ASSET).state().restarts());
     }
 
     @Test

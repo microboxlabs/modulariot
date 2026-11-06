@@ -106,6 +106,22 @@ class DutyTrackerTest {
     }
 
     @Test
+    void theFullyRepaidRestartPublishesZeroBeforeTheNextFrameIncludesItsDriving() {
+        DutyTracker tracker = new DutyTracker();
+        DutyState repaid = new DutyState(T0, -33, -70,
+                new DutyState.Drive("T-1", false, 3600, 0, 0, 3600, 1440), null, 0);
+        Frame resumed = new Frame(T0.plusSeconds(5 * 3600), -31.0, -70.0, 60.0, "T-1");
+
+        var restart = tracker.step(repaid, resumed).orElseThrow();
+
+        assertEquals(0.0, restart.counters().drivingMinutes(), "the legacy restart frame returns a zero check");
+        assertEquals(5 * 3600, restart.next().drive().run(), "the driving interval is saved");
+        var next = tracker.step(restart.next(), new Frame(resumed.at().plusSeconds(30), -30.999,
+                -70.0, 60.0, "T-1")).orElseThrow();
+        assertEquals(300.5, next.counters().drivingMinutes(), 0.01, "the next frame includes that interval");
+    }
+
+    @Test
     void aNewTripOrNoTripStartsAgain() {
         Run r = new Run();
         r.frame();
@@ -145,6 +161,7 @@ class DutyTrackerTest {
         assertNull(r.state.rest());
         r.park(600, 60);
         assertEquals(0.0, r.last().dutyMinutes(), "still parked: duty waits for movement");
+        assertEquals(9.0, r.last().restingMinutes(), 0.01, "the legacy starts a new rest cycle after 8 h");
         r.drive(600, 30);
         assertEquals(10.0, r.last().dutyMinutes(), 0.01);
     }

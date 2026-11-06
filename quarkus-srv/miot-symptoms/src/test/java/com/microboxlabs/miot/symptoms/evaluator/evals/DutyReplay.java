@@ -8,6 +8,7 @@ import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.duty.DutyChecks;
 import com.microboxlabs.miot.symptoms.duty.InMemoryDutyStore;
 import com.microboxlabs.miot.symptoms.evaluator.CompiledSymptom;
+import com.microboxlabs.miot.symptoms.evaluator.Episode;
 import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeStore;
 import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator;
 import com.microboxlabs.miot.symptoms.signal.TripCheck;
@@ -127,7 +128,7 @@ final class DutyReplay {
             if (!name.equals(symptom)) {
                 return;
             }
-            episodes.find(TENANT, ASSET, id).filter(e -> e.open()).ifPresent(e -> {
+            episodes.find(TENANT, ASSET, id).filter(Episode::open).ifPresent(e -> {
                 got.get(name).add(EvalTraces.transition("CLOSED_BY_OPERATOR", at, e.level(), e.level()));
                 episodes.delete(TENANT, ASSET, id);
             });

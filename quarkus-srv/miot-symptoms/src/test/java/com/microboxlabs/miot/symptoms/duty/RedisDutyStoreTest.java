@@ -49,6 +49,42 @@ class RedisDutyStoreTest {
     }
 
     @Test
+    void aNewConsumerLoadsCountersAndAppliesAnInterveningCloseOnce() {
+        String tenant = "tenant-restart";
+        try {
+            DutyChecks first = new DutyChecks(new RedisDutyStore(redis, Duration.ofHours(1)));
+            Instant start = Instant.parse("2026-01-01T00:00:00Z");
+            var parked = signal(-33.0);
+            var moving = signal(-33.001);
+            var one = first.apply(tenant, ASSET, start, parked).orElseThrow();
+            first.save(tenant, ASSET, one.next());
+            var two = first.apply(tenant, ASSET, start.plusSeconds(30), moving).orElseThrow();
+            first.restartDuty(tenant, ASSET);
+            first.save(tenant, ASSET, two.next());
+
+            DutyChecks restarted = new DutyChecks(new RedisDutyStore(redis, Duration.ofHours(1)));
+            assertTrue(restarted.apply(tenant, ASSET, start.plusSeconds(30), moving).isEmpty());
+            assertTrue(restarted.apply(tenant, ASSET, start, parked).isEmpty());
+            var three = restarted.apply(tenant, ASSET, start.plusSeconds(60), signal(-33.002)).orElseThrow();
+            assertEquals(1.0, (Double) three.check().get("driving_minutes"), 0.001);
+            assertEquals(0.0, (Double) three.check().get("duty_minutes"));
+            assertEquals(1, three.next().restarts());
+            restarted.save(tenant, ASSET, three.next());
+            var four = restarted.apply(tenant, ASSET, start.plusSeconds(90), signal(-33.003)).orElseThrow();
+            assertEquals(0.5, (Double) four.check().get("duty_minutes"), 0.001);
+            assertEquals(1, four.next().restarts(), "the operator close is applied only once");
+            assertNull(restarted.apply("other-tenant", ASSET, start, parked).orElseThrow().next().rest().dutyS());
+        } finally {
+            redis.del(List.of(RedisDutyStore.key(tenant, ASSET))).await().atMost(WAIT);
+        }
+    }
+
+    private static java.util.Map<String, Object> signal(double lat) {
+        return java.util.Map.of("trip", java.util.Map.of("active", true, "id", "T-1"), "frame",
+                java.util.Map.of("gps", java.util.Map.of("latitude", lat, "longitude", -70.0)));
+    }
+
+    @Test
     void savesTheStateAndCountsRestartsApartWithAnExpiry() {
         RedisDutyStore store = new RedisDutyStore(redis, Duration.ofHours(1));
         assertNull(store.load("tenant-a", ASSET).state());

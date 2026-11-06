@@ -30,7 +30,8 @@ public record TripCheck(
                 @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED") })
         @JsonProperty("driving_minutes") Double drivingMinutes,
         @Schema(title = "Minutos de descanso", description = "Duración de la detención en curso, desde su primera "
-                + "señal detenida; 0 en movimiento", extensions = {
+                + "señal detenida del ciclo de jornada; 0 en movimiento. Al completar 8 h termina el ciclo y la siguiente "
+                + "señal reinicia el contador", extensions = {
                 @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED") })
         @JsonProperty("resting_minutes") Double restingMinutes,
         @Schema(title = "Minutos de jornada sin descanso largo", description = "Minutos de viaje desde el primer "

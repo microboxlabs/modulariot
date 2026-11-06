@@ -129,13 +129,18 @@ public class DutyTracker {
         } else if (d.moving()) {
             next = new Drive(trip, false, d.driven() + d.run() + dt, 0, d.paidBack(), d.stopPays(), 0);
         } else {
-            double stopped = driven > 0 ? d.stopped() + dt : 0;
-            double pays = stopped >= rules.payBackAfter().toSeconds() && driven > 0
-                    ? Math.rint(stopped * rules.payBackRate()) : 0;
-            pays = Math.max(Math.min(d.driven(), d.paidBack() + pays) - d.paidBack(), 0);
-            next = new Drive(trip, false, d.driven(), 0, d.paidBack(), pays, stopped);
+            next = stoppedDrive(d, dt);
         }
         return new DriveStep(next, Math.max(0, next.net()));
+    }
+
+    private Drive stoppedDrive(Drive d, double dt) {
+        double driven = d.driven() + d.run();
+        double stopped = driven > 0 ? d.stopped() + dt : 0;
+        double pays = stopped >= rules.payBackAfter().toSeconds() && driven > 0
+                ? Math.rint(stopped * rules.payBackRate()) : 0;
+        pays = Math.max(Math.min(d.driven(), d.paidBack() + pays) - d.paidBack(), 0);
+        return new Drive(d.trip(), false, d.driven(), 0, d.paidBack(), pays, stopped);
     }
 
     private record RestStep(Rest rest, double dutyS, double restingS) {
@@ -153,12 +158,16 @@ public class DutyTracker {
         if (!moving && resting >= rules.longRest().toSeconds()) {
             return new RestStep(null, 0, resting);
         }
-        Double duty = r.dutyS() != null ? Double.valueOf(r.dutyS() + dt) : null;
-        if (duty == null && moving) {
-            duty = dt;
-        }
+        Double duty = nextDuty(r, moving, dt);
         Instant stopSince = moving ? null : Objects.requireNonNullElse(r.stopSince(), at);
         return new RestStep(new Rest(trip, duty, stopSince), duty == null ? 0 : duty, resting);
+    }
+
+    private static Double nextDuty(Rest r, boolean moving, double dt) {
+        if (r.dutyS() != null) {
+            return r.dutyS() + dt;
+        }
+        return moving ? Double.valueOf(dt) : null;
     }
 
     static double metres(double lat1, double lon1, double lat2, double lon2) {

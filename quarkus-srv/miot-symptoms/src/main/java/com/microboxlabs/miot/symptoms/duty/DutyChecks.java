@@ -85,6 +85,15 @@ public class DutyChecks {
         });
     }
 
+    /** Ends the trip when signal access ends, without using the organization's unavailable GPS fields. */
+    public Optional<DutyState> endTrip(String tenantCode, String assetId, Instant at) {
+        DutyState prev = store.load(tenantCode, assetId).state();
+        if (prev == null || !at.isAfter(prev.at())) {
+            return Optional.empty();
+        }
+        return Optional.of(new DutyState(at, prev.lat(), prev.lon(), null, null, prev.restarts()));
+    }
+
     public void save(String tenantCode, String assetId, DutyState next) {
         store.save(tenantCode, assetId, next);
     }

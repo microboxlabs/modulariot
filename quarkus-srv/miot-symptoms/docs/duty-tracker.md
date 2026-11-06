@@ -23,8 +23,8 @@ The time between two applied frames goes to driving when the later frame moves o
 
 | Field | Rule |
 |---|---|
-| `check.driving_minutes` | Driving minus what stops pay back. A stop of 24 min or more pays back 2.5 times its length, never more than the driving before it. When all driving is paid back the count starts again |
-| `check.resting_minutes` | Length of the stop in progress, from its first stopped frame; 0 while moving |
+| `check.driving_minutes` | Driving minus what stops pay back. A stop of 24 min or more pays back 2.5 times its length, never more than the driving before it. When all driving is paid back the count starts again; that restart frame publishes 0, and the next frame includes any driving saved by the restart |
+| `check.resting_minutes` | Length of the stop in the current duty cycle, from its first stopped frame; 0 while moving. The 8 h frame ends that cycle; a subsequent parked frame starts the rest counter again |
 | `check.duty_minutes` | From the first moving frame of the trip, including the interval before it; stops count. A stopped frame that completes 8 h of rest publishes 0 and ends the duty; the next frame starts a new one, which waits for movement |
 
 No trip, or a new trip id, starts all three again. `check.signal_lost_minutes` is 0 and `check.loss` is absent on these checks.
@@ -37,6 +37,7 @@ No trip, or a new trip id, starts all three again. `check.signal_lost_minutes` i
 | Watermark | `wm:trip_check@frames` in the episode hash, apart from the detector's `wm:trip_check` |
 | Transitions | Recorded with the frame's trip and position. The context is the check without `trip` |
 | Order | Transitions, then episodes, then the tracker's state. A failure replays the frame from the saved state |
+| Signal access ends | Existing duty cases reconcile under the frame watermark without GPS input; the trip counters end. Older frames cannot close newer cases |
 | Operator close | Closing a case of a symptom that reads `check.duty_minutes` increments `restarts`; the next frame ends the duty count. The driving count stays |
 
 The `miot.symptoms.duty.skipped` counter counts frames the tracker did not apply.
@@ -49,3 +50,5 @@ The `miot.symptoms.duty.skipped` counter counts frames the tracker did not apply
 | Cases inside an authorized zone are marked excluded | No exclusion: `trip_check` has no zone fields |
 
 Evals: `src/test/resources/evals/duty/README.md`.
+
+The restart-frame driving value and the 8 h rest reset preserve `accumulate_continuous_tracking` and `accumulate_resting_tracking`: the former returns a zero check while installing the next driving run, and the latter deactivates its row at 28,800 seconds and inserts a new row on the following frame. These counters do not measure an uninterrupted rest beyond a duty cycle.

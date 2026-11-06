@@ -230,6 +230,7 @@ public class EvaluatorStream {
                 recorded += evaluate(tenant, assetId, instant,
                         Map.of("asset_id", assetId, "at", time, "trip", NO_TRIP,
                                 FRAME, Map.of("events", List.of())), true).transitions();
+                recorded += reconcileDuty(tenant, assetId, instant);
             }
         }
         if (late) {
@@ -350,16 +351,36 @@ public class EvaluatorStream {
         if (symptoms.isEmpty()) {
             return 0;
         }
+        // Capture the close revision before reading counters: a close during that read invalidates this snapshot.
+        AssetEpisodes state = episodes.load(tenant, assetId);
         DutyChecks.Check c = duty.apply(tenant, assetId, at, signal).orElse(null);
         if (c == null) {
             meters.counter("miot.symptoms.duty.skipped").increment();
             return 0;
         }
-        AssetEpisodes state = episodes.load(tenant, assetId);
         SignalEvaluator.Result result = new SignalEvaluator(state, holds).evaluateUnder(DutyChecks.WATERMARK, tenant,
                 assetId, at, Map.of(TripCheck.ROOT, c.check()), symptoms);
         writeResult(tenant, assetId, signal, state, result, false, c.context());
         duty.save(tenant, assetId, c.next());
+        return result.transitions().size();
+    }
+
+    /** Reconciles duty cases after signal access ends, without the tenant's GPS or trip data. */
+    private int reconcileDuty(String tenant, String assetId, Instant at) {
+        List<CompiledSymptom> symptoms = dutySymptoms(tenant);
+        if (symptoms.isEmpty()) {
+            return 0;
+        }
+        AssetEpisodes state = episodes.load(tenant, assetId);
+        if (state.watermark(tenant, assetId, DutyChecks.WATERMARK).filter(at::isBefore).isPresent()) {
+            return 0;
+        }
+        Map<String, Object> check = Map.of("trip", NO_TRIP);
+        SignalEvaluator.Result result = new SignalEvaluator(state, holds).reconcileUnder(DutyChecks.WATERMARK,
+                tenant, assetId, at, Map.of(TripCheck.ROOT, check), symptoms);
+        var next = duty.endTrip(tenant, assetId, at);
+        writeResult(tenant, assetId, Map.of(), state, result, false, Map.of(TripCheck.ROOT, Map.of()));
+        next.ifPresent(s -> duty.save(tenant, assetId, s));
         return result.transitions().size();
     }
 
@@ -425,13 +446,14 @@ public class EvaluatorStream {
      */
     public void forget(String tenant, String assetId, java.util.UUID definitionId, String tripId) {
         Episode marker = tripId == null ? null : Episode.closedOnTrip(definitionId, assetId, tripId, clock.instant());
-        // Both consumers may share Redis. Neither close may expose an empty episode before installing its marker.
-        lostSignal.forget(tenant, assetId, definitionId, marker);
-        episodes.operatorClose(tenant, assetId, definitionId, marker);
+        // Reset counters before exposing a closed episode, so an interleaved frame cannot reopen from old duty.
         if (dutySymptoms(tenant).stream().anyMatch(s -> s.definitionId().equals(definitionId)
                 && DutyChecks.readsDuty(s))) {
             duty.restartDuty(tenant, assetId);
         }
+        // Both consumers may share Redis. Neither close may expose an empty episode before installing its marker.
+        lostSignal.forget(tenant, assetId, definitionId, marker);
+        episodes.operatorClose(tenant, assetId, definitionId, marker);
     }
 
     /** Drops only the case the sweep closed, preserving a newer episode opened on another replica. */

@@ -44,6 +44,16 @@ class RoadNetworkTest {
     }
 
     @Test
+    void theTileQueryReadsTheColumnsOfOneOsmRoadsWeightRow() {
+        String sql = SignalStream.ROADS_SQL;
+        for (String part : List.of("osm_id::bigint AS osm_id", "fclass", "spwlte38::int AS light",
+                "spwgt38::int AS heavy", "maxspeed::int AS maxspeed", "ST_AsBinary(geom) AS wkb",
+                "FROM osm_roads_weight WHERE geom && ST_MakeEnvelope($1, $2, $3, $4, 4326)")) {
+            org.junit.jupiter.api.Assertions.assertTrue(sql.contains(part), part);
+        }
+    }
+
+    @Test
     void theNearestRoadWithinTheBufferGivesItsLimitForTheWeight() {
         RoadNetwork roads = RoadNetwork.of(List.of(way(1, "primary", 60, 50, 70, -33.4500)));
 

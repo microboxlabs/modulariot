@@ -58,6 +58,29 @@ class RedisEpisodesTest {
     }
 
     @Test
+    void staleCleanupDistinguishesAMismatchFromAnAbsentEpisode() {
+        String tenant = "tenant-a";
+        UUID id = UUID.randomUUID();
+        Instant at = Instant.parse("2026-10-22T03:00:00Z");
+        Episode previous = new Episode(id, "1.0.0", ASSET, at, at, null, Map.of(), at, at, 1, 10);
+        Episode changed = new Episode(id, "1.0.0", ASSET, at, at, null, Map.of(), at.plusSeconds(1), at, 2, 20);
+        RedisEpisodes repository = new RedisEpisodes(redis, Duration.ofDays(7));
+        AssetEpisodes state = repository.load(tenant, ASSET);
+        state.save(tenant, changed);
+        repository.save(state);
+        List<String> staleArgs = List.of(RedisEpisodes.FORGET_STALE, "1", RedisEpisodes.key(tenant, ASSET),
+                "ep:" + id, RedisEpisodes.write(previous), "60");
+        assertEquals(0L, redis.eval(staleArgs).await().atMost(WAIT).toLong());
+        assertEquals(changed, repository.load(tenant, ASSET).find(tenant, ASSET, id).orElseThrow());
+
+        repository.forgetStale(tenant, ASSET, id, SymptomState.ACTIVE, at);
+
+        assertTrue(repository.load(tenant, ASSET).find(tenant, ASSET, id).isEmpty());
+        assertEquals(1L, redis.eval(List.of(RedisEpisodes.FORGET_STALE, "1", RedisEpisodes.key(tenant, ASSET),
+                "ep:" + id, "", "60")).await().atMost(WAIT).toLong());
+    }
+
+    @Test
     void forgettingACaseDropsItsEpisodeAcrossReplicasAndPreservesTheWatermark() {
         EpisodeRepository first = new RedisEpisodes(redis, Duration.ofDays(7));
         EpisodeRepository second = new RedisEpisodes(redis, Duration.ofDays(7));

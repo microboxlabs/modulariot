@@ -173,12 +173,13 @@ public class RedisEpisodes implements EpisodeRepository {
                 marker == null ? "" : write(marker))).await().atMost(TIMEOUT);
     }
 
-    private static final String FORGET_STALE = """
+    static final String FORGET_STALE = """
             local current = redis.call('HGET', KEYS[1], ARGV[1])
             if current == ARGV[2] or (not current and ARGV[2] == '') then
                 redis.call('HINCRBY', KEYS[1], 'close:revision', 1)
                 redis.call('EXPIRE', KEYS[1], ARGV[3])
-                return redis.call('HDEL', KEYS[1], ARGV[1])
+                redis.call('HDEL', KEYS[1], ARGV[1])
+                return 1
             end
             return 0
             """;
@@ -187,14 +188,25 @@ public class RedisEpisodes implements EpisodeRepository {
     public void forgetStale(String tenantCode, String assetId, UUID definitionId,
             SymptomState state, Instant openedAt) {
         String field = EPISODE + definitionId;
-        Response value = redis.hget(key(tenantCode, assetId), field).await().atMost(TIMEOUT);
-        String snapshot = value == null ? "" : value.toString();
-        Episode e = value == null ? null : read(snapshot);
-        if (e == null || (e.closedOnTrip() == null && (e.state() == null || e.state() == state)
-                && (e.openedAt() == null || !e.openedAt().isAfter(openedAt)))) {
-            redis.eval(List.of(FORGET_STALE, "1", key(tenantCode, assetId), field, snapshot,
+        for (int attempt = 0; attempt < 8; attempt++) {
+            Response value = redis.hget(key(tenantCode, assetId), field).await().atMost(TIMEOUT);
+            String snapshot = value == null ? "" : value.toString();
+            Episode e = value == null ? null : read(snapshot);
+            if (!canForget(e, state, openedAt)) {
+                return;
+            }
+            Response result = redis.eval(List.of(FORGET_STALE, "1", key(tenantCode, assetId), field, snapshot,
                     Long.toString(ttl.toSeconds()))).await().atMost(TIMEOUT);
+            if (result.toLong() == 1) {
+                return;
+            }
         }
+        throw new ConcurrentModificationException("Episode changed repeatedly during case cleanup");
+    }
+
+    private static boolean canForget(Episode e, SymptomState state, Instant openedAt) {
+        return e == null || (e.closedOnTrip() == null && (e.state() == null || e.state() == state)
+                && (e.openedAt() == null || !e.openedAt().isAfter(openedAt)));
     }
 
     static String write(Episode e) {

@@ -378,6 +378,14 @@ public class LostSignalDetector implements SignalStates {
 
     /** One pass of the ticker; returns the vehicles checked. */
     public int tick() {
+        if (enabled) {
+            try {
+                trips.retryEnded();
+            } catch (RuntimeException e) {
+                meters.counter("miot.symptoms.lost_signal.trip_effect_failed").increment();
+                LOG.debugf("Lost-signal detector: trip effects deferred (%s)", e.getClass().getSimpleName());
+            }
+        }
         return ticker.tick();
     }
 }

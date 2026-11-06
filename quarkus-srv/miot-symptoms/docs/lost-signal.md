@@ -152,6 +152,10 @@ On a trip end, every open case of the trip on a TEST or ACTIVE `trip_check` symp
 
 The closed case's episode is dropped, so a new trip of the vehicle opens a new case. Delayed cleanup preserves an episode opened for a newer case and an operator's close marker. The check leaves the ended trip and its organization's cases out, so no rule opens or escalates a case on it. A case already closed is left alone. The case timeline shows "Se cierra · Viaje finalizado".
 
+The transition log validates the trip under a shared row lock before accepting a lost-signal write. A check that read an active trip before completion cannot insert its first case afterward. Trip closure takes definition and case locks in the same order as the evaluator, and shared definition locks serialize it with state-change sweeps.
+
+Migration `V0.12.24` adds `miot_symptoms.trip_end_effects`. Each trip-ended CLOSED row queues its episode cleanup and close event in the same transaction. Every detector tick retries pending effects, including vehicles without a deadline. Replicas use `FOR UPDATE SKIP LOCKED`; a queue entry is deleted only after conditional episode cleanup and all asynchronous event observers succeed. Redis snapshot conflicts retry against the latest episode; persistent contention or an unavailable observer leaves the entry for a later tick. Delivery is at least once: a crash after publication but before acknowledgement can repeat the same case's close event, with its original timestamp; the CLOSED timeline row is not repeated.
+
 The close rule (`case.normal_s`, `case.off_trip_s`) cannot do this: the lost check runs only with the trip the newest frame carried, and a parked truck sends no frame.
 
 ### Platform template (V0.12.4)

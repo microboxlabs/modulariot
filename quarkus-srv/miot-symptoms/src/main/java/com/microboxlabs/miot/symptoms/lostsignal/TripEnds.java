@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /** Which trips ended or reached their destination, and closing a trip's lost-signal cases. */
 public interface TripEnds {
@@ -20,6 +21,34 @@ public interface TripEnds {
 
     /** The {@code closed_by} of a case closed because its trip ended. */
     String REASON = "trip_ended";
+
+    /** A canonical UUID, or null for a legacy or malformed trip id. */
+    static UUID uuid(String id) {
+        if (id == null) {
+            return null;
+        }
+        try {
+            UUID value = UUID.fromString(id);
+            return value.toString().equalsIgnoreCase(id) ? value : null;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    record Closure(StaleCase value, Instant at) {
+    }
+
+    /** Closes the trip, then delivers its effects; durable stores also retry previously queued effects. */
+    default int end(String tenant, String tripId, List<UUID> definitions, Instant at, Consumer<Closure> effect) {
+        List<StaleCase> closed = close(tenant, tripId, definitions, at);
+        closed.forEach(c -> effect.accept(new Closure(c, at)));
+        return closed.size();
+    }
+
+    /** Retries durable effects even when the vehicle no longer has a deadline. */
+    default int retry(Consumer<Closure> effect) {
+        return 0;
+    }
 
     /** No trip ever ends; closes nothing. */
     TripEnds NONE = new TripEnds() {

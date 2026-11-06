@@ -2,6 +2,8 @@ package com.microboxlabs.miot.symptoms.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
@@ -11,6 +13,7 @@ import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
 import com.microboxlabs.miot.symptoms.lostsignal.PgTripEnds;
 import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
+import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -28,6 +31,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -44,7 +50,8 @@ class PgTripEndTest {
     private static final List<String> MIGRATIONS = List.of("V0.8.0__create_symptoms_catalog.sql",
             "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql",
             "V0.8.3__create_tower_settings.sql", "V0.8.4__create_signal_transitions.sql", "V0.8.5__signal_cases.sql",
-            "V0.9.7__sla_expiry.sql", "V0.12.10__transition_context.sql", "V0.12.13__held_transitions.sql");
+            "V0.9.7__sla_expiry.sql", "V0.12.10__transition_context.sql", "V0.12.13__held_transitions.sql",
+            "V0.12.24__trip_end_effects.sql");
 
     private static Vertx vertx;
     private static Pool pool;
@@ -137,6 +144,100 @@ class PgTripEndTest {
                 .get(tenant));
         assertEquals(new TripEnds.State(true, false), ends.states(Map.of(tenant, UUID.randomUUID().toString()))
                 .get(tenant), "no such trip");
+        assertEquals(new TripEnds.State(true, false), ends.states(Map.of(tenant, "not-a-uuid")).get(tenant));
+        assertEquals(new TripEnds.State(true, false), ends.states(Map.of(tenant, "1-1-1-1-1")).get(tenant));
+    }
+
+    @Test
+    void aStateReadBeforeCompletionCannotOpenTheFirstCaseAfterTheEndNotice() {
+        UUID id = trip("in_progress");
+        UUID definition = symptom("opening-race");
+        assertEquals(new TripEnds.State(false, false), ends.states(Map.of(tenant, id.toString())).get(tenant));
+        PgIds.query(pool, "UPDATE miot_trips.trip SET status = 'completed' WHERE id = $1", Tuple.of(id));
+        assertTrue(ends.close(tenant, id.toString(), List.of(definition), now).isEmpty());
+
+        Transition opening = new Transition(Kind.OPENED, definition, "1.0.0", SymptomState.ACTIVE,
+                "FIRST", now, 1, 0, 30);
+        assertThrows(IllegalStateException.class, () -> log.appendTripCheck(tenant, List.of(opening),
+                new TransitionLog.Place(id.toString(), null, null, null, null),
+                Map.of("check", Map.of("loss", Map.of("ratio", 1.0)))));
+        assertTrue(cases.open(tenant).isEmpty());
+    }
+
+    @Test
+    void aFailedCloseObserverLeavesDurableEffectsForANewReplica() {
+        ends.retry(ignored -> { });
+        UUID definition = symptom("observer-retry");
+        String tripId = trip("completed").toString();
+        long caseId = open(definition, "RETRY", tripId, 2);
+        SymptomEvents failing = new SymptomEvents(event -> CompletableFuture.failedFuture(
+                new IllegalStateException("observer unavailable")));
+
+        assertThrows(RuntimeException.class, () -> ends.end(tenant, tripId, List.of(definition), now,
+                c -> failing.closedBySystem(tenant, c.value(), TripEnds.REASON, c.at()).toCompletableFuture().join()));
+        assertNotNull(cases.find(tenant, caseId).orElseThrow().closedAt());
+        List<TripEnds.Closure> delivered = new ArrayList<>();
+        PgTripEnds replica = new PgTripEnds(() -> pool, cases);
+        assertEquals(1, replica.retry(delivered::add));
+        assertEquals(caseId, delivered.get(0).value().id());
+        assertEquals(now, delivered.get(0).at());
+        assertEquals(0, replica.retry(delivered::add));
+        assertTrue(ends.close(tenant, tripId, List.of(definition), now).isEmpty());
+    }
+
+    @Test
+    void aStateSweepAndTripClosureWriteOneClosedRow() throws Exception {
+        UUID definition = symptom("state-race");
+        String tripId = trip("completed").toString();
+        open(definition, "STATE", tripId, 2);
+        PgIds.query(pool, "UPDATE miot_symptoms.symptom_definition SET state = 'OFF' WHERE id = $1",
+                Tuple.of(definition));
+        try (var workers = Executors.newFixedThreadPool(2)) {
+            Future<Integer> sweep = workers.submit(() -> cases.closeStale(tenant, definition, now, "state change").size());
+            Future<Integer> end = workers.submit(() -> ends.close(tenant, tripId, List.of(definition), now).size());
+            assertEquals(1, sweep.get(15, TimeUnit.SECONDS) + end.get(15, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    void tripClosureAndAnEvaluatorBatchUseTheSameLockOrder() throws Exception {
+        List<UUID> definitions = java.util.stream.Stream.of(symptom("lock-a"), symptom("lock-b"))
+                .sorted(java.util.Comparator.comparing(UUID::toString)).toList();
+        UUID a = definitions.get(0);
+        UUID b = definitions.get(1);
+        String tripId = trip("in_progress").toString();
+        long first = open(b, "LOCKS", tripId, 1);
+        open(a, "LOCKS", tripId, 1);
+        var blocker = pool.getConnection().await().atMost(WAIT);
+        var transaction = blocker.begin().await().atMost(WAIT);
+        var workers = Executors.newFixedThreadPool(2);
+        try {
+            blocker.preparedQuery("SELECT id FROM miot_symptoms.signal_transitions WHERE id = $1 FOR UPDATE")
+                    .execute(Tuple.of(first)).await().atMost(WAIT);
+            Future<Integer> end = workers.submit(() -> ends.close(tenant, tripId, definitions, now).size());
+            awaitWaitingLocks(1);
+            Future<Integer> batch = workers.submit(() -> log.appendTripCheck(tenant, List.of(
+                    new Transition(Kind.LEVEL_CHANGED, a, "1.0.0", SymptomState.ACTIVE, "LOCKS", now, 2, 1, 30),
+                    new Transition(Kind.LEVEL_CHANGED, b, "1.0.0", SymptomState.ACTIVE, "LOCKS", now, 2, 1, 30)),
+                    new TransitionLog.Place(tripId, null, null, null, null), null).size());
+            awaitWaitingLocks(2);
+            transaction.commit().await().atMost(WAIT);
+            assertEquals(2, end.get(15, TimeUnit.SECONDS));
+            assertEquals(0, batch.get(15, TimeUnit.SECONDS));
+        } finally {
+            blocker.close().await().atMost(WAIT);
+            workers.shutdownNow();
+        }
+    }
+
+    private static void awaitWaitingLocks(int count) {
+        org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(5)).pollInterval(Duration.ofMillis(10)).until(() -> {
+            Row row = pool.query("""
+                    SELECT count(*) AS waiting FROM pg_stat_activity
+                     WHERE datname = current_database() AND wait_event_type = 'Lock'
+                    """).execute().await().atMost(WAIT).iterator().next();
+            return row.getLong("waiting") >= count;
+        });
     }
 
     @Test

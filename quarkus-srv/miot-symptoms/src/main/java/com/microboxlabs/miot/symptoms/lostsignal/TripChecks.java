@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Runs the organization's {@code trip_check} versions on a lost vehicle's check, with the evaluator's episodes,
@@ -179,15 +180,22 @@ public class TripChecks {
         if (definitions.isEmpty()) {
             return 0;
         }
-        List<StaleCase> closed = ends.close(tenant, tripId, definitions, now);
-        for (StaleCase c : closed) {
-            forgetStale(c);
-            events.closedBySystem(c.tenantCode(), c, TripEnds.REASON, now);
+        int closed = ends.end(tenant, tripId, definitions, now, this::closed);
+        if (closed > 0) {
+            meters.counter("miot.symptoms.lost_signal.trip_ended_closes").increment(closed);
         }
-        if (!closed.isEmpty()) {
-            meters.counter("miot.symptoms.lost_signal.trip_ended_closes").increment(closed.size());
-        }
-        return closed.size();
+        return closed;
+    }
+
+    public int retryEnded() {
+        return ends.retry(this::closed);
+    }
+
+    private void closed(TripEnds.Closure closure) {
+        StaleCase c = closure.value();
+        forgetStale(c);
+        events.closedBySystem(c.tenantCode(), c, TripEnds.REASON, closure.at()).toCompletableFuture()
+                .orTimeout(5, TimeUnit.SECONDS).join();
     }
 
     /** One of the organization's trips changed: when it ended, ends it ({@link #endTrip}). */
@@ -300,7 +308,7 @@ public class TripChecks {
                 .evaluate(tenant, assetId, now, Map.of(TripCheck.ROOT, check), symptoms);
         TransitionLog.Place place = place(trip, last);
         if (!result.transitions().isEmpty()) {
-            List<TransitionLog.Recorded> recorded = log.append(tenant, result.transitions(), place, context(check));
+            List<TransitionLog.Recorded> recorded = log.appendTripCheck(tenant, result.transitions(), place, context(check));
             recorded.stream().filter(r -> r.transition().kind() == Transition.Kind.OPENED)
                     .forEach(r -> open.put(key(tenant, r.transition().definitionId()),
                             new OpenCase(r.caseId(), r.transition().version(), r.transition().state())));

@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.CaseFilter;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
+import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -320,6 +321,15 @@ public class PgEngineCases implements EngineCaseStore {
              ORDER BY id FOR UPDATE
             """;
 
+    private static final String TRIP_DEFINITIONS = """
+            SELECT id FROM miot_symptoms.symptom_definition
+             WHERE tenant_code = $1 AND id = ANY($2::uuid[])
+             ORDER BY id FOR SHARE
+            """;
+    private static final String TRIP_STATE_LOCK = """
+            SELECT id FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2 FOR SHARE
+            """;
+
     /**
      * Closes every open case whose state is no longer its symptom's ($1 tenant and $2 symptom, each null for any;
      * $3 the time, $4 the reason). OFF differs from both states, so turning a symptom off closes all its cases.
@@ -366,7 +376,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String LOCK_TRIP = """
             SELECT id FROM miot_symptoms.signal_transitions
              WHERE tenant_code = $1 AND trip_id = $2 AND kind = 'OPENED' AND definition_id = ANY($3::uuid[])
-             ORDER BY id FOR UPDATE
+             ORDER BY definition_id, asset_id, id FOR UPDATE
             """;
 
     /**
@@ -374,6 +384,7 @@ public class PgEngineCases implements EngineCaseStore {
      * {@code closed_by} and the context's {@code reason} $5, at $4.
      */
     private static final String CLOSE_TRIP = """
+            WITH closed AS (
             INSERT INTO miot_symptoms.signal_transitions
                 (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure,
                  trip_id, latitude, longitude, speed_kmh, closed_by, context)
@@ -395,7 +406,7 @@ public class PgEngineCases implements EngineCaseStore {
                     WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
                       AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id)
              ORDER BY o.definition_id, o.asset_id, o.state, o.id DESC
-            RETURNING tenant_code, definition_id, version, state, asset_id, level, trip_id, latitude, longitude,
+            RETURNING id, tenant_code, definition_id, version, state, asset_id, level, trip_id, latitude, longitude,
                       speed_kmh, (SELECT max(o.id) FROM miot_symptoms.signal_transitions o
                                    WHERE o.tenant_code = signal_transitions.tenant_code
                                      AND o.definition_id = signal_transitions.definition_id
@@ -407,6 +418,12 @@ public class PgEngineCases implements EngineCaseStore {
                           AND o.asset_id = signal_transitions.asset_id
                           AND o.state = signal_transitions.state AND o.kind = 'OPENED'
                         ORDER BY o.id DESC LIMIT 1) AS opened_at
+            ), queued AS (
+                INSERT INTO miot_symptoms.trip_end_effects (opened_id, closed_id)
+                SELECT case_id, id FROM closed
+                RETURNING opened_id
+            )
+            SELECT closed.* FROM closed JOIN queued ON queued.opened_id = closed.case_id
             """;
 
     private final Supplier<Pool> pool;
@@ -641,8 +658,10 @@ public class PgEngineCases implements EngineCaseStore {
             return List.of();
         }
         UUID[] ids = definitionIds.toArray(UUID[]::new);
-        return pool.get().withTransaction(conn -> conn.preparedQuery(LOCK_TRIP)
-                .execute(Tuple.of(tenantCode, tripId, ids))
+        return pool.get().withTransaction(conn -> conn.preparedQuery(TRIP_STATE_LOCK)
+                .execute(Tuple.of(tenantCode, TripEnds.uuid(tripId)))
+                .flatMap(locked -> conn.preparedQuery(TRIP_DEFINITIONS).execute(Tuple.of(tenantCode, ids)))
+                .flatMap(locked -> conn.preparedQuery(LOCK_TRIP).execute(Tuple.of(tenantCode, tripId, ids)))
                 .flatMap(locked -> conn.preparedQuery(CLOSE_TRIP)
                         .execute(Tuple.of(tenantCode, tripId, ids, at.atOffset(ZoneOffset.UTC), reason)))
                 .map(PgEngineCases::staleCases))
@@ -651,11 +670,16 @@ public class PgEngineCases implements EngineCaseStore {
 
     private static List<StaleCase> staleCases(Iterable<Row> rows) {
         List<StaleCase> out = new ArrayList<>();
-        rows.forEach(r -> out.add(new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
+        rows.forEach(r -> out.add(staleCase(r)));
+        return out;
+    }
+
+    /** The case identity shared by closure queries and the durable trip-end effects queue. */
+    public static StaleCase staleCase(Row r) {
+        return new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
                 r.getUUID("definition_id"), r.getString("version"), "TEST".equals(r.getString("state")),
                 r.getString(ASSET_ID), r.getInteger("level"), r.getString("trip_id"), r.getDouble("latitude"),
-                r.getDouble("longitude"), r.getDouble("speed_kmh"), r.getOffsetDateTime("opened_at").toInstant())));
-        return out;
+                r.getDouble("longitude"), r.getDouble("speed_kmh"), r.getOffsetDateTime("opened_at").toInstant());
     }
 
     private static EngineCase engineCase(Row r) {

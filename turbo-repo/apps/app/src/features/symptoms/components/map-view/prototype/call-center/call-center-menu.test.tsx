@@ -12,6 +12,8 @@ import CallCenterMenu from "./call-center-menu";
 const data = vi.hoisted(() => ({
   contacts: [] as unknown[],
   treatments: undefined as unknown,
+  /** Treatments per case id; wins over `treatments` when set. */
+  treatmentsById: undefined as Record<string, unknown> | undefined,
   tripData: {} as Record<string, string>,
   /** The server's answer for one step condition. */
   match: (() => []) as (condition: string) => string[],
@@ -52,7 +54,8 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   }),
   useSymptomTreatments: (id: unknown) => {
     data.treatmentsId = id;
-    return { data: data.treatments, mutate: data.refreshTreatments };
+    const own = data.treatmentsById?.[String(id)];
+    return { data: own ?? data.treatments, mutate: data.refreshTreatments };
   },
   openTreatment: data.openTreatment,
   addTreatmentAction: data.addTreatmentAction,
@@ -182,6 +185,7 @@ beforeEach(() => {
   };
   data.problem = () => null;
   data.treatments = undefined;
+  data.treatmentsById = undefined;
   data.level = undefined;
   data.context = undefined;
   data.createContact.mockImplementation(
@@ -372,7 +376,9 @@ describe("CallCenterMenu", () => {
         role: "Gerente de Seguridad",
         phone: "+12025550101",
         methods: ["phone"],
-        stats: expect.objectContaining({ accepted: 2, denied: 1 }),
+        // Not called in this case; the book's counts stay apart as history.
+        stats: { lastCallAt: null, accepted: 0, denied: 0 },
+        history: expect.objectContaining({ accepted: 2, denied: 1 }),
       })
     );
   });
@@ -683,6 +689,103 @@ describe("CallCenterMenu", () => {
     renderMenu();
     expect(data.treatmentsId).toBe(-7);
     expect(screen.getByText(es.symptoms.call_center_just_called)).toBeTruthy();
+  });
+
+  describe("calls in this case", () => {
+    const callAction = (patch: Record<string, unknown>) => ({
+      kind: "CALL",
+      contactId: null,
+      contactPhone: null,
+      contactRole: null,
+      answered: true,
+      durationSeconds: 30,
+      performedAt: new Date().toISOString(),
+      ...patch,
+    });
+    const caseB = {
+      ...treatment,
+      symptom_info: { ...treatment.symptom_info, id: -8 },
+    } as unknown as TreatmentsGeneralResponseItem;
+    const anaRow = () => screen.getByRole("button", { name: /Ana Pérez/ });
+    const counters = (row: HTMLElement) =>
+      within(row).getByTitle(/En este caso/);
+
+    beforeEach(() => {
+      data.level = levelWith([
+        { role: "Conductor", channel: "call", budgetMinutes: 2, script: null },
+      ]);
+      // Ana was called in case -7 only.
+      data.treatmentsById = {
+        "-7": [
+          {
+            actions: [
+              callAction({ contactId: "ana" }),
+              callAction({
+                contactId: "ana",
+                answered: false,
+                durationSeconds: 0,
+              }),
+            ],
+          },
+        ],
+        "-8": [],
+      };
+    });
+
+    it("does not show a contact called in another case as called", () => {
+      renderMenu(caseB);
+      expect(data.treatmentsId).toBe(-8);
+      expect(
+        screen.queryByText(es.symptoms.call_center_just_called)
+      ).toBeNull();
+      const badges = counters(anaRow());
+      expect(badges.textContent).toBe("00");
+      // The book's history is labelled as all cases, apart from this case.
+      expect(badges.getAttribute("title")).toBe(
+        "En este caso: contestadas 0, sin respuesta 0\n" +
+          "En todos los casos: contestadas 2, sin respuesta 1"
+      );
+    });
+
+    it("shows a contact called in this case as called, with this case's counts", () => {
+      renderMenu();
+      expect(data.treatmentsId).toBe(-7);
+      expect(
+        within(anaRow()).getByText(es.symptoms.call_center_just_called)
+      ).toBeTruthy();
+      const badges = counters(anaRow());
+      expect(badges.textContent).toBe("11");
+      expect(badges.getAttribute("title")).toMatch(
+        /^En este caso: contestadas 1, sin respuesta 1\n/
+      );
+    });
+
+    it("matches an older call without a contact id by phone", () => {
+      data.treatmentsById = {
+        "-7": [{ actions: [callAction({ contactPhone: "+1 202 555 0101" })] }],
+      };
+      data.contacts = [
+        contact("ana", "Ana Pérez", "Conductor"),
+        contact("gs", "Gema Soto", "Gerente", { phone: "+12025550199" }),
+      ];
+      data.match = () => ["ana", "gs"];
+      renderMenu();
+      expect(counters(anaRow()).textContent).toBe("10");
+      const gema = screen.getByRole("button", { name: /Gema Soto/ });
+      expect(counters(gema).textContent).toBe("00");
+    });
+
+    it("passes this case's counts to the call, not the book's", async () => {
+      const user = userEvent.setup();
+      const onCall = renderMenu(caseB);
+      await user.click(anaRow());
+      expect(onCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contactId: "ana",
+          stats: { lastCallAt: null, accepted: 0, denied: 0 },
+        })
+      );
+    });
   });
 
   it("shows the whole book when the level has no steps", () => {

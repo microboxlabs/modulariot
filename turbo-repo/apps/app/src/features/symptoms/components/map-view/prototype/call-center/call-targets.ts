@@ -49,7 +49,10 @@ export interface CallTarget {
   nationalId?: string | null;
   /** The channels the target can be reached on. Empty means none. */
   methods: CallMethod[];
+  /** Calls to the contact in the current case only; null outside a case or for a new number. */
   stats: CallStats | null;
+  /** The contact's calls in all cases, from the book. Never read as "called in this case". */
+  history?: CallStats | null;
 }
 
 /** Phone number displayed and recorded for the selected channel. */
@@ -120,7 +123,8 @@ export function toCallTarget(c: TowerContact): CallTarget {
     companyRut: c.companyRut ?? null,
     nationalId: c.nationalId ?? null,
     methods: contactMethods(c),
-    stats: {
+    stats: null,
+    history: {
       lastCallAt: c.lastCalledAt ? new Date(c.lastCalledAt) : null,
       accepted: c.answered,
       denied: c.missed,

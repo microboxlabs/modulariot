@@ -195,7 +195,12 @@ public class IntegrationsTelephony implements Telephony {
             usage.insert(new UsageRow(ref, tenantCode, channel, line.managed(), connectionId, null, caseRef,
                     callee, destinationType, UsageRow.STARTED, null, null, null, null,
                     null, null, now, null, null));
-            claim.accept(ref);
+            try {
+                claim.accept(ref);
+            } catch (RuntimeException refused) {
+                usage.update(usage.find(ref).orElseThrow().retired());
+                throw refused;
+            }
             return true;
         });
         TelnyxWebRtcTokens.Issued issued;

@@ -174,8 +174,10 @@ public class RedisEpisodes implements EpisodeRepository {
     }
 
     private static final String FORGET_STALE = """
-            if redis.call('HGET', KEYS[1], ARGV[1]) == ARGV[2] then
+            local current = redis.call('HGET', KEYS[1], ARGV[1])
+            if current == ARGV[2] or (not current and ARGV[2] == '') then
                 redis.call('HINCRBY', KEYS[1], 'close:revision', 1)
+                redis.call('EXPIRE', KEYS[1], ARGV[3])
                 return redis.call('HDEL', KEYS[1], ARGV[1])
             end
             return 0
@@ -186,14 +188,12 @@ public class RedisEpisodes implements EpisodeRepository {
             SymptomState state, Instant openedAt) {
         String field = EPISODE + definitionId;
         Response value = redis.hget(key(tenantCode, assetId), field).await().atMost(TIMEOUT);
-        if (value == null) {
-            return;
-        }
-        String snapshot = value.toString();
-        Episode e = read(snapshot);
-        if (e.closedOnTrip() == null && (e.state() == null || e.state() == state)
-                && (e.openedAt() == null || !e.openedAt().isAfter(openedAt))) {
-            redis.eval(List.of(FORGET_STALE, "1", key(tenantCode, assetId), field, snapshot)).await().atMost(TIMEOUT);
+        String snapshot = value == null ? "" : value.toString();
+        Episode e = value == null ? null : read(snapshot);
+        if (e == null || (e.closedOnTrip() == null && (e.state() == null || e.state() == state)
+                && (e.openedAt() == null || !e.openedAt().isAfter(openedAt)))) {
+            redis.eval(List.of(FORGET_STALE, "1", key(tenantCode, assetId), field, snapshot,
+                    Long.toString(ttl.toSeconds()))).await().atMost(TIMEOUT);
         }
     }
 

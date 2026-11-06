@@ -141,7 +141,7 @@ A trip ends when `miot_trips.trip` has it `completed` or `cancelled`, or has no 
 | `miot_trips_live` notice | Every `trip_live` change, including the delete at the trip's end. Each replica with the detector on reads the trip's state |
 | Next check of the vehicle | Each check first reads the state of the trips in the watch, so a missed notice is caught. A failed read fails the check, which is retried on the next tick |
 
-On a trip end, every open case of the trip on a TEST or ACTIVE `trip_check` symptom closes at its current level:
+On a trip end, every open case of the trip on a TEST or ACTIVE `trip_check` symptom evaluated by the lost-signal detector closes at its current level. Symptoms that read duty counters run on frames and keep their own lifecycle:
 
 | Field | Value |
 |---|---|
@@ -150,7 +150,7 @@ On a trip end, every open case of the trip on a TEST or ACTIVE `trip_check` symp
 | Event | `symptom.case.closed`, `closedBy: trip_ended` |
 | Counter | `miot.symptoms.lost_signal.trip_ended_closes` |
 
-The case's episode is dropped, so a new trip of the vehicle opens a new case. The check leaves the ended trip and its organization's cases out, so no rule opens or escalates a case on it. A case already closed is left alone. The case timeline shows "Se cierra · Viaje finalizado".
+The closed case's episode is dropped, so a new trip of the vehicle opens a new case. Delayed cleanup preserves an episode opened for a newer case and an operator's close marker. The check leaves the ended trip and its organization's cases out, so no rule opens or escalates a case on it. A case already closed is left alone. The case timeline shows "Se cierra · Viaje finalizado".
 
 The close rule (`case.normal_s`, `case.off_trip_s`) cannot do this: the lost check runs only with the trip the newest frame carried, and a parked truck sends no frame.
 

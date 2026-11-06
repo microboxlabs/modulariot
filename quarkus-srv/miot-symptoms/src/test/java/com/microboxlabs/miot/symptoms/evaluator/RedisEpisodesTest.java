@@ -134,6 +134,12 @@ class RedisEpisodesTest {
     }
 
     @Test
+    void aTripCloseRejectsAnEpisodeWhoseOpeningHasNotBeenSavedYet() {
+        EpisodeRepositoryConcurrencyTest.assertTripCloseProtectsSnapshot(
+                new RedisEpisodes(redis, Duration.ofDays(7)), new RedisEpisodes(redis, Duration.ofDays(7)), FORGET_ASSET);
+    }
+
+    @Test
     void anOperatorMarkerRejectsStaleWritesAndDeletesAcrossRepositories() {
         EpisodeRepositoryConcurrencyTest.assertMarkerProtectsSnapshots(
                 new RedisEpisodes(redis, Duration.ofDays(7)), new RedisEpisodes(redis, Duration.ofDays(7)), CLOSE_ASSET);

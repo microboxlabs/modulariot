@@ -380,7 +380,7 @@ public class PgEngineCases implements EngineCaseStore {
             SELECT DISTINCT ON (o.definition_id, o.asset_id, o.state)
                    o.tenant_code, o.definition_id, o.version, o.state, 'CLOSED', o.asset_id, $4,
                    COALESCE(lv.level, o.level), COALESCE(lv.level, o.level),
-                   o.measure, o.trip_id, o.latitude, o.longitude, o.speed_kmh, $5,
+                   o.measure, o.trip_id, o.latitude, o.longitude, o.speed_kmh, $5::text,
                    jsonb_build_object('reason', $5::text, 'trip_id', o.trip_id)
               FROM miot_symptoms.signal_transitions o
               LEFT JOIN LATERAL (

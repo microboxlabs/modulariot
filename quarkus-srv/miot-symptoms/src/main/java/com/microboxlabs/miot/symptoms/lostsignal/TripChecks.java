@@ -181,7 +181,7 @@ public class TripChecks {
         }
         List<StaleCase> closed = ends.close(tenant, tripId, definitions, now);
         for (StaleCase c : closed) {
-            episodes.operatorClose(c.tenantCode(), c.assetId(), c.definitionId(), null);
+            forgetStale(c);
             events.closedBySystem(c.tenantCode(), c, TripEnds.REASON, now);
         }
         if (!closed.isEmpty()) {

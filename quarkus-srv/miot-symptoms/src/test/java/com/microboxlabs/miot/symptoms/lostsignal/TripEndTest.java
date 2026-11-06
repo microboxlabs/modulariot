@@ -7,8 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
+import com.microboxlabs.miot.symptoms.evaluator.AssetEpisodes;
+import com.microboxlabs.miot.symptoms.evaluator.Episode;
+import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
+import com.microboxlabs.miot.symptoms.evaluator.Holds;
+import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
+import com.microboxlabs.miot.symptoms.service.AuditService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
@@ -188,6 +194,47 @@ class TripEndTest {
         assertEquals(Transition.Kind.OPENED, after.get(0).kind(), "a new case, not a level change of the old one");
         assertEquals(0, after.get(0).previousLevel(), "from no case: its level is the silence it found");
         assertEquals("T-2", engine.places.get(engine.places.size() - 1).tripId());
+    }
+
+    @Test
+    void aDelayedTripEndPreservesANewerCaseAndAnOperatorsCloseMarker() {
+        UUID id = engine.publish(TENANT, "signal-loss", SeedTemplates.get("signal-loss").spec(), SymptomState.ACTIVE);
+        InMemoryEpisodeRepository episodes = new InMemoryEpisodeRepository();
+        Episode newer = new Episode(id, "1.0.0", "NEW", T0, T0, null, Map.of(), T0.plusSeconds(60),
+                T0.plusSeconds(60), 1, 30, SymptomState.ACTIVE);
+        Episode old = new Episode(id, "1.0.0", "OLD", T0, T0, null, Map.of(), T0, T0, 1, 30,
+                SymptomState.ACTIVE);
+        Episode marker = Episode.closedOnTrip(id, "MANUAL", "T-2", T0.plusSeconds(60));
+        for (Episode e : List.of(newer, old, marker)) {
+            AssetEpisodes state = episodes.load(TENANT, e.assetId());
+            state.save(TENANT, e);
+            episodes.save(state);
+        }
+        TripEnds closedTrips = new TripEnds() {
+            @Override
+            public Map<String, State> states(Map<String, String> tripByTenant) {
+                return Map.of(TENANT, new State(true, false));
+            }
+
+            @Override
+            public List<StaleCase> close(String tenant, String tripId, List<UUID> definitionIds, Instant at) {
+                return List.of("NEW", "OLD", "MANUAL").stream()
+                        .map(asset -> new StaleCase(tenant, 1L, id, "1.0.0", false, asset, 1, tripId,
+                                null, null, null, T0))
+                        .toList();
+            }
+        };
+        TripChecks checks = new TripChecks(new EvaluatorCatalog(engine.catalog, engine.sources), episodes,
+                engine.log, engine.events, new AuditService(engine.audits), meters, Holds.NONE, closedTrips);
+
+        assertEquals(3, checks.tripChanged(TENANT, "T-1", T0.plusSeconds(120)));
+
+        assertEquals(newer, episodes.load(TENANT, "NEW").find(TENANT, "NEW", id).orElseThrow(),
+                "a new case opened after the database closed the old trip's case");
+        assertTrue(episodes.load(TENANT, "OLD").find(TENANT, "OLD", id).isEmpty(),
+                "the closed case's episode is removed");
+        assertEquals(marker, episodes.load(TENANT, "MANUAL").find(TENANT, "MANUAL", id).orElseThrow(),
+                "a concurrent operator close on the next trip survives");
     }
 
     @Test

@@ -308,7 +308,10 @@ describe("CaseTimelinePreview", () => {
         d={{
           timelineTitle: "Timeline",
           fromCloseRule: "Close rule",
-          timeline: { CLOSED: "Closes", CLOSED_TRIP_ENDED: "Closes · Trip ended" },
+          timeline: {
+            CLOSED: "Closes",
+            CLOSED_TRIP_ENDED: "Closes · Trip ended",
+          },
         }}
       />
     );

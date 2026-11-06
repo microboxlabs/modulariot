@@ -25,6 +25,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -32,7 +34,7 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 /**
  * A trip's end against a real database: which trips ended, and closing their lost-signal cases. Skipped unless
- * {@code -Dmiot.symptoms.test.pg-url=...} is set; drops and re-creates {@code miot_symptoms}.
+ * {@code -Dmiot.symptoms.test.pg-url=...} is set; drops and re-creates {@code miot_symptoms} and {@code miot_trips}.
  */
 @EnabledIfSystemProperty(named = PgTreatmentStoresTest.URL_PROPERTY, matches = ".+")
 class PgTripEndTest {
@@ -59,7 +61,8 @@ class PgTripEndTest {
                 .connectingTo(PgConnectOptions.fromUri(System.getProperty(PgTreatmentStoresTest.URL_PROPERTY)))
                 .using(vertx).build();
         pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
-        pool.query("CREATE SCHEMA IF NOT EXISTS miot_trips").execute().await().atMost(WAIT);
+        pool.query("DROP SCHEMA IF EXISTS miot_trips CASCADE").execute().await().atMost(WAIT);
+        pool.query("CREATE SCHEMA miot_trips").execute().await().atMost(WAIT);
         pool.query("""
                 CREATE TABLE IF NOT EXISTS miot_trips.trip_live (
                     trip_id uuid PRIMARY KEY, tenant_code text NOT NULL, asset_id text, mandate_codes jsonb)
@@ -81,8 +84,12 @@ class PgTripEndTest {
 
     @AfterAll
     static void close() {
-        pool.close().await().atMost(WAIT);
-        vertx.close().await().atMost(WAIT);
+        try {
+            pool.query("DROP SCHEMA IF EXISTS miot_trips CASCADE").execute().await().atMost(WAIT);
+        } finally {
+            pool.close().await().atMost(WAIT);
+            vertx.close().await().atMost(WAIT);
+        }
     }
 
     private UUID trip(String status) {
@@ -129,6 +136,26 @@ class PgTripEndTest {
                 .get(tenant));
         assertEquals(new TripEnds.State(true, false), ends.states(Map.of(tenant, UUID.randomUUID().toString()))
                 .get(tenant), "no such trip");
+    }
+
+    @Test
+    void concurrentReplicasAndAnOperatorCloseTheCaseOnce() throws Exception {
+        UUID lost = symptom("concurrent-loss");
+        String tripId = UUID.randomUUID().toString();
+        long caseId = open(lost, "RACE", tripId, 2);
+
+        try (var workers = Executors.newFixedThreadPool(3)) {
+            Future<Integer> first = workers.submit(() -> ends.close(tenant, tripId, List.of(lost), now).size());
+            Future<Integer> second = workers.submit(() -> ends.close(tenant, tripId, List.of(lost), now).size());
+            Future<Integer> operator = workers.submit(() -> cases.close(tenant, caseId, "ops@example.com", now) ? 1 : 0);
+            assertEquals(1, first.get() + second.get() + operator.get());
+        }
+
+        Row row = PgIds.query(pool, """
+                SELECT count(*) AS closes FROM miot_symptoms.signal_transitions
+                 WHERE tenant_code = $1 AND definition_id = $2 AND asset_id = 'RACE' AND kind = 'CLOSED'
+                """, Tuple.of(tenant, lost)).iterator().next();
+        assertEquals(1L, row.getLong("closes"));
     }
 
     @Test

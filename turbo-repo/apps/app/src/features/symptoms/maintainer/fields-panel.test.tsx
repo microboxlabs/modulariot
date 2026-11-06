@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const editor = vi.hoisted(() => ({ insertIntoFocused: vi.fn() }));
@@ -88,6 +88,59 @@ describe("withAllFields", () => {
       expect(sample).toEqual({ signal: { speed: 1, trip } });
     }
   );
+
+  it("projects only catalog paths and clones their sample values", () => {
+    const events = [{ event_type: "ign_on" }];
+    const sample = {
+      debug: true,
+      signal: {
+        speed: 42,
+        debug_code: "private",
+        trip: { age_min: 7, debug: true },
+        events,
+      },
+    };
+    const projected = withAllFields(sample, FIELDS);
+    expect(projected).toEqual({
+      signal: { speed: 42, trip: { age_min: 7 }, events },
+    });
+    expect((projected.signal as Record<string, unknown>).events).not.toBe(
+      events
+    );
+    expect(sample.signal.debug_code).toBe("private");
+  });
+
+  it.each([
+    undefined,
+    Object.fromEntries([
+      ["__proto__", { constructor: { x: 7 } }],
+      ["constructor", { prototype: { x: 9 } }],
+    ]),
+  ])("keeps prototype-sensitive paths as own data with sample %j", (sample) => {
+    const fields = ["__proto__.constructor.x", "constructor.prototype.x"].map(
+      (path) => ({ ...FIELDS[0]!, path })
+    );
+    const descriptor = Object.getOwnPropertyDescriptor(
+      Object.prototype,
+      "constructor"
+    )!;
+    let projected: ReturnType<typeof withAllFields> = {};
+    let intact = false;
+    try {
+      projected = withAllFields(sample, fields);
+      intact = Object.prototype.constructor === descriptor.value;
+    } finally {
+      Object.defineProperty(Object.prototype, "constructor", descriptor);
+    }
+    expect(intact).toBe(true);
+    expect(Object.getPrototypeOf(projected)).toBe(Object.prototype);
+    expect(Object.hasOwn(projected, "__proto__")).toBe(true);
+    expect(Object.hasOwn(projected, "constructor")).toBe(true);
+    expect(Object.entries(projected)).toEqual([
+      ["__proto__", { constructor: { x: sample ? 7 : undefined } }],
+      ["constructor", { prototype: { x: sample ? 9 : undefined } }],
+    ]);
+  });
 });
 
 describe("FieldsPanel", () => {
@@ -148,6 +201,47 @@ describe("FieldsPanel", () => {
     expect(screen.getByLabelText("Insertar signal.speed").textContent).toBe(
       "speedVelocidad — Velocidad reportada por el GPS · km/h"
     );
+  });
+
+  it("does not offer paths that exist only in the sample", () => {
+    render(
+      <FieldsPanel
+        source={{
+          ...SOURCE,
+          samples: [{ signal: { speed: 72, debug_code: "private" } }],
+        }}
+        d={d}
+      />
+    );
+    expect(screen.getByLabelText("Insertar signal.speed")).toBeTruthy();
+    expect(screen.queryByLabelText("Insertar signal.debug_code")).toBeNull();
+    fireEvent.change(filter(), { target: { value: "debug_code" } });
+    expect(screen.getByText("Sin resultados")).toBeTruthy();
+  });
+
+  it("warns about unsupported list members even when their list is supported", () => {
+    render(
+      <FieldsPanel
+        source={{
+          ...SOURCE,
+          fields: [
+            ...FIELDS,
+            {
+              ...FIELDS[3]!,
+              path: "signal.events.code",
+              label: "Código",
+              engineSupported: false,
+            },
+          ],
+        }}
+        d={d}
+      />
+    );
+    fireEvent.change(filter(), { target: { value: "code" } });
+    const list = screen.getByLabelText("Insertar signal.events");
+    expect(within(list).getByText("code")).toBeTruthy();
+    expect(within(list).getByText("motor: aún no")).toBeTruthy();
+    expect(screen.queryByLabelText("Insertar signal.events.code")).toBeNull();
   });
 
   it("keeps missing fields available while navigating samples", () => {

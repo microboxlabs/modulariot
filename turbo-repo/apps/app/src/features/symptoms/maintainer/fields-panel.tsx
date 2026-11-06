@@ -18,6 +18,20 @@ type Json = Record<string, unknown>;
 const isObject = (v: unknown): v is Json =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
+function ownValue(value: unknown, key: string): unknown {
+  return isObject(value) && Object.hasOwn(value, key) ? value[key] : undefined;
+}
+
+/** Treat every catalog segment as data, including __proto__ and constructor. */
+function setOwn(target: Json, key: string, value: unknown) {
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+}
+
 /** What clicking a field writes: its path, or for a list a condition on its elements to fill in. */
 export function fieldText(f: SourceField): string {
   return f.type === OBJECTS
@@ -26,27 +40,29 @@ export function fieldText(f: SourceField): string {
 }
 
 /**
- * The sample with every field of the source in it, so fields the sample lacks
- * still show; they have no value. A list's own fields stay out: they show
- * under the list.
+ * Every catalog field, with its sample value when present. Sample-only paths
+ * stay out, and missing fields still show without a value. A list's own fields
+ * show under the list instead of as insertable paths.
  */
 export function withAllFields(
   sample: Json | undefined,
   fields: readonly SourceField[]
 ): Json {
-  const out: Json = structuredClone(sample ?? {});
+  const out: Json = {};
   for (const f of fields) {
     if (inList(f.path, [...fields])) continue;
     const keys = f.path.split(".");
     let at: Json = out;
+    let value: unknown = sample;
     for (const key of keys.slice(0, -1)) {
-      const value = at[key];
-      const next = isObject(value) ? value : {};
-      at[key] = next;
+      const child = ownValue(at, key);
+      const next = isObject(child) ? child : {};
+      setOwn(at, key, next);
       at = next;
+      value = ownValue(value, key);
     }
     const last = keys.at(-1) as string;
-    if (!(last in at)) at[last] = undefined;
+    setOwn(at, last, structuredClone(ownValue(value, last)));
   }
   return out;
 }

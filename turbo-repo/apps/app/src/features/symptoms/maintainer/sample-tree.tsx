@@ -215,6 +215,18 @@ export type InsertText = (path: string) => { text: string; caret: number };
 
 const insertPath: InsertText = (path) => ({ text: path, caret: path.length });
 
+function EngineWarning({
+  path,
+  ctx,
+}: Readonly<{ path: string; ctx: TreeContext }>) {
+  if (!ctx.notInEngine.has(path)) return null;
+  return (
+    <span className="ml-2 rounded bg-amber-50 px-1 text-[10px] text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+      {tr("engineNotYetTag", ctx.d)}
+    </span>
+  );
+}
+
 /** Name and meaning of one field of a list's elements, under the list. */
 function Member({
   list,
@@ -227,6 +239,7 @@ function Member({
       <span className="font-mono text-gray-700 dark:text-gray-300">
         <Marked text={path.slice(list.length + 1)} q={ctx.q} />
       </span>
+      <EngineWarning path={path} ctx={ctx} />
       {info && (
         <>
           {" — "}
@@ -259,11 +272,7 @@ function Leaf({
           </span>
         </>
       )}
-      {ctx.notInEngine.has(path) && (
-        <span className="ml-2 rounded bg-amber-50 px-1 text-[10px] text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-          {tr("engineNotYetTag", d)}
-        </span>
-      )}
+      <EngineWarning path={path} ctx={ctx} />
       {info && (
         <span className="block font-sans text-[11px] leading-snug text-gray-500 dark:text-gray-400">
           <Marked text={info.label} q={q} />
@@ -294,7 +303,7 @@ function Leaf({
       className="block w-full cursor-grab rounded py-0.5 pl-4 text-left hover:bg-blue-50 dark:hover:bg-blue-900/30"
       onClick={() => {
         const { text, caret } = ctx.insertText(path);
-        if (text === path) insertIntoFocused(path);
+        if (text === path && caret === text.length) insertIntoFocused(path);
         else insertIntoFocused(text, caret);
       }}
       onDragStart={(e) => {

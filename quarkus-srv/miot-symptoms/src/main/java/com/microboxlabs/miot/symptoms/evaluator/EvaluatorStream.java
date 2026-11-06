@@ -42,7 +42,9 @@ import org.jboss.logging.Logger;
  * recent signals for rule previews ({@link SignalSamples}). A signal older than
  * the organization's watermark is counted ({@code miot.symptoms.evaluator.late})
  * and handed to {@link LateFrames}; the symptoms do not run on it. Every signal
- * also goes to the {@link LostSignalDetector}. On wherever
+ * also goes to the {@link LostSignalDetector}. A signal of device events only
+ * ({@value GpsSignal#EVENTS_SCHEMA_ID}) runs only the symptoms that read device
+ * events, as a late frame does, and does not reach the detector. On wherever
  * the symptoms Pulsar is wired ({@code miot.symptoms.evaluator.enabled}).
  */
 @ApplicationScoped
@@ -188,6 +190,9 @@ public class EvaluatorStream {
         } catch (DateTimeParseException e) {
             throw new IllegalArgumentException("not a signal time", e);
         }
+        if (GpsSignal.EVENTS_SCHEMA_ID.equals(signal.get("schema"))) {
+            return deviceEvents(assetId, instant, signal, clients);
+        }
         // Before the organizations: a failing catalog or log must not keep the frame out of the profiles.
         lostSignal.frame(assetId, instant, arrival(signal, arrivedAt), signal);
         int recorded = 0;
@@ -208,6 +213,32 @@ public class EvaluatorStream {
         }
         if (late) {
             meters.counter("miot.symptoms.evaluator.late", "sender", senderTag(signal.get("sender"))).increment();
+        }
+        return recorded;
+    }
+
+    /**
+     * A signal of device events received outside the GPS frames: the symptoms that read device events run on it as
+     * on a late frame, so it opens or raises their cases without moving the watermark the vehicle's frames keep.
+     */
+    private int deviceEvents(String assetId, Instant at, Map<String, Object> signal, List<?> clients) {
+        meters.counter("miot.symptoms.evaluator.device_events").increment();
+        int recorded = 0;
+        for (Object client : clients) {
+            if (!(client instanceof String tenant)) {
+                continue;
+            }
+            Map<String, Object> own = forTenant(signal, tenant);
+            samples.keep(tenant, own);
+            List<CompiledSymptom> symptoms = symptoms(tenant).stream().filter(CompiledSymptom::eventDriven).toList();
+            if (symptoms.isEmpty()) {
+                continue;
+            }
+            AssetEpisodes state = episodes.load(tenant, assetId);
+            SignalEvaluator.Result result = new SignalEvaluator(state, holds)
+                    .evaluateLate(tenant, assetId, at, Map.of(SignalFields.ROOT, own), symptoms);
+            writeResult(tenant, assetId, own, state, result, false);
+            recorded += result.transitions().size();
         }
         return recorded;
     }

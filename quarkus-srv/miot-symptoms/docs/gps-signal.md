@@ -26,7 +26,7 @@ One GPS frame as symptom rules read it, under the CEL root `signal`. The signal 
 | `signal.local_minutes` | Minutes since local midnight, the seconds as a fraction (01:30:30 is 90.5) | calculated |
 | `signal.derived` | `moving`; `power_disconnected`, `jamming` from the frame's events; `speed_avg_5m` (not evaluated yet) | calculated, device |
 | `signal.frame` | The frame as the device sent it (`AssetTrackingData`), for example `signal.frame.gps.speed` (km/h), `signal.frame.sensors.engine_status`, `signal.frame.sensors.panic_button` | device |
-| `signal.frame.events` | The frame's device events, a list. Each has `event_type`, `severity`, `description` and `timestamp` (the time of the fact, ISO-8601 UTC), all text; a missing one reads `""`. A frame without events reads an empty list | device |
+| `signal.frame.events` | The frame's device events, a list. Each has `event_type`, `severity`, `description`, `timestamp` (the time of the fact, ISO-8601 UTC) and `code` (the producer's code, only on device-events signals), all text; a missing one reads `""`. A frame without events reads an empty list | device |
 
 A part the builder does not know is left out. `frame` is always present. A rule that reads a missing field fails for that signal and is reported as a rule error. A rule reads an optional field with `.?`, which gives an optional value instead of an error, and compares it with `TRUE`, `FALSE` or `NONE` (`optional.of(true)`, `optional.of(false)`, `optional.none()`):
 
@@ -70,6 +70,20 @@ A device stores events while it has no network and sends them late, after newer 
 |---|---|
 | Activation, open, measure or a level | Opens the case when the symptom has none open; a step that does not open is undone |
 | Close or note | On an open case, and only when the frame is not older than the case: runs the close rule, else the note rule. The level does not change |
+
+### Device events outside the frames
+
+Events that do not travel in the GPS frames (driver app, fatigue cameras and sensors, load apps) are sent to `POST /api/v1/orgs/{org}/control-tower/device-events` ([control-tower-api.md](control-tower-api.md#device-events)). Each new event becomes a signal `miot.gps.signal.events@1` on the signals topic, keyed by vehicle:
+
+| Part | Value |
+|---|---|
+| `clients` | The sending organization only |
+| `trip` | Its trip in progress on the vehicle at the event's time (`miot_trips.trip_live`), else none |
+| `frame.events` | The one event: `event_type`, `timestamp`, and `severity`, `code`, `description` when sent |
+| `derived` | `power_disconnected` and `jamming` false |
+| `frame.gps`, `frame.sensors`, `geo`, `road` | Absent |
+
+The evaluator runs only the event-driven symptoms on it, as on a late frame (table above), without moving the watermark. It does not reach the lost-signal detector. Trip geofences skip it (no position).
 
 ## Signal builder
 

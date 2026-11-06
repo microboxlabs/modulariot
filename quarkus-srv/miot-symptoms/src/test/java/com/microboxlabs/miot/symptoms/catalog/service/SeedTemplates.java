@@ -34,7 +34,8 @@ public final class SeedTemplates {
             "/db/migration/symptoms/V0.12.17__event_symptom_templates.sql",
             "/db/migration/symptoms/V0.12.18__speed_templates_escalation.sql",
             "/db/migration/symptoms/V0.12.19__zone_and_hour_templates.sql",
-            "/db/migration/symptoms/V0.12.20__driving_and_rest_templates.sql");
+            "/db/migration/symptoms/V0.12.20__driving_and_rest_templates.sql",
+            "/db/migration/symptoms/V0.12.22__device_events.sql");
 
     private static final String TEXT = "'((?:[^']|'')*)'";
     private static final Pattern ROW = Pattern.compile("\\(" + TEXT + ", " + TEXT + ", " + TEXT + ", (NULL|"

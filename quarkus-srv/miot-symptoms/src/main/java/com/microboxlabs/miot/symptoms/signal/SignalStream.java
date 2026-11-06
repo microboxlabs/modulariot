@@ -72,7 +72,7 @@ public class SignalStream {
      * As JSON, so a loaded row and a notified one read alike. Names and phones are not selected: the carrier's
      * tax id and the driver's fleet id, status and license come from the fleet.
      */
-    private static final String TRIPS = """
+    static final String TRIPS = """
             SELECT row_to_json(t)::text AS trip FROM (
                 SELECT tl.trip_id, tl.tenant_code, tl.asset_id, tl.trip_type, tl.status,
                        coalesce((SELECT m.confirmed_at FROM miot_trips.trip_milestone m
@@ -225,13 +225,13 @@ public class SignalStream {
         });
     }
 
-    private static List<Trip> trips(RowSet<Row> rows) {
+    static List<Trip> trips(RowSet<Row> rows) {
         List<Trip> t = new ArrayList<>();
         rows.forEach(r -> t.add(ReferenceCache.trip(new JsonObject(r.getString("trip")))));
         return t;
     }
 
-    private static boolean undefinedTable(Throwable e) {
+    static boolean undefinedTable(Throwable e) {
         return e instanceof PgException pg && UNDEFINED_TABLE.equals(pg.getSqlState());
     }
 

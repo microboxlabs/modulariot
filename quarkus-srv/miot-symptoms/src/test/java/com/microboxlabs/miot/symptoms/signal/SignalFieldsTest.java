@@ -190,7 +190,7 @@ class SignalFieldsTest {
         Map<String, Object> read = GpsSignal.FrameEvent.withEvents(signal);
 
         assertEquals(List.of(Map.of("event_type", "device_tamper", "severity", "", "description", "",
-                "timestamp", "2026-01-01T12:00:00Z")), ((Map<?, ?>) read.get("frame")).get("events"));
+                "timestamp", "2026-01-01T12:00:00Z", "code", "")), ((Map<?, ?>) read.get("frame")).get("events"));
         assertEquals(List.of(), ((Map<?, ?>) GpsSignal.FrameEvent.withEvents(Map.of("frame", Map.of()))
                 .get("frame")).get("events"), "a frame without events reads an empty list");
     }

@@ -282,7 +282,7 @@ Organizations see a template once a platform owner publishes it.
 | `severity` | Optional: `low`, `medium` or `high` |
 | `description` | Optional, up to 500 characters |
 
-Answers `202 {"accepted": n, "duplicates": m}`. 503 when `miot.symptoms.device-events.enabled` is off or the signals topic did not take an event; the events after it were not sent, and the failed one can be sent again. Event ids are kept 30 days in `miot_symptoms.device_event`, without the payload.
+Answers `202 {"accepted": n, "duplicates": m}`. 503 when the signal builder is off (`miot.symptoms.signal-builder.enabled`) or the signals topic did not take an event; the events after it were not sent, and the failed one can be sent again. Event ids are kept 30 days in `miot_symptoms.device_event`, without the payload.
 
 The receipt commits after broker acknowledgement. Concurrent retries wait for that outcome; a failed send or a process stopping before acknowledgement rolls the receipt back. An acknowledgement lost after delivery may cause a broker redelivery, so the evaluator also deduplicates device transitions by event id. Distinct event ids at the same timestamp remain independent. A pending publication is not released by a local request timeout.
 
@@ -354,7 +354,6 @@ organization server-side and forward the user's session token.
 | `miot.component.symptoms.enabled` | `MIOT_COMPONENT_SYMPTOMS_ENABLED` | `${miot.component.all.enabled}` | Turns the module on |
 | `miot.symptoms.cdc.enabled` | `MIOT_SYMPTOMS_CDC_ENABLED` | same as the component | Pulsar dispatcher. Set `false` on a modulith that only serves the API |
 | `miot.symptoms.gps.rpc-url` | `MIOT_SYMPTOMS_GPS_RPC_URL` | none | PostgREST in front of the GPS database, for the map endpoints |
-| `miot.symptoms.device-events.enabled` | `MIOT_SYMPTOMS_DEVICE_EVENTS_ENABLED` | `false` | Device events endpoint and its `device-signals` channel to the signals topic |
 | `miot.symptoms.control-tower.demo-seed` | `MIOT_SYMPTOMS_CONTROL_TOWER_DEMO_SEED` | `false` (`true` in `quarkus:dev`) | Seed demo contacts and history. Leave off anywhere real symptoms are shown |
 
 ## Not in this API yet

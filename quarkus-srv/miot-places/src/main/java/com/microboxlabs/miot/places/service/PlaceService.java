@@ -50,6 +50,8 @@ public class PlaceService {
 
     private static final int MAX_INNERS = 500;
     private static final int MAX_CHANGES = 200;
+    private static final String KIND_MUST_BE = "kind must be one of ";
+    private static final String INNER_IN_ITS_GEOFENCE = "an inner geofence is saved with its geofence, in its inners";
     private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
@@ -104,7 +106,7 @@ public class PlaceService {
 
     /** A geofence (with its inner geofences) or a route, at {@value #FIRST_VERSION}. */
     public Saved create(String tenantCode, PlaceRequest request, String actor) {
-        String kind = topLevel(kind(text(required(request).kind(), "kind", 16)));
+        String kind = newKind(required(request).kind());
         if (request.version() != null) {
             throw new IllegalArgumentException("a new place starts at " + FIRST_VERSION + "; it takes no version");
         }
@@ -305,7 +307,22 @@ public class PlaceService {
 
     private static String topLevel(String kind) {
         if (PlaceStore.INNER_GEOFENCE.equals(kind)) {
-            throw new IllegalArgumentException("an inner geofence is saved with its geofence, in its inners");
+            throw new IllegalArgumentException(INNER_IN_ITS_GEOFENCE);
+        }
+        return kind;
+    }
+
+    /**
+     * The kind of a new place, checked in one place: missing, unknown or an inner geofence is a 400. Validating it
+     * here, rather than passing a possibly-null kind on to {@link #kind(String)}, keeps every call's argument valid.
+     */
+    private static String newKind(String raw) {
+        String kind = text(raw, "kind", 16);
+        if (kind == null || !PlaceStore.KINDS.contains(kind)) {
+            throw new IllegalArgumentException(KIND_MUST_BE + PlaceStore.KINDS);
+        }
+        if (PlaceStore.INNER_GEOFENCE.equals(kind)) {
+            throw new IllegalArgumentException(INNER_IN_ITS_GEOFENCE);
         }
         return kind;
     }
@@ -347,7 +364,7 @@ public class PlaceService {
 
     private static String kind(String kind) {
         if (kind == null || !PlaceStore.KINDS.contains(kind)) {
-            throw new IllegalArgumentException("kind must be one of " + PlaceStore.KINDS);
+            throw new IllegalArgumentException(KIND_MUST_BE + PlaceStore.KINDS);
         }
         return kind;
     }

@@ -81,6 +81,13 @@ class DeviceEventsDisabledTest {
         public Map<String, String> getConfigOverrides() {
             return Map.ofEntries(
                     Map.entry("miot.component.all.enabled", "false"),
+                    Map.entry("miot.component.fleet.enabled", "false"),
+                    Map.entry("miot.component.tracking.enabled", "false"),
+                    Map.entry("miot.component.gateway.enabled", "false"),
+                    Map.entry("miot.component.integrations.enabled", "false"),
+                    Map.entry("miot.component.conversational.enabled", "false"),
+                    Map.entry("miot.component.trips.enabled", "false"),
+                    Map.entry("miot.component.places.enabled", "false"),
                     Map.entry("miot.component.symptoms.enabled", "true"),
                     Map.entry("miot.symptoms.cdc.enabled", "false"),
                     Map.entry("miot.symptoms.signal-builder.enabled", "false"),

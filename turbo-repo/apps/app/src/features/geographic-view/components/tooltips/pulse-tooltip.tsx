@@ -49,6 +49,8 @@ export type PulseType = {
     delay_s?: number | null;
     /** "Sin señal · hace N min" when this is the newest frame of an offline vehicle. */
     signal_label?: string | null;
+    /** "Motor apagado" when this is the newest frame and it reports the engine off. */
+    engine_label?: string | null;
   };
 };
 
@@ -280,6 +282,16 @@ export default function PulseTooltip({
               </span>
               <span className="font-medium text-gray-700 dark:text-gray-200">
                 {object.properties.signal_label}
+              </span>
+            </div>
+            <hr className="my-2 border-gray-200 dark:border-gray-700" />
+          </div>
+        )}
+        {!object.properties.signal_label && object.properties.engine_label && (
+          <div data-engine-off>
+            <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg text-sm">
+              <span className="font-medium text-gray-700 dark:text-gray-200">
+                {object.properties.engine_label}
               </span>
             </div>
             <hr className="my-2 border-gray-200 dark:border-gray-700" />

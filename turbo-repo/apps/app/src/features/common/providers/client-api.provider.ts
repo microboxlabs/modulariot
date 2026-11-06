@@ -28,6 +28,7 @@ import {
 } from "@/features/geographic-view/types/map";
 import { MapService } from "@/features/geographic-view/services/map.service";
 import { isOfflineFrame } from "@/features/geographic-view/utils/signal-state";
+import { isEngineOffFrame } from "@/features/geographic-view/utils/engine-state";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
 import {
@@ -471,6 +472,7 @@ export function useMapPositions(options?: { enabled?: boolean }) {
           longitude,
           latitude,
           lost_signal: isOfflineFrame(position.timestamp, position.signal),
+          engine_off: isEngineOffFrame(position),
         };
       });
     },

@@ -78,6 +78,7 @@ Events that do not travel in the GPS frames (driver app, fatigue cameras and sen
 | Part | Value |
 |---|---|
 | `clients` | The sending organization only |
+| `event_id` | The producer's id or a derived id; transition replay protection uses it instead of the event timestamp |
 | `trip` | Its trip in progress on the vehicle at the event's time (`miot_trips.trip_live`), else none |
 | `frame.events` | The one event: `event_type`, `timestamp`, and `severity`, `code`, `description` when sent |
 | `derived` | `power_disconnected` and `jamming` false |

@@ -67,7 +67,7 @@ public class SignalBuilder {
         Map<String, GpsSignal.Geo> geos = geos(frame, clients);
         LocalTime local = at.atZone(zone).toLocalTime();
         // The time the platform's gateway received the frame (X-Request-Timestamp), carried by the envelope.
-        return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, message.getTimestamp(), clients, sender,
+        return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, message.getTimestamp(), clients, sender, null,
                 trips.isEmpty() ? null : trips, null, null, null, null, geos.isEmpty() ? null : geos,
                 local.getHour(), local.toSecondOfDay() / 60.0, derived, frame));
     }

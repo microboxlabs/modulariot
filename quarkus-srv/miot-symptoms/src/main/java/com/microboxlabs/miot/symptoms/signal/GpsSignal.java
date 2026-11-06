@@ -40,6 +40,8 @@ public record GpsSignal(
         @Schema(hidden = true) @JsonProperty("received_at") Instant receivedAt,
         @Schema(hidden = true) List<String> clients,
         @Schema(hidden = true) String sender,
+        @Schema(hidden = true, description = "Device event identity; absent on GPS frames")
+        @JsonProperty("event_id") String eventId,
         @Schema(hidden = true) Map<String, Trip> trips,
         Trip trip,
         Vehicle vehicle,

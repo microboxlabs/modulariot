@@ -106,6 +106,19 @@ class DeviceEventSignalsTest {
     }
 
     @Test
+    void distinctEventsAtTheSameTimeCanEscalateTheRecordedCase() {
+        UUID fatigue = publish(TENANT, "driver-fatigue");
+        String medium = event("2026-01-01T12:00:00Z", "FYS", "105", true);
+        String high = event("2026-01-01T12:00:00Z", "FYS", "109", true)
+                .replace("e-2026-01-01T12:00:00Z", "another-event-id");
+        stream.evaluate(medium);
+        stream.evaluate(high);
+        stream.evaluate(high);
+
+        assertEquals(List.of(2, 4), of(fatigue).stream().map(Transition::level).toList());
+    }
+
+    @Test
     void aRepeatedEventRaisesTheLevelByTheCaseAge() {
         UUID sensor = publish(TENANT, "driver-fatigue-sensor");
 
@@ -145,5 +158,19 @@ class DeviceEventSignalsTest {
         stream.evaluate(event("2026-01-01T12:01:00Z", "Emergencia", "", false));
 
         assertEquals(1, of(theirs).size(), "their case is not reconciled against our event");
+    }
+
+    @Test
+    void replayAfterOperatorCloseDoesNotLeaveAGhostEpisode() {
+        UUID panic = publish(TENANT, "panic-button");
+        String first = event("2026-01-01T12:00:00Z", "Emergencia", "", false);
+        stream.evaluate(first);
+        stream.forget(TENANT, "V1", panic);
+
+        stream.evaluate(first);
+
+        assertTrue(episodes.load(TENANT, "V1").find(TENANT, "V1", panic).isEmpty());
+        stream.evaluate(event("2026-01-01T12:01:00Z", "Emergencia", "", false));
+        assertEquals(2, of(panic).size(), "a new emergency still opens its case");
     }
 }

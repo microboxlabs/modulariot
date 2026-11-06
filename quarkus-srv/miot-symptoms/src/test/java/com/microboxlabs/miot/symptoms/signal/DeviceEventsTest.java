@@ -34,13 +34,12 @@ class DeviceEventsTest {
         final Set<String> kept = new HashSet<>();
 
         @Override
-        public boolean claim(String tenant, String eventId, DeviceEvent event) {
+        public synchronized boolean publishIfNew(String tenant, String eventId, DeviceEvent event, Runnable publish) {
+            if (kept.contains(tenant + "/" + eventId)) {
+                return false;
+            }
+            publish.run();
             return kept.add(tenant + "/" + eventId);
-        }
-
-        @Override
-        public void release(String tenant, String eventId) {
-            kept.remove(tenant + "/" + eventId);
         }
     }
 
@@ -134,6 +133,13 @@ class DeviceEventsTest {
         String id = DeviceEvents.eventId(event(null, "FYSS", "111"));
         assertTrue(id.startsWith("derived:"));
         assertNotEquals(id, DeviceEvents.eventId(event(null, "FYSS", "112")));
+    }
+
+    @Test
+    void separatorsInProducerFieldsCannotAliasAnotherDerivedId() {
+        DeviceEvent first = new DeviceEvent(null, "A\nB", "C", AT, null, null, null);
+        DeviceEvent second = new DeviceEvent(null, "A", "B\nC", AT, null, null, null);
+        assertNotEquals(DeviceEvents.eventId(first), DeviceEvents.eventId(second));
     }
 
     @Test

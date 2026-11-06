@@ -18,6 +18,17 @@ CREATE TABLE miot_symptoms.device_event (
 
 CREATE INDEX idx_device_event_received_at ON miot_symptoms.device_event (received_at);
 
+-- Independent device events can have the same timestamp. GPS frames still deduplicate by frame time;
+-- device transitions deduplicate by the producer's event id, kept without the event payload in context.
+DROP INDEX miot_symptoms.uq_signal_transitions_note;
+CREATE UNIQUE INDEX uq_signal_transitions_note
+    ON miot_symptoms.signal_transitions (tenant_code, definition_id, asset_id, at)
+    WHERE kind = 'NOTED' AND context ->> 'event_id' IS NULL;
+CREATE UNIQUE INDEX uq_signal_transitions_device_event
+    ON miot_symptoms.signal_transitions
+        (tenant_code, definition_id, asset_id, (context ->> 'event_id'), (kind = 'NOTED'))
+    WHERE context ->> 'event_id' IS NOT NULL;
+
 WITH upgrade (symptom_key, version, spec, bump, reason, description) AS (VALUES
     ('driver-fatigue', '1.1.0',
      '{"source":"gps_signal","activation":"signal.trip.active && signal.frame.events.exists(e, e.event_type == \"FYS\")","measure":{"expression":"signal.frame.events.exists(e, e.event_type == \"FYS\" && (e.severity == \"high\" || e.code in [\"109\", \"112\", \"115\"])) ? 2.0 : signal.frame.events.exists(e, e.event_type == \"FYS\" && (e.severity == \"medium\" || e.code == \"105\")) ? 1.0 : 0.0","label":"Gravedad del evento (0 baja, 1 media, 2 alta)","unit":"nivel"},"levels":[{"icu":1,"applies":true,"when":"measure < 1.0 && open_s < 300","response":{"operator":false,"steps":[],"notices":[],"evidence":[],"ignorable":true}},{"icu":2,"applies":true,"when":"measure < 2.0 && open_s < 600 && (measure >= 1.0 || open_s >= 300)","response":{"operator":false,"steps":[],"notices":[],"evidence":[],"ignorable":true}},{"icu":3,"applies":true,"when":"measure < 2.0 && open_s >= 600 && open_s < 900","response":{"operator":true,"slaMinutes":15,"steps":[],"notices":[],"evidence":[],"ignorable":true}},{"icu":4,"applies":true,"when":"measure >= 2.0 || open_s >= 900","response":{"operator":true,"slaMinutes":10,"steps":[],"notices":[],"evidence":[],"ignorable":false}}],"lifecycle":{"open":"case.condition_s >= 0","close":"case.closed_by_operator || !signal.trip.active"},"family":"workday_fatigue","state":"OFF"}',

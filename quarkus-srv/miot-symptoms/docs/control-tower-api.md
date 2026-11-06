@@ -284,6 +284,8 @@ Organizations see a template once a platform owner publishes it.
 
 Answers `202 {"accepted": n, "duplicates": m}`. 503 when `miot.symptoms.device-events.enabled` is off or the signals topic did not take an event; the events after it were not sent, and the failed one can be sent again. Event ids are kept 30 days in `miot_symptoms.device_event`, without the payload.
 
+The receipt commits after broker acknowledgement. Concurrent retries wait for that outcome; a failed send or a process stopping before acknowledgement rolls the receipt back. An acknowledgement lost after delivery may cause a broker redelivery, so the evaluator also deduplicates device transitions by event id. Distinct event ids at the same timestamp remain independent. A pending publication is not released by a local request timeout.
+
 ## Roles and permissions
 
 Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerAccessCatalog` lists them and the roles that grant them. Owners and Admins hold every permission.

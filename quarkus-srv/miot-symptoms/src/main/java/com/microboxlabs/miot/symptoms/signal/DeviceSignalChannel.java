@@ -6,11 +6,7 @@ import io.smallrye.mutiny.subscription.BackPressureStrategy;
 import io.smallrye.mutiny.subscription.MultiEmitter;
 import io.smallrye.reactive.messaging.pulsar.PulsarOutgoingMessageMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.eclipse.microprofile.reactive.messaging.Message;
 import org.eclipse.microprofile.reactive.messaging.Metadata;
 import org.eclipse.microprofile.reactive.messaging.Outgoing;
@@ -22,8 +18,6 @@ import org.eclipse.microprofile.reactive.messaging.Outgoing;
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class DeviceSignalChannel {
-
-    static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private volatile MultiEmitter<? super Message<String>> emitter;
 
@@ -49,11 +43,10 @@ public class DeviceSignalChannel {
                     return CompletableFuture.completedFuture(null);
                 }));
         try {
-            taken.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new DeviceEvents.UnavailableException("interrupted");
-        } catch (TimeoutException | java.util.concurrent.ExecutionException | CompletionException ex) {
+            // A local deadline cannot cancel an emitted message. Keep its receipt pending until the
+            // connector acknowledges or rejects it; its producer send timeout bounds broker failures.
+            taken.join();
+        } catch (java.util.concurrent.CompletionException ex) {
             throw new DeviceEvents.UnavailableException("the signals topic did not take the event");
         }
     }

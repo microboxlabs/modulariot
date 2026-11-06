@@ -57,8 +57,11 @@ public class PgTransitionLog implements TransitionLog {
                    $11::varchar, $12::double precision, $13::double precision, $14::double precision, $15::jsonb
             WHERE NOT EXISTS (
                 SELECT 1 FROM miot_symptoms.signal_transitions
-                WHERE definition_id = $2::uuid AND at = $7::timestamptz AND asset_id = $6::varchar
-                  AND tenant_code = $1::varchar AND (kind = 'NOTED') = ($5::varchar = 'NOTED'))
+                WHERE definition_id = $2::uuid AND asset_id = $6::varchar
+                  AND tenant_code = $1::varchar AND (kind = 'NOTED') = ($5::varchar = 'NOTED')
+                  AND ((context ->> 'event_id' IS NULL AND $15::jsonb ->> 'event_id' IS NULL
+                        AND at = $7::timestamptz)
+                       OR (context ->> 'event_id' = $15::jsonb ->> 'event_id')))
               AND ($5::varchar <> 'OPENED' OR NOT EXISTS (
                 SELECT 1 FROM miot_symptoms.symptom_definition d
                 WHERE d.tenant_code = $1::varchar AND d.id = $2::uuid AND d.state <> $4::varchar))
@@ -117,6 +120,9 @@ public class PgTransitionLog implements TransitionLog {
             Uni<List<Recorded>> chain = locks.map(ignored -> new ArrayList<>());
             for (Transition t : transitions) {
                 JsonObject own = t.detail() == null ? json : new JsonObject(t.detail());
+                if (json != null && json.containsKey("event_id") && t.detail() != null) {
+                    own.put("event_id", json.getString("event_id"));
+                }
                 chain = chain.flatMap(recorded -> conn.preparedQuery(INSERT).execute(params(tenantCode, t, place, own))
                         .map(rows -> addRecorded(recorded, rows, t)));
             }

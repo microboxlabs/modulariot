@@ -4,11 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -57,9 +59,6 @@ public class DeviceEvents {
             INSERT INTO miot_symptoms.device_event (tenant_code, event_id, asset_id, event_type, occurred_at)
             VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING event_id
             """;
-    private static final String RELEASE = """
-            DELETE FROM miot_symptoms.device_event WHERE tenant_code = $1 AND event_id = $2
-            """;
     private static final String PRUNE = "DELETE FROM miot_symptoms.device_event WHERE received_at < $1";
     private static final String ASSET_TRIPS = SignalStream.TRIPS.formatted("AND tl.tenant_code = $1 AND tl.asset_id = $2");
 
@@ -93,10 +92,8 @@ public class DeviceEvents {
 
     /** Keeps the ids received. */
     interface Seen {
-        /** True when the id is new: it is now kept. */
-        boolean claim(String tenant, String eventId, DeviceEvent event);
-
-        void release(String tenant, String eventId);
+        /** Publishes a new event and keeps its id only after acknowledgement. Concurrent retries wait. */
+        boolean publishIfNew(String tenant, String eventId, DeviceEvent event, Runnable publish);
     }
 
     /** The organization's {@code trip_live} rows of the vehicle. */
@@ -130,7 +127,7 @@ public class DeviceEvents {
 
     /**
      * Checks every event first, then publishes the new ones in order. An event whose publication fails is
-     * forgotten, so the producer can send it again.
+     * rolled back, so the producer can send it again.
      */
     public Accepted accept(String tenant, Request request) {
         if (!enabled) {
@@ -149,17 +146,20 @@ public class DeviceEvents {
         Set<String> inRequest = new HashSet<>();
         for (DeviceEvent e : checked) {
             String id = eventId(e);
-            if (!inRequest.add(id) || !seen.claim(tenant, id, e)) {
+            if (!inRequest.add(id)) {
                 continue;
             }
             try {
-                channel.publish(e.assetId(), signal(tenant, id, e, now));
+                // Resolve trips before holding a receipt transaction: concurrent sends must not exhaust the
+                // pool with transactions waiting for another connection to read their trips.
+                String json = signal(tenant, id, e, now);
+                if (seen.publishIfNew(tenant, id, e, () -> channel.publish(e.assetId(), json))) {
+                    accepted++;
+                }
             } catch (RuntimeException failure) {
-                seen.release(tenant, id);
                 throw failure instanceof UnavailableException u ? u
                         : new UnavailableException("the event was not published");
             }
-            accepted++;
         }
         return new Accepted(accepted, checked.size() - accepted);
     }
@@ -210,10 +210,15 @@ public class DeviceEvents {
         if (e.eventId() != null) {
             return e.eventId();
         }
-        String key = String.join("\n", e.assetId(), e.type(), e.occurredAt().toInstant().toString(),
-                e.code() == null ? "" : e.code());
         try {
-            byte[] hash = MessageDigest.getInstance("SHA-256").digest(key.getBytes(StandardCharsets.UTF_8));
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            for (String part : List.of(e.assetId(), e.type(), e.occurredAt().toInstant().toString(),
+                    e.code() == null ? "" : e.code())) {
+                byte[] bytes = part.getBytes(StandardCharsets.UTF_8);
+                digest.update(ByteBuffer.allocate(Integer.BYTES).putInt(bytes.length).array());
+                digest.update(bytes);
+            }
+            byte[] hash = digest.digest();
             return "derived:" + HexFormat.of().formatHex(hash, 0, 16);
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException(ex);
@@ -280,19 +285,20 @@ public class DeviceEvents {
         }
 
         @Override
-        public boolean claim(String tenant, String eventId, DeviceEvent e) {
-            return pool.get().preparedQuery(CLAIM)
+        public boolean publishIfNew(String tenant, String eventId, DeviceEvent e, Runnable publish) {
+            // The unique key serializes concurrent retries. A crash before publication or a nack rolls the
+            // receipt back; no retry can acknowledge a duplicate while its original send can still fail.
+            return pool.get().withTransaction(connection -> connection.preparedQuery(CLAIM)
                     .execute(Tuple.of(tenant, eventId, e.assetId(), e.type(), e.occurredAt()))
-                    .await().atMost(TIMEOUT).rowCount() == 1;
-        }
-
-        @Override
-        public void release(String tenant, String eventId) {
-            try {
-                pool.get().preparedQuery(RELEASE).execute(Tuple.of(tenant, eventId)).await().atMost(TIMEOUT);
-            } catch (RuntimeException e) {
-                LOG.warnf("Device events: id not released (%s)", e.getClass().getSimpleName());
-            }
+                    .chain(rows -> {
+                        if (rows.rowCount() == 0) {
+                            return Uni.createFrom().item(false);
+                        }
+                        return Uni.createFrom().item(() -> {
+                            publish.run();
+                            return true;
+                        }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+                    })).await().indefinitely();
         }
     }
 

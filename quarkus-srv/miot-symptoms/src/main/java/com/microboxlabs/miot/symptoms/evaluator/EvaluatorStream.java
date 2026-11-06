@@ -237,7 +237,7 @@ public class EvaluatorStream {
             AssetEpisodes state = episodes.load(tenant, assetId);
             SignalEvaluator.Result result = new SignalEvaluator(state, holds)
                     .evaluateLate(tenant, assetId, at, Map.of(SignalFields.ROOT, own), symptoms);
-            writeResult(tenant, assetId, own, state, result, false);
+            writeResult(tenant, assetId, own, state, result, true);
             recorded += result.transitions().size();
         }
         return recorded;
@@ -331,7 +331,10 @@ public class EvaluatorStream {
         if (!result.transitions().isEmpty()) {
             TransitionLog.Place place = place(signal);
             // Only the changes new to the log: a replayed signal publishes nothing twice.
-            List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, result.transitions(), place);
+            Object eventId = signal.get("event_id");
+            Map<String, Object> context = GpsSignal.EVENTS_SCHEMA_ID.equals(signal.get("schema"))
+                    && eventId instanceof String ? Map.of("event_id", eventId) : null;
+            List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, result.transitions(), place, context);
             events.transitions(tenant, recorded.stream()
                     .filter(r -> !holds.held(tenant, assetId, r.transition().definitionId(), Instant.EPOCH))
                     .toList(), place);

@@ -10,14 +10,20 @@ import java.util.List;
  * @param origin          where the value comes from, or null when not confirmed
  * @param engineSupported the engine evaluates rules on this field today
  * @param values          the values a list field takes, or null when they are open
+ * @param description     what the field holds, beyond its label, or null
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record SourceField(String path, String label, String type, String unit, FieldOrigin origin,
-        boolean engineSupported, List<FieldValue> values) {
+        boolean engineSupported, List<FieldValue> values, String description) {
 
     public SourceField(String path, String label, String type, String unit, FieldOrigin origin,
             boolean engineSupported) {
-        this(path, label, type, unit, origin, engineSupported, null);
+        this(path, label, type, unit, origin, engineSupported, null, null);
+    }
+
+    public SourceField(String path, String label, String type, String unit, FieldOrigin origin,
+            boolean engineSupported, List<FieldValue> values) {
+        this(path, label, type, unit, origin, engineSupported, values, null);
     }
 
     /** A value as rules write it ({@code HEAVY}) and as people read it. */

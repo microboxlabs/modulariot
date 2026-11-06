@@ -200,11 +200,13 @@ export default function TelephonyUsage({
   lang,
   d,
   ownLine = null,
+  setupUnavailable = false,
 }: Readonly<{
   orgSlug: string | null;
   lang: string;
   d: I18nRecord;
   ownLine?: OwnLine | null;
+  setupUnavailable?: boolean;
 }>) {
   const [month, setMonth] = useState(() => monthOf(new Date()));
   const { data, isLoading, error } = useOrgTelephonyUsage(orgSlug, month);
@@ -223,6 +225,9 @@ export default function TelephonyUsage({
       isLoading={isLoading}
       error={error}
     >
+      {setupUnavailable && (
+        <UsageNotice tone="warning">{tr("setupUnavailable", d)}</UsageNotice>
+      )}
       {data && <Notices data={data} ownLine={ownLine} d={d} />}
       {data && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

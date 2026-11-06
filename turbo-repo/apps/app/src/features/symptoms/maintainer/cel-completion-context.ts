@@ -10,15 +10,46 @@ const WORD = /[A-Za-z_][\w.?]*|==|!=|\S/y;
 
 function quotedEnd(text: string, start: number): number {
   const quote = text[start];
-  let i = start + 1;
+  if (!quote) return text.length + 1;
+  const delimiter = text.startsWith(quote.repeat(3), start)
+    ? quote.repeat(3)
+    : quote;
+  const raw = text[start - 1]?.toLowerCase() === "r";
+  let i = start + delimiter.length;
   while (i < text.length) {
-    if (text[i] === "\\") i += 2;
-    else if (text[i++] === quote) return i;
+    if (!raw && text[i] === "\\") i += 2;
+    else if (text.startsWith(delimiter, i)) return i + delimiter.length;
+    else i++;
   }
   return text.length + 1;
 }
 
-/** Scan once, keeping strings opaque so a code example inside a string never binds a macro variable. */
+function commentEnd(text: string, start: number): number {
+  const newline = text.indexOf("\n", start + 2);
+  return newline < 0 ? text.length : newline;
+}
+
+/** Whether a position is CEL code, rather than part of a quoted literal or line comment. */
+export function isCodePosition(text: string, pos: number): boolean {
+  let i = 0;
+  while (i <= pos && i < text.length) {
+    const char = text[i];
+    if (char === '"' || char === "'") {
+      const end = quotedEnd(text, i);
+      if (pos < end) return false;
+      i = end;
+    } else if (char === "/" && text[i + 1] === "/") {
+      const end = commentEnd(text, i);
+      if (pos < end) return false;
+      i = end;
+    } else {
+      i++;
+    }
+  }
+  return true;
+}
+
+/** Scan once, keeping strings and comments from binding macro variables. */
 function tokens(text: string): Token[] {
   const out: Token[] = [];
   let i = 0;
@@ -32,6 +63,8 @@ function tokens(text: string): Token[] {
         closed: text[end - 1] === char && end <= text.length,
       });
       i = end;
+    } else if (char === "/" && text[i + 1] === "/") {
+      i = commentEnd(text, i);
     } else {
       WORD.lastIndex = i;
       const word = WORD.exec(text);
@@ -135,11 +168,13 @@ export function completionContext(text: string) {
   const field = last?.quoted && !last.closed ? comparedField(parts) : null;
   // CEL takes either quote; the value is escaped for the one in use.
   const quote = last?.text[0];
+  const delimiterLength =
+    quote && last?.text.startsWith(quote.repeat(3)) ? 3 : 1;
   const quoted =
     field && last && (quote === '"' || quote === "'")
       ? {
           path: resolved(field, variables),
-          typed: last.text.slice(1),
+          typed: last.text.slice(delimiterLength),
           quote: quote as '"' | "'",
         }
       : null;

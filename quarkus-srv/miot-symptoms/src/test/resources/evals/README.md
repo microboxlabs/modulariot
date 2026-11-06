@@ -15,6 +15,7 @@ The traces come from one day of a carrier fleet's trips. A trip was kept only wh
 | Overnight stay in a risk zone | `night-risk-stay` | 6 | 6 | — |
 | Driving in the early morning | `off-hours-driving` | 7 | 6 | 45-minute clock |
 | Continuous driving | `continuous-driving` | 4 | 4 | — |
+| Continuous driving and rest, with the duty tracker | `duty` | 34 | 23 + 8 within 2 min; 27 | GPS gate on stale positions; legacy rest counting while driving |
 | Lost signal | `lost-signal` | 59 | 59 | — |
 | SOS | `PanicButtonRuleCasesTest` | rule cases | — | Operator closes |
 
@@ -30,6 +31,5 @@ The traces come from one day of a carrier fleet's trips. A trip was kept only wh
 
 | Symptom | Why |
 |---|---|
-| Continuous rest | Needs whole trips longer than a day, and operator treatments reset it |
 | Double-driver rotation | A reminder 30 minutes after the trip starts, then 5 hours after the last operator treatment: driven by operator events |
 | Fatigue, load securing, road assistance, other device events | Too few events to replay. Two legacy level formulas never reach level 4: fatigue checks `>= 300 s → 2` before the higher steps, and load securing checks `> 120 s → 3` before `>= 150 s → 4` |

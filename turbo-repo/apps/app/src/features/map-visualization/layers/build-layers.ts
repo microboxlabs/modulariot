@@ -19,6 +19,7 @@ import { DataProviderPolygonLayer } from "./polygon-layer";
 import { LocationPinLayer } from "./location-pin-layer";
 import { PolygonCenterPinLayer } from "./polygon-center-pin-layer";
 import { PinLayer } from "@/features/geographic-view/components/layers/pin_layer_clustered";
+import { isEngineOffFrame } from "@/features/geographic-view/utils/engine-state";
 
 function isPointFeature(f: Feature): f is Feature<Point, MapFeatureProperties> {
   return f.geometry?.type === "Point";
@@ -117,6 +118,7 @@ interface PinDataItem {
   symptoms_condition: number;
   heading: number;
   lost_signal: boolean;
+  engine_off: boolean;
   [key: string]: unknown;
 }
 
@@ -138,6 +140,9 @@ function geoJsonPointsToPinData(
       ((f.properties as Record<string, unknown>)?.lost_signal as boolean) ??
       false,
     ...f.properties,
+    engine_off:
+      ((f.properties as Record<string, unknown>)?.engine_off as boolean) ??
+      isEngineOffFrame(f.properties as Record<string, unknown>),
   }));
 }
 

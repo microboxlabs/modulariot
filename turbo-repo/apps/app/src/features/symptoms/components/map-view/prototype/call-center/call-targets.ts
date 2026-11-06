@@ -49,7 +49,10 @@ export interface CallTarget {
   nationalId?: string | null;
   /** The channels the target can be reached on. Empty means none. */
   methods: CallMethod[];
+  /** Calls to the contact in the current case only; null outside a case or for a new number. */
   stats: CallStats | null;
+  /** The contact's calls in all cases, from the book. Never read as "called in this case". */
+  history?: CallStats | null;
 }
 
 /** Phone number displayed and recorded for the selected channel. */
@@ -92,6 +95,7 @@ export function stepMethod(
 /** What a contact created from an empty trip step starts with. */
 export interface NewContactPreset {
   role: string;
+  tags?: string[];
   nationalId?: string;
   nationalIdType?: string;
   companyTaxIdType?: string;
@@ -119,7 +123,8 @@ export function toCallTarget(c: TowerContact): CallTarget {
     companyRut: c.companyRut ?? null,
     nationalId: c.nationalId ?? null,
     methods: contactMethods(c),
-    stats: {
+    stats: null,
+    history: {
       lastCallAt: c.lastCalledAt ? new Date(c.lastCalledAt) : null,
       accepted: c.answered,
       denied: c.missed,
@@ -195,6 +200,7 @@ export function useCallTargets() {
         companyTaxIdType: input.preset?.companyTaxIdType,
         companyRut: input.preset?.companyRut || undefined,
         company: input.preset?.company || undefined,
+        tags: input.preset?.tags,
       });
       void mutate(contactsKey);
       return saved;

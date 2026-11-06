@@ -27,8 +27,13 @@ class EventTemplatesRuleCasesTest {
 
     /** A frame on or off a trip; {@code type} is the frame's one event, or null for none. */
     private static Signal frame(int at, boolean onTrip, String type, String severity) {
+        return frame(at, onTrip, type, severity, "");
+    }
+
+    private static Signal frame(int at, boolean onTrip, String type, String severity, String code) {
         List<Map<String, Object>> events = type == null ? List.of()
-                : List.of(Map.of("event_type", type, "severity", severity, "description", "", "timestamp", ""));
+                : List.of(Map.of("event_type", type, "severity", severity, "description", "", "timestamp", "",
+                        "code", code));
         Map<String, Object> signal = new LinkedHashMap<>();
         signal.put("trip", Map.of("active", onTrip));
         signal.put("frame", Map.of("events", events));
@@ -75,6 +80,17 @@ class EventTemplatesRuleCasesTest {
                         transition("LEVEL_CHANGED", 950, 3, 4)),
                 run("driver-fatigue", frame(0, true, "FYS", "low"), quiet(60, true), frame(650, true, "FYS", "low"),
                         frame(950, true, "FYS", "low")));
+    }
+
+    @Test
+    void cameraFatigueOpensByTheCameraCodeAsTheGpsDatabaseFunction() {
+        for (String code : List.of("109", "112", "115")) {
+            assertEquals(List.of(transition("OPENED", 0, 0, 4)),
+                    run("driver-fatigue", frame(0, true, "FYS", "", code)), code);
+        }
+        assertEquals(List.of(transition("OPENED", 0, 0, 2)), run("driver-fatigue", frame(0, true, "FYS", "", "105")));
+        assertEquals(List.of(transition("OPENED", 0, 0, 1)), run("driver-fatigue", frame(0, true, "FYS", "", "111")));
+        assertEquals(List.of(), run("driver-fatigue", frame(0, false, "FYS", "", "109")), "off a trip");
     }
 
     @Test

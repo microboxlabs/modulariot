@@ -6,7 +6,7 @@
  * `quarkus-srv/miot-symptoms/docs/control-tower-api.md`.
  */
 
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import { z } from "zod/v3";
 import useSWRInfinite from "swr/infinite";
 
@@ -108,6 +108,15 @@ export interface TowerContactQuery {
   tag?: string;
 }
 
+/** A place the organization's live trips start or end at, as most trips write it. */
+export interface TowerTripPlace {
+  label: string;
+  /** Live trips that start there. */
+  origins: number;
+  /** Live trips that end there. */
+  destinations: number;
+}
+
 /** What the whole book holds, for the filters and pickers. */
 export interface TowerContactFacets {
   total: number;
@@ -119,8 +128,20 @@ export interface TowerContactFacets {
 
 /** The book's people for each step of a case, as the server evaluated the steps' conditions. */
 export interface TowerTripContacts {
-  /** `event.data` the conditions read: the trip's driverRut, secondDriverRut and carrierRut, when it has them. */
-  data: Partial<Record<"driverRut" | "secondDriverRut" | "carrierRut", string>>;
+  /** `event.data` the conditions read: the trip's RUTs, origin and destination, when it has them. */
+  data: Partial<
+    Record<
+      | "driverRut"
+      | "secondDriverRut"
+      | "carrierRut"
+      | "origin"
+      | "originKey"
+      | "destination"
+      | "destinationKey",
+      string
+    > &
+      Record<"originId" | "destinationId", number>
+  >;
   /** For each condition, in order, the ids of the active contacts that meet it. */
   matches: string[][];
   /** For each condition, its compile problem, or null. */
@@ -227,9 +248,43 @@ const fetcher = <T>(path: string) => request<T>(path);
 /** SWR keys are the full proxy URLs, so they never collide with other app keys. */
 export const treatmentsKey = (symptomId: number | string) =>
   `${BASE}/symptoms/${symptomId}/treatments`;
+
+const GENERAL_KEY = "/app/api/treatments/general?id=";
+const LOCATION_KEY = "/app/api/treatments/location?";
+
+/**
+ * True for every SWR key that shows one case: its Control Tower treatments,
+ * timeline and context, the general-treatments data (the case timeline and
+ * side info), its map signals, and the symptom lists and inbox.
+ */
+export function isCaseKey(symptomId: number | string, key: unknown): boolean {
+  if (typeof key !== "string") return false;
+  const id = String(symptomId);
+  if (key === treatmentsKey(id)) return true;
+  if (key.startsWith(`${BASE}/map/symptoms/${id}/`)) return true;
+  if (key === `${GENERAL_KEY}${id}`) return true;
+  if (key.startsWith(LOCATION_KEY)) {
+    return (
+      new URLSearchParams(key.slice(LOCATION_KEY.length)).get("symptom_id") ===
+      id
+    );
+  }
+  return key.startsWith("/app/api/symptoms");
+}
+
+/** Refetches every view of a case; accepts the active cache's scoped mutator. */
+export async function revalidateCase(
+  symptomId: number | string | null | undefined,
+  revalidate = mutate
+): Promise<void> {
+  if (symptomId == null || symptomId === "") return;
+  await revalidate((key) => isCaseKey(symptomId, key));
+}
+
 export const contactsKey = `${BASE}/contacts`;
 export const contactFacetsKey = `${BASE}/contacts/facets`;
 export const tripContactsPath = `${BASE}/contacts/trip`;
+export const tripPlacesKey = `${BASE}/contacts/trip-places`;
 export const CONTACT_PAGE_SIZE = 100;
 
 export function contactPageKey(
@@ -453,6 +508,18 @@ export function useTripContacts(
 
 export function useContactFacets() {
   return useSWR<TowerContactFacets>(contactFacetsKey, fetcher);
+}
+
+const NO_PLACES: TowerTripPlace[] = [];
+
+/** The live trips' origins and destinations, offered as contact tags; none when they cannot be read. */
+export function useTripPlaces(): TowerTripPlace[] {
+  const { data } = useSWR<TowerTripPlace[]>(
+    tripPlacesKey,
+    (path: string) => request<TowerTripPlace[]>(path).catch(() => NO_PLACES),
+    { revalidateOnFocus: false }
+  );
+  return data ?? NO_PLACES;
 }
 
 /** Every contact that passes `query`, page after page. */

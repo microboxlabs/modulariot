@@ -261,6 +261,8 @@ export interface SourceField {
   engineSupported: boolean;
   /** The values a list field takes, as rules write them and as people read them. */
   values?: { value: string; label: string }[] | null;
+  /** What the field holds beyond its label, from the schema; absent when the label says it all. */
+  description?: string | null;
 }
 
 export interface DataSource {
@@ -348,7 +350,8 @@ export type ControlTowerPermission =
   | "controltower:contact.delete"
   | "controltower:symptom.edit"
   | "controltower:symptom.publish"
-  | "controltower:settings.update";
+  | "controltower:settings.update"
+  | "controltower:event.send";
 
 export interface ControlTowerAccess {
   baseRole: "OWNER" | "ADMIN" | "MEMBER" | null;
@@ -471,6 +474,24 @@ export function useDataSource(key: string | null) {
   return useSWR<DataSource>(key ? `${sources}/${key}` : null, fetcher);
 }
 
+/** The variables a rule reads besides its source, with what each one means. */
+export interface RuleVariables {
+  /** `case.*`, read by the lifecycle rules. */
+  case: SourceField[];
+  /** `measure`, `held_s` and `open_s`, read by the level rules. */
+  level: SourceField[];
+}
+
+/** The rule variables, described in `locale` (es or en). */
+export function useRuleVariables(locale: string) {
+  const { sources } = useSymptomScope();
+  return useSWR<RuleVariables>(
+    `${sources}/rule-variables?locale=${encodeURIComponent(locale)}`,
+    fetcher,
+    { shouldRetryOnError: false, revalidateOnFocus: false }
+  );
+}
+
 /** Refreshes the list and, when given, one symptom. */
 export async function refreshSymptoms(
   id?: string,
@@ -488,7 +509,7 @@ export function createSymptom(
   return request<SymptomDetail>(scope.defs, { method: "POST", body });
 }
 
-export function updateIdentity(
+export async function updateIdentity(
   id: string,
   body: {
     name?: string;
@@ -498,10 +519,18 @@ export function updateIdentity(
   },
   scope: SymptomScope = ORG_SYMPTOMS
 ) {
-  return request<SymptomDefinition>(definitionKey(id, scope), {
+  const key = definitionKey(id, scope);
+  const definition = await request<SymptomDefinition>(key, {
     method: "PATCH",
     body,
   });
+  // Keep the confirmed identity even when the subsequent revalidation fails.
+  await mutate<SymptomDetail>(
+    key,
+    (detail) => (detail ? { ...detail, definition } : detail),
+    { revalidate: false }
+  );
+  return definition;
 }
 
 export interface ImportResult {

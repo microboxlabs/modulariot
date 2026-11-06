@@ -5,15 +5,20 @@ import { mutate } from "swr";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
+import en from "@/lang/en.json";
 import { ShowNotification } from "@/features/notifications/notification";
 import CallCenterMenu from "./call-center-menu";
 
 const data = vi.hoisted(() => ({
   contacts: [] as unknown[],
   treatments: undefined as unknown,
+  /** Treatments per case id; wins over `treatments` when set. */
+  treatmentsById: undefined as Record<string, unknown> | undefined,
   tripData: {} as Record<string, string>,
   /** The server's answer for one step condition. */
   match: (() => []) as (condition: string) => string[],
+  /** The server's problem with one step condition. */
+  problem: (() => null) as (condition: string) => string | null,
   level: undefined as unknown,
   levelError: undefined as { status: number } | undefined,
   tripError: undefined as Error | undefined,
@@ -41,6 +46,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   updateContact: data.updateContact,
   contactsKey: "contacts",
   contactFacetsKey: "contact-facets",
+  revalidateCase: vi.fn(),
   useContacts: () => ({
     data: data.contacts,
     isLoading: false,
@@ -48,7 +54,8 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   }),
   useSymptomTreatments: (id: unknown) => {
     data.treatmentsId = id;
-    return { data: data.treatments, mutate: data.refreshTreatments };
+    const own = data.treatmentsById?.[String(id)];
+    return { data: own ?? data.treatments, mutate: data.refreshTreatments };
   },
   openTreatment: data.openTreatment,
   addTreatmentAction: data.addTreatmentAction,
@@ -60,7 +67,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
     data: {
       data: data.tripData,
       matches: conditions.map((c) => data.match(c)),
-      problems: conditions.map(() => null),
+      problems: conditions.map((c) => data.problem(c)),
     },
   }),
 }));
@@ -176,7 +183,9 @@ beforeEach(() => {
     if (c.toLowerCase().includes("jefe de torre")) return ["torre"];
     return [];
   };
+  data.problem = () => null;
   data.treatments = undefined;
+  data.treatmentsById = undefined;
   data.level = undefined;
   data.context = undefined;
   data.createContact.mockImplementation(
@@ -367,7 +376,9 @@ describe("CallCenterMenu", () => {
         role: "Gerente de Seguridad",
         phone: "+12025550101",
         methods: ["phone"],
-        stats: expect.objectContaining({ accepted: 2, denied: 1 }),
+        // Not called in this case; the book's counts stay apart as history.
+        stats: { lastCallAt: null, accepted: 0, denied: 0 },
+        history: expect.objectContaining({ accepted: 2, denied: 1 }),
       })
     );
   });
@@ -414,6 +425,249 @@ describe("CallCenterMenu", () => {
       expect(onCall).toHaveBeenCalledWith(
         expect.objectContaining({ contactId: "new-contact" })
       )
+    );
+  });
+
+  describe("step titles and empty steps", () => {
+    const CARRIER_SELF =
+      "contact.role == 'Transportista' && contact.nationalId == event.data.carrierRut";
+    const stepWho = (who: string) => ({
+      role: null,
+      who,
+      channel: "call",
+      budgetMinutes: 2,
+      script: null,
+    });
+    const heading = (n: number) =>
+      screen.getByText(String(n)).nextElementSibling as HTMLElement;
+
+    it.each([
+      [CARRIER_SELF, "Transportista · Transportes Sur"],
+      ["contact.role == 'Supervisor'", "Supervisor"],
+      [
+        "contact.role == 'Supervisor' || contact.role == 'Jefe de turno'",
+        "Supervisor o Jefe de turno",
+      ],
+      [
+        "contact.company == 'Empresa Uno' && contact.role == 'Despachador'",
+        "Despachador · Empresa Uno",
+      ],
+      [
+        "contact.nationalId == event.data.secondDriverRut",
+        "Segundo conductor del viaje",
+      ],
+      [
+        "contact.role == 'CAT' && event.data.origin in contact.tags",
+        "CAT del origen del viaje",
+      ],
+      [
+        "contact.role == 'CAT' && event.data.destinationKey in contact.tagKeys",
+        "CAT del destino del viaje",
+      ],
+      [
+        "event.data.originKey in contact.tagKeys && event.data.destinationKey in contact.tagKeys",
+        "Contactos del origen y destino del viaje",
+      ],
+      [
+        "contact.role == 'Supervisor' && contact.position.startsWith('x')",
+        "Supervisor",
+      ],
+      [
+        "contact.position == 'x' || contact.companyRut == event.data.otherRut",
+        "Contactos que cumplen la condición",
+      ],
+    ])("titles %s without CEL and keeps it in the tooltip", (who, title) => {
+      data.match = () => [];
+      data.level = levelWith([stepWho(who)]);
+      renderMenu();
+      const el = heading(1);
+      expect(el.textContent).toBe(title);
+      expect(el.textContent).not.toMatch(/contact\.|event\./);
+      expect(el.getAttribute("title")).toBe(who);
+    });
+
+    it("says nobody has the role when no contact of the book has it", () => {
+      data.contacts = [contact("t1", "Contacto Uno", "Despachador")];
+      data.level = levelWith([stepWho(CARRIER_SELF)]);
+      renderMenu();
+      expect(
+        screen.getByText("Nadie en la libreta tiene este rol.")
+      ).toBeTruthy();
+    });
+
+    it("says no contact with the role belongs to the trip, and pre-fills a new one", async () => {
+      data.contacts = [
+        contact("t1", "Contacto Uno", "Transportista"),
+        contact("t2", "Contacto Dos", "transportista"),
+      ];
+      data.match = () => [];
+      data.level = levelWith([stepWho(CARRIER_SELF)]);
+      data.permissions = ["controltower:contact.write"];
+      const user = userEvent.setup();
+      renderMenu();
+      expect(
+        screen.getByText(
+          "Ningún Transportista de la libreta corresponde a este viaje."
+        )
+      ).toBeTruthy();
+      expect(
+        screen.queryByText("Nadie en la libreta tiene este rol.")
+      ).toBeNull();
+
+      await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+      await saveNewNumber(user, "Contacto Nuevo");
+      expect(data.createContact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: "Transportista",
+          nationalId: SUR,
+          companyRut: SUR,
+          company: "Transportes Sur",
+        })
+      );
+    });
+
+    it("pre-fills a new contact of the origin's role with the trip's origin as a tag", async () => {
+      data.contacts = [contact("t1", "Contacto Uno", "CAT")];
+      data.match = () => [];
+      data.tripData = { origin: "Planta Norte", originKey: "planta norte" };
+      data.level = levelWith([
+        stepWho(
+          "contact.role == 'CAT' && event.data.originKey in contact.tagKeys"
+        ),
+      ]);
+      data.permissions = ["controltower:contact.write"];
+      const user = userEvent.setup();
+      renderMenu();
+      expect(
+        screen.getByText("Ningún CAT de la libreta corresponde a este viaje.")
+      ).toBeTruthy();
+
+      await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+      await saveNewNumber(user, "Contacto Nuevo");
+      expect(data.createContact).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "CAT", tags: ["Planta Norte"] })
+      );
+    });
+
+    it("shows the server's problem with the condition and offers no new contact", () => {
+      data.contacts = [contact("t1", "Contacto Uno", "Transportista")];
+      data.problem = () => "undeclared reference to 'foo'";
+      data.level = levelWith([
+        stepWho("contact.role == 'Transportista' && foo"),
+      ]);
+      renderMenu();
+      expect(
+        screen.getByText(
+          "La condición del paso tiene un problema: undeclared reference to 'foo'"
+        )
+      ).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Nuevo número" })).toBeNull();
+    });
+
+    it.each([
+      [
+        "contact.role == 'Supervisor' && contact.nationalId == event.data.secondDriverRut",
+        { secondDriverRut: "000000027" },
+        { role: "Supervisor", nationalId: "000000027", nationalIdType: "RUT" },
+      ],
+      [
+        "contact.role == 'Despachador' && contact.companyRut == event.data.carrierRut && contact.company == 'Empresa Uno'",
+        {},
+        { role: "Despachador", companyRut: SUR, company: "Empresa Uno" },
+      ],
+      [
+        "contact.role == 'Supervisor' && 'night' in contact.tags",
+        {},
+        { role: "Supervisor", tags: ["night"] },
+      ],
+      [
+        "contact.role == 'Supervisor' && contact.position.startsWith('x')",
+        {},
+        { role: "Supervisor" },
+      ],
+      [
+        CARRIER_SELF,
+        { carrierRut: "20123456789" },
+        {
+          role: "Transportista",
+          nationalId: "20123456789",
+          nationalIdType: "OTRO",
+          companyTaxIdType: "RUC",
+        },
+      ],
+      [
+        "contact.nationalId == event.data.driverRut",
+        { carrierRut: "20123456789" },
+        { role: "Conductor", nationalId: "000000019", nationalIdType: "DNI" },
+      ],
+    ])(
+      "preserves the empty step preset when saving %s",
+      async (who, trip, expected) => {
+        data.match = () => [];
+        data.tripData = { ...data.tripData, ...trip };
+        data.level = levelWith([stepWho(who)]);
+        data.permissions = ["controltower:contact.write"];
+        const user = userEvent.setup();
+        renderMenu();
+        await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+        await saveNewNumber(user, "Contacto Nuevo");
+        await waitFor(() =>
+          expect(data.createContact).toHaveBeenCalledWith(
+            expect.objectContaining(expected)
+          )
+        );
+      }
+    );
+
+    it.each([
+      "!(contact.role == 'Supervisor') && contact.company == 'Empresa Uno'",
+      "contact.role == 'Supervisor' || contact.position == 'x'",
+    ])("does not prefill an excluded or optional role: %s", (who) => {
+      data.permissions = ["controltower:contact.write"];
+      data.match = () => [];
+      data.level = levelWith([stepWho(who)]);
+      renderMenu();
+      expect(screen.queryByRole("button", { name: "Nuevo número" })).toBeNull();
+    });
+
+    it.each([
+      [
+        "contact.role == 'Supervisor' || contact.role == 'Jefe de turno'",
+        "Supervisor or Jefe de turno",
+        "Nobody in the contact book has this role.",
+        null,
+      ],
+      [
+        CARRIER_SELF,
+        "Transportista · Transportes Sur",
+        "No Transportista in the contact book belongs to this trip.",
+        null,
+      ],
+      [
+        "contact.role == 'Transportista' && foo",
+        "Transportista",
+        "The step condition has a problem: undeclared reference",
+        "undeclared reference",
+      ],
+    ])(
+      "renders English titles and empty states: %s",
+      (who, title, message, problem) => {
+        data.match = () => [];
+        data.contacts = [contact("carrier", "Carrier", "Transportista")];
+        data.problem = () => problem;
+        data.level = levelWith([stepWho(who)]);
+        render(
+          <CallCenterMenu
+            dict={en as unknown as I18nRecord}
+            treatmentData={treatment}
+            skippedTo={null}
+            onSkip={vi.fn()}
+            onCall={vi.fn()}
+          />
+        );
+        expect(heading(1).textContent).toBe(title);
+        expect(screen.getByText(message)).toBeTruthy();
+      }
     );
   });
 
@@ -470,6 +724,103 @@ describe("CallCenterMenu", () => {
     renderMenu();
     expect(data.treatmentsId).toBe(-7);
     expect(screen.getByText(es.symptoms.call_center_just_called)).toBeTruthy();
+  });
+
+  describe("calls in this case", () => {
+    const callAction = (patch: Record<string, unknown>) => ({
+      kind: "CALL",
+      contactId: null,
+      contactPhone: null,
+      contactRole: null,
+      answered: true,
+      durationSeconds: 30,
+      performedAt: new Date().toISOString(),
+      ...patch,
+    });
+    const caseB = {
+      ...treatment,
+      symptom_info: { ...treatment.symptom_info, id: -8 },
+    } as unknown as TreatmentsGeneralResponseItem;
+    const anaRow = () => screen.getByRole("button", { name: /Ana Pérez/ });
+    const counters = (row: HTMLElement) =>
+      within(row).getByTitle(/En este caso/);
+
+    beforeEach(() => {
+      data.level = levelWith([
+        { role: "Conductor", channel: "call", budgetMinutes: 2, script: null },
+      ]);
+      // Ana was called in case -7 only.
+      data.treatmentsById = {
+        "-7": [
+          {
+            actions: [
+              callAction({ contactId: "ana" }),
+              callAction({
+                contactId: "ana",
+                answered: false,
+                durationSeconds: 0,
+              }),
+            ],
+          },
+        ],
+        "-8": [],
+      };
+    });
+
+    it("does not show a contact called in another case as called", () => {
+      renderMenu(caseB);
+      expect(data.treatmentsId).toBe(-8);
+      expect(
+        screen.queryByText(es.symptoms.call_center_just_called)
+      ).toBeNull();
+      const badges = counters(anaRow());
+      expect(badges.textContent).toBe("00");
+      // The book's history is labelled as all cases, apart from this case.
+      expect(badges.getAttribute("title")).toBe(
+        "En este caso: contestadas 0, sin respuesta 0\n" +
+          "En todos los casos: contestadas 2, sin respuesta 1"
+      );
+    });
+
+    it("shows a contact called in this case as called, with this case's counts", () => {
+      renderMenu();
+      expect(data.treatmentsId).toBe(-7);
+      expect(
+        within(anaRow()).getByText(es.symptoms.call_center_just_called)
+      ).toBeTruthy();
+      const badges = counters(anaRow());
+      expect(badges.textContent).toBe("11");
+      expect(badges.getAttribute("title")).toMatch(
+        /^En este caso: contestadas 1, sin respuesta 1\n/
+      );
+    });
+
+    it("matches an older call without a contact id by phone", () => {
+      data.treatmentsById = {
+        "-7": [{ actions: [callAction({ contactPhone: "+1 202 555 0101" })] }],
+      };
+      data.contacts = [
+        contact("ana", "Ana Pérez", "Conductor"),
+        contact("gs", "Gema Soto", "Gerente", { phone: "+12025550199" }),
+      ];
+      data.match = () => ["ana", "gs"];
+      renderMenu();
+      expect(counters(anaRow()).textContent).toBe("10");
+      const gema = screen.getByRole("button", { name: /Gema Soto/ });
+      expect(counters(gema).textContent).toBe("00");
+    });
+
+    it("passes this case's counts to the call, not the book's", async () => {
+      const user = userEvent.setup();
+      const onCall = renderMenu(caseB);
+      await user.click(anaRow());
+      expect(onCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contactId: "ana",
+          stats: { lastCallAt: null, accepted: 0, denied: 0 },
+        })
+      );
+    });
   });
 
   it("shows the whole book when the level has no steps", () => {

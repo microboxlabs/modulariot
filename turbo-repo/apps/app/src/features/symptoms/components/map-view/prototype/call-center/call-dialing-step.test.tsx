@@ -1,7 +1,7 @@
 import {
   act,
   fireEvent,
-  render,
+  render as rtlRender,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -11,6 +11,20 @@ import es from "@/lang/es.json";
 import CallDialingStep from "./call-dialing-step";
 import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
 import type { StartCallOptions, TelephonyCallResult } from "./telnyx-call";
+import { CallSessionProvider } from "./call-session";
+import type { ReactElement } from "react";
+
+const render = (ui: ReactElement) =>
+  rtlRender(ui, { wrapper: CallSessionProvider });
+beforeEach(() => {
+  sessionStorage.clear();
+  access.canSettings = true;
+});
+
+const access = vi.hoisted(() => ({ canSettings: true }));
+vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
+  useControlTowerAccess: () => ({ can: () => access.canSettings }),
+}));
 
 const { request } = vi.hoisted(() => ({
   request: vi.fn().mockResolvedValue({
@@ -25,7 +39,11 @@ const { request } = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
+vi.mock("next/navigation", () => ({
+  useParams: () => ({ lang: "es" }),
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/es/symptoms",
+}));
 // WhatsApp calling off: the permission row stays hidden.
 vi.mock(
   "@/features/symptoms/control-tower/control-tower-api",
@@ -497,10 +515,27 @@ describe("CallDialingStep", () => {
         es.symptoms.call_teams_no_connection
       );
       expect(screen.queryByText("00:00")).toBeNull();
+      expect(
+        screen.getByRole("link", { name: es.symptoms.call_teams_setup })
+      ).toHaveAttribute(
+        "href",
+        "/es/users/settings/symptoms?section=telephony"
+      );
       fireEvent.click(
         screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
       );
       expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "teams");
+    });
+
+    it("keeps the missing-connection notice without offering settings to an operator", () => {
+      access.canSettings = false;
+      renderTeams(null);
+      expect(screen.getByRole("status")).toHaveTextContent(
+        es.symptoms.call_teams_no_connection
+      );
+      expect(
+        screen.queryByRole("link", { name: es.symptoms.call_teams_setup })
+      ).toBeNull();
     });
 
     it.each([undefined, "133", "driver@example.com"])(
@@ -532,6 +567,9 @@ describe("CallDialingStep", () => {
         );
         expect(
           screen.queryByText(es.symptoms.call_teams_no_connection)
+        ).toBeNull();
+        expect(
+          screen.queryByRole("link", { name: es.symptoms.call_teams_setup })
         ).toBeNull();
         expect(screen.queryByText("00:00")).toBeNull();
       }
@@ -792,5 +830,56 @@ describe("script blanks", () => {
       "text-amber-700"
     );
     expect(screen.getByText("[patente]").className).toContain("text-amber-700");
+  });
+});
+
+describe("the call outside the step", () => {
+  function Host({
+    show,
+    name = "Luis",
+    onConfirm = vi.fn(),
+  }: Readonly<{
+    show: boolean;
+    name?: string;
+    onConfirm?: () => void;
+  }>) {
+    return show ? (
+      <CallDialingStep
+        dict={dict}
+        contactName={name}
+        contactRole="Transportista"
+        contactPhone="+12025550101"
+        allowedMethods={["phone"]}
+        reason=""
+        caseRef="case-1"
+        onCancel={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    ) : null;
+  }
+
+  it("keeps a call going when the step unmounts and shows it again", () => {
+    const onConfirm = vi.fn();
+    const view = render(<Host show onConfirm={onConfirm} />);
+    fireEvent.click(screen.getByRole("button", { name: "Llamada telefónica" }));
+    view.rerender(<Host show={false} onConfirm={onConfirm} />);
+    view.rerender(<Host show onConfirm={onConfirm} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+    );
+    expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "phone");
+  });
+
+  it("asks to finish the open call before starting another", () => {
+    const view = render(<Host show />);
+    fireEvent.click(screen.getByRole("button", { name: "Llamada telefónica" }));
+    view.rerender(<Host show name="Ana" />);
+    expect(
+      screen.queryByRole("button", { name: "Llamada telefónica" })
+    ).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("Luis");
+    expect(
+      screen.getByRole("button", { name: es.symptoms.call_go_to_active })
+    ).toBeTruthy();
   });
 });

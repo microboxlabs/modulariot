@@ -25,9 +25,9 @@ export function editorFields(schema: SchemaField[] | undefined): CelField[] {
     const list = f.path.indexOf("[]");
     if (list >= 0) {
       const root = f.path.slice(0, list);
-      out.set(root, { path: root, detail: "list" });
+      out.set(root, { path: root, type: "list" });
     } else {
-      out.set(f.path, { path: f.path, detail: f.type });
+      out.set(f.path, { path: f.path, type: f.type });
     }
   }
   return [...out.values()];

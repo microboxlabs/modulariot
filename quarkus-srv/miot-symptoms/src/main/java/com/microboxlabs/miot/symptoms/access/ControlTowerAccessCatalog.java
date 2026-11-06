@@ -17,7 +17,8 @@ import java.util.Set;
  *   <tr><th>Role</th><th>Permissions</th></tr>
  *   <tr><td>{@value #VIEWER}</td><td>{@value #VIEW}</td></tr>
  *   <tr><td>{@value #OPERATOR}</td><td>+ {@value #CASE_TREAT}, {@value #CONTACT_WRITE}</td></tr>
- *   <tr><td>{@value #MAINTAINER}</td><td>every control tower permission</td></tr>
+ *   <tr><td>{@value #MAINTAINER}</td><td>every control tower permission but {@value #EVENT_SEND}</td></tr>
+ *   <tr><td>{@value #EVENT_SENDER}</td><td>{@value #EVENT_SEND}, for the service account of an event producer</td></tr>
  * </table>
  *
  * <p>Owners and Admins hold every permission. With Alfresco membership, a member without a control tower role is an
@@ -36,6 +37,8 @@ public class ControlTowerAccessCatalog implements AccessCatalog {
     public static final String SYMPTOM_EDIT = "controltower:symptom.edit";
     public static final String SYMPTOM_PUBLISH = "controltower:symptom.publish";
     public static final String SETTINGS_UPDATE = "controltower:settings.update";
+    /** Send device events (driver app, cameras, sensors) to the symptom engine. */
+    public static final String EVENT_SEND = "controltower:event.send";
     /**
      * Create, edit and delete geofences and routes in the app's places editor. The places data lives in PT4, so the
      * app checks it (it shows the editor only with it); no endpoint here needs it yet.
@@ -45,6 +48,7 @@ public class ControlTowerAccessCatalog implements AccessCatalog {
     public static final String VIEWER = "CONTROL_TOWER_VIEWER";
     public static final String OPERATOR = "CONTROL_TOWER_OPERATOR";
     public static final String MAINTAINER = "CONTROL_TOWER_MAINTAINER";
+    public static final String EVENT_SENDER = "CONTROL_TOWER_EVENT_SENDER";
 
     @Override
     public List<PermissionDef> permissions() {
@@ -56,6 +60,7 @@ public class ControlTowerAccessCatalog implements AccessCatalog {
                 PermissionDef.of(SYMPTOM_EDIT, "Editar síntomas", "Edit symptoms"),
                 PermissionDef.of(SYMPTOM_PUBLISH, "Publicar y activar síntomas", "Publish and switch symptoms"),
                 PermissionDef.of(SETTINGS_UPDATE, "Cambiar el equipo de operadores", "Change the operator team"),
+                PermissionDef.of(EVENT_SEND, "Enviar eventos de equipos", "Send device events"),
                 PermissionDef.of(PLACES_EDIT, "Editor de lugares", "Places editor"));
     }
 
@@ -73,7 +78,10 @@ public class ControlTowerAccessCatalog implements AccessCatalog {
                         CONTACT_DELETE, SYMPTOM_EDIT, SYMPTOM_PUBLISH, SETTINGS_UPDATE, PLACES_EDIT))
                         .describedAs("Además define los síntomas, los publica, configura el equipo de operadores y "
                                 + "edita los lugares.",
-                                "Also defines and publishes symptoms, sets up the operator team and edits places."));
+                                "Also defines and publishes symptoms, sets up the operator team and edits places."),
+                RoleDef.of(EVENT_SENDER, MODULE, "Emisor de eventos", "Event sender", Set.of(EVENT_SEND))
+                        .describedAs("Envía eventos de la aplicación del conductor, cámaras y sensores. Para cuentas de servicio.",
+                                "Sends events from the driver app, cameras and sensors. For service accounts."));
     }
 
     @Override

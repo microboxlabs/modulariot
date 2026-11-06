@@ -1,21 +1,27 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, renderHook } from "@testing-library/react";
-import type { TowerAction, TowerTreatment } from "@/features/symptoms/control-tower/control-tower-api";
-import { TreatmentSessionProvider, useTreatmentSession } from "./treatment-session";
+import type {
+  TowerAction,
+  TowerTreatment,
+} from "@/features/symptoms/control-tower/control-tower-api";
+import {
+  TreatmentSessionProvider,
+  useTreatmentSession,
+} from "./treatment-session";
 
 const api = vi.hoisted(() => ({
   openTreatment: vi.fn(),
   addTreatmentAction: vi.fn(),
   closeTreatment: vi.fn(),
   cancelTreatment: vi.fn(),
+  revalidateCase: vi.fn(),
 }));
 
 vi.mock("swr", () => ({ mutate: vi.fn() }));
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   ...api,
   contactsKey: "contacts",
-  treatmentsKey: (id: number) => `treatments-${id}`,
 }));
 
 function treatment(status: TowerTreatment["status"]): TowerTreatment {
@@ -39,7 +45,9 @@ function treatment(status: TowerTreatment["status"]): TowerTreatment {
 
 function renderSession() {
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <TreatmentSessionProvider symptomId={7}>{children}</TreatmentSessionProvider>
+    <TreatmentSessionProvider symptomId={7}>
+      {children}
+    </TreatmentSessionProvider>
   );
   return renderHook(() => useTreatmentSession(), { wrapper });
 }
@@ -58,7 +66,11 @@ describe("TreatmentSessionProvider", () => {
 
     await act(async () => {
       await result.current.ensureOpen("INVALIDATE_SYMPTOM");
-      await result.current.addAction({ kind: "INVALIDATE", outcomeKey: "r", note: "n" });
+      await result.current.addAction({
+        kind: "INVALIDATE",
+        outcomeKey: "r",
+        note: "n",
+      });
       await result.current.finish("invalidated");
       await result.current.finish("invalidated");
     });
@@ -72,7 +84,9 @@ describe("TreatmentSessionProvider", () => {
 
     await act(async () => {
       await result.current.ensureOpen("INVALIDATE_SYMPTOM");
-      await expect(result.current.finish("invalidated")).rejects.toThrow("network");
+      await expect(result.current.finish("invalidated")).rejects.toThrow(
+        "network"
+      );
       await result.current.finish("invalidated");
     });
 

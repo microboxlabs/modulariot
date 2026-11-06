@@ -26,6 +26,7 @@ import {
   addTreatmentAction,
   closeTreatment,
   openTreatment,
+  revalidateCase,
   type AddActionBody,
   type TowerActionKind,
   type TowerTreatmentType,
@@ -194,6 +195,7 @@ export async function guardedSkipStep(skip: StepSkip): Promise<void> {
       slaSince: skip.slaSince,
     },
   });
+  void revalidateCase(skip.symptomId);
 }
 
 /**
@@ -207,8 +209,14 @@ export async function guardedRequestTreatment(
   engine: EngineTreatmentOptions = {}
 ): Promise<TreatmentsRequest> {
   if (isPrototypeApiDisabled()) return payload;
-  if (isEngineCase(payload)) return saveEngineTreatment(payload, engine);
-  return requestTreatment(payload);
+  try {
+    return isEngineCase(payload)
+      ? await saveEngineTreatment(payload, engine)
+      : await requestTreatment(payload);
+  } finally {
+    // An action can be committed even when closing its case subsequently fails.
+    void revalidateCase(payload.symptom_id);
+  }
 }
 
 /**
@@ -220,7 +228,11 @@ export async function guardedFinishTreatment(
   progress?: EngineTreatmentProgress
 ): Promise<void> {
   if (isPrototypeApiDisabled() || !isEngineCase(payload)) return;
-  await finishEngineTreatment(payload, progress);
+  try {
+    await finishEngineTreatment(payload, progress);
+  } finally {
+    void revalidateCase(payload.symptom_id);
+  }
 }
 
 /**
@@ -300,4 +312,5 @@ export async function guardedInvalidateSymptom({
     }),
   });
   if (!invalidateResponse.ok) throw new Error("Invalidate webhook failed");
+  void revalidateCase(treatmentRequest.symptom_id);
 }

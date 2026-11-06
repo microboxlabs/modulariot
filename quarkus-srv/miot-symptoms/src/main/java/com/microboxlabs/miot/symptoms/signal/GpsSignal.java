@@ -95,11 +95,12 @@ public record GpsSignal(
             @Schema(title = "Patente del remolque", extensions = @Extension(name = "x-origin", value = "TRIP"))
             @JsonProperty("trailer_plate") String trailerPlate,
             @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) Driver driver,
-            @Schema(title = "Desvío de la llegada prevista", description = "Llegada prevista (ahora más el "
-                    + "tiempo que falta según el historial de la ruta) menos la llegada estimada; negativo si va adelantado",
+            @Schema(title = "Desvío de la llegada prevista", description = "Llegada prevista (hora de la trama más el "
+                    + "percentil 75 del tiempo de los viajes anteriores de la ruta desde la celda actual hasta el destino) "
+                    + "menos la llegada estimada del viaje; positivo si va atrasado, negativo si va adelantado; "
+                    + "vacío sin llegada estimada, origen, destino o posición, o fuera de las celdas conocidas de la ruta",
                     extensions = { @Extension(name = "x-unit", value = "min"),
-                            @Extension(name = "x-origin", value = "CALCULATED"),
-                            @Extension(name = "x-engine", value = "false") })
+                            @Extension(name = "x-origin", value = "TRIP") })
             @JsonProperty("eta_deviation_min") Double etaDeviationMin) {
 
         public Trip(Boolean active, Boolean doubleDriver, String id, String code, String type, String status,

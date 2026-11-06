@@ -16,6 +16,8 @@ import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-
 import { KioskShell } from "./kiosk-shell";
 import { NoOrganizationGate } from "@/features/settings-admin/team/no-organization-gate";
 import { isEcmConfigured } from "@/features/common/providers/alfresco-api/ecm-config";
+import { ScopedCallSessionProvider } from "@/features/symptoms/components/map-view/prototype/call-center/call-session";
+import CallBar from "@/features/symptoms/components/map-view/prototype/call-center/call-bar";
 
 const isHarnessSettingsEnabled = process.env.ENABLE_HARNESS_SETTINGS === "true";
 const isDashboardServerEnabled = process.env.ENABLE_DASHBOARD_SERVER === "true";
@@ -42,50 +44,57 @@ export default async function SecuredLayout({
   return (
     <RuntimeConfigProvider>
       <SidebarProvider>
-        <KioskShell>
-          <SseListener dictionary={dictionary} tenantId={session.user.email} />
-          <SecuredNavbar
-            messages={navBarMessages}
-            dict={dictionary as I18nRecord}
-            initialOrgLogo={branding?.logoUrl}
-            initialOrgLogoDark={branding?.logoUrlDark}
-            isSeachEnabled={isSeachEnabled}
-            isHarnessSettingsEnabled={isHarnessSettingsEnabled}
-            isDashboardServerEnabled={isDashboardServerEnabled}
-          />
-          <div
-            data-testid="content-with-sidebar"
-            className="mt-16 mb-12 flex items-start flex-1 overflow-hidden overscroll-none"
-          >
-            <SecuredSidebar
-              dict={
-                ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
-                  ?.sidebar as I18nRecord
-              }
+        {/* Keep the call above wrappers that can change with navigation. */}
+        <ScopedCallSessionProvider userId={session.user.id}>
+          <KioskShell>
+            <CallBar dict={dictionary as I18nRecord} />
+            <SseListener
+              dictionary={dictionary}
+              tenantId={session.user.email}
+            />
+            <SecuredNavbar
+              messages={navBarMessages}
+              dict={dictionary as I18nRecord}
+              initialOrgLogo={branding?.logoUrl}
+              initialOrgLogoDark={branding?.logoUrlDark}
+              isSeachEnabled={isSeachEnabled}
               isHarnessSettingsEnabled={isHarnessSettingsEnabled}
               isDashboardServerEnabled={isDashboardServerEnabled}
             />
-            <LayoutContent dict={dictionary as I18nRecord}>
-              {/* With Alfresco, users outside every organization still use
+            <div
+              data-testid="content-with-sidebar"
+              className="mt-16 mb-12 flex items-start flex-1 overflow-hidden overscroll-none"
+            >
+              <SecuredSidebar
+                dict={
+                  ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
+                    ?.sidebar as I18nRecord
+                }
+                isHarnessSettingsEnabled={isHarnessSettingsEnabled}
+                isDashboardServerEnabled={isDashboardServerEnabled}
+              />
+              <LayoutContent dict={dictionary as I18nRecord}>
+                {/* With Alfresco, users outside every organization still use
                   the Alfresco pages, so the gate applies only without it. */}
-              {isEcmConfigured() ? (
-                children
-              ) : (
-                <NoOrganizationGate
-                  d={
-                    (
-                      (dictionary.pages as I18nRecord)
-                        ?.userSettings as I18nRecord
-                    )?.team as I18nRecord
-                  }
-                >
-                  {children}
-                </NoOrganizationGate>
-              )}
-            </LayoutContent>
-          </div>
-          <FooterSecuredLayout messages={dict} />
-        </KioskShell>
+                {isEcmConfigured() ? (
+                  children
+                ) : (
+                  <NoOrganizationGate
+                    d={
+                      (
+                        (dictionary.pages as I18nRecord)
+                          ?.userSettings as I18nRecord
+                      )?.team as I18nRecord
+                    }
+                  >
+                    {children}
+                  </NoOrganizationGate>
+                )}
+              </LayoutContent>
+            </div>
+            <FooterSecuredLayout messages={dict} />
+          </KioskShell>
+        </ScopedCallSessionProvider>
       </SidebarProvider>
     </RuntimeConfigProvider>
   );

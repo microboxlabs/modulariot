@@ -1,7 +1,7 @@
 import {
   act,
   fireEvent,
-  render,
+  render as rtlRender,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -11,6 +11,12 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
 import CallDialingStep from "./call-dialing-step";
 import type { CallPermissionView } from "./whatsapp-call-permission";
+import { CallSessionProvider } from "./call-session";
+import type { ReactElement } from "react";
+
+const render = (ui: ReactElement) =>
+  rtlRender(ui, { wrapper: CallSessionProvider });
+beforeEach(() => sessionStorage.clear());
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 

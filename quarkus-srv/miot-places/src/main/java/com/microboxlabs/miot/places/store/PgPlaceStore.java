@@ -107,7 +107,8 @@ public class PgPlaceStore implements PlaceStore {
             sql.append(" AND parent_id = $").append(params.size());
         }
         if (q != null) {
-            params.addString("%" + q + "%");
+            // the text is matched literally: backslash (Postgres's default LIKE escape), % and _ are escaped
+            params.addString("%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
             int n = params.size();
             sql.append(" AND (name ILIKE $").append(n).append(" OR external_code ILIKE $").append(n).append(')');
         }

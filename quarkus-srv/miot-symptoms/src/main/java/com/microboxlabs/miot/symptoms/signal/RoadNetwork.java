@@ -37,9 +37,10 @@ public class RoadNetwork {
 
         @Override
         public boolean equals(Object other) {
-            return other instanceof Way w && id == w.id && Objects.equals(roadClass, w.roadClass)
-                    && Objects.equals(light, w.light) && Objects.equals(heavy, w.heavy)
-                    && Objects.equals(maxspeed, w.maxspeed) && Arrays.equals(wkb, w.wkb);
+            return other instanceof Way(var otherId, var otherClass, var otherLight, var otherHeavy,
+                    var otherMaxspeed, var otherWkb) && id == otherId && Objects.equals(roadClass, otherClass)
+                    && Objects.equals(light, otherLight) && Objects.equals(heavy, otherHeavy)
+                    && Objects.equals(maxspeed, otherMaxspeed) && Arrays.equals(wkb, otherWkb);
         }
 
         @Override

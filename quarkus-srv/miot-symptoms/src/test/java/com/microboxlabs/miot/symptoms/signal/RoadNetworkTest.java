@@ -164,19 +164,21 @@ class RoadNetworkTest {
     @Test
     void anEmptyTileIsCachedAndInvalidCacheSettingsAreRejected() {
         AtomicInteger reads = new AtomicInteger();
+        Clock clock = Clock.systemUTC();
+        Duration ttl = Duration.ofHours(1);
         RoadNetwork.Source source = (a, b, c, d) -> {
             reads.incrementAndGet();
             return Uni.createFrom().item(List.of());
         };
-        RoadNetwork roads = new RoadNetwork(source, 2, Duration.ofHours(1), Clock.systemUTC());
+        RoadNetwork roads = new RoadNetwork(source, 2, ttl, clock);
 
         assertNull(at(roads, -70.65, -33.45, WeightCategory.HEAVY));
         assertNull(at(roads, -70.65, -33.45, WeightCategory.HEAVY));
         assertEquals(1, reads.get());
         assertThrows(IllegalArgumentException.class,
-                () -> new RoadNetwork(source, 0, Duration.ofHours(1), Clock.systemUTC()));
+                () -> new RoadNetwork(source, 0, ttl, clock));
         assertThrows(IllegalArgumentException.class,
-                () -> new RoadNetwork(source, 1, Duration.ZERO, Clock.systemUTC()));
+                () -> new RoadNetwork(source, 1, Duration.ZERO, clock));
     }
 
     @Test

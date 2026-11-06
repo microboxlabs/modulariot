@@ -7,6 +7,7 @@ import ActivationForm, {
   useActivationForm,
 } from "@/features/symptoms/maintainer/activation-form";
 import CelEditor, {
+  fieldDetail,
   insertIntoFocused,
   type CelField,
 } from "@/features/symptoms/maintainer/cel-editor";
@@ -110,7 +111,7 @@ function FieldList({
               onClick={() => insertIntoFocused(f.path)}
             >
               <span className="truncate">{f.path}</span>
-              <span className="shrink-0 text-gray-400">{f.detail}</span>
+              <span className="shrink-0 text-gray-400">{fieldDetail(f)}</span>
             </button>
           </li>
         ))}

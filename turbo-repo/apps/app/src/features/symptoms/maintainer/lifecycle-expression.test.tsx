@@ -75,7 +75,13 @@ describe("LifecycleExpression", () => {
       <LifecycleExpression
         lifecycle={LIFECYCLE}
         preview={PREVIEW}
-        fields={[]}
+        fields={[
+          {
+            path: "case.condition_s",
+            description: "Segundos con la condición presente",
+            unit: "s",
+          },
+        ]}
         openProblems={[]}
         closeProblems={[]}
         readOnly={false}
@@ -84,6 +90,9 @@ describe("LifecycleExpression", () => {
       />
     );
     expect(screen.getByText("Sin abrir · 75 s")).toBeTruthy();
+    expect(
+      screen.getByLabelText("Insertar case.condition_s")
+    ).toHaveTextContent("Segundos con la condición presente · s");
     expect(screen.getByText("Se abre un caso.")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Siguiente"));
     expect(screen.getByText("En curso · 75 s")).toBeTruthy();

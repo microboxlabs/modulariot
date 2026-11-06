@@ -59,21 +59,22 @@ export function contactCelValues(
 
 export function contactCelFields(fields: EventField[]): CelField[] {
   return [
-    { path: "contact.id", detail: "string" },
-    { path: "contact.name", detail: "string" },
-    { path: "contact.role", detail: "string" },
-    { path: "contact.roleKey", detail: "string" },
-    { path: "contact.tags", detail: "list" },
-    { path: "contact.company", detail: "string" },
-    { path: "contact.companyRut", detail: "string" },
-    { path: "contact.nationalId", detail: "string" },
-    { path: "contact.position", detail: "string" },
-    { path: "contact.member", detail: "bool" },
-    { path: "contact.email", detail: "string" },
-    { path: "contact.whatsapp", detail: "string" },
+    { path: "contact.id", type: "string" },
+    { path: "contact.name", type: "string" },
+    { path: "contact.role", type: "string" },
+    { path: "contact.roleKey", type: "string" },
+    { path: "contact.tags", type: "list" },
+    { path: "contact.company", type: "string" },
+    { path: "contact.companyRut", type: "string" },
+    { path: "contact.nationalId", type: "string" },
+    { path: "contact.position", type: "string" },
+    { path: "contact.member", type: "bool" },
+    { path: "contact.email", type: "string" },
+    { path: "contact.whatsapp", type: "string" },
     ...fields.map((f) => ({
       path: `event.data.${f.name}`,
-      detail: [f.type, f.label].filter(Boolean).join(" · "),
+      type: f.type,
+      description: f.label || undefined,
     })),
   ];
 }

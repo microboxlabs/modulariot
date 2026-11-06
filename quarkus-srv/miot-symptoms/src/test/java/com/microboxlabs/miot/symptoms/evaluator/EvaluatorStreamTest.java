@@ -134,6 +134,18 @@ class EvaluatorStreamTest {
     }
 
     @Test
+    void eachTenantReadsItsOwnRoadLimits() {
+        Map<String, Object> mine = Map.of("maxspeed_osm", 60.0, "maxspeed_custom", 40.0);
+        Map<String, Object> signal = Map.of("roads", Map.of(OTHER, mine));
+        assertEquals(mine, EvaluatorStream.forTenant(signal, OTHER).get("road"));
+        assertFalse(EvaluatorStream.forTenant(signal, DEMO).containsKey("road"));
+        assertFalse(EvaluatorStream.forTenant(signal, DEMO).containsKey("roads"));
+        Map<String, Object> road = Map.of("maxspeed_osm", 90.0);
+        assertEquals(road, EvaluatorStream.forTenant(Map.of("road", road), DEMO).get("road"),
+                "a signal without roads keeps its road");
+    }
+
+    @Test
     void aStateRejectedOpeningSavesNeitherEpisodeNorWatermark() {
         InMemoryEpisodeRepository episodes = new InMemoryEpisodeRepository();
         TransitionLog rejected = (tenant, transitions, place, context) -> {

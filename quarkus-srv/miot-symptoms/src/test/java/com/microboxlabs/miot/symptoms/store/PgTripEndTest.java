@@ -34,6 +34,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -158,9 +159,10 @@ class PgTripEndTest {
 
         Transition opening = new Transition(Kind.OPENED, definition, "1.0.0", SymptomState.ACTIVE,
                 "FIRST", now, 1, 0, 30);
-        assertThrows(IllegalStateException.class, () -> log.appendTripCheck(tenant, List.of(opening),
-                new TransitionLog.Place(id.toString(), null, null, null, null),
-                Map.of("check", Map.of("loss", Map.of("ratio", 1.0)))));
+        List<Transition> changes = List.of(opening);
+        TransitionLog.Place place = new TransitionLog.Place(id.toString(), null, null, null, null);
+        Map<String, Object> context = Map.of("check", Map.of("loss", Map.of("ratio", 1.0)));
+        assertThrows(IllegalStateException.class, () -> log.appendTripCheck(tenant, changes, place, context));
         assertTrue(cases.open(tenant).isEmpty());
     }
 
@@ -173,8 +175,10 @@ class PgTripEndTest {
         SymptomEvents failing = new SymptomEvents(event -> CompletableFuture.failedFuture(
                 new IllegalStateException("observer unavailable")));
 
-        assertThrows(RuntimeException.class, () -> ends.end(tenant, tripId, List.of(definition), now,
-                c -> failing.closedBySystem(tenant, c.value(), TripEnds.REASON, c.at()).toCompletableFuture().join()));
+        List<UUID> definitions = List.of(definition);
+        Consumer<TripEnds.Closure> observer = c -> failing.closedBySystem(tenant, c.value(), TripEnds.REASON, c.at())
+                .toCompletableFuture().join();
+        assertThrows(RuntimeException.class, () -> ends.end(tenant, tripId, definitions, now, observer));
         assertNotNull(cases.find(tenant, caseId).orElseThrow().closedAt());
         List<TripEnds.Closure> delivered = new ArrayList<>();
         PgTripEnds replica = new PgTripEnds(() -> pool, cases);

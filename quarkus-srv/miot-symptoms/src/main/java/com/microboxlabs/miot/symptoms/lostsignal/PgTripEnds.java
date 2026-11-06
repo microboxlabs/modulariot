@@ -101,7 +101,7 @@ public class PgTripEnds implements TripEnds {
                     Long[] ids = java.util.stream.StreamSupport.stream(rows.spliterator(), false)
                             .map(r -> r.getLong("case_id")).toArray(Long[]::new);
                     return conn.preparedQuery("DELETE FROM miot_symptoms.trip_end_effects WHERE opened_id = ANY($1::bigint[])")
-                            .execute(Tuple.of((Object) ids)).replaceWith(ids.length);
+                            .execute(Tuple.of(ids)).replaceWith(ids.length);
                 })).await().atMost(Duration.ofMinutes(2));
     }
 }

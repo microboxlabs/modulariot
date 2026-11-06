@@ -110,14 +110,14 @@ public class SymptomEvents {
     /**
      * The platform closed the case. Returns observer completion so the durable producer acknowledges only success.
      */
-    public CompletionStage<?> closedBySystem(String tenantCode, EngineCaseStore.StaleCase c, String reason, Instant at) {
+    public CompletionStage<Void> closedBySystem(String tenantCode, EngineCaseStore.StaleCase c, String reason, Instant at) {
         Name n = name(tenantCode, c.definitionId());
         SymptomCaseData data = new SymptomCaseData(c.symptomId(), c.definitionId(),
                 c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(), null, null,
                 c.latitude(), c.longitude(), c.speedKmh(), reason, null, null, null, null);
         return fire.apply(new OperationalEvent(SymptomEventCatalog.CLOSED, SymptomEventCatalog.EVENT_SOURCE,
                 tenantCode, at, new EventContext(SymptomEventCatalog.CONTEXT_KIND, String.valueOf(c.symptomId())),
-                data, c.test()));
+                data, c.test())).thenApply(ignored -> null);
     }
 
     /** Cancellation signal for pending notification rules on each case covered by an ignore hold. */

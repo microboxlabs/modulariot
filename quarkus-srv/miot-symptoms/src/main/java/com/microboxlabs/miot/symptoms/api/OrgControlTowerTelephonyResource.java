@@ -91,17 +91,58 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
     public Uni<Response> webRtcToken(@PathParam(ORG) String organizationId, CallRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = operator();
-        return work(() -> {
-            try {
-                return Response.ok(telephony.webRtcToken(tenant, actor, body)).header("Cache-Control", "no-store")
-                        .build();
-            } catch (TelephonyUnavailableException e) {
-                return Response.status(Response.Status.CONFLICT)
-                        .entity(Map.of("error", e.getMessage(), "code", e.code())).build();
-            } catch (IllegalArgumentException e) {
-                return Response.status(Response.Status.BAD_REQUEST).entity(Map.of("error", e.getMessage())).build();
-            }
-        });
+        return work(() -> token(() -> telephony.webRtcToken(tenant, actor, body)));
+    }
+
+    private static Response token(java.util.function.Supplier<Object> issue) {
+        try {
+            return Response.ok(issue.get()).header("Cache-Control", "no-store").build();
+        } catch (TelephonyUnavailableException e) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(Map.of("error", e.getMessage(), "code", e.code())).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(Map.of("error", e.getMessage())).build();
+        }
+    }
+
+    @GET
+    @Path("/calls/{callRef}")
+    @Operation(operationId = "telephonyCallOutcome",
+            summary = "Why the provider ended the call before it connected: failure whatsapp_no_permission when the"
+                    + " contact has not allowed WhatsApp calls; null otherwise")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> callOutcome(@PathParam(ORG) String organizationId, @PathParam("callRef") String callRef) {
+        String tenant = tenantCode(organizationId);
+        operator();
+        return work(() -> Response.ok(telephony.outcome(tenant, callRef)).header("Cache-Control", "no-store").build());
+    }
+
+    @GET
+    @Path("/whatsapp-calls")
+    @Operation(operationId = "ringingWhatsAppCalls",
+            summary = "WhatsApp calls from contacts ringing in the tower, oldest first")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> ringingWhatsAppCalls(@PathParam(ORG) String organizationId) {
+        String tenant = tenantCode(organizationId);
+        operator();
+        return work(() -> Response.ok(telephony.ringingWhatsAppCalls(tenant)).header("Cache-Control", "no-store")
+                .build());
+    }
+
+    @POST
+    @Path("/whatsapp-calls/{callId}/answer")
+    @Operation(operationId = "answerWhatsAppCall",
+            summary = "A Telnyx WebRTC login to take a ringing WhatsApp call; the operator's call is bridged to it."
+                    + " 409 whatsapp_call_taken when another operator took it or it ended")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> answerWhatsAppCall(@PathParam(ORG) String organizationId,
+            @PathParam("callId") String callId) {
+        String tenant = tenantCode(organizationId);
+        String actor = operator();
+        return work(() -> token(() -> telephony.answerWhatsAppCall(tenant, actor, callId)));
     }
 
     @POST

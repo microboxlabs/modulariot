@@ -13,13 +13,18 @@ import {
 } from "./control-tower-api";
 
 import {
+  parseCallOutcome,
+  parseInboundCalls,
   parseTelephonySetup,
   parseWebRtcToken,
   parseReconcileResult,
+  type InboundWhatsAppCall,
   type TelephonyProvider,
   type TelephonySetup,
 } from "./telephony-api.types";
 export type {
+  CallOutcome,
+  InboundWhatsAppCall,
   TelephonyProvider,
   TelephonyLine,
   TelephonySetup,
@@ -49,10 +54,25 @@ export async function saveTelephony(provider: TelephonyProvider | null) {
 /** Refusal codes of the token request (409). */
 export const QUOTA_EXHAUSTED = "telephony_quota_exhausted";
 export const CHANNELS_BUSY = "telephony_channels_busy";
+export const WHATSAPP_NO_PERMISSION = "whatsapp_no_permission";
+export const WHATSAPP_UNAVAILABLE = "whatsapp_calling_unavailable";
+export const WHATSAPP_CALL_TAKEN = "whatsapp_call_taken";
 
-/** Reserves a managed call and requests the operator's reusable Telnyx login. */
+/** Refusals the dialing step explains in words; any other shows the provider's message. */
+export const KNOWN_REFUSALS: readonly string[] = [
+  QUOTA_EXHAUSTED,
+  CHANNELS_BUSY,
+  WHATSAPP_NO_PERMISSION,
+  WHATSAPP_UNAVAILABLE,
+  WHATSAPP_CALL_TAKEN,
+];
+
+/**
+ * Reserves a managed call and requests the operator's reusable Telnyx login.
+ * With `channel: "WHATSAPP"` the server calls the number on WhatsApp.
+ */
 export async function fetchWebRtcToken(
-  call: { calleeNumber?: string; caseRef?: string } = {}
+  call: { calleeNumber?: string; caseRef?: string; channel?: "WHATSAPP" } = {}
 ) {
   return parseWebRtcToken(
     await request<unknown>(`${telephonyKey}/webrtc-token`, {
@@ -70,6 +90,40 @@ export function reportCallEnded(
   return request<void>(
     `${telephonyKey}/calls/${encodeURIComponent(callRef)}/ended`,
     { method: "POST", body: { providerCallId } }
+  );
+}
+
+/** Why the provider ended a call before it connected (e.g. whatsapp_no_permission). */
+export async function fetchCallOutcome(callRef: string) {
+  return parseCallOutcome(
+    await request<unknown>(
+      `${telephonyKey}/calls/${encodeURIComponent(callRef)}`
+    )
+  );
+}
+
+export const ringingWhatsAppCallsKey = `${telephonyKey}/whatsapp-calls`;
+
+/** WhatsApp calls from contacts ringing in the tower; polled only while WhatsApp calling is on. */
+export function useRingingWhatsAppCalls(enabled: boolean, intervalMs = 4000) {
+  return useSWR<InboundWhatsAppCall[]>(
+    enabled ? ringingWhatsAppCallsKey : null,
+    async (path: string) => parseInboundCalls(await request<unknown>(path)),
+    {
+      refreshInterval: intervalMs,
+      revalidateOnFocus: true,
+      shouldRetryOnError: false,
+    }
+  );
+}
+
+/** A login to take a ringing WhatsApp call; dial with it like any Telnyx call. */
+export async function answerWhatsAppCall(callId: string) {
+  return parseWebRtcToken(
+    await request<unknown>(
+      `${ringingWhatsAppCallsKey}/${encodeURIComponent(callId)}/answer`,
+      { method: "POST" }
+    )
   );
 }
 

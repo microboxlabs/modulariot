@@ -38,9 +38,40 @@ class TelephonyChoiceServiceTest {
             issued.add(connectionId + " " + operator);
             return new WebRtcToken("jwt", "+56900000000", Instant.EPOCH);
         }
+
+        @Override
+        public boolean whatsAppCalling(String tenantCode) {
+            return whatsApp;
+        }
+
+        @Override
+        public WebRtcToken whatsAppCall(String tenantCode, String connectionId, String operator, String callee,
+                String caseRef) {
+            issued.add("whatsapp " + connectionId + " " + callee);
+            return new WebRtcToken("jwt", "+56900000000", Instant.EPOCH);
+        }
     };
+    private boolean whatsApp;
     private final TelephonyChoiceService service = new TelephonyChoiceService(new InMemoryTowerSettingsStore(),
             telephony, new AuditService(new InMemoryAuditStore()));
+
+    private static final TelephonyLine MANAGED = new TelephonyLine("p1", TelephonyProvider.TELNYX, "Plataforma",
+            "+56900000000", true, true);
+
+    @Test
+    void theWhatsAppButtonCallsOnlyOnTheManagedLineWhileWhatsAppCallingIsOn() {
+        lines.add(MANAGED);
+        assertEquals(false, service.get("acme").whatsAppCalling());
+        whatsApp = true;
+        assertEquals(true, service.get("acme").whatsAppCalling());
+        service.webRtcToken("acme", "ana@example.com",
+                new TelephonyChoiceService.CallRequest("+56911111111", "7", "WHATSAPP"));
+        assertEquals(List.of("whatsapp p1 +56911111111"), issued);
+
+        lines.clear();
+        lines.add(TELNYX);
+        assertEquals(false, service.get("acme").whatsAppCalling(), "an organization's own Telnyx line");
+    }
 
     @Test
     void aTokenIsIssuedOnTheTelnyxLineOnly() {

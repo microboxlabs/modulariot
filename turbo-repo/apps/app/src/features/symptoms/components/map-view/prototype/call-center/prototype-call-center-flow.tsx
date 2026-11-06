@@ -369,6 +369,7 @@ export default function PrototypeCallCenterFlow({
           teamsLine={providerCalls ? readyTeamsLine(telephony) : null}
           telephonyPending={providerCalls && !telephony && !telephonyError}
           telephonyFailed={providerCalls && Boolean(telephonyError)}
+          whatsAppCalling={providerCalls && Boolean(telephony?.whatsAppCalling)}
           caseRef={
             treatmentData?.symptom_info?.id != null
               ? String(treatmentData.symptom_info.id)

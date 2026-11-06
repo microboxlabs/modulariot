@@ -182,7 +182,7 @@ public class TelnyxUsageReconciler {
         String callControlId = text(cdr, "call_control_id") != null ? text(cdr, "call_control_id")
                 : (text(cdr, "id") == null ? null : "cdr:" + text(cdr, "id"));
         String tenant = usage.tenantOfSip(text(cdr, "auth_username"), text(cdr, "connection_id")).orElse(null);
-        if (callControlId == null || tenant == null) {
+        if (callControlId == null || tenant == null || whatsAppOperatorLeg(callControlId)) {
             return Applied.SKIPPED;
         }
         return usage.locked(connectionId, () -> applyLocked(connectionId, cdr, now, callControlId, tenant));
@@ -219,6 +219,12 @@ public class TelnyxUsageReconciler {
         row = row.providerData(callControlId, callee, started, answered, row.caseRef());
         usage.update(row.confirmed(seconds, cost, currency, UsageRow.SOURCE_DETAIL_RECORD, ended, now));
         return Applied.CONFIRMED;
+    }
+
+    /** A WhatsApp call's operator leg: the ledger row is the WhatsApp leg's, priced per WhatsApp minute. */
+    private boolean whatsAppOperatorLeg(String callControlId) {
+        return usage.admissionByParkedCall(callControlId).flatMap(a -> usage.find(a.callRef()))
+                .map(r -> UsageRow.WHATSAPP_CALL.equals(r.channel())).orElse(false);
     }
 
     private static String plus(String number) {

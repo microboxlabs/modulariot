@@ -80,7 +80,7 @@ public class InMemoryTelephonyUsageStore implements TelephonyUsageStore {
     @Override
     public synchronized Optional<String> latestCallerTenant(String calleeDigits, Instant since) {
         return rows.values().stream()
-                .filter(r -> r.managed() && UsageRow.VOICE.equals(r.channel()) && r.externalId() != null
+                .filter(r -> r.managed() && (UsageRow.VOICE.equals(r.channel()) || UsageRow.WHATSAPP_CALL.equals(r.channel())) && r.externalId() != null
                         && r.source() != null && r.calleeNumber() != null
                         && r.calleeNumber().replaceAll("\\D", "").equals(calleeDigits) && r.startedAt().isAfter(since))
                 .max(Comparator.comparing(UsageRow::startedAt)).map(UsageRow::tenantCode);

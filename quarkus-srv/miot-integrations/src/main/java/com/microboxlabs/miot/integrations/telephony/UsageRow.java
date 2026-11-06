@@ -15,6 +15,8 @@ public record UsageRow(String id, String tenantCode, String channel, boolean man
     public static final String VOICE = "VOICE";
     public static final String WHATSAPP_CALL = "WHATSAPP_CALL";
     public static final String WHATSAPP_TEMPLATE = "WHATSAPP_TEMPLATE";
+    /** Destination type of a WHATSAPP_CALL the contact placed: free on Meta's side. */
+    public static final String WHATSAPP_INBOUND = "WHATSAPP_INBOUND";
 
     public static final String STARTED = "STARTED";
     public static final String ENDED = "ENDED";
@@ -37,7 +39,7 @@ public record UsageRow(String id, String tenantCode, String channel, boolean man
 
     UsageRow providerData(String externalId, String callee, Instant started, Instant answered, String caseRef) {
         return new UsageRow(id, tenantCode, channel, managed, connectionId, externalId, caseRef, callee,
-                TelephonyPlanService.destinationType(callee), status, answered, seconds, billedMinutes,
+                VOICE.equals(channel) ? TelephonyPlanService.destinationType(callee) : destinationType, status, answered, seconds, billedMinutes,
                 providerCost, providerCurrency, source, started == null ? startedAt : started, endedAt, confirmedAt);
     }
 

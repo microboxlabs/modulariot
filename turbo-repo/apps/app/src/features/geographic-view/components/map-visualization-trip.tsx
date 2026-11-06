@@ -545,8 +545,6 @@ export default function MapVisualizationTrip({
   const engineOff = newestEngineOff(newest, reportedEngineStatus);
   const engineText = engineOffLabel(engineOff, offline, dict);
   const pinEngineOff = !!engineText && displayPosition === newestIndex;
-  const pinLabel =
-    displayPosition === newestIndex ? offlineText ?? engineText : null;
   const engineLabel = useMemo(
     () =>
       newest && engineText
@@ -828,7 +826,7 @@ export default function MapVisualizationTrip({
           },
           offline: pinOffline,
           engineOff: pinEngineOff,
-          label: pinLabel,
+          label: offlineText ?? engineText,
           updateTriggers: {
             data: positions,
           },
@@ -877,7 +875,6 @@ export default function MapVisualizationTrip({
     pinOffline,
     offlineText,
     pinEngineOff,
-    pinLabel,
     engineText,
   ]);
 

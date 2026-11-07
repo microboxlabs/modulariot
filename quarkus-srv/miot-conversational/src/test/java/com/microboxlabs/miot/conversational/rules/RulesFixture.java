@@ -233,6 +233,16 @@ final class RulesFixture {
                     new ConnectionMessagingService(store.conversations.conversationRepository,
                             store.conversations.messageRepository), sendQueue), JSON, clock);
 
+    /** An engine on the same stores and senders, with its own switches. */
+    RulesEngine engine(RulesEngine.Switches switches) {
+        return new RulesEngine(switches,
+                new RulesEngine.Stores(store.ruleStore, store.templateStore, store.runStore),
+                () -> List.of(participants), List::of,
+                new RulesEngine.Senders(whatsapp, email, integrations.channels,
+                        new ConnectionMessagingService(store.conversations.conversationRepository,
+                                store.conversations.messageRepository), sendQueue), JSON, clock);
+    }
+
     final RulesService service = new RulesService(store.ruleStore, store.templateStore, () -> List.of(catalog),
             () -> List.of(participants), clock);
     final RuleSimulator simulator = new RuleSimulator(service, store.templateStore, () -> List.of(participants),

@@ -52,8 +52,7 @@ import org.jboss.logging.Logger;
  * events, as a late frame does, and does not reach the detector. Each frame of
  * an organization with {@code trip_check} symptoms that read the duty counters
  * also goes through its duty tracker, and those symptoms run on the frame's
- * check ({@link DutyChecks}). On wherever the symptoms Pulsar is wired
- * ({@code miot.symptoms.evaluator.enabled}).
+ * check ({@link DutyChecks}). On with {@code miot.symptoms.evaluator.enabled}.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")

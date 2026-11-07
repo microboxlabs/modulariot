@@ -343,7 +343,7 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 | 403 | Not a member, org path mismatch, or a missing control tower permission |
 | 404 | Treatment or contact not found |
 | 409 | Treatment not `OPEN`, closing one with no actions, or a contact's national id already used |
-| 503 | Device events are off or not published, or map data cannot be read: `miot.symptoms.gps.rpc-url` unset, the organization has no Auth0 application, or the GPS database failed |
+| 503 | Device events are not published, or map data cannot be read: `miot.symptoms.gps.rpc-url` unset, the organization has no Auth0 application, or the GPS database failed |
 
 ## Treatment screen flow
 

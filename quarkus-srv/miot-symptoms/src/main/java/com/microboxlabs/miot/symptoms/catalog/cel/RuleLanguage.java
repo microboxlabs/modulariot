@@ -20,13 +20,16 @@ import dev.cel.extensions.CelOptionalLibrary;
 import dev.cel.parser.CelStandardMacro;
 import dev.cel.runtime.CelEvaluationException;
 import dev.cel.runtime.CelRuntime;
+import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 /**
@@ -116,7 +119,7 @@ public final class RuleLanguage {
             CelRuntime.Program program = cel.createProgram(result.getAst());
             return variables -> {
                 try {
-                    return RuleResult.of(program.eval(withConstants(doubles(variables))));
+                    return RuleResult.of(program.eval(withConstants(variables)));
                 } catch (CelEvaluationException e) {
                     return RuleResult.failed(RuleMessages.plain(e.getMessage()).spanish());
                 }
@@ -133,17 +136,28 @@ public final class RuleLanguage {
         RuleResult run(Map<String, Object> variables);
     }
 
+    /**
+     * The values as the rules read them, every number a double: converted once, so the rules of a signal do not
+     * each convert it again. Values already converted are kept as they are.
+     */
+    public static Map<String, Object> converted(Map<String, Object> values) {
+        return doubles(values);
+    }
+
     /** Every number the schema declares is a double, so samples with whole numbers are converted. */
-    @SuppressWarnings("unchecked")
     static Map<String, Object> doubles(Map<String, Object> values) {
+        if (values instanceof Converted c) {
+            return c;
+        }
         Map<String, Object> out = new LinkedHashMap<>();
         values.forEach((k, v) -> out.put(k, doubleValue(v)));
-        return out;
+        return new Converted(out);
     }
 
     @SuppressWarnings("unchecked")
     private static Object doubleValue(Object v) {
         return switch (v) {
+            case Converted c -> c;
             case Map<?, ?> m -> doubles((Map<String, Object>) m);
             case List<?> l -> l.stream().map(RuleLanguage::doubleValue).toList();
             case Double d -> d;
@@ -152,10 +166,46 @@ public final class RuleLanguage {
         };
     }
 
+    /** The constants and the variables, converted ({@link #doubles}) unless they already are. */
     private static Map<String, Object> withConstants(Map<String, Object> variables) {
         Map<String, Object> out = new LinkedHashMap<>(CONSTANTS);
-        out.putAll(variables);
+        variables.forEach((k, v) -> out.put(k, doubleValue(v)));
         return out;
+    }
+
+    /** A map converted by {@link #doubles}, read-only, so it is not converted again. */
+    private static final class Converted extends AbstractMap<String, Object> {
+
+        private final Map<String, Object> values;
+
+        Converted(Map<String, Object> values) {
+            this.values = values;
+        }
+
+        @Override
+        public Set<Entry<String, Object>> entrySet() {
+            return Collections.unmodifiableMap(values).entrySet();
+        }
+
+        @Override
+        public Object get(Object key) {
+            return values.get(key);
+        }
+
+        @Override
+        public boolean containsKey(Object key) {
+            return values.containsKey(key);
+        }
+
+        @Override
+        public int size() {
+            return values.size();
+        }
+
+        @Override
+        public void forEach(BiConsumer<? super String, ? super Object> action) {
+            values.forEach(action);
+        }
     }
 
     /** The compiled rule and the text CEL saw. */

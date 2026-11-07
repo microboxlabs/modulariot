@@ -157,7 +157,6 @@ public class SignalStream {
     private final GpsDatabase gps;
     private final SpeedDatabase speed;
     private final CustomSpeedTracks.Settings customTracks;
-    private final java.util.Map<String, CustomSpeedTracks.Rule> siteRules;
     private final Supplier<Pool> pool;
     private final ReferenceCache refs = new ReferenceCache();
     private final Zones zones = new Zones();
@@ -182,7 +181,6 @@ public class SignalStream {
         this.gps = gps;
         this.speed = speed;
         this.customTracks = customTracks;
-        this.siteRules = CustomSpeedTracks.rules(customTracks.sites());
         customTracks.table().ifPresent(CustomSpeedTracks::sql);
         this.pool = pool::get;
         this.listener = new PgNotificationListener(this.pool, vertx, TRIPS_CHANNEL, this::onTripNotice);
@@ -214,8 +212,8 @@ public class SignalStream {
         if (!speed.configured()) {
             LOG.warn("Signal builder: the speed database is not configured; road limits come from the GPS database"
                     + " and signals have no custom limit");
-        } else if (customTracks.tenant().isEmpty() || customTracks.table().isEmpty()) {
-            LOG.warn("Signal builder: custom speed tracks have no tenant or table; signals have no custom limit");
+        } else if (customTracks.table().isEmpty()) {
+            LOG.warn("Signal builder: custom speed tracks have no table; signals have no custom limit");
         }
         listener.start();
         reload().onFailure().invoke(e -> LOG.errorf(e, "Signal builder: reference load failed; frames wait"))
@@ -266,26 +264,43 @@ public class SignalStream {
     }
 
     /**
-     * None without the speed database, a tenant or a table. Null when the read fails: the zones loaded before are
-     * kept, and the other references still load.
+     * None without the speed database or a table, and none while the table lacks the organization and rule columns
+     * ({@code client_id}, {@code forward_from}, {@code forward_to}, {@code single_limit}). Null when the read fails
+     * otherwise: the zones loaded before are kept, and the other references still load.
      */
     private Uni<List<SpeedZones.Zone>> loadSpeedZones() {
-        if (!speed.configured() || customTracks.tenant().isEmpty() || customTracks.table().isEmpty()) {
+        if (!speed.configured() || customTracks.table().isEmpty()) {
             return Uni.createFrom().item(List.of());
         }
-        String tenant = customTracks.tenant().get();
         return speed.pool().query(CustomSpeedTracks.sql(customTracks.table().get())).execute()
-                .map(rows -> customZones(tenant, rows))
+                .map(SignalStream::customZones)
+                .onFailure(SignalStream::undefinedColumn).recoverWithItem(e -> {
+                    LOG.warnf("Signal builder: the custom speed tracks table has no organization or rule columns"
+                            + " (%s); no custom limits", rootCause(e));
+                    return List.of();
+                })
                 .onFailure().invoke(e -> LOG.warnf("Signal builder: custom speed zones not read (%s)", rootCause(e)))
                 .onFailure().recoverWithNull();
     }
 
-    private List<SpeedZones.Zone> customZones(String tenant, RowSet<Row> rows) {
+    static boolean undefinedColumn(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof io.vertx.pgclient.PgException pg
+                    && CustomSpeedTracks.UNDEFINED_COLUMN.equals(pg.getSqlState())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static List<SpeedZones.Zone> customZones(RowSet<Row> rows) {
         List<SpeedZones.Zone> z = new ArrayList<>();
         rows.forEach(r -> {
-            SpeedZones.Zone zone = CustomSpeedTracks.zone(tenant, new CustomSpeedTracks.Row(r.getInteger("id"),
-                    r.getString("client"), r.getInteger("speed_forward"), r.getInteger("speed_backward"),
-                    r.getInteger("azimuth_degree"), r.getString(SHAPE)), siteRules);
+            Boolean single = r.getBoolean("single_limit");
+            SpeedZones.Zone zone = CustomSpeedTracks.zone(new CustomSpeedTracks.Row(r.getInteger("id"),
+                    r.getString("client_id"), r.getInteger("speed_forward"), r.getInteger("speed_backward"),
+                    r.getInteger("azimuth_degree"), r.getInteger("forward_from"), r.getInteger("forward_to"),
+                    Boolean.TRUE.equals(single), r.getString(SHAPE)));
             if (zone != null) {
                 z.add(zone);
             }

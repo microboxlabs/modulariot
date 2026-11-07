@@ -169,13 +169,14 @@ public class SignalStream {
     private final Counter built;
     private final Counter skipped;
     private final Counter roadFailures;
+    private final OnlineVehicles online;
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
     private final PgNotificationListener listener;
 
     @Inject
     SignalStream(@ConfigProperty(name = "miot.symptoms.signal-builder.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.signal-builder.zone", defaultValue = "America/Santiago") String zone,
-            RoadSettings roadSettings, CustomSpeedTracks.Settings customTracks,
+            RoadSettings roadSettings, CustomSpeedTracks.Settings customTracks, OnlineVehicles.Settings onlineSettings,
             GpsDatabase gps, SpeedDatabase speed, Instance<Pool> pool, Vertx vertx, MeterRegistry meters) {
         this.enabled = enabled;
         this.gps = gps;
@@ -196,6 +197,8 @@ public class SignalStream {
         }
         this.built = meters.counter("miot.symptoms.signal.built");
         this.skipped = meters.counter("miot.symptoms.signal.skipped");
+        this.online = enabled ? new OnlineVehicles(onlineSettings.window(), onlineSettings.movingSpeed(),
+                Clock.systemUTC(), meters) : null;
     }
 
     /**
@@ -233,6 +236,13 @@ public class SignalStream {
         }
         return reload().onFailure().invoke(e -> LOG.errorf(e, "Signal builder: reference load failed"))
                 .onFailure().recoverWithNull();
+    }
+
+    @Scheduled(every = "1m", delayed = "1m")
+    void pruneOnline() {
+        if (online != null) {
+            online.prune();
+        }
     }
 
     private Uni<Void> reload() {
@@ -461,8 +471,18 @@ public class SignalStream {
             return Uni.createFrom().completionStage(in::ack).onItem().transformToMulti(x -> Multi.createFrom().empty());
         }
         built.increment();
+        countOnline(signal);
         return Multi.createFrom().item(in.withPayload(json)
                 .addMetadata(PulsarOutgoingMessageMetadata.builder().withKey(signal.assetId()).build()));
+    }
+
+    private void countOnline(GpsSignal signal) {
+        if (online == null) {
+            return;
+        }
+        var gpsPart = signal.frame() == null ? null : signal.frame().getGps();
+        online.seen(signal.assetId(), signal.sender(), signal.at(), gpsPart == null ? 0 : gpsPart.getSpeed(),
+                refs.sharedWith(signal.assetId(), signal.at()));
     }
 
     @Incoming("signal-asset-client-map")

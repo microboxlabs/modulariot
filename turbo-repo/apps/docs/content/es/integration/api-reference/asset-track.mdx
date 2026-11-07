@@ -83,7 +83,8 @@ El gateway asigna `X-Request-Id` y `X-Request-Timestamp` a cada solicitud; si la
   "altitude": 520,
   "speed": 65.5,
   "heading": 180,
-  "accuracy": 5
+  "accuracy": { "horizontal": 5.0, "vertical": 8.0 },
+  "satellites": 12
 }
 ```
 
@@ -94,7 +95,15 @@ El gateway asigna `X-Request-Id` y `X-Request-Timestamp` a cada solicitud; si la
 | `altitude` | number | metros | Altitud sobre el nivel del mar |
 | `speed` | number | km/h | Velocidad sobre el suelo |
 | `heading` | number | grados | Dirección (0-360) |
-| `accuracy` | number | metros | Precisión del GPS |
+| `accuracy` | object | — | Precisión del GPS (ver abajo) |
+| `satellites` | integer | — | Satélites usados en el fix |
+
+#### Precisión (`accuracy`)
+
+| Campo | Tipo | Unidad | Descripción |
+|-------|------|--------|-------------|
+| `horizontal` | number | metros | Error horizontal estimado. Envíe el valor real del equipo |
+| `vertical` | number | metros | Error vertical estimado |
 
 ### Objeto Metrics (miot.metrics@1.0)
 
@@ -157,8 +166,8 @@ Para dispositivos GPS que envían datos de sensores directamente (sin conexión 
     "rotation_rate_y": -3.2,
     "rotation_rate_z": 1.8
   },
-  "odometer": 125432.5,
-  "engine_status": 1,
+  "odometer": { "total_distance": 125432.5 },
+  "engine_status": true,
   "panic_button": false
 }
 ```
@@ -167,9 +176,11 @@ Para dispositivos GPS que envían datos de sensores directamente (sin conexión 
 |-------|------|-------------|
 | `acceleration` | object | Aceleración lineal del acelerómetro del dispositivo (ver abajo) |
 | `gyroscope` | object | Velocidades de rotación angular del giroscopio del dispositivo (ver abajo) |
-| `odometer` | number | Distancia total recorrida en kilómetros |
-| `engine_status` | integer | Estado del motor: `1` = encendido, `0` = apagado |
+| `odometer` | object | Odómetro: `total_distance` (km acumulados del vehículo) y `trip_distance` (km del viaje, opcional) |
+| `engine_status` | boolean | Estado del motor: `true` = encendido, `false` = apagado |
 | `panic_button` | boolean | Botón de pánico: `true` = presionado. Omítalo si el dispositivo no tiene botón de pánico |
+| `battery_level` | object | Batería del equipo GPS: `{ "percentage": 87 }` |
+| `asset_load` | object | Carga: `cargo_weight` y `asset_weight`, en kg |
 
 > Use este objeto cuando el dispositivo GPS entrega lecturas inerciales, de odómetro o de estado del motor directamente, sin depender del bus de diagnóstico del vehículo. Todos los subcampos son opcionales — envíe sólo los que el dispositivo reporte.
 
@@ -197,6 +208,49 @@ Velocidad de rotación angular alrededor de cada eje del giroscopio del disposit
 | `rotation_rate_z` | number | rad/s | -10.0 a 10.0 | Velocidad de rotación alrededor del eje Z (yaw) |
 
 > Los valores se reportan en **radianes por segundo**. Multiplique por `180/π` (≈ 57,2958) para convertir a grados por segundo si su pipeline espera °/s.
+
+### Objeto Driver Info
+
+Identifica al conductor. `co_driver_info` usa la misma estructura para el copiloto.
+
+```json
+{
+  "id_button": "0000015DB23D",
+  "driver_id": "16541455-1",
+  "name": "Juan Pérez",
+  "license_number": "A5-123456",
+  "contact": { "phone": "+56912345678", "email": "juan@empresa.cl" }
+}
+```
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id_button` | string | Código del iButton (llave Dallas) leído por el equipo |
+| `driver_id` | string | Identificador del conductor (RUT en Chile) |
+| `name` | string | Nombre completo |
+| `license_number` | string | Número de licencia de conducir |
+| `contact` | object | `phone` y `email` |
+
+> Todos los subcampos son opcionales. Envíe `id_button` en cada posición mientras la llave esté puesta; es el dato que permite atribuir la conducción a una persona.
+
+### Objeto Telecom
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `iccid` | string | ICCID de la SIM |
+| `imsi` | string | IMSI |
+| `operator` | string | Operador móvil |
+| `mcc` / `mnc` | string | Código de país y de red |
+| `cell_id` / `lac` | string | Celda y área de localización |
+| `signal_strength` | integer | Intensidad de señal |
+| `gps_provider` | string | Nombre del proveedor del equipo GPS |
+
+### Objeto Peripherals
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `dashcam` | object | `status` (boolean) y `recording_url` |
+| `rfid_reader` | object | `status` (boolean) y `last_read` (`rfid_tag`, `timestamp`) |
 
 ### Objeto Events
 
@@ -226,6 +280,7 @@ Para dispositivos GPS o proveedores que pre-calculan eventos discretos del activ
 | `timestamp` | string | **Sí** | Timestamp ISO 8601 del evento (puede diferir del timestamp del envoltorio). |
 | `severity` | string | No | Severidad reportada por el proveedor: `low`, `medium`, `high`. |
 | `threshold_exceeded` | boolean | No | `true` si el evento superó el umbral configurado por el proveedor. |
+| `description` | string | No | Texto libre del proveedor sobre el evento. |
 | `additional_info` | object | No | Metadatos del evento (ver abajo). |
 
 #### Catálogo de `event_type`
@@ -487,8 +542,8 @@ curl --request POST \
       "heading": 180
     },
     "sensors": {
-      "odometer": 125432.5,
-      "engine_status": 1
+      "odometer": { "total_distance": 125432.5 },
+      "engine_status": true
     }
   }'
 ```
@@ -524,8 +579,8 @@ curl --request POST \
         "rotation_rate_y": -3.2,
         "rotation_rate_z": 1.8
       },
-      "odometer": 125432.5,
-      "engine_status": 1
+      "odometer": { "total_distance": 125432.5 },
+      "engine_status": true
     }
   }'
 ```

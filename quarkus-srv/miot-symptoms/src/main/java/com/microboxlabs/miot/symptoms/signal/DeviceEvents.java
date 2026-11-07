@@ -36,8 +36,9 @@ import org.jboss.logging.Logger;
  * GpsSignal#EVENTS_SCHEMA_ID}) for the organization that sent it: the event as {@code frame.events[0]} and the
  * organization's trip in progress on the vehicle. It is published on the GPS signals topic, keyed by vehicle, so the
  * evaluator reads it in order with the vehicle's frames. An event id already received is not published again
- * ({@code miot_symptoms.device_event}, without payload). Payloads are never logged. On wherever the signal builder runs
- * ({@code miot.symptoms.signal-builder.enabled}): both publish to the same topic.
+ * ({@code miot_symptoms.device_event}, without payload). Payloads are never logged. On wherever the symptoms component runs
+ * with its Pulsar wired ({@code miot.symptoms.pulsar.enabled}), whether or not the signal builder runs there, so a pod
+ * that only serves the API takes them too.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -110,7 +111,7 @@ public class DeviceEvents {
     private final SignalBuilder builder = new SignalBuilder(new ReferenceCache(), java.time.ZoneOffset.UTC);
 
     @Inject
-    DeviceEvents(@ConfigProperty(name = "miot.symptoms.signal-builder.enabled", defaultValue = "false") boolean enabled,
+    DeviceEvents(@ConfigProperty(name = "miot.symptoms.pulsar.enabled", defaultValue = "false") boolean enabled,
             Instance<Pool> pool, DeviceSignalChannel channel) {
         this(enabled, new PgSeen(pool::get), new PgTrips(pool::get), channel, Clock.systemUTC(), pool::get);
     }

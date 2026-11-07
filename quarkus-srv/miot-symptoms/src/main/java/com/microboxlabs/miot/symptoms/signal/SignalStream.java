@@ -30,6 +30,7 @@ import io.vertx.pgclient.PgException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -172,6 +173,7 @@ public class SignalStream {
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
     private final PgNotificationListener listener;
 
+    @Inject
     SignalStream(@ConfigProperty(name = "miot.symptoms.signal-builder.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.signal-builder.zone", defaultValue = "America/Santiago") String zone,
             RoadSettings roadSettings, CustomSpeedTracks.Settings customTracks,
@@ -306,7 +308,7 @@ public class SignalStream {
 
     /** From the speed database, else the GPS database; no ways without either. */
     private Uni<List<RoadNetwork.Way>> ways(double minLon, double minLat, double maxLon, double maxLat) {
-        Pool roadsPool = speed.configured() ? speed.pool() : gps.configured() ? gps.readPool() : null;
+        Pool roadsPool = roadsPool();
         if (roadsPool == null) {
             return Uni.createFrom().item(List.of());
         }
@@ -321,6 +323,13 @@ public class SignalStream {
                     roadFailures.increment();
                     LOG.debugf("Signal builder: road tile not read (%s)", rootCause(e));
                 });
+    }
+
+    private Pool roadsPool() {
+        if (speed.configured()) {
+            return speed.pool();
+        }
+        return gps.configured() ? gps.readPool() : null;
     }
 
     /** No zones without the GPS database; a shape that is not a polygon is skipped. */

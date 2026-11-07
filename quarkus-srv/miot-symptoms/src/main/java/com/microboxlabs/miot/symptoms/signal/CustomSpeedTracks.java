@@ -60,7 +60,7 @@ final class CustomSpeedTracks {
     private static final Pattern RANGE = Pattern.compile("\\s*(\\d{1,3})\\s*-\\s*(\\d{1,3})\\s*");
     private static final Pattern TABLE = Pattern.compile("[A-Za-z_]\\w*(\\.[A-Za-z_]\\w*)?");
 
-    static final String SQL = """
+    private static final String SELECT_TRACKS = """
             SELECT id, client, speed_forward, speed_backward, azimuth_degree, ST_AsGeoJSON(geom) AS shape
               FROM %s WHERE geom IS NOT NULL
             """;
@@ -72,7 +72,7 @@ final class CustomSpeedTracks {
         if (!TABLE.matcher(table).matches()) {
             throw new IllegalArgumentException("Invalid custom speed tracks table name");
         }
-        return SQL.formatted(table);
+        return SELECT_TRACKS.formatted(table);
     }
 
     static Map<String, Rule> rules(Map<String, String> sites) {
@@ -103,8 +103,8 @@ final class CustomSpeedTracks {
             return null;
         }
         SpeedZones.Limits limits = switch (rule) {
-            case Forward f -> new SpeedZones.Limits(row.forward(), row.backward(), f.from(), f.to(), row.azimuth());
-            case OneLimit o -> new SpeedZones.Limits(row.backward() != null ? row.backward() : row.forward(), null,
+            case Forward(int from, int to) -> new SpeedZones.Limits(row.forward(), row.backward(), from, to, row.azimuth());
+            case OneLimit() -> new SpeedZones.Limits(row.backward() != null ? row.backward() : row.forward(), null,
                     null, null, row.azimuth());
         };
         if (limits.forward() == null && limits.backward() == null) {

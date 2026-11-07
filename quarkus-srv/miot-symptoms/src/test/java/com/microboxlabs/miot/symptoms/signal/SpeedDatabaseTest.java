@@ -26,7 +26,8 @@ class SpeedDatabaseTest {
         assertFalse(new SpeedDatabase(settings(null, "speed", "reader"), null).configured());
         assertFalse(new SpeedDatabase(settings("db", " ", "reader"), null).configured());
         assertFalse(new SpeedDatabase(settings("db", "speed", null), null).configured());
-        assertThrows(IllegalStateException.class, () -> new SpeedDatabase(settings(null, null, null), null).pool());
+        SpeedDatabase unconfigured = new SpeedDatabase(settings(null, null, null), null);
+        assertThrows(IllegalStateException.class, unconfigured::pool);
     }
 
     @Test

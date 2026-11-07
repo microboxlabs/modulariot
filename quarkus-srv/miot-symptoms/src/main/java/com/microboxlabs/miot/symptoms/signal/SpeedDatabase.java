@@ -39,7 +39,7 @@ public class SpeedDatabase {
 
     private final Settings settings;
     private final Vertx vertx;
-    private volatile Pool pool;
+    private Pool pool;
 
     SpeedDatabase(Settings settings, Vertx vertx) {
         this.settings = settings;
@@ -51,23 +51,17 @@ public class SpeedDatabase {
     }
 
     /** Read-only sessions; created on first use. Only when {@link #configured()}. */
-    public Pool pool() {
+    public synchronized Pool pool() {
         if (!configured()) {
             throw new IllegalStateException("The speed database is not configured");
         }
-        Pool p = pool;
-        if (p == null) {
-            synchronized (this) {
-                if (pool == null) {
-                    pool = PgBuilder.pool().connectingTo(options(settings))
-                            .with(new PoolOptions().setMaxSize(settings.maxSize()).setIdleTimeout(60)
-                                    .setName("miot-speed"))
-                            .using(vertx).build();
-                }
-                p = pool;
-            }
+        if (pool == null) {
+            pool = PgBuilder.pool().connectingTo(options(settings))
+                    .with(new PoolOptions().setMaxSize(settings.maxSize()).setIdleTimeout(60)
+                            .setName("miot-speed"))
+                    .using(vertx).build();
         }
-        return p;
+        return pool;
     }
 
     static PgConnectOptions options(Settings s) {
@@ -78,10 +72,9 @@ public class SpeedDatabase {
                 .addProperty("default_transaction_read_only", "on");
     }
 
-    void onStop(@Observes ShutdownEvent ignored) {
-        Pool p = pool;
-        if (p != null) {
-            p.closeAndAwait();
+    synchronized void onStop(@Observes ShutdownEvent ignored) {
+        if (pool != null) {
+            pool.closeAndAwait();
         }
     }
 

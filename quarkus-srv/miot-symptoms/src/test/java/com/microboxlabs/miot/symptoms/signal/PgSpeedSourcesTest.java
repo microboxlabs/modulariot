@@ -2,16 +2,19 @@ package com.microboxlabs.miot.symptoms.signal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
+import io.vertx.pgclient.PgException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -27,6 +30,10 @@ class PgSpeedSourcesTest {
     private static final Duration WAIT = Duration.ofSeconds(10);
     private static Vertx vertx;
     private static Pool pool;
+
+    private record SpeedSettings(Optional<String> host, int port, Optional<String> name, Optional<String> username,
+            Optional<String> password, int maxSize) implements SpeedDatabase.Settings {
+    }
 
     @BeforeAll
     static void open() {
@@ -58,6 +65,25 @@ class PgSpeedSourcesTest {
         }
         if (vertx != null) {
             vertx.close().await().atMost(WAIT);
+        }
+    }
+
+    @Test
+    void speedDatabaseSessionsRejectWrites() {
+        PgConnectOptions options = PgConnectOptions.fromUri(System.getProperty("miot.symptoms.test.pg-url"));
+        SpeedDatabase source = new SpeedDatabase(new SpeedSettings(Optional.of(options.getHost()), options.getPort(),
+                Optional.of(options.getDatabase()), Optional.of(options.getUser()),
+                Optional.ofNullable(options.getPassword()), 1), vertx);
+        try {
+            String readOnly = source.pool().query("SHOW transaction_read_only").execute().await().atMost(WAIT)
+                    .iterator().next().getString("transaction_read_only");
+            assertEquals("on", readOnly);
+            var write = source.pool().query("CREATE TABLE public.speed_db_write_must_fail (id integer)")
+                    .execute().await();
+            PgException failure = assertThrows(PgException.class, () -> write.atMost(WAIT));
+            assertEquals("25006", failure.getSqlState());
+        } finally {
+            source.onStop(null);
         }
     }
 

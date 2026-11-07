@@ -52,9 +52,13 @@ public class ApiSurface {
         return path != null && (path.equals(management) || path.startsWith(management + "/"));
     }
 
+    @SuppressWarnings("java:S1075") // HTTP path delimiters are protocol syntax, independent of the filesystem.
     static String managementPath(String root, String management) {
-        String path = management.startsWith("/") ? management
-                : (root.endsWith("/") ? root : root + "/") + management;
+        String path = management;
+        if (!management.startsWith("/")) {
+            String prefix = root.endsWith("/") ? root : root + "/";
+            path = prefix + management;
+        }
         return path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
     }
 }

@@ -10,6 +10,9 @@ Two things live here, behind one component switch (`miot.component.symptoms.enab
    now. The form option lists are the core selectables API; this module seeds
    the treatment-form defaults. See [docs/control-tower-api.md](docs/control-tower-api.md).
 
+To run the signal builder and evaluator on their own replicas, apart from the API pod, see
+[docs/deployment.md](docs/deployment.md).
+
 This is **not** a detector. Heavy work stays in Postgres `process_symptoms_*`
 and (optionally) n8n / `router.streamhub.cl`.
 

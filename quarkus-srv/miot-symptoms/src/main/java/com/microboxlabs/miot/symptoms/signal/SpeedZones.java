@@ -8,11 +8,11 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Each organization's own speed limits, {@code miot_symptoms.speed_limit_zone}: a polygon with a limit forward
+ * Each organization's own speed limits ({@link CustomSpeedTracks}): a polygon with a limit forward
  * and one backward. Forward is a bearing of travel inside {@code [forwardFrom, forwardTo]} (clockwise from north,
  * wrapping past 360); without that range the zone has one limit, forward or else backward. With a
- * {@code heading} the zone only applies to a vehicle whose device heading points the same way, as the GPS
- * database's speed function compares {@code azimuth_degree}. Where zones overlap, the lowest id applies.
+ * {@code heading} the zone only applies to a vehicle whose device heading points the same way, as the legacy
+ * speed function compares {@code azimuth_degree}. Where zones overlap, the lowest id applies.
  */
 public class SpeedZones {
 

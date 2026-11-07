@@ -60,7 +60,11 @@ public class DutyChecks {
      * Empty when the frame is not applied: no position, a bad speed or jump, or not newer than the last one.
      */
     public Optional<Check> apply(String tenantCode, String assetId, Instant at, Map<String, Object> signal) {
-        DutyStore.Loaded loaded = store.load(tenantCode, assetId);
+        return apply(at, signal, store.load(tenantCode, assetId));
+    }
+
+    /** As {@link #apply(String, String, Instant, Map)}, on the counters already read from the store. */
+    public Optional<Check> apply(Instant at, Map<String, Object> signal, DutyStore.Loaded loaded) {
         DutyState prev = loaded.state();
         if (prev != null && loaded.restarts() > prev.restarts()) {
             prev = DutyTracker.restartDuty(prev, loaded.restarts());
@@ -100,6 +104,11 @@ public class DutyChecks {
 
     public void restartDuty(String tenantCode, String assetId) {
         store.restartDuty(tenantCode, assetId);
+    }
+
+    /** Where the counters are kept. */
+    public DutyStore store() {
+        return store;
     }
 
     private static Double number(Map<String, Object> signal, String key) {

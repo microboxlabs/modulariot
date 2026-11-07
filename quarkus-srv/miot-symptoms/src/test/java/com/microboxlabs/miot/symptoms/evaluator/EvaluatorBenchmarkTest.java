@@ -13,14 +13,17 @@ import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
+import com.microboxlabs.miot.symptoms.duty.InMemoryDutyStore;
 import com.microboxlabs.miot.symptoms.duty.RedisDutyStore;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
+import com.microboxlabs.miot.symptoms.lostsignal.InMemoryLossStore;
 import com.microboxlabs.miot.symptoms.lostsignal.LossSettings;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector.TickerSettings;
 import com.microboxlabs.miot.symptoms.lostsignal.RedisLossStore;
 import com.microboxlabs.miot.symptoms.lostsignal.TripChecks;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.signal.SignalSamplesAccess;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -52,7 +55,8 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
  *
  * <p>Run with {@code -Dmiot.symptoms.benchmark=true}. Settings: {@code bench.redis-us} (Redis round trip, default
  * 2400, as measured in production), {@code bench.pg-us} (Postgres query, default 2000), {@code bench.signals}
- * (default 3000 for the latency runs), {@code bench.lanes} (default 8). It prints signals/s on one CPU without
+ * (default 3000 for the latency runs), {@code bench.lanes} (default 8), {@code bench.jfr} (a file to record the
+ * no-latency run to with JFR's profile settings). It prints signals/s on one CPU without
  * latency, the round trips per signal, and signals/s with latency, one at a time and in vehicle-keyed lanes.
  */
 @EnabledIfSystemProperty(named = "miot.symptoms.benchmark", matches = "true")
@@ -69,30 +73,40 @@ class EvaluatorBenchmarkTest {
         final EvaluatorStream stream;
         final AtomicLong holdQueries = new AtomicLong();
         final AtomicLong logAppends = new AtomicLong();
+        final InMemoryTransitionLog recorded = new InMemoryTransitionLog();
         final int symptoms;
 
         Env(long redisMicros, long pgMicros) {
+            this(redisMicros, pgMicros, false);
+        }
+
+        /** @param inMemory the in-memory stores instead of the fake Redis */
+        Env(long redisMicros, long pgMicros, boolean inMemory) {
             redis = new FakeRedis(redisMicros);
             InMemoryCatalog store = new InMemoryCatalog();
             SymptomEvents events = new SymptomEvents(e -> CompletableFuture.completedFuture(e), store::findDefinition,
                     Clock.systemUTC());
-            var samples = SignalSamplesAccess.redis(redis.api(), Clock.systemUTC());
+            var samples = inMemory ? SignalSamples.inMemory() : SignalSamplesAccess.redis(redis.api(), Clock.systemUTC());
             DataSourceService sources = new DataSourceService(store, samples);
             AuditService audit = new AuditService(new InMemoryAuditStore());
             SymptomCatalogService catalog = new SymptomCatalogService(store, sources, audit);
             symptoms = publishTemplates(catalog, ORG, ACTIVE) + publishTemplates(catalog, OTHER, 1);
             EvaluatorCatalog evaluatorCatalog = new EvaluatorCatalog(catalog, sources);
             Holds holds = new HoldIndex(holdStore(pgMicros, holdQueries));
-            TransitionLog log = slowLog(new InMemoryTransitionLog(), pgMicros, logAppends);
+            TransitionLog log = slowLog(recorded, pgMicros, logAppends);
             Duration ttl = Duration.ofDays(7);
-            RedisEpisodes episodes = new RedisEpisodes(redis.api(), ttl);
+            EvaluatorStream.Stores stores = inMemory
+                    ? new EvaluatorStream.Stores(new InMemoryEpisodeRepository(), new InMemoryDutyStore())
+                    : new EvaluatorStream.Stores(new RedisEpisodes(redis.api(), ttl),
+                            new RedisDutyStore(redis.api(), ttl), VehicleReads.redis(redis.mutiny()));
             SimpleMeterRegistry meters = new SimpleMeterRegistry();
-            TripChecks checks = new TripChecks(evaluatorCatalog, episodes, log, events, audit, meters, holds);
-            LostSignalDetector detector = new LostSignalDetector(true, new RedisLossStore(redis.mutiny(), ttl),
+            TripChecks checks = new TripChecks(evaluatorCatalog, stores.episodes(), log, events, audit, meters,
+                    holds);
+            LostSignalDetector detector = new LostSignalDetector(true,
+                    inMemory ? new InMemoryLossStore() : new RedisLossStore(redis.mutiny(), ttl),
                     LossSettings.defaults(), TickerSettings.defaults(), checks, meters, Clock.systemUTC());
             stream = new EvaluatorStream(true, evaluatorCatalog, new EvaluatorStream.Sinks(log, events, meters),
-                    Clock.systemUTC(), episodes, samples, LateFrames.NONE, detector, holds,
-                    new RedisDutyStore(redis.api(), ttl));
+                    Clock.systemUTC(), stores, samples, LateFrames.NONE, detector, holds);
         }
 
         void reset() {
@@ -288,7 +302,18 @@ class EvaluatorBenchmarkTest {
             cpu(cpuEnv, signals(vehicles, 40_000, start, 1), "warm-up");
             List<Signal> measured = signals(vehicles, 60_000, start.plus(Duration.ofHours(2)), 2);
             cpuEnv.reset();
+            String jfr = System.getProperty("bench.jfr");
+            jdk.jfr.Recording recording = null;
+            if (jfr != null) {
+                recording = new jdk.jfr.Recording(jdk.jfr.Configuration.getConfiguration("profile"));
+                recording.start();
+            }
             cpu(cpuEnv, measured, "cpu");
+            if (recording != null) {
+                recording.stop();
+                recording.dump(java.nio.file.Path.of(jfr));
+                recording.close();
+            }
             double n = measured.size();
             System.out.printf("per signal: %.2f Redis round trips, %.2f hold queries, %.3f log appends%n",
                     cpuEnv.redis.roundTrips() / n, cpuEnv.holdQueries.get() / n, cpuEnv.logAppends.get() / n);

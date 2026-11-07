@@ -89,6 +89,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- Match the Prometheus registry used by the gateway in the deployed modulith. -->
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus-simpleclient</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
             <scope>test</scope>

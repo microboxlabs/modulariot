@@ -35,8 +35,6 @@ public final class OnlineVehicles {
     static final String SENDERS = "miot.symptoms.vehicles.online.senders";
     static final String MOVING = "miot.symptoms.vehicles.moving";
     static final String TOTAL = "miot.symptoms.vehicles.online.total";
-    /** A frame stamped later than now plus this is ignored: a device clock ahead would keep it online. */
-    static final Duration FUTURE_TOLERANCE = Duration.ofMinutes(2);
     /** Gauges read one count computed at most this often, not one per gauge. */
     private static final Duration CACHE = Duration.ofSeconds(5);
 
@@ -53,8 +51,9 @@ public final class OnlineVehicles {
     private final Map<String, Last> vehicles = new ConcurrentHashMap<>();
     private final Set<String> tenantGauges = ConcurrentHashMap.newKeySet();
     private final Set<String> senderGauges = ConcurrentHashMap.newKeySet();
-    private volatile Counts cached = new Counts(Map.of(), Map.of(), Map.of(), 0);
-    private volatile Instant cachedAt = Instant.MIN;
+    // Both fields are guarded by this; refreshes never overlap or publish an older snapshot as fresh.
+    private Counts cached = new Counts(Map.of(), Map.of(), Map.of(), 0);
+    private Instant cachedAt = Instant.MIN;
 
     public OnlineVehicles(Duration window, double movingSpeed, Clock clock, MeterRegistry meters) {
         this.window = window;
@@ -73,15 +72,16 @@ public final class OnlineVehicles {
             return;
         }
         Instant now = clock.instant();
-        if (at.isAfter(now.plus(FUTURE_TOLERANCE)) || !at.isAfter(now.minus(window))) {
+        if (at.isAfter(now) || !at.isAfter(now.minus(window))) {
             return;
         }
         List<String> t = tenants == null || tenants.isEmpty() ? List.of(NONE) : List.copyOf(tenants);
         String s = sender == null || sender.isBlank() ? NONE : sender;
         Last next = new Last(at, speed > movingSpeed, s, t);
-        vehicles.merge(assetId, next, (old, n) -> n.at().isBefore(old.at()) ? old : n);
-        t.forEach(this::tenantGauges);
-        senderGauge(s);
+        if (vehicles.merge(assetId, next, (old, n) -> n.at().isBefore(old.at()) ? old : n) == next) {
+            t.forEach(this::tenantGauges);
+            senderGauge(s);
+        }
     }
 
     /** Drops the vehicles out of the window and counts the rest. */
@@ -106,12 +106,12 @@ public final class OnlineVehicles {
     }
 
     /** Drops the vehicles out of the window, for when nothing reads the gauges. */
-    void prune() {
+    synchronized void prune() {
         cached = counts();
         cachedAt = clock.instant();
     }
 
-    private Counts cached() {
+    private synchronized Counts cached() {
         Instant now = clock.instant();
         if (now.isAfter(cachedAt.plus(CACHE)) || now.isBefore(cachedAt)) {
             prune();

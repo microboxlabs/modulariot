@@ -128,7 +128,8 @@ The builder keeps each vehicle's last frame (device time) and counts the vehicle
 | `miot.symptoms.signal-builder.online.window` | `MIOT_SYMPTOMS_SIGNAL_BUILDER_ONLINE_WINDOW` | `15m` | A vehicle is online while its last frame is newer than this |
 | `miot.symptoms.signal-builder.online.moving-speed` | `MIOT_SYMPTOMS_SIGNAL_BUILDER_ONLINE_MOVING_SPEED` | `5` | km/h |
 
-- A frame stamped more than 2 min after the pod's clock is ignored; a frame older than the vehicle's last one changes nothing.
+- A frame stamped after the pod's clock is ignored; a frame older than the vehicle's last one changes nothing.
+- Expired vehicles are removed on a gauge refresh (cached for up to 5 s) and every minute even without scrapes. Frame updates touch only that vehicle and its tenant/sender tags; fleet scans run only during these refreshes.
 - A tag value gets its gauge with its first vehicle and reports 0 after its last vehicle leaves, until the pod restarts. Cardinality is the number of clients and senders, never vehicles.
 - Each replica counts the vehicles Key_Shared gives it. Sum across pods: `sum by (tenant) (miot_symptoms_vehicles_online)`, `sum(miot_symptoms_vehicles_online_total)`. After a rebalance a vehicle can count on two pods until its frame on the old pod leaves the window.
 - Off with the builder: no gauges.

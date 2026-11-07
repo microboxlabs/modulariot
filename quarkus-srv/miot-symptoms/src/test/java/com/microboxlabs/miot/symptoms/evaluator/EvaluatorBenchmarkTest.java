@@ -13,6 +13,7 @@ import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
+import com.microboxlabs.miot.symptoms.duty.DutyStore;
 import com.microboxlabs.miot.symptoms.duty.InMemoryDutyStore;
 import com.microboxlabs.miot.symptoms.duty.RedisDutyStore;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
@@ -75,6 +76,9 @@ class EvaluatorBenchmarkTest {
         final AtomicLong logAppends = new AtomicLong();
         final InMemoryTransitionLog recorded = new InMemoryTransitionLog();
         final int symptoms;
+        final SymptomCatalogService catalog;
+        final EpisodeRepository episodes;
+        final DutyStore duty;
 
         Env(long redisMicros, long pgMicros) {
             this(redisMicros, pgMicros, false);
@@ -89,7 +93,7 @@ class EvaluatorBenchmarkTest {
             var samples = inMemory ? SignalSamples.inMemory() : SignalSamplesAccess.redis(redis.api(), Clock.systemUTC());
             DataSourceService sources = new DataSourceService(store, samples);
             AuditService audit = new AuditService(new InMemoryAuditStore());
-            SymptomCatalogService catalog = new SymptomCatalogService(store, sources, audit);
+            catalog = new SymptomCatalogService(store, sources, audit);
             symptoms = publishTemplates(catalog, ORG, ACTIVE) + publishTemplates(catalog, OTHER, 1);
             EvaluatorCatalog evaluatorCatalog = new EvaluatorCatalog(catalog, sources);
             Holds holds = new HoldIndex(holdStore(pgMicros, holdQueries));
@@ -99,6 +103,8 @@ class EvaluatorBenchmarkTest {
                     ? new EvaluatorStream.Stores(new InMemoryEpisodeRepository(), new InMemoryDutyStore())
                     : new EvaluatorStream.Stores(new RedisEpisodes(redis.api(), ttl),
                             new RedisDutyStore(redis.api(), ttl), VehicleReads.redis(redis.mutiny()));
+            episodes = stores.episodes();
+            duty = stores.duty();
             SimpleMeterRegistry meters = new SimpleMeterRegistry();
             TripChecks checks = new TripChecks(evaluatorCatalog, stores.episodes(), log, events, audit, meters,
                     holds);
@@ -273,17 +279,17 @@ class EvaluatorBenchmarkTest {
             byLane.add(new ArrayList<>());
         }
         signals.forEach(s -> byLane.get(Math.floorMod(s.assetId().hashCode(), lanes)).add(s));
-        ExecutorService pool = Executors.newFixedThreadPool(lanes);
         long t0 = System.nanoTime();
-        List<Future<?>> done = new ArrayList<>();
-        for (List<Signal> lane : byLane) {
-            done.add(pool.submit(() -> lane.forEach(s -> env.stream.evaluate(s.json(), Instant.now()))));
-        }
-        for (Future<?> f : done) {
-            f.get();
+        try (ExecutorService pool = Executors.newFixedThreadPool(lanes)) {
+            List<Future<?>> done = new ArrayList<>();
+            for (List<Signal> lane : byLane) {
+                done.add(pool.submit(() -> lane.forEach(s -> env.stream.evaluate(s.json(), Instant.now()))));
+            }
+            for (Future<?> f : done) {
+                f.get();
+            }
         }
         long ns = System.nanoTime() - t0;
-        pool.shutdown();
         return signals.size() * 1e9 / ns;
     }
 

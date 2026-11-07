@@ -152,7 +152,6 @@ public class EvaluatorStream {
             SignalSamples samples, LateFrames lateFrames, LostSignalDetector lostSignal, Holds holds) {
         this.duty = new DutyChecks(stores.duty());
         this.reads = stores.reads();
-        EpisodeRepository episodes = stores.episodes();
         this.holds = holds;
         this.lateFrames = lateFrames;
         this.lostSignal = lostSignal;
@@ -162,7 +161,7 @@ public class EvaluatorStream {
         this.events = sinks.events();
         this.meters = sinks.meters();
         this.clock = clock;
-        this.episodes = episodes;
+        this.episodes = stores.episodes();
         this.samples = samples;
     }
 
@@ -242,11 +241,8 @@ public class EvaluatorStream {
         List<Organization> organizations = new ArrayList<>();
         RuntimeException unread = null;
         try {
-            for (Object client : clients) {
-                if (client instanceof String tenant) {
-                    organizations.add(read(tenant, assetId, forTenant(signal, tenant)));
-                }
-            }
+            clients.stream().filter(String.class::isInstance).map(String.class::cast)
+                    .forEach(tenant -> organizations.add(read(tenant, assetId, forTenant(signal, tenant))));
         } catch (RuntimeException e) {
             unread = e;
         }
@@ -298,7 +294,7 @@ public class EvaluatorStream {
                 AssetEpisodes state = episodes.load(tenant, assetId);
                 SignalEvaluator.Result result = new SignalEvaluator(state, held)
                         .evaluateLate(tenant, assetId, at, Map.of(SignalFields.ROOT, own), symptoms);
-                record(tenant, assetId, own, state, result, true, eventContext(own), held);
+                recordTransitions(tenant, assetId, own, state, result, true, eventContext(own), held);
                 episodes.save(state);
                 count(result);
                 recorded += result.transitions().size();
@@ -391,7 +387,7 @@ public class EvaluatorStream {
                 Map<String, Object> root = Map.of(SignalFields.ROOT, o.signal());
                 SignalEvaluator.Result result = late ? evaluator.evaluateLate(tenant, assetId, at, root, o.symptoms())
                         : evaluator.evaluate(tenant, assetId, at, root, o.symptoms());
-                record(tenant, assetId, o.signal(), state, result, late, eventContext(o.signal()), held);
+                recordTransitions(tenant, assetId, o.signal(), state, result, late, eventContext(o.signal()), held);
                 results.add(result);
                 recorded += result.transitions().size();
                 save = true;
@@ -406,7 +402,7 @@ public class EvaluatorStream {
             } else {
                 SignalEvaluator.Result result = new SignalEvaluator(state, held).evaluateUnder(DutyChecks.WATERMARK,
                         tenant, assetId, at, Map.of(TripCheck.ROOT, c.check()), o.dutySymptoms());
-                record(tenant, assetId, o.signal(), state, result, false, c.context(), held);
+                recordTransitions(tenant, assetId, o.signal(), state, result, false, c.context(), held);
                 results.add(result);
                 recorded += result.transitions().size();
                 save = true;
@@ -439,7 +435,7 @@ public class EvaluatorStream {
         }
         SignalEvaluator.Result result = new SignalEvaluator(state, held).reconcile(tenant, assetId, at,
                 Map.of(SignalFields.ROOT, signal), symptoms);
-        record(tenant, assetId, signal, state, result, false, eventContext(signal), held);
+        recordTransitions(tenant, assetId, signal, state, result, false, eventContext(signal), held);
         episodes.save(state);
         count(result);
         return result.transitions().size();
@@ -459,7 +455,7 @@ public class EvaluatorStream {
         SignalEvaluator.Result result = new SignalEvaluator(state, held).reconcileUnder(DutyChecks.WATERMARK,
                 tenant, assetId, at, Map.of(TripCheck.ROOT, check), symptoms);
         var next = duty.endTrip(tenant, assetId, at);
-        record(tenant, assetId, Map.of(), state, result, false, Map.of(TripCheck.ROOT, Map.of()), held);
+        recordTransitions(tenant, assetId, Map.of(), state, result, false, Map.of(TripCheck.ROOT, Map.of()), held);
         episodes.save(state);
         count(result);
         next.ifPresent(s -> duty.save(tenant, assetId, s));
@@ -490,7 +486,7 @@ public class EvaluatorStream {
      * failed episode write replays the signal and the log skips what it already holds.
      */
     @SuppressWarnings("java:S107") // The result, where it comes from, and what the changes keep.
-    private void record(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
+    private void recordTransitions(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
             SignalEvaluator.Result result, boolean late, Map<String, Object> context, Holds held) {
         if (result.transitions().isEmpty()) {
             return;

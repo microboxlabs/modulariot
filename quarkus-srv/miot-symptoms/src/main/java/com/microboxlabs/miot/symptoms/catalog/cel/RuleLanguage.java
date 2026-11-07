@@ -176,35 +176,45 @@ public final class RuleLanguage {
     /** A map converted by {@link #doubles}, read-only, so it is not converted again. */
     private static final class Converted extends AbstractMap<String, Object> {
 
-        private final Map<String, Object> values;
+        private final Map<String, Object> entries;
 
         Converted(Map<String, Object> values) {
-            this.values = values;
+            this.entries = values;
         }
 
         @Override
         public Set<Entry<String, Object>> entrySet() {
-            return Collections.unmodifiableMap(values).entrySet();
+            return Collections.unmodifiableMap(entries).entrySet();
         }
 
         @Override
         public Object get(Object key) {
-            return values.get(key);
+            return entries.get(key);
         }
 
         @Override
         public boolean containsKey(Object key) {
-            return values.containsKey(key);
+            return entries.containsKey(key);
         }
 
         @Override
         public int size() {
-            return values.size();
+            return entries.size();
         }
 
         @Override
         public void forEach(BiConsumer<? super String, ? super Object> action) {
-            values.forEach(action);
+            entries.forEach(action);
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return super.equals(other);
+        }
+
+        @Override
+        public int hashCode() {
+            return super.hashCode();
         }
     }
 

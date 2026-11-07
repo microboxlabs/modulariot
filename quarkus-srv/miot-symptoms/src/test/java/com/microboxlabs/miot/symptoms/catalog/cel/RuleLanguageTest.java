@@ -113,7 +113,7 @@ class RuleLanguageTest {
 
         assertEquals(rule.run(raw), rule.run(converted));
         assertEquals(true, rule.run(converted).value());
-        assertTrue(converted == RuleLanguage.converted(converted), "converted values are kept as they are");
+        org.junit.jupiter.api.Assertions.assertSame(converted, RuleLanguage.converted(converted), "converted values are kept as they are");
         @SuppressWarnings("unchecked")
         var frame = (Map<String, Object>) ((Map<String, Object>) converted.get("signal")).get("frame");
         assertEquals(Map.of("speed", 112.0), frame.get("gps"));

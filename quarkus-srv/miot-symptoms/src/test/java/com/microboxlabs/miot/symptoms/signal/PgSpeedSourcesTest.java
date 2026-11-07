@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import cl.streamhub.gps.model.EnvelopedMessage;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -12,6 +13,7 @@ import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
 import io.vertx.pgclient.PgException;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -127,5 +129,34 @@ class PgSpeedSourcesTest {
         PgException failure = assertThrows(PgException.class, () -> read.atMost(WAIT));
         assertEquals(CustomSpeedTracks.UNDEFINED_COLUMN, failure.getSqlState());
         assertTrue(SignalStream.undefinedColumn(failure));
+    }
+
+    @Test
+    void aLegacyTableClearsCustomLimitsAndStillBuildsSignals() {
+        SpeedZones zones = new SpeedZones();
+        zones.load(SignalStream.customZones(
+                pool.query(CustomSpeedTracks.sql("speed_tracks")).execute().await().atMost(WAIT)));
+        assertEquals(2, zones.size());
+
+        zones.load(SignalStream.loadSpeedZones(pool, "legacy_speed_tracks").await().atMost(WAIT));
+
+        assertEquals(0, zones.size());
+        ReferenceCache refs = new ReferenceCache();
+        refs.load(List.of(), List.of());
+        RoadNetwork roads = RoadNetwork.of(List.of(RoadNetworkTest.way(42, "primary", 70, 60, 80, -33.45)));
+        roads.ensure(-70.65, -33.45).await().atMost(WAIT);
+        SignalBuilder builder = new SignalBuilder(refs, ZoneId.of("UTC"), new Zones(), roads, zones,
+                new Bearings(Duration.ofMinutes(10)));
+        GpsSignal signal = builder.build(EnvelopedMessage.fromJson("""
+                {"clientId":"org-1@clients","timestamp":"2026-10-21T12:00:01Z",
+                 "payload":{"asset_id":"vehicle-1","timestamp":"2026-10-21T12:00:00Z",
+                            "gps":{"latitude":-33.45,"longitude":-70.65,"speed":50}}}
+                """)).orElseThrow();
+        assertEquals(new GpsSignal.Road(60.0, null, 42L, "primary", null), signal.roads().get("org-1"));
+    }
+
+    @Test
+    void otherReadFailuresKeepThePreviousZones() {
+        assertNull(SignalStream.loadSpeedZones(pool, "missing_speed_tracks").await().atMost(WAIT));
     }
 }

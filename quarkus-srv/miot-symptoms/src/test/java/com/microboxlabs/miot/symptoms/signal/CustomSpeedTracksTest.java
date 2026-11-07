@@ -42,8 +42,23 @@ class CustomSpeedTracksTest {
 
         SpeedZones north = loaded(range(2, "org-1", 50, null, 270, 90));
         assertEquals(50, north.at("org-1", -70.65, -33.45, null, 270).maxspeed());
+        assertEquals(50, north.at("org-1", -70.65, -33.45, null, 359).maxspeed());
+        assertEquals(50, north.at("org-1", -70.65, -33.45, null, 0).maxspeed());
         assertEquals(50, north.at("org-1", -70.65, -33.45, null, 90).maxspeed());
         assertNull(north.at("org-1", -70.65, -33.45, null, 91), "no backward limit");
+    }
+
+    @Test
+    void rangesAcceptThePreviousSettingsInclusive360Endpoint() {
+        Integer nearNorth = Bearings.azimuth(0, 0, -0.001, 1);
+        assertEquals(360, nearNorth, "a nearly northward movement can round to 360");
+        SpeedZones all = loaded(range(1, "org-1", 60, 40, 0, 360));
+        assertEquals(60, all.at("org-1", -70.65, -33.45, null, 359).maxspeed());
+        assertEquals(60, all.at("org-1", -70.65, -33.45, null, nearNorth).maxspeed());
+
+        SpeedZones north = loaded(range(2, "org-1", 60, 40, 270, 360));
+        assertEquals(60, north.at("org-1", -70.65, -33.45, null, 360).maxspeed());
+        assertEquals(40, north.at("org-1", -70.65, -33.45, null, 0).maxspeed());
     }
 
     @Test
@@ -73,7 +88,8 @@ class CustomSpeedTracksTest {
                 SQUARE)), "neither a range nor single_limit");
         assertNull(CustomSpeedTracks.zone(new CustomSpeedTracks.Row(6, "org-1", 40, 40, null, 0, null, false,
                 SQUARE)), "half a range");
-        assertNull(CustomSpeedTracks.zone(range(7, "org-1", 40, 40, 0, 360)), "bearing out of 0-359");
+        assertNull(CustomSpeedTracks.zone(range(7, "org-1", 40, 40, 0, 361)), "bearing out of 0-360");
+        assertNull(CustomSpeedTracks.zone(range(7, "org-1", 40, 40, -1, 90)), "negative bearing");
         assertNull(CustomSpeedTracks.zone(range(8, null, 40, 40, 0, 180)));
         assertNull(CustomSpeedTracks.zone(range(9, " ", 40, 40, 0, 180)));
         assertNull(CustomSpeedTracks.zone(single(10, null, null, null)));

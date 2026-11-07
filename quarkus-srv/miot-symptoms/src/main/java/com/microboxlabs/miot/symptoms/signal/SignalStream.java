@@ -272,7 +272,11 @@ public class SignalStream {
         if (!speed.configured() || customTracks.table().isEmpty()) {
             return Uni.createFrom().item(List.of());
         }
-        return speed.pool().query(CustomSpeedTracks.sql(customTracks.table().get())).execute()
+        return loadSpeedZones(speed.pool(), customTracks.table().get());
+    }
+
+    static Uni<List<SpeedZones.Zone>> loadSpeedZones(Pool pool, String table) {
+        return pool.query(CustomSpeedTracks.sql(table)).execute()
                 .map(SignalStream::customZones)
                 .onFailure(SignalStream::undefinedColumn).recoverWithItem(e -> {
                     LOG.warnf("Signal builder: the custom speed tracks table has no organization or rule columns"

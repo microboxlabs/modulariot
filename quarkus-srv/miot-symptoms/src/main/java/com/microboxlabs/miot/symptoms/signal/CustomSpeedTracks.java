@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  * <tr><th>Column</th><th>Zone</th></tr>
  * <tr><td>{@code client_id}</td><td>the organization (GPS client id); rows without it are not loaded</td></tr>
  * <tr><td>{@code forward_from}, {@code forward_to}</td><td>{@code speed_forward} when the bearing of travel is in
- * the range (0–359, wrapping past 360), else {@code speed_backward}; without a bearing the vehicle's last bearing is
+ * the range (0–360, wrapping past 360), else {@code speed_backward}; without a bearing the vehicle's last bearing is
  * used</td></tr>
  * <tr><td>{@code single_limit}</td><td>one limit, {@code coalesce(speed_backward, speed_forward)}; wins over a
  * range</td></tr>
@@ -58,7 +58,7 @@ final class CustomSpeedTracks {
 
     /**
      * The row as a zone of its organization; null for a row without an organization, a rule or a limit, with half
-     * a range or a bearing outside 0–359, or that is not a polygon.
+     * a range or a bearing outside 0–360, or that is not a polygon.
      */
     static SpeedZones.Zone zone(Row row) {
         if (row.clientId() == null || row.clientId().isBlank() || row.shape() == null) {
@@ -81,6 +81,6 @@ final class CustomSpeedTracks {
     }
 
     private static boolean bearing(Integer deg) {
-        return deg != null && deg >= 0 && deg <= 359;
+        return deg != null && deg >= 0 && deg <= 360;
     }
 }

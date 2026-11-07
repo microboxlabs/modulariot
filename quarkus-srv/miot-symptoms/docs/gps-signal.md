@@ -134,7 +134,7 @@ The polygon table is read in full at start and every `reload-every`; a failed re
 | `client_id` | Organization (GPS client id) the polygon belongs to |
 | `geom` (4326) | The polygon; other shapes are not loaded |
 | `speed_forward`, `speed_backward` | Limits by direction of travel |
-| `forward_from`, `forward_to` | Both or neither, 0–359. `speed_forward` when the bearing of travel is in the range, wrapping past 360 (`270`, `90` is forward from 270 through 0 to 90), else `speed_backward` |
+| `forward_from`, `forward_to` | Both or neither, 0–360 inclusive, as in the previous site settings. `speed_forward` when the bearing of travel is in the range, wrapping past 360 (`270`, `90` is forward from 270 through 0 to 90), else `speed_backward` |
 | `single_limit` | One limit, `coalesce(speed_backward, speed_forward)`; wins over a range |
 | `azimuth_degree` | Heading filter |
 

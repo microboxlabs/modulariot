@@ -15,8 +15,8 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * The OSM road limits for {@code signal.road}, from the GPS database's {@code osm_roads_weight}, as the GPS
- * database's speed function reads them: the road nearest the point within {@value #NEAR_DEG}° (planar degrees),
+ * The OSM road limits for {@code signal.road}, from {@code osm_roads_weight} (the speed database's, else the GPS
+ * database's), as the legacy speed function reads them: the road nearest the point within {@value #NEAR_DEG}° (planar degrees),
  * a main road before a {@code _link}, and its limit for the vehicle's weight, else its {@code maxspeed}. No road
  * near, or a nearest road without a limit, gives no limit.
  *

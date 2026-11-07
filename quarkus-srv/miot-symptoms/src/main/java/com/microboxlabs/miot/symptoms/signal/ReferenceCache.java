@@ -157,6 +157,16 @@ public class ReferenceCache {
         return new ArrayList<>(out);
     }
 
+    /** The clients the vehicle is shared with at {@code at}, from {@code asset_client_map} only. */
+    public List<String> sharedWith(String assetId, Instant at) {
+        return shares.getOrDefault(assetId, Map.of()).values().stream()
+                .filter(s -> s.validAt(at))
+                .map(Share::clientId)
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
     /** The trip's row as read after a notice; null when the trip no longer has one. */
     public void applyTrip(String tripId, Trip row) {
         changed(changedTrips, tripId);

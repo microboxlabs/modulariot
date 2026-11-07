@@ -112,6 +112,28 @@ Trips are loaded from the modulith database and shares (`asset_client_map`), geo
 
 Road limits are read by tiles of 0.02° (about 2 km): the first frame in a tile waits for one query of its ways, and the tile is kept for `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_TTL` (24 h). At most `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_MAX_TILES` (5,000) tiles are kept; the least recently read goes first. A tile that fails to load gives no road limit and is read again on the next frame in it. Gauges: `miot.symptoms.signal.road_tiles`, `.road_bytes`; counter `.road_tile_failures`. `MIOT_SYMPTOMS_SIGNAL_BUILDER_ROADS_ENABLED=false` turns road limits off.
 
+### Vehicles online
+
+The builder keeps each vehicle's last frame (device time) and counts the vehicles whose last frame is within the window. Counted on each built signal, never logged.
+
+| Gauge (Prometheus) | Tag | Counts |
+|---|---|---|
+| `miot_symptoms_vehicles_online` | `tenant` | Vehicles shared with the client (active `asset_client_map` rows valid at the frame time). A vehicle shared with two clients counts for each. No share: `tenant="none"` |
+| `miot_symptoms_vehicles_moving` | `tenant` | The same, with the last frame's speed above `moving-speed` |
+| `miot_symptoms_vehicles_online_senders` | `sender` | Vehicles by the client that sent the last frame (the GPS provider) |
+| `miot_symptoms_vehicles_online_total` | none | Distinct vehicles |
+
+| Property | Env | Default | Meaning |
+|---|---|---|---|
+| `miot.symptoms.signal-builder.online.window` | `MIOT_SYMPTOMS_SIGNAL_BUILDER_ONLINE_WINDOW` | `15m` | A vehicle is online while its last frame is newer than this |
+| `miot.symptoms.signal-builder.online.moving-speed` | `MIOT_SYMPTOMS_SIGNAL_BUILDER_ONLINE_MOVING_SPEED` | `5` | km/h |
+
+- A frame stamped after the pod's clock is ignored; a frame older than the vehicle's last one changes nothing.
+- Expired vehicles are removed on a gauge refresh (cached for up to 5 s) and every minute even without scrapes. Frame updates touch only that vehicle and its tenant/sender tags; fleet scans run only during these refreshes.
+- A tag value gets its gauge with its first vehicle and reports 0 after its last vehicle leaves, until the pod restarts. Cardinality is the number of clients and senders, never vehicles.
+- Each replica counts the vehicles Key_Shared gives it. Sum across pods: `sum by (tenant) (miot_symptoms_vehicles_online)`, `sum(miot_symptoms_vehicles_online_total)`. After a rebalance a vehicle can count on two pods until its frame on the old pod leaves the window.
+- Off with the builder: no gauges.
+
 ### Speed database
 
 OSM limits and custom speed polygons come from the legacy speed database, the one the legacy speed function reads, with its own read-only login. Without it, OSM limits come from the GPS database's `osm_roads_weight` and signals have no custom limit.

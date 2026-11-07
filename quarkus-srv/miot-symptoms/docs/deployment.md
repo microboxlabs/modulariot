@@ -74,6 +74,7 @@ When Pulsar moves a vehicle to another consumer (scale up or down, restart), the
 | Last position per vehicle (bearing) | builder, 10 min | First signal after the move has no `bearing`. A vehicle that comes back to a replica within 10 min gets a bearing from its older position. |
 | Trips, shares, zones, speed zones, route cells | builder | Every replica loads all of them at start and every 10 min, and follows `miot_trips_live` notices and the shares topic. Memory grows with the fleet, not with N. |
 | Road tiles | builder, up to 5000 tiles, 24 h | Reloaded from the GPS database on first use. |
+| Last frame per vehicle (vehicles online) | builder, `online.window` (15 min) | The vehicle counts on the old and the new replica until its last frame on the old one leaves the window. |
 | Compiled symptom versions | evaluator, 30 s | Read again from the database. |
 | Sample admission | evaluator, 15 s | Checked again in Redis. |
 
@@ -91,4 +92,4 @@ Key_Shared delivers a vehicle's signals to one consumer at a time and in order. 
 | --- | --- |
 | `/q/health/live` | Pulsar channels (SmallRye Messaging), down when a consumer or producer fails. |
 | `/q/health/ready` | Pulsar channels, datasources, `miot-components` with `symptoms` (`symptoms.parts`, `symptoms.routes`, `symptoms.gps` in its data), native membership (up: this pod serves no API). API pods still wait for pending memberships when migration is disabled locally. |
-| `/q/metrics` | `miot.symptoms.signal.*`, `miot.symptoms.evaluator.*`, lost-signal and SLA counters. |
+| `/q/metrics` | `miot.symptoms.signal.*`, `miot.symptoms.vehicles.*` (per replica: use `sum()`, see [gps-signal.md](gps-signal.md#vehicles-online)), `miot.symptoms.evaluator.*`, lost-signal and SLA counters. |

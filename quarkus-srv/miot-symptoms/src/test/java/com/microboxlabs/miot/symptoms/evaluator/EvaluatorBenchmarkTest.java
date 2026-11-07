@@ -322,6 +322,8 @@ class EvaluatorBenchmarkTest {
         }
 
         Env slow = new Env(redisMicros, pgMicros);
+        // One thread first: Mutiny sets up context propagation on its first use, which is not safe to race.
+        lanes(slow, signals(vehicles, vehicles, start.minus(Duration.ofHours(1)), 3), 1);
         lanes(slow, signals(vehicles, 2 * vehicles, start, 3), lanes);
         List<Signal> timed = signals(vehicles, latencySignals, start.plus(Duration.ofHours(1)), 4);
         double one = lanes(slow, timed.subList(0, Math.min(timed.size(), latencySignals / 3)), 1);

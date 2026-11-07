@@ -251,24 +251,29 @@ public class EvaluatorStream {
         } catch (RuntimeException e) {
             unread = e;
         }
-        // Before the organizations: a failing catalog or log must not keep the frame out of the profiles.
-        lostSignal.frame(assetId, instant, arrival(signal, arrivedAt), signal);
-        if (unread != null) {
-            throw unread;
-        }
+        // Before the organizations: a failing catalog or log must not keep the frame out of the profiles. Its
+        // write goes on while the organizations run, and is waited for before the next signal.
+        LostSignalDetector.Sent profiles = lostSignal.frameSent(assetId, instant, arrival(signal, arrivedAt), signal);
         int recorded = 0;
         boolean late = false;
-        for (Organization o : organizations) {
-            Evaluated e = evaluate(o, assetId, instant, held);
-            recorded += e.transitions();
-            late |= e.late();
-        }
-        for (String tenant : withEpisodes.get()) {
-            if (!clients.contains(tenant)) {
-                recorded += reconcile(tenant, assetId, instant, Map.of("asset_id", assetId, "at", time, "trip",
-                        NO_TRIP, FRAME, Map.of("events", List.of())), held);
-                recorded += reconcileDuty(tenant, assetId, instant, held);
+        try {
+            if (unread != null) {
+                throw unread;
             }
+            for (Organization o : organizations) {
+                Evaluated e = evaluate(o, assetId, instant, held);
+                recorded += e.transitions();
+                late |= e.late();
+            }
+            for (String tenant : withEpisodes.get()) {
+                if (!clients.contains(tenant)) {
+                    recorded += reconcile(tenant, assetId, instant, Map.of("asset_id", assetId, "at", time, "trip",
+                            NO_TRIP, FRAME, Map.of("events", List.of())), held);
+                    recorded += reconcileDuty(tenant, assetId, instant, held);
+                }
+            }
+        } finally {
+            profiles.settle();
         }
         if (late) {
             meters.counter("miot.symptoms.evaluator.late", "sender", senderTag(signal.get("sender"))).increment();

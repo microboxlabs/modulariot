@@ -1,10 +1,12 @@
 package com.microboxlabs.miot.symptoms.signal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.vertx.pgclient.PgException;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -14,95 +16,106 @@ class CustomSpeedTracksTest {
     private static final String SQUARE = """
             {"type":"Polygon","coordinates":[[[-70.70,-33.50],[-70.60,-33.50],[-70.60,-33.40],[-70.70,-33.40],[-70.70,-33.50]]]}
             """;
-    private static final Map<String, CustomSpeedTracks.Rule> RULES = CustomSpeedTracks.rules(
-            Map.of("east", "0-180", "north", "270-90", "single", "one-limit"));
+
+    private static CustomSpeedTracks.Row range(int id, String org, Integer fwd, Integer back, int from, int to) {
+        return new CustomSpeedTracks.Row(id, org, fwd, back, null, from, to, false, SQUARE);
+    }
+
+    private static CustomSpeedTracks.Row single(int id, Integer fwd, Integer back, Integer azimuth) {
+        return new CustomSpeedTracks.Row(id, "org-1", fwd, back, azimuth, null, null, true, SQUARE);
+    }
 
     private static SpeedZones loaded(CustomSpeedTracks.Row... rows) {
         SpeedZones zones = new SpeedZones();
-        zones.load(java.util.Arrays.stream(rows).map(r -> CustomSpeedTracks.zone("org-1", r, RULES))
+        zones.load(java.util.Arrays.stream(rows).map(CustomSpeedTracks::zone)
                 .filter(java.util.Objects::nonNull).toList());
         return zones;
     }
 
     @Test
-    void siteRulesAreARangeOfBearingsOrOneLimit() {
-        assertEquals(new CustomSpeedTracks.Forward(270, 90), CustomSpeedTracks.rule("270-90"));
-        assertEquals(new CustomSpeedTracks.Forward(0, 180), CustomSpeedTracks.rule(" 0 - 180 "));
-        assertEquals(new CustomSpeedTracks.OneLimit(), CustomSpeedTracks.rule("one-limit"));
-        assertThrows(IllegalArgumentException.class, () -> CustomSpeedTracks.rule("0-400"));
-        assertThrows(IllegalArgumentException.class, () -> CustomSpeedTracks.rule("north"));
-        assertTrue(CustomSpeedTracks.rules(Map.of()).isEmpty());
-    }
-
-    @Test
-    void aRangeSitePicksForwardByTheBearingOfTravel() {
-        SpeedZones east = loaded(new CustomSpeedTracks.Row(1, "east", 60, 40, null, SQUARE));
+    void aRangeRowPicksForwardByTheBearingOfTravel() {
+        SpeedZones east = loaded(range(1, "org-1", 60, 40, 0, 180));
         assertEquals(60, east.at("org-1", -70.65, -33.45, null, 0).maxspeed());
         assertEquals(60, east.at("org-1", -70.65, -33.45, null, 180).maxspeed());
         assertEquals(40, east.at("org-1", -70.65, -33.45, null, 181).maxspeed());
         assertNull(east.at("org-1", -70.65, -33.45, null, null), "no bearing yet");
 
-        SpeedZones north = loaded(new CustomSpeedTracks.Row(2, "north", 50, null, null, SQUARE));
+        SpeedZones north = loaded(range(2, "org-1", 50, null, 270, 90));
         assertEquals(50, north.at("org-1", -70.65, -33.45, null, 270).maxspeed());
         assertEquals(50, north.at("org-1", -70.65, -33.45, null, 90).maxspeed());
         assertNull(north.at("org-1", -70.65, -33.45, null, 91), "no backward limit");
     }
 
     @Test
-    void aOneLimitSiteUsesBackwardElseForwardAndItsAzimuthFiltersTheHeading() {
-        SpeedZones zones = loaded(new CustomSpeedTracks.Row(3, "single", 70, 30, 100, SQUARE),
-                new CustomSpeedTracks.Row(4, "single", 45, null, null, SQUARE));
+    void aSingleLimitRowUsesBackwardElseForwardAndItsAzimuthFiltersTheHeading() {
+        SpeedZones zones = loaded(single(3, 70, 30, 100), single(4, 45, null, null));
         assertEquals(new SpeedZones.Limit(30, 3), zones.at("org-1", -70.65, -33.45, 120.0, null));
         assertEquals(new SpeedZones.Limit(45, 4), zones.at("org-1", -70.65, -33.45, 280.0, null));
     }
 
     @Test
-    void rowsWithoutARuleALimitOrAPolygonAreNotLoaded() {
-        assertNull(CustomSpeedTracks.zone("org-1", new CustomSpeedTracks.Row(5, "other", 40, 40, null, SQUARE), RULES));
-        assertNull(CustomSpeedTracks.zone("org-1", new CustomSpeedTracks.Row(6, null, 40, 40, null, SQUARE), RULES));
-        assertNull(CustomSpeedTracks.zone("org-1", new CustomSpeedTracks.Row(7, "single", null, null, null, SQUARE), RULES));
-        assertNull(CustomSpeedTracks.zone("org-1", new CustomSpeedTracks.Row(8, "east", 40, 40, null, null), RULES));
-        assertNull(CustomSpeedTracks.zone("org-1", new CustomSpeedTracks.Row(9, "east", 40, 40, null,
-                "{\"type\":\"LineString\",\"coordinates\":[[0,0],[1,1]]}"), RULES));
+    void singleLimitWinsOverARange() {
+        SpeedZones zones = loaded(new CustomSpeedTracks.Row(5, "org-1", 70, 30, null, 0, 180, true, SQUARE));
+        assertEquals(30, zones.at("org-1", -70.65, -33.45, null, 10).maxspeed());
     }
 
     @Test
-    void siteCodesIgnoreCaseSoTheyCanComeFromEnvironmentVariables() {
-        io.smallrye.config.SmallRyeConfig config = new io.smallrye.config.SmallRyeConfigBuilder()
+    void zonesAreGroupedByTheirOrganization() {
+        SpeedZones zones = loaded(range(1, "org-1", 60, 60, 0, 180), range(2, "org-2", 30, 30, 0, 180));
+        assertEquals(new SpeedZones.Limit(60, 1), zones.at("org-1", -70.65, -33.45, null, 10));
+        assertEquals(new SpeedZones.Limit(30, 2), zones.at("org-2", -70.65, -33.45, null, 10));
+        assertNull(zones.at("org-3", -70.65, -33.45, null, 10));
+    }
+
+    @Test
+    void rowsWithoutAnOrganizationARuleALimitOrAPolygonAreNotLoaded() {
+        assertNull(CustomSpeedTracks.zone(new CustomSpeedTracks.Row(5, "org-1", 40, 40, null, null, null, false,
+                SQUARE)), "neither a range nor single_limit");
+        assertNull(CustomSpeedTracks.zone(new CustomSpeedTracks.Row(6, "org-1", 40, 40, null, 0, null, false,
+                SQUARE)), "half a range");
+        assertNull(CustomSpeedTracks.zone(range(7, "org-1", 40, 40, 0, 360)), "bearing out of 0-359");
+        assertNull(CustomSpeedTracks.zone(range(8, null, 40, 40, 0, 180)));
+        assertNull(CustomSpeedTracks.zone(range(9, " ", 40, 40, 0, 180)));
+        assertNull(CustomSpeedTracks.zone(single(10, null, null, null)));
+        assertNull(CustomSpeedTracks.zone(new CustomSpeedTracks.Row(11, "org-1", 40, 40, null, 0, 180, false, null)));
+        assertNull(CustomSpeedTracks.zone(new CustomSpeedTracks.Row(12, "org-1", 40, 40, null, 0, 180, false,
+                "{\"type\":\"LineString\",\"coordinates\":[[0,0],[1,1]]}")));
+    }
+
+    @Test
+    void theTableIsTheOnlySettingAndComesFromEnvironmentVariables() {
+        CustomSpeedTracks.Settings settings = new io.smallrye.config.SmallRyeConfigBuilder()
                 .withMapping(CustomSpeedTracks.Settings.class)
                 .withSources(new io.smallrye.config.EnvConfigSource(Map.of(
-                        "MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_TENANT", "org-1",
-                        "MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_TABLE", "speed_tracks",
-                        "MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_SITES_EAST", "0-180"), 300))
-                .build();
-        CustomSpeedTracks.Settings settings = config.getConfigMapping(CustomSpeedTracks.Settings.class);
-        assertEquals("org-1", settings.tenant().orElseThrow());
+                        "MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_TABLE", "speed_tracks"), 300))
+                .build().getConfigMapping(CustomSpeedTracks.Settings.class);
         assertEquals("speed_tracks", settings.table().orElseThrow());
-        Map<String, CustomSpeedTracks.Rule> rules = CustomSpeedTracks.rules(settings.sites());
-        assertEquals(new CustomSpeedTracks.Forward(0, 180), rules.get("east"));
-        assertEquals(60, CustomSpeedTracks.zone("org-1", new CustomSpeedTracks.Row(1, "EAST", 60, 40, null, SQUARE),
-                rules).forward());
-    }
 
-    @Test
-    void anUnconfiguredSettingsHasNoTenantTableOrSites() {
-        CustomSpeedTracks.Settings settings = new io.smallrye.config.SmallRyeConfigBuilder()
+        CustomSpeedTracks.Settings none = new io.smallrye.config.SmallRyeConfigBuilder()
                 .withMapping(CustomSpeedTracks.Settings.class).build()
                 .getConfigMapping(CustomSpeedTracks.Settings.class);
-        assertTrue(settings.tenant().isEmpty());
-        assertTrue(settings.table().isEmpty());
-        assertTrue(settings.sites().isEmpty());
+        assertTrue(none.table().isEmpty());
     }
 
     @Test
-    void theQueryReadsTheConfiguredTableAndRejectsAnythingElse() {
+    void theQueryReadsTheOrganizationAndRuleColumnsOfTheConfiguredTable() {
         String sql = CustomSpeedTracks.sql("public.speed_tracks");
         assertTrue(sql.contains("FROM public.speed_tracks WHERE geom IS NOT NULL"));
-        for (String column : List.of("id", "client", "speed_forward", "speed_backward", "azimuth_degree",
-                "ST_AsGeoJSON(geom) AS shape")) {
+        for (String column : List.of("id", "client_id", "speed_forward", "speed_backward", "azimuth_degree",
+                "forward_from", "forward_to", "single_limit", "ST_AsGeoJSON(geom) AS shape")) {
             assertTrue(sql.contains(column), column);
         }
+        assertFalse(sql.matches("(?s).*\\bclient\\b(?!_id).*"), "the site code is not read");
         assertThrows(IllegalArgumentException.class, () -> CustomSpeedTracks.sql("t; DROP TABLE x"));
         assertThrows(IllegalArgumentException.class, () -> CustomSpeedTracks.sql("a.b.c"));
+    }
+
+    @Test
+    void anUndefinedColumnIsRecognizedThroughWrappers() {
+        PgException missing = new PgException("column \"client_id\" does not exist", "ERROR", "42703", null);
+        assertTrue(SignalStream.undefinedColumn(missing));
+        assertTrue(SignalStream.undefinedColumn(new RuntimeException(missing)));
+        assertFalse(SignalStream.undefinedColumn(new PgException("no table", "ERROR", "42P01", null)));
+        assertFalse(SignalStream.undefinedColumn(new RuntimeException("timeout")));
     }
 }

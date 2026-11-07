@@ -105,7 +105,7 @@ The evaluator runs only the event-driven symptoms on it, as on a late frame (tab
 | `local_hour`, `local_minutes` | Frame time in `MIOT_SYMPTOMS_SIGNAL_BUILDER_ZONE` (default `America/Santiago`) |
 | `geos` | For each client after a successful complete geofence load, where the frame's position is: `authorized_zone` inside a zone of type 0, `risk_zone` inside one of type 1, `outside_authorized` in no zone or inside one that is not of type 0 (even where an authorized one overlaps it), as the GPS database's signal function reads `properties.geofence_type`. A point on an edge is inside. A client with a known-empty set is outside every zone. A frame without a position, or an unavailable geofence source, gets none. The evaluator gives each organization its own as `geo`; rules never read `geos` |
 | `derived.power_disconnected`, `derived.jamming` | One of the frame's `events` is of external power disconnected (`ALIMENTACION … DESCONECTADA`, `power … disconnect/cut`) or of GNSS/GSM jamming (`…jamm…`), `_` read as a space, ignoring case; false otherwise. "ALIMENTACION BATERIA" alone (running on battery) does not count |
-| `roads` | For each client with a known limit at the position. `maxspeed_osm`: the `osm_roads_weight` road nearest the point within 0.0001° (about 11 m, planar degrees), a main road before a `_link`, then the nearer; its limit for a heavy vehicle (`spwgt38`), else `maxspeed`. No road near, or a nearest road without a limit, gives none. `osm_way_id` and `road_class` name that road. `maxspeed_custom`: the client's first custom polygon (lowest id) that covers the point and, when the polygon has an `azimuth_degree`, matches the device heading (same quadrant or less than 90° apart). On a site with a bearing range, the bearing of travel (azimuth from the vehicle's previous position, kept per vehicle for 10 min; at the same position, the last bearing) picks `speed_forward` inside the range and `speed_backward` outside; on a `one-limit` site the polygon has one limit, `speed_backward` else `speed_forward`. `custom_zone_id` is the polygon's id. The evaluator gives each organization its own as `road`; rules never read `roads` |
+| `roads` | For each client with a known limit at the position. `maxspeed_osm`: the `osm_roads_weight` road nearest the point within 0.0001° (about 11 m, planar degrees), a main road before a `_link`, then the nearer; its limit for a heavy vehicle (`spwgt38`), else `maxspeed`. No road near, or a nearest road without a limit, gives none. `osm_way_id` and `road_class` name that road. `maxspeed_custom`: the first custom polygon of the client (`client_id`, lowest id) that covers the point and, when the polygon has an `azimuth_degree`, matches the device heading (same quadrant or less than 90° apart). On a polygon with a bearing range (`forward_from`, `forward_to`), the bearing of travel (azimuth from the vehicle's previous position, kept per vehicle for 10 min; at the same position, the last bearing) picks `speed_forward` inside the range and `speed_backward` outside; on a `single_limit` polygon one limit applies, `speed_backward` else `speed_forward`. `custom_zone_id` is the polygon's id. The evaluator gives each organization its own as `road`; rules never read `roads` |
 | `vehicle`, `geo.zone`, `derived.speed_avg_5m` | Not built yet: left out. Until `vehicle` is built, `maxspeed_osm` is the heavy-vehicle limit |
 
 Trips are loaded from the modulith database and shares (`asset_client_map`), geofences and the route history (`s2cell_triproute_transition_stats`) from the GPS database, at start and every `MIOT_SYMPTOMS_SIGNAL_BUILDER_RELOAD_EVERY` (10 min). A geofence change reaches the signals at the next load. Between loads, each change of a `trip_live` row sends a notice on the Postgres channel `miot_trips_live` (`{"tenant", "tripId"}`), and the builder reads that row again; shares follow their Debezium topic (a non-durable subscription, so a stopped replica leaves no backlog). Without a trips module the signal has no trips. Frames wait for the first load, which is retried until the databases answer. The builder follows `MIOT_SYMPTOMS_CDC_ENABLED` by default, which follows the symptoms component; `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED=false` turns the builder off while device ingestion stays active. To run it on its own replicas, see [deployment.md](deployment.md). Frames are counted (`miot.symptoms.signal.built`, `.skipped`), never logged.
@@ -124,18 +124,23 @@ OSM limits and custom speed polygons come from the legacy speed database, the on
 | `miot.speed.db.username` | `MIOT_SPEED_DB_USERNAME` | none | |
 | `miot.speed.db.password` | `MIOT_SPEED_DB_PASSWORD` | none | |
 | `miot.speed.db.max-size` | `MIOT_SPEED_DB_MAX_SIZE` | `2` | Pool size |
-| `miot.symptoms.speed.custom-tracks.tenant` | `MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_TENANT` | none | Organization (GPS client id) the polygons belong to. Unset: no custom limits |
 | `miot.symptoms.speed.custom-tracks.table` | `MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_TABLE` | none | Polygon table, optionally `schema.table`. Unset: no custom limits |
-| `miot.symptoms.speed.custom-tracks.sites."<code>"` | `MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_SITES_<CODE>` | none | Rule for the rows whose `client` is `<code>` (case ignored): `<from>-<to>` or `one-limit` |
 
-The polygon table has the columns `id`, `client` (a site code), `geom` (4326), `speed_forward`, `speed_backward`, `azimuth_degree` and `order`. It is read in full at start and every `reload-every`; a failed read keeps the polygons loaded before. Site rules replace the legacy function's rules per site:
+The polygon table is read in full at start and every `reload-every`; a failed read keeps the polygons loaded before. Its columns:
 
-| Legacy | Site rule |
+| Column | Use |
 |---|---|
-| `speed_forward` when the bearing of travel is in a range, else `speed_backward` | `<from>-<to>` in degrees, wrapping past 360 (`270-90` is forward from 270 through 0 to 90) |
-| `coalesce(speed_backward, speed_forward)` | `one-limit` |
-| `order` compared with the previous signal's, else the previous direction (when the bearing is unknown) | the vehicle's last bearing |
-| a site with only the `order` rule | not set: its rows are not loaded, so they give no limit |
+| `id` | `custom_zone_id`; where polygons overlap, the lowest id applies |
+| `client_id` | Organization (GPS client id) the polygon belongs to |
+| `geom` (4326) | The polygon; other shapes are not loaded |
+| `speed_forward`, `speed_backward` | Limits by direction of travel |
+| `forward_from`, `forward_to` | Both or neither, 0–359. `speed_forward` when the bearing of travel is in the range, wrapping past 360 (`270`, `90` is forward from 270 through 0 to 90), else `speed_backward` |
+| `single_limit` | One limit, `coalesce(speed_backward, speed_forward)`; wins over a range |
+| `azimuth_degree` | Heading filter |
+
+A row with neither a range nor `single_limit` gives no limit, as the legacy function gives none to sites ruled only by `order`. Where the legacy compared `order` with the previous signal's (bearing unknown), the vehicle's last bearing is used. `client` and `order` are not read.
+
+Until the table has `client_id`, `forward_from`, `forward_to` and `single_limit`, the query fails with `undefined_column` (42703): each load then logs one warning and loads no polygons, and the other references still load.
 
 Where polygons overlap, the lowest id applies (the legacy function takes any one).
 

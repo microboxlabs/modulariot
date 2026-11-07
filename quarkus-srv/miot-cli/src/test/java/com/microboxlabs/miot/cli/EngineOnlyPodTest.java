@@ -27,14 +27,17 @@ class EngineOnlyPodTest {
 
     @Test
     void theApiAnswers404() throws Exception {
-        assertEquals(404, get("/api/v1/orgs/test-org/control-tower/device-events", "POST"));
-        assertEquals(404, get("/api/v1/platform/orgs", "GET"));
-        assertEquals(404, get("/webhooks/whatsapp/1", "GET"));
+        assertEquals(404, get("/worker/api/v1/orgs/test-org/control-tower/device-events", "POST"));
+        assertEquals(404, get("/worker/api/v1/platform/orgs", "GET"));
+        assertEquals(404, get("/worker/webhooks/whatsapp/1", "GET"));
+        assertEquals(404, get("/worker/internal/dashboard-operations", "POST"));
+        assertEquals(404, get("/worker/internal/dashboard-authoring/validate", "POST"));
     }
 
     @Test
     void healthIsServed() throws Exception {
-        assertEquals(200, get("/q/health/live", "GET"));
+        assertEquals(200, get("/worker/ops/health/live", "GET"));
+        assertEquals(404, get("/worker/q/health/live", "GET"));
     }
 
     private int get(String path, String method) throws Exception {
@@ -63,10 +66,14 @@ class EngineOnlyPodTest {
                     Map.entry("miot.component.places.enabled", "false"),
                     Map.entry("miot.component.symptoms.enabled", "true"),
                     Map.entry("miot.api.enabled", "false"),
+                    Map.entry("quarkus.http.root-path", "/worker"),
+                    Map.entry("quarkus.http.non-application-root-path", "ops"),
+                    Map.entry("quarkus.smallrye-health.root-path", "health"),
                     Map.entry("miot.conversational.rules.events.enabled", "true"),
                     // No broker in tests: the engine's channels follow these.
                     Map.entry("miot.symptoms.cdc.enabled", "false"),
                     Map.entry("miot.symptoms.signal-builder.enabled", "false"),
+                    Map.entry("mp.messaging.outgoing.device-signals.enabled", "false"),
                     Map.entry("quarkus.devservices.enabled", "false"),
                     Map.entry("quarkus.datasource.jdbc.url", "jdbc:postgresql://127.0.0.1:1/engine_test"),
                     Map.entry("quarkus.datasource.reactive.url", "postgresql://127.0.0.1:1/engine_test"),

@@ -17,8 +17,9 @@ The image is built with every component. `MIOT_COMPONENT_*_ENABLED` does not rem
 | --- | --- | --- |
 | `MIOT_COMPONENT_ALL_ENABLED` | `true` | All components, API, jobs. |
 | `MIOT_SYMPTOMS_CDC_ENABLED` | `false` | No CDC dispatcher. Signal builder, evaluator, lost-signal and SLA timer follow it and are off. |
-| `MIOT_SYMPTOMS_PULSAR_ENABLED` | `true` | Device events endpoint publishes to the signals topic. |
 | `MIOT_SYMPTOMS_EVALUATOR_REDIS_URL` | the engine's Redis | Map state, rule previews and event types read what the engine writes. |
+
+Device events have no feature switch. The producer stays on with the symptoms component even when the CDC dispatcher, builder and evaluator are off. The API pod needs the Pulsar service URL and access to the signals topic.
 
 Set `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED`, `MIOT_SYMPTOMS_EVALUATOR_ENABLED` and `MIOT_SYMPTOMS_SLA_ENABLED` to `false` too if they are set elsewhere in the environment: an explicit value wins over the CDC switch.
 
@@ -43,7 +44,7 @@ Trips is not needed on the engine: the signal builder reads `miot_trips.trip_liv
 | Part | Switch | Engine | API pod | With N replicas |
 | --- | --- | --- | --- | --- |
 | CDC dispatcher (`symptoms-cdc`) | `MIOT_SYMPTOMS_CDC_ENABLED` | on | off | Shared subscription `miot-symptoms-dispatcher`. Each route's bulkhead limit is per replica, so the total is N times the limit. |
-| Device events (`device-signals`) | `MIOT_SYMPTOMS_PULSAR_ENABLED` | on (unused) | on | Producer `device-signals-$HOSTNAME`. Duplicate ids are refused in `miot_symptoms.device_event`, shared. 503 only where the switch is off. |
+| Device events (`device-signals`) | symptoms component (no ingestion flag) | on (unused) | on | Producer `device-signals-$HOSTNAME`. Duplicate ids are refused in `miot_symptoms.device_event`, shared. 503 if publishing fails. |
 | Signal builder (`gps-frames` → `gps-signals`) | `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED` | on | off | Key_Shared `miot-signal-builder`, by vehicle. Producer `gps-signals-$HOSTNAME`. |
 | Shares (`signal-asset-client-map`) | builder | on | off | Exclusive, non-durable, name `miot-signal-builder-refs-<uuid>`: one per replica, every replica reads every change. |
 | Evaluator, duty checks (`gps-signals-in`) | `MIOT_SYMPTOMS_EVALUATOR_ENABLED` | on | off | Key_Shared `miot-symptom-evaluator`. Episodes and duty counters per vehicle in Redis. A replayed signal is rejected by its watermark. |
@@ -56,7 +57,7 @@ Trips is not needed on the engine: the signal builder reads `miot_trips.trip_liv
 | Trip geofences (`trip-gps-signals`) | `miot.trips.geofences.enabled` | off | on | Follows the trips component. Key_Shared `miot-trip-geofences`. Pending confirmations are in memory per pod. |
 | ETA deviation (`route_etas`) | builder | on | off | Route cells loaded in each replica. |
 
-Jobs of the other components follow their component flag, so they are off on the engine: modulith async-job worker, job console feed, Telnyx usage reconciler, harness thread purge, conversation rules scan, send-job repair, trip monitors clock, trip board feed. Content cleanup and native membership migration follow `MIOT_API_ENABLED`. The retransmit worker and the knowledge distiller are off unless set.
+Jobs of the other components follow their component flag, so they are off on the engine: fleet activity rollup and share synchronization, modulith async-job worker, job console feed, Telnyx usage reconciler, harness thread purge, conversation rules scan, send-job repair, trip monitors clock, trip board feed. Content cleanup and native membership migration follow `MIOT_API_ENABLED`. The retransmit worker, knowledge distiller and Alfresco membership/role projection are off unless explicitly enabled. Leave them off on engine pods; do not inherit API-only job overrides.
 
 ## Case events
 
@@ -82,12 +83,12 @@ Key_Shared delivers a vehicle's signals to one consumer at a time and in order. 
 
 - The engine starts with `MIOT_COMPONENT_ALL_ENABLED=false`: every bean is in the image, so no bean is missing.
 - `FlywayMigrator` runs on every pod with a database component. The engine migrates `core` and `symptoms`; the API pod migrates all. Concurrent pods are safe: Flyway holds a Postgres advisory lock while migrating, and the symptoms migrations reference no other component's schema. `MIOT_FLYWAY_ENABLED=false` skips it on a pod. `QUARKUS_FLYWAY_MIGRATE_AT_START` does not control `FlywayMigrator`.
-- The start log lists the engine parts on the pod: `Symptoms component started — … on this pod: cdc-dispatcher,device-events,signal-builder,evaluator,lost-signal,sla-timer`.
+- The start log lists the engine parts on the pod: `Symptoms component started — … on this pod: device-events,cdc-dispatcher,signal-builder,evaluator,lost-signal,sla-timer`.
 
 ## Health
 
 | Path | Engine content |
 | --- | --- |
 | `/q/health/live` | Pulsar channels (SmallRye Messaging), down when a consumer or producer fails. |
-| `/q/health/ready` | Pulsar channels, datasources, `miot-components` with `symptoms` (`parts`, `routes`, `gps`), native membership (up: the migration is off). |
+| `/q/health/ready` | Pulsar channels, datasources, `miot-components` with `symptoms` (`symptoms.parts`, `symptoms.routes`, `symptoms.gps` in its data), native membership (up: this pod serves no API). API pods still wait for pending memberships when migration is disabled locally. |
 | `/q/metrics` | `miot.symptoms.signal.*`, `miot.symptoms.evaluator.*`, lost-signal and SLA counters. |

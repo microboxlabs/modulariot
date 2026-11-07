@@ -42,11 +42,10 @@ public class SymptomsComponent implements IMiotComponent {
                             defaultValue = "Latest")
                     String initialPosition,
             @ConfigProperty(name = "miot.symptoms.cdc.enabled", defaultValue = "false") boolean cdc,
-            @ConfigProperty(name = "miot.symptoms.pulsar.enabled", defaultValue = "false") boolean pulsar,
             @ConfigProperty(name = "miot.symptoms.signal-builder.enabled", defaultValue = "false") boolean builder,
             @ConfigProperty(name = "miot.symptoms.evaluator.enabled", defaultValue = "false") boolean evaluator,
             @ConfigProperty(name = "miot.symptoms.sla.enabled", defaultValue = "false") boolean sla) {
-        this.parts = parts(cdc, pulsar, builder, evaluator, sla);
+        this.parts = parts(cdc, builder, evaluator, sla);
         this.source = source;
         this.holder = holder;
         this.gpsClient = gpsClient;
@@ -83,13 +82,11 @@ public class SymptomsComponent implements IMiotComponent {
     }
 
     /** Which parts of the engine run on this pod, for the start log and the health check. */
-    static String parts(boolean cdc, boolean pulsar, boolean builder, boolean evaluator, boolean sla) {
+    static String parts(boolean cdc, boolean builder, boolean evaluator, boolean sla) {
         java.util.List<String> on = new java.util.ArrayList<>();
+        on.add("device-events");
         if (cdc) {
             on.add("cdc-dispatcher");
-        }
-        if (pulsar) {
-            on.add("device-events");
         }
         if (builder) {
             on.add("signal-builder");
@@ -101,7 +98,7 @@ public class SymptomsComponent implements IMiotComponent {
         if (sla) {
             on.add("sla-timer");
         }
-        return on.isEmpty() ? "none" : String.join(",", on);
+        return String.join(",", on);
     }
 
     @Override

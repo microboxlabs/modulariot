@@ -36,9 +36,8 @@ import org.jboss.logging.Logger;
  * GpsSignal#EVENTS_SCHEMA_ID}) for the organization that sent it: the event as {@code frame.events[0]} and the
  * organization's trip in progress on the vehicle. It is published on the GPS signals topic, keyed by vehicle, so the
  * evaluator reads it in order with the vehicle's frames. An event id already received is not published again
- * ({@code miot_symptoms.device_event}, without payload). Payloads are never logged. On wherever the symptoms component runs
- * with its Pulsar wired ({@code miot.symptoms.pulsar.enabled}), whether or not the signal builder runs there, so a pod
- * that only serves the API takes them too.
+ * ({@code miot_symptoms.device_event}, without payload). Payloads are never logged. Device events are always accepted
+ * by the symptoms API, including when the signal builder and other engine jobs run on separate pods.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -84,7 +83,7 @@ public class DeviceEvents {
     public record Accepted(int accepted, int duplicates) {
     }
 
-    /** Events are off here, or the signals topic did not take the event. */
+    /** The signals topic did not take the event. */
     public static class UnavailableException extends RuntimeException {
         public UnavailableException(String message) {
             super(message);
@@ -102,7 +101,8 @@ public class DeviceEvents {
         List<ReferenceCache.Trip> of(String tenant, String assetId);
     }
 
-    private final boolean enabled;
+    @ConfigProperty(name = "miot.component.symptoms.enabled", defaultValue = "false")
+    boolean componentEnabled;
     private final Seen seen;
     private final Trips trips;
     private final DeviceSignalChannel channel;
@@ -111,14 +111,12 @@ public class DeviceEvents {
     private final SignalBuilder builder = new SignalBuilder(new ReferenceCache(), java.time.ZoneOffset.UTC);
 
     @Inject
-    DeviceEvents(@ConfigProperty(name = "miot.symptoms.pulsar.enabled", defaultValue = "false") boolean enabled,
-            Instance<Pool> pool, DeviceSignalChannel channel) {
-        this(enabled, new PgSeen(pool::get), new PgTrips(pool::get), channel, Clock.systemUTC(), pool::get);
+    DeviceEvents(Instance<Pool> pool, DeviceSignalChannel channel) {
+        this(new PgSeen(pool::get), new PgTrips(pool::get), channel, Clock.systemUTC(), pool::get);
     }
 
-    DeviceEvents(boolean enabled, Seen seen, Trips trips, DeviceSignalChannel channel, Clock clock,
+    DeviceEvents(Seen seen, Trips trips, DeviceSignalChannel channel, Clock clock,
             Supplier<Pool> pool) {
-        this.enabled = enabled;
         this.seen = seen;
         this.trips = trips;
         this.channel = channel;
@@ -131,9 +129,6 @@ public class DeviceEvents {
      * rolled back, so the producer can send it again.
      */
     public Accepted accept(String tenant, Request request) {
-        if (!enabled) {
-            throw new UnavailableException("device events are not enabled");
-        }
         Instant now = clock.instant();
         List<DeviceEvent> checked = checkedEvents(request, now);
         int accepted = 0;
@@ -274,7 +269,7 @@ public class DeviceEvents {
 
     @Scheduled(every = "6h", delayed = "10m", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     Uni<Void> prune() {
-        if (!enabled) {
+        if (!componentEnabled) {
             return Uni.createFrom().voidItem();
         }
         return pool.get().preparedQuery(PRUNE).execute(Tuple.of(OffsetDateTime.now(clock).minus(KEEP)))

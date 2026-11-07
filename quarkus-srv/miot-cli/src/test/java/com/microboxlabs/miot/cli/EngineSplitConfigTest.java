@@ -22,7 +22,6 @@ class EngineSplitConfigTest {
     static final Map<String, String> API_POD = Map.of(
             "MIOT_COMPONENT_ALL_ENABLED", "true",
             "MIOT_SYMPTOMS_CDC_ENABLED", "false",
-            "MIOT_SYMPTOMS_PULSAR_ENABLED", "true",
             "HOSTNAME", "miot-modulith-0");
 
     /** The symptom engine: only the symptoms component, no API, event capture on for the rules. */
@@ -37,7 +36,7 @@ class EngineSplitConfigTest {
     void theApiPodTakesDeviceEventsWithTheEngineOff() throws IOException {
         SmallRyeConfig c = config(API_POD);
 
-        on(c, "miot.symptoms.pulsar.enabled", "mp.messaging.outgoing.device-signals.enabled");
+        on(c, "mp.messaging.outgoing.device-signals.enabled");
         off(c, "miot.symptoms.cdc.enabled", "mp.messaging.incoming.symptoms-cdc.enabled",
                 "miot.symptoms.signal-builder.enabled", "mp.messaging.incoming.gps-frames.enabled",
                 "mp.messaging.outgoing.gps-signals.enabled", "mp.messaging.incoming.signal-asset-client-map.enabled",

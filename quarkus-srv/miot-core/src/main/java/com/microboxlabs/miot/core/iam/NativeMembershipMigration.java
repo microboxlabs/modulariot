@@ -83,9 +83,10 @@ public class NativeMembershipMigration {
         return migrateAll().replaceWithVoid();
     }
 
-    /** Whether a run has left no organization behind, or the schedule is off. */
-    public boolean settled() {
-        return done.get() || !scheduled;
+    /** Whether no organization is left behind, including when another pod owns the migration. */
+    public Uni<Boolean> settled() {
+        return scheduled ? Uni.createFrom().item(done.get())
+                : Panache.withSession(() -> Organization.listAlfrescoMembership().map(List::isEmpty));
     }
 
     /** Moves every organization still on Alfresco membership; failures are reported and left for the next run. */

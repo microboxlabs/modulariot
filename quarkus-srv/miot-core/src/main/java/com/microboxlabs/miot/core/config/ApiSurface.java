@@ -3,9 +3,11 @@ package com.microboxlabs.miot.core.config;
 import io.quarkus.vertx.http.runtime.RouteConstants;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import java.util.List;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -16,23 +18,29 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class ApiSurface {
 
-    static final String MANAGEMENT = "/q";
-
     private final boolean enabled;
+    private final List<String> managementPaths;
 
     @Inject
-    public ApiSurface(@ConfigProperty(name = "miot.api.enabled", defaultValue = "true") boolean enabled) {
+    public ApiSurface(@ConfigProperty(name = "miot.api.enabled", defaultValue = "true") boolean enabled,
+            @ConfigProperty(name = "quarkus.http.root-path", defaultValue = "/") String root,
+            @ConfigProperty(name = "quarkus.http.non-application-root-path", defaultValue = "q") String management,
+            @ConfigProperty(name = "quarkus.smallrye-health.root-path", defaultValue = "health") String health,
+            @ConfigProperty(name = "quarkus.micrometer.export.prometheus.path", defaultValue = "metrics") String metrics) {
         this.enabled = enabled;
+        String nonApplicationRoot = managementPath(root, management);
+        this.managementPaths = List.of(nonApplicationRoot,
+                managementPath(nonApplicationRoot, health), managementPath(nonApplicationRoot, metrics));
     }
 
-    void routes(@Observes Router router) {
+    void routes(@Observes @Priority(1) Router router) {
         if (!enabled) {
             router.route().order(RouteConstants.ROUTE_ORDER_BODY_HANDLER - 1).handler(this::guard);
         }
     }
 
     private void guard(RoutingContext context) {
-        if (served(context.normalizedPath())) {
+        if (managementPaths.stream().anyMatch(path -> served(context.normalizedPath(), path))) {
             context.next();
         } else {
             context.response().setStatusCode(404).end();
@@ -40,7 +48,13 @@ public class ApiSurface {
     }
 
     /** Whether a worker pod answers this path: health, metrics and the rest of {@code /q/}. */
-    static boolean served(String path) {
-        return path != null && (path.equals(MANAGEMENT) || path.startsWith(MANAGEMENT + "/"));
+    static boolean served(String path, String management) {
+        return path != null && (path.equals(management) || path.startsWith(management + "/"));
+    }
+
+    static String managementPath(String root, String management) {
+        String path = management.startsWith("/") ? management
+                : (root.endsWith("/") ? root : root + "/") + management;
+        return path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
     }
 }

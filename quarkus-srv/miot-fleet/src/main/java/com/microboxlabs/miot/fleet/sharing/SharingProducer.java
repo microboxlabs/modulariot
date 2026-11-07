@@ -15,6 +15,7 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -36,6 +37,9 @@ public class SharingProducer {
     private SharingService service;
     private ClientMapSync sync;
 
+    @ConfigProperty(name = "miot.component.fleet.enabled", defaultValue = "false")
+    boolean componentEnabled;
+
     SharingProducer(Instance<Pool> modulithPool, GpsDatabase gps, FleetConfig config) {
         this.modulithPool = modulithPool;
         this.gps = gps;
@@ -52,7 +56,9 @@ public class SharingProducer {
     @Scheduled(every = "${miot.fleet.sharing.sync.every:5m}", delayed = "${miot.fleet.sharing.sync.delay:1m}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void scheduledSync() {
-        runSync();
+        if (componentEnabled) {
+            runSync();
+        }
     }
 
     /** Runs a pass in the background, so a change shows up without waiting for the schedule. */

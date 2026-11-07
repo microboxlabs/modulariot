@@ -31,8 +31,8 @@ import org.junit.jupiter.api.Test;
 
 /** Starts the modulith with the symptoms API, without a database, broker or Docker. */
 @QuarkusTest
-@TestProfile(DeviceEventsDisabledTest.Profile.class)
-class DeviceEventsDisabledTest {
+@TestProfile(DeviceEventsAvailabilityTest.Profile.class)
+class DeviceEventsAvailabilityTest {
 
     @TestHTTPResource
     URI baseUri;
@@ -42,23 +42,34 @@ class DeviceEventsDisabledTest {
 
     @Test
     @TestSecurity(authorizationEnabled = false)
-    void signalBuilderOffStartsAndDeviceEventsAnswer503() throws Exception {
-        assertFalse(config.getValue("mp.messaging.outgoing.device-signals.enabled", Boolean.class));
+    void anOfflineApiReports503WhenItCannotPublish() throws Exception {
+        assertFalse(config.getValue("miot.symptoms.signal-builder.enabled", Boolean.class));
+        HttpResponse<String> response = post("""
+                {"events":[{"eventId":"test-1","assetId":"ABCD12","type":"Emergencia",
+                "occurredAt":"2026-01-01T00:00:00Z"}]}
+                """);
+        assertEquals(503, response.statusCode(), response.body());
+        assertEquals("the event was not published",
+                new ObjectMapper().readTree(response.body()).get("error").asText());
+    }
+
+    @Test
+    @TestSecurity(authorizationEnabled = false)
+    void theApiValidatesEventsWithTheBuilderOff() throws Exception {
+        HttpResponse<String> response = post("{\"events\":[]}");
+        assertEquals(400, response.statusCode(), response.body());
+    }
+
+    private HttpResponse<String> post(String body) throws Exception {
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = HttpRequest.newBuilder(baseUri.resolve(
                             "/api/v1/orgs/test-org/control-tower/device-events"))
                     .timeout(Duration.ofSeconds(10))
                     .header("Content-Type", "application/json")
                     .header("X-Client-Id", "test-tenant")
-                    .POST(HttpRequest.BodyPublishers.ofString("""
-                            {"events":[{"eventId":"test-1","assetId":"ABCD12","type":"Emergencia",
-                            "occurredAt":"2026-01-01T00:00:00Z"}]}
-                            """))
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            assertEquals(503, response.statusCode(), response.body());
-            assertEquals("device events are not enabled",
-                    new ObjectMapper().readTree(response.body()).get("error").asText());
+            return client.send(request, HttpResponse.BodyHandlers.ofString());
         }
     }
 
@@ -91,6 +102,8 @@ class DeviceEventsDisabledTest {
                     Map.entry("miot.component.symptoms.enabled", "true"),
                     Map.entry("miot.symptoms.cdc.enabled", "false"),
                     Map.entry("miot.symptoms.signal-builder.enabled", "false"),
+                    // This profile has no broker; production ingestion does not follow the builder switch.
+                    Map.entry("mp.messaging.outgoing.device-signals.enabled", "false"),
                     Map.entry("quarkus.devservices.enabled", "false"),
                     // Keep the pool lazy and local; database startup jobs are outside this availability check.
                     Map.entry("quarkus.datasource.jdbc.url", "jdbc:postgresql://127.0.0.1:1/device_events_test"),

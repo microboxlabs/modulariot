@@ -59,6 +59,9 @@ import org.jboss.logging.Logger;
  * retry with backoff; the run does not wait for them. A message whose job gives up becomes FAILED. Audience
  * warnings and failed sends are stored on the run as {@code last_error}; the run goes on. Observers are
  * asynchronous, so the producer is never held. Off with {@code miot.conversational.rules.enabled=false}.
+ * {@code miot.conversational.rules.events.enabled} keeps storing the events and starting their runs while the scan
+ * and replies are off: events are delivered in process, so a pod that produces them and does not send (the symptom
+ * engine) still starts the runs another pod sends.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.conversational.enabled", stringValue = "true")
@@ -73,6 +76,7 @@ public class RulesEngine {
     };
 
     private final boolean enabled;
+    private final boolean events;
     private final RuleStore rules;
     private final TemplateStore templates;
     private final RunStore runs;
@@ -88,13 +92,21 @@ public class RulesEngine {
 
     @Inject
     RulesEngine(@ConfigProperty(name = "miot.conversational.rules.enabled", defaultValue = "true") boolean enabled,
+            @ConfigProperty(name = "miot.conversational.rules.events.enabled", defaultValue = "true") boolean events,
             RuleStore rules, TemplateStore templates, RunStore runs, Instance<ParticipantResolver> resolvers,
             Instance<ContactDirectory> directories, WhatsAppMessagingService whatsapp, EmailMessagingService email,
             ConnectionChannels channels, ConnectionMessagingService connectionMessages, SendQueue queue,
             ObjectMapper json) {
-        this(enabled, new Stores(rules, templates, runs), () -> resolvers.stream().toList(),
+        this(new Switches(enabled, events), new Stores(rules, templates, runs), () -> resolvers.stream().toList(),
                 () -> directories.stream().toList(),
                 new Senders(whatsapp, email, channels, connectionMessages, queue), json, Clock.systemUTC());
+    }
+
+    /**
+     * @param enabled the scan and replies
+     * @param events  storing the events and starting their runs
+     */
+    public record Switches(boolean enabled, boolean events) {
     }
 
     /** Where rules, templates and runs are kept. */
@@ -116,7 +128,13 @@ public class RulesEngine {
 
     public RulesEngine(boolean enabled, Stores stores, Supplier<List<ParticipantResolver>> resolvers,
             Supplier<List<ContactDirectory>> directories, Senders senders, ObjectMapper json, Clock clock) {
-        this.enabled = enabled;
+        this(new Switches(enabled, enabled), stores, resolvers, directories, senders, json, clock);
+    }
+
+    public RulesEngine(Switches switches, Stores stores, Supplier<List<ParticipantResolver>> resolvers,
+            Supplier<List<ContactDirectory>> directories, Senders senders, ObjectMapper json, Clock clock) {
+        this.enabled = switches.enabled();
+        this.events = switches.events();
         this.directories = directories;
         this.rules = stores.rules();
         this.templates = stores.templates();
@@ -132,7 +150,7 @@ public class RulesEngine {
     }
 
     void onEvent(@ObservesAsync OperationalEvent event) {
-        if (!enabled) {
+        if (!events) {
             return;
         }
         try {

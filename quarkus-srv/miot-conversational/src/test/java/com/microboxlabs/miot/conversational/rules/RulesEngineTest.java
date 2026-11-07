@@ -62,6 +62,33 @@ class RulesEngineTest {
     }
 
     @Test
+    void aPodThatDoesNotSendStillStartsTheRunsOfItsEvents() {
+        f.rule("panic", PANIC_SPEC, Rule.State.ACTIVE);
+        RulesEngine producer = f.engine(new RulesEngine.Switches(false, true));
+
+        producer.onEvent(event("symptom.case.opened", "-2", panic(4), false));
+        producer.tick();
+
+        assertEquals(Run.Status.WAITING, onlyRun().status());
+        assertEquals(0, onlyRun().step(), "the producing pod sends nothing");
+        assertTrue(f.store.conversations.messages.isEmpty());
+
+        f.engine.runDue();
+
+        assertEquals(1, onlyRun().step(), "the sending pod sends the run the event started");
+    }
+
+    @Test
+    void withEventsOffAnEventIsNotStored() {
+        f.rule("panic", PANIC_SPEC, Rule.State.ACTIVE);
+
+        f.engine(new RulesEngine.Switches(true, false)).onEvent(event("symptom.case.opened", "-2", panic(4), false));
+
+        assertTrue(f.store.events.isEmpty());
+        assertTrue(f.store.runs.isEmpty());
+    }
+
+    @Test
     void offRulesAndUnpublishedDraftsStartNothing() {
         Rule rule = f.rule("panic", PANIC_SPEC, Rule.State.ACTIVE);
         f.service.setState(TENANT, rule.id(), Rule.State.OFF);

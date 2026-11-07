@@ -303,7 +303,7 @@ Organizations see a template once a platform owner publishes it.
 | `severity` | Optional: `low`, `medium` or `high` |
 | `description` | Optional, up to 500 characters |
 
-Answers `202 {"accepted": n, "duplicates": m}`. 503 when the signal builder is off (`miot.symptoms.signal-builder.enabled`) or the signals topic did not take an event; the events after it were not sent, and the failed one can be sent again. Event ids are kept 30 days in `miot_symptoms.device_event`, without the payload.
+Answers `202 {"accepted": n, "duplicates": m}`. Device ingestion has no feature switch and stays on when the CDC dispatcher and signal builder are off. 503 when the signals topic did not take an event; the events after it were not sent, and the failed one can be sent again. Event ids are kept 30 days in `miot_symptoms.device_event`, without the payload.
 
 The receipt commits after broker acknowledgement. Concurrent retries wait for that outcome; a failed send or a process stopping before acknowledgement rolls the receipt back. An acknowledgement lost after delivery may cause a broker redelivery, so the evaluator also deduplicates device transitions by event id. Distinct event ids at the same timestamp remain independent. A pending publication is not released by a local request timeout.
 
@@ -343,7 +343,7 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 | 403 | Not a member, org path mismatch, or a missing control tower permission |
 | 404 | Treatment or contact not found |
 | 409 | Treatment not `OPEN`, closing one with no actions, or a contact's national id already used |
-| 503 | Device events are off or not published, or map data cannot be read: `miot.symptoms.gps.rpc-url` unset, the organization has no Auth0 application, or the GPS database failed |
+| 503 | Device events are not published, or map data cannot be read: `miot.symptoms.gps.rpc-url` unset, the organization has no Auth0 application, or the GPS database failed |
 
 ## Treatment screen flow
 

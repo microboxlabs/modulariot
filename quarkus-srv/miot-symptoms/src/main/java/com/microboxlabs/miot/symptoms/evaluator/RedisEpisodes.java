@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.redis.client.RedisAPI;
 import io.vertx.mutiny.redis.client.Response;
 import java.io.IOException;
@@ -19,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /**
  * Episodes in Redis: one hash per organization and vehicle,
@@ -58,7 +61,16 @@ public class RedisEpisodes implements EpisodeRepository {
 
     @Override
     public Set<String> tenantsWithEpisodes(String assetId) {
-        Response all = redis.smembers(tenantsKey(assetId)).await().atMost(TIMEOUT);
+        return tenants(redis.smembers(tenantsKey(assetId)).await().atMost(TIMEOUT));
+    }
+
+    @Override
+    public Supplier<Set<String>> readTenantsWithEpisodes(String assetId) {
+        CompletableFuture<Response> sent = redis.smembers(tenantsKey(assetId)).subscribeAsCompletionStage();
+        return () -> tenants(Uni.createFrom().completionStage(sent).await().atMost(TIMEOUT));
+    }
+
+    private static Set<String> tenants(Response all) {
         Set<String> tenants = new HashSet<>();
         if (all != null) {
             all.forEach(value -> tenants.add(value.toString()));
@@ -68,7 +80,11 @@ public class RedisEpisodes implements EpisodeRepository {
 
     @Override
     public AssetEpisodes load(String tenantCode, String assetId) {
-        Response all = redis.hgetall(key(tenantCode, assetId)).await().atMost(TIMEOUT);
+        return episodes(tenantCode, assetId, redis.hgetall(key(tenantCode, assetId)).await().atMost(TIMEOUT));
+    }
+
+    /** The episodes, watermarks and close revision of the vehicle's hash, parsed on the caller's thread. */
+    static AssetEpisodes episodes(String tenantCode, String assetId, Response all) {
         Map<UUID, Episode> episodes = new HashMap<>();
         Map<String, Instant> watermarks = new HashMap<>();
         long closeRevision = 0;

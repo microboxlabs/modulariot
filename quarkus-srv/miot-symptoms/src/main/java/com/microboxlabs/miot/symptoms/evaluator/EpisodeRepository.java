@@ -11,6 +11,15 @@ public interface EpisodeRepository {
 
     AssetEpisodes load(String tenantCode, String assetId);
 
+    /**
+     * Starts reading what {@link #tenantsWithEpisodes} answers; the supplier waits for it. A store over the network
+     * sends the read now, so the signal's other reads go out with it.
+     */
+    default java.util.function.Supplier<java.util.Set<String>> readTenantsWithEpisodes(String assetId) {
+        java.util.Set<String> tenants = tenantsWithEpisodes(assetId);
+        return () -> tenants;
+    }
+
     void save(AssetEpisodes changes);
 
     /** Drops one symptom's episode for the vehicle, as when an operator closes its case. */

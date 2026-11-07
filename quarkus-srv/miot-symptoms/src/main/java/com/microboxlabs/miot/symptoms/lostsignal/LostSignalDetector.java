@@ -223,27 +223,58 @@ public class LostSignalDetector implements SignalStates {
      * @param arrivedAt when it reached the platform
      */
     public void frame(String assetId, Instant at, Instant arrivedAt, Map<String, Object> signal) {
+        frameSent(assetId, at, arrivedAt, signal).settle();
+    }
+
+    /** A frame whose profiles are being written. */
+    @FunctionalInterface
+    public interface Sent {
+
+        Sent NOTHING = () -> {
+        };
+
+        /** Waits for the write; a failure is counted, as in {@link #frame}, and never thrown. */
+        void settle();
+    }
+
+    /**
+     * As {@link #frame}, with the profiles' write sent and not waited for: the caller settles it once it has done
+     * its own work, and before the vehicle's next frame.
+     */
+    public Sent frameSent(String assetId, Instant at, Instant arrivedAt, Map<String, Object> signal) {
         if (!enabled) {
-            return;
+            return Sent.NOTHING;
         }
         if (System.currentTimeMillis() < skipUntil) {
             meters.counter("miot.symptoms.lost_signal.skipped").increment();
-            return;
+            return Sent.NOTHING;
         }
         try {
-            observe(Frame.of(signal, assetId, at, arrivedAt), signal);
-            beat(arrivedAt);
+            Runnable written = observe(Frame.of(signal, assetId, at, arrivedAt), signal);
+            return () -> {
+                try {
+                    written.run();
+                    beat(arrivedAt);
+                } catch (RuntimeException e) {
+                    failed(e);
+                }
+            };
         } catch (RuntimeException e) {
-            skipUntil = System.currentTimeMillis() + BACKOFF_MS;
-            meters.counter("miot.symptoms.lost_signal.failed").increment();
-            LOG.debugf("Lost-signal detector: frame not recorded (%s)", e.getClass().getSimpleName());
+            failed(e);
+            return Sent.NOTHING;
         }
     }
 
-    private void observe(Frame f, Map<String, Object> signal) {
+    private void failed(RuntimeException e) {
+        skipUntil = System.currentTimeMillis() + BACKOFF_MS;
+        meters.counter("miot.symptoms.lost_signal.failed").increment();
+        LOG.debugf("Lost-signal detector: frame not recorded (%s)", e.getClass().getSimpleName());
+    }
+
+    private Runnable observe(Frame f, Map<String, Object> signal) {
         LossStore.Profiles before = store.load(f.assetId(), f.sender());
         ArrivalProfiles.Arrival a = profiles.apply(before, f);
-        store.save(f.assetId(), a.vehicle(), f.sender(), a.sender(), schedule(a, before.check(), f, signal),
+        return store.send(f.assetId(), a.vehicle(), f.sender(), a.sender(), schedule(a, before.check(), f, signal),
                 mark(a, before.check(), f, profiles.settings()), reporting(a, f));
     }
 

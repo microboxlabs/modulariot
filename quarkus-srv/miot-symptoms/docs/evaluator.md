@@ -9,8 +9,15 @@ Runs published symptom versions on a vehicle's signals and keeps one episode per
 | `MIOT_SYMPTOMS_EVALUATOR_ENABLED` | Consume signals | follows the signal builder |
 | `MIOT_SYMPTOMS_EVALUATOR_REDIS_URL` | `redis://:password@host:6379`; unset keeps episodes in memory (one replica only) | unset |
 | `MIOT_SYMPTOMS_EVALUATOR_EPISODE_TTL` | How long a vehicle's episodes live after their last write | `P7D` |
+| `MIOT_SYMPTOMS_EVALUATOR_CONCURRENCY` | Vehicles evaluated at once per replica (`gps-signals-in` channel copies) | `1` |
+| `MIOT_SYMPTOMS_EVALUATOR_REDIS_POOL_SIZE` | Redis connections of the evaluator, the lost-signal detector and the samples | `16` |
+| `MIOT_SYMPTOMS_EVALUATOR_REDIS_POOL_WAITING` | Redis requests queued for a connection | `256` |
 
 Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>`: a field `ep:<symptom id>` per episode (JSON) and `wm:<source>` per watermark. The subscription is `Key_Shared` on `asset_id`, so one vehicle's signals are evaluated in order on one replica. An operator close advances a revision in the episode hash atomically with its marker. Both consumers install the same marker atomically, keeping trip suppression visible between their close operations. A save from an older revision fails and retries with the new state. Transitions and events are still emitted before the guarded save, so this protects close markers without making the database/event side effects atomic with the operator close.
+
+Each replica runs `MIOT_SYMPTOMS_EVALUATOR_CONCURRENCY` copies of the channel, each its own `Key_Shared` consumer that evaluates its signals one at a time, so a vehicle's signals stay in order while other vehicles run beside them. A signal spends most of its time waiting on Redis and Postgres. Per organization, a signal reads the episode hash and then the duty counters in one pipeline (Redis runs them in order, so the close revision is never newer than the counters), runs the `gps_signal` and duty symptoms on that state, and writes the hash once and the counters after it. These reads go out before the lost-signal detector's, so they overlap. The holds are read once per organization and signal. Measure with `EvaluatorBenchmarkTest` (`-Dmiot.symptoms.benchmark=true`): the platform templates on synthetic signals over an in-memory Redis with a set latency.
+
+One ordered consumer remains the default. Set `MIOT_SYMPTOMS_EVALUATOR_CONCURRENCY=8` only after validating per-vehicle ordering, nack/redelivery and Redis pool saturation against a real broker and Redis in a test environment. The synthetic benchmark verifies evaluator state in vehicle-keyed lanes; it does not exercise the broker or its failures.
 
 A signal whose Redis, catalog or database call fails is redelivered (twice at most); the transition is written before the episode, and a replay does not write it again.
 

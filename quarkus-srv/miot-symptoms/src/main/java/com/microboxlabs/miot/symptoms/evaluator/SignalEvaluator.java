@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import static com.microboxlabs.miot.symptoms.evaluator.Episode.seconds;
 
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.PreparedRule;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleResult;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
@@ -126,14 +127,16 @@ public class SignalEvaluator {
      * Advances existing episodes whose activation is false without GPS input, such as a rule requiring an active
      * trip after access ends. An activation that needs unavailable fields is unknown and leaves its episode alone.
      */
-    public Result reconcile(String tenantCode, String assetId, Instant at, Map<String, Object> root,
+    public Result reconcile(String tenantCode, String assetId, Instant at, Map<String, Object> source,
             List<CompiledSymptom> symptoms) {
+        Map<String, Object> root = RuleLanguage.converted(source);
         return evaluate(tenantCode, assetId, at, root, inactive(tenantCode, assetId, root, symptoms));
     }
 
     /** Reconciles a producer's existing episodes under its own clock. */
     public Result reconcileUnder(String watermark, String tenantCode, String assetId, Instant at,
-            Map<String, Object> root, List<CompiledSymptom> symptoms) {
+            Map<String, Object> source, List<CompiledSymptom> symptoms) {
+        Map<String, Object> root = RuleLanguage.converted(source);
         List<CompiledSymptom> inactive = inactive(tenantCode, assetId, root, symptoms);
         return inactive.isEmpty() ? new Result(List.of(), List.of())
                 : evaluateUnder(watermark, tenantCode, assetId, at, root, inactive);
@@ -150,10 +153,11 @@ public class SignalEvaluator {
     }
 
     /**
-     * @param root the source object the rules read, keyed by the source's root name (e.g. {@code signal})
+     * @param source the source object the rules read, keyed by the source's root name (e.g. {@code signal})
      */
-    public Result evaluate(String tenantCode, String assetId, Instant at, Map<String, Object> root,
+    public Result evaluate(String tenantCode, String assetId, Instant at, Map<String, Object> source,
             List<CompiledSymptom> symptoms) {
+        Map<String, Object> root = RuleLanguage.converted(source);
         List<Transition> transitions = new ArrayList<>();
         List<RuleError> errors = new ArrayList<>();
         Map<String, List<CompiledSymptom>> bySource = new LinkedHashMap<>();
@@ -168,7 +172,8 @@ public class SignalEvaluator {
      * checks of one source that come from two producers with their own clocks.
      */
     public Result evaluateUnder(String watermark, String tenantCode, String assetId, Instant at,
-            Map<String, Object> root, List<CompiledSymptom> symptoms) {
+            Map<String, Object> source, List<CompiledSymptom> symptoms) {
+        Map<String, Object> root = RuleLanguage.converted(source);
         List<Transition> transitions = new ArrayList<>();
         List<RuleError> errors = new ArrayList<>();
         run(watermark, tenantCode, assetId, at, root, symptoms, transitions, errors);
@@ -199,8 +204,9 @@ public class SignalEvaluator {
      * whose close or note rule reads an event runs only those two rules on it, when the frame is not older than
      * the case. A repeat may raise the open case's level without changing its timers. The watermark stays, and an open case opens nothing new.
      */
-    public Result evaluateLate(String tenantCode, String assetId, Instant at, Map<String, Object> root,
+    public Result evaluateLate(String tenantCode, String assetId, Instant at, Map<String, Object> source,
             List<CompiledSymptom> symptoms) {
+        Map<String, Object> root = RuleLanguage.converted(source);
         List<Transition> transitions = new ArrayList<>();
         List<RuleError> errors = new ArrayList<>();
         for (CompiledSymptom s : symptoms) {

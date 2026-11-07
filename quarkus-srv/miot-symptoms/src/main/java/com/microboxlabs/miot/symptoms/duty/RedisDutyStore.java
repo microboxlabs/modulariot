@@ -20,8 +20,8 @@ import java.util.List;
 public class RedisDutyStore implements DutyStore {
 
     static final String PREFIX = "symptoms:duty:";
-    private static final String STATE = "state";
-    private static final String RESTARTS = "restarts";
+    public static final String STATE = "state";
+    public static final String RESTARTS = "restarts";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
     private static final ObjectMapper JSON = new ObjectMapper().registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
@@ -43,13 +43,17 @@ public class RedisDutyStore implements DutyStore {
         this.ttl = ttl;
     }
 
-    static String key(String tenantCode, String assetId) {
+    public static String key(String tenantCode, String assetId) {
         return PREFIX + tenantCode + ":" + assetId;
     }
 
     @Override
     public Loaded load(String tenantCode, String assetId) {
-        Response r = redis.hmget(List.of(key(tenantCode, assetId), STATE, RESTARTS)).await().atMost(TIMEOUT);
+        return loaded(redis.hmget(List.of(key(tenantCode, assetId), STATE, RESTARTS)).await().atMost(TIMEOUT));
+    }
+
+    /** The counters in the answer to {@code HMGET key state restarts}. */
+    public static Loaded loaded(Response r) {
         Response state = r == null ? null : r.get(0);
         Response restarts = r == null ? null : r.get(1);
         return new Loaded(state == null ? null : read(state.toString()),

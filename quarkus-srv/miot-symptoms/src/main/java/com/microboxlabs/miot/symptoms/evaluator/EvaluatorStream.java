@@ -27,11 +27,14 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
@@ -78,6 +81,7 @@ public class EvaluatorStream {
     private final LostSignalDetector lostSignal;
     private final Holds holds;
     private final DutyChecks duty;
+    private final VehicleReads reads;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
     private final Map<String, Cached> dutyVersions = new ConcurrentHashMap<>();
 
@@ -90,12 +94,8 @@ public class EvaluatorStream {
             EvaluatorRedis redis, SignalSamples samples, EvaluatorCatalog catalog, TransitionLog transitionLog,
             MeterRegistry meters, SymptomEvents events, Instance<LateFrames> lateFrames, LostSignalDetector lostSignal,
             Holds holds) {
-        this(enabled, catalog, new Sinks(transitionLog, events, meters), Clock.systemUTC(),
-                // Also when not consuming: closing a case drops its episode in the Redis the consumers use.
-                redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, ttl))
-                        .orElseGet(InMemoryEpisodeRepository::new),
-                samples, lateFrames.isResolvable() ? lateFrames.get() : LateFrames.NONE, lostSignal, holds,
-                redis.api().<DutyStore>map(api -> new RedisDutyStore(api, ttl)).orElseGet(InMemoryDutyStore::new));
+        this(enabled, catalog, new Sinks(transitionLog, events, meters), Clock.systemUTC(), Stores.of(redis, ttl),
+                samples, lateFrames.isResolvable() ? lateFrames.get() : LateFrames.NONE, lostSignal, holds);
         if (enabled) {
             LOG.infof("Symptom evaluator: on, episodes in %s",
                     episodes instanceof RedisEpisodes ? "Redis" : "memory");
@@ -104,6 +104,23 @@ public class EvaluatorStream {
 
     /** Where the evaluator writes: the transition log, the case events and the metrics. */
     record Sinks(TransitionLog transitionLog, SymptomEvents events, MeterRegistry meters) {
+    }
+
+    /** Where the episodes and the duty counters are kept, and how a signal reads both. */
+    record Stores(EpisodeRepository episodes, DutyStore duty, VehicleReads reads) {
+
+        Stores(EpisodeRepository episodes, DutyStore duty) {
+            this(episodes, duty, VehicleReads.of(episodes, duty));
+        }
+
+        /** In Redis when its URL is set, also when not consuming: closing a case drops its episode there. */
+        static Stores of(EvaluatorRedis redis, Duration ttl) {
+            if (redis.api().isEmpty() || redis.client().isEmpty()) {
+                return new Stores(new InMemoryEpisodeRepository(), new InMemoryDutyStore());
+            }
+            return new Stores(new RedisEpisodes(redis.api().get(), ttl), new RedisDutyStore(redis.api().get(), ttl),
+                    VehicleReads.redis(redis.client().get()));
+        }
     }
 
     EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
@@ -127,7 +144,14 @@ public class EvaluatorStream {
     EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
             SignalSamples samples, LateFrames lateFrames, LostSignalDetector lostSignal, Holds holds,
             DutyStore dutyStore) {
-        this.duty = new DutyChecks(dutyStore);
+        this(enabled, catalog, sinks, clock, new Stores(episodes, dutyStore), samples, lateFrames, lostSignal, holds);
+    }
+
+    @SuppressWarnings("java:S107") // As above, with the stores and how a signal reads them.
+    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, Stores stores,
+            SignalSamples samples, LateFrames lateFrames, LostSignalDetector lostSignal, Holds holds) {
+        this.duty = new DutyChecks(stores.duty());
+        this.reads = stores.reads();
         this.holds = holds;
         this.lateFrames = lateFrames;
         this.lostSignal = lostSignal;
@@ -137,7 +161,7 @@ public class EvaluatorStream {
         this.events = sinks.events();
         this.meters = sinks.meters();
         this.clock = clock;
-        this.episodes = episodes;
+        this.episodes = stores.episodes();
         this.samples = samples;
     }
 
@@ -208,29 +232,43 @@ public class EvaluatorStream {
         } catch (DateTimeParseException e) {
             throw new IllegalArgumentException("not a signal time", e);
         }
+        Holds held = holds.forSignal();
         if (GpsSignal.EVENTS_SCHEMA_ID.equals(signal.get("schema"))) {
-            return deviceEvents(assetId, instant, signal, clients);
+            return deviceEvents(assetId, instant, signal, clients, held);
         }
-        // Before the organizations: a failing catalog or log must not keep the frame out of the profiles.
-        lostSignal.frame(assetId, instant, arrival(signal, arrivedAt), signal);
+        // The organizations' reads go out first and answer while the detector reads and writes its profiles.
+        Supplier<Set<String>> withEpisodes = episodes.readTenantsWithEpisodes(assetId);
+        List<Organization> organizations = new ArrayList<>();
+        RuntimeException unread = null;
+        try {
+            clients.stream().filter(String.class::isInstance).map(String.class::cast)
+                    .forEach(tenant -> organizations.add(read(tenant, assetId, forTenant(signal, tenant))));
+        } catch (RuntimeException e) {
+            unread = e;
+        }
+        // Before the organizations: a failing catalog or log must not keep the frame out of the profiles. Its
+        // write goes on while the organizations run, and is waited for before the next signal.
+        LostSignalDetector.Sent profiles = lostSignal.frameSent(assetId, instant, arrival(signal, arrivedAt), signal);
         int recorded = 0;
         boolean late = false;
-        for (Object client : clients) {
-            if (client instanceof String tenant) {
-                Map<String, Object> own = forTenant(signal, tenant);
-                Evaluated e = evaluate(tenant, assetId, instant, own, false);
+        try {
+            if (unread != null) {
+                throw unread;
+            }
+            for (Organization o : organizations) {
+                Evaluated e = evaluate(o, assetId, instant, held);
                 recorded += e.transitions();
                 late |= e.late();
-                recorded += duty(tenant, assetId, instant, own);
             }
-        }
-        for (String tenant : episodes.tenantsWithEpisodes(assetId)) {
-            if (!clients.contains(tenant)) {
-                recorded += evaluate(tenant, assetId, instant,
-                        Map.of("asset_id", assetId, "at", time, "trip", NO_TRIP,
-                                FRAME, Map.of("events", List.of())), true).transitions();
-                recorded += reconcileDuty(tenant, assetId, instant);
+            for (String tenant : withEpisodes.get()) {
+                if (!clients.contains(tenant)) {
+                    recorded += reconcile(tenant, assetId, instant, Map.of("asset_id", assetId, "at", time, "trip",
+                            NO_TRIP, FRAME, Map.of("events", List.of())), held);
+                    recorded += reconcileDuty(tenant, assetId, instant, held);
+                }
             }
+        } finally {
+            profiles.settle();
         }
         if (late) {
             meters.counter("miot.symptoms.evaluator.late", "sender", senderTag(signal.get("sender"))).increment();
@@ -242,7 +280,7 @@ public class EvaluatorStream {
      * A signal of device events received outside the GPS frames: the symptoms that read device events run on it as
      * on a late frame, so it opens or raises their cases without moving the watermark the vehicle's frames keep.
      */
-    private int deviceEvents(String assetId, Instant at, Map<String, Object> signal, List<?> clients) {
+    private int deviceEvents(String assetId, Instant at, Map<String, Object> signal, List<?> clients, Holds held) {
         meters.counter("miot.symptoms.evaluator.device_events").increment();
         int recorded = 0;
         for (Object client : clients) {
@@ -254,9 +292,11 @@ public class EvaluatorStream {
             List<CompiledSymptom> symptoms = symptoms(tenant).stream().filter(CompiledSymptom::eventDriven).toList();
             if (!symptoms.isEmpty()) {
                 AssetEpisodes state = episodes.load(tenant, assetId);
-                SignalEvaluator.Result result = new SignalEvaluator(state, holds)
+                SignalEvaluator.Result result = new SignalEvaluator(state, held)
                         .evaluateLate(tenant, assetId, at, Map.of(SignalFields.ROOT, own), symptoms);
-                writeResult(tenant, assetId, own, state, result, true);
+                recordTransitions(tenant, assetId, own, state, result, true, eventContext(own), held);
+                episodes.save(state);
+                count(result);
                 recorded += result.transitions().size();
             }
         }
@@ -303,69 +343,106 @@ public class EvaluatorStream {
         return out;
     }
 
-    private Evaluated evaluate(String tenant, String assetId, Instant at, Map<String, Object> signal,
-            boolean reconcile) {
-        if (!reconcile) {
-            samples.keep(tenant, signal);
-        }
+    /**
+     * One organization's part of a signal, its reads started.
+     *
+     * @param reads null when the organization has no symptoms to run
+     */
+    private record Organization(String tenant, Map<String, Object> signal, List<CompiledSymptom> symptoms,
+            List<CompiledSymptom> dutySymptoms, VehicleReads.Read reads) {
+    }
+
+    private Organization read(String tenant, String assetId, Map<String, Object> signal) {
         List<CompiledSymptom> symptoms = symptoms(tenant);
-        if (symptoms.isEmpty() && !reconcile) {
-            return new Evaluated(0, false);
-        }
-        AssetEpisodes state = episodes.load(tenant, assetId);
-        if (symptoms.isEmpty()) {
-            episodes.save(state);
-            return new Evaluated(0, false);
-        }
-        Instant newest = state.watermark(tenant, assetId, SOURCE).orElse(null);
-        boolean late = newest != null && at.isBefore(newest);
-        if (late && reconcile) {
-            return new Evaluated(0, false);
-        }
-        if (late && !lateRuns(tenant, assetId, at, newest, signal, symptoms)) {
-            return new Evaluated(0, true);
-        }
-        // A late frame runs only the event-driven symptoms, without moving the watermark (a buffered panic or
-        // sabotage event still opens its case); the others keep skipping it.
-        SignalEvaluator evaluator = new SignalEvaluator(state, holds);
-        Map<String, Object> root = Map.of(SignalFields.ROOT, signal);
-        SignalEvaluator.Result result;
-        if (reconcile) {
-            result = evaluator.reconcile(tenant, assetId, at, root, symptoms);
-        } else {
-            result = late ? evaluator.evaluateLate(tenant, assetId, at, root, symptoms)
-                    : evaluator.evaluate(tenant, assetId, at, root, symptoms);
-        }
-        writeResult(tenant, assetId, signal, state, result, late);
-        return new Evaluated(result.transitions().size(), late);
+        List<CompiledSymptom> onDuty = dutySymptoms(tenant);
+        VehicleReads.Read r = symptoms.isEmpty() && onDuty.isEmpty() ? null
+                : reads.read(tenant, assetId, !onDuty.isEmpty());
+        return new Organization(tenant, signal, symptoms, onDuty, r);
     }
 
     /**
-     * The frame through the organization's duty tracker, and the symptoms that read its counters on the check it
-     * gives. The tracker's state is written last: a failure before it replays the frame, and the frame is then
-     * applied again from the same state. A frame not newer than the last one applied changes nothing.
+     * The organization's symptoms on the signal, then the frame through its duty tracker and the symptoms that read
+     * its counters ({@link #duty}). The case changes are recorded first, since a failed episode write replays the
+     * signal and the log skips what it already holds; then the episodes are written once, and the tracker's state
+     * last, so a failure before it replays the frame and the frame is applied again from the same state.
      */
-    private int duty(String tenant, String assetId, Instant at, Map<String, Object> signal) {
-        List<CompiledSymptom> symptoms = dutySymptoms(tenant);
-        if (symptoms.isEmpty()) {
-            return 0;
+    private Evaluated evaluate(Organization o, String assetId, Instant at, Holds held) {
+        String tenant = o.tenant();
+        samples.keep(tenant, o.signal());
+        if (o.reads() == null) {
+            return new Evaluated(0, false);
         }
-        // Capture the close revision before reading counters: a close during that read invalidates this snapshot.
+        AssetEpisodes state = o.reads().episodes().get();
+        int recorded = 0;
+        boolean late = false;
+        boolean save = false;
+        List<SignalEvaluator.Result> results = new ArrayList<>(2);
+        if (!o.symptoms().isEmpty()) {
+            Instant newest = state.watermark(tenant, assetId, SOURCE).orElse(null);
+            late = newest != null && at.isBefore(newest);
+            // A late frame runs only the event-driven symptoms, without moving the watermark (a buffered panic or
+            // sabotage event still opens its case); the others keep skipping it.
+            if (!late || lateRuns(tenant, assetId, at, newest, o.signal(), o.symptoms())) {
+                SignalEvaluator evaluator = new SignalEvaluator(state, held);
+                Map<String, Object> root = Map.of(SignalFields.ROOT, o.signal());
+                SignalEvaluator.Result result = late ? evaluator.evaluateLate(tenant, assetId, at, root, o.symptoms())
+                        : evaluator.evaluate(tenant, assetId, at, root, o.symptoms());
+                recordTransitions(tenant, assetId, o.signal(), state, result, late, eventContext(o.signal()), held);
+                results.add(result);
+                recorded += result.transitions().size();
+                save = true;
+            }
+        }
+        DutyChecks.Check c = null;
+        if (!o.dutySymptoms().isEmpty()) {
+            // The episodes were read before the counters: a close during the reads invalidates this snapshot.
+            c = duty.apply(at, o.signal(), o.reads().counters().get()).orElse(null);
+            if (c == null) {
+                meters.counter("miot.symptoms.duty.skipped").increment();
+            } else {
+                SignalEvaluator.Result result = new SignalEvaluator(state, held).evaluateUnder(DutyChecks.WATERMARK,
+                        tenant, assetId, at, Map.of(TripCheck.ROOT, c.check()), o.dutySymptoms());
+                recordTransitions(tenant, assetId, o.signal(), state, result, false, c.context(), held);
+                results.add(result);
+                recorded += result.transitions().size();
+                save = true;
+            }
+        }
+        if (save) {
+            episodes.save(state);
+        }
+        if (c != null) {
+            duty.save(tenant, assetId, c.next());
+        }
+        results.forEach(this::count);
+        return new Evaluated(recorded, late);
+    }
+
+    /**
+     * After the organization's signal access ended, the existing episodes whose activation is false without its GPS
+     * input advance; an organization without symptoms keeps its index current.
+     */
+    private int reconcile(String tenant, String assetId, Instant at, Map<String, Object> signal, Holds held) {
+        List<CompiledSymptom> symptoms = symptoms(tenant);
         AssetEpisodes state = episodes.load(tenant, assetId);
-        DutyChecks.Check c = duty.apply(tenant, assetId, at, signal).orElse(null);
-        if (c == null) {
-            meters.counter("miot.symptoms.duty.skipped").increment();
+        if (symptoms.isEmpty()) {
+            episodes.save(state);
             return 0;
         }
-        SignalEvaluator.Result result = new SignalEvaluator(state, holds).evaluateUnder(DutyChecks.WATERMARK, tenant,
-                assetId, at, Map.of(TripCheck.ROOT, c.check()), symptoms);
-        writeResult(tenant, assetId, signal, state, result, false, c.context());
-        duty.save(tenant, assetId, c.next());
+        Instant newest = state.watermark(tenant, assetId, SOURCE).orElse(null);
+        if (newest != null && at.isBefore(newest)) {
+            return 0;
+        }
+        SignalEvaluator.Result result = new SignalEvaluator(state, held).reconcile(tenant, assetId, at,
+                Map.of(SignalFields.ROOT, signal), symptoms);
+        recordTransitions(tenant, assetId, signal, state, result, false, eventContext(signal), held);
+        episodes.save(state);
+        count(result);
         return result.transitions().size();
     }
 
     /** Reconciles duty cases after signal access ends, without the tenant's GPS or trip data. */
-    private int reconcileDuty(String tenant, String assetId, Instant at) {
+    private int reconcileDuty(String tenant, String assetId, Instant at, Holds held) {
         List<CompiledSymptom> symptoms = dutySymptoms(tenant);
         if (symptoms.isEmpty()) {
             return 0;
@@ -375,10 +452,12 @@ public class EvaluatorStream {
             return 0;
         }
         Map<String, Object> check = Map.of("trip", NO_TRIP);
-        SignalEvaluator.Result result = new SignalEvaluator(state, holds).reconcileUnder(DutyChecks.WATERMARK,
+        SignalEvaluator.Result result = new SignalEvaluator(state, held).reconcileUnder(DutyChecks.WATERMARK,
                 tenant, assetId, at, Map.of(TripCheck.ROOT, check), symptoms);
         var next = duty.endTrip(tenant, assetId, at);
-        writeResult(tenant, assetId, Map.of(), state, result, false, Map.of(TripCheck.ROOT, Map.of()));
+        recordTransitions(tenant, assetId, Map.of(), state, result, false, Map.of(TripCheck.ROOT, Map.of()), held);
+        episodes.save(state);
+        count(result);
         next.ifPresent(s -> duty.save(tenant, assetId, s));
         return result.transitions().size();
     }
@@ -395,35 +474,41 @@ public class EvaluatorStream {
         return symptoms.stream().anyMatch(CompiledSymptom::eventDriven);
     }
 
-    /** Writes the result: transitions first, since a failed episode write replays the signal and the log skips
-     * what it already holds; then the episodes and the counters. */
-    private void writeResult(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
-            SignalEvaluator.Result result, boolean late) {
+    /** The context a device-events signal's case changes keep: its event id. */
+    private static Map<String, Object> eventContext(Map<String, Object> signal) {
         Object eventId = signal.get("event_id");
-        writeResult(tenant, assetId, signal, state, result, late, GpsSignal.EVENTS_SCHEMA_ID.equals(signal.get("schema"))
-                && eventId instanceof String ? Map.of("event_id", eventId) : null);
+        return GpsSignal.EVENTS_SCHEMA_ID.equals(signal.get("schema")) && eventId instanceof String
+                ? Map.of("event_id", eventId) : null;
     }
 
-    @SuppressWarnings("java:S107") // As above, with the context the transitions keep.
-    private void writeResult(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
-            SignalEvaluator.Result result, boolean late, Map<String, Object> context) {
-        if (!result.transitions().isEmpty()) {
-            TransitionLog.Place place = place(signal);
-            // Only the changes new to the log: a replayed signal publishes nothing twice.
-            List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, result.transitions(), place, context);
-            events.transitions(tenant, recorded.stream()
-                    .filter(r -> !holds.held(tenant, assetId, r.transition().definitionId(), Instant.EPOCH))
-                    .toList(), place);
-            if (late) {
-                // A late opening the log already holds is a replay of a case that may be closed since: it keeps no
-                // episode, or that episode would block the next real event.
-                result.transitions().stream()
-                        .filter(t -> t.kind() == Transition.Kind.OPENED)
-                        .filter(t -> recorded.stream().noneMatch(r -> r.transition().equals(t)))
-                        .forEach(t -> state.delete(tenant, assetId, t.definitionId()));
-            }
+    /**
+     * Records the result's case changes and publishes the ones new to the log, before the episodes are written: a
+     * failed episode write replays the signal and the log skips what it already holds.
+     */
+    @SuppressWarnings("java:S107") // The result, where it comes from, and what the changes keep.
+    private void recordTransitions(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
+            SignalEvaluator.Result result, boolean late, Map<String, Object> context, Holds held) {
+        if (result.transitions().isEmpty()) {
+            return;
         }
-        episodes.save(state);
+        TransitionLog.Place place = place(signal);
+        // Only the changes new to the log: a replayed signal publishes nothing twice.
+        List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, result.transitions(), place, context);
+        events.transitions(tenant, recorded.stream()
+                .filter(r -> !held.held(tenant, assetId, r.transition().definitionId(), Instant.EPOCH))
+                .toList(), place);
+        if (late) {
+            // A late opening the log already holds is a replay of a case that may be closed since: it keeps no
+            // episode, or that episode would block the next real event.
+            result.transitions().stream()
+                    .filter(t -> t.kind() == Transition.Kind.OPENED)
+                    .filter(t -> recorded.stream().noneMatch(r -> r.transition().equals(t)))
+                    .forEach(t -> state.delete(tenant, assetId, t.definitionId()));
+        }
+    }
+
+    /** Counts the result's case changes and rule errors, once its episodes are written. */
+    private void count(SignalEvaluator.Result result) {
         result.transitions().forEach(t -> meters.counter("miot.symptoms.evaluator.transitions",
                 "kind", t.kind().name(), "state", t.state().name()).increment());
         if (!result.errors().isEmpty()) {

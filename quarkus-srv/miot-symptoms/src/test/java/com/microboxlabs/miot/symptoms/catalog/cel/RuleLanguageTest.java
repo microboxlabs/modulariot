@@ -103,6 +103,32 @@ class RuleLanguageTest {
     }
 
     @Test
+    void variablesConvertedOnceReadAsTheRawOnesAndAreNotCopiedAgain() {
+        Map<String, Object> raw = Map.of("signal", Map.of(
+                "frame", Map.of("gps", Map.of("speed", 112), "events", java.util.List.of(Map.of("n", 3))),
+                "trip", Map.of("active", true)));
+        var rule = RuleLanguage.prepare(SIGNAL, "signal.frame.gps.speed > 100.0 && signal.trip.active");
+
+        Map<String, Object> converted = RuleLanguage.converted(raw);
+
+        assertEquals(rule.run(raw), rule.run(converted));
+        assertEquals(true, rule.run(converted).value());
+        org.junit.jupiter.api.Assertions.assertSame(converted, RuleLanguage.converted(converted), "converted values are kept as they are");
+        @SuppressWarnings("unchecked")
+        var frame = (Map<String, Object>) ((Map<String, Object>) converted.get("signal")).get("frame");
+        assertEquals(Map.of("speed", 112.0), frame.get("gps"));
+        assertEquals(java.util.List.of(Map.of("n", 3.0)), frame.get("events"));
+        assertEquals(raw.keySet(), converted.keySet());
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class,
+                () -> converted.put("x", 1));
+        var levels = RuleLanguage.prepare(SIGNAL.withExtras(RuleSchema.LEVEL_VARIABLES),
+                "signal.frame.gps.speed - measure > 100.0");
+        Map<String, Object> vars = new java.util.LinkedHashMap<>(converted);
+        vars.put("measure", 2);
+        assertEquals(true, levels.run(vars).value(), "a whole number added to converted variables is converted");
+    }
+
+    @Test
     void anErrorAfterAWrittenIntegerPointsAtTheRuleAsWritten() {
         RuleSchema level = SIGNAL.withExtras(RuleSchema.LEVEL_VARIABLES);
         String rule = "measure == 0 && nope > 1";

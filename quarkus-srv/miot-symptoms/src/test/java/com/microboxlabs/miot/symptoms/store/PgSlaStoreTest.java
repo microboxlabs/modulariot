@@ -96,6 +96,11 @@ class PgSlaStoreTest {
     }
 
     private static UUID symptom(String tenant) {
+        return symptom(tenant, false);
+    }
+
+    /** {@code asText}: the spec stored as a JSON string inside the jsonb column, as the catalog writes it. */
+    private static UUID symptom(String tenant, boolean asText) {
         UUID id = UUID.randomUUID();
         PgIds.query(pool, """
                 INSERT INTO miot_symptoms.symptom_definition
@@ -105,8 +110,8 @@ class PgSlaStoreTest {
         PgIds.query(pool, """
                 INSERT INTO miot_symptoms.symptom_version
                     (definition_id, tenant_code, version, status, spec, created_by)
-                VALUES ($1, $2, '1.0.0', 'PUBLISHED', $3::text::jsonb, 't')
-                """, Tuple.of(id, tenant, SPEC));
+                VALUES ($1, $2, '1.0.0', 'PUBLISHED', %s, 't')
+                """.formatted(asText ? "to_jsonb($3::text)" : "$3::text::jsonb"), Tuple.of(id, tenant, SPEC));
         return id;
     }
 
@@ -507,6 +512,19 @@ class PgSlaStoreTest {
         assertTrue(sla.markExpired(tenant, caseId, 3, 15, t0.plusSeconds(2000)));
         assertFalse(sla.markExpired(tenant, caseId, 3, 15, t0.plusSeconds(2001)));
         assertTrue(due(after, t0.plusSeconds(3600), tenant).isEmpty(), "expired once");
+    }
+
+    @Test
+    void aSpecStoredAsJsonTextHasItsLevelsSla() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant, true);
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0, null);
+        log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 3, 0)), place);
+
+        List<SlaStore.Due> due = due(t0.minusSeconds(3600), t0.plusSeconds(15 * 60), tenant);
+        assertEquals(1, due.size());
+        assertEquals(15, due.get(0).slaMinutes());
     }
 
     @Test

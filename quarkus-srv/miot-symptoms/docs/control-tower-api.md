@@ -377,7 +377,7 @@ organization server-side and forward the user's session token.
 | `miot.symptoms.gps.rpc-url` | `MIOT_SYMPTOMS_GPS_RPC_URL` | none | PostgREST in front of the GPS database, for the map endpoints |
 | `miot.symptoms.control-tower.demo-seed` | `MIOT_SYMPTOMS_CONTROL_TOWER_DEMO_SEED` | `false` (`true` in `quarkus:dev`) | Seed demo contacts and history. Leave off anywhere real symptoms are shown |
 | `miot.speed.db.*` | `MIOT_SPEED_DB_HOST`, `_PORT`, `_NAME`, `_USERNAME`, `_PASSWORD` | none | Legacy speed database for `signal.road` limits ([gps-signal.md](gps-signal.md#speed-database)). Unset: OSM limits from the GPS database, no custom limits |
-| `miot.symptoms.speed.custom-tracks.*` | `MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_TENANT`, `_TABLE`, `_SITES_<CODE>` | none | Organization, table and per-site direction rules of the custom speed polygons |
+| `miot.symptoms.speed.custom-tracks.table` | `MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_TABLE` | none | Table of the custom speed polygons; each row names its organization and direction rule |
 
 ## Not in this API yet
 

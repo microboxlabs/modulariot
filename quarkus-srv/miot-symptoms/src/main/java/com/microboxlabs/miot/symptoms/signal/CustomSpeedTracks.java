@@ -1,67 +1,48 @@
 package com.microboxlabs.miot.symptoms.signal;
 
 import io.smallrye.config.ConfigMapping;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * One organization's own speed polygons in the legacy speed database, read as {@link SpeedZones}. The table's
- * columns: {@code id}, {@code client} (a site code), {@code geom}, {@code speed_forward}, {@code speed_backward},
- * {@code azimuth_degree} and {@code order}. The legacy speed function picks forward or backward with rules
- * hard-coded per site; here each site's rule is configuration:
+ * Organizations' own speed polygons in the legacy speed database, read as {@link SpeedZones}. Each row carries its
+ * organization and its direction rule:
  *
  * <table>
- * <caption>Site rules</caption>
- * <tr><th>Legacy</th><th>{@code sites."<code>"}</th><th>Zone</th></tr>
- * <tr><td>Forward when the bearing of travel is in a range, else backward</td><td>{@code <from>-<to>}, degrees,
- * wrapping past 360 ({@code 270-90})</td><td>{@code forwardFrom}/{@code forwardTo}; without a bearing the
- * vehicle's last bearing is used, where the legacy compared {@code order} with the previous signal's</td></tr>
- * <tr><td>One limit, {@code coalesce(speed_backward, speed_forward)}</td><td>{@code one-limit}</td><td>that
- * limit</td></tr>
- * <tr><td>By {@code order} only</td><td>not set</td><td>not loaded</td></tr>
+ * <caption>Columns</caption>
+ * <tr><th>Column</th><th>Zone</th></tr>
+ * <tr><td>{@code client_id}</td><td>the organization (GPS client id); rows without it are not loaded</td></tr>
+ * <tr><td>{@code forward_from}, {@code forward_to}</td><td>{@code speed_forward} when the bearing of travel is in
+ * the range (0–360, wrapping past 360), else {@code speed_backward}; without a bearing the vehicle's last bearing is
+ * used</td></tr>
+ * <tr><td>{@code single_limit}</td><td>one limit, {@code coalesce(speed_backward, speed_forward)}; wins over a
+ * range</td></tr>
+ * <tr><td>neither</td><td>not loaded, as the legacy gives no limit to sites ruled only by {@code order}</td></tr>
  * </table>
  *
- * <p>{@code azimuth_degree} is the zone's heading filter. Every zone belongs to {@code tenant}.
+ * <p>{@code azimuth_degree} is the zone's heading filter.
  */
 final class CustomSpeedTracks {
 
+    /** SQL state of a column the table does not have yet. */
+    static final String UNDEFINED_COLUMN = "42703";
+
     @ConfigMapping(prefix = "miot.symptoms.speed.custom-tracks")
     public interface Settings {
-        /** The organization (GPS client id) the polygons belong to. No polygons without it. */
-        Optional<String> tenant();
-
         /** The table, optionally schema-qualified. No polygons without it. */
         Optional<String> table();
-
-        /**
-         * Site code, ignoring case, to rule: {@code <from>-<to>} or {@code one-limit}. A site without a rule is not
-         * loaded.
-         */
-        Map<String, String> sites();
-    }
-
-    sealed interface Rule {
-    }
-
-    /** Forward when the bearing of travel is within {@code [from, to]}. */
-    record Forward(int from, int to) implements Rule {
-    }
-
-    record OneLimit() implements Rule {
     }
 
     /** One table row. */
-    record Row(int id, String site, Integer forward, Integer backward, Integer azimuth, String shape) {
+    record Row(int id, String clientId, Integer forward, Integer backward, Integer azimuth, Integer forwardFrom,
+            Integer forwardTo, boolean singleLimit, String shape) {
     }
 
-    private static final Pattern RANGE = Pattern.compile("\\s*(\\d{1,3})\\s*-\\s*(\\d{1,3})\\s*");
     private static final Pattern TABLE = Pattern.compile("[A-Za-z_]\\w*(\\.[A-Za-z_]\\w*)?");
 
     private static final String SELECT_TRACKS = """
-            SELECT id, client, speed_forward, speed_backward, azimuth_degree, ST_AsGeoJSON(geom) AS shape
+            SELECT id, client_id, speed_forward, speed_backward, azimuth_degree, forward_from, forward_to,
+                   single_limit, ST_AsGeoJSON(geom) AS shape
               FROM %s WHERE geom IS NOT NULL
             """;
 
@@ -75,41 +56,31 @@ final class CustomSpeedTracks {
         return SELECT_TRACKS.formatted(table);
     }
 
-    static Map<String, Rule> rules(Map<String, String> sites) {
-        Map<String, Rule> rules = new HashMap<>();
-        sites.forEach((site, value) -> rules.put(site.toLowerCase(java.util.Locale.ROOT), rule(value)));
-        return Map.copyOf(rules);
-    }
-
-    static Rule rule(String value) {
-        if ("one-limit".equals(value.strip())) {
-            return new OneLimit();
-        }
-        Matcher m = RANGE.matcher(value);
-        if (m.matches()) {
-            int from = Integer.parseInt(m.group(1));
-            int to = Integer.parseInt(m.group(2));
-            if (from <= 360 && to <= 360) {
-                return new Forward(from, to);
-            }
-        }
-        throw new IllegalArgumentException("A custom speed track site rule is <from>-<to> or one-limit: " + value);
-    }
-
-    /** The row as a zone of the tenant; null for a site without a rule, a row without a limit, or a non-polygon. */
-    static SpeedZones.Zone zone(String tenant, Row row, Map<String, Rule> rules) {
-        Rule rule = row.site() == null ? null : rules.get(row.site().toLowerCase(java.util.Locale.ROOT));
-        if (rule == null || row.shape() == null) {
+    /**
+     * The row as a zone of its organization; null for a row without an organization, a rule or a limit, with half
+     * a range or a bearing outside 0–360, or that is not a polygon.
+     */
+    static SpeedZones.Zone zone(Row row) {
+        if (row.clientId() == null || row.clientId().isBlank() || row.shape() == null) {
             return null;
         }
-        SpeedZones.Limits limits = switch (rule) {
-            case Forward(int from, int to) -> new SpeedZones.Limits(row.forward(), row.backward(), from, to, row.azimuth());
-            case OneLimit() -> new SpeedZones.Limits(row.backward() != null ? row.backward() : row.forward(), null,
-                    null, null, row.azimuth());
-        };
+        SpeedZones.Limits limits;
+        if (row.singleLimit()) {
+            limits = new SpeedZones.Limits(row.backward() != null ? row.backward() : row.forward(), null, null, null,
+                    row.azimuth());
+        } else if (bearing(row.forwardFrom()) && bearing(row.forwardTo())) {
+            limits = new SpeedZones.Limits(row.forward(), row.backward(), row.forwardFrom(), row.forwardTo(),
+                    row.azimuth());
+        } else {
+            return null;
+        }
         if (limits.forward() == null && limits.backward() == null) {
             return null;
         }
-        return SpeedZones.zone(tenant, row.id(), limits, row.shape());
+        return SpeedZones.zone(row.clientId(), row.id(), limits, row.shape());
+    }
+
+    private static boolean bearing(Integer deg) {
+        return deg != null && deg >= 0 && deg <= 360;
     }
 }

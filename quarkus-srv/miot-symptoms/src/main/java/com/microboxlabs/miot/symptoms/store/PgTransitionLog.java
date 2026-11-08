@@ -104,9 +104,20 @@ public class PgTransitionLog implements TransitionLog {
     @Override
     public Opening opening(String tenantCode, Episode episode) {
         var rows = pool.get().preparedQuery("""
-                SELECT trip_id, context FROM miot_symptoms.signal_transitions
-                 WHERE tenant_code = $1 AND definition_id = $2 AND asset_id = $3 AND kind = 'OPENED' AND at = $4
-                 ORDER BY id DESC LIMIT 1
+                SELECT o.trip_id, COALESCE(e.context, o.context) AS context
+                  FROM miot_symptoms.signal_transitions o
+                  LEFT JOIN LATERAL (
+                      SELECT l.context FROM miot_symptoms.signal_transitions l
+                       WHERE l.tenant_code = o.tenant_code AND l.definition_id = o.definition_id
+                         AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED'
+                         AND l.id > o.id AND l.context IS NOT NULL
+                         AND NOT EXISTS (SELECT 1 FROM miot_symptoms.signal_transitions boundary
+                              WHERE boundary.tenant_code = o.tenant_code AND boundary.definition_id = o.definition_id
+                                AND boundary.asset_id = o.asset_id AND boundary.state = o.state
+                                AND boundary.kind IN ('OPENED', 'CLOSED') AND boundary.id > o.id AND boundary.id < l.id)
+                       ORDER BY l.id DESC LIMIT 1) e ON true
+                 WHERE o.tenant_code = $1 AND o.definition_id = $2 AND o.asset_id = $3 AND o.kind = 'OPENED' AND o.at = $4
+                 ORDER BY o.id DESC LIMIT 1
                 """).execute(Tuple.of(tenantCode, episode.definitionId(), episode.assetId(),
                         episode.openedAt().atOffset(ZoneOffset.UTC))).await().atMost(QUERY_TIMEOUT);
         var iterator = rows.iterator();

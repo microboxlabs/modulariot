@@ -304,7 +304,7 @@ public class TripChecks {
             return;
         }
         AssetEpisodes state = episodes.load(tenant, assetId);
-        state.restoreCases(log);
+        state.restoreCases(log, symptoms);
         SignalEvaluator.Result result = new SignalEvaluator(state, holds)
                 .evaluate(tenant, assetId, now, Map.of(TripCheck.ROOT, check), symptoms);
         Map<String, Object> context = context(check);

@@ -14,6 +14,7 @@ import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +103,8 @@ public class PgTripEnds implements TripEnds {
             }
             Episode e = loaded.computeIfAbsent(c.assetId(), asset -> episodes.load(tenant, asset))
                     .find(tenant, c.assetId(), c.definitionId()).orElse(null);
-            if (e == null || !c.openedAt().equals(e.openedAt())
+            if (e == null || e.openedAt() == null
+                    || !c.openedAt().equals(e.openedAt().truncatedTo(ChronoUnit.MICROS))
                     || (e.state() != null && (e.state() == SymptomState.TEST)
                             != c.test())) {
                 return null;

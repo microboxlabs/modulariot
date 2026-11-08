@@ -72,14 +72,18 @@ public class AssetEpisodes implements EpisodeStore {
         return Optional.ofNullable(loaded.get(definitionId));
     }
 
-    /** Recovers legacy case metadata once from its opening, never from the vehicle's next trip. */
-    public void restoreCases(TransitionLog log) {
-        for (Episode e : List.copyOf(loaded.values())) {
-            if (e.open() && e.tripId() == null && e.lastContext() == null) {
+    /**
+     * Recovers only this producer's legacy cases. Metadata joins the snapshot without marking a write:
+     * the evaluator saves it only when it actually advances that case, preserving other producers' updates.
+     */
+    public void restoreCases(TransitionLog log, List<CompiledSymptom> symptoms) {
+        for (CompiledSymptom symptom : symptoms) {
+            Episode e = loaded.get(symptom.definitionId());
+            if (e != null && e.open() && e.tripId() == null && e.lastContext() == null) {
                 TransitionLog.Opening opening = log.opening(tenantCode, e);
                 Episode restored = e.withCaseFrame(opening.tripId(), opening.context());
                 loaded.put(e.definitionId(), restored);
-                save(tenantCode, restored);
+                episodes.put(e.definitionId(), restored);
             }
         }
     }

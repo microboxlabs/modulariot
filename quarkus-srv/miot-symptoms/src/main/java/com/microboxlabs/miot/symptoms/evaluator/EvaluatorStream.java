@@ -292,7 +292,7 @@ public class EvaluatorStream {
             List<CompiledSymptom> symptoms = symptoms(tenant).stream().filter(CompiledSymptom::eventDriven).toList();
             if (!symptoms.isEmpty()) {
                 AssetEpisodes state = episodes.load(tenant, assetId);
-                state.restoreCases(transitionLog);
+                state.restoreCases(transitionLog, symptoms);
                 SignalEvaluator.Result result = new SignalEvaluator(state, held)
                         .evaluateLate(tenant, assetId, at, Map.of(SignalFields.ROOT, own), symptoms);
                 recordTransitions(tenant, assetId, own, state, result, true, eventContext(own), held);
@@ -374,7 +374,7 @@ public class EvaluatorStream {
             return new Evaluated(0, false);
         }
         AssetEpisodes state = o.reads().episodes().get();
-        state.restoreCases(transitionLog);
+        state.restoreCases(transitionLog, Stream.concat(o.symptoms().stream(), o.dutySymptoms().stream()).toList());
         int recorded = 0;
         boolean late = false;
         boolean save = false;
@@ -437,7 +437,7 @@ public class EvaluatorStream {
     private int reconcile(String tenant, String assetId, Instant at, Map<String, Object> signal, Holds held) {
         List<CompiledSymptom> symptoms = symptoms(tenant);
         AssetEpisodes state = episodes.load(tenant, assetId);
-        state.restoreCases(transitionLog);
+        state.restoreCases(transitionLog, symptoms);
         if (symptoms.isEmpty()) {
             episodes.save(state);
             return 0;
@@ -461,7 +461,7 @@ public class EvaluatorStream {
             return 0;
         }
         AssetEpisodes state = episodes.load(tenant, assetId);
-        state.restoreCases(transitionLog);
+        state.restoreCases(transitionLog, symptoms);
         if (state.watermark(tenant, assetId, DutyChecks.WATERMARK).filter(at::isBefore).isPresent()) {
             return 0;
         }
@@ -583,12 +583,12 @@ public class EvaluatorStream {
     /** Rechecks the latest condition evidence before releasing a hold, then restarts its level timers. */
     public void finishHold(IgnoreHold h) {
         AssetEpisodes state = episodes.load(h.tenantCode(), h.assetId());
-        state.restoreCases(transitionLog);
         List<CompiledSymptom> covered = Stream.concat(catalog.forSource(h.tenantCode(), SOURCE).symptoms().stream(),
                 catalog.forSource(h.tenantCode(), TripCheck.KEY).symptoms().stream())
                 .filter(s -> state.find(h.tenantCode(), h.assetId(), s.definitionId())
                         .map(e -> h.covers(h.assetId(), s.definitionId(), e.openedAt())).orElse(false))
                 .toList();
+        state.restoreCases(transitionLog, covered);
         List<Transition> closed = new SignalEvaluator(state).finishHold(h.tenantCode(), h.assetId(), clock.instant(),
                 covered);
         if (!closed.isEmpty()) {

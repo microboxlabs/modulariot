@@ -34,13 +34,17 @@ The one kept frame includes its trip, so promoting it preserves the trip boundar
 
 No trip, or a new trip id, starts all three again. `check.signal_lost_minutes` is 0 and `check.loss` is absent on these checks.
 
+## Zone
+
+`check.geo` is the evaluating organization's `signal.geo` at the frame (`authorized_zone`, `zone`, `risk_zone`, `outside_authorized`), never another organization's. It is absent when the organization has no zones at the frame. Zones do not change the counters: time inside an authorized zone counts, as in the GPS database, which only hides the symptom there. Read it null-safely: `check.?geo.?authorized_zone.orValue(false)`.
+
 ## Evaluation
 
 | Step | What happens |
 |---|---|
 | Which symptoms | Only `trip_check` symptoms whose rules read a counter run on the frame's check. The lost-signal detector's checks run the others |
 | Watermark | `wm:trip_check@frames` in the episode hash, apart from the detector's `wm:trip_check` |
-| Transitions | Recorded with the frame's trip and position. The context is the check without `trip` |
+| Transitions | Recorded with the frame's trip and position. The context is the check without `trip`, with `geo` |
 | Order | Transitions, then episodes, then the tracker's state. A failure replays the frame from the saved state |
 | Signal access ends | Existing duty cases reconcile under the frame watermark without GPS input; the trip counters end. Older frames cannot close newer cases |
 | Operator close | Closing a case of a symptom that reads `check.duty_minutes` increments `restarts`; the next frame ends the duty count. The driving count stays |

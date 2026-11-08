@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
@@ -78,12 +80,16 @@ class EvaluatorDutyTest {
         return id;
     }
 
-    private static String frame(int seconds, double metres) {
+    /** Each organization's zones on the frames, as the signal builder publishes them; none when null. */
+    private String geos;
+
+    private String frame(int seconds, double metres) {
         return """
                 {"schema":"miot.gps.signal@1","asset_id":"%s","at":"%s","clients":["%s"],
-                 "trips":{"%s":{"id":"T-1","active":true,"double_driver":false}},
+                 "trips":{"%s":{"id":"T-1","active":true,"double_driver":false}},%s
                  "frame":{"asset_id":"%s","gps":{"speed":60.0,"latitude":%s,"longitude":-70.6},"sensors":{}}}
-                """.formatted(ASSET, T0.plusSeconds(seconds), DEMO, DEMO, ASSET, -60 + metres / METRES_PER_DEGREE);
+                """.formatted(ASSET, T0.plusSeconds(seconds), DEMO, DEMO,
+                geos == null ? "" : "\"geos\":" + geos + ",", ASSET, -60 + metres / METRES_PER_DEGREE);
     }
 
     private void drive(int minutes) {
@@ -204,6 +210,50 @@ class EvaluatorDutyTest {
         Map<String, Object> check = (Map<String, Object>) log.contexts.get(opened).get("check");
         assertEquals(270.0, (Double) check.get("driving_minutes"), 0.01);
         assertFalse(check.containsKey("trip"), "the trip is the case's");
+    }
+
+    /** A continuous-driving rule that is quiet while the frame is in one of the organization's authorized zones. */
+    private UUID publishOutsideZones() throws Exception {
+        SymptomSpec spec = new ObjectMapper().readValue("""
+                {"source":"trip_check",
+                 "activation":"check.trip.active && check.driving_minutes >= 270 && !check.?geo.?authorized_zone.orValue(false)",
+                 "levels":[{"icu":1,"applies":true,"when":"true"}],
+                 "lifecycle":{"open":"case.condition_s >= 0","close":"case.normal_s >= 0","levelDown":true}}
+                """, SymptomSpec.class);
+        var id = catalog.create(DEMO, "owner@example.com", new CreateRequest("driving-outside-zones",
+                "driving-outside-zones", null, null, null, "trip_check", null, spec)).definition().id();
+        catalog.publish(DEMO, "owner@example.com", id, "Primera versión", null, SymptomState.TEST);
+        return id;
+    }
+
+    @Test
+    void aRuleOnTheFramesZoneOpensOutsideTheZoneAndNotInsideWhileTheTimeCounts() throws Exception {
+        UUID outsideZones = publishOutsideZones();
+        geos = """
+                {"%s":{"authorized_zone":true,"zone":"Base"},"tenant-other":{"authorized_zone":false}}"""
+                .formatted(DEMO);
+        stream.evaluate(frame(0, 0));
+        drive(280);
+        assertEquals(List.of(), of(outsideZones), "inside its authorized zone");
+        Transition opened = of(driving).get(0);
+        assertEquals(T0.plusSeconds(270 * 60), opened.at(), "the template counts the time inside the zone");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> check = (Map<String, Object>) log.contexts.get(log.recorded.indexOf(opened)).get("check");
+        assertEquals(Map.of("authorized_zone", true, "zone", "Base"), check.get("geo"));
+
+        geos = """
+                {"%s":{"authorized_zone":false},"tenant-other":{"authorized_zone":true}}""".formatted(DEMO);
+        drive(1);
+        assertEquals(Kind.OPENED, of(outsideZones).get(0).kind(), "out of its zone, another's does not count");
+        assertEquals(T0.plusSeconds(281 * 60), of(outsideZones).get(0).at());
+    }
+
+    @Test
+    void aRuleOnTheFramesZoneOpensOnFramesWithoutZones() throws Exception {
+        UUID outsideZones = publishOutsideZones();
+        stream.evaluate(frame(0, 0));
+        drive(270);
+        assertEquals(Kind.OPENED, of(outsideZones).get(0).kind());
     }
 
     @Test

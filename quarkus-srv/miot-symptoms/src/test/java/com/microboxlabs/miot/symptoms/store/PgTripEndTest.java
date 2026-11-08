@@ -289,4 +289,31 @@ class PgTripEndTest {
         assertNull(cases.find(tenant, otherTrip).orElseThrow().closedAt(), "another trip stays open");
         assertTrue(ends.close(tenant, tripId, List.of(lost), now).isEmpty(), "closed once");
     }
+
+    @Test
+    void aTripEndCloseKeepsTheTripTheMeasureAndTheLastContext() {
+        UUID lost = symptom("signal-loss");
+        String tripId = UUID.randomUUID().toString();
+        TransitionLog.Place place = new TransitionLog.Place(tripId, null, null, null, null);
+        log.append(tenant, List.of(new Transition(Kind.OPENED, lost, "1.0.0", SymptomState.ACTIVE,
+                "TRUCK3", now.minusSeconds(3600), 1, 0, 30)), place,
+                Map.of("check", Map.of("signal_lost_minutes", 30.0)));
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, lost, "1.0.0", SymptomState.ACTIVE,
+                "TRUCK3", now.minusSeconds(600), 2, 1, 95)), place,
+                Map.of("check", Map.of("signal_lost_minutes", 95.0)));
+
+        assertEquals(1, ends.close(tenant, tripId, List.of(lost), now).size());
+
+        Row row = PgIds.query(pool, """
+                SELECT trip_id, measure, context ->> 'closed_reason' AS closed_reason,
+                       context ->> 'reason' AS reason, (context -> 'check' ->> 'signal_lost_minutes')::float AS lost
+                  FROM miot_symptoms.signal_transitions
+                 WHERE tenant_code = $1 AND kind = 'CLOSED' AND definition_id = $2 AND asset_id = 'TRUCK3'
+                """, Tuple.of(tenant, lost)).iterator().next();
+        assertEquals(tripId, row.getString("trip_id"));
+        assertEquals(95.0, row.getDouble("measure"));
+        assertEquals(TripEnds.REASON, row.getString("closed_reason"));
+        assertEquals(TripEnds.REASON, row.getString("reason"));
+        assertEquals(95.0, row.getDouble("lost"));
+    }
 }

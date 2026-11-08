@@ -308,7 +308,8 @@ public class TripChecks {
                 .evaluate(tenant, assetId, now, Map.of(TripCheck.ROOT, check), symptoms);
         TransitionLog.Place place = place(trip, last);
         if (!result.transitions().isEmpty()) {
-            List<TransitionLog.Recorded> recorded = log.appendTripCheck(tenant, result.transitions(), place, context(check));
+            List<TransitionLog.Recorded> recorded = log.appendTripCheck(tenant, withCaseTrips(state,
+                    result.transitions()), place, context(check));
             recorded.stream().filter(r -> r.transition().kind() == Transition.Kind.OPENED)
                     .forEach(r -> open.put(key(tenant, r.transition().definitionId()),
                             new OpenCase(r.caseId(), r.transition().version(), r.transition().state())));
@@ -346,6 +347,12 @@ public class TripChecks {
         }
         meters.counter("miot.symptoms.lost_signal.returned_facts", BACKFILL, String.valueOf(back.backfill()))
                 .increment();
+    }
+
+    /** Each CLOSED change with the trip its case was opened on, as the episode was loaded. */
+    static List<Transition> withCaseTrips(AssetEpisodes state, List<Transition> transitions) {
+        return transitions.stream().map(t -> t.kind() != Transition.Kind.CLOSED ? t
+                : state.loaded(t.definitionId()).map(Episode::tripId).map(t::withTrip).orElse(t)).toList();
     }
 
     static String key(String tenant, UUID definitionId) {

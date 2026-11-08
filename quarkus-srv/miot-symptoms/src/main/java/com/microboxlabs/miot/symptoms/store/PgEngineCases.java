@@ -400,7 +400,8 @@ public class PgEngineCases implements EngineCaseStore {
 
     /**
      * Closes each open case of the trip ($1 tenant, $2 trip) of the symptoms $3, at its current level, with
-     * {@code closed_by} and the context's {@code reason} $5, at $4.
+     * {@code closed_by} and the context's {@code reason} and {@code closed_reason} $5, at $4. The row keeps the
+     * case's trip, its highest recorded measure and the context of its last change.
      */
     private static final String CLOSE_TRIP = """
             WITH closed AS (
@@ -410,11 +411,12 @@ public class PgEngineCases implements EngineCaseStore {
             SELECT DISTINCT ON (o.definition_id, o.asset_id, o.state)
                    o.tenant_code, o.definition_id, o.version, o.state, 'CLOSED', o.asset_id, $4,
                    COALESCE(lv.level, o.level), COALESCE(lv.level, o.level),
-                   o.measure, o.trip_id, o.latitude, o.longitude, o.speed_kmh, $5::text,
-                   jsonb_build_object('reason', $5::text, 'trip_id', o.trip_id)
+                   GREATEST(o.measure, lv.measure), o.trip_id, o.latitude, o.longitude, o.speed_kmh, $5::text,
+                   COALESCE(lv.context, o.context, '{}'::jsonb)
+                       || jsonb_build_object('reason', $5::text, 'trip_id', o.trip_id, 'closed_reason', $5::text)
               FROM miot_symptoms.signal_transitions o
               LEFT JOIN LATERAL (
-                  SELECT l.level FROM miot_symptoms.signal_transitions l
+                  SELECT l.level, l.measure, l.context FROM miot_symptoms.signal_transitions l
                    WHERE l.tenant_code = o.tenant_code AND l.definition_id = o.definition_id
                      AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED' AND l.id > o.id
                    ORDER BY l.id DESC LIMIT 1) lv ON true

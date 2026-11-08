@@ -592,6 +592,48 @@ class EngineCaseServiceTest {
         assertEquals(1, reason.path("levels").get(0).path("icu_code").asInt());
     }
 
+    private static EngineCase speeding(long id) {
+        return new EngineCase(id, PANIC, "2.0.0", "Exceso de velocidad", "driving_safety", "DEMO01", OPENED, 4,
+                "T-1", -33.4489, -70.6693, 61.2, null, 0, null, 0L, null, null, null, "measure > 21.0",
+                List.of(new EngineCase.LevelStep(OPENED, 2, 61.0, new EngineCase.SpeedLimit(50, "custom", "Tramo A")),
+                        new EngineCase.LevelStep(OPENED.plusSeconds(60), 4, 84.0,
+                                new EngineCase.SpeedLimit(60, "road", null))));
+    }
+
+    @Test
+    void aSpeedCaseGivesTheMapEachChangesSpeedAndLimit() {
+        store.add(speeding(12));
+
+        JsonNode signals = service.signals(TENANT, -12);
+        JsonNode d = signals.path("description");
+        assertEquals(84, d.path("speed").asInt(), "the change that set the level");
+        assertTrue(d.path("speed").isIntegralNumber());
+        assertEquals(60, d.path("speed_limit").asInt());
+        assertEquals("road", d.path("speed_limit_source").asText());
+        assertFalse(d.has("speed_limit_zone"));
+        assertEquals(61.2, d.path("last_reported_speed").asDouble());
+        assertEquals(50, signals.path("features").get(0).path("properties").path("speed_limit").asInt(),
+                "the opening point has the opening's limit");
+
+        JsonNode levels = service.header(TENANT, -12).path("level_reason").path("levels");
+        assertEquals(61, levels.get(0).path("speed").asInt());
+        assertEquals(50, levels.get(0).path("speed_limit").asInt());
+        assertEquals("custom", levels.get(0).path("speed_limit_source").asText());
+        assertEquals("Tramo A", levels.get(0).path("speed_limit_zone").asText());
+        assertEquals(84, levels.get(1).path("speed").asInt());
+        assertEquals(60, levels.get(1).path("speed_limit").asInt());
+    }
+
+    @Test
+    void anotherSymptomHasNoSpeedLines() {
+        store.add(panic(12, "DEMO01"));
+
+        JsonNode d = service.signals(TENANT, -12).path("description");
+        assertFalse(d.has("speed"));
+        assertFalse(d.has("speed_limit"));
+        assertFalse(service.header(TENANT, -12).path("level_reason").path("levels").path(0).has("speed"));
+    }
+
     @Test
     void aCaseWithoutAKeptContextStillAnswersItsLevel() {
         store.add(panic(12, "DEMO01"));

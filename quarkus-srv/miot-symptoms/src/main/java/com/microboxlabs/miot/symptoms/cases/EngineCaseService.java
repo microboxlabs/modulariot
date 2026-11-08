@@ -98,6 +98,7 @@ public class EngineCaseService {
     private static final Map<Integer, String> COUNTED = Map.of(1, "Under Observation", 2, "Compromised condition",
             3, "Critical condition", 4, "Code Black");
     private static final String DESCRIPTION = "description";
+    private static final String SPEED_LIMIT = "speed_limit";
     private static final String TREATMENT_TYPE = "treatment_type";
     private static final String MESSAGE = "message";
     private static final String TREATMENTS = "treatments";
@@ -437,7 +438,7 @@ public class EngineCaseService {
             String asset = position.hasNonNull(POSITION_ASSET_ID) ? position.get(POSITION_ASSET_ID).asText()
                     : position.path("assetid").asText(null);
             List<EngineCaseStore.OpenLevel> open = asset == null ? List.of() : byAsset.getOrDefault(asset, List.of());
-            position.remove(List.of("speed_limit", "lost_signal", "symptoms", "symptom_condition"));
+            position.remove(List.of(SPEED_LIMIT, "lost_signal", "symptoms", "symptom_condition"));
             position.putNull("speed_limit_condition");
             position.put("symptoms_condition", open.stream().mapToInt(EngineCaseStore.OpenLevel::level).max()
                     .orElse(0));
@@ -838,7 +839,8 @@ public class EngineCaseService {
             reason.put("lost_since", lost.toString());
         }
         ArrayNode levels = reason.putArray("levels");
-        c.levels().forEach(step -> levels.addObject().put("at", step.at().toString()).put(ICU_CODE, step.level()));
+        c.levels().forEach(step -> speed(levels.addObject().put("at", step.at().toString())
+                .put(ICU_CODE, step.level()), step));
         return reason;
     }
 
@@ -857,6 +859,9 @@ public class EngineCaseService {
             props.put("speed", c.speedKmh() == null ? 0 : c.speedKmh());
             props.put("timestamp", start(c).toString());
             props.put(ICU_CODE, c.level());
+            if (!c.levels().isEmpty() && c.levels().get(0).speedLimit() != null) {
+                kmh(props, SPEED_LIMIT, c.levels().get(0).speedLimit().kmh());
+            }
         }
         out.set(DESCRIPTION, description(c, end(c), reported(c), clock.instant()));
         return out;
@@ -889,6 +894,9 @@ public class EngineCaseService {
         if (c.speedKmh() != null) {
             d.put("last_reported_speed", c.speedKmh());
         }
+        if (!c.levels().isEmpty()) {
+            speed(d, c.levels().get(c.levels().size() - 1));
+        }
         boolean lost = c.openingContext() != null && c.openingContext().path(CHECK).path("loss").isObject();
         Long lag = lost ? signalLag(c, reported, now) : null;
         if (lag != null) {
@@ -903,6 +911,34 @@ public class EngineCaseService {
             d.put("last_reported_engine_status", engine);
         }
         return d;
+    }
+
+    /**
+     * A speed case's change as the map's speed lines read it, with the GPS database's names: {@code speed} and
+     * {@code speed_limit} in km/h, so the excess is their difference, plus {@code speed_limit_source} ({@code road}
+     * or {@code custom}) and the own limit's zone name as {@code speed_limit_zone}. Nothing for other symptoms.
+     */
+    static void speed(ObjectNode out, EngineCase.LevelStep step) {
+        if (step.speedKmh() == null) {
+            return;
+        }
+        kmh(out, "speed", step.speedKmh());
+        EngineCase.SpeedLimit limit = step.speedLimit();
+        if (limit != null) {
+            kmh(out, SPEED_LIMIT, limit.kmh());
+            out.put("speed_limit_source", limit.source());
+            if (limit.zone() != null) {
+                out.put("speed_limit_zone", limit.zone());
+            }
+        }
+    }
+
+    private static void kmh(ObjectNode out, String field, double kmh) {
+        if (kmh == Math.rint(kmh)) {
+            out.put(field, (long) kmh);
+        } else {
+            out.put(field, kmh);
+        }
     }
 
     private static Long signalLag(EngineCase c, Optional<Reported> reported, Instant now) {

@@ -49,8 +49,68 @@ public record EngineCase(long id, UUID definitionId, String version, String name
     public record TripDetails(String driver, String carrier, String origin, String destination) {
     }
 
-    /** The case reached {@code level} at {@code at}. */
-    public record LevelStep(Instant at, int level) {
+    /**
+     * The case reached {@code level} at {@code at}. A speed case's change also has the speed and the limit it was
+     * compared with; both null for any other symptom.
+     *
+     * @param speedKmh   the frame's speed, rounded as the speed rules round it
+     * @param speedLimit null when the change kept no limit and none can be derived
+     */
+    public record LevelStep(Instant at, int level, Double speedKmh, SpeedLimit speedLimit) {
+
+        public LevelStep(Instant at, int level) {
+            this(at, level, null, null);
+        }
+    }
+
+    /**
+     * The limit a speed rule compared the speed with.
+     *
+     * @param source {@code road} (the road network's limit) or {@code custom} (the organization's own)
+     * @param zone   the own limit's zone name, or null
+     */
+    public record SpeedLimit(double kmh, String source, String zone) {
+
+        public static final String CUSTOM = "custom";
+        public static final String ROAD = "road";
+
+        /**
+         * The limit of a change of a symptom whose measure reads {@code source}'s limit: the one its context kept
+         * ({@code speed_limit}), else the speed minus the measure, as the speed templates measure the excess. Null
+         * without a source, or when neither gives a positive limit.
+         */
+        public static SpeedLimit of(String source, JsonNode kept, Double speedKmh, Double measure) {
+            if (source == null) {
+                return null;
+            }
+            if (kept != null && kept.isObject()) {
+                boolean custom = CUSTOM.equals(source);
+                JsonNode kmh = kept.path(custom ? "custom_kmh" : "road_kmh");
+                if (kmh.isNumber() && kmh.asDouble() > 0) {
+                    JsonNode zone = kept.path("zone_name");
+                    return new SpeedLimit(kmh.asDouble(), source, custom && zone.isTextual() ? zone.asText() : null);
+                }
+            }
+            if (speedKmh == null || measure == null) {
+                return null;
+            }
+            double derived = Math.round(speedKmh) - measure;
+            return derived > 0 ? new SpeedLimit(derived, source, null) : null;
+        }
+
+        /**
+         * The limit a measure expression reads: {@code custom} for {@code signal.road.maxspeed_custom},
+         * {@code road} for {@code signal.road.maxspeed_osm}, null when it reads neither or not the speed.
+         */
+        public static String source(String measureExpression) {
+            if (measureExpression == null || !measureExpression.contains("gps.speed")) {
+                return null;
+            }
+            if (measureExpression.contains("road.maxspeed_custom")) {
+                return CUSTOM;
+            }
+            return measureExpression.contains("road.maxspeed_osm") ? ROAD : null;
+        }
     }
 
     public EngineCase {

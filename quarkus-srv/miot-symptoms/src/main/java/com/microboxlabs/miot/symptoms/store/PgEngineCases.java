@@ -206,7 +206,8 @@ public class PgEngineCases implements EngineCaseStore {
                        AND (l.id = w.id OR (l.kind = 'LEVEL_CHANGED' AND l.id > w.id
                             AND (w.closed_id IS NULL OR l.id < w.closed_id)))
                      ORDER BY l.id DESC LIMIT 1) AS level_context,
-                   (SELECT json_agg(json_build_object('at', l.at, 'level', l.level) ORDER BY l.id)::text
+                   (SELECT json_agg(json_build_object('at', l.at, 'level', l.level, 'speed_kmh', l.speed_kmh,
+                           'measure', l.measure, 'speed_limit', l.context -> 'speed_limit') ORDER BY l.id)::text
                       FROM miot_symptoms.signal_transitions l
                      WHERE l.tenant_code = w.tenant_code AND l.definition_id = w.definition_id
                        AND l.asset_id = w.asset_id AND l.state = w.state
@@ -218,7 +219,13 @@ public class PgEngineCases implements EngineCaseStore {
                       FROM miot_symptoms.symptom_version v
                      WHERE v.definition_id = w.definition_id AND v.tenant_code = w.tenant_code
                        AND v.version = w.version
-                     LIMIT 1) AS level_rule
+                     LIMIT 1) AS level_rule,
+                   (SELECT CASE jsonb_typeof(v.spec) WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END
+                           #>> '{measure,expression}'
+                      FROM miot_symptoms.symptom_version v
+                     WHERE v.definition_id = w.definition_id AND v.tenant_code = w.tenant_code
+                       AND v.version = w.version
+                     LIMIT 1) AS measure_expression
               FROM (%s) w
             """.formatted(WITH_SLA.formatted(SELECT.formatted(TREATABLE_CASES + " AND o.id = $2")));
     /** Enrich only the returned page, without changing counts or looking up each trip separately. */
@@ -547,7 +554,9 @@ public class PgEngineCases implements EngineCaseStore {
         Row r = rows.next();
         return Optional.of(engineCase(r).withLevel(json(r.getString("opening_context")),
                 json(r.getString("level_context")), r.getString("level_rule"),
-                steps(json(r.getString("level_steps")))).withClosing(json(r.getString("closing_context"))));
+                steps(json(r.getString("level_steps")),
+                        EngineCase.SpeedLimit.source(r.getString("measure_expression"))))
+                .withClosing(json(r.getString("closing_context"))));
     }
 
     @Override
@@ -717,19 +726,35 @@ public class PgEngineCases implements EngineCaseStore {
     }
 
     static List<EngineCase.LevelStep> steps(JsonNode steps) {
+        return steps(steps, null);
+    }
+
+    /**
+     * @param speedSource the limit the symptom's measure reads ({@link EngineCase.SpeedLimit#source}); with it each
+     *                    step has its speed and limit
+     */
+    static List<EngineCase.LevelStep> steps(JsonNode steps, String speedSource) {
         List<EngineCase.LevelStep> out = new ArrayList<>();
         if (steps == null || !steps.isArray()) {
             return out;
         }
         for (JsonNode step : steps) {
             try {
-                out.add(new EngineCase.LevelStep(OffsetDateTime.parse(step.path("at").asText()).toInstant(),
-                        step.path("level").asInt()));
+                Instant at = OffsetDateTime.parse(step.path("at").asText()).toInstant();
+                int level = step.path("level").asInt();
+                Double speed = number(step.path("speed_kmh"));
+                out.add(speedSource == null || speed == null ? new EngineCase.LevelStep(at, level)
+                        : new EngineCase.LevelStep(at, level, (double) Math.round(speed), EngineCase.SpeedLimit.of(
+                                speedSource, step.get("speed_limit"), speed, number(step.path("measure")))));
             } catch (java.time.format.DateTimeParseException e) {
                 LOG.debug("Engine case level step without a valid time", e);
             }
         }
         return out;
+    }
+
+    private static Double number(JsonNode n) {
+        return n != null && n.isNumber() ? n.asDouble() : null;
     }
 
     private static JsonNode json(String text) {

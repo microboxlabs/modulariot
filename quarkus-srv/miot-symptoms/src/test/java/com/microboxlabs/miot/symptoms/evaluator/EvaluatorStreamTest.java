@@ -462,7 +462,7 @@ class EvaluatorStreamTest {
         assertEquals(id, recorded.get(2).definitionId(), "the operator-only panic case stays open");
         SymptomCaseData closed = (SymptomCaseData) fired.get(2).data();
         assertNull(closed.speedKmh(), "reconciliation carries no GPS data");
-        assertNull(closed.tripId());
+        assertEquals("T-1", closed.tripId(), "the case's trip");
         assertEquals(1, samples.recent(DEMO, 20).size());
     }
 

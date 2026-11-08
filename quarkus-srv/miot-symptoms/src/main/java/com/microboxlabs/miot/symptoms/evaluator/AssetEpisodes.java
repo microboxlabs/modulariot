@@ -19,6 +19,7 @@ public class AssetEpisodes implements EpisodeStore {
     private final String assetId;
     private final long closeRevision;
     private final Map<UUID, Episode> episodes;
+    private final Map<UUID, Episode> loaded;
     private final Map<String, Instant> watermarks;
     private final Set<UUID> saved = new HashSet<>();
     private final Set<UUID> deleted = new HashSet<>();
@@ -35,6 +36,7 @@ public class AssetEpisodes implements EpisodeStore {
         this.assetId = assetId;
         this.closeRevision = closeRevision;
         this.episodes = new HashMap<>(episodes);
+        this.loaded = Map.copyOf(episodes);
         this.watermarks = new HashMap<>(watermarks);
     }
 
@@ -62,6 +64,11 @@ public class AssetEpisodes implements EpisodeStore {
             deleted.add(definitionId);
         }
         saved.remove(definitionId);
+    }
+
+    /** The symptom's episode as it was loaded, before any change to this snapshot. */
+    public Optional<Episode> loaded(UUID definitionId) {
+        return Optional.ofNullable(loaded.get(definitionId));
     }
 
     @Override

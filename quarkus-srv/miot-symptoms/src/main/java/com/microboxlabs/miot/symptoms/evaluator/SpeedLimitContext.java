@@ -40,8 +40,7 @@ final class SpeedLimitContext {
         if (limit.isEmpty() || t.detail() != null) {
             return t;
         }
-        return new Transition(t.kind(), t.definitionId(), t.version(), t.state(), t.assetId(), t.at(), t.level(),
-                t.previousLevel(), t.measure(), Map.of(KEY, limit));
+        return t.withDetail(Map.of(KEY, limit));
     }
 
     /** The signal's limits, or an empty map when it has none. */

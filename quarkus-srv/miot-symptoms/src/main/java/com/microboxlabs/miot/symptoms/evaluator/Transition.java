@@ -16,6 +16,7 @@ import java.util.UUID;
  * @param previousLevel the level before this change; 0 when the case opens
  * @param detail        what the log keeps with the change instead of the signal's context, or null: for
  *                      {@code NOTED}, {@code {"note": {"event_type", "description", "at"}}}
+ * @param tripId        the case's trip, recorded instead of the signal's; null to record the signal's
  */
 public record Transition(
         Kind kind,
@@ -27,11 +28,28 @@ public record Transition(
         int level,
         int previousLevel,
         double measure,
-        Map<String, Object> detail) {
+        Map<String, Object> detail,
+        String tripId) {
 
     public Transition(Kind kind, UUID definitionId, String version, SymptomState state, String assetId, Instant at,
             int level, int previousLevel, double measure) {
         this(kind, definitionId, version, state, assetId, at, level, previousLevel, measure, null);
+    }
+
+    @SuppressWarnings("java:S107")
+    public Transition(Kind kind, UUID definitionId, String version, SymptomState state, String assetId, Instant at,
+            int level, int previousLevel, double measure, Map<String, Object> detail) {
+        this(kind, definitionId, version, state, assetId, at, level, previousLevel, measure, detail, null);
+    }
+
+    public Transition withDetail(Map<String, Object> value) {
+        return new Transition(kind, definitionId, version, state, assetId, at, level, previousLevel, measure, value,
+                tripId);
+    }
+
+    public Transition withTrip(String value) {
+        return new Transition(kind, definitionId, version, state, assetId, at, level, previousLevel, measure, detail,
+                value);
     }
 
     /** Why a case closed when its symptom changed state, kept in the CLOSED row's context. */

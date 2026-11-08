@@ -15,14 +15,49 @@ import java.time.Instant;
  * @param rest     the duty count of the trip in progress, or null without one or after a long rest
  * @param restarts the duty restarts already applied ({@link DutyStore#restartDuty})
  * @param skipped  the last frame not applied for an implied jump from {@code at}, or null
+ * @param last     the counters of the last frame applied on a trip, kept after the trip ends; null in a state
+ *                 written before it was kept
+ * @param ended    {@code last} of the trip before it, kept for a case of that trip that closes on the next trip
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @RegisterForReflection
-public record DutyState(Instant at, double lat, double lon, Drive drive, Rest rest, long restarts, Fix skipped) {
+public record DutyState(Instant at, double lat, double lon, Drive drive, Rest rest, long restarts, Fix skipped,
+        Last last, Last ended) {
 
     public DutyState(Instant at, double lat, double lon, Drive drive, Rest rest, long restarts) {
-        this(at, lat, lon, drive, rest, restarts, null);
+        this(at, lat, lon, drive, rest, restarts, null, null, null);
+    }
+
+    public DutyState(Instant at, double lat, double lon, Drive drive, Rest rest, long restarts, Fix skipped) {
+        this(at, lat, lon, drive, rest, restarts, skipped, null, null);
+    }
+
+    /** The state keeping {@code from}'s last counters of each trip. */
+    public DutyState withTrips(DutyState from) {
+        return from == null ? this
+                : new DutyState(at, lat, lon, drive, rest, restarts, skipped, from.last(), from.ended());
+    }
+
+    /** The state after a frame applied on {@code value}'s trip: a new trip moves the last counters to ended. */
+    public DutyState withLast(Last value) {
+        Last before = last != null && !last.trip().equals(value.trip()) ? last : ended;
+        return new DutyState(at, lat, lon, drive, rest, restarts, skipped, value, before);
+    }
+
+    /** The counters of the trip's last applied frame, or null when they are not kept. */
+    public Last lastOf(String trip) {
+        if (last != null && last.trip().equals(trip)) {
+            return last;
+        }
+        return ended != null && ended.trip().equals(trip) ? ended : null;
+    }
+
+    /** What the check of a trip's last applied frame published, in minutes. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @RegisterForReflection
+    public record Last(String trip, double drivingMinutes, double restingMinutes, double dutyMinutes) {
     }
 
     /** A frame's time, position and trip; a missing trip in an older state is treated as unknown. */

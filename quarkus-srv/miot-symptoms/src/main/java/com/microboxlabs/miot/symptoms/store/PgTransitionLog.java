@@ -192,7 +192,7 @@ public class PgTransitionLog implements TransitionLog {
         return Tuple.tuple().addValue(tenantCode).addValue(t.definitionId()).addValue(t.version())
                 .addValue(t.state().name()).addValue(t.kind().name()).addValue(t.assetId())
                 .addValue(t.at().atOffset(ZoneOffset.UTC)).addValue(t.level()).addValue(t.previousLevel())
-                .addValue(t.measure()).addValue(place.tripId()).addValue(place.latitude())
+                .addValue(t.measure()).addValue(place.of(t).tripId()).addValue(place.latitude())
                 .addValue(place.longitude()).addValue(place.speedKmh()).addValue(context);
     }
 }

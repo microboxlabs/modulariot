@@ -108,7 +108,7 @@ public class SignalEvaluator {
                 e.levelSince().keySet().forEach(level -> restarted.put(level, at));
                 store.save(tenant, new Episode(e.definitionId(), e.version(), asset, at, e.conditionSince(),
                         e.normalSince(), restarted, e.lastSignalAt(), e.openedAt(), e.level(), e.maxMeasure(),
-                        e.state(), e.closedOnTrip(), e.closedOnTripAt(), e.offTripSince()));
+                        e.state(), e.closedOnTrip(), e.closedOnTripAt(), e.offTripSince(), e.tripId()));
             }
         }
         return closed;
@@ -254,7 +254,7 @@ public class SignalEvaluator {
         store.save(tenantCode, new Episode(e.definitionId(), e.version(), e.assetId(), e.candidateSince(),
                 e.conditionSince(), e.normalSince(), e.levelSince(), e.lastSignalAt(), e.openedAt(), r.level(),
                 Math.max(e.maxMeasure(), r.measure()), e.state() != null ? e.state() : s.state(),
-                e.closedOnTrip(), e.closedOnTripAt(), e.offTripSince()));
+                e.closedOnTrip(), e.closedOnTripAt(), e.offTripSince(), e.tripId()));
         return Optional.of(transition(Kind.LEVEL_CHANGED, s, e.assetId(), at, r.level(), e.level(), r.measure()));
     }
 
@@ -406,7 +406,7 @@ public class SignalEvaluator {
             int initial = e.level() > 0 ? s.levels().keySet().iterator().next() : r.level();
             Episode opened = new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                     r.conditionSince(), r.normalSince(), r.levelSince(), at, at, initial, r.measure(), s.state(),
-                    offTrip(root) ? at : null);
+                    null, null, offTrip(root) ? at : null, activeTripId(root));
             return new Step(opened, transition(Kind.OPENED, s, e.assetId(), at, initial, 0, r.measure()));
         }
         return new Step(new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
@@ -418,6 +418,17 @@ public class SignalEvaluator {
         for (Object source : root.values()) {
             if (source instanceof Map<?, ?> m && m.get("trip") instanceof Map<?, ?> trip
                     && trip.get("id") instanceof String id) {
+                return id;
+            }
+        }
+        return null;
+    }
+
+    /** The id of the active trip the source carries, or null. */
+    static String activeTripId(Map<String, Object> root) {
+        for (Object source : root.values()) {
+            if (source instanceof Map<?, ?> m && m.get("trip") instanceof Map<?, ?> trip
+                    && Boolean.TRUE.equals(trip.get("active")) && trip.get("id") instanceof String id) {
                 return id;
             }
         }
@@ -451,7 +462,8 @@ public class SignalEvaluator {
         // An episode written before the state was kept takes the symptom's state: a stale one was closed at startup.
         Episode kept = new Episode(s.definitionId(), s.version(), e.assetId(), held ? null : r.candidateSince(),
                 r.conditionSince(), r.normalSince(), since, at, e.openedAt(), level, max,
-                e.state() != null ? e.state() : s.state(), e.closedOnTrip(), e.closedOnTripAt(), offTripSince);
+                e.state() != null ? e.state() : s.state(), e.closedOnTrip(), e.closedOnTripAt(), offTripSince,
+                e.tripId() != null ? e.tripId() : activeTripId(root));
         Transition changed = level != e.level()
                 ? transition(Kind.LEVEL_CHANGED, s, e.assetId(), at, level, e.level(), r.measure())
                 : null;

@@ -12,6 +12,12 @@ public interface TransitionLog {
      * @param driverId the trip's driver in the driver registry; published, not stored
      */
     record Place(String tripId, Double latitude, Double longitude, Double speedKmh, String driverId) {
+
+        /** Where the change is recorded: here, with the case's trip when the change carries one. */
+        public Place of(Transition t) {
+            return t.tripId() == null || t.tripId().equals(tripId) ? this
+                    : new Place(t.tripId(), latitude, longitude, speedKmh, driverId);
+        }
     }
 
     /**

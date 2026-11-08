@@ -12,6 +12,7 @@ class InMemoryTransitionLog implements TransitionLog {
 
     final List<Transition> recorded = new ArrayList<>();
     final List<Map<String, Object>> contexts = new ArrayList<>();
+    final List<Place> places = new ArrayList<>();
     private final Set<String> held = new HashSet<>();
     private final Map<String, Long> openedIds = new HashMap<>();
 
@@ -28,6 +29,7 @@ class InMemoryTransitionLog implements TransitionLog {
             }
             recorded.add(t);
             contexts.add(t.detail() != null ? t.detail() : context);
+            places.add(place.of(t));
             long id = recorded.size();
             String caseKey = tenantCode + "/" + t.definitionId() + "/" + t.assetId() + "/" + t.state();
             if (t.kind() == Transition.Kind.OPENED) {

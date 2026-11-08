@@ -137,7 +137,7 @@ public class DutyTracker {
 
     /** The state with the duty count ended, as after a long rest: the next frame starts it again. */
     public static DutyState restartDuty(DutyState s, long restarts) {
-        return new DutyState(s.at(), s.lat(), s.lon(), s.drive(), null, restarts, s.skipped());
+        return new DutyState(s.at(), s.lat(), s.lon(), s.drive(), null, restarts, s.skipped(), s.last(), s.ended());
     }
 
     private double maxMps() {

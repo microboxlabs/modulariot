@@ -6,6 +6,7 @@ import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.duty.DutyChecks;
+import com.microboxlabs.miot.symptoms.duty.DutyState;
 import com.microboxlabs.miot.symptoms.duty.DutyStore;
 import com.microboxlabs.miot.symptoms.duty.InMemoryDutyStore;
 import com.microboxlabs.miot.symptoms.duty.RedisDutyStore;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -65,6 +67,12 @@ public class EvaluatorStream {
     private static final ObjectMapper JSON = new ObjectMapper();
     static final String SOURCE = "gps_signal";
     private static final String FRAME = "frame";
+    /** Why a case closed, in its CLOSED row's context, when it closed after its trip was over. */
+    static final String CLOSED_REASON = "closed_reason";
+    /** The case's trip ended, or the vehicle moved on to another trip. */
+    static final String TRIP_ENDED = "trip_ended";
+    /** The organization stopped receiving the vehicle's signal, so its trip is no longer seen. */
+    static final String ACCESS_ENDED = "access_ended";
     private static final Duration VERSIONS_TTL = Duration.ofSeconds(30);
     /** Client ids are 8 characters before any suffix; the tag keeps only those. */
     private static final int SENDER_TAG = 8;
@@ -294,7 +302,8 @@ public class EvaluatorStream {
                 AssetEpisodes state = episodes.load(tenant, assetId);
                 SignalEvaluator.Result result = new SignalEvaluator(state, held)
                         .evaluateLate(tenant, assetId, at, Map.of(SignalFields.ROOT, own), symptoms);
-                recordTransitions(tenant, assetId, own, state, result, true, eventContext(own), held);
+                recordTransitions(tenant, assetId, own, state, result, true, eventContext(own), held,
+                        OffTrip.of(TRIP_ENDED, eventContext(own)));
                 episodes.save(state);
                 count(result);
                 recorded += result.transitions().size();
@@ -389,7 +398,9 @@ public class EvaluatorStream {
                         : evaluator.evaluate(tenant, assetId, at, root, o.symptoms());
                 result = new SignalEvaluator.Result(SpeedLimitContext.with(o.signal(), result.transitions(),
                         o.symptoms()), result.errors());
-                recordTransitions(tenant, assetId, o.signal(), state, result, late, eventContext(o.signal()), held);
+                Map<String, Object> context = eventContext(o.signal());
+                recordTransitions(tenant, assetId, o.signal(), state, result, late, context, held,
+                        OffTrip.of(TRIP_ENDED, context));
                 results.add(result);
                 recorded += result.transitions().size();
                 save = true;
@@ -404,7 +415,9 @@ public class EvaluatorStream {
             } else {
                 SignalEvaluator.Result result = new SignalEvaluator(state, held).evaluateUnder(DutyChecks.WATERMARK,
                         tenant, assetId, at, Map.of(TripCheck.ROOT, c.check()), o.dutySymptoms());
-                recordTransitions(tenant, assetId, o.signal(), state, result, false, c.context(), held);
+                DutyChecks.Check check = c;
+                recordTransitions(tenant, assetId, o.signal(), state, result, false, c.context(), held,
+                        new OffTrip(TRIP_ENDED, trip -> dutyContext(check.next(), trip, check.context())));
                 results.add(result);
                 recorded += result.transitions().size();
                 save = true;
@@ -442,7 +455,8 @@ public class EvaluatorStream {
         }
         SignalEvaluator.Result result = new SignalEvaluator(state, held).reconcile(tenant, assetId, at,
                 Map.of(SignalFields.ROOT, signal), symptoms);
-        recordTransitions(tenant, assetId, signal, state, result, false, eventContext(signal), held);
+        recordTransitions(tenant, assetId, signal, state, result, false, eventContext(signal), held,
+                OffTrip.of(ACCESS_ENDED, eventContext(signal)));
         episodes.save(state);
         count(result);
         return result.transitions().size();
@@ -461,12 +475,63 @@ public class EvaluatorStream {
         Map<String, Object> check = Map.of("trip", NO_TRIP);
         SignalEvaluator.Result result = new SignalEvaluator(state, held).reconcileUnder(DutyChecks.WATERMARK,
                 tenant, assetId, at, Map.of(TripCheck.ROOT, check), symptoms);
+        DutyState counters = result.transitions().isEmpty() ? null : duty.state(tenant, assetId);
         var next = duty.endTrip(tenant, assetId, at);
-        recordTransitions(tenant, assetId, Map.of(), state, result, false, Map.of(TripCheck.ROOT, Map.of()), held);
+        Map<String, Object> context = Map.of(TripCheck.ROOT, Map.of());
+        recordTransitions(tenant, assetId, Map.of(), state, result, false, context, held,
+                new OffTrip(ACCESS_ENDED, trip -> dutyContext(counters, trip, context)));
         episodes.save(state);
         count(result);
         next.ifPresent(s -> duty.save(tenant, assetId, s));
         return result.transitions().size();
+    }
+
+    /** The counters of the case's trip's last applied frame, when the duty state keeps them; else {@code fallback}. */
+    private static Map<String, Object> dutyContext(DutyState counters, String caseTrip,
+            Map<String, Object> fallback) {
+        DutyState.Last last = counters == null ? null : counters.lastOf(caseTrip);
+        return last != null ? DutyChecks.context(last) : fallback;
+    }
+
+    /**
+     * How a case that closed after its trip was over is recorded: why ({@link #CLOSED_REASON}), and the context
+     * its CLOSED row keeps for the case's trip.
+     */
+    private record OffTrip(String reason, Function<String, Map<String, Object>> context) {
+
+        static OffTrip of(String reason, Map<String, Object> context) {
+            return new OffTrip(reason, trip -> context);
+        }
+    }
+
+    /**
+     * The changes as the log keeps them. A CLOSED change carries the trip its case was opened on, from the episode
+     * as it was loaded, so it is recorded with the case's trip even when the closing signal has none. When that
+     * trip is not the signal's active trip, the case closed after its trip was over: the row keeps the context
+     * {@code offTrip} gives for the trip, with {@link #CLOSED_REASON}. A case opened before its trip was kept on the
+     * episode has no trip, and is recorded as before.
+     */
+    private static List<Transition> asRecorded(List<Transition> transitions, AssetEpisodes state,
+            Map<String, Object> signal, OffTrip offTrip) {
+        String onTrip = SignalEvaluator.activeTripId(Map.of(SignalFields.ROOT, signal));
+        return transitions.stream().map(t -> {
+            if (t.kind() != Transition.Kind.CLOSED) {
+                return t;
+            }
+            String trip = state.loaded(t.definitionId()).map(Episode::tripId).orElse(null);
+            if (trip == null) {
+                return t;
+            }
+            Transition closed = t.withTrip(trip);
+            boolean stateChange = t.detail() != null && t.detail().containsKey("reason");
+            if (trip.equals(onTrip) || stateChange) {
+                return closed;
+            }
+            Map<String, Object> base = t.detail() != null ? t.detail() : offTrip.context().apply(trip);
+            Map<String, Object> detail = base == null ? new LinkedHashMap<>() : new LinkedHashMap<>(base);
+            detail.put(CLOSED_REASON, offTrip.reason());
+            return closed.withDetail(detail);
+        }).toList();
     }
 
     /** Hands a late frame to the late hook; true when an event-driven symptom still has to run on it. */
@@ -494,20 +559,21 @@ public class EvaluatorStream {
      */
     @SuppressWarnings("java:S107") // The result, where it comes from, and what the changes keep.
     private void recordTransitions(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
-            SignalEvaluator.Result result, boolean late, Map<String, Object> context, Holds held) {
+            SignalEvaluator.Result result, boolean late, Map<String, Object> context, Holds held, OffTrip offTrip) {
         if (result.transitions().isEmpty()) {
             return;
         }
         TransitionLog.Place place = place(signal);
+        List<Transition> changes = asRecorded(result.transitions(), state, signal, offTrip);
         // Only the changes new to the log: a replayed signal publishes nothing twice.
-        List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, result.transitions(), place, context);
+        List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, changes, place, context);
         events.transitions(tenant, recorded.stream()
                 .filter(r -> !held.held(tenant, assetId, r.transition().definitionId(), Instant.EPOCH))
                 .toList(), place);
         if (late) {
             // A late opening the log already holds is a replay of a case that may be closed since: it keeps no
             // episode, or that episode would block the next real event.
-            result.transitions().stream()
+            changes.stream()
                     .filter(t -> t.kind() == Transition.Kind.OPENED)
                     .filter(t -> recorded.stream().noneMatch(r -> r.transition().equals(t)))
                     .forEach(t -> state.delete(tenant, assetId, t.definitionId()));

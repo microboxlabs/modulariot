@@ -223,7 +223,8 @@ public record GpsSignal(
             @Schema(title = "En zona autorizada", description = "Dentro de al menos una zona autorizada",
                     extensions = @Extension(name = "x-origin", value = "ZONES"))
             @JsonProperty("authorized_zone") Boolean authorizedZone,
-            @Schema(title = "Zona", extensions = {
+            @Schema(title = "Zona", description = "Nombre de la zona en la que está: primero una de riesgo, luego "
+                    + "una autorizada", extensions = {
                     @Extension(name = "x-type", value = "zone"), @Extension(name = "x-origin", value = "ZONES") })
             String zone,
             @Schema(title = "En zona de riesgo", description = "Dentro de al menos una zona de riesgo",
@@ -232,10 +233,22 @@ public record GpsSignal(
             @Schema(title = "Fuera de zona autorizada", description = "En ninguna zona, o dentro de una zona no "
                     + "autorizada aunque se cruce con una autorizada",
                     extensions = @Extension(name = "x-origin", value = "ZONES"))
-            @JsonProperty("outside_authorized") Boolean outsideAuthorized) {
+            @JsonProperty("outside_authorized") Boolean outsideAuthorized,
+            @Schema(title = "Zona de riesgo con horario", description = "La zona de riesgo tiene su propio horario "
+                    + "de riesgo",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @JsonProperty("risk_scheduled") Boolean riskScheduled,
+            @Schema(title = "En horario de riesgo", description = "La hora local está dentro del horario de la zona "
+                    + "de riesgo; sin dato si la zona no tiene horario",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @JsonProperty("in_risk_schedule") Boolean inRiskSchedule) {
 
         public Geo(Boolean authorizedZone, String zone) {
             this(authorizedZone, zone, null, null);
+        }
+
+        public Geo(Boolean authorizedZone, String zone, Boolean riskZone, Boolean outsideAuthorized) {
+            this(authorizedZone, zone, riskZone, outsideAuthorized, null, null);
         }
     }
 

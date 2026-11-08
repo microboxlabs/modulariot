@@ -128,10 +128,10 @@ public class SignalStream {
             SELECT asset_id, shared_client_id, active, valid_from, valid_to FROM asset_client_map WHERE active
             """;
 
-    /** The GPS database's geofences as GeoJSON, read in full: a few hundred rows. */
+    /** The GPS database's geofences as GeoJSON, with names and risk schedules, read in full: a few hundred rows. */
     private static final String ZONES_SQL = """
-            SELECT client_id, geofence_id, properties ->> 'geofence_type' AS geofence_type,
-                   ST_AsGeoJSON(coordinates::geometry) AS shape
+            SELECT client_id, geofence_id, geofence_name, properties ->> 'geofence_type' AS geofence_type,
+                   (properties -> 'schedule')::text AS schedule, ST_AsGeoJSON(coordinates::geometry) AS shape
               FROM geofences WHERE coordinates IS NOT NULL
             """;
 
@@ -370,7 +370,8 @@ public class SignalStream {
             List<Zones.Zone> z = new ArrayList<>();
             rows.forEach(r -> {
                 Zones.Zone zone = r.getString(SHAPE) == null ? null : Zones.zone(r.getString("client_id"),
-                        r.getInteger("geofence_id"), r.getString("geofence_type"), r.getString(SHAPE));
+                        r.getInteger("geofence_id"), r.getString("geofence_type"), r.getString("geofence_name"),
+                        r.getString("schedule"), r.getString(SHAPE));
                 if (zone != null) {
                     z.add(zone);
                 }

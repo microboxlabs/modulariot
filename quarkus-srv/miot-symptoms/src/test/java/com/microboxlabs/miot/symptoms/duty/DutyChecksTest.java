@@ -16,7 +16,7 @@ class DutyChecksTest {
     private static final String ASSET = "DEMO01";
     private static final Instant T0 = Instant.parse("2026-01-01T00:00:00Z");
     private static final Map<String, Object> INSIDE = Map.of("authorized_zone", true, "zone", "Base",
-            "outside_authorized", false);
+            "outside_authorized", false, "risk_zone", true, "risk_scheduled", true, "in_risk_schedule", false);
 
     /** Two frames 60 s and about 1 km apart: one minute of driving. */
     private static Map<String, Object> run(Map<String, Object> extra) {

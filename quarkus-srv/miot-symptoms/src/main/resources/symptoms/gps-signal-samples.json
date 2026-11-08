@@ -120,8 +120,11 @@
       },
       "geo": {
         "authorized_zone": false,
+        "zone": "Zona de riesgo",
         "risk_zone": true,
-        "outside_authorized": true
+        "outside_authorized": true,
+        "risk_scheduled": true,
+        "in_risk_schedule": false
       },
       "local_hour": 9,
       "local_minutes": 545.5,

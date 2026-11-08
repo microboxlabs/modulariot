@@ -111,7 +111,8 @@ class SignalFieldsTest {
         assertEquals(FieldOrigin.ZONES, check.get("check.geo.outside_authorized").origin());
         assertTrue(check.containsKey("check.geo.zone"));
         assertTrue(check.containsKey("check.geo.risk_zone"));
-        for (String field : List.of("authorized_zone", "zone", "risk_zone", "outside_authorized")) {
+        for (String field : List.of("authorized_zone", "zone", "risk_zone", "outside_authorized",
+                "risk_scheduled", "in_risk_schedule")) {
             String description = check.get("check.geo." + field).description();
             assertNotNull(description, field);
             assertTrue(description.contains("no viene en las revisiones"), field);

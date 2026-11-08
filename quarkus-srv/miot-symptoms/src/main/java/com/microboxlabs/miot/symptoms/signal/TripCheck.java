@@ -13,7 +13,8 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
  * writes one when the vehicle's deadline expires, then every minute while it stays silent, and one when its
  * signal returns. The duty tracker writes one on each frame, with the driving, rest and duty minutes; only the
  * symptoms that read those minutes run on it, and only those do not run on the detector's checks. {@code trip}
- * is the trip as the vehicle's newest signal carried it.
+ * is the trip as the vehicle's newest signal carried it. {@code geo} is the organization's zones at the frame that
+ * triggered a duty check; the detector's checks have none.
  *
  * <p>The rule editor's fields for the source are read from these annotations ({@link SignalFields}), as for
  * {@link GpsSignal}.
@@ -42,7 +43,16 @@ public record TripCheck(
                 @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED") })
         @JsonProperty("signal_lost_minutes") Double signalLostMinutes,
         @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) GpsSignal.Trip trip,
-        @Schema(extensions = @Extension(name = "x-origin", value = "CALCULATED")) Loss loss) {
+        @Schema(extensions = @Extension(name = "x-origin", value = "CALCULATED")) Loss loss,
+        @Schema(title = "Zona de la trama", description = "Las zonas de la organización en la trama que generó la "
+                + "revisión, como en la señal GPS; no viene en las revisiones que el detector de pérdida de señal hace "
+                + "con su reloj. Léala con check.?geo.?authorized_zone.orValue(false)",
+                extensions = @Extension(name = "x-origin", value = "ZONES")) GpsSignal.Geo geo) {
+
+    public TripCheck(Double drivingMinutes, Double restingMinutes, Double dutyMinutes, Double signalLostMinutes,
+            GpsSignal.Trip trip, Loss loss) {
+        this(drivingMinutes, restingMinutes, dutyMinutes, signalLostMinutes, trip, loss, null);
+    }
 
     public static final String KEY = "trip_check";
     public static final String ROOT = "check";

@@ -172,6 +172,53 @@ class EvaluatorStreamTest {
                 sensors);
     }
 
+    private static String speeding(String at, double speed, String clients) {
+        return """
+                {"schema":"miot.gps.signal@1","asset_id":"DEMO01","at":"%s","clients":["%s"],
+                 "trips":{"%s":{"active":true,"double_driver":false}},
+                 "local_hour":9,"derived":{"moving":true},
+                 "roads":{"%s":{"maxspeed_osm":80.0,"maxspeed_custom":50.0,"osm_way_id":7,"road_class":"primary",
+                   "custom_zone_id":3,"custom_zone_name":"Tramo de prueba"}},
+                 "frame":{"asset_id":"DEMO01","gps":{"speed":%s},"sensors":{"panic_button":true}}}
+                """.formatted(at, clients, clients, clients, speed);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aSpeedCaseKeepsTheLimitItComparedWithAndOtherSymptomsDoNot() {
+        var id = catalog.create(OTHER, "owner@example.com", new CreateRequest("speeding-custom-limit",
+                "Exceso sobre el límite propio", null, null, null, "gps_signal", null,
+                SeedTemplates.get("speeding-custom-limit").spec())).definition().id();
+        catalog.publish(OTHER, "owner@example.com", id, "Primera versión", null, SymptomState.TEST);
+        publishPanic(OTHER, SymptomState.TEST);
+        EvaluatorStream s = stream();
+
+        s.evaluate(speeding("2026-10-22T03:00:00Z", 60.2, OTHER));
+        s.evaluate(speeding("2026-10-22T03:00:10Z", 61.0, OTHER));
+
+        int speed = -1;
+        int panic = -1;
+        for (int i = 0; i < recorded.size(); i++) {
+            if (recorded.get(i).definitionId().equals(id)) {
+                speed = i;
+            } else {
+                panic = i;
+            }
+        }
+        assertEquals(Kind.OPENED, recorded.get(speed).kind());
+        assertEquals(11.0, recorded.get(speed).measure());
+        Map<String, Object> limit = (Map<String, Object>) log.contexts.get(speed).get("speed_limit");
+        assertEquals(50.0, limit.get("kmh"));
+        assertEquals("custom", limit.get("source"));
+        assertEquals(80.0, limit.get("road_kmh"));
+        assertEquals(50.0, limit.get("custom_kmh"));
+        assertEquals(3, limit.get("zone_id"));
+        assertEquals("Tramo de prueba", limit.get("zone_name"));
+        var panicContext = log.contexts.get(panic);
+        assertTrue(panicContext == null || !panicContext.containsKey("speed_limit"),
+                "a symptom that reads no road limit keeps none: " + panicContext);
+    }
+
     @Test
     void aPanicPressOpensOneCaseForTheOrganizationWithTheSymptom() {
         EvaluatorStream s = stream();

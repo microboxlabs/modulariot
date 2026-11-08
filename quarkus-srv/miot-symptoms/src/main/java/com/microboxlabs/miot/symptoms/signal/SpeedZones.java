@@ -20,9 +20,13 @@ public class SpeedZones {
     public record Limits(Integer forward, Integer backward, Integer forwardFrom, Integer forwardTo, Integer heading) {
     }
 
-    /** One zone; polygons as {@link Zones.Zone} reads them. */
+    /**
+     * One zone; polygons as {@link Zones.Zone} reads them.
+     *
+     * @param name the zone's name in the table, or null
+     */
     public record Zone(String tenant, int id, Integer forward, Integer backward, Integer forwardFrom,
-            Integer forwardTo, Integer heading, List<List<double[][]>> polygons) {
+            Integer forwardTo, Integer heading, List<List<double[][]>> polygons, String name) {
 
         boolean covers(double lon, double lat) {
             return new Zones.Zone(tenant, id, null, polygons).covers(lon, lat);
@@ -55,8 +59,12 @@ public class SpeedZones {
         }
     }
 
-    /** The organization's limit at a point and the zone it comes from. */
-    public record Limit(double maxspeed, int zoneId) {
+    /** The organization's limit at a point and the zone it comes from; {@code zoneName} may be null. */
+    public record Limit(double maxspeed, int zoneId, String zoneName) {
+
+        public Limit(double maxspeed, int zoneId) {
+            this(maxspeed, zoneId, null);
+        }
     }
 
     /** A zone and its bounding box. */
@@ -113,7 +121,7 @@ public class SpeedZones {
             Zone z = b.zone();
             if (b.inBox(lon, lat) && z.headingMatches(deviceHeading) && z.covers(lon, lat)) {
                 Integer limit = z.limit(bearing);
-                return limit == null ? null : new Limit(limit, z.id());
+                return limit == null ? null : new Limit(limit, z.id(), z.name());
             }
         }
         return null;
@@ -121,10 +129,14 @@ public class SpeedZones {
 
     /** A zone from a GeoJSON polygon; null for another shape. */
     public static Zone zone(String tenant, int id, Limits limits, String geoJson) {
+        return zone(tenant, id, limits, geoJson, null);
+    }
+
+    public static Zone zone(String tenant, int id, Limits limits, String geoJson, String name) {
         Zones.Zone shape = Zones.zone(tenant, id, null, geoJson);
         return shape == null ? null
                 : new Zone(tenant, id, limits.forward(), limits.backward(), limits.forwardFrom(), limits.forwardTo(),
-                        limits.heading(), shape.polygons());
+                        limits.heading(), shape.polygons(), name == null || name.isBlank() ? null : name.trim());
     }
 
     /** 1 to 4 for 0–90, 91–180, 181–270, 271–360; 0 outside. */

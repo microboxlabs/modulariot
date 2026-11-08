@@ -76,7 +76,7 @@ An ACTIVE OPENED row of `signal_transitions` is a Control Tower case until a CLO
 
 While an "Ignorar condición" hold covers an ACTIVE symptom on the vehicle (`cases/HoldIndex`, see [control-tower-api.md](control-tower-api.md)), its open case keeps its level and may still close, and a case that would open does not: the first such opening of a run is a `HELD` row (V0.12.13), evidence only, with no event. The level hold times restart with the first signal after the hold.
 
-A case's symptom id is the OPENED row's id negated, so it never meets a GPS database symptom id in `treatment` and `audit_event`. The row keeps the signal's trip, position and speed (V0.8.5). A trip check's OPENED and LEVEL_CHANGED rows also keep, in `context` (V0.12.10), the check the rules read without its trip: `{"check": {"signal_lost_minutes", "loss": {...}}}`. The case's level context is that of the row that set its level.
+A case's symptom id is the OPENED row's id negated, so it never meets a GPS database symptom id in `treatment` and `audit_event`. The row keeps the signal's trip, position and speed (V0.8.5). A trip check's OPENED and LEVEL_CHANGED rows also keep, in `context` (V0.12.10), the check the rules read without its trip: `{"check": {"signal_lost_minutes", "loss": {...}}}`. The case's level context is that of the row that set its level. A GPS signal's rows of a symptom that reads `signal.road` keep the limits it compared the frame with: `{"speed_limit": {"kmh", "source", "road_kmh", "custom_kmh", "osm_way_id", "road_class", "zone_id", "zone_name"}}`; `kmh` is the own limit when there is one (`source` `custom`), else the road's (`road`).
 
 ## Case events
 

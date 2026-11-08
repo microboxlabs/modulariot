@@ -387,7 +387,8 @@ public class EvaluatorStream {
                 Map<String, Object> root = Map.of(SignalFields.ROOT, o.signal());
                 SignalEvaluator.Result result = late ? evaluator.evaluateLate(tenant, assetId, at, root, o.symptoms())
                         : evaluator.evaluate(tenant, assetId, at, root, o.symptoms());
-                recordTransitions(tenant, assetId, o.signal(), state, result, late, eventContext(o.signal()), held);
+                recordTransitions(tenant, assetId, o.signal(), state, result, late, SpeedLimitContext.with(
+                        eventContext(o.signal()), o.signal(), result.transitions(), o.symptoms()), held);
                 results.add(result);
                 recorded += result.transitions().size();
                 save = true;

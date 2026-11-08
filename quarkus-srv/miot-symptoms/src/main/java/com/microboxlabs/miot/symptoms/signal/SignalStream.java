@@ -314,7 +314,7 @@ public class SignalStream {
             SpeedZones.Zone zone = CustomSpeedTracks.zone(new CustomSpeedTracks.Row(r.getInteger("id"),
                     r.getString("client_id"), r.getInteger("speed_forward"), r.getInteger("speed_backward"),
                     r.getInteger("azimuth_degree"), r.getInteger("forward_from"), r.getInteger("forward_to"),
-                    Boolean.TRUE.equals(single), r.getString(SHAPE)));
+                    Boolean.TRUE.equals(single), r.getString(SHAPE), r.getString("name")));
             if (zone != null) {
                 z.add(zone);
             }

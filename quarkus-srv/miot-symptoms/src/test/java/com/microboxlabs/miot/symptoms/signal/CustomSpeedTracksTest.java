@@ -75,6 +75,16 @@ class CustomSpeedTracksTest {
     }
 
     @Test
+    void theRowNameNamesTheLimitAndABlankNameIsNone() {
+        SpeedZones named = loaded(new CustomSpeedTracks.Row(5, "org-1", 50, null, null, null, null, true, SQUARE,
+                " Tramo norte "));
+        assertEquals(new SpeedZones.Limit(50, 5, "Tramo norte"), named.at("org-1", -70.65, -33.45, null, 10));
+        SpeedZones blank = loaded(new CustomSpeedTracks.Row(6, "org-1", 50, null, null, null, null, true, SQUARE,
+                " "));
+        assertNull(blank.at("org-1", -70.65, -33.45, null, 10).zoneName());
+    }
+
+    @Test
     void zonesAreGroupedByTheirOrganization() {
         SpeedZones zones = loaded(range(1, "org-1", 60, 60, 0, 180), range(2, "org-2", 30, 30, 0, 180));
         assertEquals(new SpeedZones.Limit(60, 1), zones.at("org-1", -70.65, -33.45, null, 10));
@@ -116,9 +126,10 @@ class CustomSpeedTracksTest {
     @Test
     void theQueryReadsTheOrganizationAndRuleColumnsOfTheConfiguredTable() {
         String sql = CustomSpeedTracks.sql("public.speed_tracks");
-        assertTrue(sql.contains("FROM public.speed_tracks WHERE geom IS NOT NULL"));
-        for (String column : List.of("id", "client_id", "speed_forward", "speed_backward", "azimuth_degree",
-                "forward_from", "forward_to", "single_limit", "ST_AsGeoJSON(geom) AS shape")) {
+        assertTrue(sql.contains("FROM public.speed_tracks t WHERE t.geom IS NOT NULL"));
+        for (String column : List.of("t.id", "t.client_id", "t.speed_forward", "t.speed_backward",
+                "t.azimuth_degree", "t.forward_from", "t.forward_to", "t.single_limit",
+                "ST_AsGeoJSON(t.geom) AS shape", "(to_jsonb(t) - 'geom') ->> 'name' AS name")) {
             assertTrue(sql.contains(column), column);
         }
         assertFalse(sql.matches("(?s).*\\bclient\\b(?!_id).*"), "the site code is not read");

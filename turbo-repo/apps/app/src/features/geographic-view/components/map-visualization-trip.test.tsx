@@ -319,6 +319,47 @@ describe("case map frames", () => {
     expect(screen.getByText("Compromised condition")).toBeInTheDocument();
   });
 
+  it("pairs each speed change with its rule speed and leaves other frames alone", () => {
+    render(
+      <MapVisualizationTrip
+        {...props}
+        positions={positions.map((p) => ({ ...p, speed: 83.6 }))}
+        caseSpans={[
+          {
+            ...caseSpans[0],
+            steps: [
+              {
+                at: positions[1].timestamp,
+                icu_code: 2,
+                speed: 84,
+                speed_limit: 60,
+              },
+              {
+                at: positions[2].timestamp,
+                icu_code: 4,
+                speed: 84,
+                speed_limit: 50,
+              },
+            ],
+          },
+        ]}
+      />
+    );
+    const frames = pulseLayer().props.data.features;
+    expect(
+      frames.map(
+        (f: { properties: { speed: number; speed_limit: number | null } }) => ({
+          speed: f.properties.speed,
+          limit: f.properties.speed_limit,
+        })
+      )
+    ).toEqual([
+      { speed: 83.6, limit: null },
+      { speed: 84, limit: 60 },
+      { speed: 84, limit: 50 },
+    ]);
+  });
+
   it("refreshes an open summary without resetting a selected frame or reopening a dismissed popup", () => {
     const location = (signal_lag: string) => ({
       type: "FeatureCollection",

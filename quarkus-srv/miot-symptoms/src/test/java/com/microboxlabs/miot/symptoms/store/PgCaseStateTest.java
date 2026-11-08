@@ -161,6 +161,36 @@ class PgCaseStateTest {
         return append(Kind.OPENED, state, seconds, 4).get(0).caseId();
     }
 
+    private void speedVersion(String version, String expression) {
+        pool.preparedQuery("""
+                INSERT INTO miot_symptoms.symptom_version
+                    (definition_id, tenant_code, version, status, spec, created_by)
+                VALUES ($1, $2, $3, 'PUBLISHED', jsonb_build_object('measure',
+                    jsonb_build_object('expression', $4::text), 'levels', '[]'::jsonb), 'test')""")
+                .execute(Tuple.of(speeding, TENANT, version, expression)).await().atMost(WAIT);
+    }
+
+    @Test
+    void speedEvidenceUsesEachTransitionsVersionAndReachesTheLivePin() {
+        setState(SymptomState.ACTIVE);
+        speedVersion("1.0.0", "signal.frame.gps.speed - signal.road.maxspeed_osm");
+        speedVersion("2.0.0", "double(int(signal.frame.gps.speed + 0.5)) - signal.road.maxspeed_custom");
+        Place opening = new Place(null, 0.0, 0.0, 68.25, null);
+        long id = log.append(TENANT, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE,
+                TRUCK, T0, 2, 0, 18.25)), opening).getFirst().caseId();
+        Map<String, Object> kept = Map.of("speed_limit", Map.of("kmh", 50, "source", "custom",
+                "road_kmh", 80, "custom_kmh", 50, "zone_name", "Tramo de prueba"));
+        log.append(TENANT, List.of(new Transition(Kind.LEVEL_CHANGED, speeding, "2.0.0", SymptomState.ACTIVE,
+                TRUCK, T0.plusSeconds(60), 4, 2, 34)), new Place(null, 0.0, 0.0, 83.6, null), kept);
+
+        List<EngineCase.LevelStep> steps = cases.find(TENANT, id).orElseThrow().levels();
+        assertEquals(68.25, steps.get(0).speedKmh());
+        assertEquals(new EngineCase.SpeedLimit(50, "road", null), steps.get(0).speedLimit());
+        assertEquals(84.0, steps.get(1).speedKmh());
+        assertEquals(new EngineCase.SpeedLimit(50, "custom", "Tramo de prueba"), steps.get(1).speedLimit());
+        assertEquals(steps.get(1), cases.openLevels(TENANT).getFirst().speedStep());
+    }
+
     private OrgControlTowerTreatmentsResource treatments() {
         OrganizationContext org = new OrganizationContext();
         org.setOrganizationId(ORG);

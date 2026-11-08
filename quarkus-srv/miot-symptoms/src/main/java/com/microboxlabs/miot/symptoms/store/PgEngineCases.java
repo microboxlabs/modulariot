@@ -43,6 +43,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final String FROM_SUBQUERY = " FROM (";
     private static final String ASSET_ID = "asset_id";
+    private static final String SPEED_KMH = "speed_kmh";
 
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.state, o.asset_id, o.at, o.level, o.trip_id,
@@ -186,9 +187,21 @@ public class PgEngineCases implements EngineCaseStore {
             + " WHERE y.closed_id IS NULL AND " + needsOperator("y") + " GROUP BY y.current_level, y.treatments > 0, y.hold_id IS NOT NULL";
     private static final String IGNORED = "SELECT count(*) AS n FROM (" + CASES + ") x"
             + " WHERE x.closed_id IS NULL AND x.hold_id IS NOT NULL";
-    private static final String LEVELS = "SELECT y.asset_id, y.name, y.current_level"
-            + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL AND x.hold_id IS NULL) y"
-            + " ORDER BY y.asset_id, y.at DESC";
+    private static final String LEVELS = """
+            SELECT y.asset_id, y.name, y.current_level, l.at AS speed_at, l.speed_kmh, l.measure,
+                   (l.context -> 'speed_limit')::text AS speed_context,
+                   CASE jsonb_typeof(v.spec) WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END
+                       #>> '{measure,expression}' AS measure_expression
+              FROM (%s WHERE x.closed_id IS NULL AND x.hold_id IS NULL) y
+              JOIN LATERAL (SELECT t.* FROM miot_symptoms.signal_transitions t
+                     WHERE t.tenant_code = y.tenant_code AND t.definition_id = y.definition_id
+                       AND t.asset_id = y.asset_id AND t.state = y.state
+                       AND (t.id = y.id OR (t.kind = 'LEVEL_CHANGED' AND t.id > y.id))
+                     ORDER BY t.id DESC LIMIT 1) l ON true
+              LEFT JOIN miot_symptoms.symptom_version v ON v.definition_id = l.definition_id
+                   AND v.tenant_code = l.tenant_code AND v.version = l.version
+             ORDER BY y.asset_id, y.at DESC
+            """.formatted(SELECT.formatted(CASES));
     /**
      * One case with why it is at its level: the context of the row that set the level (its latest level change
      * before it closed, else its opening), that level's rule in the version that opened it, and the level of each
@@ -206,8 +219,14 @@ public class PgEngineCases implements EngineCaseStore {
                        AND (l.id = w.id OR (l.kind = 'LEVEL_CHANGED' AND l.id > w.id
                             AND (w.closed_id IS NULL OR l.id < w.closed_id)))
                      ORDER BY l.id DESC LIMIT 1) AS level_context,
-                   (SELECT json_agg(json_build_object('at', l.at, 'level', l.level) ORDER BY l.id)::text
+                   (SELECT json_agg(json_build_object('at', l.at, 'level', l.level, 'speed_kmh', l.speed_kmh,
+                           'measure', l.measure, 'speed_limit', l.context -> 'speed_limit',
+                           'measure_expression', CASE jsonb_typeof(v.spec)
+                               WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END
+                               #>> '{measure,expression}') ORDER BY l.id)::text
                       FROM miot_symptoms.signal_transitions l
+                      LEFT JOIN miot_symptoms.symptom_version v ON v.definition_id = l.definition_id
+                           AND v.tenant_code = l.tenant_code AND v.version = l.version
                      WHERE l.tenant_code = w.tenant_code AND l.definition_id = w.definition_id
                        AND l.asset_id = w.asset_id AND l.state = w.state
                        AND (l.id = w.id OR (l.kind = 'LEVEL_CHANGED' AND l.id > w.id
@@ -534,7 +553,10 @@ public class PgEngineCases implements EngineCaseStore {
     public List<OpenLevel> openLevels(String tenantCode) {
         List<OpenLevel> out = new ArrayList<>();
         PgIds.query(pool.get(), LEVELS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenLevel(
-                r.getString(ASSET_ID), r.getString("name"), r.getInteger("current_level"))));
+                r.getString(ASSET_ID), r.getString("name"), r.getInteger("current_level"),
+                speedStep(instant(r.getOffsetDateTime("speed_at")), r.getInteger("current_level"),
+                        r.getString("measure_expression"), r.getDouble(SPEED_KMH),
+                        json(r.getString("speed_context")), r.getDouble("measure")))));
         return out;
     }
 
@@ -547,7 +569,8 @@ public class PgEngineCases implements EngineCaseStore {
         Row r = rows.next();
         return Optional.of(engineCase(r).withLevel(json(r.getString("opening_context")),
                 json(r.getString("level_context")), r.getString("level_rule"),
-                steps(json(r.getString("level_steps")))).withClosing(json(r.getString("closing_context"))));
+                steps(json(r.getString("level_steps"))))
+                .withClosing(json(r.getString("closing_context"))));
     }
 
     @Override
@@ -679,7 +702,7 @@ public class PgEngineCases implements EngineCaseStore {
         return new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
                 r.getUUID("definition_id"), r.getString("version"), "TEST".equals(r.getString("state")),
                 r.getString(ASSET_ID), r.getInteger("level"), r.getString("trip_id"), r.getDouble("latitude"),
-                r.getDouble("longitude"), r.getDouble("speed_kmh"), r.getOffsetDateTime("opened_at").toInstant());
+                r.getDouble("longitude"), r.getDouble(SPEED_KMH), r.getOffsetDateTime("opened_at").toInstant());
     }
 
     private static EngineCase engineCase(Row r) {
@@ -687,7 +710,7 @@ public class PgEngineCases implements EngineCaseStore {
         return new EngineCase(r.getLong("id"), r.getUUID("definition_id"), r.getString("version"),
                 r.getString("name"), r.getString("family"), r.getString(ASSET_ID),
                 r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
-                r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
+                r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble(SPEED_KMH),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
                 r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"))).withTrip(trip(r))
                 .withHold(hold(r), instant(r.getOffsetDateTime("returned_at")))
@@ -716,6 +739,10 @@ public class PgEngineCases implements EngineCaseStore {
         return t.driver() == null && t.carrier() == null && t.origin() == null && t.destination() == null ? null : t;
     }
 
+    /**
+     * Each step uses its transition version's measure. Without a recognized speed measure it carries no speed
+     * evidence, even when another step of the same case used a speed template.
+     */
     static List<EngineCase.LevelStep> steps(JsonNode steps) {
         List<EngineCase.LevelStep> out = new ArrayList<>();
         if (steps == null || !steps.isArray()) {
@@ -723,13 +750,32 @@ public class PgEngineCases implements EngineCaseStore {
         }
         for (JsonNode step : steps) {
             try {
-                out.add(new EngineCase.LevelStep(OffsetDateTime.parse(step.path("at").asText()).toInstant(),
-                        step.path("level").asInt()));
+                Instant at = OffsetDateTime.parse(step.path("at").asText()).toInstant();
+                int level = step.path("level").asInt();
+                String expression = step.path("measure_expression").asText(null);
+                Double speed = number(step.path(SPEED_KMH));
+                out.add(speedStep(at, level, expression, speed, step.get("speed_limit"),
+                        number(step.path("measure"))));
             } catch (java.time.format.DateTimeParseException e) {
                 LOG.debug("Engine case level step without a valid time", e);
             }
         }
         return out;
+    }
+
+    private static Double number(JsonNode n) {
+        return n != null && n.isNumber() ? n.asDouble() : null;
+    }
+
+    private static EngineCase.LevelStep speedStep(Instant at, int level, String expression, Double speed,
+            JsonNode kept, Double measure) {
+        String source = EngineCase.SpeedLimit.source(expression);
+        if (source == null || speed == null) {
+            return new EngineCase.LevelStep(at, level);
+        }
+        double ruleSpeed = EngineCase.SpeedLimit.ruleSpeed(expression, speed);
+        return new EngineCase.LevelStep(at, level, ruleSpeed,
+                EngineCase.SpeedLimit.of(source, kept, ruleSpeed, measure));
     }
 
     private static JsonNode json(String text) {

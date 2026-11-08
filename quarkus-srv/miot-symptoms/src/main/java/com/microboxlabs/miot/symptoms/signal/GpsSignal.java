@@ -200,10 +200,19 @@ public record GpsSignal(
             @JsonProperty("road_class") String roadClass,
             @Schema(title = "Zona de límite propio", description = "Zona de la organización de la que sale el "
                     + "límite propio", extensions = @Extension(name = "x-origin", value = "TENANT_SETTINGS"))
-            @JsonProperty("custom_zone_id") Integer customZoneId) {
+            @JsonProperty("custom_zone_id") Integer customZoneId,
+            @Schema(title = "Nombre de la zona de límite propio", description = "Nombre de esa zona en la tabla de "
+                    + "la organización; sin dato si no lo tiene", extensions = @Extension(name = "x-origin",
+                    value = "TENANT_SETTINGS"))
+            @JsonProperty("custom_zone_name") String customZoneName) {
 
         public Road(Double maxspeedOsm, Double maxspeedCustom) {
-            this(maxspeedOsm, maxspeedCustom, null, null, null);
+            this(maxspeedOsm, maxspeedCustom, null, null, null, null);
+        }
+
+        public Road(Double maxspeedOsm, Double maxspeedCustom, Long osmWayId, String roadClass,
+                Integer customZoneId) {
+            this(maxspeedOsm, maxspeedCustom, osmWayId, roadClass, customZoneId, null);
         }
     }
 

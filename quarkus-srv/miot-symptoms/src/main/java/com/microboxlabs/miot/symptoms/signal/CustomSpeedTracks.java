@@ -20,7 +20,8 @@ import java.util.regex.Pattern;
  * <tr><td>neither</td><td>not loaded, as the legacy gives no limit to sites ruled only by {@code order}</td></tr>
  * </table>
  *
- * <p>{@code azimuth_degree} is the zone's heading filter.
+ * <p>{@code azimuth_degree} is the zone's heading filter. {@code name}, when the table has it, names the zone in the
+ * case's speed limit; it is read through the row's JSON so a table without it still loads.
  */
 final class CustomSpeedTracks {
 
@@ -35,15 +36,21 @@ final class CustomSpeedTracks {
 
     /** One table row. */
     record Row(int id, String clientId, Integer forward, Integer backward, Integer azimuth, Integer forwardFrom,
-            Integer forwardTo, boolean singleLimit, String shape) {
+            Integer forwardTo, boolean singleLimit, String shape, String name) {
+
+        Row(int id, String clientId, Integer forward, Integer backward, Integer azimuth, Integer forwardFrom,
+                Integer forwardTo, boolean singleLimit, String shape) {
+            this(id, clientId, forward, backward, azimuth, forwardFrom, forwardTo, singleLimit, shape, null);
+        }
     }
 
     private static final Pattern TABLE = Pattern.compile("[A-Za-z_]\\w*(\\.[A-Za-z_]\\w*)?");
 
     private static final String SELECT_TRACKS = """
-            SELECT id, client_id, speed_forward, speed_backward, azimuth_degree, forward_from, forward_to,
-                   single_limit, ST_AsGeoJSON(geom) AS shape
-              FROM %s WHERE geom IS NOT NULL
+            SELECT t.id, t.client_id, t.speed_forward, t.speed_backward, t.azimuth_degree, t.forward_from,
+                   t.forward_to, t.single_limit, ST_AsGeoJSON(t.geom) AS shape,
+                   (to_jsonb(t) - 'geom') ->> 'name' AS name
+              FROM %s t WHERE t.geom IS NOT NULL
             """;
 
     private CustomSpeedTracks() {
@@ -77,7 +84,7 @@ final class CustomSpeedTracks {
         if (limits.forward() == null && limits.backward() == null) {
             return null;
         }
-        return SpeedZones.zone(row.clientId(), row.id(), limits, row.shape());
+        return SpeedZones.zone(row.clientId(), row.id(), limits, row.shape(), row.name());
     }
 
     private static boolean bearing(Integer deg) {

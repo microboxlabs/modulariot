@@ -7900,6 +7900,7 @@
     "date_and_time": "Fecha y hora",
     "trip": "Viaje",
     "over_limit": " por encima del límite",
+    "applied_speed_limit": "Límite de velocidad",
     "signal_status": "Estado de señal",
     "lost_signal": "Perdida de reportabilidad GPS",
     "signal_offline": "Sin señal",

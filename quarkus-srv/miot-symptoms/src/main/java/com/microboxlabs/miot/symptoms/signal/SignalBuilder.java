@@ -141,7 +141,7 @@ public class SignalBuilder {
     private static GpsSignal.Road road(RoadNetwork.Limit osm, SpeedZones.Limit own) {
         return new GpsSignal.Road(osm == null ? null : osm.maxspeed(), own == null ? null : own.maxspeed(),
                 osm == null ? null : osm.wayId(), osm == null ? null : osm.roadClass(),
-                own == null ? null : own.zoneId());
+                own == null ? null : own.zoneId(), own == null ? null : own.zoneName());
     }
 
     static boolean validFrame(AssetTrackingData frame) {

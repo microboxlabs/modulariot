@@ -75,6 +75,7 @@ import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
 import {
   type CaseSpan,
   pointLevel,
+  stepLimitAt,
 } from "@/features/symptoms/model/level-reason";
 import {
   dashSegments,
@@ -560,6 +561,7 @@ export default function MapVisualizationTrip({
       features:
         positions?.map((item: MapPosition, index: number) => {
           const symptom = pointLevel(item.timestamp, caseSpans);
+          const limit = stepLimitAt(item.timestamp, caseSpans);
           return {
             type: "Feature",
             geometry: {
@@ -579,6 +581,8 @@ export default function MapVisualizationTrip({
               speed: item.speed,
               timestamp: item.timestamp,
               delay_s: frameDelay(item),
+              speed_limit: limit?.limit ?? null,
+              speed_limit_zone: limit?.zone ?? null,
               offline: offline && index === newestIndex,
               signal_label:
                 offline && index === newestIndex ? offlineText : null,
@@ -795,6 +799,7 @@ export default function MapVisualizationTrip({
               info.y = info.viewport.height / 2;
             }
 
+            const pinLimit = stepLimitAt(info.object?.timestamp, caseSpans);
             // Create a properly typed formatted info object
             const formattedInfo: PickingInfo<PulseType> = {
               ...info,
@@ -808,6 +813,8 @@ export default function MapVisualizationTrip({
                   speed: info.object?.speed,
                   timestamp: info.object?.timestamp,
                   delay_s: frameDelay(info.object),
+                  speed_limit: pinLimit?.limit ?? null,
+                  speed_limit_zone: pinLimit?.zone ?? null,
                   signal_label: pinOffline ? offlineText : null,
                   engine_label: pinEngineOff ? engineText : null,
                 },
@@ -876,6 +883,7 @@ export default function MapVisualizationTrip({
     offlineText,
     pinEngineOff,
     engineText,
+    caseSpans,
   ]);
 
   /** Al cerrar la tarjeta de pulsos: soltar lo seleccionado. */

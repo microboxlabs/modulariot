@@ -7900,6 +7900,7 @@
     "date_and_time": "Date and time",
     "trip": "Trip",
     "over_limit": " over the limit",
+    "applied_speed_limit": "Speed limit",
     "signal_status": "Signal status",
     "lost_signal": "Lost signal",
     "signal_offline": "No signal",

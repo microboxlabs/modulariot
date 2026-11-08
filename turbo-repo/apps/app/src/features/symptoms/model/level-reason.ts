@@ -1,5 +1,15 @@
-/** The case reached `icu_code` at `at`. */
-export type LevelStep = { at: string; icu_code: number };
+/**
+ * The case reached `icu_code` at `at`. A speed case's change also has its
+ * speed and the limit it was compared with, in km/h.
+ */
+export type LevelStep = {
+  at: string;
+  icu_code: number;
+  speed?: number | null;
+  speed_limit?: number | null;
+  speed_limit_source?: string | null;
+  speed_limit_zone?: string | null;
+};
 
 /** Why an engine case is at its level, from the treatment header. */
 export type LevelReason = {
@@ -102,4 +112,28 @@ export function pointLevel(
     }
   }
   return found;
+}
+
+/**
+ * The speed limit of the case change recorded at the frame's time (to the
+ * second), or null: frames between changes keep no limit of their own.
+ */
+export function stepLimitAt(
+  at: string | null | undefined,
+  spans: CaseSpan[]
+): { limit: number; zone: string | null } | null {
+  if (!at) return null;
+  const t = Math.floor(new Date(at).getTime() / 1000);
+  if (Number.isNaN(t)) return null;
+  for (const span of spans) {
+    for (const step of span.steps ?? []) {
+      if (
+        typeof step.speed_limit === "number" &&
+        Math.floor(new Date(step.at).getTime() / 1000) === t
+      ) {
+        return { limit: step.speed_limit, zone: step.speed_limit_zone ?? null };
+      }
+    }
+  }
+  return null;
 }

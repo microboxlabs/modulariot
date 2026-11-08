@@ -7,6 +7,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -77,16 +78,25 @@ public class Zones {
     private final AtomicReference<Map<String, List<Zone>>> byClient = new AtomicReference<>();
     private final Set<String> reported = ConcurrentHashMap.newKeySet();
 
-    /** Replaces every client's zones, each client's in id order. A malformed schedule is logged once per zone. */
+    /** Replaces every client's zones in id order. A malformed schedule is logged once while its zone stays loaded. */
     public void load(List<Zone> zones) {
         Map<String, List<Zone>> next = new HashMap<>();
-        zones.forEach(z -> next.computeIfAbsent(z.clientId(), k -> new ArrayList<>()).add(z));
+        Set<String> current = new HashSet<>();
+        zones.forEach(z -> {
+            next.computeIfAbsent(z.clientId(), k -> new ArrayList<>()).add(z);
+            current.add(zoneKey(z));
+        });
+        reported.retainAll(current);
         next.replaceAll((client, loaded) -> loaded.stream().sorted(Comparator.comparingInt(Zone::id)).toList());
         zones.stream().filter(z -> z.badSchedule() != null)
-                .filter(z -> reported.add(z.clientId() + "/" + z.id()))
+                .filter(z -> reported.add(zoneKey(z)))
                 .forEach(z -> LOG.warnf("Signal builder: zone %d of %s has a malformed schedule, read as none: %s",
                         z.id(), z.clientId(), z.badSchedule()));
         byClient.set(Map.copyOf(next));
+    }
+
+    private static String zoneKey(Zone zone) {
+        return zone.clientId() + "/" + zone.id();
     }
 
     public int size() {

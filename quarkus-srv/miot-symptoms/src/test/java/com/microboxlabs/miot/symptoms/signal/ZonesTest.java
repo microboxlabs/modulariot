@@ -235,6 +235,12 @@ class ZonesTest {
             long warnings = output.toString(StandardCharsets.UTF_8).lines()
                     .filter(line -> line.contains("has a malformed schedule")).count();
             assertEquals(3, warnings, "changing invalid text does not repeat a warning; clients and zones differ");
+
+            zones.load(List.of(risk(1, "Z1", "not json")));
+            handler.flush();
+            assertEquals(4, output.toString(StandardCharsets.UTF_8).lines()
+                    .filter(line -> line.contains("has a malformed schedule")).count(),
+                    "a zone removed by the previous load is reported again when it returns");
         } finally {
             logger.removeHandler(handler);
             handler.close();

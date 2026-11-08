@@ -397,7 +397,7 @@ public class EvaluatorStream {
         if (!o.dutySymptoms().isEmpty()) {
             // The episodes were read before the counters: a close during the reads invalidates this snapshot.
             c = duty.apply(at, o.signal(), o.reads().counters().get()).orElse(null);
-            if (c == null) {
+            if (c == null || !c.applied()) {
                 meters.counter("miot.symptoms.duty.skipped").increment();
             } else {
                 SignalEvaluator.Result result = new SignalEvaluator(state, held).evaluateUnder(DutyChecks.WATERMARK,

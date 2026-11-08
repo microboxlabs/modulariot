@@ -98,6 +98,10 @@ final class DutyReplay {
             if (check == null) {
                 continue;
             }
+            if (!check.applied()) {
+                checks.save(TENANT, ASSET, check.next());
+                continue;
+            }
             SignalEvaluator.Result r = evaluator.evaluateUnder(DutyChecks.WATERMARK, TENANT, ASSET, instant,
                     Map.of(TripCheck.ROOT, check.check()), symptoms);
             if (!r.errors().isEmpty()) {

@@ -9,6 +9,7 @@ import com.microboxlabs.miot.symptoms.duty.DutyTracker.Counters;
 import com.microboxlabs.miot.symptoms.duty.DutyTracker.Frame;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -63,6 +64,130 @@ class DutyTrackerTest {
         }
     }
 
+    /** A frame {@code seconds} after T0, {@code metres} north of a synthetic point on a meridian. */
+    private static Frame at(int seconds, double metres) {
+        return new Frame(T0.plusSeconds(seconds), -60 + metres / METRES_PER_DEGREE, -70.0, null, "T-1");
+    }
+
+    /** Applies the frames in order; returns the highest driving minutes published. */
+    private static double maxDriving(DutyTracker t, DutyState[] state, List<Frame> frames) {
+        double max = 0;
+        for (Frame f : frames) {
+            var step = t.step(state[0], f);
+            if (step.isEmpty()) {
+                continue;
+            }
+            state[0] = step.get().next();
+            if (step.get().applied()) {
+                max = Math.max(max, step.get().counters().drivingMinutes());
+            }
+        }
+        return max;
+    }
+
+    @Test
+    void framesBufferedDuringAStopAndSentNewestFirstDoNotCountTheGapAsDriving() {
+        DutyTracker t = new DutyTracker();
+        DutyState[] s = {null};
+        List<Frame> live = new ArrayList<>();
+        double m = 0;
+        for (int at = 0; at <= 3600; at += 30, m += DRIVE_MPS * 30) {
+            live.add(at(at, m));
+        }
+        assertEquals(60.0, maxDriving(t, s, live), 0.01);
+        // Quiet from 1 h: stopped from 1 h 10 min to 4 h, moving again from 4 h 05 min. At 4 h 20 min the device
+        // sends what it buffered, newest first.
+        List<Frame> buffered = new ArrayList<>();
+        for (int at = 3630; at <= 4200; at += 30) {
+            buffered.add(at(at, m += DRIVE_MPS * 30));
+        }
+        double parked = m;
+        for (int at = 4260; at <= 14_400; at += 60) {
+            buffered.add(at(at, parked));
+        }
+        for (int at = 14_700; at <= 15_600; at += 30) {
+            buffered.add(at(at, m += DRIVE_MPS * 30));
+        }
+        List<Frame> newestFirst = new ArrayList<>(buffered);
+        Collections.reverse(newestFirst);
+        double burst = maxDriving(t, s, newestFirst);
+        assertEquals(60.0, burst, 0.01, "4 h 20 min since the last frame: unobserved, not driving");
+        assertEquals(T0.plusSeconds(15_600), s[0].at(), "only the newest buffered frame is applied");
+        List<Frame> after = new ArrayList<>();
+        for (int at = 15_630; at <= 15_600 + 1800; at += 30) {
+            after.add(at(at, m += DRIVE_MPS * 30));
+        }
+        assertEquals(90.0, maxDriving(t, s, after), 0.01, "driving counts again from the newest buffered frame");
+    }
+
+    @Test
+    void aFarFrameAfterAGapStartsFromItInsteadOfTheOldPosition() {
+        DutyTracker t = new DutyTracker();
+        DutyState[] s = {null};
+        List<Frame> frames = new ArrayList<>();
+        for (int at = 0; at <= 9600; at += 2400) {
+            frames.add(at(at, 0));
+        }
+        // Silent for 1 h 50 min, then 200 km away and driving at 88 km/h for 3 h, a frame every 3 s.
+        double m = 200_000;
+        for (int at = 16_200; at <= 16_200 + 3 * 3600; at += 3, m += 88 / 3.6 * 3) {
+            frames.add(at(at, m));
+        }
+        double max = maxDriving(t, s, frames);
+        assertEquals(180.0, max, 0.1, "3 h of driving after the gap, not the 4 h 50 min since the old position");
+        assertTrue(max < 270);
+    }
+
+    @Test
+    void twoFramesThatAgreeReplaceAStaleLastPosition() {
+        DutyTracker t = new DutyTracker();
+        DutyState[] s = {null};
+        List<Frame> frames = new ArrayList<>();
+        frames.add(at(0, 0));
+        // 20 min later the vehicle reports 60 km away (180 km/h from the last position), then drives for 30 min.
+        double m = 60_000;
+        for (int at = 1200; at <= 3000; at += 30, m += DRIVE_MPS * 30) {
+            frames.add(at(at, m));
+        }
+        assertEquals(30.0, maxDriving(t, s, frames), 0.01,
+                "driving counts from the first far frame; the 20 min before it are unobserved");
+    }
+
+    @Test
+    void aStalePositionBetweenLiveFramesIsSkipped() {
+        DutyTracker t = new DutyTracker();
+        DutyState[] s = {null};
+        List<Frame> frames = new ArrayList<>();
+        double m = 0;
+        for (int at = 0; at <= 3600; at += 30, m += DRIVE_MPS * 30) {
+            frames.add(at(at, m));
+            frames.add(at(at + 15, -80_000));
+        }
+        assertEquals(60.0, maxDriving(t, s, frames), 0.01);
+        assertEquals(T0.plusSeconds(3600), s[0].at());
+    }
+
+    @Test
+    void aGapAfterAStopIsRestAndAGapAfterDrivingIsNeither() {
+        Run stopped = new Run();
+        stopped.frame();
+        stopped.drive(3600, 30).park(600, 60);
+        assertEquals(61.0, stopped.last().drivingMinutes(), 0.01);
+        stopped.at += 2 * 3600;
+        assertEquals(0.0, stopped.frame().drivingMinutes(), 0.01, "a 2 h 9 min stop pays back all 61 min");
+        assertEquals(129.0, stopped.last().restingMinutes(), 0.01);
+
+        Run moving = new Run();
+        moving.frame();
+        moving.drive(3600, 30);
+        moving.at += 2 * 3600;
+        Counters gap = moving.frame();
+        assertEquals(60.0, gap.drivingMinutes(), 0.01, "the 2 h after the last moving frame are not driving");
+        assertEquals(0.0, gap.restingMinutes(), "nor rest: the stop starts at this frame");
+        moving.park(1440, 60);
+        assertEquals(0.0, moving.last().drivingMinutes(), 0.01, "a 24 min stop from there pays back the hour");
+    }
+
     @Test
     void drivingCountsTheTimeBetweenMovingFrames() {
         Run r = new Run();
@@ -110,15 +235,15 @@ class DutyTrackerTest {
         DutyTracker tracker = new DutyTracker();
         DutyState repaid = new DutyState(T0, -33, -70,
                 new DutyState.Drive("T-1", false, 3600, 0, 0, 3600, 1440), null, 0);
-        Frame resumed = new Frame(T0.plusSeconds(5 * 3600), -31.0, -70.0, 60.0, "T-1");
+        Frame resumed = new Frame(T0.plusSeconds(1800), -32.9, -70.0, 60.0, "T-1");
 
         var restart = tracker.step(repaid, resumed).orElseThrow();
 
         assertEquals(0.0, restart.counters().drivingMinutes(), "the legacy restart frame returns a zero check");
-        assertEquals(5 * 3600, restart.next().drive().run(), "the driving interval is saved");
-        var next = tracker.step(restart.next(), new Frame(resumed.at().plusSeconds(30), -30.999,
+        assertEquals(1800, restart.next().drive().run(), "the driving interval is saved");
+        var next = tracker.step(restart.next(), new Frame(resumed.at().plusSeconds(30), -32.899,
                 -70.0, 60.0, "T-1")).orElseThrow();
-        assertEquals(300.5, next.counters().drivingMinutes(), 0.01, "the next frame includes that interval");
+        assertEquals(30.5, next.counters().drivingMinutes(), 0.01, "the next frame includes that interval");
     }
 
     @Test
@@ -189,8 +314,10 @@ class DutyTrackerTest {
         assertTrue(t.step(s, new Frame(T0.plusSeconds(30), -33.0, -70.0, -1.0, "T-1")).isEmpty(), "speed");
         assertTrue(t.step(s, new Frame(T0, -33.0, -70.0, 0.0, "T-1")).isEmpty(), "a replay");
         assertTrue(t.step(s, new Frame(T0.minusSeconds(30), -33.0, -70.0, 0.0, "T-1")).isEmpty(), "older");
-        assertTrue(t.step(s, new Frame(T0.plusSeconds(30), -33.1, -70.0, 0.0, "T-1")).isEmpty(),
-                "11 km in 30 s");
+        DutyTracker.Step jump = t.step(s, new Frame(T0.plusSeconds(30), -33.1, -70.0, 0.0, "T-1")).orElseThrow();
+        assertFalse(jump.applied(), "11 km in 30 s");
+        assertEquals(s.at(), jump.next().at(), "the last applied frame stays");
+        assertEquals(T0.plusSeconds(30), jump.next().skipped().at(), "the jump is kept");
         DutyTracker.Step next = t.step(s, new Frame(T0.plusSeconds(30), -33.0, -70.0, 0.0, "T-1")).orElseThrow();
         assertFalse(next.moving());
         assertTrue(t.step(s, new Frame(T0.plusSeconds(30), -33.001, -70.0, 50.0, "T-1")).orElseThrow().moving(),
@@ -215,5 +342,9 @@ class DutyTrackerTest {
         r.frame();
         r.drive(3600, 30).park(1800, 60);
         assertEquals(r.state, RedisDutyStore.read(RedisDutyStore.write(r.state)));
+        DutyState kept = new DutyState(T0, -33, -70, null, null, 0, new DutyState.Fix(T0.plusSeconds(30), -33.1, -70));
+        assertEquals(kept, RedisDutyStore.read(RedisDutyStore.write(kept)));
+        assertNull(RedisDutyStore.read("{\"at\":\"2026-01-01T00:00:00Z\",\"lat\":-33,\"lon\":-70,\"restarts\":0}")
+                .skipped(), "a state saved before the field reads without it");
     }
 }

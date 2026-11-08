@@ -25,8 +25,15 @@ public class DutyChecks {
     private final DutyTracker tracker;
     private final DutyStore store;
 
-    /** The check of one frame and the state to save once it has been evaluated. */
+    /**
+     * The check of one frame and the state to save once it has been evaluated. The check is null when the frame is
+     * not applied but changes the state (a frame kept for an implied jump): save the state, evaluate nothing.
+     */
     public record Check(Map<String, Object> check, DutyState next) {
+
+        public boolean applied() {
+            return check != null;
+        }
 
         /** The check as a case change keeps it, without the trip: the trip is the case's, and holds the driver. */
         public Map<String, Object> context() {
@@ -57,7 +64,7 @@ public class DutyChecks {
 
     /**
      * Applies the frame of the organization's signal ({@code signal} as its rules read it, with its own trip).
-     * Empty when the frame is not applied: no position, a bad speed or jump, or not newer than the last one.
+     * Empty when the frame changes nothing: no position, a bad speed, or not newer than the last one.
      */
     public Optional<Check> apply(String tenantCode, String assetId, Instant at, Map<String, Object> signal) {
         return apply(at, signal, store.load(tenantCode, assetId));
@@ -77,7 +84,11 @@ public class DutyChecks {
         return tracker.step(prev, frame).map(step -> {
             DutyState next = step.next();
             if (next.restarts() != restarts) {
-                next = new DutyState(next.at(), next.lat(), next.lon(), next.drive(), next.rest(), restarts);
+                next = new DutyState(next.at(), next.lat(), next.lon(), next.drive(), next.rest(), restarts,
+                        next.skipped());
+            }
+            if (!step.applied()) {
+                return new Check(null, next);
             }
             Map<String, Object> check = new LinkedHashMap<>();
             check.put("driving_minutes", step.counters().drivingMinutes());

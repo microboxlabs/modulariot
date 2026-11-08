@@ -116,7 +116,9 @@ public class OrgFeedsResource extends OrgResourceSupport {
     @POST
     @Path("/{feedKey}/batches")
     @Operation(operationId = "sendFeedBatch",
-            summary = "Queues one async job per service whose desired state changed (202); unchanged ones are skipped")
+            summary = "Queues one async job per service whose desired state changed (202); unchanged ones are skipped",
+            description = "A service whose last outcome was report is queued again even when its desired state did"
+                    + " not change.")
     @PermissionsAllowed(value = TripsAccessCatalog.FEED_WRITE, permission = OrgPermission.class, params = ORG)
     public Uni<Response> batch(@PathParam(ORG) String organizationId, @PathParam(FEED) String feedKey,
             FeedBatchRequest body) {
@@ -128,7 +130,12 @@ public class OrgFeedsResource extends OrgResourceSupport {
     @PUT
     @Path("/{feedKey}/services/{externalCode}")
     @Operation(operationId = "reconcileFeedService",
-            summary = "Reconciles one service now and returns what was done; with dryRun=true, what would be done")
+            summary = "Reconciles one service now and returns what was done; with dryRun=true, what would be done",
+            description = "action report: the service was not applied; errors lists why (a required resource missing"
+                    + " from the fleet, missing planned times). A truck, trailer, driver or carrier that is inactive in"
+                    + " the fleet does not stop the service: it is used as it is and listed in warnings as"
+                    + " '<type> <key> is inactive in the fleet'. A reported service is applied again when it is sent"
+                    + " again, even unchanged.")
     @PermissionsAllowed(value = TripsAccessCatalog.FEED_WRITE, permission = OrgPermission.class, params = ORG)
     public Uni<Response> reconcile(@PathParam(ORG) String organizationId, @PathParam(FEED) String feedKey,
             @PathParam(CODE) String externalCode, @QueryParam("dryRun") boolean dryRun, FeedServiceRequest body) {

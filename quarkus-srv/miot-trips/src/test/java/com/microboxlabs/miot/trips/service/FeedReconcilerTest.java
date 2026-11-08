@@ -10,8 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.FeedService;
+import com.microboxlabs.miot.trips.dto.AssignmentRequest;
 import com.microboxlabs.miot.trips.dto.FeedResult;
 import com.microboxlabs.miot.trips.dto.FeedProfileRequest;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
@@ -20,6 +22,7 @@ import com.microboxlabs.miot.trips.store.InMemoryFleet;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,7 +33,26 @@ import org.junit.jupiter.api.Test;
 
 class FeedReconcilerTest {
     private final InMemoryTripsWorld world = new InMemoryTripsWorld();
-    private final InMemoryFleet fleet = new InMemoryFleet();
+    private final Map<String, FleetResources.Match> carriersByTaxId = new HashMap<>();
+    private final Map<String, UUID> carrierOfRegistered = new HashMap<>();
+    private final InMemoryFleet fleet = new InMemoryFleet() {
+        @Override
+        public Optional<Match> carrierByTaxId(String tenantCode, String taxId) {
+            return Optional.ofNullable(carriersByTaxId.get(taxId));
+        }
+
+        @Override
+        public UUID registerCarrier(String tenantCode, String actor, String taxId, String legalName) {
+            throw new AssertionError("the existing carrier is used");
+        }
+
+        @Override
+        public UUID registerVehicle(String tenantCode, String actor, String resourceType, String plate,
+                UUID carrierId) {
+            carrierOfRegistered.put(plate, carrierId);
+            return add(resourceType, plate, true);
+        }
+    };
     private final TestTransactions tx = new TestTransactions();
     private final TestFeeds feeds = new TestFeeds();
     private boolean monitorOwnsLifecycle;
@@ -315,6 +337,133 @@ class FeedReconcilerTest {
         assertEquals(List.of("S-1", "S-1"), result.queued());
         assertTrue(result.unchanged().isEmpty());
         assertEquals(reconciler.hash(first), feeds.saved.desiredHash());
+    }
+
+    private void requireResources(boolean registers, String... types) {
+        FeedProfile p = feeds.profile;
+        feeds.profile = new FeedProfile(p.tenantCode(), p.feedKey(), p.name(), p.country(), p.stages(),
+                p.arrivalStage(), Set.of(types), registers, true, null, "test", null, "test");
+    }
+
+    private FeedServiceRequest withResources(FeedServiceRequest.Resources resources) {
+        return new FeedServiceRequest("service", "test reference", OffsetDateTime.now().plusHours(2),
+                OffsetDateTime.now().plusHours(5), resources, null);
+    }
+
+    private List<String> openAssignments(FeedResult result) {
+        return trips.detail("test", UUID.fromString(result.tripId())).assignments().stream()
+                .filter(a -> a.validTo() == null).map(a -> a.resourceType() + ":" + a.resourceId()).toList();
+    }
+
+    @Test
+    void inactiveRequiredResourcesAreAssignedWithAWarning() {
+        requireResources(false, "truck", "trailer", "driver");
+        UUID truck = fleet.add("truck", "TEST-TRUCK-1", false);
+        UUID trailer = fleet.add("trailer", "TEST-TRAILER-1", false);
+        UUID driver = fleet.add("driver", "TEST-DRIVER-1", false);
+
+        FeedResult result = send(withResources(new FeedServiceRequest.Resources("TEST-TRUCK-1", "TEST-TRAILER-1",
+                List.of("TEST-DRIVER-1"))));
+
+        assertEquals(FeedReconciler.CREATE, result.action());
+        assertEquals(List.of(), result.errors());
+        assertEquals(List.of("truck TEST-TRUCK-1 is inactive in the fleet",
+                "trailer TEST-TRAILER-1 is inactive in the fleet", "driver TEST-DRIVER-1 is inactive in the fleet"),
+                result.warnings());
+        assertEquals(List.of("truck:" + truck, "trailer:" + trailer, "driver:" + driver), openAssignments(result));
+        assertFalse(fleet.byPlate("test", "truck", "TEST-TRUCK-1").orElseThrow().active(),
+                "a feed does not reactivate a resource");
+    }
+
+    @Test
+    void anInactiveTruckIsAssignedWhenAnOpenTripChangesToIt() {
+        requireResources(false, "truck");
+        UUID active = fleet.add("truck", "TEST-TRUCK-1", true);
+        UUID inactive = fleet.add("truck", "TEST-TRUCK-2", false);
+        FeedResult created = send(withResources(new FeedServiceRequest.Resources("TEST-TRUCK-1", null, null)));
+        assertEquals(List.of("truck:" + active), openAssignments(created));
+
+        FeedResult changed = send(withResources(new FeedServiceRequest.Resources("TEST-TRUCK-2", null, null)));
+
+        assertEquals(FeedReconciler.UPDATE, changed.action());
+        assertEquals(List.of("truck TEST-TRUCK-2 is inactive in the fleet"), changed.warnings());
+        assertEquals(List.of("truck:" + inactive), openAssignments(changed));
+    }
+
+    @Test
+    void anInactiveCarrierIsUsedToRegisterAVehicleWithAWarning() {
+        requireResources(true, "truck");
+        UUID carrier = UUID.randomUUID();
+        carriersByTaxId.put("TEST-TAX-1", new FleetResources.Match(carrier, false));
+
+        FeedResult result = send(withResources(new FeedServiceRequest.Resources("TEST-TRUCK-NEW", null, List.of(),
+                new FeedServiceRequest.Carrier("TEST-TAX-1", null), null)));
+
+        assertEquals(FeedReconciler.CREATE, result.action());
+        assertEquals(List.of(), result.errors());
+        assertEquals(List.of("carrier TEST-TAX-1 is inactive in the fleet"), result.warnings());
+        assertEquals(carrier, carrierOfRegistered.get("TEST-TRUCK-NEW"));
+        assertFalse(carriersByTaxId.get("TEST-TAX-1").active());
+    }
+
+    @Test
+    void aServiceReportedForAnInactiveTruckIsAppliedWhenSentAgainUnchanged() throws Exception {
+        requireResources(false, "truck");
+        fleet.add("truck", "TEST-TRUCK-1", false);
+        FeedServiceRequest request = withResources(new FeedServiceRequest.Resources("TEST-TRUCK-1", null, null));
+        FeedResult before = new FeedResult("S-TEST", FeedReconciler.REPORT, false, null, null, List.of(), List.of(),
+                List.of("truck TEST-TRUCK-1 is inactive"));
+        feeds.saved = new FeedService("test", "test-feed", "S-TEST", json.writeValueAsString(request),
+                reconciler.hash(request), null, null, true, FeedReconciler.REPORT, json.writeValueAsString(before),
+                OffsetDateTime.now(), null);
+
+        assertFalse(reconciler.settled(new FeedService.Digest(reconciler.hash(request), FeedReconciler.REPORT, true),
+                request), "a batch queues it again");
+        assertTrue(reconciler.accept("test", "test-feed", "S-TEST", request), "the same state counts as changed");
+        FeedResult applied = reconciler.recheck("test", "test-feed", "S-TEST");
+
+        assertEquals(FeedReconciler.CREATE, applied.action());
+        assertEquals(List.of("truck TEST-TRUCK-1 is inactive in the fleet"), applied.warnings());
+        assertEquals(FeedReconciler.CREATE, feeds.saved.lastAction());
+    }
+
+    @Test
+    void aSinglePutReappliesAServiceReportedForAnInactiveTruck() throws Exception {
+        requireResources(false, "truck");
+        fleet.add("truck", "TEST-TRUCK-1", false);
+        FeedServiceRequest request = withResources(new FeedServiceRequest.Resources("TEST-TRUCK-1", null, null));
+        feeds.saved = new FeedService("test", "test-feed", "S-TEST", json.writeValueAsString(request),
+                reconciler.hash(request), null, null, true, FeedReconciler.REPORT, null, OffsetDateTime.now(), null);
+
+        assertEquals(FeedReconciler.CREATE, send(request).action());
+    }
+
+    @Test
+    void aMissingRequiredTruckIsStillReported() {
+        requireResources(false, "truck");
+
+        FeedResult result = send(withResources(new FeedServiceRequest.Resources("TEST-TRUCK-9", null, null)));
+
+        assertEquals(FeedReconciler.REPORT, result.action());
+        assertEquals(List.of("truck TEST-TRUCK-9 is not in the fleet directory"), result.errors());
+        assertNull(result.tripId());
+    }
+
+    @Test
+    void aManualAssignmentStillRefusesAnInactiveTruck() {
+        FeedResult created = send(desired(null, List.of()));
+        UUID tripId = UUID.fromString(created.tripId());
+        UUID inactive = fleet.add("truck", "TEST-TRUCK-1", false);
+        AssignmentRequest manual = new AssignmentRequest("truck", inactive.toString(), null, null);
+
+        IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
+                () -> assignments.create("test", "test:actor", tripId, manual));
+
+        assertTrue(refused.getMessage().endsWith("does not exist or is inactive"));
+        AssignmentRequest unknown = new AssignmentRequest("truck", UUID.randomUUID().toString(), null, null);
+        assertThrows(IllegalArgumentException.class,
+                () -> assignments.createFromFeed("test", "test:actor", tripId, unknown),
+                "a feed still needs the resource to exist");
     }
 
     private static class TestTransactions implements Transactions {

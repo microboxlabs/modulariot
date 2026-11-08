@@ -47,6 +47,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final String FROM_SUBQUERY = " FROM (";
     private static final String ASSET_ID = "asset_id";
+    private static final String MEASURE = "measure";
     private static final String SPEED_KMH = "speed_kmh";
 
     private static final String CASES = """
@@ -570,7 +571,7 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getString(ASSET_ID), r.getString("name"), r.getInteger("current_level"),
                 speedStep(instant(r.getOffsetDateTime("speed_at")), r.getInteger("current_level"),
                         r.getString("measure_expression"), r.getDouble(SPEED_KMH),
-                        json(r.getString("speed_context")), r.getDouble("measure")))));
+                        json(r.getString("speed_context")), r.getDouble(MEASURE)))));
         return out;
     }
 
@@ -719,7 +720,7 @@ public class PgEngineCases implements EngineCaseStore {
             ClosingFrame frame = frames.apply(staleCase(row));
             if (frame != null) {
                 snapshots.add(new JsonObject().put("case_id", row.getLong("id"))
-                        .put("measure", frame.maxMeasure()).put("context", frame.context()));
+                        .put(MEASURE, frame.maxMeasure()).put("context", frame.context()));
             }
         }
         return snapshots;

@@ -109,7 +109,9 @@ public class PgTransitionLog implements TransitionLog {
                  ORDER BY id DESC LIMIT 1
                 """).execute(Tuple.of(tenantCode, episode.definitionId(), episode.assetId(),
                         episode.openedAt().atOffset(ZoneOffset.UTC))).await().atMost(QUERY_TIMEOUT);
-        for (Row row : rows) {
+        var iterator = rows.iterator();
+        if (iterator.hasNext()) {
+            Row row = iterator.next();
             JsonObject context = row.getJsonObject("context");
             return new Opening(row.getString("trip_id"), context == null ? Map.of() : context.getMap());
         }

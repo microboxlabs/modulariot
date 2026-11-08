@@ -338,6 +338,7 @@ public class FeedReconciler {
         plan.tripId = trip == null ? null : trip.id();
 
         ResolvedResources resources = resolveResources(tenantCode, d, profile);
+        warnAboutInactive(plan, tenantCode, resources);
         Resource truck = resources.truck();
         Resource trailer = resources.trailer();
         List<Resource> drivers = resources.drivers();
@@ -368,7 +369,6 @@ public class FeedReconciler {
         named.add(0, trailer);
         named.add(0, truck);
         warnAbout(plan, named);
-        warnAboutInactive(plan, resources);
         planRegistrations(plan, tenantCode, actor, resources);
         planPlaces(plan, tenantCode, actor, origin, destination);
         planRoute(plan, tenantCode, actor, trip, origin, destination);
@@ -385,7 +385,6 @@ public class FeedReconciler {
             return plan.decided(REPORT, true);
         }
         warnAboutOptionalResources(plan, context.profile(), resources);
-        warnAboutInactive(plan, resources);
         planRegistrations(plan, context.tenantCode(), context.actor(), resources);
         planPlaces(plan, context.tenantCode(), context.actor(), origin, destination);
         planCreate(plan, context, code, mandate, resources, origin, destination);
@@ -412,7 +411,6 @@ public class FeedReconciler {
         }
         String tenantCode = context.tenantCode();
         String actor = context.actor();
-        warnAboutInactive(plan, resources);
         planRegistrations(plan, tenantCode, actor, resources);
         planPlaces(plan, tenantCode, actor, origin, destination);
         planCreate(plan, context, code, mandate, resources, origin, destination);
@@ -485,9 +483,6 @@ public class FeedReconciler {
         FeedServiceRequest.Carrier carrier = resources.carrier();
         UUID[] carrierId = new UUID[1];
         if (carrier != null) {
-            if (fleet.carrierByTaxId(tenantCode, carrier.taxId()).filter(found -> !found.active()).isPresent()) {
-                plan.warnings.add(inactiveWarning(CARRIER, carrier.taxId()));
-            }
             String label = carrier.name() == null || carrier.name().isBlank() ? carrier.taxId() : carrier.name();
             plan.step("find or register carrier " + label,
                     () -> carrierId[0] = findOrRegisterCarrier(tenantCode, actor, carrier));
@@ -614,8 +609,13 @@ public class FeedReconciler {
     }
 
     /** A feed reports what really happened, so an inactive resource is used as it is and only warned about. */
-    private static void warnAboutInactive(Plan plan, ResolvedResources resources) {
+    private void warnAboutInactive(Plan plan, String tenantCode, ResolvedResources resources) {
         resources.named().stream().map(Resource::inactive).filter(Objects::nonNull).forEach(plan.warnings::add);
+        FeedServiceRequest.Carrier carrier = resources.carrier();
+        if (carrier != null && fleet.carrierByTaxId(tenantCode, carrier.taxId())
+                .filter(found -> !found.active()).isPresent()) {
+            plan.warnings.add(inactiveWarning(CARRIER, carrier.taxId()));
+        }
     }
 
     private static void warnAbout(Plan plan, List<Resource> resources) {

@@ -576,12 +576,14 @@ class PgFeedReconcilerTest {
     }
 
     @Test
-    void anInactiveTruckIsAssignedWithAWarningAndStaysInactive() {
+    void anInactiveTruckIsAssignedWithAWarningAndStaysInactive() throws Exception {
         FeedResult r = send("S-006", desired(1, 6, "JKL-000", null, "10000001"));
 
         assertEquals(FeedReconciler.CREATE, r.action());
         assertEquals(List.of(), r.errors());
         assertEquals(List.of("truck JKL-000 is inactive in the fleet"), r.warnings());
+        FeedService saved = feeds.service(tenant, FEED, "S-006").orElseThrow();
+        assertEquals(json.valueToTree(r.warnings()), json.readTree(saved.lastResult()).path("warnings"));
         FleetResources.Match truck = fleet.byPlate(tenant, "truck", "JKL-000").orElseThrow();
         assertFalse(truck.active(), "a feed does not reactivate the truck");
         assertTrue(trip(r).assignments().stream().anyMatch(a -> a.resourceId().equals(truck.id().toString())));

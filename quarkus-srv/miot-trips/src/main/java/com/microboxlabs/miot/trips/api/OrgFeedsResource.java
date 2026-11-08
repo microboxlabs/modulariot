@@ -118,7 +118,8 @@ public class OrgFeedsResource extends OrgResourceSupport {
     @Operation(operationId = "sendFeedBatch",
             summary = "Queues one async job per service whose desired state changed (202); unchanged ones are skipped",
             description = "A service whose last outcome was report is queued again even when its desired state did"
-                    + " not change.")
+                    + " not change. Inactive fleet resources do not stop a service; warnings are stored in the"
+                    + " service's lastResult.warnings. Existing fleet resources and their status are never changed.")
     @PermissionsAllowed(value = TripsAccessCatalog.FEED_WRITE, permission = OrgPermission.class, params = ORG)
     public Uni<Response> batch(@PathParam(ORG) String organizationId, @PathParam(FEED) String feedKey,
             FeedBatchRequest body) {
@@ -134,7 +135,9 @@ public class OrgFeedsResource extends OrgResourceSupport {
             description = "action report: the service was not applied; errors lists why (a required resource missing"
                     + " from the fleet, missing planned times). A truck, trailer, driver or carrier that is inactive in"
                     + " the fleet does not stop the service: it is used as it is and listed in warnings as"
-                    + " '<type> <key> is inactive in the fleet'. A reported service is applied again when it is sent"
+                    + " '<type> <key> is inactive in the fleet', also stored in the service's lastResult.warnings."
+                    + " Existing fleet resources and their status are never changed. Manual assignments still"
+                    + " refuse inactive resources. A reported service is applied again when it is sent"
                     + " again, even unchanged.")
     @PermissionsAllowed(value = TripsAccessCatalog.FEED_WRITE, permission = OrgPermission.class, params = ORG)
     public Uni<Response> reconcile(@PathParam(ORG) String organizationId, @PathParam(FEED) String feedKey,

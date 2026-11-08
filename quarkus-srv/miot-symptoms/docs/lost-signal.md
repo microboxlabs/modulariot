@@ -122,7 +122,8 @@ Each check runs the organization's TEST and ACTIVE `trip_check` versions with th
 | `check.loss.last.lat`, `.lon`, `.speed`, `.engine` | The newest frame |
 | `check.loss.sender` | The client that sends the frames |
 | `check.loss.returned`, `check.loss.backfill` | Only on the return check |
-| `check.driving_minutes`, `check.resting_minutes`, `check.duty_minutes` | Not on these checks. The duty tracker writes them on each frame, and the symptoms that read them run there instead ([duty-tracker.md](duty-tracker.md)) |
+| `check.driving_minutes`, `check.resting_minutes`, `check.duty_minutes` | Not on these checks. The duty tracker writes them on each frame, and the symptoms that read a counter run there instead ([duty-tracker.md](duty-tracker.md)) |
+| `check.geo` | Only on duty checks, when the evaluating organization has zones at the frame. Reading geo alone does not select duty checks; a rule must also read a duty counter. On detector checks it is absent; use `check.?geo.?authorized_zone.orValue(false)` |
 
 The case's trip, driver and position are the trip's and the newest frame's.
 

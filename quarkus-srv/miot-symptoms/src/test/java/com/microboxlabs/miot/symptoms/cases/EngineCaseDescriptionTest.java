@@ -8,11 +8,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.gps.SignalStates.SignalState;
 import com.microboxlabs.miot.core.gps.SignalStates.Status;
+import com.microboxlabs.miot.symptoms.duty.DutyChecks;
 import com.microboxlabs.miot.symptoms.lostsignal.SignalStateReader.Reported;
+import io.vertx.core.json.JsonObject;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -137,6 +140,37 @@ class EngineCaseDescriptionTest {
         JsonNode none = EngineCaseService.description(panic(), NOW, Optional.empty(), NOW);
         assertFalse(none.has("median_report_interval"));
         assertFalse(none.has("last_reported_engine_status"));
+    }
+
+    @Test
+    void aDutyContextWithGeoSurvivesJsonStorageAndTheCasePopup() throws Exception {
+        Map<String, Object> geo = Map.of("authorized_zone", true, "zone", "Synthetic zone",
+                "risk_zone", false, "outside_authorized", false);
+        DutyChecks.Check check = new DutyChecks.Check(Map.of("driving_minutes", 280.0,
+                "resting_minutes", 0.0, "duty_minutes", 280.0, "signal_lost_minutes", 0.0,
+                "trip", Map.of("active", true, "id", "T-1"), "geo", geo), null);
+        // PgTransitionLog writes the context as a Vert.x JsonObject to its JSONB column.
+        JsonNode kept = JSON.readTree(new JsonObject(check.context()).encode());
+        assertEquals(JSON.valueToTree(geo), kept.path("check").path("geo"));
+        assertFalse(kept.path("check").has("trip"));
+
+        EngineCase c = new EngineCase(14, UUID.randomUUID(), "0.1.0", "Conducción continua", "driving",
+                "DEMO01", OPENED, 2, "T-1", null, null, 60.0, null, 0, null, 0L)
+                .withLevel(kept, kept, "check.driving_minutes >= 270", List.of(new EngineCase.LevelStep(OPENED, 2)));
+        InMemoryEngineCases store = new InMemoryEngineCases();
+        store.add(c);
+        EngineCaseService service = new EngineCaseService(store, (t, a, d) -> { }, t -> null,
+                Clock.fixed(NOW, ZoneOffset.UTC), com.microboxlabs.miot.symptoms.events.SymptomEvents.NONE,
+                (asset, now) -> profile(now.minusSeconds(60), 36L, true));
+
+        assertEquals(kept, service.header("tenant-demo", c.symptomId())
+                .path("level_reason").path("context"));
+        JsonNode description = service.signals("tenant-demo", c.symptomId()).path("description");
+        assertEquals("Conducción continua", description.path("symptom_name").asText());
+        assertEquals("00:00:36", description.path("median_report_interval").asText());
+        assertTrue(description.path("last_reported_engine_status").asBoolean());
+        assertEquals(60.0, description.path("last_reported_speed").asDouble());
+        assertFalse(description.has("signal_lag"), "a duty check with geo is not a lost-signal check");
     }
 
     @Test

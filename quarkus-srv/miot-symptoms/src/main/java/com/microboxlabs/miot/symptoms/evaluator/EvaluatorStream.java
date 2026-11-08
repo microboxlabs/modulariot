@@ -398,7 +398,7 @@ public class EvaluatorStream {
         DutyChecks.Check c = null;
         if (!o.dutySymptoms().isEmpty()) {
             // The episodes were read before the counters: a close during the reads invalidates this snapshot.
-            c = duty.apply(at, o.signal(), o.reads().counters().get()).orElse(null);
+            c = duty.apply(tenant, at, o.signal(), o.reads().counters().get()).orElse(null);
             if (skippedDuty(c)) {
                 meters.counter("miot.symptoms.duty.skipped").increment();
             } else {

@@ -35,7 +35,10 @@ public class DutyChecks {
             return check != null;
         }
 
-        /** The check as a case change keeps it, without the trip: the trip is the case's, and holds the driver. */
+        /**
+         * The check as a case change keeps it, without the trip: the trip is the case's, and holds the driver. It
+         * keeps the frame's {@code geo}.
+         */
         public Map<String, Object> context() {
             Map<String, Object> kept = new LinkedHashMap<>(check);
             kept.remove("trip");
@@ -67,11 +70,12 @@ public class DutyChecks {
      * Empty when the frame changes nothing: no position, a bad speed, or not newer than the last one.
      */
     public Optional<Check> apply(String tenantCode, String assetId, Instant at, Map<String, Object> signal) {
-        return apply(at, signal, store.load(tenantCode, assetId));
+        return apply(tenantCode, at, signal, store.load(tenantCode, assetId));
     }
 
     /** As {@link #apply(String, String, Instant, Map)}, on the counters already read from the store. */
-    public Optional<Check> apply(Instant at, Map<String, Object> signal, DutyStore.Loaded loaded) {
+    public Optional<Check> apply(String tenantCode, Instant at, Map<String, Object> signal,
+            DutyStore.Loaded loaded) {
         DutyState prev = loaded.state();
         if (prev != null && loaded.restarts() > prev.restarts()) {
             prev = DutyTracker.restartDuty(prev, loaded.restarts());
@@ -96,6 +100,10 @@ public class DutyChecks {
             check.put("duty_minutes", step.counters().dutyMinutes());
             check.put("signal_lost_minutes", 0.0);
             check.put("trip", trip);
+            Object geo = geo(tenantCode, signal);
+            if (geo != null) {
+                check.put("geo", geo);
+            }
             return new Check(check, next);
         });
     }
@@ -120,6 +128,19 @@ public class DutyChecks {
     /** Where the counters are kept. */
     public DutyStore store() {
         return store;
+    }
+
+    /**
+     * The organization's zones at the frame. A signal that still carries every organization's zones ({@code geos})
+     * gives only {@code tenantCode}'s, never the shared {@code geo}; the organization's view has its own as
+     * {@code geo}.
+     */
+    static Object geo(String tenantCode, Map<String, Object> signal) {
+        if (signal.containsKey("geos")) {
+            return signal.get("geos") instanceof Map<?, ?> byClient && tenantCode != null
+                    ? byClient.get(tenantCode) : null;
+        }
+        return signal.get("geo") instanceof Map<?, ?> g ? g : null;
     }
 
     private static Double number(Map<String, Object> signal, String key) {

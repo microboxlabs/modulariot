@@ -63,6 +63,11 @@ public interface TripEnds {
         }
     };
 
+    /** Supplies the same episode store the checks use, for exact case maxima at trip end. */
+    default TripEnds withEpisodes(com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository episodes) {
+        return this;
+    }
+
     /**
      * The state of each organization's trip ({@code tenant → trip id}), by tenant; an organization left out has
      * nothing to say. Fails when the trips cannot be read, so the check is retried rather than run blind.

@@ -17,6 +17,18 @@ class InMemoryTransitionLog implements TransitionLog {
     private final Map<String, Long> openedIds = new HashMap<>();
 
     @Override
+    public Opening opening(String tenantCode, Episode episode) {
+        for (int i = 0; i < recorded.size(); i++) {
+            Transition t = recorded.get(i);
+            if (t.kind() == Transition.Kind.OPENED && t.definitionId().equals(episode.definitionId())
+                    && t.assetId().equals(episode.assetId()) && t.at().equals(episode.openedAt())) {
+                return new Opening(places.get(i).tripId(), contexts.get(i));
+            }
+        }
+        return new Opening(null, Map.of());
+    }
+
+    @Override
     public List<Recorded> append(String tenantCode, List<Transition> transitions, Place place,
             Map<String, Object> context) {
         List<Recorded> out = new ArrayList<>();

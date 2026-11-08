@@ -108,7 +108,8 @@ public class SignalEvaluator {
                 e.levelSince().keySet().forEach(level -> restarted.put(level, at));
                 store.save(tenant, new Episode(e.definitionId(), e.version(), asset, at, e.conditionSince(),
                         e.normalSince(), restarted, e.lastSignalAt(), e.openedAt(), e.level(), e.maxMeasure(),
-                        e.state(), e.closedOnTrip(), e.closedOnTripAt(), e.offTripSince(), e.tripId()));
+                        e.state(), e.closedOnTrip(), e.closedOnTripAt(), e.offTripSince(), e.tripId(), e.lastContext(),
+                        e.tripEnded()));
             }
         }
         return closed;
@@ -254,7 +255,7 @@ public class SignalEvaluator {
         store.save(tenantCode, new Episode(e.definitionId(), e.version(), e.assetId(), e.candidateSince(),
                 e.conditionSince(), e.normalSince(), e.levelSince(), e.lastSignalAt(), e.openedAt(), r.level(),
                 Math.max(e.maxMeasure(), r.measure()), e.state() != null ? e.state() : s.state(),
-                e.closedOnTrip(), e.closedOnTripAt(), e.offTripSince(), e.tripId()));
+                e.closedOnTrip(), e.closedOnTripAt(), e.offTripSince(), e.tripId(), e.lastContext(), e.tripEnded()));
         return Optional.of(transition(Kind.LEVEL_CHANGED, s, e.assetId(), at, r.level(), e.level(), r.measure()));
     }
 
@@ -406,7 +407,7 @@ public class SignalEvaluator {
             int initial = e.level() > 0 ? s.levels().keySet().iterator().next() : r.level();
             Episode opened = new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                     r.conditionSince(), r.normalSince(), r.levelSince(), at, at, initial, r.measure(), s.state(),
-                    null, null, offTrip(root) ? at : null, activeTripId(root));
+                    null, null, offTrip(root) ? at : null, activeTripId(root), Map.of());
             return new Step(opened, transition(Kind.OPENED, s, e.assetId(), at, initial, 0, r.measure()));
         }
         return new Step(new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
@@ -463,7 +464,7 @@ public class SignalEvaluator {
         Episode kept = new Episode(s.definitionId(), s.version(), e.assetId(), held ? null : r.candidateSince(),
                 r.conditionSince(), r.normalSince(), since, at, e.openedAt(), level, max,
                 e.state() != null ? e.state() : s.state(), e.closedOnTrip(), e.closedOnTripAt(), offTripSince,
-                e.tripId() != null ? e.tripId() : activeTripId(root));
+                e.tripId(), e.lastContext(), e.tripId() != null && !e.tripId().equals(activeTripId(root)));
         Transition changed = level != e.level()
                 ? transition(Kind.LEVEL_CHANGED, s, e.assetId(), at, level, e.level(), r.measure())
                 : null;

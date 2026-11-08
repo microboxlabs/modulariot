@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.store;
 
 import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
 
+import com.microboxlabs.miot.symptoms.evaluator.Episode;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
 import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
@@ -98,6 +99,21 @@ public class PgTransitionLog implements TransitionLog {
 
     PgTransitionLog(Supplier<Pool> pool) {
         this.pool = pool;
+    }
+
+    @Override
+    public Opening opening(String tenantCode, Episode episode) {
+        var rows = pool.get().preparedQuery("""
+                SELECT trip_id, context FROM miot_symptoms.signal_transitions
+                 WHERE tenant_code = $1 AND definition_id = $2 AND asset_id = $3 AND kind = 'OPENED' AND at = $4
+                 ORDER BY id DESC LIMIT 1
+                """).execute(Tuple.of(tenantCode, episode.definitionId(), episode.assetId(),
+                        episode.openedAt().atOffset(ZoneOffset.UTC))).await().atMost(QUERY_TIMEOUT);
+        for (Row row : rows) {
+            JsonObject context = row.getJsonObject("context");
+            return new Opening(row.getString("trip_id"), context == null ? Map.of() : context.getMap());
+        }
+        return new Opening(null, Map.of());
     }
 
     /**

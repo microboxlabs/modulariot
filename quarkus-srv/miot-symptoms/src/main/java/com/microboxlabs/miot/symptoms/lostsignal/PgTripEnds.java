@@ -1,8 +1,12 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.store.PgEngineCases;
+import com.microboxlabs.miot.symptoms.evaluator.AssetEpisodes;
+import com.microboxlabs.miot.symptoms.evaluator.Episode;
+import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -46,10 +50,21 @@ public class PgTripEnds implements TripEnds {
 
     private final Supplier<Pool> pool;
     private final EngineCaseStore cases;
+    private final EpisodeRepository episodes;
 
     public PgTripEnds(Supplier<Pool> pool, EngineCaseStore cases) {
+        this(pool, cases, null);
+    }
+
+    private PgTripEnds(Supplier<Pool> pool, EngineCaseStore cases, EpisodeRepository episodes) {
+        this.episodes = episodes;
         this.pool = pool;
         this.cases = cases;
+    }
+
+    @Override
+    public TripEnds withEpisodes(EpisodeRepository episodes) {
+        return new PgTripEnds(pool, cases, episodes);
     }
 
     @Override
@@ -80,7 +95,22 @@ public class PgTripEnds implements TripEnds {
 
     @Override
     public List<StaleCase> close(String tenant, String tripId, List<UUID> definitionIds, Instant at) {
-        return cases.closeTrip(tenant, tripId, definitionIds, at, REASON);
+        Map<String, AssetEpisodes> loaded = new HashMap<>();
+        return cases.closeTrip(tenant, tripId, definitionIds, at, REASON, c -> {
+            if (episodes == null) {
+                return null;
+            }
+            Episode e = loaded.computeIfAbsent(c.assetId(), asset -> episodes.load(tenant, asset))
+                    .find(tenant, c.assetId(), c.definitionId()).orElse(null);
+            if (e == null || !c.openedAt().equals(e.openedAt())
+                    || (e.state() != null && (e.state() == SymptomState.TEST)
+                            != c.test())) {
+                return null;
+            }
+            Map<String, Object> context = e.lastContext();
+            return new EngineCaseStore.ClosingFrame(e.maxMeasure(),
+                    context == null || context.isEmpty() ? null : context);
+        });
     }
 
     @Override

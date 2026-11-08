@@ -1,8 +1,10 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
 import java.time.Instant;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 
 /**
@@ -12,6 +14,9 @@ import java.util.UUID;
  * ({@link Holds}): it is recorded as evidence, opens no case and sends nothing.
  * {@code NOTED} is a timeline entry the symptom's note rule wrote on an open
  * case ({@code lifecycle.note}); the case does not change and nothing is sent.
+ *
+ * A CLOSED row's measure is the case's maximum ({@link Episode#maxMeasure()}), while its context is the
+ * closing frame (the last frame on its trip when duty counters have reset after trip end).
  *
  * @param previousLevel the level before this change; 0 when the case opens
  * @param detail        what the log keeps with the change instead of the signal's context, or null: for
@@ -50,6 +55,19 @@ public record Transition(
     public Transition withTrip(String value) {
         return new Transition(kind, definitionId, version, state, assetId, at, level, previousLevel, measure, detail,
                 value);
+    }
+
+    /** Records a close on its case's trip, retaining explicit state-change reasons. */
+    public Transition closingOn(String caseTrip, String activeTrip, Map<String, Object> context) {
+        Transition closed = withTrip(caseTrip);
+        if (caseTrip == null || caseTrip.equals(activeTrip) || (detail != null && detail.containsKey("reason"))) {
+            return closed;
+        }
+        Map<String, Object> base = detail == null ? context : detail;
+        Map<String, Object> kept = base == null ? new LinkedHashMap<>()
+                : new LinkedHashMap<>(base);
+        kept.put("reason", TripEnds.REASON);
+        return closed.withDetail(kept);
     }
 
     /** Why a case closed when its symptom changed state, kept in the CLOSED row's context. */

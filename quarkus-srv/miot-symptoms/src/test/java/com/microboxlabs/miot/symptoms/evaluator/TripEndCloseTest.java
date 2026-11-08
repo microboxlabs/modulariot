@@ -12,11 +12,11 @@ import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
-import com.microboxlabs.miot.symptoms.duty.DutyState;
 import com.microboxlabs.miot.symptoms.duty.InMemoryDutyStore;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
+import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
@@ -68,6 +68,12 @@ class TripEndCloseTest {
         return publish(key, SeedTemplates.get(key).spec());
     }
 
+    private UUID delayedDriving() {
+        SymptomSpec base = SeedTemplates.get("continuous-driving").spec();
+        return publish("delayed-driving", new SymptomSpec(base.source(), base.activation(), base.measure(),
+                base.levels(), new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.normal_s >= 600"), null));
+    }
+
     private UUID publish(String key, SymptomSpec spec) {
         UUID id = catalog.create(DEMO, "owner@example.com", new CreateRequest(key, key, null, null, null,
                 spec.source(), null, spec)).definition().id();
@@ -86,9 +92,9 @@ class TripEndCloseTest {
     private String frame(String trips, double speed, String client) {
         return """
                 {"schema":"miot.gps.signal@1","asset_id":"%s","at":"%s","clients":["%s"],"trips":%s,
-                 "frame":{"asset_id":"%s","gps":{"speed":%s,"latitude":%s,"longitude":-70.6},"sensors":{}}}
+                 "frame":{"asset_id":"%s","gps":{"speed":%s,"latitude":%s,"longitude":0.0},"sensors":{}}}
                 """.formatted(ASSET, T0.plusSeconds(at), client, trips, ASSET, speed,
-                -40 + metres / METRES_PER_DEGREE);
+                metres / METRES_PER_DEGREE);
     }
 
     /** One frame a minute, 1 km apart, on the trips given. */
@@ -137,7 +143,7 @@ class TripEndCloseTest {
         int closed = closedIndex(late);
         assertEquals("T-1", log.places.get(closed).tripId(), "the case's trip, not the signal's none");
         assertEquals(200.0, log.recorded.get(closed).measure());
-        assertEquals(Map.of(EvaluatorStream.CLOSED_REASON, EvaluatorStream.TRIP_ENDED), log.contexts.get(closed));
+        assertEquals(Map.of("reason", TripEnds.REASON), log.contexts.get(closed));
         assertEquals("T-1", log.places.get(0).tripId());
     }
 
@@ -152,7 +158,7 @@ class TripEndCloseTest {
         int closed = closedIndex(early);
         assertEquals("T-1", log.places.get(closed).tripId());
         assertEquals(50.0, log.recorded.get(closed).measure());
-        assertEquals(EvaluatorStream.TRIP_ENDED, log.contexts.get(closed).get(EvaluatorStream.CLOSED_REASON));
+        assertEquals(TripEnds.REASON, log.contexts.get(closed).get("reason"));
     }
 
     @Test
@@ -182,7 +188,8 @@ class TripEndCloseTest {
         UUID driving = template("continuous-driving");
         String trip = onTrip("T-1", "");
         drive(275, trip);
-        DutyState onTheTrip = duty.load(DEMO, ASSET).state();
+        Map<String, Object> onTheTrip = episodes.load(DEMO, ASSET).find(DEMO, ASSET, driving)
+                .orElseThrow().lastContext();
         drive(11, "{}");
 
         int closed = closedIndex(driving);
@@ -190,37 +197,39 @@ class TripEndCloseTest {
         assertEquals("T-1", log.places.get(closed).tripId());
         assertEquals(274.0, log.recorded.get(closed).measure(), 0.01, "the highest measure, not the reset's 0");
         Map<String, Object> check = check(closed);
-        assertEquals(onTheTrip.last().drivingMinutes(), (double) check.get("driving_minutes"));
-        assertEquals(onTheTrip.last().dutyMinutes(), (double) check.get("duty_minutes"));
+        assertEquals(((Map<?, ?>) onTheTrip.get("check")).get("driving_minutes"), check.get("driving_minutes"));
+        assertEquals(((Map<?, ?>) onTheTrip.get("check")).get("duty_minutes"), check.get("duty_minutes"));
         assertTrue((double) check.get("duty_minutes") > 270, "the trip's counters, not the reset zeros");
-        assertEquals(EvaluatorStream.TRIP_ENDED, log.contexts.get(closed).get(EvaluatorStream.CLOSED_REASON));
+        assertEquals(TripEnds.REASON, log.contexts.get(closed).get("reason"));
     }
 
     @Test
     void aDrivingCaseClosedOnTheNextTripKeepsItsOwnTripsCounters() {
         UUID driving = template("continuous-driving");
         drive(275, onTrip("T-1", ""));
-        double lastDriving = duty.load(DEMO, ASSET).state().last().drivingMinutes();
+        double lastDriving = (double) ((Map<?, ?>) episodes.load(DEMO, ASSET).find(DEMO, ASSET, driving)
+                .orElseThrow().lastContext().get("check")).get("driving_minutes");
         drive(11, onTrip("T-2", ""));
 
         int closed = closedIndex(driving);
         assertEquals("T-1", log.places.get(closed).tripId());
         assertEquals(lastDriving, (double) check(closed).get("driving_minutes"));
-        assertEquals(EvaluatorStream.TRIP_ENDED, log.contexts.get(closed).get(EvaluatorStream.CLOSED_REASON));
+        assertEquals(TripEnds.REASON, log.contexts.get(closed).get("reason"));
     }
 
     @Test
     void aDrivingCaseClosedAfterSignalAccessEndsKeepsTheTripAndItsCounters() {
         UUID driving = template("continuous-driving");
         drive(275, onTrip("T-1", ""));
-        double lastDriving = duty.load(DEMO, ASSET).state().last().drivingMinutes();
+        double lastDriving = (double) ((Map<?, ?>) episodes.load(DEMO, ASSET).find(DEMO, ASSET, driving)
+                .orElseThrow().lastContext().get("check")).get("driving_minutes");
         // The organization no longer receives the vehicle: the reconcile closes the case.
         drive(12, "{}", OTHER);
 
         int closed = closedIndex(driving);
         assertEquals("T-1", log.places.get(closed).tripId());
         assertEquals(lastDriving, (double) check(closed).get("driving_minutes"));
-        assertEquals(EvaluatorStream.ACCESS_ENDED, log.contexts.get(closed).get(EvaluatorStream.CLOSED_REASON));
+        assertEquals(TripEnds.REASON, log.contexts.get(closed).get("reason"));
     }
 
     @Test
@@ -233,18 +242,124 @@ class TripEndCloseTest {
         int closed = closedIndex(driving);
         assertEquals("T-1", log.places.get(closed).tripId());
         Map<String, Object> context = log.contexts.get(closed);
-        assertNull(context.get(EvaluatorStream.CLOSED_REASON));
+        assertNull(context.get("reason"));
         assertTrue((double) check(closed).get("driving_minutes") < 270, "the closing frame's counters");
     }
 
     @Test
-    void aCaseOpenedBeforeTheTripWasKeptTakesItFromItsNextFrameOnTheTrip() {
+    void threeSuccessiveTripsDoNotEvictAnOpenCasesCounters() {
+        UUID driving = delayedDriving();
+        drive(275, onTrip("T-1", ""));
+        Map<String, Object> kept = episodes.load(DEMO, ASSET).find(DEMO, ASSET, driving)
+                .orElseThrow().lastContext();
+        drive(2, onTrip("T-2", ""));
+        drive(2, onTrip("T-3", ""));
+        assertTrue(log.recorded.stream().noneMatch(t -> t.kind() == Kind.CLOSED));
+        drive(7, onTrip("T-4", ""));
+
+        int closed = closedIndex(driving);
+        assertEquals("T-1", log.places.get(closed).tripId());
+        assertEquals(kept.get("check"), log.contexts.get(closed).get("check"));
+        assertEquals(274.0, log.recorded.get(closed).measure());
+    }
+
+    @Test
+    void lastDutyFrameKeepsItsTenantGeoAndIsIndependentOfTheMaximum() {
+        UUID driving = delayedDriving();
+        drive(275, onTrip("T-1", ""));
+        park(25, onTrip("T-1", ""));
+        at += 60;
+        String json = frame(onTrip("T-1", ""), 0).replace("\"frame\":", "\"geos\":{\"" + DEMO
+                + "\":{\"zone\":\"Synthetic zone\"},\"" + OTHER
+                + "\":{\"zone\":\"Other synthetic zone\"}},\"frame\":");
+        stream.evaluate(json);
+        Map<String, Object> kept = episodes.load(DEMO, ASSET).find(DEMO, ASSET, driving)
+                .orElseThrow().lastContext();
+        drive(11, "{}");
+
+        int closed = closedIndex(driving);
+        assertEquals(kept.get("check"), log.contexts.get(closed).get("check"));
+        assertEquals(Map.of("zone", "Synthetic zone"), check(closed).get("geo"));
+        assertEquals(275.0, log.recorded.get(closed).measure(), "CLOSED is the maximum, context is the last frame");
+        assertTrue((double) check(closed).get("driving_minutes") < 275.0);
+    }
+
+    @Test
+    void gpsReconcileUsesTheEstablishedTripEndReason() {
+        UUID late = template("eta-late");
+        drive(1, onTrip("T-1", ",\"eta_deviation_min\":150.0"));
+        drive(1, "{}", OTHER);
+        int closed = closedIndex(late);
+        assertEquals("T-1", log.places.get(closed).tripId());
+        assertEquals(150.0, log.recorded.get(closed).measure());
+        assertEquals(Map.of("reason", TripEnds.REASON), log.contexts.get(closed));
+    }
+
+    @Test
+    void expiringAnAllCasesHoldKeepsEachCasesTripAndDutyContext() {
+        UUID driving = delayedDriving();
+        drive(275, onTrip("T-1", ""));
+        Map<String, Object> kept = episodes.load(DEMO, ASSET).find(DEMO, ASSET, driving)
+                .orElseThrow().lastContext();
+        drive(1, onTrip("T-2", ""));
+        var hold = new com.microboxlabs.miot.symptoms.cases.IgnoreHold("hold-demo", DEMO, 1, ASSET, driving,
+                "hold-trip", com.microboxlabs.miot.symptoms.cases.IgnoreHold.Scope.ALL,
+                T0.plusSeconds(at), "owner@example.com", 600, false, false);
+        assertTrue(log.recorded.stream().noneMatch(t -> t.kind() == Kind.CLOSED));
+        stream.finishHold(hold);
+
+        int closed = closedIndex(driving);
+        assertEquals("T-1", log.places.get(closed).tripId());
+        assertEquals(274.0, log.recorded.get(closed).measure());
+        assertEquals(kept.get("check"), log.contexts.get(closed).get("check"));
+        assertEquals(TripEnds.REASON, log.contexts.get(closed).get("reason"));
+    }
+
+    @Test
+    void aLegacyCaseDoesNotAdoptTheNextTripsIdentity() {
+        UUID driving = delayedDriving();
+        drive(275, onTrip("T-1", ""));
+        AssetEpisodes state = episodes.load(DEMO, ASSET);
+        state.save(DEMO, RedisEpisodes.read(oldEpisode(state.find(DEMO, ASSET, driving).orElseThrow())));
+        episodes.save(state);
+        drive(11, onTrip("T-2", ""));
+        assertEquals("T-1", log.places.get(closedIndex(driving)).tripId());
+    }
+
+    @Test
+    void aLegacyOffTripCaseKeepsTheTripEndReasonWhenAHoldExpires() {
+        UUID driving = delayedDriving();
+        drive(275, onTrip("T-1", ""));
+        drive(1, "{}");
+        AssetEpisodes state = episodes.load(DEMO, ASSET);
+        state.save(DEMO, RedisEpisodes.read(oldEpisode(state.find(DEMO, ASSET, driving).orElseThrow())));
+        episodes.save(state);
+        var hold = new com.microboxlabs.miot.symptoms.cases.IgnoreHold("hold-demo", DEMO, 1, ASSET, driving,
+                "T-1", com.microboxlabs.miot.symptoms.cases.IgnoreHold.Scope.CASE,
+                T0.plusSeconds(at), "owner@example.com", 600, false, false);
+        stream.finishHold(hold);
+        int closed = closedIndex(driving);
+        assertEquals("T-1", log.places.get(closed).tripId());
+        assertEquals(274.0, log.recorded.get(closed).measure());
+        assertEquals(TripEnds.REASON, log.contexts.get(closed).get("reason"));
+    }
+
+    private static String oldEpisode(Episode e) {
+        var json = new io.vertx.core.json.JsonObject(RedisEpisodes.write(e));
+        json.remove("tripId");
+        json.remove("lastContext");
+        json.remove("tripEnded");
+        return json.encode();
+    }
+
+    @Test
+    void aLegacyCaseRecoversItsTripFromItsOpening() {
         UUID late = template("eta-late");
         String trip = onTrip("T-1", ",\"eta_deviation_min\":150.0");
         drive(1, trip);
         // As the running version wrote it: no trip on the episode.
         Episode e = episodes.load(DEMO, ASSET).find(DEMO, ASSET, late).orElseThrow();
-        String old = RedisEpisodes.write(e).replace(",\"tripId\":\"T-1\"", "");
+        String old = oldEpisode(e);
         assertTrue(!old.contains("tripId"));
         Episode written = RedisEpisodes.read(old);
         assertNull(written.tripId());
@@ -259,17 +374,17 @@ class TripEndCloseTest {
     }
 
     @Test
-    void aCaseOpenedBeforeTheTripWasKeptAndClosedOffItHasNoTripAsBefore() {
+    void aLegacyCaseClosedOffTripRecoversItsOpeningTrip() {
         UUID late = template("eta-late");
         drive(1, onTrip("T-1", ",\"eta_deviation_min\":150.0"));
         Episode e = episodes.load(DEMO, ASSET).find(DEMO, ASSET, late).orElseThrow();
         AssetEpisodes state = episodes.load(DEMO, ASSET);
-        state.save(DEMO, RedisEpisodes.read(RedisEpisodes.write(e).replace(",\"tripId\":\"T-1\"", "")));
+        state.save(DEMO, RedisEpisodes.read(oldEpisode(e)));
         episodes.save(state);
 
         drive(1, "{}");
         int closed = closedIndex(late);
-        assertNull(log.places.get(closed).tripId());
-        assertNull(log.contexts.get(closed));
+        assertEquals("T-1", log.places.get(closed).tripId());
+        assertEquals(TripEnds.REASON, log.contexts.get(closed).get("reason"));
     }
 }

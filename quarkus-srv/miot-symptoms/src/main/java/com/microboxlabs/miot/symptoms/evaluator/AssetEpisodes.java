@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -36,7 +37,7 @@ public class AssetEpisodes implements EpisodeStore {
         this.assetId = assetId;
         this.closeRevision = closeRevision;
         this.episodes = new HashMap<>(episodes);
-        this.loaded = Map.copyOf(episodes);
+        this.loaded = new HashMap<>(episodes);
         this.watermarks = new HashMap<>(watermarks);
     }
 
@@ -69,6 +70,31 @@ public class AssetEpisodes implements EpisodeStore {
     /** The symptom's episode as it was loaded, before any change to this snapshot. */
     public Optional<Episode> loaded(UUID definitionId) {
         return Optional.ofNullable(loaded.get(definitionId));
+    }
+
+    /** Recovers legacy case metadata once from its opening, never from the vehicle's next trip. */
+    public void restoreCases(TransitionLog log) {
+        for (Episode e : List.copyOf(loaded.values())) {
+            if (e.open() && e.tripId() == null && e.lastContext() == null) {
+                TransitionLog.Opening opening = log.opening(tenantCode, e);
+                Episode restored = e.withCaseFrame(opening.tripId(), opening.context());
+                loaded.put(e.definitionId(), restored);
+                save(tenantCode, restored);
+            }
+        }
+    }
+
+    /** Keeps the latest applied context on each open case's own trip in the existing episode write. */
+    public void keepContext(String trip, Map<String, Object> context, Instant at, List<CompiledSymptom> symptoms) {
+        if (trip == null) {
+            return;
+        }
+        for (CompiledSymptom s : symptoms) {
+            Episode e = episodes.get(s.definitionId());
+            if (e != null && e.open() && at.equals(e.lastSignalAt()) && trip.equals(e.tripId())) {
+                save(tenantCode, e.withCaseFrame(trip, context));
+            }
+        }
     }
 
     @Override

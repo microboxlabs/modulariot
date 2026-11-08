@@ -168,7 +168,10 @@ class EvaluatorBehaviorTest {
      */
     private static JsonNode withoutCaseTrips(JsonNode node) {
         if (node instanceof ObjectNode o) {
-            o.remove(List.of("tripId", "last", EvaluatorStream.CLOSED_REASON));
+            o.remove(List.of("tripId", "lastContext", "tripEnded"));
+            if (com.microboxlabs.miot.symptoms.lostsignal.TripEnds.REASON.equals(o.path("reason").asText())) {
+                o.remove("reason");
+            }
             o.forEach(EvaluatorBehaviorTest::withoutCaseTrips);
         } else if (node != null && node.isArray()) {
             node.forEach(EvaluatorBehaviorTest::withoutCaseTrips);

@@ -11,6 +11,9 @@ import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.CaseFilter;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -28,6 +31,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.function.Function;
 import org.jboss.logging.Logger;
 
 /**
@@ -393,15 +397,18 @@ public class PgEngineCases implements EngineCaseStore {
 
     /** Locks the trip's OPENED rows, so an operator's close of one of them and this close run one after the other. */
     private static final String LOCK_TRIP = """
-            SELECT id FROM miot_symptoms.signal_transitions
-             WHERE tenant_code = $1 AND trip_id = $2 AND kind = 'OPENED' AND definition_id = ANY($3::uuid[])
-             ORDER BY definition_id, asset_id, id FOR UPDATE
+            SELECT o.*, o.id AS case_id, o.at AS opened_at FROM miot_symptoms.signal_transitions o
+             WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED' AND o.definition_id = ANY($3::uuid[])
+               AND NOT EXISTS (SELECT 1 FROM miot_symptoms.signal_transitions c
+                    WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
+                      AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id)
+             ORDER BY o.definition_id, o.asset_id, o.id FOR UPDATE
             """;
 
     /**
      * Closes each open case of the trip ($1 tenant, $2 trip) of the symptoms $3, at its current level, with
-     * {@code closed_by} and the context's {@code reason} and {@code closed_reason} $5, at $4. The row keeps the
-     * case's trip, its highest recorded measure and the context of its last change.
+     * {@code closed_by} and the context's {@code reason} $5, at $4. The row keeps the
+     * case's trip, its maximum and latest context from episode snapshots $6, falling back to recorded evidence.
      */
     private static final String CLOSE_TRIP = """
             WITH closed AS (
@@ -411,15 +418,20 @@ public class PgEngineCases implements EngineCaseStore {
             SELECT DISTINCT ON (o.definition_id, o.asset_id, o.state)
                    o.tenant_code, o.definition_id, o.version, o.state, 'CLOSED', o.asset_id, $4,
                    COALESCE(lv.level, o.level), COALESCE(lv.level, o.level),
-                   GREATEST(o.measure, lv.measure), o.trip_id, o.latitude, o.longitude, o.speed_kmh, $5::text,
-                   COALESCE(lv.context, o.context, '{}'::jsonb)
-                       || jsonb_build_object('reason', $5::text, 'trip_id', o.trip_id, 'closed_reason', $5::text)
+                   GREATEST(o.measure, lv.measure, snapshot.measure), o.trip_id, o.latitude, o.longitude, o.speed_kmh, $5::text,
+                   COALESCE(snapshot.context, lv.context, o.context, '{}'::jsonb)
+                       || jsonb_build_object('reason', $5::text, 'trip_id', o.trip_id)
               FROM miot_symptoms.signal_transitions o
+              LEFT JOIN jsonb_to_recordset($6::jsonb)
+                   AS snapshot(case_id bigint, measure double precision, context jsonb) ON snapshot.case_id = o.id
               LEFT JOIN LATERAL (
-                  SELECT l.level, l.measure, l.context FROM miot_symptoms.signal_transitions l
+                  SELECT (array_agg(l.level ORDER BY l.id DESC))[1] AS level, max(l.measure) AS measure,
+                         (array_agg(l.context ORDER BY l.id DESC)
+                             FILTER (WHERE l.context IS NOT NULL))[1] AS context
+                    FROM miot_symptoms.signal_transitions l
                    WHERE l.tenant_code = o.tenant_code AND l.definition_id = o.definition_id
                      AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED' AND l.id > o.id
-                   ORDER BY l.id DESC LIMIT 1) lv ON true
+                   ) lv ON true
              WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED' AND o.state IN ('ACTIVE', 'TEST')
                AND o.definition_id = ANY($3::uuid[])
                AND NOT EXISTS (
@@ -679,6 +691,12 @@ public class PgEngineCases implements EngineCaseStore {
     @Override
     public List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
             String reason) {
+        return closeTrip(tenantCode, tripId, definitionIds, at, reason, c -> null);
+    }
+
+    @Override
+    public List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason, Function<StaleCase, ClosingFrame> frames) {
         if (definitionIds.isEmpty()) {
             return List.of();
         }
@@ -687,10 +705,24 @@ public class PgEngineCases implements EngineCaseStore {
                 .execute(Tuple.of(tenantCode, TripEnds.uuid(tripId)))
                 .flatMap(locked -> conn.preparedQuery(TRIP_DEFINITIONS).execute(Tuple.of(tenantCode, ids)))
                 .flatMap(locked -> conn.preparedQuery(LOCK_TRIP).execute(Tuple.of(tenantCode, tripId, ids)))
-                .flatMap(locked -> conn.preparedQuery(CLOSE_TRIP)
-                        .execute(Tuple.of(tenantCode, tripId, ids, at.atOffset(ZoneOffset.UTC), reason)))
+                .emitOn(Infrastructure.getDefaultWorkerPool())
+                .map(locked -> closingFrames(locked, frames))
+                .flatMap(snapshots -> conn.preparedQuery(CLOSE_TRIP)
+                        .execute(Tuple.of(tenantCode, tripId, ids, at.atOffset(ZoneOffset.UTC), reason, snapshots)))
                 .map(PgEngineCases::staleCases))
                 .await().atMost(QUERY_TIMEOUT);
+    }
+
+    private static JsonArray closingFrames(Iterable<Row> rows, Function<StaleCase, ClosingFrame> frames) {
+        JsonArray snapshots = new JsonArray();
+        for (Row row : rows) {
+            ClosingFrame frame = frames.apply(staleCase(row));
+            if (frame != null) {
+                snapshots.add(new JsonObject().put("case_id", row.getLong("id"))
+                        .put("measure", frame.maxMeasure()).put("context", frame.context()));
+            }
+        }
+        return snapshots;
     }
 
     private static List<StaleCase> staleCases(Iterable<Row> rows) {

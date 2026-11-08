@@ -23,8 +23,9 @@ import java.util.UUID;
  * @param maxMeasure     the highest measure since the case opened
  * @param state          the state of the open case, or null before it was recorded or with no case open
  * @param offTripSince   first observed off-trip signal while the case is open, reset by an active trip
- * @param tripId         the active trip the open case belongs to, or null; an episode written before it was kept
- *                       takes the trip of its next frame on an active trip
+ * @param tripEnded      the latest applied frame is outside the case's trip; separate from rule off-trip timers
+ * @param lastContext    the latest context on the case's trip; null before legacy metadata is recovered
+ * @param tripId         the trip the case opened on, or null; legacy episodes recover it from the opening row
  */
 @RegisterForReflection
 public record Episode(
@@ -43,10 +44,38 @@ public record Episode(
         String closedOnTrip,
         Instant closedOnTripAt,
         Instant offTripSince,
-        String tripId) {
+        String tripId,
+        Map<String, Object> lastContext,
+        boolean tripEnded) {
 
     public Episode {
         levelSince = levelSince == null ? Map.of() : Map.copyOf(levelSince);
+    }
+
+    @SuppressWarnings("java:S107")
+    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
+            Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
+            double maxMeasure, SymptomState state, String closedOnTrip, Instant closedOnTripAt,
+            Instant offTripSince, String tripId, Map<String, Object> lastContext) {
+        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
+                openedAt, level, maxMeasure, state, closedOnTrip, closedOnTripAt, offTripSince, tripId, lastContext,
+                false);
+    }
+
+    @SuppressWarnings("java:S107")
+    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
+            Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
+            double maxMeasure, SymptomState state, String closedOnTrip, Instant closedOnTripAt,
+            Instant offTripSince, String tripId) {
+        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
+                openedAt, level, maxMeasure, state, closedOnTrip, closedOnTripAt, offTripSince, tripId, null);
+    }
+
+    /** Keeps the case's identity and last context without changing rule evidence or timers. */
+    public Episode withCaseFrame(String trip, Map<String, Object> context) {
+        return new Episode(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince,
+                lastSignalAt, openedAt, level, maxMeasure, state, closedOnTrip, closedOnTripAt, offTripSince, trip,
+                context == null ? Map.of() : Map.copyOf(context), tripEnded);
     }
 
     @SuppressWarnings("java:S107")

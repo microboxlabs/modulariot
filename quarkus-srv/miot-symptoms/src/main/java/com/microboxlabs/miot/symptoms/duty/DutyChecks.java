@@ -76,8 +76,7 @@ public class DutyChecks {
     /** As {@link #apply(String, String, Instant, Map)}, on the counters already read from the store. */
     public Optional<Check> apply(String tenantCode, Instant at, Map<String, Object> signal,
             DutyStore.Loaded loaded) {
-        DutyState loadedState = loaded.state();
-        DutyState prev = loadedState;
+        DutyState prev = loaded.state();
         if (prev != null && loaded.restarts() > prev.restarts()) {
             prev = DutyTracker.restartDuty(prev, loaded.restarts());
         }
@@ -91,12 +90,6 @@ public class DutyChecks {
             if (next.restarts() != restarts) {
                 next = new DutyState(next.at(), next.lat(), next.lon(), next.drive(), next.rest(), restarts,
                         next.skipped());
-            }
-            // A frame off the trip keeps the trip's last counters: a case of that trip may close after it.
-            next = next.withTrips(loadedState);
-            if (step.applied() && tripId != null) {
-                next = next.withLast(new DutyState.Last(tripId, step.counters().drivingMinutes(),
-                        step.counters().restingMinutes(), step.counters().dutyMinutes()));
             }
             if (!step.applied()) {
                 return new Check(null, next);
@@ -121,22 +114,7 @@ public class DutyChecks {
         if (prev == null || !at.isAfter(prev.at())) {
             return Optional.empty();
         }
-        return Optional.of(new DutyState(at, prev.lat(), prev.lon(), null, null, prev.restarts()).withTrips(prev));
-    }
-
-    /** The counters of the trip's last applied frame as a case change keeps them, like {@link Check#context()}. */
-    public static Map<String, Object> context(DutyState.Last last) {
-        Map<String, Object> kept = new LinkedHashMap<>();
-        kept.put("driving_minutes", last.drivingMinutes());
-        kept.put("resting_minutes", last.restingMinutes());
-        kept.put("duty_minutes", last.dutyMinutes());
-        kept.put("signal_lost_minutes", 0.0);
-        return Map.of(TripCheck.ROOT, kept);
-    }
-
-    /** The duty state as the store holds it now, or null. */
-    public DutyState state(String tenantCode, String assetId) {
-        return store.load(tenantCode, assetId).state();
+        return Optional.of(new DutyState(at, prev.lat(), prev.lon(), null, null, prev.restarts()));
     }
 
     public void save(String tenantCode, String assetId, DutyState next) {

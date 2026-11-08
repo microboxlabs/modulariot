@@ -33,11 +33,13 @@ class TripChecksCaseTripTest {
         List<Transition> out = TripChecks.withCaseTrips(state, List.of(
                 new Transition(Kind.CLOSED, LOST, "1.0.0", SymptomState.ACTIVE, "TRUCK1", T0, 2, 2, 45),
                 new Transition(Kind.LEVEL_CHANGED, OLD, "1.0.0", SymptomState.ACTIVE, "TRUCK1", T0, 2, 1, 50),
-                new Transition(Kind.CLOSED, OLD, "1.0.0", SymptomState.ACTIVE, "TRUCK1", T0, 2, 2, 50)));
+                new Transition(Kind.CLOSED, OLD, "1.0.0", SymptomState.ACTIVE, "TRUCK1", T0, 2, 2, 50)), "T-2", Map.of("check", Map.of("signal_lost_minutes", 50.0)));
 
         assertEquals("T-1", out.get(0).tripId(), "the episode as loaded, though the close dropped it");
         assertNull(out.get(1).tripId(), "only CLOSED changes");
         assertNull(out.get(2).tripId(), "an episode written before the trip was kept: the check's trip");
         assertEquals(45.0, out.get(0).measure());
+        assertEquals(TripEnds.REASON, out.get(0).detail().get("reason"));
+        assertEquals(Map.of("signal_lost_minutes", 50.0), out.get(0).detail().get("check"));
     }
 }

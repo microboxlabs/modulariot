@@ -88,7 +88,7 @@ public class TripChecks {
     @SuppressWarnings("java:S107") // As above, with which trips ended.
     public TripChecks(EvaluatorCatalog catalog, EpisodeRepository episodes, TransitionLog log, SymptomEvents events,
             AuditService audit, MeterRegistry meters, Holds holds, TripEnds ends) {
-        this.ends = ends;
+        this.ends = ends.withEpisodes(episodes);
         this.holds = holds;
         this.catalog = catalog;
         this.episodes = episodes;
@@ -304,12 +304,16 @@ public class TripChecks {
             return;
         }
         AssetEpisodes state = episodes.load(tenant, assetId);
+        state.restoreCases(log);
         SignalEvaluator.Result result = new SignalEvaluator(state, holds)
                 .evaluate(tenant, assetId, now, Map.of(TripCheck.ROOT, check), symptoms);
+        Map<String, Object> context = context(check);
+        String activeTrip = Boolean.TRUE.equals(trip.get("active")) && trip.get("id") instanceof String id ? id : null;
+        state.keepContext(activeTrip, context, now, symptoms);
         TransitionLog.Place place = place(trip, last);
         if (!result.transitions().isEmpty()) {
             List<TransitionLog.Recorded> recorded = log.appendTripCheck(tenant, withCaseTrips(state,
-                    result.transitions()), place, context(check));
+                    result.transitions(), activeTrip, context), place, context);
             recorded.stream().filter(r -> r.transition().kind() == Transition.Kind.OPENED)
                     .forEach(r -> open.put(key(tenant, r.transition().definitionId()),
                             new OpenCase(r.caseId(), r.transition().version(), r.transition().state())));
@@ -349,10 +353,12 @@ public class TripChecks {
                 .increment();
     }
 
-    /** Each CLOSED change with the trip its case was opened on, as the episode was loaded. */
-    static List<Transition> withCaseTrips(AssetEpisodes state, List<Transition> transitions) {
-        return transitions.stream().map(t -> t.kind() != Transition.Kind.CLOSED ? t
-                : state.loaded(t.definitionId()).map(Episode::tripId).map(t::withTrip).orElse(t)).toList();
+    /** Each CLOSED change carries its own case's trip and the established trip-end reason. */
+    static List<Transition> withCaseTrips(AssetEpisodes state, List<Transition> transitions,
+            String activeTrip, Map<String, Object> context) {
+        return transitions.stream().map(t -> t.kind() == Transition.Kind.CLOSED
+                ? state.loaded(t.definitionId()).map(e -> t.closingOn(e.tripId(), activeTrip, context)).orElse(t)
+                : t).toList();
     }
 
     static String key(String tenant, UUID definitionId) {

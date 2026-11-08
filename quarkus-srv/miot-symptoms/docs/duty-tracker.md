@@ -14,10 +14,13 @@ Counts net driving, the current rest and the duty of a vehicle on an organizatio
 |---|---|
 | No position, position 0,0, device speed outside 0–150 km/h | Not applied |
 | Not newer than the last applied frame | Not applied: a replay or an out-of-order frame changes nothing |
-| More than 150 km/h from the last applied frame | Not applied, and not used as the previous position |
+| More than 1 h after the last applied frame | Applied as stopped, without the 150 km/h check. The gap is unobserved: rest after a stopped frame, neither driving nor rest after a moving one |
+| More than 150 km/h from the last applied frame | Not applied, but kept in the state (`skipped`). If the next frame is within 150 km/h of the kept one and not of the last applied one, the kept frame becomes the last applied one (the time up to it unobserved) and the next frame is applied from it |
 | Other | Applied. Moving when more than 2.78 m/s from the previous applied frame (distance over time, not the device speed) |
 
-The time between two applied frames goes to driving when the later frame moves or the earlier one moved, and to rest between two stopped frames. A signal gap gets no special treatment: a gap while driving counts as driving.
+The time between two applied frames goes to driving when the later frame moves or the earlier one moved, and to rest between two stopped frames. Unobserved time is never driving.
+
+The 1 h is the GPS database's: its gate (the enrichment service) keeps the previous position in Redis for 1 h. After that the next frame has no previous position, so it passes the 150 km/h check and its computed speed is 0. A device that sends its buffered frames newest first after a stop of more than 1 h therefore applies only the newest one, and the stop is not counted as driving. A buffered gap of less than 1 h still counts as driving when the frame before it moved.
 
 ## Counters
 
@@ -40,7 +43,7 @@ No trip, or a new trip id, starts all three again. `check.signal_lost_minutes` i
 | Signal access ends | Existing duty cases reconcile under the frame watermark without GPS input; the trip counters end. Older frames cannot close newer cases |
 | Operator close | Closing a case of a symptom that reads `check.duty_minutes` increments `restarts`; the next frame ends the duty count. The driving count stays |
 
-The `miot.symptoms.duty.skipped` counter counts frames the tracker did not apply.
+The `miot.symptoms.duty.skipped` counter counts frames the tracker did not apply. A kept jump frame saves the state without evaluating any symptom.
 
 ## Differences from the GPS database
 
@@ -48,6 +51,8 @@ The `miot.symptoms.duty.skipped` counter counts frames the tracker did not apply
 |---|---|
 | Past 16 h 15 min of duty, the current rest keeps counting while the vehicle drives, until the next 8 h reset | The rest is 0 while moving and each stop starts it again |
 | Cases inside an authorized zone are marked excluded | No exclusion: `trip_check` has no zone fields |
+| After a gap of more than 1 h following a moving frame, the gap counts as driving | The gap is neither driving nor rest |
+| A jump frame is dropped until the previous position expires (1 h) | A jump frame confirmed by the next frame replaces the previous position at once |
 
 Evals: `src/test/resources/evals/duty/README.md`.
 

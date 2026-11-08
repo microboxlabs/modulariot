@@ -4,10 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import cl.streamhub.gps.model.EnvelopedMessage;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.StreamHandler;
 import org.junit.jupiter.api.Test;
 
 class ZonesTest {
@@ -210,6 +215,30 @@ class ZonesTest {
 
         assertEquals(new GpsSignal.Geo(true, "Con horario", true, true, true, true), at(zones, "23:00"));
         assertEquals(new GpsSignal.Geo(true, "Con horario", true, true, true, false), at(zones, "12:00"));
+    }
+
+    @Test
+    void malformedScheduleWarningsAreLoggedOncePerClientAndZoneAcrossReloads() {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        StreamHandler handler = new StreamHandler(output, new SimpleFormatter());
+        Logger logger = Logger.getLogger(Zones.class.getName());
+        logger.addHandler(handler);
+        try {
+            Zones zones = new Zones();
+            zones.load(List.of(risk(1, "Z1", "not json")));
+            zones.load(List.of(risk(1, "Z1", "not json")));
+            zones.load(List.of(risk(1, "Z1", "[false]")));
+            zones.load(List.of(risk(2, "Z2", "not json"),
+                    Zones.zone("c-2", 1, "1", "Z3", "not json", square(-70.0, -33.0))));
+            handler.flush();
+
+            long warnings = output.toString(StandardCharsets.UTF_8).lines()
+                    .filter(line -> line.contains("has a malformed schedule")).count();
+            assertEquals(3, warnings, "changing invalid text does not repeat a warning; clients and zones differ");
+        } finally {
+            logger.removeHandler(handler);
+            handler.close();
+        }
     }
 
     @Test

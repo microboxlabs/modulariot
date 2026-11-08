@@ -83,7 +83,7 @@ public class Zones {
         zones.forEach(z -> next.computeIfAbsent(z.clientId(), k -> new ArrayList<>()).add(z));
         next.replaceAll((client, loaded) -> loaded.stream().sorted(Comparator.comparingInt(Zone::id)).toList());
         zones.stream().filter(z -> z.badSchedule() != null)
-                .filter(z -> reported.add(z.clientId() + "/" + z.id() + "/" + z.badSchedule()))
+                .filter(z -> reported.add(z.clientId() + "/" + z.id()))
                 .forEach(z -> LOG.warnf("Signal builder: zone %d of %s has a malformed schedule, read as none: %s",
                         z.id(), z.clientId(), z.badSchedule()));
         byClient.set(Map.copyOf(next));

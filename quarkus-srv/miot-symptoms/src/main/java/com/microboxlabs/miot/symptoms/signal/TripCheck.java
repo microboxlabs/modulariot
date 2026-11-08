@@ -46,7 +46,8 @@ public record TripCheck(
         @Schema(extensions = @Extension(name = "x-origin", value = "CALCULATED")) Loss loss,
         @Schema(title = "Zona de la trama", description = "Las zonas de la organización en la trama que generó la "
                 + "revisión, como en la señal GPS; no viene en las revisiones que el detector de pérdida de señal hace "
-                + "con su reloj. Léala con check.?geo.?authorized_zone.orValue(false)",
+                + "con su reloj. Leer solo geo no selecciona las revisiones por trama: la regla también debe leer "
+                + "minutos de conducción, descanso o jornada. Léala con check.?geo.?authorized_zone.orValue(false)",
                 extensions = @Extension(name = "x-origin", value = "ZONES")) GpsSignal.Geo geo) {
 
     public TripCheck(Double drivingMinutes, Double restingMinutes, Double dutyMinutes, Double signalLostMinutes,

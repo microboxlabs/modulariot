@@ -124,7 +124,9 @@ public final class SignalFields {
         }
         if (kind == null) {
             if (!t.isContainerType() && !Temporal.class.isAssignableFrom(t.getRawClass())) {
+                int first = out.size();
                 walk(t, path, fieldOrigin, labels, out, depth + 1);
+                describeChildren(out, first, description(schema));
             }
             return;
         }
@@ -136,6 +138,19 @@ public final class SignalFields {
         boolean engine = !"false".equals(extension(schema, "x-engine"));
         out.add(new SourceField(path, label(p, schema, entry[0]), kind, unit, fieldOrigin, engine,
                 t.isEnumType() ? values(t.getRawClass()) : null, description(schema)));
+    }
+
+    /** Object fields are not listed themselves, so their guidance belongs on the leaves the editor shows. */
+    private static void describeChildren(List<SourceField> out, int first, String description) {
+        if (description == null) {
+            return;
+        }
+        for (int i = first; i < out.size(); i++) {
+            SourceField field = out.get(i);
+            String combined = field.description() == null ? description : field.description() + ". " + description;
+            out.set(i, new SourceField(field.path(), field.label(), field.type(), field.unit(), field.origin(),
+                    field.engineSupported(), field.values(), combined));
+        }
     }
 
     /**

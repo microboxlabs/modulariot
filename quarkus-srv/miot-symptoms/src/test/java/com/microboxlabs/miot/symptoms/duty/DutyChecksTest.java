@@ -54,6 +54,23 @@ class DutyChecksTest {
     }
 
     @Test
+    void restingAndDutyTimeInsideAnAuthorizedZoneStillCount() {
+        DutyChecks checks = new DutyChecks(new InMemoryDutyStore());
+        Map<String, Object> check = Map.of();
+        for (int minute = 0; minute <= 4; minute++) {
+            Map<String, Object> frame = signal(minute == 0 ? -33.0 : -33.009, Map.of("geo", INSIDE));
+            DutyChecks.Check applied = checks.apply(TENANT, ASSET, T0.plusSeconds(minute * 60L), frame)
+                    .orElseThrow();
+            checks.save(TENANT, ASSET, applied.next());
+            check = applied.check();
+        }
+
+        assertEquals(INSIDE, check.get("geo"));
+        assertEquals(2.0, (Double) check.get("resting_minutes"), 0.01);
+        assertEquals(4.0, (Double) check.get("duty_minutes"), 0.01);
+    }
+
+    @Test
     void aSharedSignalGivesOnlyTheOrganizationsGeo() {
         Map<String, Object> other = Map.of("authorized_zone", false);
         assertEquals(INSIDE, run(Map.of("geo", other, "geos", Map.of(TENANT, INSIDE, "tenant-b", other)))

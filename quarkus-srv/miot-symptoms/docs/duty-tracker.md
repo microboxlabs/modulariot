@@ -56,7 +56,7 @@ The `miot.symptoms.duty.skipped` counter counts frames the tracker did not apply
 | GPS database | Tracker |
 |---|---|
 | Past 16 h 15 min of duty, the current rest keeps counting while the vehicle drives, until the next 8 h reset | The rest is 0 while moving and each stop starts it again |
-| Cases inside an authorized zone are marked excluded | No exclusion: `trip_check` has no zone fields |
+| Cases inside an authorized zone are marked excluded | No automatic exclusion; rules can use optional `check.geo` fields |
 | After a gap of more than 1 h following a moving frame, the gap counts as driving | The gap is neither driving nor rest |
 | A jump frame is dropped until the previous position expires (1 h) | A jump frame confirmed by the next frame replaces the previous position at once |
 

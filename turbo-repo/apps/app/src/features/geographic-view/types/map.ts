@@ -113,6 +113,8 @@ export interface PulseProps {
 
 export interface MapPositionProperties {
   properties: {
+    speed_limit_source?: string | null;
+    speed_limit_zone?: string | null;
     lost_signal?: boolean;
     engine_off?: boolean;
     signal?: SignalState | null;

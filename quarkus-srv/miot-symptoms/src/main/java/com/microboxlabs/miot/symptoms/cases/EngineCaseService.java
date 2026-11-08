@@ -421,6 +421,7 @@ public class EngineCaseService {
      * The positions with each vehicle's level from its open cases: {@code symptoms_condition} is the highest level
      * among them, 0 without one, and {@code associate_symptoms} lists them. The GPS database's own symptom fields
      * are dropped; {@code speed_limit_condition} stays, as null, so the map's speed filter keeps the vehicle.
+     * A speed case's limit is added only when its transition is the live position's frame.
      */
     public JsonNode withCaseLevels(String tenantCode, JsonNode positions) {
         Map<String, List<EngineCaseStore.OpenLevel>> byAsset = new HashMap<>();
@@ -438,15 +439,29 @@ public class EngineCaseService {
             String asset = position.hasNonNull(POSITION_ASSET_ID) ? position.get(POSITION_ASSET_ID).asText()
                     : position.path("assetid").asText(null);
             List<EngineCaseStore.OpenLevel> open = asset == null ? List.of() : byAsset.getOrDefault(asset, List.of());
-            position.remove(List.of(SPEED_LIMIT, "lost_signal", "symptoms", "symptom_condition"));
+            position.remove(List.of(SPEED_LIMIT, "speed_limit_source", "speed_limit_zone", "lost_signal",
+                    "symptoms", "symptom_condition"));
             position.putNull("speed_limit_condition");
             position.put("symptoms_condition", open.stream().mapToInt(EngineCaseStore.OpenLevel::level).max()
                     .orElse(0));
             ArrayNode symptoms = position.putArray("associate_symptoms");
             open.forEach(l -> symptoms.addObject().put(SYMPTOM_NAME, l.name()).put(ICU_CONDITION, l.level()));
+            // A case change's limit is evidence for that frame only, never for a newer live position.
+            open.stream().map(EngineCaseStore.OpenLevel::speedStep).filter(java.util.Objects::nonNull)
+                    .filter(s -> s.speedLimit() != null
+                            && sameFrame(s.at(), position.path("timestamp").asText()))
+                    .findFirst().ifPresent(s -> speed(position, s));
             out.add(position);
         }
         return out;
+    }
+
+    private static boolean sameFrame(Instant at, String timestamp) {
+        try {
+            return at.equals(Instant.parse(timestamp));
+        } catch (DateTimeParseException e) {
+            return false;
+        }
     }
 
     /**
@@ -859,8 +874,8 @@ public class EngineCaseService {
             props.put("speed", c.speedKmh() == null ? 0 : c.speedKmh());
             props.put("timestamp", start(c).toString());
             props.put(ICU_CODE, c.level());
-            if (!c.levels().isEmpty() && c.levels().get(0).speedLimit() != null) {
-                kmh(props, SPEED_LIMIT, c.levels().get(0).speedLimit().kmh());
+            if (!c.levels().isEmpty()) {
+                speed(props, c.levels().get(0));
             }
         }
         out.set(DESCRIPTION, description(c, end(c), reported(c), clock.instant()));

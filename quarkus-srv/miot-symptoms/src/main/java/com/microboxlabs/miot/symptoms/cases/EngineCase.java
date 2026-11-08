@@ -94,22 +94,35 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             if (speedKmh == null || measure == null) {
                 return null;
             }
-            double derived = Math.round(speedKmh) - measure;
+            double derived = speedKmh - measure;
             return derived > 0 ? new SpeedLimit(derived, source, null) : null;
         }
 
         /**
-         * The limit a measure expression reads: {@code custom} for {@code signal.road.maxspeed_custom},
-         * {@code road} for {@code signal.road.maxspeed_osm}, null when it reads neither or not the speed.
+         * Recognizes the speed templates' excess measures only. Other arithmetic, conditional or combined
+         * measures cannot safely derive an applied limit from the speed and measure.
          */
         public static String source(String measureExpression) {
-            if (measureExpression == null || !measureExpression.contains("gps.speed")) {
-                return null;
+            String expression = compact(measureExpression);
+            for (String speed : List.of("signal.frame.gps.speed", "signal.gps.speed_kmh",
+                    "double(int(signal.frame.gps.speed+0.5))")) {
+                if (expression.equals(speed + "-signal.road.maxspeed_custom")) {
+                    return CUSTOM;
+                }
+                if (expression.equals(speed + "-signal.road.maxspeed_osm")) {
+                    return ROAD;
+                }
             }
-            if (measureExpression.contains("road.maxspeed_custom")) {
-                return CUSTOM;
-            }
-            return measureExpression.contains("road.maxspeed_osm") ? ROAD : null;
+            return null;
+        }
+
+        /** Match the rounding of the version that computed the measure; older templates used raw speed. */
+        public static double ruleSpeed(String expression, double speed) {
+            return compact(expression).startsWith("double(int(") ? Math.round(speed) : speed;
+        }
+
+        private static String compact(String expression) {
+            return expression == null ? "" : expression.replaceAll("\\s+", "");
         }
     }
 

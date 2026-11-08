@@ -118,12 +118,14 @@ describe("stepLimitAt", () => {
     },
   ];
 
-  it("gives the limit of the change at the frame's second", () => {
-    expect(stepLimitAt("2026-01-01T00:00:00.400Z", spans)).toEqual({
+  it("gives the speed and limit of the change at the frame's time", () => {
+    expect(stepLimitAt("2026-01-01T00:00:00.000Z", spans)).toEqual({
+      speed: 61,
       limit: 50,
       zone: "Tramo norte",
     });
     expect(stepLimitAt("2026-01-01T00:01:00Z", spans)).toEqual({
+      speed: 84,
       limit: 60,
       zone: null,
     });
@@ -131,6 +133,7 @@ describe("stepLimitAt", () => {
 
   it("gives none between changes or for a change without a limit", () => {
     expect(stepLimitAt("2026-01-01T00:00:30Z", spans)).toBeNull();
+    expect(stepLimitAt("2026-01-01T00:00:00.400Z", spans)).toBeNull();
     expect(stepLimitAt("2026-01-01T00:02:00Z", spans)).toBeNull();
     expect(stepLimitAt(null, spans)).toBeNull();
   });

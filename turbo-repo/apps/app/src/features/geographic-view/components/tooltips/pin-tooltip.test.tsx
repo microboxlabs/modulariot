@@ -18,6 +18,9 @@ const dict = {
     signal_offline_hours: "Sin señal · hace {n} h",
     date_and_time: "Fecha y hora",
     speed: "Velocidad",
+    speed_limit: "Exceso de límite de velocidad",
+    applied_speed_limit: "Límite de velocidad",
+    over_limit: " por encima del límite",
   },
 } as unknown as I18nRecord;
 
@@ -58,5 +61,34 @@ describe("PinTooltip signal", () => {
       expect(document.querySelector("[data-signal-offline]")).toBeNull();
       unmount();
     }
+  });
+});
+
+describe("PinTooltip speed", () => {
+  it("keeps the legacy speed and limit text", () => {
+    const object = pin(undefined);
+    Object.assign(object.properties, { speed: 68, speed_limit: 50 });
+    const { container } = render(<PinTooltip object={object} dict={dict} />);
+    expect(container.textContent).toContain(
+      "Velocidad: 68 km/h - 18km/h  por encima del límite"
+    );
+    expect(container.textContent).toContain(
+      "Exceso de límite de velocidad: 50Km/h"
+    );
+  });
+
+  it("labels the engine limit and its named custom track", () => {
+    const object = pin(undefined);
+    Object.assign(object.properties, {
+      speed: 84,
+      speed_limit: 50,
+      speed_limit_source: "custom",
+      speed_limit_zone: "Tramo de prueba",
+    });
+    const { container } = render(<PinTooltip object={object} dict={dict} />);
+    expect(container.textContent).toContain("34km/h  por encima del límite");
+    expect(container.textContent).toContain(
+      "Límite de velocidad: 50Km/h · Tramo de prueba"
+    );
   });
 });

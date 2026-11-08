@@ -80,21 +80,34 @@ class PgEngineCasesTest {
     void aSpeedSymptomsStepsCarryTheKeptLimitOrOneDerivedFromTheMeasure() throws Exception {
         var steps = new ObjectMapper().readTree("""
                 [{"at":"2026-01-01T00:00:00+00:00","level":2,"speed_kmh":60.4,"measure":10.0,
+                  "measure_expression":"double(int(signal.frame.gps.speed + 0.5)) - signal.road.maxspeed_custom",
                   "speed_limit":{"kmh":50.0,"source":"custom","road_kmh":80.0,"custom_kmh":50.0,"zone_id":3,
                                  "zone_name":"Tramo A"}},
-                 {"at":"2026-01-01T00:01:00+00:00","level":4,"speed_kmh":83.6,"measure":24.0,"speed_limit":null},
+                 {"at":"2026-01-01T00:01:00+00:00","level":4,"speed_kmh":83.6,"measure":24.0,"speed_limit":null,
+                  "measure_expression":"double(int(signal.frame.gps.speed + 0.5)) - signal.road.maxspeed_osm"},
                  {"at":"2026-01-01T00:02:00+00:00","level":4,"speed_kmh":null,"measure":24.0}]
                 """);
         Instant t0 = Instant.parse("2026-01-01T00:00:00Z");
         assertEquals(List.of(
                 new EngineCase.LevelStep(t0, 2, 60.0, new EngineCase.SpeedLimit(50, "custom", "Tramo A")),
-                new EngineCase.LevelStep(t0.plusSeconds(60), 4, 84.0, new EngineCase.SpeedLimit(60, "custom", null)),
-                new EngineCase.LevelStep(t0.plusSeconds(120), 4)), PgEngineCases.steps(steps, "custom"),
-                "a change written before the limit was kept: speed minus the measure");
-        assertEquals(new EngineCase.SpeedLimit(80, "road", null), PgEngineCases.steps(steps, "road").get(0)
-                .speedLimit(), "the limit the measure reads, without the own zone");
-        assertEquals(new EngineCase.LevelStep(t0, 2), PgEngineCases.steps(steps, null).get(0),
-                "not a speed symptom");
+                new EngineCase.LevelStep(t0.plusSeconds(60), 4, 84.0, new EngineCase.SpeedLimit(60, "road", null)),
+                new EngineCase.LevelStep(t0.plusSeconds(120), 4)), PgEngineCases.steps(steps),
+                "each transition uses its own version's expression and limit source");
+    }
+
+    @Test
+    void rawSpeedAndUnrelatedMeasuresDoNotInventLimits() throws Exception {
+        var steps = new ObjectMapper().readTree("""
+                [{"at":"2026-01-01T00:00:00Z","level":2,"speed_kmh":68.25,"measure":18.25,
+                  "measure_expression":"signal.frame.gps.speed - signal.road.maxspeed_osm"},
+                 {"at":"2026-01-01T00:01:00Z","level":3,"speed_kmh":68.25,"measure":18.25,
+                  "measure_expression":"signal.frame.gps.speed * signal.road.maxspeed_osm"}]
+                """);
+        var parsed = PgEngineCases.steps(steps);
+        assertEquals(68.25, parsed.get(0).speedKmh());
+        assertEquals(new EngineCase.SpeedLimit(50, "road", null), parsed.get(0).speedLimit());
+        assertNull(parsed.get(1).speedKmh());
+        assertNull(parsed.get(1).speedLimit());
     }
 
     @Test

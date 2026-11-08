@@ -162,6 +162,17 @@ class EvaluatorBehaviorTest {
     }
 
     private static String normalized(Object value, Map<String, String> ids) throws Exception {
+        if (value instanceof Transition) {
+            ObjectNode transition = JSON.valueToTree(value);
+            if (transition.get("detail") instanceof ObjectNode detail && detail.has(SpeedLimitContext.KEY)) {
+                // The original fingerprint covers decisions. Speed evidence is checked by EvaluatorStreamTest.
+                detail.remove(SpeedLimitContext.KEY);
+                if (detail.isEmpty()) {
+                    transition.putNull("detail");
+                }
+            }
+            value = transition;
+        }
         String text = JSON.writeValueAsString(value);
         for (Map.Entry<String, String> id : ids.entrySet()) {
             text = text.replace(id.getKey(), id.getValue());

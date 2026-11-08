@@ -115,23 +115,27 @@ export function pointLevel(
 }
 
 /**
- * The speed limit of the case change recorded at the frame's time (to the
- * second), or null: frames between changes keep no limit of their own.
+ * The speed limit of the case change recorded at the frame's time,
+ * or null: frames between changes keep no limit of their own.
  */
 export function stepLimitAt(
   at: string | null | undefined,
   spans: CaseSpan[]
-): { limit: number; zone: string | null } | null {
+): { speed: number | null; limit: number; zone: string | null } | null {
   if (!at) return null;
-  const t = Math.floor(new Date(at).getTime() / 1000);
+  const t = new Date(at).getTime();
   if (Number.isNaN(t)) return null;
   for (const span of spans) {
     for (const step of span.steps ?? []) {
       if (
         typeof step.speed_limit === "number" &&
-        Math.floor(new Date(step.at).getTime() / 1000) === t
+        new Date(step.at).getTime() === t
       ) {
-        return { limit: step.speed_limit, zone: step.speed_limit_zone ?? null };
+        return {
+          speed: step.speed ?? null,
+          limit: step.speed_limit,
+          zone: step.speed_limit_zone ?? null,
+        };
       }
     }
   }

@@ -116,7 +116,10 @@ public interface EngineCaseStore {
     record OpenCount(int level, boolean underTreatment, long count) {
     }
 
-    record OpenLevel(String assetId, String name, int level) {
+    record OpenLevel(String assetId, String name, int level, EngineCase.LevelStep speedStep) {
+        public OpenLevel(String assetId, String name, int level) {
+            this(assetId, name, level, null);
+        }
     }
 
     /**

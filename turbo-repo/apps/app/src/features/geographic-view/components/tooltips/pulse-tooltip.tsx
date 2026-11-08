@@ -37,12 +37,12 @@ export function SpeedLimitLine({
   zone,
   engine,
   dict,
-}: {
+}: Readonly<{
   limit: number;
   zone?: string | null;
   engine: boolean;
   dict: I18nRecord;
-}) {
+}>) {
   const labels = dict.geographic_view as I18nRecord;
   return (
     <div className="text-sm text-gray-600 dark:text-gray-300" data-speed-limit>
@@ -60,11 +60,11 @@ function OverLimit({
   speed,
   limit,
   dict,
-}: {
+}: Readonly<{
   speed: number;
   limit: number | null | undefined;
   dict: I18nRecord;
-}) {
+}>) {
   if (!limit || speed <= limit) return null;
   return (
     <span className="text-red-500 dark:text-red-400">

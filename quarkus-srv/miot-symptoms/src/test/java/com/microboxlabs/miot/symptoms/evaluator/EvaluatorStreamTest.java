@@ -193,7 +193,8 @@ class EvaluatorStreamTest {
         publishPanic(OTHER, SymptomState.TEST);
         EvaluatorStream s = stream();
 
-        s.evaluate(speeding("2026-10-22T03:00:00Z", 60.2, OTHER));
+        s.evaluate(speeding("2026-10-22T03:00:00Z", 60.2, OTHER)
+                .replace("\"panic_button\":true", "\"panic_button\":false"));
         s.evaluate(speeding("2026-10-22T03:00:10Z", 61.0, OTHER));
 
         int speed = -1;
@@ -206,6 +207,7 @@ class EvaluatorStreamTest {
             }
         }
         assertEquals(Kind.OPENED, recorded.get(speed).kind());
+        assertEquals(recorded.get(speed).at(), recorded.get(panic).at(), "both changes belong to the same frame");
         assertEquals(11.0, recorded.get(speed).measure());
         Map<String, Object> limit = (Map<String, Object>) log.contexts.get(speed).get("speed_limit");
         assertEquals(50.0, limit.get("kmh"));

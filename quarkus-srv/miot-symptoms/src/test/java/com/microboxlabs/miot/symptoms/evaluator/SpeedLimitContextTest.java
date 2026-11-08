@@ -12,7 +12,7 @@ class SpeedLimitContextTest {
     @Test
     void theRoadLimitAppliesWithoutAnOwnLimit() {
         Map<String, Object> limit = SpeedLimitContext.of(Map.of("road",
-                Map.of("maxspeed_osm", 80.0, "osm_way_id", 7L, "road_class", "primary", "custom_zone_id", 3)));
+                Map.of("maxspeed_osm", 80.0, "osm_way_id", 7L, "road_class", "primary", "custom_zone_id", 3)), "road");
         assertEquals(80.0, limit.get("kmh"));
         assertEquals("road", limit.get("source"));
         assertEquals(80.0, limit.get("road_kmh"));
@@ -22,9 +22,9 @@ class SpeedLimitContextTest {
     }
 
     @Test
-    void anOwnLimitWinsAndCarriesItsZone() {
+    void anOwnMeasureCarriesItsZone() {
         Map<String, Object> limit = SpeedLimitContext.of(Map.of("road",
-                Map.of("maxspeed_osm", 80.0, "maxspeed_custom", 50, "custom_zone_id", 3)));
+                Map.of("maxspeed_osm", 80.0, "maxspeed_custom", 50, "custom_zone_id", 3)), "custom");
         assertEquals(50.0, limit.get("kmh"));
         assertEquals("custom", limit.get("source"));
         assertEquals(3, limit.get("zone_id"));
@@ -33,8 +33,19 @@ class SpeedLimitContextTest {
 
     @Test
     void noLimitGivesNone() {
-        assertNull(SpeedLimitContext.of(Map.of()));
-        assertNull(SpeedLimitContext.of(Map.of("road", Map.of("maxspeed_osm", 0.0))));
-        assertNull(SpeedLimitContext.of(null));
+        assertNull(SpeedLimitContext.of(Map.of(), "road"));
+        assertNull(SpeedLimitContext.of(Map.of("road", Map.of("maxspeed_osm", 0.0)), "road"));
+        assertNull(SpeedLimitContext.of(null, "road"));
+    }
+
+    @Test
+    void anOsmMeasureKeepsTheRoadLimitEvenInsideACustomZone() {
+        Map<String, Object> signal = Map.of("road", Map.of("maxspeed_osm", 80.0, "maxspeed_custom", 50.0,
+                "custom_zone_name", "Tramo de prueba"));
+        Map<String, Object> limit = SpeedLimitContext.of(signal, "road");
+        assertEquals(80.0, limit.get("kmh"));
+        assertEquals("road", limit.get("source"));
+        assertFalse(limit.containsKey("zone_name"));
+        assertNull(SpeedLimitContext.of(signal, null));
     }
 }

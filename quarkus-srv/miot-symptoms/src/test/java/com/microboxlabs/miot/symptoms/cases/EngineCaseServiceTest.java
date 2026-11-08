@@ -594,7 +594,7 @@ class EngineCaseServiceTest {
 
     private static EngineCase speeding(long id) {
         return new EngineCase(id, PANIC, "2.0.0", "Exceso de velocidad", "driving_safety", "DEMO01", OPENED, 4,
-                "T-1", -33.4489, -70.6693, 61.2, null, 0, null, 0L, null, null, null, "measure > 21.0",
+                "T-1", 0.0, 0.0, 61.2, null, 0, null, 0L, null, null, null, "measure > 21.0",
                 List.of(new EngineCase.LevelStep(OPENED, 2, 61.0, new EngineCase.SpeedLimit(50, "custom", "Tramo A")),
                         new EngineCase.LevelStep(OPENED.plusSeconds(60), 4, 84.0,
                                 new EngineCase.SpeedLimit(60, "road", null))));
@@ -614,6 +614,10 @@ class EngineCaseServiceTest {
         assertEquals(61.2, d.path("last_reported_speed").asDouble());
         assertEquals(50, signals.path("features").get(0).path("properties").path("speed_limit").asInt(),
                 "the opening point has the opening's limit");
+        JsonNode point = signals.path("features").get(0).path("properties");
+        assertEquals(61, point.path("speed").asInt());
+        assertEquals("custom", point.path("speed_limit_source").asText());
+        assertEquals("Tramo A", point.path("speed_limit_zone").asText());
 
         JsonNode levels = service.header(TENANT, -12).path("level_reason").path("levels");
         assertEquals(61, levels.get(0).path("speed").asInt());
@@ -632,6 +636,23 @@ class EngineCaseServiceTest {
         assertFalse(d.has("speed"));
         assertFalse(d.has("speed_limit"));
         assertFalse(service.header(TENANT, -12).path("level_reason").path("levels").path(0).has("speed"));
+    }
+
+    @Test
+    void aLivePinUsesOnlyTheLimitRecordedForItsOwnFrame() throws Exception {
+        store.add(speeding(12));
+        var positions = new ObjectMapper().readTree("""
+                [{"asset_id":"DEMO01","timestamp":"2026-10-22T03:01:00+00:00","speed":83.6},
+                 {"asset_id":"DEMO01","timestamp":"2026-10-22T03:02:00Z","speed":90},
+                 {"asset_id":"DEMO01","timestamp":"bad","speed":90}]
+                """);
+        JsonNode result = service.withCaseLevels(TENANT, positions);
+        assertEquals(84, result.get(0).path("speed").asInt());
+        assertEquals(60, result.get(0).path("speed_limit").asInt());
+        assertEquals("road", result.get(0).path("speed_limit_source").asText());
+        assertFalse(result.get(1).has("speed_limit"), "a newer frame cannot inherit an old location's limit");
+        assertEquals(90, result.get(1).path("speed").asInt());
+        assertFalse(result.get(2).has("speed_limit"));
     }
 
     @Test

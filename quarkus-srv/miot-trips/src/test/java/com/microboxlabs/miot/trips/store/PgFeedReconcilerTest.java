@@ -31,6 +31,7 @@ import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.dto.MonitorViews;
 import com.microboxlabs.miot.core.fleet.FleetResources;
+import com.microboxlabs.miot.trips.dto.AssignmentRequest;
 import com.microboxlabs.miot.trips.dto.AssignmentView;
 import com.microboxlabs.miot.trips.dto.FeedBatchRequest;
 import com.microboxlabs.miot.trips.dto.FeedBatchResult;
@@ -349,8 +350,8 @@ class PgFeedReconcilerTest {
         FeedResult incomplete = send("S-003", desired(1, 6, "PQR-222", null));
 
         assertEquals(FeedReconciler.REPORT, inactive.action());
-        assertEquals(List.of("truck JKL-000 is inactive", "driver 10000005 is not in the fleet directory"),
-                inactive.errors());
+        assertEquals(List.of("driver 10000005 is not in the fleet directory"), inactive.errors());
+        assertEquals(List.of("truck JKL-000 is inactive in the fleet"), inactive.warnings());
         assertEquals(List.of("truck PQR-222 is not in the fleet directory", "driver is required"),
                 incomplete.errors());
         assertTrue(mandates.list(tenant, null, "S-005", 0, 10).isEmpty(), "no mandate for a reported service");
@@ -575,16 +576,34 @@ class PgFeedReconcilerTest {
     }
 
     @Test
+    void anInactiveTruckIsAssignedWithAWarningAndStaysInactive() throws Exception {
+        FeedResult r = send("S-006", desired(1, 6, "JKL-000", null, "10000001"));
+
+        assertEquals(FeedReconciler.CREATE, r.action());
+        assertEquals(List.of(), r.errors());
+        assertEquals(List.of("truck JKL-000 is inactive in the fleet"), r.warnings());
+        FeedService saved = feeds.service(tenant, FEED, "S-006").orElseThrow();
+        assertEquals(json.valueToTree(r.warnings()), json.readTree(saved.lastResult()).path("warnings"));
+        FleetResources.Match truck = fleet.byPlate(tenant, "truck", "JKL-000").orElseThrow();
+        assertFalse(truck.active(), "a feed does not reactivate the truck");
+        assertTrue(trip(r).assignments().stream().anyMatch(a -> a.resourceId().equals(truck.id().toString())));
+        UUID tripId = UUID.fromString(r.tripId());
+        AssignmentRequest manual = new AssignmentRequest("truck", truck.id().toString(), null, null);
+        assertThrows(IllegalArgumentException.class, () -> assignments.create(tenant, ACTOR, tripId, manual),
+                "a manual assignment still refuses an inactive truck");
+    }
+
+    @Test
     void aJobForAServiceThatCannotBeCreatedFailsWithoutRetry() {
         List<AsyncJobSpec> queued = new ArrayList<>();
         FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
         FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, new FeedSites(null, null), json, feeds);
         batches.send(tenant, ACTOR, FEED, new FeedBatchRequest(null, List.of(
-                new FeedBatchRequest.Item("S-005", desired(1, 6, "JKL-000", null, "10000001")))));
+                new FeedBatchRequest.Item("S-005", desired(1, 6, "PQR-222", null, "10000001")))));
 
         NonRetryableJobException e = assertThrows(NonRetryableJobException.class,
                 () -> handler.handle(tenant, queued.get(0).payload()));
-        assertEquals("truck JKL-000 is inactive", e.getMessage());
+        assertEquals("truck PQR-222 is not in the fleet directory", e.getMessage());
     }
 
     @Test
@@ -1097,21 +1116,25 @@ class PgFeedReconcilerTest {
     }
 
     @Test
-    void anInactiveCarrierCannotRegisterNewResourcesEvenInADryRun() {
+    void anInactiveCarrierIsUsedForNewResourcesWithAWarning() {
         registering();
         pool.preparedQuery("UPDATE miot_fleet.carrier SET status = 'inactive' WHERE tenant_code = $1")
                 .execute(Tuple.of(tenant)).await().atMost(WAIT);
         FeedServiceRequest request = registered(1, 6, "TEST-101", null,
                 new FeedServiceRequest.Carrier("20000000001", null), List.of(), "TEST-DRIVER-01");
         FeedResult dry = reconciler.reconcile(tenant, ACTOR, FEED, "S-054", request, true);
-        assertEquals(FeedReconciler.REPORT, dry.action());
-        assertEquals(List.of("carrier 20000000001 is inactive"), dry.errors());
+        assertEquals(FeedReconciler.CREATE, dry.action());
+        assertEquals(List.of("carrier 20000000001 is inactive in the fleet"), dry.warnings());
         FeedResult result = send("S-054", request);
-        assertEquals(FeedReconciler.REPORT, result.action());
-        assertEquals(dry.errors(), result.errors());
-        assertTrue(fleet.byPlate(tenant, "truck", "TEST-101").isEmpty());
-        assertTrue(fleet.driverByDocument(tenant, "TEST-DRIVER-01").isEmpty());
-        assertNull(result.tripId());
+        assertEquals(FeedReconciler.CREATE, result.action());
+        assertEquals(List.of(), result.errors());
+        assertEquals(dry.warnings(), result.warnings());
+        FleetResources.Match carrier = fleet.carrierByTaxId(tenant, "20000000001").orElseThrow();
+        assertFalse(carrier.active(), "a feed does not reactivate the carrier");
+        UUID truck = fleet.byPlate(tenant, "truck", "TEST-101").orElseThrow().id();
+        assertEquals(carrier.id(), fleet.vehicle(tenant, "truck", truck).orElseThrow().carrierId());
+        assertTrue(fleet.driverByDocument(tenant, "TEST-DRIVER-01").isPresent());
+        assertNotNull(result.tripId());
     }
 
     @Test

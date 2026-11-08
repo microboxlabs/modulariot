@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from dotenv import dotenv_values
-from pydantic import AliasChoices, BaseModel, Field, PositiveInt
+from pydantic import AliasChoices, BaseModel, Field, PositiveInt, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -405,6 +405,10 @@ class HarnessSettings(BaseSettings):
     # load at boot and refresh on this interval, and each run's token usage
     # is reported for charging.
     modulith_url: str | None = None
+    # The modulith that serves the symptom (Control Tower) MCP tools. Unset:
+    # the same as modulith_url. The skill reads it through
+    # context_skills/mcp_skills.py, which applies the same fallback.
+    symptoms_url: str | None = None
     provider_key: str | None = Field(default=None, repr=False)
     model_providers_refresh_seconds: int = Field(default=60, gt=0)
     # The web app's public base URL, basePath included (e.g.
@@ -438,6 +442,13 @@ class HarnessSettings(BaseSettings):
             "AUTH0_RS256_AUDIENCE", "auth0_rs256_audience"
         ),
     )
+
+    @model_validator(mode="after")
+    def _symptoms_url_defaults_to_modulith(self) -> HarnessSettings:
+        if not (self.symptoms_url or "").strip():
+            self.symptoms_url = self.modulith_url
+        return self
+
     def validate_auth_config(self) -> None:
         """Raise ``ValueError`` if the auth settings are internally
         inconsistent. Call once at startup (lifespan).

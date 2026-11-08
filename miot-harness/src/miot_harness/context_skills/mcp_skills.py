@@ -43,6 +43,9 @@ MCP_CALL_TOOL = "mcp_call"
 
 _ENV_PREFIX_RE = re.compile(r"^\$\{([A-Z_][A-Z0-9_]*)\}")
 
+# A variable left unset takes the value of the one it maps to.
+_ENV_FALLBACKS = {"MIOT_HARNESS_SYMPTOMS_URL": "MIOT_HARNESS_MODULITH_URL"}
+
 # A share link as the modulith returns it: an API path ending in the token.
 _SHARE_LINK_PATH_RE = re.compile(r"^/api/v1/orgs/[^/]+/links/([^/?#]+)$")
 
@@ -92,6 +95,13 @@ class McpCallOutput(BaseModel):
     refreshed_at: datetime | None = None
 
 
+def _env_value(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value and name in _ENV_FALLBACKS:
+        value = os.environ.get(_ENV_FALLBACKS[name], "").strip()
+    return value
+
+
 def resolve_url(server: McpServer) -> str:
     """The server URL with a leading ${ENV_VAR} filled in.
 
@@ -101,7 +111,7 @@ def resolve_url(server: McpServer) -> str:
     url = server.url
     match = _ENV_PREFIX_RE.match(url)
     if match is not None:
-        value = os.environ.get(match.group(1), "").strip()
+        value = _env_value(match.group(1))
         if not value:
             raise ValueError(f"MCP server url needs ${{{match.group(1)}}}, which is not set")
         url = value.rstrip("/") + url[match.end() :]

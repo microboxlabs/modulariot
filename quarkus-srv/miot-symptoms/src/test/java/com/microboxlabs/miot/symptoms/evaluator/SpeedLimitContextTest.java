@@ -2,7 +2,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -33,9 +33,9 @@ class SpeedLimitContextTest {
 
     @Test
     void noLimitGivesNone() {
-        assertNull(SpeedLimitContext.of(Map.of(), "road"));
-        assertNull(SpeedLimitContext.of(Map.of("road", Map.of("maxspeed_osm", 0.0)), "road"));
-        assertNull(SpeedLimitContext.of(null, "road"));
+        assertTrue(SpeedLimitContext.of(Map.of(), "road").isEmpty());
+        assertTrue(SpeedLimitContext.of(Map.of("road", Map.of("maxspeed_osm", 0.0)), "road").isEmpty());
+        assertTrue(SpeedLimitContext.of(null, "road").isEmpty());
     }
 
     @Test
@@ -46,6 +46,6 @@ class SpeedLimitContextTest {
         assertEquals(80.0, limit.get("kmh"));
         assertEquals("road", limit.get("source"));
         assertFalse(limit.containsKey("zone_name"));
-        assertNull(SpeedLimitContext.of(signal, null));
+        assertTrue(SpeedLimitContext.of(signal, null).isEmpty());
     }
 }

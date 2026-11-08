@@ -134,9 +134,12 @@ public class SpeedZones {
 
     public static Zone zone(String tenant, int id, Limits limits, String geoJson, String name) {
         Zones.Zone shape = Zones.zone(tenant, id, null, geoJson);
-        return shape == null ? null
-                : new Zone(tenant, id, limits.forward(), limits.backward(), limits.forwardFrom(), limits.forwardTo(),
-                        limits.heading(), shape.polygons(), name == null || name.isBlank() ? null : name.trim());
+        if (shape == null) {
+            return null;
+        }
+        String zoneName = name == null || name.isBlank() ? null : name.trim();
+        return new Zone(tenant, id, limits.forward(), limits.backward(), limits.forwardFrom(), limits.forwardTo(),
+                limits.heading(), shape.polygons(), zoneName);
     }
 
     /** 1 to 4 for 0–90, 91–180, 181–270, 271–360; 0 outside. */

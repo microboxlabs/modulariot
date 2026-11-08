@@ -37,24 +37,24 @@ final class SpeedLimitContext {
     }
 
     private static Transition with(Transition t, Map<String, Object> limit) {
-        if (limit == null || t.detail() != null) {
+        if (limit.isEmpty() || t.detail() != null) {
             return t;
         }
         return new Transition(t.kind(), t.definitionId(), t.version(), t.state(), t.assetId(), t.at(), t.level(),
                 t.previousLevel(), t.measure(), Map.of(KEY, limit));
     }
 
-    /** The signal's limits, or null when it has none. */
+    /** The signal's limits, or an empty map when it has none. */
     static Map<String, Object> of(Map<String, Object> signal, String source) {
         if (source == null || signal == null || !(signal.get(ROAD) instanceof Map<?, ?> road)) {
-            return null;
+            return Map.of();
         }
         Double osm = positive(road.get("maxspeed_osm"));
         Double custom = positive(road.get("maxspeed_custom"));
         boolean own = "custom".equals(source);
         Double applied = own ? custom : osm;
         if (applied == null) {
-            return null;
+            return Map.of();
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("kmh", applied);

@@ -85,9 +85,9 @@ public class SignalBuilder {
         Boolean moving = frame.getGps() == null ? null : frame.getGps().getSpeed() > MOVING_KMH;
         GpsSignal.Derived derived = new GpsSignal.Derived(moving, null, event(frame, POWER_DISCONNECTED),
                 event(frame, JAMMING));
-        Map<String, GpsSignal.Geo> geos = geos(frame, clients);
-        Map<String, GpsSignal.Road> roadsByClient = roads(frame, assetId, at, clients);
         LocalTime local = at.atZone(zone).toLocalTime();
+        Map<String, GpsSignal.Geo> geos = geos(frame, clients, local);
+        Map<String, GpsSignal.Road> roadsByClient = roads(frame, assetId, at, clients);
         // The time the platform's gateway received the frame (X-Request-Timestamp), carried by the envelope.
         return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, message.getTimestamp(), clients, sender, null,
                 trips.isEmpty() ? null : trips, null, null, null, roadsByClient.isEmpty() ? null : roadsByClient, null,
@@ -95,8 +95,11 @@ public class SignalBuilder {
                 local.getHour(), local.toSecondOfDay() / 60.0, derived, frame));
     }
 
-    /** Each client's zones at the frame's position; none for a frame without a position or a client without zones. */
-    private Map<String, GpsSignal.Geo> geos(AssetTrackingData frame, List<String> clients) {
+    /**
+     * Each client's zones at the frame's position and local time (the one {@code local_minutes} reads); none for a
+     * frame without a position or a client without zones.
+     */
+    private Map<String, GpsSignal.Geo> geos(AssetTrackingData frame, List<String> clients, LocalTime local) {
         Map<String, GpsSignal.Geo> out = new LinkedHashMap<>();
         if (!hasPosition(frame)) {
             return out;
@@ -104,7 +107,7 @@ public class SignalBuilder {
         double lon = frame.getGps().getLongitude();
         double lat = frame.getGps().getLatitude();
         for (String client : clients) {
-            GpsSignal.Geo geo = zones.at(client, lon, lat);
+            GpsSignal.Geo geo = zones.at(client, lon, lat, local);
             if (geo != null) {
                 out.put(client, geo);
             }

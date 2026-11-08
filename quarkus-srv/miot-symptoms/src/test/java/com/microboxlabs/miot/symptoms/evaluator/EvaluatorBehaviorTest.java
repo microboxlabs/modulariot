@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -161,15 +162,32 @@ class EvaluatorBehaviorTest {
         return out;
     }
 
+    /**
+     * What the fingerprints were taken without: the case's trip on episodes and CLOSED changes, why a case closed
+     * after its trip, and the trip's last duty counters. Their own tests cover them.
+     */
+    private static JsonNode withoutCaseTrips(JsonNode node) {
+        if (node instanceof ObjectNode o) {
+            o.remove(List.of("tripId", "lastContext", "tripEnded"));
+            if (com.microboxlabs.miot.symptoms.lostsignal.TripEnds.REASON.equals(o.path("reason").asText())) {
+                o.remove("reason");
+            }
+            o.forEach(EvaluatorBehaviorTest::withoutCaseTrips);
+        } else if (node != null && node.isArray()) {
+            node.forEach(EvaluatorBehaviorTest::withoutCaseTrips);
+        }
+        return node;
+    }
+
     private static String normalized(Object value, Map<String, String> ids) throws Exception {
-        if (value instanceof Transition) {
-            ObjectNode transition = JSON.valueToTree(value);
+        value = withoutCaseTrips(JSON.valueToTree(value));
+        if (value instanceof ObjectNode transition && transition.has("previousLevel")) {
             if (transition.get("detail") instanceof ObjectNode detail && detail.has(SpeedLimitContext.KEY)) {
                 // The original fingerprint covers decisions. Speed evidence is checked by EvaluatorStreamTest.
                 detail.remove(SpeedLimitContext.KEY);
-                if (detail.isEmpty()) {
-                    transition.putNull("detail");
-                }
+            }
+            if (transition.get("detail") instanceof ObjectNode detail && detail.isEmpty()) {
+                transition.putNull("detail");
             }
             value = transition;
         }

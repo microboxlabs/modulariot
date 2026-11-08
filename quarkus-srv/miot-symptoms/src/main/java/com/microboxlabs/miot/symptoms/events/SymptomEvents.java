@@ -84,9 +84,10 @@ public class SymptomEvents {
                 continue;
             }
             Name n = name(tenantCode, t.definitionId());
+            Place at = place.of(t);
             SymptomCaseData data = new SymptomCaseData(-r.caseId(), t.definitionId(), t.version(), n.key(),
-                    n.name(), t.level(), t.previousLevel(), t.assetId(), place.tripId(), place.driverId(),
-                    t.measure(), place.latitude(), place.longitude(), place.speedKmh(), null, null, null, null, null);
+                    n.name(), t.level(), t.previousLevel(), t.assetId(), at.tripId(), at.driverId(),
+                    t.measure(), at.latitude(), at.longitude(), at.speedKmh(), null, null, null, null, null);
             publish(type(t.kind()), tenantCode, t.at(), data, t.state() != SymptomState.ACTIVE);
         }
     }

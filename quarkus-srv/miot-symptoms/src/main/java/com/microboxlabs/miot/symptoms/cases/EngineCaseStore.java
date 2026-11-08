@@ -104,6 +104,16 @@ public interface EngineCaseStore {
         return List.of();
     }
 
+    /** The evaluator's maximum and latest context, including frames without a level change. */
+    record ClosingFrame(double maxMeasure, java.util.Map<String, Object> context) {
+    }
+
+    /** As {@link #closeTrip}, using matching episode evidence when it is still available. */
+    default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason, java.util.function.Function<StaleCase, ClosingFrame> frames) {
+        return closeTrip(tenantCode, tripId, definitionIds, at, reason);
+    }
+
     /** A case {@link #closeStale} or {@link #closeTrip} closed; {@code id} is its OPENED transition's. */
     record StaleCase(String tenantCode, long id, UUID definitionId, String version, boolean test, String assetId,
             int level, String tripId, Double latitude, Double longitude, Double speedKmh, Instant openedAt) {

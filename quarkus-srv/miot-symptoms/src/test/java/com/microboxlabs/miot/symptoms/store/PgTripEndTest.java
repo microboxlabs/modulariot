@@ -289,4 +289,109 @@ class PgTripEndTest {
         assertNull(cases.find(tenant, otherTrip).orElseThrow().closedAt(), "another trip stays open");
         assertTrue(ends.close(tenant, tripId, List.of(lost), now).isEmpty(), "closed once");
     }
+
+    @Test
+    void tripEndUsesTheEpisodeMaximumAndContextEvenWithoutALevelChange() {
+        UUID lost = symptom("signal-loss");
+        String tripId = UUID.randomUUID().toString();
+        Instant opened = now.minusSeconds(3600).plusNanos(123456789);
+        log.append(tenant, List.of(new Transition(Kind.OPENED, lost, "1.0.0", SymptomState.ACTIVE,
+                "vehicle-demo", opened, 1, 0, 30)), new TransitionLog.Place(tripId, null, null, null, null),
+                Map.of("check", Map.of("signal_lost_minutes", 30.0)));
+        var episodes = new com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeRepository();
+        var state = episodes.load(tenant, "vehicle-demo");
+        state.save(tenant, new com.microboxlabs.miot.symptoms.evaluator.Episode(lost, "1.0.0", "vehicle-demo",
+                opened, opened, null, Map.of(), now.minusSeconds(60), opened, 1, 125, SymptomState.ACTIVE,
+                null, null, null, tripId, Map.of("check", Map.of("signal_lost_minutes", 110.0))));
+        episodes.save(state);
+        assertEquals(1, ends.withEpisodes(episodes).close(tenant, tripId, List.of(lost), now).size());
+
+        Row row = PgIds.query(pool, """
+                SELECT measure, (context -> 'check' ->> 'signal_lost_minutes')::float AS lost,
+                       context ->> 'reason' AS reason FROM miot_symptoms.signal_transitions
+                 WHERE tenant_code = $1 AND definition_id = $2 AND kind = 'CLOSED'
+                """, Tuple.of(tenant, lost)).iterator().next();
+        assertEquals(125.0, row.getDouble("measure"));
+        assertEquals(110.0, row.getDouble("lost"));
+        assertEquals(TripEnds.REASON, row.getString("reason"));
+    }
+
+    @Test
+    void tripEndFallbackKeepsIntermediatePeaksAndLatestNonNullContext() {
+        UUID lost = symptom("signal-loss");
+        String tripId = UUID.randomUUID().toString();
+        TransitionLog.Place place = new TransitionLog.Place(tripId, null, null, null, null);
+        log.append(tenant, List.of(new Transition(Kind.OPENED, lost, "1.0.0", SymptomState.ACTIVE,
+                "vehicle-demo", now.minusSeconds(3600), 1, 0, 30)), place,
+                Map.of("check", Map.of("signal_lost_minutes", 30.0)));
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, lost, "1.0.0", SymptomState.ACTIVE,
+                "vehicle-demo", now.minusSeconds(600), 3, 1, 120)), place,
+                Map.of("check", Map.of("signal_lost_minutes", 120.0)));
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, lost, "1.0.0", SymptomState.ACTIVE,
+                "vehicle-demo", now.minusSeconds(300), 2, 3, 60)), place, null);
+        assertEquals(1, ends.close(tenant, tripId, List.of(lost), now).size());
+
+        Row row = PgIds.query(pool, """
+                SELECT measure, level, (context -> 'check' ->> 'signal_lost_minutes')::float AS lost
+                  FROM miot_symptoms.signal_transitions
+                 WHERE tenant_code = $1 AND definition_id = $2 AND kind = 'CLOSED'
+                """, Tuple.of(tenant, lost)).iterator().next();
+        assertEquals(120.0, row.getDouble("measure"));
+        assertEquals(2, row.getInteger("level"));
+        assertEquals(120.0, row.getDouble("lost"));
+    }
+
+    @Test
+    void legacyRecoveryUsesTheLatestNonNullContextWithinItsOwnCase() {
+        UUID lost = symptom("signal-loss");
+        String tripId = UUID.randomUUID().toString();
+        String asset = "vehicle-demo";
+        Instant opened = now.minusSeconds(3600).plusNanos(123456789);
+        TransitionLog.Place place = new TransitionLog.Place(tripId, null, null, null, null);
+        log.append(tenant, List.of(new Transition(Kind.OPENED, lost, "1.0.0", SymptomState.ACTIVE,
+                asset, opened, 1, 0, 30)), place, Map.of("check", Map.of("signal_lost_minutes", 30.0)));
+        Map<String, Object> latest = Map.of("check", Map.of("signal_lost_minutes", 120.0,
+                "geo", Map.of("zone", "Synthetic zone")));
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, lost, "1.0.0", SymptomState.ACTIVE,
+                asset, now.minusSeconds(600), 3, 1, 120)), place, latest);
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, lost, "1.0.0", SymptomState.ACTIVE,
+                asset, now.minusSeconds(300), 2, 3, 60)), place, null);
+        var legacy = new com.microboxlabs.miot.symptoms.evaluator.Episode(lost, "1.0.0", asset,
+                opened, opened, null, Map.of(), now.minusSeconds(300), opened, 2, 120, SymptomState.ACTIVE);
+        assertEquals(new TransitionLog.Opening(tripId, latest), log.opening(tenant, legacy));
+        ends.close(tenant, tripId, List.of(lost), now);
+        log.append(tenant, List.of(new Transition(Kind.OPENED, lost, "1.0.0", SymptomState.ACTIVE,
+                asset, now.plusSeconds(60), 1, 0, 300)), place, Map.of("check", Map.of("signal_lost_minutes", 300.0)));
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, lost, "1.0.0", SymptomState.ACTIVE,
+                asset, now.plusSeconds(120), 2, 1, 400)), place, Map.of("check", Map.of("signal_lost_minutes", 400.0)));
+        assertEquals(new TransitionLog.Opening(tripId, latest), log.opening(tenant, legacy),
+                "a newer case cannot supply the legacy case's evidence");
+    }
+
+    @Test
+    void aTripEndCloseKeepsTheTripTheMeasureAndTheLastContext() {
+        UUID lost = symptom("signal-loss");
+        String tripId = UUID.randomUUID().toString();
+        TransitionLog.Place place = new TransitionLog.Place(tripId, null, null, null, null);
+        log.append(tenant, List.of(new Transition(Kind.OPENED, lost, "1.0.0", SymptomState.ACTIVE,
+                "TRUCK3", now.minusSeconds(3600), 1, 0, 30)), place,
+                Map.of("check", Map.of("signal_lost_minutes", 30.0)));
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, lost, "1.0.0", SymptomState.ACTIVE,
+                "TRUCK3", now.minusSeconds(600), 2, 1, 95)), place,
+                Map.of("check", Map.of("signal_lost_minutes", 95.0)));
+
+        assertEquals(1, ends.close(tenant, tripId, List.of(lost), now).size());
+
+        Row row = PgIds.query(pool, """
+                SELECT trip_id, measure, context ? 'closed_reason' AS has_closed_reason,
+                       context ->> 'reason' AS reason, (context -> 'check' ->> 'signal_lost_minutes')::float AS lost
+                  FROM miot_symptoms.signal_transitions
+                 WHERE tenant_code = $1 AND kind = 'CLOSED' AND definition_id = $2 AND asset_id = 'TRUCK3'
+                """, Tuple.of(tenant, lost)).iterator().next();
+        assertEquals(tripId, row.getString("trip_id"));
+        assertEquals(95.0, row.getDouble("measure"));
+        assertEquals(false, row.getBoolean("has_closed_reason"));
+        assertEquals(TripEnds.REASON, row.getString("reason"));
+        assertEquals(95.0, row.getDouble("lost"));
+    }
 }

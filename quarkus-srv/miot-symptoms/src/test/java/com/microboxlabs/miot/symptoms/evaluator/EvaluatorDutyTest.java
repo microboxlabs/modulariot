@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -163,6 +164,35 @@ class EvaluatorDutyTest {
         drive(1);
         assertEquals(T0.plusSeconds(1200 + 270 * 60), of(driving).get(0).at());
         assertNull(duty.load(DEMO, ASSET).state().skipped());
+    }
+
+    @Test
+    void rejectedAndConfirmingFramesUseOneDutyReadAndOneWriteEach() {
+        AtomicInteger loads = new AtomicInteger();
+        AtomicInteger saves = new AtomicInteger();
+        InMemoryDutyStore counting = new InMemoryDutyStore() {
+            @Override
+            public Loaded load(String tenant, String asset) {
+                loads.incrementAndGet();
+                return duty.load(tenant, asset);
+            }
+
+            @Override
+            public void save(String tenant, String asset, DutyState state) {
+                saves.incrementAndGet();
+                duty.save(tenant, asset, state);
+            }
+        };
+        stream = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()), Clock.systemUTC(), episodes,
+                SignalSamples.inMemory(), LateFrames.NONE, LostSignalDetector.off(), Holds.NONE, counting);
+        stream.evaluate(frame(0, 0));
+        stream.evaluate(frame(1200, 60_000));
+        assertEquals(T0, episodes.load(DEMO, ASSET).watermark(DEMO, ASSET, DutyChecks.WATERMARK).orElseThrow(),
+                "the rejected frame does not evaluate duty symptoms");
+        stream.evaluate(frame(1230, 60_500));
+        assertEquals(3, loads.get());
+        assertEquals(3, saves.get(), "promotion performs no extra store operations");
     }
 
     @Test

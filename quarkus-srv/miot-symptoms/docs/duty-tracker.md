@@ -22,6 +22,8 @@ The time between two applied frames goes to driving when the later frame moves o
 
 The 1 h is the GPS database's: its gate (the enrichment service) keeps the previous position in Redis for 1 h. After that the next frame has no previous position, so it passes the 150 km/h check and its computed speed is 0. A device that sends its buffered frames newest first after a stop of more than 1 h therefore applies only the newest one, and the stop is not counted as driving. A buffered gap of less than 1 h still counts as driving when the frame before it moved.
 
+The one kept frame includes its trip, so promoting it preserves the trip boundary. After an operator's duty restart, promotion leaves duty uninitialized until the confirming frame. States written before `skipped` was added still load with their counters intact; a kept frame without a trip is treated as unknown. State size stays bounded to the counters and one kept frame. Promotion adds no store reads or writes beyond the confirming frame's normal save.
+
 ## Counters
 
 | Field | Rule |

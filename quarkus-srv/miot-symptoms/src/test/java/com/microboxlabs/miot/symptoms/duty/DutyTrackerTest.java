@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.duty.DutyTracker.Counters;
 import com.microboxlabs.miot.symptoms.duty.DutyTracker.Frame;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -151,6 +152,72 @@ class DutyTrackerTest {
         }
         assertEquals(30.0, maxDriving(t, s, frames), 0.01,
                 "driving counts from the first far frame; the 20 min before it are unobserved");
+    }
+
+    @Test
+    void theGapLimitIncludesItsFractionalSecondAndItsBoundary() {
+        DutyTracker.Rules defaults = DutyTracker.Rules.DEFAULT;
+        DutyTracker t = new DutyTracker(new DutyTracker.Rules(defaults.movingMps(), defaults.maxKmh(),
+                defaults.payBackAfter(), defaults.payBackRate(), defaults.longRest(), Duration.ofMillis(3_600_500)));
+        DutyState initial = t.step(null, at(0, 0)).orElseThrow().next();
+        DutyState moving = t.step(initial, at(30, 500)).orElseThrow().next();
+        for (long millis : new long[]{3_600_250, 3_600_500, 3_600_501}) {
+            Frame f = new Frame(moving.at().plusMillis(millis), -60 + 40_000 / METRES_PER_DEGREE,
+                    -70.0, null, "T-1");
+            DutyTracker.Step step = t.step(moving, f).orElseThrow();
+            boolean observed = millis <= 3_600_500;
+            assertEquals(observed, step.moving());
+            assertEquals(observed ? (30 + millis / 1000.0) / 60 : 0.5,
+                    step.counters().drivingMinutes(), 0.00001);
+        }
+    }
+
+    @Test
+    void promotingAFrameDoesNotMoveTheTripBoundaryBackwards() {
+        DutyTracker t = new DutyTracker();
+        DutyState initial = t.step(null, at(0, 0)).orElseThrow().next();
+        for (String keptTrip : new String[]{"T-1", null}) {
+            Frame far = at(1200, 60_000);
+            DutyState kept = t.step(initial, new Frame(far.at(), far.lat(), far.lon(), null, keptTrip))
+                    .orElseThrow().next();
+            Frame confirming = at(1230, 60_500);
+            DutyTracker.Step step = t.step(kept,
+                    new Frame(confirming.at(), confirming.lat(), confirming.lon(), null, "T-2")).orElseThrow();
+            assertEquals(0.0, step.counters().drivingMinutes(), "the new trip starts at the confirming frame");
+            assertEquals(0.0, step.counters().dutyMinutes());
+            assertEquals("T-2", step.next().drive().trip());
+        }
+    }
+
+    @Test
+    void promotingAFrameAfterAnOperatorCloseStartsDutyAtTheConfirmingFrame() {
+        DutyTracker t = new DutyTracker();
+        DutyState initial = t.step(null, at(0, 0)).orElseThrow().next();
+        DutyState kept = t.step(initial, at(1200, 60_000)).orElseThrow().next();
+        DutyState restarted = DutyTracker.restartDuty(kept, 1);
+        assertEquals(kept.skipped(), restarted.skipped());
+        DutyTracker.Step confirming = t.step(restarted, at(1230, 60_500)).orElseThrow();
+        assertEquals(0.5, confirming.counters().drivingMinutes(), 0.001, "driving survives the duty restart");
+        assertEquals(0.0, confirming.counters().dutyMinutes(), "no duty time from before the close");
+        assertEquals(1, confirming.next().restarts());
+        DutyTracker.Step next = t.step(confirming.next(), at(1260, 61_000)).orElseThrow();
+        assertEquals(0.5, next.counters().dutyMinutes(), 0.001);
+    }
+
+    @Test
+    void repeatedRejectedJumpsKeepOnlyOneCandidate() {
+        DutyTracker t = new DutyTracker();
+        DutyState s = t.step(null, at(0, 0)).orElseThrow().next();
+        int initialBytes = RedisDutyStore.write(s).length();
+        for (int second = 1; second <= 1000; second++) {
+            Frame f = at(second, second % 2 == 0 ? 60_000 : -60_000);
+            DutyTracker.Step step = t.step(s, f).orElseThrow();
+            assertFalse(step.applied());
+            s = step.next();
+            assertEquals(T0, s.at());
+            assertEquals(f.at(), s.skipped().at());
+            assertTrue(RedisDutyStore.write(s).length() < initialBytes + 160, "one candidate, no growing history");
+        }
     }
 
     @Test
@@ -342,9 +409,30 @@ class DutyTrackerTest {
         r.frame();
         r.drive(3600, 30).park(1800, 60);
         assertEquals(r.state, RedisDutyStore.read(RedisDutyStore.write(r.state)));
-        DutyState kept = new DutyState(T0, -33, -70, null, null, 0, new DutyState.Fix(T0.plusSeconds(30), -33.1, -70));
+        DutyState kept = new DutyState(T0, -33, -70, null, null, 0,
+                new DutyState.Fix(T0.plusSeconds(30), -33.1, -70, "T-1"));
         assertEquals(kept, RedisDutyStore.read(RedisDutyStore.write(kept)));
         assertNull(RedisDutyStore.read("{\"at\":\"2026-01-01T00:00:00Z\",\"lat\":-33,\"lon\":-70,\"restarts\":0}")
                 .skipped(), "a state saved before the field reads without it");
+    }
+
+    @Test
+    void anOldRedisStateKeepsItsCountersOnTheNextFrame() {
+        DutyState old = RedisDutyStore.read("""
+                {"at":"2026-01-01T00:00:00Z","lat":-60,"lon":-70,"restarts":2,
+                 "drive":{"trip":"T-1","moving":true,"driven":600,"run":60,
+                          "paidBack":120,"stopPays":0,"stopped":0},
+                 "rest":{"trip":"T-1","dutyS":900}}
+                """);
+        DutyTracker.Step step = new DutyTracker().step(old, at(30, 500)).orElseThrow();
+        assertEquals(9.5, step.counters().drivingMinutes(), 0.001);
+        assertEquals(15.5, step.counters().dutyMinutes(), 0.001);
+        assertEquals(2, step.next().restarts());
+        assertNull(step.next().skipped());
+        DutyState previousFixFormat = RedisDutyStore.read("""
+                {"at":"2026-01-01T00:00:00Z","lat":-60,"lon":-70,"restarts":0,
+                 "skipped":{"at":"2026-01-01T00:00:30Z","lat":-59,"lon":-70}}
+                """);
+        assertNull(previousFixFormat.skipped().trip());
     }
 }

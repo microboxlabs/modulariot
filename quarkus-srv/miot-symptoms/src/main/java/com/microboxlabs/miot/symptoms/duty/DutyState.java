@@ -25,9 +25,14 @@ public record DutyState(Instant at, double lat, double lon, Drive drive, Rest re
         this(at, lat, lon, drive, rest, restarts, null);
     }
 
-    /** A frame's time and position. */
+    /** A frame's time, position and trip; a missing trip in an older state is treated as unknown. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @RegisterForReflection
-    public record Fix(Instant at, double lat, double lon) {
+    public record Fix(Instant at, double lat, double lon, String trip) {
+
+        public Fix(Instant at, double lat, double lon) {
+            this(at, lat, lon, null);
+        }
     }
 
     /**

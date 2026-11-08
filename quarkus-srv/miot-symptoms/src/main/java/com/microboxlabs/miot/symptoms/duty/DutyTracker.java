@@ -97,7 +97,7 @@ public class DutyTracker {
         if (dt <= 0) {
             return Optional.empty();
         }
-        if (dt > rules.maxGap().toSeconds()) {
+        if (Duration.between(prev.at(), f.at()).compareTo(rules.maxGap()) > 0) {
             return Optional.of(advance(prev, f, false, dt, true));
         }
         double mps = metres(prev.lat(), prev.lon(), f.lat(), f.lon()) / dt;
@@ -110,12 +110,16 @@ public class DutyTracker {
             double keptMps = metres(kept.lat(), kept.lon(), f.lat(), f.lon()) / keptDt;
             if (keptMps <= maxMps()) {
                 // Two frames agree with each other and not with the last one: that one was the stale position.
-                Frame anchor = new Frame(kept.at(), kept.lat(), kept.lon(), null, f.trip());
+                Frame anchor = new Frame(kept.at(), kept.lat(), kept.lon(), null, kept.trip());
                 DutyState moved = advance(prev, anchor, false, seconds(prev.at(), kept.at()), true).next();
+                if (prev.rest() == null) {
+                    // A close or long-rest reset starts duty at the confirming frame, never at a rejected one.
+                    moved = restartDuty(moved, prev.restarts());
+                }
                 return Optional.of(advance(moved, f, keptMps > rules.movingMps(), keptDt, false));
             }
         }
-        DutyState.Fix skipped = new DutyState.Fix(f.at(), f.lat(), f.lon());
+        DutyState.Fix skipped = new DutyState.Fix(f.at(), f.lat(), f.lon(), f.trip());
         return Optional.of(new Step(new DutyState(prev.at(), prev.lat(), prev.lon(), prev.drive(), prev.rest(),
                 prev.restarts(), skipped), null, false));
     }

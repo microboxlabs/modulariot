@@ -24,12 +24,15 @@ import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -120,6 +123,76 @@ class EvaluatorDutyTest {
                 Kind.LEVEL_CHANGED, Kind.LEVEL_CHANGED, Kind.CLOSED), of(driving).stream().map(Transition::kind).toList());
         assertEquals(List.of(1, 2, 3, 4, 2, 1, 1), of(driving).stream().map(Transition::level).toList());
         assertEquals(T0.plusSeconds((361 + 37) * 60), of(driving).get(6).at(), "closes under 270 min");
+    }
+
+    @Test
+    void framesBufferedDuringAStopAndSentNewestFirstOpenNoDrivingCase() {
+        stream.evaluate(frame(0, 0));
+        drive(240);
+        int quiet = at;
+        double stop = metres + 10_000;
+        // Quiet for 4 h: 10 min to a stop, stopped 3 h, moving 30 min; then everything at once, newest first.
+        List<String> buffered = new ArrayList<>();
+        for (int m = 1; m <= 10; m++) {
+            buffered.add(frame(quiet + m * 60, metres + m * 1000));
+        }
+        for (int m = 11; m <= 190; m++) {
+            buffered.add(frame(quiet + m * 60, stop));
+        }
+        for (int m = 191; m <= 240; m++) {
+            buffered.add(frame(quiet + m * 60, stop + (m - 190) * 1000));
+        }
+        Collections.reverse(buffered);
+        buffered.forEach(stream::evaluate);
+        at = quiet + 240 * 60;
+        metres = stop + 50 * 1000;
+        drive(20);
+        assertEquals(List.of(), of(driving), "240 + 20 min of observed driving, under 270");
+    }
+
+    @Test
+    void aFarFrameIsKeptAndTheNextOneThatAgreesStartsFromIt() {
+        stream.evaluate(frame(0, 0));
+        stream.evaluate(frame(1200, 60_000));
+        DutyState kept = duty.load(DEMO, ASSET).state();
+        assertEquals(T0, kept.at(), "60 km in 20 min: not applied");
+        assertEquals(T0.plusSeconds(1200), kept.skipped().at(), "but kept");
+        at = 1200;
+        metres = 60_000;
+        drive(269);
+        assertEquals(List.of(), of(driving), "the 20 min before the far frame are not driving");
+        drive(1);
+        assertEquals(T0.plusSeconds(1200 + 270 * 60), of(driving).get(0).at());
+        assertNull(duty.load(DEMO, ASSET).state().skipped());
+    }
+
+    @Test
+    void rejectedAndConfirmingFramesUseOneDutyReadAndOneWriteEach() {
+        AtomicInteger loads = new AtomicInteger();
+        AtomicInteger saves = new AtomicInteger();
+        InMemoryDutyStore counting = new InMemoryDutyStore() {
+            @Override
+            public Loaded load(String tenant, String asset) {
+                loads.incrementAndGet();
+                return duty.load(tenant, asset);
+            }
+
+            @Override
+            public void save(String tenant, String asset, DutyState state) {
+                saves.incrementAndGet();
+                duty.save(tenant, asset, state);
+            }
+        };
+        stream = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()), Clock.systemUTC(), episodes,
+                SignalSamples.inMemory(), LateFrames.NONE, LostSignalDetector.off(), Holds.NONE, counting);
+        stream.evaluate(frame(0, 0));
+        stream.evaluate(frame(1200, 60_000));
+        assertEquals(T0, episodes.load(DEMO, ASSET).watermark(DEMO, ASSET, DutyChecks.WATERMARK).orElseThrow(),
+                "the rejected frame does not evaluate duty symptoms");
+        stream.evaluate(frame(1230, 60_500));
+        assertEquals(3, loads.get());
+        assertEquals(3, saves.get(), "promotion performs no extra store operations");
     }
 
     @Test

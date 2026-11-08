@@ -14,11 +14,26 @@ import java.time.Instant;
  * @param drive    the driving count of the trip in progress, or null without one
  * @param rest     the duty count of the trip in progress, or null without one or after a long rest
  * @param restarts the duty restarts already applied ({@link DutyStore#restartDuty})
+ * @param skipped  the last frame not applied for an implied jump from {@code at}, or null
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @RegisterForReflection
-public record DutyState(Instant at, double lat, double lon, Drive drive, Rest rest, long restarts) {
+public record DutyState(Instant at, double lat, double lon, Drive drive, Rest rest, long restarts, Fix skipped) {
+
+    public DutyState(Instant at, double lat, double lon, Drive drive, Rest rest, long restarts) {
+        this(at, lat, lon, drive, rest, restarts, null);
+    }
+
+    /** A frame's time, position and trip; a missing trip in an older state is treated as unknown. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @RegisterForReflection
+    public record Fix(Instant at, double lat, double lon, String trip) {
+
+        public Fix(Instant at, double lat, double lon) {
+            this(at, lat, lon, null);
+        }
+    }
 
     /**
      * Seconds of the driving count.

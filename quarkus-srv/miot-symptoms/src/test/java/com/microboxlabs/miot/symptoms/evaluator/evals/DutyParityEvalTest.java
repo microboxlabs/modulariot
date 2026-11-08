@@ -46,9 +46,9 @@ class DutyParityEvalTest {
 
         assertEquals(List.of(), unexpected, "trips that no longer match production");
         assertEquals(List.of(), fixed, "trips that now match production: remove them from known-gaps.json");
-        assertEquals(Map.of(Verdict.SAME, 23, Verdict.WITHIN_TOLERANCE, 8, Verdict.DIFFERENT, 3),
+        assertEquals(Map.of(Verdict.SAME, 24, Verdict.WITHIN_TOLERANCE, 8, Verdict.DIFFERENT, 2),
                 counts.get(DutyReplay.DRIVING));
-        assertEquals(Map.of(Verdict.SAME, 27, Verdict.DIFFERENT, 7),
+        assertEquals(Map.of(Verdict.SAME, 30, Verdict.DIFFERENT, 4),
                 counts.get(DutyReplay.RESTING));
     }
 

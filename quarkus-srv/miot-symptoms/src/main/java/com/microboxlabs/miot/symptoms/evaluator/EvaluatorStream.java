@@ -397,7 +397,7 @@ public class EvaluatorStream {
         if (!o.dutySymptoms().isEmpty()) {
             // The episodes were read before the counters: a close during the reads invalidates this snapshot.
             c = duty.apply(at, o.signal(), o.reads().counters().get()).orElse(null);
-            if (c == null) {
+            if (skippedDuty(c)) {
                 meters.counter("miot.symptoms.duty.skipped").increment();
             } else {
                 SignalEvaluator.Result result = new SignalEvaluator(state, held).evaluateUnder(DutyChecks.WATERMARK,
@@ -416,6 +416,11 @@ public class EvaluatorStream {
         }
         results.forEach(this::count);
         return new Evaluated(recorded, late);
+    }
+
+    /** A rejected frame can still carry a changed duty state to save, without a check to evaluate. */
+    private static boolean skippedDuty(DutyChecks.Check check) {
+        return check == null || !check.applied();
     }
 
     /**

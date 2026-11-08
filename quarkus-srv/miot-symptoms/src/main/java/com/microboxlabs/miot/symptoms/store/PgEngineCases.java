@@ -790,7 +790,7 @@ public class PgEngineCases implements EngineCaseStore {
                 String expression = step.path("measure_expression").asText(null);
                 Double speed = number(step.path(SPEED_KMH));
                 out.add(speedStep(at, level, expression, speed, step.get("speed_limit"),
-                        number(step.path("measure"))));
+                        number(step.path(MEASURE))));
             } catch (java.time.format.DateTimeParseException e) {
                 LOG.debug("Engine case level step without a valid time", e);
             }

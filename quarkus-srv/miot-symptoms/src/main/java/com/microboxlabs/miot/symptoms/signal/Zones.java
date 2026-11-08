@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -118,16 +119,29 @@ public class Zones {
             if (!z.covers(lon, lat)) {
                 continue;
             }
-            if (AUTHORIZED.equals(z.type())) {
-                authorizedZone = authorizedZone == null ? z : authorizedZone;
-            } else {
-                otherZone = otherZone == null ? z : otherZone;
+            if (authorizedZone == null && AUTHORIZED.equals(z.type())) {
+                authorizedZone = z;
             }
-            if (z.risk() && (riskZone == null || z.scheduled() && !riskZone.scheduled())) {
-                riskZone = z;
+            if (otherZone == null && !AUTHORIZED.equals(z.type())) {
+                otherZone = z;
             }
+            riskZone = preferredRiskZone(riskZone, z);
         }
-        Zone named = riskZone != null ? riskZone : authorizedZone != null ? authorizedZone : otherZone;
+        return geo(riskZone, authorizedZone, otherZone, local);
+    }
+
+    private static Zone preferredRiskZone(Zone current, Zone candidate) {
+        if (candidate.risk() && (current == null || candidate.scheduled() && !current.scheduled())) {
+            return candidate;
+        }
+        return current;
+    }
+
+    private static GpsSignal.Geo geo(Zone riskZone, Zone authorizedZone, Zone otherZone, LocalTime local) {
+        Zone named = authorizedZone != null ? authorizedZone : otherZone;
+        if (riskZone != null) {
+            named = riskZone;
+        }
         boolean scheduled = riskZone != null && riskZone.scheduled();
         Boolean inSchedule = scheduled && local != null ? inSchedule(riskZone.schedule(), local) : null;
         return new GpsSignal.Geo(authorizedZone != null, named == null ? null : named.name(), riskZone != null,
@@ -160,36 +174,37 @@ public class Zones {
             }
         }
         boolean absent = scheduleJson == null || scheduleJson.isBlank() || "null".equals(scheduleJson.strip());
-        List<Window> schedule = absent ? List.of() : schedule(scheduleJson);
-        return new Zone(clientId, id, type, name, schedule == null || schedule.isEmpty() ? null : schedule,
-                schedule == null ? scheduleJson : null, polygons);
+        Optional<List<Window>> parsed = absent ? Optional.of(List.of()) : schedule(scheduleJson);
+        List<Window> windows = parsed.orElse(List.of());
+        return new Zone(clientId, id, type, name, windows.isEmpty() ? null : windows,
+                parsed.isEmpty() ? scheduleJson : null, polygons);
     }
 
     /**
-     * The windows of {@code properties.schedule}; null when malformed: not an array, a window that is not
-     * an object with {@code start} and {@code end} as {@code HH:MM}, or a window that starts where it ends.
+     * The windows of {@code properties.schedule}; an empty optional when malformed: not an array, a window that
+     * is not an object with {@code start} and {@code end} as {@code HH:MM}, or a window that starts where it ends.
      */
-    static List<Window> schedule(String json) {
+    static Optional<List<Window>> schedule(String json) {
         try {
             Object parsed = Json.decodeValue(json);
             if (!(parsed instanceof JsonArray windows)) {
-                return null;
+                return Optional.empty();
             }
             List<Window> out = new ArrayList<>();
             for (Object w : windows) {
                 if (!(w instanceof JsonObject window)) {
-                    return null;
+                    return Optional.empty();
                 }
                 Integer start = minutes(window.getValue("start"));
                 Integer end = minutes(window.getValue("end"));
                 if (start == null || end == null || start.equals(end)) {
-                    return null;
+                    return Optional.empty();
                 }
                 out.add(new Window(start, end));
             }
-            return List.copyOf(out);
+            return Optional.of(List.copyOf(out));
         } catch (RuntimeException e) {
-            return null;
+            return Optional.empty();
         }
     }
 

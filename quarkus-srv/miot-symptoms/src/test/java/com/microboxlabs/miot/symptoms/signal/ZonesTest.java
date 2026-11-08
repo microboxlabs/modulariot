@@ -139,6 +139,9 @@ class ZonesTest {
         assertNull(zones(risk(1, "Z", "null")).at("c-1", -70.0, -33.0, NOON).inRiskSchedule(), "JSON null");
         assertEquals(false, zones(risk(1, "Z", "[]")).at("c-1", -70.0, -33.0, NOON).riskScheduled(),
                 "no windows");
+        for (String absent : new String[] {null, "", "  ", "null", "[]"}) {
+            assertNull(risk(1, "Z", absent).badSchedule(), "absent or empty schedules are not malformed");
+        }
     }
 
     @Test
@@ -187,7 +190,7 @@ class ZonesTest {
         for (String bad : List.of("{\"start\":\"08:00\",\"end\":\"18:00\"}", "[{\"start\":\"8h\",\"end\":\"18:00\"}]",
                 "[{\"start\":\"08:00\"}]", "[{\"start\":\"25:00\",\"end\":\"18:00\"}]",
                 "[{\"start\":\"08:00\",\"end\":\"08:00\"}]", "[\"08:00-18:00\"]", "[{\"start\":800,\"end\":1800}]",
-                "not json")) {
+                "not json", "[{\"start\":\"08:00\",\"end\":\"18:00\"},null]")) {
             Zones.Zone zone = risk(1, "Z", bad);
             assertNull(zone.schedule(), bad);
             assertEquals(bad, zone.badSchedule(), bad);
@@ -207,6 +210,32 @@ class ZonesTest {
 
         assertEquals(new GpsSignal.Geo(true, "Con horario", true, true, true, true), at(zones, "23:00"));
         assertEquals(new GpsSignal.Geo(true, "Con horario", true, true, true, false), at(zones, "12:00"));
+    }
+
+    @Test
+    void theLowestIdScheduledRiskZoneDecidesEvenWhenAnotherScheduleIsActive() {
+        Zones zones = zones(risk(3, "Z3", "[{\"start\":\"08:00\",\"end\":\"18:00\"}]"),
+                risk(1, "Z1", null), risk(2, "Z2", "[{\"start\":\"18:00\",\"end\":\"09:00\"}]"));
+
+        assertEquals(new GpsSignal.Geo(false, "Z2", true, true, true, false), at(zones, "12:00"));
+        assertEquals(new GpsSignal.Geo(false, "Z2", true, true, true, null),
+                zones.at("c-1", -70.0, -33.0, null), "unknown local time leaves the schedule decision unknown");
+    }
+
+    @Test
+    void aSharedFrameKeepsEachOrganizationsZoneAndScheduleSeparate() {
+        Zones zones = zones(Zones.zone("sender-1", 1, "1", "Z1",
+                "[{\"start\":\"18:00\",\"end\":\"09:00\"}]", square(-70.66, -33.45)),
+                Zones.zone("sender-2", 1, "1", "Z2",
+                        "[{\"start\":\"09:00\",\"end\":\"18:00\"}]", square(-70.66, -33.45)));
+        ReferenceCache refs = new ReferenceCache();
+        refs.load(List.of(), List.of(new ReferenceCache.Share("ABCD12", "sender-2", true, null, null)));
+        GpsSignal signal = new SignalBuilder(refs, SANTIAGO, zones)
+                .build(EnvelopedMessage.fromJson(frame("2026-10-21T15:00:00Z"))).orElseThrow();
+
+        assertEquals(Map.of("sender-1", new GpsSignal.Geo(false, "Z1", true, true, true, false),
+                "sender-2", new GpsSignal.Geo(false, "Z2", true, true, true, true)), signal.geos());
+        assertNull(signal.geo(), "the evaluator selects the organization's geo");
     }
 
     @Test

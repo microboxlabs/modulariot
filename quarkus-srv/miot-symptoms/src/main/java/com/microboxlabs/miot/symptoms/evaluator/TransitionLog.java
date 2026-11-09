@@ -2,6 +2,8 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Where the evaluator records case changes. A CLOSED row's measure is the case's maximum
@@ -39,6 +41,21 @@ public interface TransitionLog {
      * @param caseId the id of the case's OPENED transition
      */
     record Recorded(Transition transition, long caseId) {
+    }
+
+    /** Openings rejected or immediately closed by the authoritative trip guard keep no episode. */
+    record Appended(List<Recorded> recorded, Set<UUID> discarded) {
+    }
+
+    /** A preflight fact for ordinary late frames opted in by their spec; writes recheck under the same lock. */
+    default boolean tripEnded(String tenant, String tripId) {
+        return false;
+    }
+
+    /** Evaluator and duty writes apply the published lifecycle's after-trip policy under the trip lock. */
+    default Appended appendEvaluated(String tenantCode, List<Transition> transitions, Place place,
+            Map<String, Object> context) {
+        return new Appended(append(tenantCode, transitions, place, context), Set.of());
     }
 
     /** @return the changes it recorded now, without the ones it already held */

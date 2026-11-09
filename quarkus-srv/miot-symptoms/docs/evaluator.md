@@ -55,6 +55,37 @@ Rule previews use the organization's recent signals. At most one signal per orga
 
 `case.off_trip_s` counts from the first observed off-trip frame of an open case and resets on a trip; it is -1 while on a trip or without trip evidence. Cargo rules require both 1200 seconds off a trip and 1200 seconds without their event.
 
+### Events received after trip end
+
+`lifecycle.after_trip_end` decides what happens when an opening reaches the database after its trip ended.
+It applies to GPS frames, independent device events and duty evaluations. The published symptom version
+supplies the policy; the database supplies the trip state and occurrence interval.
+
+| Value | An event that occurred during the trip and is processed after its end |
+|---|---|
+| `ignore` (default) | Opens no case and keeps no open episode |
+| `open_and_keep` | Opens a case associated with the trip for an operator; repeated end notices leave it open |
+| `open_and_close` | Records OPENED, a timeline note and CLOSED together, with `closed_by` and reason `trip_ended` |
+
+An event outside the trip's interval, or whose interval cannot be established, opens no case associated
+with that ended trip, under any policy. Events received without a trip association continue to use their
+normal activation rules. Independent device events resolve the vehicle's trip and assignment at occurrence
+time, including completed trips whose live projection has disappeared.
+
+Openings and trip-end closure share a transaction advisory lock per organization/trip, followed by the trip
+row lock, ordered definition locks and case locks. A concurrent completion either waits for an opening
+that closure then sees, or the opening sees the ended state and applies its policy. `trip_end_state`
+retains the interval at the end notice so queued signals remain guarded after trip deletion or watch
+removal. Rejected and immediately closed openings discard their tentative episodes before saving.
+
+Migration V0.12.26 sets the panic-button platform template to `open_and_keep` and gps-sabotage to
+`open_and_close`; the other platform templates use `ignore`. For existing organization versions without
+an explicit value, it sets `open_and_keep` when the spec reads `signal.frame.events`,
+`signal.frame.sensors.panic_button`, `signal.derived.power_disconnected` or `signal.derived.jamming`
+(including optional selectors); other versions receive `ignore`. Explicit values and existing rules stay
+as authored. JSON-string-encoded specs are normalized to objects. Future omitted values default to
+`ignore`. The maintainer edits this field in **Respuesta > Cierre**.
+
 `case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals. `case.closed_on_trip` is true when an operator closed a case of the symptom on the trip the signal carries (`trip.id`); an open rule `case.condition_s >= 0 && !case.closed_on_trip` opens no other case on that trip. The episode keeps the trip until a newer ordinary signal of another trip, or of none; buffered frames from older trips cannot clear it. `case.closed_on_trip_s` is the time since that close, -1 without one: `!case.closed_on_trip || case.closed_on_trip_s >= 18000` opens again 5 h after it.
 
 ## Order, versions and failures

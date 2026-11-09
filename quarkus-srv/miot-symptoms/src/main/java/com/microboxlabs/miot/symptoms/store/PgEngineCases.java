@@ -371,9 +371,6 @@ public class PgEngineCases implements EngineCaseStore {
              WHERE tenant_code = $1 AND ($2::uuid[] IS NULL OR id = ANY($2::uuid[]))
              ORDER BY id FOR SHARE
             """;
-    private static final String TRIP_STATE_LOCK = """
-            SELECT id FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2 FOR SHARE
-            """;
 
     /**
      * Closes every open case whose state is no longer its symptom's ($1 tenant and $2 symptom, each null for any;
@@ -421,6 +418,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String LOCK_TRIP = """
             SELECT o.*, o.id AS case_id, o.at AS opened_at FROM miot_symptoms.signal_transitions o
              WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED'
+               AND COALESCE(o.context ->> 'after_trip_end', '') <> 'open_and_keep'
                AND ($3::uuid[] IS NULL OR o.definition_id = ANY($3::uuid[]))
                AND NOT EXISTS (SELECT 1 FROM miot_symptoms.signal_transitions c
                     WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
@@ -456,6 +454,7 @@ public class PgEngineCases implements EngineCaseStore {
                      AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED' AND l.id > o.id
                    ) lv ON true
              WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED' AND o.state IN ('ACTIVE', 'TEST')
+               AND COALESCE(o.context ->> 'after_trip_end', '') <> 'open_and_keep'
                AND ($3::uuid[] IS NULL OR o.definition_id = ANY($3::uuid[]))
                AND NOT EXISTS (
                    SELECT 1 FROM miot_symptoms.signal_transitions c
@@ -728,8 +727,10 @@ public class PgEngineCases implements EngineCaseStore {
             return List.of();
         }
         UUID[] ids = definitionIds == null ? null : definitionIds.toArray(UUID[]::new);
-        return pool.get().withTransaction(conn -> conn.preparedQuery(TRIP_STATE_LOCK)
-                .execute(Tuple.of(tenantCode, TripEnds.uuid(tripId)))
+        return pool.get().withTransaction(conn -> PgTripState.lock(conn, tenantCode, tripId)
+                .flatMap(window -> TripEnds.REASON.equals(reason)
+                        ? PgTripState.remember(conn, tenantCode, tripId, at, window)
+                        : io.smallrye.mutiny.Uni.createFrom().voidItem())
                 .flatMap(locked -> conn.preparedQuery(TRIP_DEFINITIONS).execute(Tuple.of(tenantCode, ids)))
                 .flatMap(locked -> conn.preparedQuery(LOCK_TRIP).execute(Tuple.of(tenantCode, tripId, ids)))
                 .emitOn(Infrastructure.getDefaultWorkerPool())

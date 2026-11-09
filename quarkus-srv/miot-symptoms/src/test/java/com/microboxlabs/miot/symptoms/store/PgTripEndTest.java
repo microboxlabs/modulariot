@@ -52,7 +52,8 @@ class PgTripEndTest {
             "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql",
             "V0.8.3__create_tower_settings.sql", "V0.8.4__create_signal_transitions.sql", "V0.8.5__signal_cases.sql",
             "V0.9.7__sla_expiry.sql", "V0.12.10__transition_context.sql", "V0.12.13__held_transitions.sql",
-            "V0.12.24__trip_end_effects.sql");
+            "V0.12.15__noted_transitions.sql", "V0.12.22__device_events.sql",
+            "V0.12.24__trip_end_effects.sql", "V0.12.26__after_trip_end_policy.sql");
 
     private static Vertx vertx;
     private static Pool pool;
@@ -78,7 +79,8 @@ class PgTripEndTest {
                 """).execute().await().atMost(WAIT);
         pool.query("""
                 CREATE TABLE IF NOT EXISTS miot_trips.trip (
-                    id uuid PRIMARY KEY, tenant_code text NOT NULL, status text NOT NULL)
+                    id uuid PRIMARY KEY, tenant_code text NOT NULL, status text NOT NULL,
+                    actual_start timestamptz, actual_end timestamptz, updated_at timestamptz NOT NULL DEFAULT now())
                 """).execute().await().atMost(WAIT);
         pool.query("""
                 CREATE TABLE IF NOT EXISTS miot_trips.trip_milestone (
@@ -106,6 +108,148 @@ class PgTripEndTest {
         PgIds.query(pool, "INSERT INTO miot_trips.trip (id, tenant_code, status) VALUES ($1, $2, $3)",
                 Tuple.of(id, tenant, status));
         return id;
+    }
+
+    private UUID endedWindow() {
+        UUID id = trip("completed");
+        PgIds.query(pool, """
+                UPDATE miot_trips.trip SET actual_start = $2, actual_end = $3, updated_at = $3 WHERE id = $1
+                """, Tuple.of(id, now.minusSeconds(3600).atOffset(java.time.ZoneOffset.UTC),
+                        now.minusSeconds(60).atOffset(java.time.ZoneOffset.UTC)));
+        return id;
+    }
+
+    private UUID policyDefinition(String key, String policy) {
+        UUID definition = symptom(tenant, key, "gps_signal");
+        String spec = new io.vertx.core.json.JsonObject().put("lifecycle",
+                new io.vertx.core.json.JsonObject().put("after_trip_end", policy)).encode();
+        PgIds.query(pool, """
+                INSERT INTO miot_symptoms.symptom_version
+                    (definition_id, tenant_code, version, status, spec, created_by)
+                VALUES ($1, $2, '1.0.0', 'PUBLISHED', $3::text::jsonb, 'test')
+                """, Tuple.of(definition, tenant, spec));
+        return definition;
+    }
+
+    private Transition opening(UUID definition, Instant at) {
+        return new Transition(Kind.OPENED, definition, "1.0.0", SymptomState.ACTIVE,
+                "vehicle-demo", at, 4, 0, 1);
+    }
+
+    @Test
+    void aQueuedOrdinaryFrameAfterTheEndNoticeCannotOpenEvenAfterTheTripAndWatchDisappear() {
+        UUID trip = endedWindow();
+        UUID definition = policyDefinition("ordinary", null);
+        assertTrue(ends.close(tenant, trip.toString(), null, now).isEmpty());
+        // The off-trip frame removes the live projection/watch, and the trip may be deleted later.
+        PgIds.query(pool, "DELETE FROM miot_trips.trip_live WHERE trip_id = $1", Tuple.of(trip));
+        PgIds.query(pool, "DELETE FROM miot_trips.trip WHERE id = $1", Tuple.of(trip));
+        assertTrue(log.tripEnded(tenant, trip.toString()));
+        Transition change = opening(definition, now.minusSeconds(120));
+        var result = log.appendEvaluated(tenant, List.of(change),
+                new TransitionLog.Place(trip.toString(), null, null, null, null), null);
+        assertTrue(result.recorded().isEmpty());
+        assertEquals(java.util.Set.of(definition), result.discarded());
+        assertTrue(cases.open(tenant).isEmpty());
+    }
+
+    @Test
+    void aBufferedPanicDuringTheTripKeepsItsCaseAndSurvivesRepeatedEndNotices() {
+        UUID trip = endedWindow();
+        String policy = com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates.get("panic-button")
+                .spec().lifecycle().effectiveAfterTripEnd();
+        UUID definition = policyDefinition("panic-demo", policy);
+        ends.close(tenant, trip.toString(), null, now);
+        PgIds.query(pool, "DELETE FROM miot_trips.trip WHERE id = $1", Tuple.of(trip));
+        var result = log.appendEvaluated(tenant, List.of(opening(definition, now.minusSeconds(120))),
+                new TransitionLog.Place(trip.toString(), null, null, null, null), Map.of("event_id", "demo-panic"));
+        assertEquals(List.of(Kind.OPENED), result.recorded().stream().map(r -> r.transition().kind()).toList());
+        assertTrue(result.discarded().isEmpty());
+        long id = result.recorded().get(0).caseId();
+        assertEquals(trip.toString(), cases.find(tenant, id).orElseThrow().tripId());
+        assertNull(cases.find(tenant, id).orElseThrow().closedAt());
+        assertTrue(ends.close(tenant, trip.toString(), null, now.plusSeconds(1)).isEmpty());
+        assertNull(cases.find(tenant, id).orElseThrow().closedAt());
+    }
+
+    @Test
+    void bufferedSabotageOpensNotesAndClosesAtomicallyAndAReplayWritesNothing() {
+        UUID trip = endedWindow();
+        String policy = com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates.get("gps-sabotage")
+                .spec().lifecycle().effectiveAfterTripEnd();
+        UUID definition = policyDefinition("sabotage-demo", policy);
+        Transition t = opening(definition, now.minusSeconds(120));
+        var place = new TransitionLog.Place(trip.toString(), null, null, null, null);
+        var evidence = Map.<String, Object>of("event_id", "demo-sabotage", "device", Map.of("code", "DEMO"));
+        var result = log.appendEvaluated(tenant, List.of(t), place, evidence);
+        assertEquals(List.of(Kind.OPENED, Kind.NOTED, Kind.CLOSED),
+                result.recorded().stream().map(r -> r.transition().kind()).toList());
+        assertEquals(java.util.Set.of(definition), result.discarded());
+        long id = result.recorded().get(0).caseId();
+        assertTrue(result.recorded().stream().allMatch(r -> r.caseId() == id));
+        var c = cases.find(tenant, id).orElseThrow();
+        assertNotNull(c.closedAt());
+        assertEquals(trip.toString(), c.tripId());
+        assertEquals(1, cases.notes(tenant, id).size());
+        Row closed = PgIds.query(pool, """
+                SELECT closed_by, context ->> 'reason' AS reason, context -> 'device' ->> 'code' AS evidence
+                FROM miot_symptoms.signal_transitions WHERE tenant_code = $1 AND kind = 'CLOSED'
+                """, Tuple.of(tenant)).iterator().next();
+        assertEquals("trip_ended", closed.getString("closed_by"));
+        assertEquals("trip_ended", closed.getString("reason"));
+        assertEquals("DEMO", closed.getString("evidence"));
+        assertTrue(log.appendEvaluated(tenant, List.of(t), place, evidence).recorded().isEmpty());
+    }
+
+    @Test
+    void anEventThatHappenedAfterTheTripEndIsNeverAssociatedWhateverThePolicy() {
+        for (String policy : List.of("ignore", "open_and_keep", "open_and_close")) {
+            UUID trip = endedWindow();
+            UUID definition = policyDefinition("after-end-" + policy, policy);
+            var result = log.appendEvaluated(tenant, List.of(opening(definition, now)),
+                    new TransitionLog.Place(trip.toString(), null, null, null, null), null);
+            assertTrue(result.recorded().isEmpty());
+            assertEquals(java.util.Set.of(definition), result.discarded());
+        }
+        assertTrue(cases.open(tenant).isEmpty());
+    }
+
+    @Test
+    void missingOrCorrectedTripIntervalsCannotAssociateAnUnprovenLateEvent() {
+        UUID definition = policyDefinition("interval-demo", "open_and_keep");
+        UUID unknown = trip("completed");
+        ends.close(tenant, unknown.toString(), null, now);
+        assertTrue(log.appendEvaluated(tenant, List.of(opening(definition, now.minusSeconds(120))),
+                new TransitionLog.Place(unknown.toString(), null, null, null, null), null).recorded().isEmpty());
+        UUID corrected = endedWindow();
+        ends.close(tenant, corrected.toString(), null, now);
+        PgIds.query(pool, "UPDATE miot_trips.trip SET actual_end = $2 WHERE id = $1",
+                Tuple.of(corrected, now.minusSeconds(180).atOffset(java.time.ZoneOffset.UTC)));
+        assertTrue(log.appendEvaluated(tenant, List.of(opening(definition, now.minusSeconds(120))),
+                new TransitionLog.Place(corrected.toString(), null, null, null, null), null).recorded().isEmpty());
+    }
+
+    @Test
+    void anEvaluatorOpeningAndConcurrentCompletionSerializeAtTheTripRow() throws Exception {
+        UUID trip = trip("in_progress");
+        UUID definition = policyDefinition("completion-race", "ignore");
+        var blocker = pool.getConnection().await().atMost(WAIT);
+        var transaction = blocker.begin().await().atMost(WAIT);
+        var workers = Executors.newSingleThreadExecutor();
+        try {
+            blocker.preparedQuery("UPDATE miot_trips.trip SET status = 'completed', actual_end = $2 WHERE id = $1")
+                    .execute(Tuple.of(trip, now.atOffset(java.time.ZoneOffset.UTC))).await().atMost(WAIT);
+            var writes = workers.submit(() -> log.appendEvaluated(tenant,
+                    List.of(opening(definition, now.minusSeconds(10))),
+                    new TransitionLog.Place(trip.toString(), null, null, null, null), null));
+            awaitWaitingLocks(1);
+            transaction.commit().await().atMost(WAIT);
+            assertTrue(writes.get(15, TimeUnit.SECONDS).recorded().isEmpty());
+            assertTrue(cases.open(tenant).isEmpty());
+        } finally {
+            blocker.close().await().atMost(WAIT);
+            workers.shutdownNow();
+        }
     }
 
     private UUID symptom(String key) {

@@ -3923,6 +3923,11 @@
         "closeSub": "Qué se pide para cerrar y cuándo se cierra solo",
         "operatorTitle": "Operador",
         "allLevels": "vale para todos los niveles",
+        "afterTripEndLabel": "Eventos que llegan después del fin del viaje",
+        "afterTripEndIgnore": "Ignorar",
+        "afterTripEndKeep": "Abrir y mantener abierto para un operador",
+        "afterTripEndClose": "Abrir y cerrar de inmediato por fin del viaje",
+        "findingAfterTripEndInvalid": "Elige una opción válida para los eventos que llegan después del fin del viaje.",
         "closeAutoTitle": "Se cierra solo cuando ocurra cualquiera de estas",
         "closeKindLabel": "Cómo se cierra",
         "closeKind": {

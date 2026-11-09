@@ -382,12 +382,13 @@ public class EvaluatorStream {
         if (!o.symptoms().isEmpty()) {
             Instant newest = state.watermark(tenant, assetId, SOURCE).orElse(null);
             late = newest != null && at.isBefore(newest);
+            boolean afterTripEnd = late && lateTripEnded(o);
             // A late frame runs only the event-driven symptoms, without moving the watermark (a buffered panic or
             // sabotage event still opens its case); the others keep skipping it.
-            if (!late || lateRuns(tenant, assetId, at, newest, o.signal(), o.symptoms())) {
+            if (!late || lateRuns(tenant, assetId, at, newest, o.signal(), o.symptoms(), afterTripEnd)) {
                 SignalEvaluator evaluator = new SignalEvaluator(state, held);
                 Map<String, Object> root = Map.of(SignalFields.ROOT, o.signal());
-                SignalEvaluator.Result result = late ? evaluator.evaluateLate(tenant, assetId, at, root, o.symptoms())
+                SignalEvaluator.Result result = late ? evaluator.evaluateLate(tenant, assetId, at, root, o.symptoms(), afterTripEnd)
                         : evaluator.evaluate(tenant, assetId, at, root, o.symptoms());
                 result = new SignalEvaluator.Result(SpeedLimitContext.with(o.signal(), result.transitions(),
                         o.symptoms()), result.errors());
@@ -428,6 +429,12 @@ public class EvaluatorStream {
     /** A rejected frame can still carry a changed duty state to save, without a check to evaluate. */
     private static boolean skippedDuty(DutyChecks.Check check) {
         return check == null || !check.applied();
+    }
+
+    /** Ordinary buffered frames only need a preflight trip read when their spec opts in. */
+    private boolean lateTripEnded(Organization organization) {
+        return organization.symptoms().stream().anyMatch(s -> !s.opensOnEvents() && s.allowsAfterTripEnd())
+                && transitionLog.tripEnded(organization.tenant(), place(organization.signal()).tripId());
     }
 
     /**
@@ -496,14 +503,14 @@ public class EvaluatorStream {
 
     /** Hands a late frame to the late hook; true when an event-driven symptom still has to run on it. */
     private boolean lateRuns(String tenant, String assetId, Instant at, Instant newest, Map<String, Object> signal,
-            List<CompiledSymptom> symptoms) {
+            List<CompiledSymptom> symptoms, boolean afterTripEnd) {
         try {
             lateFrames.late(tenant, assetId, at, newest, signal);
         } catch (RuntimeException e) {
             // A failed hook is not worth a redelivery.
             meters.counter("miot.symptoms.evaluator.late_hook_failed").increment();
         }
-        return symptoms.stream().anyMatch(CompiledSymptom::eventDriven);
+        return symptoms.stream().anyMatch(s -> s.eventDriven() || (afterTripEnd && s.allowsAfterTripEnd()));
     }
 
     /** The context a device-events signal's case changes keep: its event id. */
@@ -526,7 +533,9 @@ public class EvaluatorStream {
         TransitionLog.Place place = place(signal);
         List<Transition> changes = asRecorded(result.transitions(), state, signal, context);
         // Only the changes new to the log: a replayed signal publishes nothing twice.
-        List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, changes, place, context);
+        TransitionLog.Appended appended = transitionLog.appendEvaluated(tenant, changes, place, context);
+        appended.discarded().forEach(id -> state.delete(tenant, assetId, id));
+        List<TransitionLog.Recorded> recorded = appended.recorded();
         events.transitions(tenant, recorded.stream()
                 .filter(r -> !held.held(tenant, assetId, r.transition().definitionId(), Instant.EPOCH))
                 .toList(), place);
@@ -535,7 +544,9 @@ public class EvaluatorStream {
             // episode, or that episode would block the next real event.
             changes.stream()
                     .filter(t -> t.kind() == Transition.Kind.OPENED)
-                    .filter(t -> recorded.stream().noneMatch(r -> r.transition().equals(t)))
+                    .filter(t -> recorded.stream().noneMatch(r -> r.transition().kind() == Transition.Kind.OPENED
+                            && r.transition().definitionId().equals(t.definitionId())
+                            && r.transition().at().equals(t.at()) && r.transition().version().equals(t.version())))
                     .forEach(t -> state.delete(tenant, assetId, t.definitionId()));
         }
     }

@@ -45,7 +45,8 @@ class EvaluatorLateEventsTest {
         catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
         sabotage = publish("gps-sabotage", SeedTemplates.get("gps-sabotage").spec());
         // An ordinary symptom that holds on every signal of a trip: it must never see a late frame.
-        ordinary = publish("on-trip", Specs.with(SeedTemplates.get("gps-sabotage").spec(), "signal.trip.active"));
+        ordinary = publish("on-trip", Specs.withAfterTripEnd(
+                Specs.with(SeedTemplates.get("gps-sabotage").spec(), "signal.trip.active"), "ignore"));
         stream = new EvaluatorStream(true, new EvaluatorCatalog(catalog, sources),
                 new EvaluatorStream.Sinks(log, events, meters), Clock.systemUTC(), new InMemoryEpisodeRepository(),
                 SignalSamples.inMemory());
@@ -70,6 +71,27 @@ class EvaluatorLateEventsTest {
     private List<Transition> opened(UUID definition) {
         return log.recorded.stream().filter(t -> t.kind() == Transition.Kind.OPENED
                 && t.definitionId().equals(definition)).toList();
+    }
+
+    @Test
+    void anOrdinaryBufferedFrameUsesItsSpecOptInOnlyWhenTheTripEnded() {
+        for (String policy : SymptomSpec.Lifecycle.AFTER_TRIP_END_VALUES) {
+            for (boolean ended : List.of(false, true)) {
+                var repository = new InMemoryEpisodeStore();
+                var evaluator = new SignalEvaluator(repository);
+                var symptom = CompiledSymptom.compile(UUID.randomUUID(), "1.0.0", SymptomState.ACTIVE,
+                        Specs.withAfterTripEnd(Specs.speeding(), policy), Specs.gpsSignal());
+                var source = java.util.Map.<String, Object>of("signal", java.util.Map.of(
+                        "trip", java.util.Map.of("active", true), "vehicle", java.util.Map.of("weight_category", "HEAVY"),
+                        "frame", java.util.Map.of("gps", java.util.Map.of("speed", 96.0)),
+                        "road", java.util.Map.of("maxspeed_osm", 90.0)));
+                var result = evaluator.evaluateLate(TENANT, "vehicle-demo", java.time.Instant.parse("2026-01-01T00:00:00Z"),
+                        source, List.of(symptom), ended);
+                assertTrue(result.errors().isEmpty());
+                assertEquals(ended && !policy.equals("ignore") ? 1 : 0, result.transitions().size());
+                assertEquals(policy, symptom.withState(SymptomState.TEST).afterTripEnd());
+            }
+        }
     }
 
     @Test

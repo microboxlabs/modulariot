@@ -48,7 +48,8 @@ class PgPlatformTemplatesTest {
             "V0.12.15__noted_transitions.sql", "V0.12.16__tower_settings_telephony.sql",
             "V0.12.17__event_symptom_templates.sql", "V0.12.18__speed_templates_escalation.sql",
             "V0.12.19__zone_and_hour_templates.sql", "V0.12.20__driving_and_rest_templates.sql",
-            "V0.12.21__route_templates.sql", "V0.12.22__device_events.sql");
+            "V0.12.21__route_templates.sql", "V0.12.22__device_events.sql",
+            "V0.12.26__after_trip_end_policy.sql");
 
     private static Vertx vertx;
     private static Pool pool;
@@ -60,10 +61,45 @@ class PgPlatformTemplatesTest {
                 .using(vertx).build();
         pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
         for (String file : MIGRATIONS) {
+            if (file.equals("V0.12.26__after_trip_end_policy.sql")) seedLegacyPolicies();
             try (InputStream in = PgPlatformTemplatesTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
         }
+    }
+
+    private static void seedLegacyPolicies() {
+        for (String key : List.of("legacy-panic", "legacy-device", "legacy-encoded", "ordinary", "explicit")) {
+            var id = java.util.UUID.randomUUID();
+            pool.preparedQuery("""
+                    INSERT INTO miot_symptoms.symptom_definition
+                        (id, tenant_code, symptom_key, name, source_key, state, current_version, created_by, updated_by)
+                    VALUES ($1, 'tenant-demo-policy', $2, $2, 'gps_signal', 'OFF', '1.0.0', 'test', 'test')
+                    """).execute(io.vertx.mutiny.sqlclient.Tuple.of(id, key)).await().atMost(WAIT);
+            String activation = key.equals("ordinary") ? "signal.frame.gps.speed > 0"
+                    : key.equals("legacy-panic") ? "signal.frame.?sensors.?panic_button == TRUE"
+                    : "signal.frame.events.exists(e, e.event_type == 'DEMO')";
+            var lifecycle = new io.vertx.core.json.JsonObject().put("open", "true").put("close", "false");
+            if (key.equals("explicit")) lifecycle.put("after_trip_end", "ignore");
+            String spec = new io.vertx.core.json.JsonObject().put("activation", activation).put("lifecycle", lifecycle).encode();
+            pool.preparedQuery("""
+                    INSERT INTO miot_symptoms.symptom_version
+                        (definition_id, tenant_code, version, status, spec, created_by)
+                    VALUES ($1, 'tenant-demo-policy', '1.0.0', 'PUBLISHED', %s, 'test')
+                    """.formatted(key.equals("legacy-encoded") ? "to_jsonb($2::text)" : "$2::text::jsonb"))
+                    .execute(io.vertx.mutiny.sqlclient.Tuple.of(id, spec)).await().atMost(WAIT);
+        }
+    }
+
+    @Test
+    void existingEventDrivenDefinitionsKeepTheirBehaviorAndExplicitValuesArePreserved() {
+        assertEquals(List.of("explicit:ignore", "legacy-device:open_and_keep", "legacy-encoded:open_and_keep",
+                "legacy-panic:open_and_keep", "ordinary:ignore"), rows("""
+                SELECT d.symptom_key || ':' || (v.spec #>> '{lifecycle,after_trip_end}')
+                  FROM miot_symptoms.symptom_definition d JOIN miot_symptoms.symptom_version v
+                    ON v.definition_id = d.id AND v.version = d.current_version
+                 WHERE d.tenant_code = 'tenant-demo-policy' ORDER BY d.symptom_key
+                """));
     }
 
     @AfterAll
@@ -79,6 +115,17 @@ class PgPlatformTemplatesTest {
                 + " WHERE tenant_code = 'platform'"));
         assertEquals(List.of("1.0.0"), rows("SELECT d.current_version FROM miot_symptoms.symptom_definition d"
                 + " WHERE d.tenant_code = '_platform' AND d.symptom_key = 'gps-sabotage'"));
+    }
+
+    @Test
+    void onlyPanicAndSabotageTemplatesOptInToAfterTripEnd() {
+        assertEquals(List.of("gps-sabotage:open_and_close", "panic-button:open_and_keep"), rows("""
+                SELECT d.symptom_key || ':' || (v.spec #>> '{lifecycle,after_trip_end}')
+                  FROM miot_symptoms.symptom_definition d JOIN miot_symptoms.symptom_version v
+                    ON v.definition_id = d.id AND v.version = d.current_version
+                 WHERE d.tenant_code = '_platform' AND v.spec #>> '{lifecycle,after_trip_end}' <> 'ignore'
+                 ORDER BY d.symptom_key
+                """));
     }
 
     @Test

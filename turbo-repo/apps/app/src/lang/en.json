@@ -3923,6 +3923,11 @@
         "closeSub": "What closing takes and when the case closes by itself",
         "operatorTitle": "Operator",
         "allLevels": "applies to every level",
+        "afterTripEndLabel": "Events arriving after the trip ends",
+        "afterTripEndIgnore": "Ignore",
+        "afterTripEndKeep": "Open and keep for an operator",
+        "afterTripEndClose": "Open and close immediately because the trip ended",
+        "findingAfterTripEndInvalid": "Choose a valid policy for events arriving after the trip ends.",
         "closeAutoTitle": "Closes by itself when any of these happens",
         "closeKindLabel": "How it closes",
         "closeKind": {

@@ -61,6 +61,20 @@ public class DeviceEvents {
             """;
     private static final String PRUNE = "DELETE FROM miot_symptoms.device_event WHERE received_at < $1";
     private static final String ASSET_TRIPS = SignalStream.TRIPS_SQL.formatted("AND tl.tenant_code = $1 AND tl.asset_id = $2");
+    private static final String HISTORICAL_TRIP = """
+            SELECT t.id, t.status, t.actual_start
+              FROM miot_fleet.truck truck
+              JOIN miot_trips.trip_resource_assignment a ON a.tenant_code = truck.tenant_code
+                   AND a.resource_id = truck.id AND a.resource_type = 'truck'
+              JOIN miot_trips.trip t ON t.tenant_code = a.tenant_code AND t.id = a.trip_id
+             WHERE truck.tenant_code = $1 AND truck.license_plate = $2
+               AND a.version_of IS NULL AND a.is_active
+               AND a.valid_from <= $3 AND (a.valid_to IS NULL OR $3 < a.valid_to)
+               AND t.actual_start <= $3
+               AND (t.actual_end IS NULL OR $3 <= t.actual_end)
+               AND (t.status NOT IN ('completed', 'cancelled') OR $3 <= COALESCE(t.actual_end, t.updated_at))
+             ORDER BY t.actual_start DESC, a.valid_from DESC LIMIT 1
+            """;
 
     /** One event as the producer sends it. */
     @Schema(name = "DeviceEvent")
@@ -99,6 +113,10 @@ public class DeviceEvents {
     /** The organization's {@code trip_live} rows of the vehicle. */
     interface Trips {
         List<ReferenceCache.Trip> of(String tenant, String assetId);
+
+        default List<ReferenceCache.Trip> at(String tenant, String assetId, Instant occurredAt) {
+            return of(tenant, assetId);
+        }
     }
 
     @ConfigProperty(name = "miot.component.symptoms.enabled", defaultValue = "false")
@@ -230,7 +248,7 @@ public class DeviceEvents {
     String signal(String tenant, String id, DeviceEvent e, Instant receivedAt) {
         Instant at = e.occurredAt().toInstant();
         ReferenceCache refs = new ReferenceCache();
-        refs.load(trips.of(tenant, e.assetId()), List.of());
+        refs.load(trips.at(tenant, e.assetId(), at), List.of());
         Map<String, Object> event = new LinkedHashMap<>();
         event.put("event_type", e.type());
         event.put("timestamp", at.toString());
@@ -317,6 +335,25 @@ public class DeviceEvents {
                     .map(SignalStream::trips)
                     .onFailure(SignalStream::undefinedTable).recoverWithItem(List.of())
                     .await().atMost(TIMEOUT);
+        }
+
+        @Override
+        public List<ReferenceCache.Trip> at(String tenant, String assetId, Instant occurredAt) {
+            List<ReferenceCache.Trip> live = of(tenant, assetId);
+            if (live.stream().anyMatch(trip -> trip.inProgressAt(occurredAt))) return live;
+            List<ReferenceCache.Trip> historical = pool.get().preparedQuery(HISTORICAL_TRIP)
+                    .execute(Tuple.of(tenant, assetId, occurredAt.atOffset(java.time.ZoneOffset.UTC)))
+                    .map(rows -> {
+                        List<ReferenceCache.Trip> matches = new ArrayList<>();
+                        for (var row : rows) {
+                            // Membership at event time was checked in SQL; the signal describes that moment.
+                            matches.add(new ReferenceCache.Trip(row.getUUID("id").toString(), tenant, assetId, null,
+                                    row.getString("status"), row.getOffsetDateTime("actual_start").toInstant(), null, false));
+                        }
+                        return matches;
+                    }).onFailure(SignalStream::undefinedTable).recoverWithItem(List.of())
+                    .await().atMost(TIMEOUT);
+            return historical.isEmpty() ? live : historical;
         }
     }
 }

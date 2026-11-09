@@ -121,13 +121,18 @@ public class TripChecks {
     public record Ended(LossStore.Vehicle vehicle, CheckState check, Set<String> tenants) {
     }
 
+    public Ended endedTrips(LossStore.Vehicle v, CheckState c, Instant now) {
+        return endedTrips(null, v, c, now);
+    }
+
     /**
      * Before a check: for every organization whose trip in the vehicle's watch ended, closes the trip's open cases
      * ({@link #endTrip}) and leaves the trip and the organization's cases out of the check, so no rule opens or
-     * escalates a case on it. A trip whose arrival was confirmed since the newest frame reads
+     * escalates a case on it. A trip that moved to another vehicle is left the same way, closing only this
+     * vehicle's cases ({@link #leaveTrip}). A trip whose arrival was confirmed since the newest frame reads
      * {@code trip.destination.visited} true. Fails when the trips cannot be read.
      */
-    public Ended endedTrips(LossStore.Vehicle v, CheckState c, Instant now) {
+    public Ended endedTrips(String assetId, LossStore.Vehicle v, CheckState c, Instant now) {
         Map<String, String> ids = tripIds(v.watch());
         Map<String, TripEnds.State> states = ids.isEmpty() ? Map.of() : ends.states(ids);
         if (states.isEmpty()) {
@@ -138,12 +143,17 @@ public class TripChecks {
         states.forEach((tenant, state) -> {
             if (state.ended()) {
                 ended.add(tenant);
+            } else if (state.movedFrom(assetId)) {
+                leaveTrip(tenant, ids.get(tenant), state.assetId(), now);
+                ended.add(tenant);
             } else if (state.arrived() && trips.get(tenant) != null) {
                 trips.put(tenant, arrived(trips.get(tenant)));
             }
         });
         for (String tenant : ended) {
-            endTrip(tenant, ids.get(tenant), now);
+            if (states.get(tenant).ended()) {
+                endTrip(tenant, ids.get(tenant), now);
+            }
         }
         trips.keySet().removeAll(ended);
         Map<String, OpenCase> cases = new HashMap<>(c.cases());
@@ -184,6 +194,27 @@ public class TripChecks {
         return closed;
     }
 
+    /**
+     * The trip moved to {@code assetId}: closes its open {@code trip_check} cases on other vehicles with
+     * {@link TripEnds#ASSET_CHANGED}, as {@link #endTrip} does at the trip's end.
+     *
+     * @return how many cases it closed
+     */
+    public int leaveTrip(String tenant, String tripId, String assetId, Instant now) {
+        if (tripId == null || assetId == null) {
+            return 0;
+        }
+        List<UUID> definitions = symptoms(tenant, now).stream().map(CompiledSymptom::definitionId).toList();
+        if (definitions.isEmpty()) {
+            return 0;
+        }
+        int closed = ends.leave(tenant, tripId, definitions, assetId, now, this::closed);
+        if (closed > 0) {
+            meters.counter("miot.symptoms.lost_signal.asset_changed_closes").increment(closed);
+        }
+        return closed;
+    }
+
     public int retryEnded() {
         return ends.retry(this::closed);
     }
@@ -191,14 +222,20 @@ public class TripChecks {
     private void closed(TripEnds.Closure closure) {
         StaleCase c = closure.value();
         forgetStale(c);
-        events.closedBySystem(c.tenantCode(), c, TripEnds.REASON, closure.at()).toCompletableFuture()
+        events.closedBySystem(c.tenantCode(), c, closure.reason(), closure.at()).toCompletableFuture()
                 .orTimeout(5, TimeUnit.SECONDS).join();
     }
 
-    /** One of the organization's trips changed: when it ended, ends it ({@link #endTrip}). */
+    /**
+     * One of the organization's trips changed: when it ended, ends it ({@link #endTrip}); otherwise closes its
+     * cases on vehicles it is no longer on ({@link #leaveTrip}).
+     */
     public int tripChanged(String tenant, String tripId, Instant now) {
         TripEnds.State state = ends.states(Map.of(tenant, tripId)).get(tenant);
-        return state != null && state.ended() ? endTrip(tenant, tripId, now) : 0;
+        if (state == null) {
+            return 0;
+        }
+        return state.ended() ? endTrip(tenant, tripId, now) : leaveTrip(tenant, tripId, state.assetId(), now);
     }
 
     /** Each organization's trip in the watch, by tenant; a trip without an id is left out. */

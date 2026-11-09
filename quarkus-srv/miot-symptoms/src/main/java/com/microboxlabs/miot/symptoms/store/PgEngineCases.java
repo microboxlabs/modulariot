@@ -13,9 +13,11 @@ import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgException;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -249,7 +251,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String LIVE_TRIP_COLUMNS = """
             SELECT c.*, t.mandate_codes::text AS trip_mandate_codes, t.driver_name AS trip_driver,
                    t.carrier_name AS trip_carrier, t.origin_geofence_label AS trip_origin,
-                   t.destination_geofence_label AS trip_destination,
+                   t.destination_geofence_label AS trip_destination, t.asset_id AS trip_asset,
             """;
     /**
      * Enrich only the returned page, without changing counts or looking up each trip separately. A trip without a
@@ -277,7 +279,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String WITHOUT_TRIP = "SELECT c.*, NULL::text AS trip_mandate_codes,"
             + " NULL::text AS trip_code_fallback,"
             + " NULL::text AS trip_driver, NULL::text AS trip_carrier, NULL::text AS trip_origin,"
-            + " NULL::text AS trip_destination FROM (%s) c ORDER BY c.at DESC";
+            + " NULL::text AS trip_destination, NULL::text AS trip_asset FROM (%s) c ORDER BY c.at DESC";
     private static final String OPENED = CASES + " AND o.at >= $2 AND o.at < $3";
     private static final String OPENED_COUNTS = "SELECT y.definition_id, y.current_level, count(*) AS n"
             + FROM_SUBQUERY + SELECT.formatted(OPENED) + ") y GROUP BY 1, 2";
@@ -372,6 +374,10 @@ public class PgEngineCases implements EngineCaseStore {
              ORDER BY id FOR SHARE
             """;
 
+    private static final String TRIP_ASSET_LOCK = """
+            SELECT asset_id FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id = $2 FOR SHARE
+            """;
+
     /**
      * Closes every open case whose state is no longer its symptom's ($1 tenant and $2 symptom, each null for any;
      * $3 the time, $4 the reason). OFF differs from both states, so turning a symptom off closes all its cases.
@@ -418,18 +424,23 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String LOCK_TRIP = """
             SELECT o.*, o.id AS case_id, o.at AS opened_at FROM miot_symptoms.signal_transitions o
              WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED'
-               AND COALESCE(o.context ->> 'after_trip_end', '') <> 'open_and_keep'
+               AND ($4::varchar IS NOT NULL OR COALESCE(o.context ->> 'after_trip_end', '') <> 'open_and_keep')
                AND ($3::uuid[] IS NULL OR o.definition_id = ANY($3::uuid[]))
+               AND ($4::varchar IS NULL OR upper(o.asset_id) <> upper($4))
                AND NOT EXISTS (SELECT 1 FROM miot_symptoms.signal_transitions c
                     WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
                       AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id)
              ORDER BY o.definition_id, o.asset_id, o.id FOR UPDATE
             """;
 
+    /** Whether the trip has an open case on another vehicle than $4, read without locks before closing them. */
+    private static final String OTHER_VEHICLE_OPEN = LOCK_TRIP.replace("FOR UPDATE", "LIMIT 1");
+
     /**
      * Closes each open case of the trip ($1 tenant, $2 trip) of the symptoms $3, at its current level, with
      * {@code closed_by} and the context's {@code reason} $5, at $4. The row keeps the
      * case's trip, its maximum and latest context from episode snapshots $6, falling back to recorded evidence.
+     * A non-null $7 leaves that vehicle's cases open (the trip moved to it).
      */
     private static final String CLOSE_TRIP = """
             WITH closed AS (
@@ -454,8 +465,9 @@ public class PgEngineCases implements EngineCaseStore {
                      AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED' AND l.id > o.id
                    ) lv ON true
              WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED' AND o.state IN ('ACTIVE', 'TEST')
-               AND COALESCE(o.context ->> 'after_trip_end', '') <> 'open_and_keep'
+               AND ($5::text <> 'trip_ended' OR COALESCE(o.context ->> 'after_trip_end', '') <> 'open_and_keep')
                AND ($3::uuid[] IS NULL OR o.definition_id = ANY($3::uuid[]))
+               AND ($7::varchar IS NULL OR upper(o.asset_id) <> upper($7))
                AND NOT EXISTS (
                    SELECT 1 FROM miot_symptoms.signal_transitions c
                     WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
@@ -723,22 +735,50 @@ public class PgEngineCases implements EngineCaseStore {
     @Override
     public List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
             String reason, Function<StaleCase, ClosingFrame> frames) {
+        return closeTrip(tenantCode, tripId, definitionIds, at, reason, null, frames);
+    }
+
+    @Override
+    public List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason, String keepAsset, Function<StaleCase, ClosingFrame> frames) {
         if (definitionIds != null && definitionIds.isEmpty()) {
             return List.of();
         }
         UUID[] ids = definitionIds == null ? null : definitionIds.toArray(UUID[]::new);
+        // Every trip_live change asks; most trips have no case on another vehicle.
+        if (keepAsset != null && !pool.get().preparedQuery(OTHER_VEHICLE_OPEN)
+                .execute(Tuple.of(tenantCode, tripId, ids, keepAsset)).await().atMost(QUERY_TIMEOUT).iterator()
+                .hasNext()) {
+            return List.of();
+        }
         return pool.get().withTransaction(conn -> PgTripState.lock(conn, tenantCode, tripId)
                 .flatMap(window -> TripEnds.REASON.equals(reason)
                         ? PgTripState.remember(conn, tenantCode, tripId, at, window)
                         : io.smallrye.mutiny.Uni.createFrom().voidItem())
+                .flatMap(locked -> lockTripAsset(conn, tenantCode, tripId, keepAsset))
                 .flatMap(locked -> conn.preparedQuery(TRIP_DEFINITIONS).execute(Tuple.of(tenantCode, ids)))
-                .flatMap(locked -> conn.preparedQuery(LOCK_TRIP).execute(Tuple.of(tenantCode, tripId, ids)))
+                .flatMap(locked -> conn.preparedQuery(LOCK_TRIP).execute(Tuple.of(tenantCode, tripId, ids, keepAsset)))
                 .emitOn(Infrastructure.getDefaultWorkerPool())
                 .map(locked -> closingFrames(locked, frames))
                 .flatMap(snapshots -> conn.preparedQuery(CLOSE_TRIP)
-                        .execute(Tuple.of(tenantCode, tripId, ids, at.atOffset(ZoneOffset.UTC), reason, snapshots)))
+                        .execute(Tuple.from(new Object[] {tenantCode, tripId, ids, at.atOffset(ZoneOffset.UTC), reason,
+                                snapshots, keepAsset})))
                 .map(PgEngineCases::staleCases))
                 .await().atMost(QUERY_TIMEOUT);
+    }
+
+    /** A delayed truck-change notice must never close the truck the trip moved back to. */
+    private static Uni<Void> lockTripAsset(SqlConnection conn, String tenant, String tripId, String keepAsset) {
+        if (keepAsset == null) {
+            return Uni.createFrom().voidItem();
+        }
+        return conn.preparedQuery(TRIP_ASSET_LOCK).execute(Tuple.of(tenant, TripEnds.uuid(tripId)))
+                .invoke(rows -> {
+                    var iterator = rows.iterator();
+                    if (!iterator.hasNext() || !keepAsset.equalsIgnoreCase(iterator.next().getString(ASSET_ID))) {
+                        throw new IllegalStateException("Trip truck changed again; retry with a fresh trip state");
+                    }
+                }).replaceWithVoid();
     }
 
     private static JsonArray closingFrames(Iterable<Row> rows, Function<StaleCase, ClosingFrame> frames) {
@@ -797,8 +837,9 @@ public class PgEngineCases implements EngineCaseStore {
     /** The live trip's names, or null when the case has no live trip or it has none of them. */
     private static EngineCase.TripDetails trip(Row r) {
         EngineCase.TripDetails t = new EngineCase.TripDetails(r.getString("trip_driver"), r.getString("trip_carrier"),
-                r.getString("trip_origin"), r.getString("trip_destination"));
-        return t.driver() == null && t.carrier() == null && t.origin() == null && t.destination() == null ? null : t;
+                r.getString("trip_origin"), r.getString("trip_destination"), r.getString("trip_asset"));
+        return t.driver() == null && t.carrier() == null && t.origin() == null && t.destination() == null
+                && t.assetId() == null ? null : t;
     }
 
     /**

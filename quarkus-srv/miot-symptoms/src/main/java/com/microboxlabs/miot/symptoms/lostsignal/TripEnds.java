@@ -15,12 +15,24 @@ public interface TripEnds {
      *
      * @param ended   completed, cancelled or gone
      * @param arrived its {@code arrival} milestone is confirmed
+     * @param assetId the vehicle the trip is on now, or null when unknown
      */
-    record State(boolean ended, boolean arrived) {
+    record State(boolean ended, boolean arrived, String assetId) {
+        public State(boolean ended, boolean arrived) {
+            this(ended, arrived, null);
+        }
+
+        /** The trip runs on another vehicle than {@code asset}: its truck was replaced. */
+        public boolean movedFrom(String asset) {
+            return !ended && assetId != null && asset != null && !assetId.equalsIgnoreCase(asset);
+        }
     }
 
     /** The {@code closed_by} of a case closed because its trip ended. */
     String REASON = "trip_ended";
+
+    /** The {@code closed_by} of a case closed because its trip moved to another vehicle. */
+    String ASSET_CHANGED = "asset_changed";
 
     /** A canonical UUID, or null for a legacy or malformed trip id. */
     static UUID uuid(String id) {
@@ -35,7 +47,10 @@ public interface TripEnds {
         }
     }
 
-    record Closure(StaleCase value, Instant at) {
+    record Closure(StaleCase value, Instant at, String reason) {
+        public Closure(StaleCase value, Instant at) {
+            this(value, at, REASON);
+        }
     }
 
     /** Closes the trip, then delivers its effects; durable stores also retry previously queued effects. */
@@ -43,6 +58,23 @@ public interface TripEnds {
         List<StaleCase> closed = close(tenant, tripId, definitions, at);
         closed.forEach(c -> effect.accept(new Closure(c, at)));
         return closed.size();
+    }
+
+    /**
+     * The trip moved to {@code keepAsset}: closes its open cases of those symptoms on any other vehicle with
+     * {@link #ASSET_CHANGED}, then delivers their effects.
+     */
+    default int leave(String tenant, String tripId, List<UUID> definitions, String keepAsset, Instant at,
+            Consumer<Closure> effect) {
+        List<StaleCase> closed = closeOthers(tenant, tripId, definitions, keepAsset, at);
+        closed.forEach(c -> effect.accept(new Closure(c, at, ASSET_CHANGED)));
+        return closed.size();
+    }
+
+    /** Closes the trip's open cases of those symptoms whose vehicle is not {@code keepAsset}. */
+    default List<StaleCase> closeOthers(String tenant, String tripId, List<UUID> definitionIds, String keepAsset,
+            Instant at) {
+        return List.of();
     }
 
     /** Retries durable effects even when the vehicle no longer has a deadline. */

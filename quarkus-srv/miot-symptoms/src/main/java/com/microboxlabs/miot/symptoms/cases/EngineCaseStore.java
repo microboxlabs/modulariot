@@ -116,6 +116,12 @@ public interface EngineCaseStore {
         return closeTrip(tenantCode, tripId, definitionIds, at, reason);
     }
 
+    /** As above, leaving open the cases of {@code keepAsset} (null closes every vehicle's). */
+    default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason, String keepAsset, java.util.function.Function<StaleCase, ClosingFrame> frames) {
+        return keepAsset == null ? closeTrip(tenantCode, tripId, definitionIds, at, reason, frames) : List.of();
+    }
+
     /** A case {@link #closeStale} or {@link #closeTrip} closed; {@code id} is its OPENED transition's. */
     record StaleCase(String tenantCode, long id, UUID definitionId, String version, boolean test, String assetId,
             int level, String tripId, Double latitude, Double longitude, Double speedKmh, Instant openedAt) {

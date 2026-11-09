@@ -46,6 +46,9 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class PgTransitionLog implements TransitionLog {
     private static final String EVENT_ID = "event_id";
+    private static final String CHECK_TRIP_ASSET = """
+            SELECT asset_id FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id = $2 FOR SHARE
+            """;
 
     /** State changes and sweeps wait for in-flight writes; vehicles still evaluate concurrently. */
     private static final String LOCK_DEFINITION = """
@@ -177,8 +180,24 @@ public class PgTransitionLog implements TransitionLog {
                 if (checkTrip && (!window.managed() || window.ended())) {
                     throw new IllegalStateException("Trip ended; retry the lost-signal check");
                 }
-            }).flatMap(window -> write(conn, tenantCode, transitions, place, context, window, evaluated));
+            }).flatMap(window -> (checkTrip ? lockTripAsset(conn, tenantCode, place, transitions)
+                    : Uni.createFrom().voidItem()).replaceWith(window))
+                    .flatMap(window -> write(conn, tenantCode, transitions, place, context, window, evaluated));
         }).await().atMost(QUERY_TIMEOUT);
+    }
+
+    /** Read the projection after the trip lock so a truck change we waited for is visible. */
+    private static Uni<Void> lockTripAsset(SqlConnection conn, String tenant, Place place,
+            List<Transition> transitions) {
+        return conn.preparedQuery(CHECK_TRIP_ASSET).execute(Tuple.of(tenant, TripEnds.uuid(place.tripId())))
+                .invoke(rows -> {
+                    for (Row row : rows) {
+                        String asset = row.getString("asset_id");
+                        if (asset != null && transitions.stream().anyMatch(t -> !asset.equalsIgnoreCase(t.assetId()))) {
+                            throw new IllegalStateException("Trip truck changed; retry the lost-signal check");
+                        }
+                    }
+                }).replaceWithVoid();
     }
 
     private Uni<Appended> write(SqlConnection conn, String tenant, List<Transition> transitions, Place place,

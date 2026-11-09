@@ -309,6 +309,8 @@ class PgTreatmentStoresTest {
                 .execute(Tuple.of(UUID.fromString(first.id()), PgJson.write(first.details())))
                 .await().atMost(WAIT);
         assertEquals(2, treatments.pendingTelephonyCalls(tenant, ACTOR, OffsetDateTime.now().minusMinutes(1)).size());
+        assertTrue(treatments.pendingTeamsCallers(OffsetDateTime.now().minusMinutes(1), 1000)
+                .contains(new TreatmentStore.Caller(tenant, ACTOR)));
         Map<String, Object> recorded = Map.of("telephony", Map.of("provider", "TEAMS_PHONE", "status", "RECORDED",
                 "connectionId", "m1", "recordId", "r1"));
         ExecutorService threads = Executors.newFixedThreadPool(2);

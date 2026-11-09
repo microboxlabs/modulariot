@@ -167,6 +167,17 @@ public class InMemoryTreatmentStore implements TreatmentStore {
     }
 
     @Override
+    public synchronized List<Caller> pendingTeamsCallers(OffsetDateTime since, int limit) {
+        return actions.values().stream().flatMap(List::stream)
+                .filter(a -> a.kind() == ActionKind.CALL && a.performedBy() != null
+                        && !a.performedAt().isBefore(since) && "PENDING".equals(telephonyStatus(a))
+                        && "TEAMS_PHONE".equals(telephonyDetails(a).get("provider")))
+                .map(a -> new Caller(a.tenantCode(), a.performedBy())).distinct()
+                .sorted(java.util.Comparator.comparing(Caller::tenantCode).thenComparing(Caller::performedBy))
+                .limit(limit).toList();
+    }
+
+    @Override
     public synchronized Optional<TreatmentAction> updateCallResult(String tenantCode, String actionId,
             Boolean answered, Integer durationSeconds, Map<String, Object> details) {
         Object metadata = details == null ? null : details.get("telephony");

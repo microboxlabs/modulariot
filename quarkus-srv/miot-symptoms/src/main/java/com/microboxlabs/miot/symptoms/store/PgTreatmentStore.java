@@ -102,6 +102,13 @@ public class PgTreatmentStore implements TreatmentStore {
               AND %s #>> '{telephony,status}' = 'PENDING'
             ORDER BY performed_at LIMIT 50""".formatted(DETAILS_JSON);
 
+    private static final String PENDING_TEAMS_CALLERS = """
+            SELECT DISTINCT tenant_code, performed_by FROM miot_symptoms.treatment_action
+            WHERE kind = 'CALL' AND performed_at >= $1 AND performed_by IS NOT NULL
+              AND %s #>> '{telephony,status}' = 'PENDING'
+              AND %s #>> '{telephony,provider}' = 'TEAMS_PHONE'
+            ORDER BY tenant_code, performed_by LIMIT $2""".formatted(DETAILS_JSON, DETAILS_JSON);
+
     private static final String UPDATE_CALL = """
             UPDATE miot_symptoms.treatment_action
             SET answered = $3, duration_seconds = COALESCE($4, duration_seconds),
@@ -339,6 +346,12 @@ public class PgTreatmentStore implements TreatmentStore {
     public List<TreatmentAction> pendingTelephonyCalls(String tenantCode, String performedBy,
             OffsetDateTime since) {
         return actions(query(pool.get(), PENDING_CALLS, Tuple.of(tenantCode, performedBy, since)));
+    }
+
+    @Override
+    public List<Caller> pendingTeamsCallers(OffsetDateTime since, int limit) {
+        return query(pool.get(), PENDING_TEAMS_CALLERS, Tuple.of(since, limit)).stream()
+                .map(r -> new Caller(r.getString("tenant_code"), r.getString("performed_by"))).toList();
     }
 
     @Override

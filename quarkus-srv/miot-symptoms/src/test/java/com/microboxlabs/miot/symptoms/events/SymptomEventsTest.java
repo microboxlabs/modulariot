@@ -71,6 +71,17 @@ class SymptomEventsTest {
     }
 
     @Test
+    void anOldTripsCloseNeverPublishesTheNextTripsDriver() {
+        Transition closed = new Transition(Transition.Kind.CLOSED, PANIC, "0.1.0", SymptomState.ACTIVE,
+                "DEMO01", now, 4, 4, 100).withTrip("T-1");
+        events.transitions(TENANT, List.of(new Recorded(closed, 1)),
+                new Place("T-2", null, null, null, "D-2"));
+        assertEquals("T-1", last().tripId());
+        assertNull(last().driverId());
+        assertEquals(100.0, last().measure());
+    }
+
+    @Test
     void readsTheSymptomsNameOnceWithinItsTtl() {
         open(1);
         now = T0.plusSeconds(20);

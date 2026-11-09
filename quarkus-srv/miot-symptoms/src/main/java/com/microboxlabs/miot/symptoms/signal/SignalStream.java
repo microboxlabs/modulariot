@@ -30,6 +30,7 @@ import io.vertx.pgclient.PgException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -54,7 +55,9 @@ import org.jboss.logging.Logger;
  * {@code miot_trips_live} notices; shares are the GPS database's
  * {@code asset_client_map}, kept current from its Debezium topic
  * ({@code signal-asset-client-map}). Both are loaded in full at start and every
- * {@code reload-every}, with the GPS database's {@code geofences} ({@link Zones}). Off unless {@code miot.symptoms.signal-builder.enabled};
+ * {@code reload-every}, with the GPS database's {@code geofences} ({@link Zones}) and the speed database's custom
+ * speed polygons ({@link CustomSpeedTracks}). Road limits come from the speed database ({@link SpeedDatabase}), else
+ * the GPS database. Off unless {@code miot.symptoms.signal-builder.enabled};
  * the channels are disabled with it. Frames are never logged, only counted.
  */
 @ApplicationScoped
@@ -102,7 +105,11 @@ public class SignalStream {
                        (CASE jsonb_typeof(tl.mandate_codes) WHEN 'string' THEN (tl.mandate_codes #>> '{}')::jsonb
                              ELSE tl.mandate_codes END) -> 0 ->> 'code' AS code,
                        tl.origin_geofence_id, tl.origin_geofence_label, tl.origin_visited, tl.origin_is_internal,
-                       tl.destination_geofence_id, tl.destination_geofence_label, tl.destination_visited,
+                       tl.destination_geofence_id, tl.destination_geofence_label,
+                       tl.destination_visited OR EXISTS (
+                           SELECT 1 FROM miot_trips.trip_milestone m
+                            WHERE m.tenant_code = tl.tenant_code AND m.trip_id = tl.trip_id
+                              AND m.milestone = 'arrival' AND m.status = 'confirmed') AS destination_visited,
                        tl.current_geofence_id, c.rut AS carrier_tax_id, tl.carrier_name, tl.type_load,
                        tl.rampla_plate, tl.driver_id IS NOT NULL AS driver_assigned, d.id AS driver_fleet_id,
                        d.status AS driver_status, d.license_expires AS driver_license_expires
@@ -121,10 +128,10 @@ public class SignalStream {
             SELECT asset_id, shared_client_id, active, valid_from, valid_to FROM asset_client_map WHERE active
             """;
 
-    /** The GPS database's geofences as GeoJSON, read in full: a few hundred rows. */
+    /** The GPS database's geofences as GeoJSON, with names and risk schedules, read in full: a few hundred rows. */
     private static final String ZONES_SQL = """
-            SELECT client_id, geofence_id, properties ->> 'geofence_type' AS geofence_type,
-                   ST_AsGeoJSON(coordinates::geometry) AS shape
+            SELECT client_id, geofence_id, geofence_name, properties ->> 'geofence_type' AS geofence_type,
+                   (properties -> 'schedule')::text AS schedule, ST_AsGeoJSON(coordinates::geometry) AS shape
               FROM geofences WHERE coordinates IS NOT NULL
             """;
 
@@ -146,14 +153,10 @@ public class SignalStream {
               FROM osm_roads_weight WHERE geom && ST_MakeEnvelope($1, $2, $3, $4, 4326)
             """;
 
-    /** Each organization's own speed limits, read in full. */
-    static final String SPEED_ZONES_SQL = """
-            SELECT tenant_code, id, speed_forward, speed_backward, forward_from, forward_to, heading, shape::text AS shape
-              FROM miot_symptoms.speed_limit_zone WHERE active
-            """;
-
     private final boolean enabled;
     private final GpsDatabase gps;
+    private final SpeedDatabase speed;
+    private final CustomSpeedTracks.Settings customTracks;
     private final Supplier<Pool> pool;
     private final ReferenceCache refs = new ReferenceCache();
     private final Zones zones = new Zones();
@@ -166,15 +169,20 @@ public class SignalStream {
     private final Counter built;
     private final Counter skipped;
     private final Counter roadFailures;
+    private final OnlineVehicles online;
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
     private final PgNotificationListener listener;
 
+    @Inject
     SignalStream(@ConfigProperty(name = "miot.symptoms.signal-builder.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.signal-builder.zone", defaultValue = "America/Santiago") String zone,
-            RoadSettings roadSettings,
-            GpsDatabase gps, Instance<Pool> pool, Vertx vertx, MeterRegistry meters) {
+            RoadSettings roadSettings, CustomSpeedTracks.Settings customTracks, OnlineVehicles.Settings onlineSettings,
+            GpsDatabase gps, SpeedDatabase speed, Instance<Pool> pool, Vertx vertx, MeterRegistry meters) {
         this.enabled = enabled;
         this.gps = gps;
+        this.speed = speed;
+        this.customTracks = customTracks;
+        customTracks.table().ifPresent(CustomSpeedTracks::sql);
         this.pool = pool::get;
         this.listener = new PgNotificationListener(this.pool, vertx, TRIPS_CHANNEL, this::onTripNotice);
         this.tripReader = new TripNoticeReader(refs, id -> this.pool.get().preparedQuery(ONE_TRIP)
@@ -189,6 +197,8 @@ public class SignalStream {
         }
         this.built = meters.counter("miot.symptoms.signal.built");
         this.skipped = meters.counter("miot.symptoms.signal.skipped");
+        this.online = enabled ? new OnlineVehicles(onlineSettings.window(), onlineSettings.movingSpeed(),
+                Clock.systemUTC(), meters) : null;
     }
 
     /**
@@ -201,6 +211,12 @@ public class SignalStream {
         }
         if (!gps.configured()) {
             LOG.warn("Signal builder: the GPS database is not configured; signals have no shared clients");
+        }
+        if (!speed.configured()) {
+            LOG.warn("Signal builder: the speed database is not configured; road limits come from the GPS database"
+                    + " and signals have no custom limit");
+        } else if (customTracks.table().isEmpty()) {
+            LOG.warn("Signal builder: custom speed tracks have no table; signals have no custom limit");
         }
         listener.start();
         reload().onFailure().invoke(e -> LOG.errorf(e, "Signal builder: reference load failed; frames wait"))
@@ -220,6 +236,13 @@ public class SignalStream {
         }
         return reload().onFailure().invoke(e -> LOG.errorf(e, "Signal builder: reference load failed"))
                 .onFailure().recoverWithNull();
+    }
+
+    @Scheduled(every = "1m", delayed = "1m")
+    void pruneOnline() {
+        if (online != null) {
+            online.prune();
+        }
     }
 
     private Uni<Void> reload() {
@@ -242,27 +265,61 @@ public class SignalStream {
                 LOG.infof("Signal builder: loaded %d route cells", c.size());
             }
         }).chain(c -> loadSpeedZones()).invoke(z -> {
-            speedZones.load(z);
             bearings.prune(java.time.Instant.now());
-            LOG.infof("Signal builder: loaded %d speed limit zones", z.size());
+            if (z != null) {
+                speedZones.load(z);
+                LOG.infof("Signal builder: loaded %d custom speed zones", z.size());
+            }
         }).replaceWithVoid();
     }
 
-    /** No zones when the modulith has no speed limit zones table yet; a shape that is not a polygon is skipped. */
+    /**
+     * None without the speed database or a table, and none while the table lacks the organization and rule columns
+     * ({@code client_id}, {@code forward_from}, {@code forward_to}, {@code single_limit}). Null when the read fails
+     * otherwise: the zones loaded before are kept, and the other references still load.
+     */
     private Uni<List<SpeedZones.Zone>> loadSpeedZones() {
-        return pool.get().query(SPEED_ZONES_SQL).execute().map(rows -> {
-            List<SpeedZones.Zone> z = new ArrayList<>();
-            rows.forEach(r -> {
-                SpeedZones.Zone zone = r.getString(SHAPE) == null ? null : SpeedZones.zone(r.getString("tenant_code"),
-                        r.getInteger("id"), new SpeedZones.Limits(r.getInteger("speed_forward"), r.getInteger("speed_backward"),
-                                r.getInteger("forward_from"), r.getInteger("forward_to"), r.getInteger("heading")),
-                        r.getString(SHAPE));
-                if (zone != null) {
-                    z.add(zone);
-                }
-            });
-            return z;
-        }).onFailure(SignalStream::undefinedTable).recoverWithItem(e -> List.of());
+        if (!speed.configured() || customTracks.table().isEmpty()) {
+            return Uni.createFrom().item(List.of());
+        }
+        return loadSpeedZones(speed.pool(), customTracks.table().get());
+    }
+
+    static Uni<List<SpeedZones.Zone>> loadSpeedZones(Pool pool, String table) {
+        return pool.query(CustomSpeedTracks.sql(table)).execute()
+                .map(SignalStream::customZones)
+                .onFailure(SignalStream::undefinedColumn).recoverWithItem(e -> {
+                    LOG.warnf("Signal builder: the custom speed tracks table has no organization or rule columns"
+                            + " (%s); no custom limits", rootCause(e));
+                    return List.of();
+                })
+                .onFailure().invoke(e -> LOG.warnf("Signal builder: custom speed zones not read (%s)", rootCause(e)))
+                .onFailure().recoverWithNull();
+    }
+
+    static boolean undefinedColumn(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof io.vertx.pgclient.PgException pg
+                    && CustomSpeedTracks.UNDEFINED_COLUMN.equals(pg.getSqlState())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static List<SpeedZones.Zone> customZones(RowSet<Row> rows) {
+        List<SpeedZones.Zone> z = new ArrayList<>();
+        rows.forEach(r -> {
+            Boolean single = r.getBoolean("single_limit");
+            SpeedZones.Zone zone = CustomSpeedTracks.zone(new CustomSpeedTracks.Row(r.getInteger("id"),
+                    r.getString("client_id"), r.getInteger("speed_forward"), r.getInteger("speed_backward"),
+                    r.getInteger("azimuth_degree"), r.getInteger("forward_from"), r.getInteger("forward_to"),
+                    Boolean.TRUE.equals(single), r.getString(SHAPE), r.getString("name")));
+            if (zone != null) {
+                z.add(zone);
+            }
+        });
+        return z;
     }
 
     /** No cells without the GPS database or its route history: the signal then has no ETA deviation. */
@@ -278,12 +335,13 @@ public class SignalStream {
         }).onFailure(SignalStream::undefinedTable).recoverWithItem(e -> List.of());
     }
 
-    /** No ways without the GPS database. */
+    /** From the speed database, else the GPS database; no ways without either. */
     private Uni<List<RoadNetwork.Way>> ways(double minLon, double minLat, double maxLon, double maxLat) {
-        if (!gps.configured()) {
+        Pool roadsPool = roadsPool();
+        if (roadsPool == null) {
             return Uni.createFrom().item(List.of());
         }
-        return gps.readPool().preparedQuery(ROADS_SQL).execute(Tuple.of(minLon, minLat, maxLon, maxLat))
+        return roadsPool.preparedQuery(ROADS_SQL).execute(Tuple.of(minLon, minLat, maxLon, maxLat))
                 .map(rows -> {
                     List<RoadNetwork.Way> w = new ArrayList<>(rows.size());
                     rows.forEach(r -> w.add(new RoadNetwork.Way(r.getLong("osm_id"), r.getString("fclass"),
@@ -296,6 +354,13 @@ public class SignalStream {
                 });
     }
 
+    private Pool roadsPool() {
+        if (speed.configured()) {
+            return speed.pool();
+        }
+        return gps.configured() ? gps.readPool() : null;
+    }
+
     /** No zones without the GPS database; a shape that is not a polygon is skipped. */
     private Uni<List<Zones.Zone>> loadZones() {
         if (!gps.configured()) {
@@ -305,7 +370,8 @@ public class SignalStream {
             List<Zones.Zone> z = new ArrayList<>();
             rows.forEach(r -> {
                 Zones.Zone zone = r.getString(SHAPE) == null ? null : Zones.zone(r.getString("client_id"),
-                        r.getInteger("geofence_id"), r.getString("geofence_type"), r.getString(SHAPE));
+                        r.getInteger("geofence_id"), r.getString("geofence_type"), r.getString("geofence_name"),
+                        r.getString("schedule"), r.getString(SHAPE));
                 if (zone != null) {
                     z.add(zone);
                 }
@@ -406,8 +472,18 @@ public class SignalStream {
             return Uni.createFrom().completionStage(in::ack).onItem().transformToMulti(x -> Multi.createFrom().empty());
         }
         built.increment();
+        countOnline(signal);
         return Multi.createFrom().item(in.withPayload(json)
                 .addMetadata(PulsarOutgoingMessageMetadata.builder().withKey(signal.assetId()).build()));
+    }
+
+    private void countOnline(GpsSignal signal) {
+        if (online == null) {
+            return;
+        }
+        var gpsPart = signal.frame() == null ? null : signal.frame().getGps();
+        online.seen(signal.assetId(), signal.sender(), signal.at(), gpsPart == null ? 0 : gpsPart.getSpeed(),
+                refs.sharedWith(signal.assetId(), signal.at()));
     }
 
     @Incoming("signal-asset-client-map")

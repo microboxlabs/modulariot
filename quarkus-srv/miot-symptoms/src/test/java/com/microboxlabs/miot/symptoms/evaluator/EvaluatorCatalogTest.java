@@ -18,6 +18,7 @@ import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -87,6 +88,25 @@ class EvaluatorCatalogTest {
         assertEquals("2.0.0", next.version());
         assertNotSame(first.activation(), next.activation());
         assertEquals(1, evaluatorCatalog.cached(), "one entry per symptom");
+    }
+
+    @Test
+    void theSameKeyAndVersionInDifferentTenantsKeepTheirOwnRules() {
+        for (String tenant : List.of(TENANT, "tenant-b")) {
+            UUID id = catalog.create(tenant, OWNER, new CreateRequest("speeding", "speeding", null, null, null,
+                    "gps_signal", null, Specs.with(Specs.speeding(), tenant.equals(TENANT) ? "true" : "false")))
+                    .definition().id();
+            catalog.publish(tenant, OWNER, id, "First version", null, SymptomState.ACTIVE);
+        }
+
+        CompiledSymptom first = evaluatorCatalog.forSource(TENANT, "gps_signal").symptoms().get(0);
+        CompiledSymptom other = evaluatorCatalog.forSource("tenant-b", "gps_signal").symptoms().get(0);
+
+        assertEquals(first.version(), other.version());
+        assertNotSame(first.activation(), other.activation());
+        assertEquals(true, first.activation().run(Map.of()).value());
+        assertEquals(false, other.activation().run(Map.of()).value());
+        assertEquals(2, evaluatorCatalog.cached());
     }
 
     @Test

@@ -151,7 +151,7 @@ def boot_context_skills(
         connectors, registry, settings, diagnostics
     )
     _validate_playbook_tools(playbooks, registry, diagnostics)
-    playbooks = _resolve_mcp_servers(playbooks, diagnostics)
+    playbooks = _resolve_mcp_servers(playbooks, diagnostics, settings)
 
     has_mcp = any(
         isinstance(p.skill, PlaybookSkill) and p.skill.mcp is not None for p in playbooks
@@ -186,9 +186,9 @@ def boot_context_skills(
 
 
 def _resolve_mcp_servers(
-    playbooks: list[LoadedSkill], diagnostics: list[LoadDiagnostic]
+    playbooks: list[LoadedSkill], diagnostics: list[LoadDiagnostic], settings: HarnessSettings
 ) -> list[LoadedSkill]:
-    """Fill in each MCP server URL from the environment; drop a skill whose
+    """Fill in each MCP server URL from settings/environment; drop a skill whose
     URL cannot be resolved, so it is never offered."""
     kept: list[LoadedSkill] = []
     for loaded in playbooks:
@@ -197,7 +197,7 @@ def _resolve_mcp_servers(
             kept.append(loaded)
             continue
         try:
-            url = resolve_url(skill.mcp)
+            url = resolve_url(skill.mcp, settings)
         except ValueError as exc:
             diagnostics.append(
                 LoadDiagnostic(

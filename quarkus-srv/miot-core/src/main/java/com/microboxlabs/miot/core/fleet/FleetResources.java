@@ -42,6 +42,11 @@ public interface FleetResources {
     /** Whether {@code resourceType} (truck, trailer, driver) {@code id} exists for the tenant and is not inactive. */
     boolean exists(String tenantCode, String resourceType, UUID id);
 
+    /** Whether {@code resourceType} (truck, trailer, driver) {@code id} is a current row, active or not. */
+    default boolean known(String tenantCode, String resourceType, UUID id) {
+        return exists(tenantCode, resourceType, id);
+    }
+
     /** {@code resourceType} is truck or trailer. */
     Optional<Vehicle> vehicle(String tenantCode, String resourceType, UUID id);
 

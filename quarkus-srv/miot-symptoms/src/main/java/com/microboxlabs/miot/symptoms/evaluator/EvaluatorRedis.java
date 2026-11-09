@@ -9,7 +9,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import java.util.Optional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-/** The Redis client of {@code miot.symptoms.evaluator.redis-url}, or none when it is not set. */
+/**
+ * The Redis client of {@code miot.symptoms.evaluator.redis-url}, or none when it is not set. The pool has
+ * {@code redis-pool-size} connections and queues up to {@code redis-pool-waiting} requests: the signal consumer's
+ * concurrent vehicles each send several reads at once.
+ */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class EvaluatorRedis {
@@ -17,9 +21,13 @@ public class EvaluatorRedis {
     private final Redis client;
     private final RedisAPI api;
 
-    EvaluatorRedis(@ConfigProperty(name = "miot.symptoms.evaluator.redis-url") Optional<String> url, Vertx vertx) {
+    EvaluatorRedis(@ConfigProperty(name = "miot.symptoms.evaluator.redis-url") Optional<String> url,
+            @ConfigProperty(name = "miot.symptoms.evaluator.redis-pool-size", defaultValue = "16") int poolSize,
+            @ConfigProperty(name = "miot.symptoms.evaluator.redis-pool-waiting", defaultValue = "256") int waiting,
+            Vertx vertx) {
         this.client = url.filter(u -> !u.isBlank())
-                .map(u -> Redis.createClient(vertx, new RedisOptions().setConnectionString(u)))
+                .map(u -> Redis.createClient(vertx, new RedisOptions().setConnectionString(u)
+                        .setMaxPoolSize(poolSize).setMaxPoolWaiting(waiting)))
                 .orElse(null);
         this.api = client == null ? null : RedisAPI.api(client);
     }

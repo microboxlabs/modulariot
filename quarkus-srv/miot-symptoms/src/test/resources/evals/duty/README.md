@@ -21,13 +21,13 @@
 
 | Symptom | Identical | Same transitions within 2 min | Different |
 |---|---|---|---|
-| Continuous driving | 23 | 8 | 3 |
-| Continuous rest | 27 | 0 | 7 |
+| Continuous driving | 24 | 8 | 2 |
+| Continuous rest | 30 | 0 | 4 |
 
 | Cause of a difference | Trips |
 |---|---|
-| Production's rest keeps counting while driving past 16 h 15 min; the tracker's does not | 4 (rest) |
-| A device that alternates a stale and a live position, or long gaps: production kept other frames | 3 (driving 2, rest 2) |
+| Production's rest keeps counting while driving past 16 h 15 min; the tracker's does not | 3 (rest) |
+| A device that alternates a stale and a live position: production kept other frames | 1 (driving) |
 | Production processed the vehicle's frames out of order | 1 (driving, rest) |
 
 The time offsets of up to a minute come from frames production's gate saw differently.

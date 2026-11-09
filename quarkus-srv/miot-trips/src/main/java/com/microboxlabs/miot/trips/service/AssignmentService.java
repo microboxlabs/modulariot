@@ -52,7 +52,18 @@ public class AssignmentService {
         return store.listByTrip(tenantCode, tripId);
     }
 
+    /** Assigns an active resource; 400 when it does not exist or is inactive. */
     public Assignment create(String tenantCode, String actor, UUID tripId, AssignmentRequest body) {
+        return create(tenantCode, actor, tripId, body, false);
+    }
+
+    /** For feeds: the source system already used the resource, so an inactive one is assigned as it is. */
+    public Assignment createFromFeed(String tenantCode, String actor, UUID tripId, AssignmentRequest body) {
+        return create(tenantCode, actor, tripId, body, true);
+    }
+
+    private Assignment create(String tenantCode, String actor, UUID tripId, AssignmentRequest body,
+            boolean acceptInactive) {
         return tx.inTransaction(() -> {
             if (body == null) {
                 throw new IllegalArgumentException("body is required");
@@ -72,9 +83,7 @@ public class AssignmentService {
             if (from.isAfter(now.plus(CLOCK_SKEW))) {
                 throw new IllegalArgumentException("validFrom cannot be in the future; assign the resource when it starts");
             }
-            if (!fleet.exists(tenantCode, type, resource)) {
-                throw new IllegalArgumentException(type + " " + resourceId + " does not exist or is inactive");
-            }
+            requireResource(tenantCode, type, resourceId, resource, acceptInactive);
             Assignment created = store.insert(new Assignment(null, tenantCode, tripId.toString(), type, resourceId,
                     from, null, Check.limitedOrNull(body.reason(), "reason", 255), null, actor, null, actor));
             live.refresh(tenantCode, tripId);
@@ -82,6 +91,16 @@ public class AssignmentService {
                     Map.of(RESOURCE_TYPE, type, RESOURCE_ID, resourceId));
             return created;
         });
+    }
+
+    private void requireResource(String tenantCode, String type, String resourceId, UUID resource,
+            boolean acceptInactive) {
+        boolean found = acceptInactive ? fleet.known(tenantCode, type, resource)
+                : fleet.exists(tenantCode, type, resource);
+        if (!found) {
+            throw new IllegalArgumentException(type + " " + resourceId
+                    + (acceptInactive ? " does not exist" : " does not exist or is inactive"));
+        }
     }
 
     /** Ends the validity window — the truck change. 409 when it already ended. */

@@ -13,7 +13,11 @@ export default async function TeamSettingsPage({ params }: ParamsWithLang) {
 
   return (
     <RouteGuard path="/users/settings/team">
-      <TeamPageContent dict={userSettings} lang={lang} />
+      <TeamPageContent
+        dict={userSettings}
+        rootDict={dictionary as unknown as I18nRecord}
+        lang={lang}
+      />
     </RouteGuard>
   );
 }

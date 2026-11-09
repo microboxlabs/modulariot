@@ -5,6 +5,7 @@ import { FilterSearchField } from "@/features/credentials/components/filter-sear
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { insertIntoFocused, type CelField } from "./cel-editor";
+import { FIELD_CARET_MIME } from "./cel-field-drop";
 import type { Preview, SourceField } from "./maintainer-api";
 import { originLabel } from "./symptom-side-panels";
 
@@ -133,6 +134,11 @@ function leafMatches(path: string, info: FieldInfo | undefined, q: string) {
   );
 }
 
+/** The fields of the elements of each list, by the list's path. */
+export type ListMembers = ReadonlyMap<string, readonly string[]>;
+
+const NO_MEMBERS: ListMembers = new Map();
+
 /**
  * The paths left by a filter: the fields whose path, label or description
  * holds `query`, and the objects above them. Null when there is no filter.
@@ -140,7 +146,8 @@ function leafMatches(path: string, info: FieldInfo | undefined, q: string) {
 export function visiblePaths(
   sample: Json,
   query: string,
-  infos: FieldInfos
+  infos: FieldInfos,
+  members: ListMembers = NO_MEMBERS
 ): ReadonlySet<string> | null {
   const q = fold(query.trim());
   if (!q) return null;
@@ -151,7 +158,9 @@ export function visiblePaths(
       const path = prefix ? `${prefix}.${name}` : name;
       const hit = isObject(v)
         ? walk(v, path)
-        : leafMatches(path, infos.get(path), q);
+        : [path, ...(members.get(path) ?? [])].some((p) =>
+            leafMatches(p, infos.get(p), q)
+          );
       if (hit) {
         out.add(path);
         any = true;
@@ -194,9 +203,51 @@ interface TreeContext {
   q: string;
   /** The paths the filter leaves; null without a filter. */
   visible: ReadonlySet<string> | null;
+  members: ListMembers;
+  insertText: InsertText;
   readOnly: boolean;
   d: I18nRecord;
   onToggle: (path: string) => void;
+}
+
+/** What inserting a field writes, and where the caret ends inside it. */
+export type InsertText = (path: string) => { text: string; caret: number };
+
+const insertPath: InsertText = (path) => ({ text: path, caret: path.length });
+
+function EngineWarning({
+  path,
+  ctx,
+}: Readonly<{ path: string; ctx: TreeContext }>) {
+  if (!ctx.notInEngine.has(path)) return null;
+  return (
+    <span className="ml-2 rounded bg-amber-50 px-1 text-[10px] text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+      {tr("engineNotYetTag", ctx.d)}
+    </span>
+  );
+}
+
+/** Name and meaning of one field of a list's elements, under the list. */
+function Member({
+  list,
+  path,
+  ctx,
+}: Readonly<{ list: string; path: string; ctx: TreeContext }>) {
+  const info = ctx.infos.get(path);
+  return (
+    <span className="block pl-3 font-sans text-[11px] leading-snug text-gray-500 dark:text-gray-400">
+      <span className="font-mono text-gray-700 dark:text-gray-300">
+        <Marked text={path.slice(list.length + 1)} q={ctx.q} />
+      </span>
+      <EngineWarning path={path} ctx={ctx} />
+      {info && (
+        <>
+          {" — "}
+          <Marked text={info.label} q={ctx.q} />
+        </>
+      )}
+    </span>
+  );
 }
 
 function Leaf({
@@ -213,15 +264,15 @@ function Leaf({
       <span className="text-gray-700 dark:text-gray-300">
         <Marked text={name} q={q} />
       </span>
-      <span className="text-gray-400"> : </span>
-      <span className={leafClass(value)}>
-        {JSON.stringify(value) ?? "null"}
-      </span>
-      {ctx.notInEngine.has(path) && (
-        <span className="ml-2 rounded bg-amber-50 px-1 text-[10px] text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-          {tr("engineNotYetTag", d)}
-        </span>
+      {value !== undefined && (
+        <>
+          <span className="text-gray-400"> : </span>
+          <span className={leafClass(value)}>
+            {JSON.stringify(value) ?? "null"}
+          </span>
+        </>
       )}
+      <EngineWarning path={path} ctx={ctx} />
       {info && (
         <span className="block font-sans text-[11px] leading-snug text-gray-500 dark:text-gray-400">
           <Marked text={info.label} q={q} />
@@ -236,6 +287,9 @@ function Leaf({
           )}
         </span>
       )}
+      {ctx.members.get(path)?.map((m) => (
+        <Member key={m} list={path} path={m} ctx={ctx} />
+      ))}
     </>
   );
   if (ctx.readOnly) return <div className="py-0.5 pl-4">{text}</div>;
@@ -247,10 +301,16 @@ function Leaf({
       title={label}
       aria-label={label}
       className="block w-full cursor-grab rounded py-0.5 pl-4 text-left hover:bg-blue-50 dark:hover:bg-blue-900/30"
-      onClick={() => insertIntoFocused(path)}
+      onClick={() => {
+        const { text, caret } = ctx.insertText(path);
+        if (text === path && caret === text.length) insertIntoFocused(path);
+        else insertIntoFocused(text, caret);
+      }}
       onDragStart={(e) => {
+        const { text, caret } = ctx.insertText(path);
         e.dataTransfer.effectAllowed = "copy";
-        e.dataTransfer.setData("text/plain", path);
+        e.dataTransfer.setData("text/plain", text);
+        e.dataTransfer.setData(FIELD_CARET_MIME, String(caret));
       }}
     >
       {text}
@@ -347,6 +407,9 @@ export default function SampleTree({
   index,
   notInEngine = new Set(),
   fields,
+  members = NO_MEMBERS,
+  insertText = insertPath,
+  layout = "row",
   readOnly,
   d,
   onIndex,
@@ -359,6 +422,12 @@ export default function SampleTree({
   notInEngine?: ReadonlySet<string>;
   /** Label, description, unit and origin of each field, by path. */
   fields?: FieldInfos;
+  /** The fields of each list's elements, shown under the list. */
+  members?: ListMembers;
+  /** What a click or a drag inserts for a field; its path by default. */
+  insertText?: InsertText;
+  /** "row" fills the grid row beside a rule; "panel" has its own height and scrolls inside. */
+  layout?: "row" | "panel";
   readOnly: boolean;
   d: I18nRecord;
   onIndex: (index: number) => void;
@@ -371,7 +440,7 @@ export default function SampleTree({
   if (!sample) return null;
   // held_s is not a field of the source: the engine computes it per level, so it is shown, not inserted.
   const { held_s: held, ...rest } = sample;
-  const visible = visiblePaths(rest, query, infos);
+  const visible = visiblePaths(rest, query, infos, members);
   const position = tr("sampleOf", d, {
     n: String(index + 1),
     total: String(samples.length),
@@ -389,14 +458,18 @@ export default function SampleTree({
     infos,
     q: fold(query.trim()),
     visible,
+    members,
+    insertText,
     readOnly,
     d,
     onToggle: toggle,
   };
   // On wide screens the tree fills its grid row, sized by the rule beside it, and scrolls inside.
   return (
-    <div className="relative lg:min-h-80">
-      <div className="flex max-h-80 flex-col rounded-lg border border-gray-200 lg:absolute lg:inset-0 lg:max-h-none dark:border-gray-700">
+    <div className={layout === "row" ? "relative lg:min-h-80" : undefined}>
+      <div
+        className={`flex flex-col rounded-lg border border-gray-200 dark:border-gray-700 ${layout === "row" ? "max-h-80 lg:absolute lg:inset-0 lg:max-h-none" : "max-h-[32rem]"}`}
+      >
         <div className="flex items-center justify-end gap-2 border-b border-gray-200 px-2 py-1.5 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">
           {typeof held === "number" && (
             <span

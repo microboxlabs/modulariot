@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.evaluator.evals.EvalTraces.Signal;
+import com.microboxlabs.miot.symptoms.signal.TripCheck;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -71,5 +72,53 @@ class ContinuousDrivingRuleCasesTest {
                 new Signal(300, EvalTraces.root(Map.of("check.trip.active", false, "check.trip.double_driver", false,
                         "check.driving_minutes", 300.0))));
         assertEquals(List.of(opened(0, 2), closed(300, 2)), EvalTraces.replay(PRODUCTION, CHECK, signals));
+    }
+
+    private static final String INSIDE = "check.?geo.?authorized_zone.orValue(false)";
+
+    /**
+     * Production's rule with the authorized zone as level 1: levels 2 to 4 only outside the zone, and level 1 for
+     * every frame inside it.
+     */
+    private static SymptomSpec quietInsideZones() {
+        List<SymptomSpec.Level> levels = new ArrayList<>();
+        for (SymptomSpec.Level l : PRODUCTION.levels()) {
+            String when = l.icu() == 1 ? "(" + l.when() + ") || " + INSIDE : "(" + l.when() + ") && !" + INSIDE;
+            levels.add(new SymptomSpec.Level(l.icu(), l.applies(), when, l.response()));
+        }
+        return new SymptomSpec(PRODUCTION.source(), PRODUCTION.activation(), PRODUCTION.measure(), levels,
+                PRODUCTION.lifecycle(), PRODUCTION.recurrence());
+    }
+
+    private static Signal zoned(int at, double minutes, Boolean inside) {
+        Map<String, Object> flat = new java.util.HashMap<>(Map.of("check.trip.active", true,
+                "check.trip.double_driver", false, "check.driving_minutes", minutes));
+        if (inside != null) {
+            flat.put("check.geo.authorized_zone", inside);
+        }
+        return new Signal(at, EvalTraces.root(flat));
+    }
+
+    @Test
+    void enteringAnAuthorizedZoneDropsTheCaseToLevelOneAndLeavingItRaisesItAgain() {
+        List<Signal> signals = List.of(zoned(0, 340, false), zoned(300, 345, true), zoned(600, 350, true),
+                zoned(900, 355, null), zoned(1200, 362, true), zoned(1500, 365, false));
+        assertEquals(List.of(opened(0, 3), changed(300, 3, 1), changed(900, 1, 3), changed(1200, 3, 1),
+                changed(1500, 1, 4)), EvalTraces.replay(quietInsideZones(), CHECK, signals));
+    }
+
+    @Test
+    void theZoneExpressionCompilesAndReadsFalseOnLostSignalChecks() {
+        SymptomSpec spec = new SymptomSpec("trip_check", "check.driving_minutes >= 0 && !" + INSIDE, null,
+                List.of(new SymptomSpec.Level(1, true, INSIDE + " == false", null)), PRODUCTION.lifecycle(), null);
+        List<Signal> lost = new ArrayList<>();
+        List<Map<String, Object>> samples = TripCheck.samples();
+        for (int i = 0; i < samples.size(); i++) {
+            lost.add(new Signal(i * 300, samples.get(i)));
+        }
+        assertEquals(List.of(opened(0, 1)), EvalTraces.replay(spec, CHECK, lost), "no geo: outside");
+        assertEquals(List.of(opened(0, 1)), EvalTraces.replay(spec, CHECK,
+                List.of(zoned(0, 10, false), zoned(300, 10, null))));
+        assertEquals(List.of(), EvalTraces.replay(spec, CHECK, List.of(zoned(0, 10, true))));
     }
 }

@@ -10,6 +10,9 @@ Two things live here, behind one component switch (`miot.component.symptoms.enab
    now. The form option lists are the core selectables API; this module seeds
    the treatment-form defaults. See [docs/control-tower-api.md](docs/control-tower-api.md).
 
+To run the signal builder and evaluator on their own replicas, apart from the API pod, see
+[docs/deployment.md](docs/deployment.md).
+
 This is **not** a detector. Heavy work stays in Postgres `process_symptoms_*`
 and (optionally) n8n / `router.streamhub.cl`.
 
@@ -51,6 +54,8 @@ MIOT_COMPONENT_SYMPTOMS_ENABLED=true
 MIOT_GPS_REACTIVE_URL=postgresql://host:5432/prod_iot_gps
 MIOT_GPS_USERNAME=...
 MIOT_GPS_PASSWORD=...
+# optional: legacy speed database for road limits (docs/gps-signal.md)
+MIOT_SPEED_DB_HOST=... MIOT_SPEED_DB_NAME=... MIOT_SPEED_DB_USERNAME=... MIOT_SPEED_DB_PASSWORD=...
 MIOT_SYMPTOMS_ROUTES_FILE=/config/symptoms-routes.json
 ```
 

@@ -49,7 +49,9 @@ public class PgSlaStore implements SlaStore {
                    AND NOT EXISTS (%s)),
             with_sla AS (
                 SELECT x.*, (SELECT (lv->'response'->>'slaMinutes')::integer
-                               FROM miot_symptoms.symptom_version v, jsonb_array_elements(v.spec->'levels') lv
+                               FROM miot_symptoms.symptom_version v, jsonb_array_elements(
+                                    CASE jsonb_typeof(v.spec) WHEN 'string' THEN (v.spec #>> '{}')::jsonb
+                                    ELSE v.spec END -> 'levels') lv
                               WHERE v.tenant_code = x.tenant_code AND v.definition_id = x.definition_id
                                 AND v.version = x.version AND v.status = 'PUBLISHED'
                                 AND (lv->>'icu')::integer = x.current_level

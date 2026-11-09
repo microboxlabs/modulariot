@@ -9,6 +9,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.signal.GpsSignal;
+import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -34,6 +35,7 @@ import java.util.UUID;
  * @param lifecycleOnEvents its close or note rule reads a device event, so a late frame may still close or note
  *                  its open case
  * @param reads     the field paths its rules read
+ * @param speedLimitSource the limit read by a recognized speed-excess measure, or null
  */
 public record CompiledSymptom(
         UUID definitionId,
@@ -49,7 +51,8 @@ public record CompiledSymptom(
         boolean levelDown,
         boolean opensOnEvents,
         boolean lifecycleOnEvents,
-        Set<String> reads) {
+        Set<String> reads,
+        String speedLimitSource) {
 
     /**
      * Device events: a device stores them while it cannot reach the network and delivers them late, often after
@@ -65,7 +68,7 @@ public record CompiledSymptom(
             PreparedRule activation, PreparedRule measure, Map<Integer, PreparedRule> levels, PreparedRule open,
             PreparedRule close, boolean levelDown, boolean eventDriven) {
         this(definitionId, version, state, sourceKey, activation, measure, levels, open, close, null, levelDown,
-                eventDriven, false, Set.of());
+                eventDriven, false, Set.of(), null);
     }
 
     /** Without the fields its rules read. */
@@ -75,7 +78,7 @@ public record CompiledSymptom(
             PreparedRule close, PreparedRule note, boolean levelDown, boolean opensOnEvents,
             boolean lifecycleOnEvents) {
         this(definitionId, version, state, sourceKey, activation, measure, levels, open, close, note, levelDown,
-                opensOnEvents, lifecycleOnEvents, Set.of());
+                opensOnEvents, lifecycleOnEvents, Set.of(), null);
     }
 
     /** One of its rules reads the field, or a field under it. */
@@ -91,7 +94,7 @@ public record CompiledSymptom(
     /** The same rules under another state, as when the symptom is switched between test and active. */
     public CompiledSymptom withState(SymptomState next) {
         return new CompiledSymptom(definitionId, version, next, sourceKey, activation, measure, levels, open,
-                close, note, levelDown, opensOnEvents, lifecycleOnEvents, reads);
+                close, note, levelDown, opensOnEvents, lifecycleOnEvents, reads, speedLimitSource);
     }
 
     public static CompiledSymptom compile(UUID definitionId, String version, SymptomState state, SymptomSpec spec,
@@ -132,7 +135,8 @@ public record CompiledSymptom(
                 RuleLanguage.prepare(lifecycle, spec.lifecycle().close()),
                 note == null ? null : RuleLanguage.prepare(lifecycle, note), spec.lifecycle().levelDown(),
                 opening.stream().anyMatch(CompiledSymptom::readsEvents),
-                readsEvents(spec.lifecycle().close()) || readsEvents(note), Set.copyOf(reads));
+                readsEvents(spec.lifecycle().close()) || readsEvents(note), Set.copyOf(reads),
+                EngineCase.SpeedLimit.source(spec.measure() == null ? null : spec.measure().expression()));
     }
 
     private static Set<String> paths(String rule) {

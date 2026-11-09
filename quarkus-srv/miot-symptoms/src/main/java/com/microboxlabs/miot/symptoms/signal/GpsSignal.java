@@ -200,10 +200,19 @@ public record GpsSignal(
             @JsonProperty("road_class") String roadClass,
             @Schema(title = "Zona de límite propio", description = "Zona de la organización de la que sale el "
                     + "límite propio", extensions = @Extension(name = "x-origin", value = "TENANT_SETTINGS"))
-            @JsonProperty("custom_zone_id") Integer customZoneId) {
+            @JsonProperty("custom_zone_id") Integer customZoneId,
+            @Schema(title = "Nombre de la zona de límite propio", description = "Nombre de esa zona en la tabla de "
+                    + "la organización; sin dato si no lo tiene", extensions = @Extension(name = "x-origin",
+                    value = "TENANT_SETTINGS"))
+            @JsonProperty("custom_zone_name") String customZoneName) {
 
         public Road(Double maxspeedOsm, Double maxspeedCustom) {
-            this(maxspeedOsm, maxspeedCustom, null, null, null);
+            this(maxspeedOsm, maxspeedCustom, null, null, null, null);
+        }
+
+        public Road(Double maxspeedOsm, Double maxspeedCustom, Long osmWayId, String roadClass,
+                Integer customZoneId) {
+            this(maxspeedOsm, maxspeedCustom, osmWayId, roadClass, customZoneId, null);
         }
     }
 
@@ -214,7 +223,8 @@ public record GpsSignal(
             @Schema(title = "En zona autorizada", description = "Dentro de al menos una zona autorizada",
                     extensions = @Extension(name = "x-origin", value = "ZONES"))
             @JsonProperty("authorized_zone") Boolean authorizedZone,
-            @Schema(title = "Zona", extensions = {
+            @Schema(title = "Zona", description = "Nombre de la zona en la que está: primero una de riesgo, luego "
+                    + "una autorizada", extensions = {
                     @Extension(name = "x-type", value = "zone"), @Extension(name = "x-origin", value = "ZONES") })
             String zone,
             @Schema(title = "En zona de riesgo", description = "Dentro de al menos una zona de riesgo",
@@ -223,10 +233,22 @@ public record GpsSignal(
             @Schema(title = "Fuera de zona autorizada", description = "En ninguna zona, o dentro de una zona no "
                     + "autorizada aunque se cruce con una autorizada",
                     extensions = @Extension(name = "x-origin", value = "ZONES"))
-            @JsonProperty("outside_authorized") Boolean outsideAuthorized) {
+            @JsonProperty("outside_authorized") Boolean outsideAuthorized,
+            @Schema(title = "Zona de riesgo con horario", description = "La zona de riesgo tiene su propio horario "
+                    + "de riesgo",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @JsonProperty("risk_scheduled") Boolean riskScheduled,
+            @Schema(title = "En horario de riesgo", description = "La hora local está dentro del horario de la zona "
+                    + "de riesgo; sin dato si la zona no tiene horario",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @JsonProperty("in_risk_schedule") Boolean inRiskSchedule) {
 
         public Geo(Boolean authorizedZone, String zone) {
             this(authorizedZone, zone, null, null);
+        }
+
+        public Geo(Boolean authorizedZone, String zone, Boolean riskZone, Boolean outsideAuthorized) {
+            this(authorizedZone, zone, riskZone, outsideAuthorized, null, null);
         }
     }
 

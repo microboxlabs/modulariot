@@ -142,7 +142,7 @@ A trip ends when `miot_trips.trip` has it `completed` or `cancelled`, or has no 
 | `miot_trips_live` notice | Every `trip_live` change, including the delete at the trip's end. Each replica with the detector on reads the trip's state |
 | Next check of the vehicle | Each check first reads the state of the trips in the watch, so a missed notice is caught. A failed read fails the check, which is retried on the next tick |
 
-On a trip end, every open case of the trip on a TEST or ACTIVE `trip_check` symptom evaluated by the lost-signal detector closes at its current level. Symptoms that read duty counters run on frames and keep their own lifecycle:
+On a trip end, every open TEST or ACTIVE case of the trip closes at its current level, whatever its symptom: lost signal, the evaluator's `gps_signal` symptoms (speed, ETA deviation) and the duty symptoms. Cases of the vehicle's other trips, and of other organizations, stay open. The detector must be on (`MIOT_SYMPTOMS_EVALUATOR_ENABLED`):
 
 | Field | Value |
 |---|---|

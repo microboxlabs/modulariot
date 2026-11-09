@@ -48,6 +48,7 @@ Rule previews use the organization's recent signals. At most one signal per orga
 | Open | No case open, the condition holds and the lifecycle's open rule is true |
 | Level change | A case's level only rises, unless the lifecycle's `levelDown` lets it follow the measure down while the condition holds |
 | Close | The lifecycle's close rule is true. If the condition still holds, the next signal starts a new run |
+| Trip end | The case's trip is completed, cancelled or deleted: the case closes with `closed_by` `trip_ended` (see [lost-signal.md](lost-signal.md#trip-end)) |
 
 `case.off_trip_s` counts from the first observed off-trip frame of an open case and resets on a trip; it is -1 while on a trip or without trip evidence. Cargo rules require both 1200 seconds off a trip and 1200 seconds without their event.
 
@@ -73,6 +74,16 @@ An ACTIVE OPENED row of `signal_transitions` is a Control Tower case until a CLO
 | `GET …/control-tower/map/symptoms` | Page 1 lists the matching cases first, in the GPS function's row shape, with their count in `engine_cases`; the paging totals stay the GPS function's. Cases answer `p_trip_id`, `p_asset_id` (part of the plate), `p_symptom_name`, `p_icu_code` (current level) and the dates: without dates the open cases, with them the cases opened in the range, closed ones with `end_time`. A driver, carrier, origin or destination filter leaves them out. They still show when the GPS database cannot be read |
 | `GET …/map/symptoms/{id}`, `…/{id}/signals` | A negative id is a case: header from the catalog and the trip's `trip_live` row while it runs, and the signal's point as an EWKB feature with the case's `icu_code`. The case runs from its start until it closed or now: the start is `check.loss.last.at` (the last frame before the silence) when the opening context has it, else the opening. The header adds `symptom_info.opened_at`, `started_at`, `duration_sec` and `level_reason`: `icu_code`, `icu_condition`, `rule` (the level's `when` in the version that opened the case), `context` (null when not kept), `lost_since` and `levels` (`at`, `icu_code` of each change, oldest first). For a symptom whose measure is the speed minus `signal.road.maxspeed_osm` or `maxspeed_custom`, each level step, the signals' `description` (from the change that set the level) and the case point (from the opening) add `speed` and `speed_limit` in km/h, as the GPS database names them, with `speed_limit_source` (`road`, `custom`) and `speed_limit_zone` (the own zone's name, when known). The limit is the change's `context.speed_limit`; a change written before it was kept derives it as the speed minus the measure, rounding only when that transition version's measure rounds the speed |
 | `POST …/treatments/{id}/close` | Closing the treatment of a case closes the case (CLOSED row with `closed_by`) and drops its Redis episode, so the next signal that meets the condition opens a new case |
+
+The row's `trip_code` and the header's `trip.code` are the trip's service code, in this order:
+
+| Source | When |
+|---|---|
+| `trip_live.mandate_codes[0].code` | The trip runs |
+| `mandate.external_code` of the trip's first current `trip_mandate` | The trip ended and its `trip_live` row is gone |
+| `feed_service.external_code` of the trip | Neither of the above |
+
+When `trip_code` is null, the app shows `trip_id`.
 
 While an "Ignorar condición" hold covers an ACTIVE symptom on the vehicle (`cases/HoldIndex`, see [control-tower-api.md](control-tower-api.md)), its open case keeps its level and may still close, and a case that would open does not: the first such opening of a run is a `HELD` row (V0.12.13), evidence only, with no event. The level hold times restart with the first signal after the hold.
 

@@ -47,6 +47,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final String FROM_SUBQUERY = " FROM (";
     private static final String ASSET_ID = "asset_id";
+    private static final String DEFINITION_ID = "definition_id";
     private static final String MEASURE = "measure";
     private static final String SPEED_KMH = "speed_kmh";
 
@@ -261,7 +262,8 @@ public class PgEngineCases implements EngineCaseStore {
             + " NULL::text AS trip_destination FROM (%s) c ORDER BY c.at DESC";
     private static final String OPENED = CASES + " AND o.at >= $2 AND o.at < $3";
     private static final String OPENED_COUNTS = "SELECT y.definition_id, y.current_level, count(*) AS n,"
-            + " count(*) FILTER (WHERE y.level_operator IS FALSE) AS without_operator"
+            + " count(*) FILTER (WHERE NOT "
+            + needsOperator("y") + ") AS without_operator"
             + FROM_SUBQUERY + SELECT.formatted(OPENED) + ") y GROUP BY 1, 2";
     /** When the case reached its current level: its latest level change before it closed, else its opening. */
     private static final String LEVEL_SINCE = """
@@ -595,7 +597,7 @@ public class PgEngineCases implements EngineCaseStore {
     public List<LevelCount> openedCounts(String tenantCode, Instant from, Instant to) {
         List<LevelCount> out = new ArrayList<>();
         PgIds.query(pool.get(), OPENED_COUNTS, Tuple.of(tenantCode, utc(from), utc(to))).forEach(r -> out.add(
-                new LevelCount(r.getUUID("definition_id"), r.getInteger("current_level"), r.getLong("n"),
+                new LevelCount(r.getUUID(DEFINITION_ID), r.getInteger("current_level"), r.getLong("n"),
                         r.getLong("without_operator"))));
         return out;
     }
@@ -604,7 +606,7 @@ public class PgEngineCases implements EngineCaseStore {
     public List<DueCase> openedPage(String tenantCode, Instant from, Instant to, long afterId, int limit) {
         List<DueCase> out = new ArrayList<>();
         PgIds.query(pool.get(), OPENED_PAGE, Tuple.of(tenantCode, utc(from), utc(to), afterId, limit))
-                .forEach(r -> out.add(new DueCase(r.getLong("id"), r.getUUID("definition_id"),
+                .forEach(r -> out.add(new DueCase(r.getLong("id"), r.getUUID(DEFINITION_ID),
                         r.getOffsetDateTime("level_since").toInstant(), r.getInteger("sla_minutes"))));
         return out;
     }
@@ -739,14 +741,14 @@ public class PgEngineCases implements EngineCaseStore {
     /** The case identity shared by closure queries and the durable trip-end effects queue. */
     public static StaleCase staleCase(Row r) {
         return new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
-                r.getUUID("definition_id"), r.getString("version"), "TEST".equals(r.getString("state")),
+                r.getUUID(DEFINITION_ID), r.getString("version"), "TEST".equals(r.getString("state")),
                 r.getString(ASSET_ID), r.getInteger("level"), r.getString("trip_id"), r.getDouble("latitude"),
                 r.getDouble("longitude"), r.getDouble(SPEED_KMH), r.getOffsetDateTime("opened_at").toInstant());
     }
 
     private static EngineCase engineCase(Row r) {
         OffsetDateTime closed = r.getOffsetDateTime("closed_at");
-        return new EngineCase(r.getLong("id"), r.getUUID("definition_id"), r.getString("version"),
+        return new EngineCase(r.getLong("id"), r.getUUID(DEFINITION_ID), r.getString("version"),
                 r.getString("name"), r.getString("family"), r.getString(ASSET_ID),
                 r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble(SPEED_KMH),

@@ -438,7 +438,6 @@ public final class SpecValidator {
                 .orElse(point);
     }
 
-    /** A list field compared with a value it does not take, anywhere in the activation. */
     /**
      * A level's {@code operatorWhen} reads what the activation reads; it is checked only where it counts, on a
      * level that applies and has {@code operator}.
@@ -459,6 +458,7 @@ public final class SpecValidator {
         }
     }
 
+    /** A list field compared with a value it does not take, anywhere in the activation. */
     private static void unknownValues(List<Finding> out, DataSource source, String activation) {
         unknownValues(out, source, activation, ACTIVATION);
     }

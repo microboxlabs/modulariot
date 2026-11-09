@@ -193,8 +193,8 @@ public interface EngineCaseStore {
     }
 
     /**
-     * Cases opened at a level. {@code withoutOperator} counts those the evaluator decided keep off the operators at
-     * that level, although its response has {@code operator} ({@code operatorWhen} did not hold).
+     * Cases opened at a level. {@code withoutOperator} counts cases without an operator, using the stored
+     * decision or, for older rows, the response in the version that opened the case.
      */
     record LevelCount(UUID definitionId, int level, long count, long withoutOperator) {
 

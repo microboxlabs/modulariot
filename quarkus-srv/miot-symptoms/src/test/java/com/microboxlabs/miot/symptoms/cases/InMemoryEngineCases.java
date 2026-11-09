@@ -48,7 +48,13 @@ public class InMemoryEngineCases implements EngineCaseStore {
      */
     public final Map<UUID, Set<Integer>> operatorLevels = new HashMap<>();
 
+    /** Stored per-case decisions override the version fallback. */
+    public final Map<Long, Boolean> operatorRequired = new HashMap<>();
+
     private boolean needsOperator(EngineCase c) {
+        if (operatorRequired.containsKey(c.id())) {
+            return operatorRequired.get(c.id());
+        }
         Set<Integer> levels = operatorLevels.get(c.definitionId());
         return levels == null || levels.contains(c.level());
     }
@@ -160,8 +166,9 @@ public class InMemoryEngineCases implements EngineCaseStore {
             throw new IllegalStateException("database down");
         }
         return opened(from, to).collect(Collectors.groupingBy(c -> List.of(c.definitionId(), c.level()),
-                Collectors.counting())).entrySet().stream()
-                .map(e -> new LevelCount((UUID) e.getKey().get(0), (Integer) e.getKey().get(1), e.getValue()))
+                Collectors.toList())).entrySet().stream()
+                .map(e -> new LevelCount((UUID) e.getKey().get(0), (Integer) e.getKey().get(1), e.getValue().size(),
+                        e.getValue().stream().filter(c -> !needsOperator(c)).count()))
                 .toList();
     }
 

@@ -716,6 +716,7 @@ public class EngineCaseService {
         symptom.put(ICU_CONDITION, condition(c.level()));
         symptom.put("opened_at", c.openedAt().toString());
         symptom.put("sla_since", c.slaStart().toString());
+        symptom.put("sla_minutes", c.slaMinutes());
         symptom.put("started_at", start);
         symptom.put("duration_sec", Duration.between(started, ended).toSeconds());
         putHold(symptom, c);

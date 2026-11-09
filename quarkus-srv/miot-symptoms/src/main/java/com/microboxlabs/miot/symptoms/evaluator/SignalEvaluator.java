@@ -318,7 +318,7 @@ public class SignalEvaluator {
 
     /**
      * The level's {@code operator}, and when it has one its {@code operatorWhen} on this signal. A condition that
-     * cannot run, as when it reads a value the signal lacks (no trip), sends no operator and is reported.
+     * reads a missing value sends no operator. Other failures are reported without discarding the transition.
      */
     static boolean operator(CompiledSymptom s, int level, Map<String, Object> root, List<RuleError> errors) {
         CompiledSymptom.Operator rule = s.operators().getOrDefault(level, CompiledSymptom.Operator.NONE);

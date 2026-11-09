@@ -3,9 +3,7 @@ package com.microboxlabs.miot.symptoms.catalog.service;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.DueCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.LevelCount;
-import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
-import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
 import com.microboxlabs.miot.symptoms.domain.TowerSettings;
 import com.microboxlabs.miot.symptoms.service.TowerSettingsService;
@@ -63,7 +61,7 @@ public class SymptomStatsService {
 
     /**
      * One definition's weekly averages; {@code operatorWeek} counts the cases at levels that need an operator,
-     * less those its {@code operatorWhen} kept off the operators.
+     * using the stored decision, with the original version as fallback for older cases.
      */
     public record PerSymptom(UUID definitionId, List<Long> weekByLevel, long week, long operatorWeek) {
     }
@@ -148,8 +146,7 @@ public class SymptomStatsService {
                 attended[i] = Math.max(0, attended[i] - off[i]);
             }
             List<Long> operatorByLevel = weekly(attended, days);
-            long operatorWeek = operatorLevels(s.current()).stream().mapToLong(icu -> operatorByLevel.get(icu - 1))
-                    .sum();
+            long operatorWeek = sum(operatorByLevel);
             if (s.definition().state() == SymptomState.ACTIVE) {
                 operatorWeekActive += operatorWeek;
             }
@@ -171,19 +168,6 @@ public class SymptomStatsService {
         Instant start = firstCase.isAfter(from) ? firstCase : from;
         long days = Duration.between(start, now).plusDays(1).minusNanos(1).toDays();
         return (int) Math.clamp(days, MIN_WINDOW_DAYS, WINDOW_DAYS);
-    }
-
-    /** ICU levels of the version in force that apply and need an operator. */
-    static List<Integer> operatorLevels(SymptomVersion current) {
-        if (current == null || current.spec() == null || current.spec().levels() == null) {
-            return List.of();
-        }
-        return current.spec().levels().stream()
-                .filter(l -> l.applies() && l.icu() >= 1 && l.icu() <= LEVELS)
-                .filter(l -> l.response() != null && l.response().operator())
-                .map(SymptomSpec.Level::icu)
-                .distinct()
-                .toList();
     }
 
     private static List<Long> weekly(long[] windowCounts, int days) {

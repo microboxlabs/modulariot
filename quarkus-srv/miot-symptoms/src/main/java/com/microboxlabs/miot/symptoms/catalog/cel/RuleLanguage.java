@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import dev.cel.bundle.Cel;
 import dev.cel.bundle.CelFactory;
+import dev.cel.common.CelErrorCode;
 import dev.cel.common.CelIssue;
 import dev.cel.common.CelOptions;
 import dev.cel.common.CelValidationException;
@@ -109,6 +110,15 @@ public final class RuleLanguage {
 
     /** Compiles a rule once, to run it on many samples. */
     public static PreparedRule prepare(RuleSchema schema, String expression) {
+        return prepare(schema, expression, false);
+    }
+
+    /** An operator condition treats an absent source value as false, without failing the evaluation. */
+    public static PreparedRule prepareOperatorCondition(RuleSchema schema, String expression) {
+        return prepare(schema, expression, true);
+    }
+
+    private static PreparedRule prepare(RuleSchema schema, String expression, boolean missingIsFalse) {
         Cel cel = cel(schema);
         CelValidationResult result = compile(cel, expression == null ? "" : expression).result();
         if (result.hasError()) {
@@ -121,6 +131,9 @@ public final class RuleLanguage {
                 try {
                     return RuleResult.of(program.eval(withConstants(variables)));
                 } catch (CelEvaluationException e) {
+                    if (missingIsFalse && e.getErrorCode() == CelErrorCode.ATTRIBUTE_NOT_FOUND) {
+                        return RuleResult.of(false);
+                    }
                     return RuleResult.failed(RuleMessages.plain(e.getMessage()).spanish());
                 }
             };

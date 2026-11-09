@@ -877,7 +877,16 @@ export default function CallCenterMenu({
   };
 
   const response = level?.level.response;
-  const steps = response?.operator ? (response.steps ?? NO_STEPS) : NO_STEPS;
+  const caseSla = symptom?.sla_minutes;
+  const slaMinutes =
+    caseId !== null && caseSla !== undefined
+      ? (caseSla ?? 0)
+      : (response?.slaMinutes ?? 0);
+  const needsOperator =
+    caseId !== null && caseSla !== undefined
+      ? slaMinutes > 0
+      : Boolean(response?.operator);
+  const steps = needsOperator ? (response?.steps ?? NO_STEPS) : NO_STEPS;
   const conditions = useMemo(() => stepConditions(steps), [steps]);
   const {
     data: tripView,
@@ -910,7 +919,7 @@ export default function CallCenterMenu({
   const stepEnd = steps
     .slice(0, due + 1)
     .reduce((sum, s) => sum + (s.budgetMinutes ?? 0) * 60, 0);
-  const sla = (response?.slaMinutes ?? 0) * 60;
+  const sla = slaMinutes * 60;
 
   const handleNewNumber = async (
     { phone, name, preset, script }: NewCallDraft,

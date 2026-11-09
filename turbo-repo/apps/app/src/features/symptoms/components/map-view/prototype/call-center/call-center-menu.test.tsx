@@ -314,6 +314,47 @@ describe("CallCenterMenu", () => {
     );
   });
 
+  it("shows no step budget or SLA when the case does not require an operator", () => {
+    data.level = levelWith([
+      { role: "Conductor", channel: "call", budgetMinutes: 2 },
+    ]);
+    renderMenu({
+      ...treatment,
+      symptom_info: {
+        ...treatment.symptom_info,
+        sla_since: new Date().toISOString(),
+        sla_minutes: null,
+      },
+    });
+
+    expect(document.querySelector('[aria-current="step"]')).toBeNull();
+    expect(screen.queryByText(/SLA \d+:\d\d/)).toBeNull();
+  });
+
+  it("uses the case SLA even when the current level has no operator", () => {
+    data.level = {
+      version: 5,
+      level: {
+        response: {
+          operator: false,
+          slaMinutes: null,
+          steps: [{ role: "Conductor", channel: "call", budgetMinutes: 2 }],
+        },
+      },
+    };
+    renderMenu({
+      ...treatment,
+      symptom_info: {
+        ...treatment.symptom_info,
+        sla_since: new Date().toISOString(),
+        sla_minutes: 5,
+      },
+    });
+
+    expect(document.querySelector('[aria-current="step"]')).toBeTruthy();
+    expect(screen.getByText(/SLA [45]:/)).toBeTruthy();
+  });
+
   it("lists each step with the book contacts its condition matches", async () => {
     data.level = levelWith([
       {

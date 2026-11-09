@@ -43,6 +43,8 @@ export type TreatmentsSymptomInfoResponse = {
   opened_at?: string;
   /** The server's current-level SLA start, including returns from holds. */
   sla_since?: string | null;
+  /** Engine cases: resolved SLA; null means this case requires no operator. */
+  sla_minutes?: number | null;
   started_at?: string;
   duration_sec?: number;
   /** Engine cases on an "Ignorar condición" hold. */

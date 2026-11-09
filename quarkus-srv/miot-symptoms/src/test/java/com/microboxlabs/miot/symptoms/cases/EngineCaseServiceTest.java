@@ -512,6 +512,16 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void theHeaderExplicitlyReportsNoSlaForACaseWithoutAnOperator() {
+        store.add(new EngineCase(13, PANIC, "0.1.0", "Demo symptom", "demo", "vehicle-demo", OPENED, 4,
+                null, null, null, null, null, 0, null, null));
+
+        JsonNode symptom = service.header(TENANT, -13).path("symptom_info");
+        assertTrue(symptom.has("sla_minutes"));
+        assertTrue(symptom.path("sla_minutes").isNull());
+    }
+
+    @Test
     void theHeaderAndTheSignalsDescribeTheCase() {
         store.add(panic(12, "DEMO01"));
 
@@ -519,6 +529,10 @@ class EngineCaseServiceTest {
         assertEquals("Botón de pánico", header.path("symptom_info").path("name").asText());
         assertEquals(4, header.path("symptom_info").path("icu_code").asInt());
         assertEquals("T-1", header.path("trip_info").path("trip_id").asText());
+        assertTrue(header.path("symptom_info").has("sla_minutes"));
+        assertEquals(store.find(TENANT, 12).orElseThrow().slaMinutes(),
+                header.path("symptom_info").path("sla_minutes").isNull() ? null
+                        : header.path("symptom_info").path("sla_minutes").asInt());
         JsonNode agg = header.path("timeline").get(0).path("conditions_agg").get(0);
         assertEquals(-12, agg.path("symptom_id").asLong(), "the map selects the case to load its point");
         assertEquals("Botón de pánico", agg.path("type").asText());

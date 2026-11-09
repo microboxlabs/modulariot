@@ -142,8 +142,9 @@ public record CompiledSymptom(
                 levels.put(l.icu(), RuleLanguage.prepare(levelSchema, l.when()));
                 opening.add(l.when());
             }
-            operators.putIfAbsent(l.icu(), operator(schema, l.response()));
-            if (l.response() != null && l.response().operator()) {
+            Operator operator = operator(schema, l.response());
+            operators.putIfAbsent(l.icu(), operator);
+            if (operator.required()) {
                 operatorRules.add(l.response().operatorWhen());
             }
         }
@@ -175,7 +176,7 @@ public record CompiledSymptom(
             return Operator.NONE;
         }
         String when = response.operatorWhen();
-        return new Operator(true, when == null ? null : RuleLanguage.prepare(schema, when));
+        return new Operator(true, when == null ? null : RuleLanguage.prepareOperatorCondition(schema, when));
     }
 
     private static Set<String> paths(String rule) {

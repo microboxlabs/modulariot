@@ -78,15 +78,42 @@ class OperatorDecisionTest {
     }
 
     @Test
-    void aMissingValueMeansNoOperatorAndIsReported() {
+    void aMissingValueMeansNoOperatorWithoutFailingTheEvaluation() {
         Result r = run(new SignalEvaluator(new InMemoryEpisodeStore()), "truck-1", 0, 105, null,
                 symptom(NOT_OTR_OTE));
 
         assertEquals(List.of(Kind.OPENED), r.transitions().stream().map(Transition::kind).toList(),
                 "the case is recorded");
         assertEquals(Boolean.FALSE, r.transitions().get(0).operator());
-        assertEquals(1, r.errors().size());
-        assertEquals("levels.3.response.operatorWhen", r.errors().get(0).section());
+        assertTrue(r.errors().isEmpty());
+    }
+
+    @Test
+    void aMissingTripMeansNoOperatorWithoutFailingTheEvaluation() {
+        List<SignalEvaluator.RuleError> errors = new ArrayList<>();
+
+        assertFalse(SignalEvaluator.operator(symptom(NOT_OTR_OTE), 3,
+                Map.of("signal", Map.of()), errors));
+        assertTrue(errors.isEmpty());
+    }
+
+    @Test
+    void anUnchangedLevelKeepsItsDecisionUntilTheNextLevelChange() {
+        SignalEvaluator evaluator = new SignalEvaluator(new InMemoryEpisodeStore());
+        CompiledSymptom s = symptom(NOT_OTR_OTE);
+        assertEquals(Boolean.FALSE, run(evaluator, "truck-1", 0, 105, "otr", s).transitions().getFirst().operator());
+        assertTrue(run(evaluator, "truck-1", 1, 105, "v", s).transitions().isEmpty());
+        assertTrue(run(evaluator, "truck-1", 2, 115, "v", s).transitions().isEmpty());
+        assertEquals(Boolean.TRUE, run(evaluator, "truck-1", 62, 115, "v", s).transitions().getFirst().operator());
+    }
+
+    @Test
+    void otherRuleFailuresAreReportedWithoutDroppingTheCase() {
+        Result r = run(new SignalEvaluator(new InMemoryEpisodeStore()), "truck-1", 0, 105, "v",
+                symptom("1 / 0 > 0"));
+
+        assertEquals(Boolean.FALSE, r.transitions().getFirst().operator());
+        assertEquals("levels.3.response.operatorWhen", r.errors().getFirst().section());
     }
 
     @Test

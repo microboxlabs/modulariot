@@ -46,7 +46,7 @@ Action body:
 | `contactId` | string | A tenant contact. Name, role and phone are copied onto the action |
 | `contactName`, `contactRole`, `contactPhone` | string | Ad hoc contact, e.g. the trip's driver. A `CALL` needs `contactId` or `contactName` |
 | `method` | `PHONE` `WHATSAPP` `MEET` `TEAMS` | Channel used |
-| `outcomeKey`, `outcomeLabel` | string | Option id and its text. `IGNORE` and `INVALIDATE` need one of them (the reason) |
+| `outcomeKey`, `outcomeLabel` | string | Option id and its text. `IGNORE` and `INVALIDATE` need one of them (the reason). On a `NOTE`, they make it a handling record (below) |
 | `answered` | boolean | Feeds the contact's answered and missed counts |
 | `durationSeconds` | int ≥ 0 | |
 | `message` | string | What the operator told the contact |
@@ -65,6 +65,15 @@ starts the script over. The app also sends `level` and `version`, and a UUID
 action or audit event.
 It also sends the panel's `slaSince`: the reader excludes a skip from a
 different level or SLA interval even when a delayed save lands after the reset.
+
+A `NOTE` with `outcomeKey` or `outcomeLabel` is a handling record
+("Registrar gestión"): the operator handled the case without a call. The
+outcome comes from the `handling_outcome` list and `note` is required. The
+app then calls `closeTreatment` with `resolution` "Gestión: …". The case
+history shows it as `registrar gestion`, with the outcome as `message` and
+the note as `driver_response`; the timeline lists it as an `ACTION` of kind
+`NOTE` with its outcome. SLA and the tower counters read the treatment, not
+the action kind, so it counts as handled like a call close.
 
 ### Ignorar condición (engine cases)
 
@@ -356,6 +365,7 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 | Ignore, from the menu or mid-call | `addTreatmentAction {kind: IGNORE, outcomeKey, durationSeconds, details.scope}`; the treatment stays open while the hold lasts |
 | "Reanudar" | `resumeTreatment` |
 | Invalidate | `addTreatmentAction {kind: INVALIDATE, outcomeKey, note}` then `closeTreatment` |
+| "Registrar gestión" | `openTreatment {type: CALL}`, `addTreatmentAction {kind: NOTE, outcomeKey, outcomeLabel, note}` then `closeTreatment` |
 | Panel closed with nothing recorded | `cancelTreatment` |
 | Timeline and symptom card | `listSymptomTreatments` |
 | Settings › Seleccionables | core selectables API |

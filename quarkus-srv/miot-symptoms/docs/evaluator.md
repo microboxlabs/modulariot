@@ -48,7 +48,7 @@ Rule previews use the organization's recent signals. At most one signal per orga
 | Case age | `open_s` is the time since the case opened, 0 while none is open. A level rule on it escalates an open case each time the activation holds again, for example a repeated device event (`open_s >= 900`) |
 | Level | The highest level whose rule holds. If none holds while a threshold rule waits for its hold time, the case is at the applying level below it |
 | Condition | Holds while a candidate reaches a level. `case.condition_s` counts from its first signal; `case.normal_s` from the first signal after it stopped, and is -1 while it holds |
-| Open | No case open, the condition holds and the lifecycle's open rule is true |
+| Open | No case open, the condition holds, the lifecycle's open rule is true, and no operator close blocks it ([Reopening after an operator close](#reopening-after-an-operator-close)) |
 | Level change | A case's level only rises, unless the lifecycle's `levelDown` lets it follow the measure down while the condition holds |
 | Close | The lifecycle's close rule is true. If the condition still holds, the next signal starts a new run |
 | Trip end | The case's trip is completed, cancelled or deleted: the case closes with `closed_by` `trip_ended` (see [lost-signal.md](lost-signal.md#trip-end)) |
@@ -91,6 +91,22 @@ as authored. JSON-string-encoded specs are normalized to objects. Future omitted
 
 `case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals. `case.closed_on_trip` is true when an operator closed a case of the symptom on the trip the signal carries (`trip.id`); an open rule `case.condition_s >= 0 && !case.closed_on_trip` opens no other case on that trip. The episode keeps the trip until a newer ordinary signal of another trip, or of none; buffered frames from older trips cannot clear it. `case.closed_on_trip_s` is the time since that close, -1 without one: `!case.closed_on_trip || case.closed_on_trip_s >= 18000` opens again 5 h after it.
 
+## Reopening after an operator close
+
+An operator's close does not end the condition. While it holds on the same vehicle and trip, the engine opens no new case of that symptom, whatever the open rule says:
+
+| How the operator closed the case | A new case on the same trip, while the condition holds |
+|---|---|
+| Invalidated (an `INVALIDATE` action, or an `INVALIDATE_SYMPTOM` treatment) | None, at any level |
+| Handled (call, note, ignore) | Only at a level above the case's level when it closed |
+| Closed by the engine (close rule, trip end, truck change, state change) | As the open rule says, unchanged |
+
+One signal where the condition does not hold (the activation is false, or no level holds) ends the block; the next run opens a case as the open rule says. A signal on another trip, or on none, also ends it. A case without a trip blocks nothing.
+
+The block lives in the episode (`reopenAbove`, next to `closedOnTrip`). The operator's CLOSED row keeps it in `context`: `{"operator_close": {"outcome": "INVALIDATED" | "HANDLED", "level": n}}`. When a vehicle has no episode for the symptom and the condition holds, as after a restart that lost Redis, the evaluator reads the symptom's newest OPENED or CLOSED row for the vehicle; an operator's CLOSED row on the signal's trip restores the block. Without the episode the engine cannot know whether the condition went normal in between, so it keeps the block until the next normal signal. Rows written before this change have no `operator_close` and restore nothing.
+
+`case.closed_on_trip` still blocks the whole trip when an open rule reads it, as the night-stop template does.
+
 ## Order, versions and failures
 
 - Per vehicle and source, a signal not newer than the last one applied is ignored. This watermark is kept even when the episodes are not.
@@ -110,7 +126,7 @@ An ACTIVE OPENED row of `signal_transitions` is a Control Tower case until a CLO
 |---|---|
 | `GET …/control-tower/map/symptoms` | Page 1 lists the matching cases first, in the GPS function's row shape, with their count in `engine_cases`; the paging totals stay the GPS function's. Cases answer `p_trip_id`, `p_asset_id` (part of the plate), `p_symptom_name`, `p_icu_code` (current level) and the dates: without dates the open cases, with them the cases opened in the range, closed ones with `end_time`. A driver, carrier, origin or destination filter leaves them out. They still show when the GPS database cannot be read |
 | `GET …/map/symptoms/{id}`, `…/{id}/signals` | A negative id is a case: header from the catalog and the trip's `trip_live` row while it runs, and the signal's point as an EWKB feature with the case's `icu_code`. The case runs from its start until it closed or now: the start is `check.loss.last.at` (the last frame before the silence) when the opening context has it, else the opening. The header adds `symptom_info.opened_at`, `started_at`, `duration_sec` and `level_reason`: `icu_code`, `icu_condition`, `rule` (the level's `when` in the version that opened the case), `context` (null when not kept), `lost_since` and `levels` (`at`, `icu_code` of each change, oldest first). For a symptom whose measure is the speed minus `signal.road.maxspeed_osm` or `maxspeed_custom`, each level step, the signals' `description` (from the change that set the level) and the case point (from the opening) add `speed` and `speed_limit` in km/h, as the GPS database names them, with `speed_limit_source` (`road`, `custom`) and `speed_limit_zone` (the own zone's name, when known). The limit is the change's `context.speed_limit`; a change written before it was kept derives it as the speed minus the measure, rounding only when that transition version's measure rounds the speed |
-| `POST …/treatments/{id}/close` | Closing the treatment of a case closes the case (CLOSED row with `closed_by`) and drops its Redis episode, so the next signal that meets the condition opens a new case |
+| `POST …/treatments/{id}/close` | Closing the treatment of a case closes the case (CLOSED row with `closed_by` and `context.operator_close`) and replaces its Redis episode with a marker; see [Reopening after an operator close](#reopening-after-an-operator-close) |
 
 The row's `trip_code` and the header's `trip_info.trip_code` are the trip's service code, in this order:
 

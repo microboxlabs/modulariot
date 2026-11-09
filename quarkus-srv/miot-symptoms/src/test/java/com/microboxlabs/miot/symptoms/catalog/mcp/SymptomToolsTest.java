@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
@@ -208,7 +209,9 @@ class SymptomToolsTest {
                 SymptomSpec.Response.class, SymptomSpec.Step.class, SymptomSpec.Notice.class,
                 SymptomSpec.Lifecycle.class, SymptomSpec.Recurrence.class)) {
             for (RecordComponent c : type.getRecordComponents()) {
-                assertTrue(SymptomTools.SPEC.contains(c.getName()), type.getSimpleName() + "." + c.getName());
+                JsonProperty property = c.getAccessor().getAnnotation(JsonProperty.class);
+                String name = property == null || property.value().isBlank() ? c.getName() : property.value();
+                assertTrue(SymptomTools.SPEC.contains(name), type.getSimpleName() + "." + name);
             }
         }
     }

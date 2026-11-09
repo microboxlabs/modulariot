@@ -151,7 +151,8 @@ public final class SpecDiff {
     /** The open, close and note rules, without formatting. */
     private static SymptomSpec.Lifecycle rules(SymptomSpec.Lifecycle l) {
         return l == null ? null
-                : new SymptomSpec.Lifecycle(squash(l.open()), squash(l.close()), false, squash(l.note()));
+                : new SymptomSpec.Lifecycle(squash(l.open()), squash(l.close()), false, squash(l.note()),
+                        l.effectiveAfterTripEnd());
     }
 
     private static boolean levelDown(SymptomSpec.Lifecycle l) {

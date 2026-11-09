@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,6 +63,7 @@ class SymptomStatsServiceTest {
         UUID id = catalog.create(TENANT, OWNER, new CreateRequest(key, name, null, null, null, "gps_signal", null,
                 Specs.speeding())).definition().id();
         catalog.publish(TENANT, OWNER, id, "Primera versión de " + key, null, state);
+        cases.operatorLevels.put(id, Set.of(3, 4));
         return id;
     }
 
@@ -132,6 +134,20 @@ class SymptomStatsServiceTest {
         assertEquals(1, stats.totals().perShift(), "28 a week over 21 eight-hour shifts");
         assertEquals(List.of(active, test), stats.totals().topShare().definitionIds());
         assertEquals(1.0, stats.totals().topShare().share(), 1e-9);
+    }
+
+    @Test
+    void operatorCountsUseTheRecordedDecisionEvenWhenTheCurrentSpecDisagrees() {
+        UUID id = symptom("speeding", "Exceso", SymptomState.ACTIVE);
+        long required = add(id, 1, NOW.minusDays(2), 1);
+        long excluded = add(id, 3, NOW.minusDays(2), 1);
+        cases.operatorRequired.put(required, true);
+        cases.operatorRequired.put(excluded, false);
+
+        SymptomStats stats = service().stats(TENANT);
+
+        assertEquals(2, stats.symptoms().getFirst().week());
+        assertEquals(1, stats.symptoms().getFirst().operatorWeek());
     }
 
     @Test

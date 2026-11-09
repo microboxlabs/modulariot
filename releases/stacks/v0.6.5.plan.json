@@ -1,0 +1,91 @@
+{
+  "stack_version": "0.6.5",
+  "stack_tag": "miot-stack@v0.6.5",
+  "milestone": "MIOT-0.6.5",
+  "pull_requests": [
+    {
+      "number": 2537,
+      "title": "feat(symptoms): conditional \"Requiere operador\" per level (operatorWhen)",
+      "source_issues": [
+        {
+          "number": 2545,
+          "title": "feat(symptoms): conditional \"Requiere operador\" per level (operatorWhen)"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-symptoms/docs/evaluator.md",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCase.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCaseService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCaseStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleLanguage.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/domain/SymptomSpec.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/mcp/SymptomTools.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SpecValidator.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SymptomCatalogService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SymptomStatsService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/duty/DutyChecks.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/CompiledSymptom.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/SignalEvaluator.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/Transition.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgEngineCases.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgSlaStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTransitionLog.java",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.27__transition_operator.sql",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/EngineCaseServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/InMemoryEngineCases.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/OperatorWhenSpecTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SymptomStatsServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/store/PgPlatformTemplatesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/duty/DutyChecksTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorBehaviorTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/OperatorDecisionTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgHoldsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgNotesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgSlaStoreTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgTripEndTest.java",
+    "turbo-repo/apps/app/src/app/api/treatments/general/route.type.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-center-menu.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-center-menu.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-response.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-row.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/maintainer-api.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/operator-when.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/overview-text.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/response-workspace.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.5",
+      "tag": "app@v0.6.5"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.6.3",
+      "version": "0.6.5",
+      "tag": "docs@v0.6.5"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.6.3",
+      "version": "0.6.5",
+      "tag": "web@v0.6.5"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.43",
+      "version": "0.5.44",
+      "tag": "modulith@v0.5.44"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

@@ -212,13 +212,18 @@ export function ResponseSummary({
   response,
   d,
 }: Readonly<{ response: LevelResponse; d: I18nRecord }>) {
+  const conditional = response.operatorWhen
+    ? ` · ${tr("operatorConditional", d)}`
+    : "";
+  const summary = response.operator
+    ? tr("operatorSla", d, { minutes: String(response.slaMinutes ?? "") }) +
+      conditional
+    : tr("noOperator", d);
   return (
     <span
       className={`rounded-md px-2 py-0.5 text-xs ${response.operator ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-gray-100 text-gray-500 dark:bg-gray-700"}`}
     >
-      {response.operator
-        ? tr("operatorSla", d, { minutes: String(response.slaMinutes ?? "") })
-        : tr("noOperator", d)}
+      {summary}
     </span>
   );
 }

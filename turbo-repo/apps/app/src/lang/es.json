@@ -3923,6 +3923,11 @@
         "closeSub": "Qué se pide para cerrar y cuándo se cierra solo",
         "operatorTitle": "Operador",
         "allLevels": "vale para todos los niveles",
+        "afterTripEndLabel": "Eventos que llegan después del fin del viaje",
+        "afterTripEndIgnore": "Ignorar",
+        "afterTripEndKeep": "Abrir y mantener abierto para un operador",
+        "afterTripEndClose": "Abrir y cerrar de inmediato por fin del viaje",
+        "findingAfterTripEndInvalid": "Elige una opción válida para los eventos que llegan después del fin del viaje.",
         "closeAutoTitle": "Se cierra solo cuando ocurra cualquiera de estas",
         "closeKindLabel": "Cómo se cierra",
         "closeKind": {
@@ -4053,6 +4058,10 @@
         "noOperator": "Sin operador",
         "requiresOperator": "Requiere operador",
         "attendWithin": "Atender en",
+        "operatorWhenLabel": "Solo cuando…",
+        "operatorWhenHint": "Opcional. Si la condición no se cumple en la señal que abre el caso o lo sube a este nivel, el caso se registra pero no llega a la bandeja de operadores: sin SLA ni escalamiento. Vacía: siempre.",
+        "operatorWhenPlaceholder": "Siempre",
+        "operatorConditional": "con condición",
         "nobodyHandles": "En este nivel nadie tiene que gestionar el caso.",
         "configureResponse": "Configurar respuesta",
         "workspaceRule": "Regla",
@@ -7954,6 +7963,13 @@
     "accumulated_time": "Tiempo de conducción",
     "show_stops": "Mostrar paradas",
     "hide_stops": "Ocultar paradas",
+    "pulse_from": "Pulso desde",
+    "mobile_app": "Aplicación móvil",
+    "signal_detail": "Detalle de señal",
+    "signal_detail_app": "GPS app",
+    "gps": "GPS",
+    "signal_description": "Descripción de señal",
+    "stopped_pulse": "Detenido",
     "image_prefix": "imagen",
     "processing": "Procesando...",
     "download_failed": "Descarga fallida — abriendo en nueva pestaña",
@@ -8660,7 +8676,8 @@
     "longitude": "Longitud",
     "back_to_summary": "Volver al resumen",
     "view_on_maps": "Ver en Google Maps",
-    "distance": "Distancia"
+    "distance": "Distancia",
+    "signal_description": "Descripción de señal"
   },
   "calendar": {
     "landing": {

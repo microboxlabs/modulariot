@@ -18,7 +18,8 @@ import java.util.function.Supplier;
 /**
  * The SLA timer's reads over {@code miot_symptoms.signal_transitions} and its marks in
  * {@code miot_symptoms.sla_expiry}. A level has an SLA when its version's response has {@code operator} and
- * {@code slaMinutes}. A case is attended at its level when a treatment on it is open, or was opened at or after
+ * {@code slaMinutes}, and the row that set the level did not keep the case off the operators
+ * ({@code operator_required} false: its {@code operatorWhen} did not hold). A case is attended at its level when a treatment on it is open, or was opened at or after
  * the case reached the level. A case an "Ignorar condición" hold covers is attended; when the hold ends with the
  * case open, its SLA runs again from then, as if it had reached its level at that moment.
  */
@@ -28,13 +29,17 @@ public class PgSlaStore implements SlaStore {
 
     private static final String DUE = """
             WITH open_case AS (
-                SELECT o.id, o.tenant_code, o.definition_id, o.version, o.asset_id, o.at, o.trip_id,
+                SELECT o.id, o.tenant_code, o.definition_id,
+                       CASE WHEN l.operator_required IS NULL THEN o.version ELSE l.version END AS version,
+                       o.asset_id, o.at, o.trip_id,
                        o.latitude, o.longitude, o.speed_kmh,
                        COALESCE(l.level, o.level) AS current_level,
+                       CASE WHEN l.level IS NULL THEN o.operator_required ELSE l.operator_required END
+                           AS level_operator,
                        GREATEST(COALESCE(l.at, o.at), ret.returned_at) AS level_since
                   FROM miot_symptoms.signal_transitions o
                   LEFT JOIN LATERAL (
-                      SELECT c.level, c.at FROM miot_symptoms.signal_transitions c
+                      SELECT c.level, c.at, c.version, c.operator_required FROM miot_symptoms.signal_transitions c
                        WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
                          AND c.asset_id = o.asset_id AND c.state = 'ACTIVE' AND c.kind = 'LEVEL_CHANGED'
                          AND c.id > o.id
@@ -59,7 +64,7 @@ public class PgSlaStore implements SlaStore {
                               LIMIT 1) AS sla_minutes
                   FROM open_case x)
             SELECT y.* FROM with_sla y
-             WHERE y.sla_minutes > 0
+             WHERE y.sla_minutes > 0 AND y.level_operator IS NOT FALSE
                AND y.level_since + make_interval(mins => y.sla_minutes) <= $2
                AND NOT EXISTS (
                      SELECT 1 FROM miot_symptoms.sla_expiry e

@@ -60,4 +60,11 @@ public final class Specs {
     public static SymptomSpec withLevels(SymptomSpec s, List<Level> levels) {
         return new SymptomSpec(s.source(), s.activation(), s.measure(), levels, s.lifecycle(), s.recurrence());
     }
+
+    public static SymptomSpec withAfterTripEnd(SymptomSpec s, String policy) {
+        var l = s.lifecycle();
+        return new SymptomSpec(s.source(), s.activation(), s.measure(), s.levels(),
+                new SymptomSpec.Lifecycle(l.open(), l.close(), l.levelDown(), l.note(), policy),
+                s.recurrence(), s.family(), s.state());
+    }
 }

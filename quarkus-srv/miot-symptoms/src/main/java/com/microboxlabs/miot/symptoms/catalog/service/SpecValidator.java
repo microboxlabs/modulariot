@@ -131,6 +131,7 @@ public final class SpecValidator {
             rule(out, MEASURE, schema, spec.measure().expression(), Expect.NUMBER);
         }
         levels(out, schema.withExtras(RuleSchema.LEVEL_VARIABLES), spec.levels());
+        operatorConditions(out, schema, source, spec.levels());
         if (spec.measure() == null || spec.measure().expression() == null) {
             levelsWithoutMeasure(out, spec.levels());
         }
@@ -138,6 +139,7 @@ public final class SpecValidator {
             out.add(new Finding("lifecycle", Severity.ERROR, RuleMessage.of("lifecycleMissing"), -1));
         } else {
             RuleSchema lifecycle = RuleSchema.lifecycle(source);
+            afterTripEnd(out, spec.lifecycle());
             rule(out, "lifecycle.open", lifecycle, spec.lifecycle().open(), Expect.CONDITION);
             rule(out, "lifecycle.close", lifecycle, spec.lifecycle().close(), Expect.CONDITION);
             if (spec.lifecycle().note() != null) {
@@ -155,6 +157,12 @@ public final class SpecValidator {
             out.add(new Finding("state", Severity.ERROR, RuleMessage.of("engineNotReady"), -1));
         }
         return new Report(out);
+    }
+
+    private static void afterTripEnd(List<Finding> out, SymptomSpec.Lifecycle lifecycle) {
+        if (!SymptomSpec.Lifecycle.AFTER_TRIP_END_VALUES.contains(lifecycle.effectiveAfterTripEnd())) {
+            out.add(new Finding("lifecycle.after_trip_end", Severity.ERROR, RuleMessage.of("afterTripEndInvalid"), -1));
+        }
     }
 
     private static void replyResults(List<Finding> out, SymptomSpec spec, Predicate<String> knownResult) {
@@ -437,10 +445,34 @@ public final class SpecValidator {
                 .orElse(point);
     }
 
+    /**
+     * A level's {@code operatorWhen} reads what the activation reads; it is checked only where it counts, on a
+     * level that applies and has {@code operator}.
+     */
+    private static void operatorConditions(List<Finding> out, RuleSchema schema, DataSource source,
+            List<Level> levels) {
+        if (levels == null) {
+            return;
+        }
+        for (Level level : levels) {
+            SymptomSpec.Response response = level.response();
+            if (!level.applies() || response == null || !response.operator() || response.operatorWhen() == null) {
+                continue;
+            }
+            String section = LEVEL_SECTION_PREFIX + level.icu() + RESPONSE_SUFFIX + ".operatorWhen";
+            rule(out, section, schema, response.operatorWhen(), Expect.CONDITION);
+            unknownValues(out, source, response.operatorWhen(), section);
+        }
+    }
+
     /** A list field compared with a value it does not take, anywhere in the activation. */
     private static void unknownValues(List<Finding> out, DataSource source, String activation) {
+        unknownValues(out, source, activation, ACTIVATION);
+    }
+
+    private static void unknownValues(List<Finding> out, DataSource source, String rule, String section) {
         Set<String> reported = new HashSet<>();
-        for (RuleText.TextComparison c : RuleText.textComparisons(activation)) {
+        for (RuleText.TextComparison c : RuleText.textComparisons(rule)) {
             SourceField field = source.fields().stream().filter(f -> f.path().equals(c.path())).findFirst()
                     .orElse(null);
             if (field == null || field.values() == null || field.values().isEmpty()) {
@@ -448,7 +480,7 @@ public final class SpecValidator {
             }
             List<String> known = field.values().stream().map(SourceField.FieldValue::value).toList();
             if (!known.contains(c.value()) && reported.add(c.path() + "=" + c.value())) {
-                out.add(new Finding(ACTIVATION, Severity.WARNING, RuleMessage.of("unknownValue",
+                out.add(new Finding(section, Severity.WARNING, RuleMessage.of("unknownValue",
                         "field", field.label(), "value", c.value(), "values", String.join(", ", known)), -1));
             }
         }
@@ -545,6 +577,9 @@ public final class SpecValidator {
         }
         if (spec.levels() != null) {
             spec.levels().stream().filter(Level::applies).forEach(l -> rules.add(l.when()));
+            spec.levels().stream().filter(Level::applies)
+                    .filter(l -> l.response() != null && l.response().operator())
+                    .forEach(l -> rules.add(l.response().operatorWhen()));
         }
         if (spec.lifecycle() != null) {
             rules.add(spec.lifecycle().open());

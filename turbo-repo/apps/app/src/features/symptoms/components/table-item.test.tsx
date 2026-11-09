@@ -98,9 +98,9 @@ describe("symptoms truck change", () => {
   it.each([false, true])(
     "shows the current trip plate and keeps links on the case truck (compact=%s)",
     (compact) => {
-      renderRow({ ...row, tripPlateNow: "KGXR80" }, compact);
+      renderRow({ ...row, tripPlateNow: "TRUCK2" }, compact);
 
-      expect(screen.getByText("Viaje ahora en KGXR80")).toBeInTheDocument();
+      expect(screen.getByText("Viaje ahora en TRUCK2")).toBeInTheDocument();
       for (const link of screen.getAllByRole("link")) {
         expect(link).toHaveAttribute(
           "href",

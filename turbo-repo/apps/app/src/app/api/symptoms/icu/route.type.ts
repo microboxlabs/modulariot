@@ -9,6 +9,8 @@ export interface SymptomsICUItemResponse {
   client: string;
   driver: string;
   trip_id: string;
+  /** The client's service code; null when the trip has none. */
+  trip_code?: string | null;
   asset_id: string;
   end_time: string;
   start_time: string;

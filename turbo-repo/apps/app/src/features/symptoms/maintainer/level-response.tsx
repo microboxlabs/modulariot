@@ -6,6 +6,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { whoOf } from "../control-tower/step-who";
 import { useState } from "react";
+import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import {
   CaseTimelinePreview,
   CloseRules,
@@ -37,6 +38,12 @@ const EVIDENCE = [
 
 /** Findings shown beside their control while the operator block is open. */
 const PLACED = new Set(["operatorNeedsSla", "stepNoContact", "stepNoMinutes"]);
+
+/** The condition that limits which cases reach the operators, and its checks. */
+export interface OperatorCondition {
+  fields: CelField[];
+  problems: CelProblem[];
+}
 
 /** Findings with no visible control to sit beside, listed above the blocks. */
 function unplaced(findings: Finding[], response: LevelResponse): Finding[] {
@@ -86,9 +93,47 @@ function Check({
   );
 }
 
+/** "Solo cuando…": the operator's condition, under "Requiere operador". */
+export function OperatorWhen({
+  value,
+  condition,
+  readOnly,
+  d,
+  onChange,
+}: Readonly<{
+  value: string | null | undefined;
+  condition: OperatorCondition;
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (operatorWhen: string | null) => void;
+}>) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-sm text-gray-700 dark:text-gray-300">
+        {tr("operatorWhenLabel", d)}
+      </span>
+      <CelEditor
+        singleLine
+        readOnly={readOnly}
+        ariaLabel={tr("operatorWhenLabel", d)}
+        placeholder={tr("operatorWhenPlaceholder", d)}
+        value={value ?? ""}
+        fields={condition.fields}
+        problems={condition.problems}
+        onChange={(next) => onChange(next.trim() ? next : null)}
+      />
+      <Problems items={condition.problems} />
+      <span className="text-xs text-gray-500 dark:text-gray-400">
+        {tr("operatorWhenHint", d)}
+      </span>
+    </div>
+  );
+}
+
 function OperatorBlock({
   response,
   findings,
+  condition,
   cases,
   audience,
   readOnly,
@@ -97,6 +142,7 @@ function OperatorBlock({
 }: Readonly<{
   response: LevelResponse;
   findings: Finding[];
+  condition: OperatorCondition;
   /** The symptom and level whose recent cases fill the script's preview. */
   cases: { symptomName: string; icu: number } | undefined;
   audience: AudienceDicts;
@@ -124,6 +170,7 @@ function OperatorBlock({
             onChange({
               operator,
               slaMinutes: operator ? (response.slaMinutes ?? 5) : null,
+              operatorWhen: operator ? response.operatorWhen : null,
             })
           }
         />
@@ -131,6 +178,13 @@ function OperatorBlock({
     >
       {response.operator ? (
         <>
+          <OperatorWhen
+            value={response.operatorWhen}
+            condition={condition}
+            readOnly={readOnly}
+            d={d}
+            onChange={(operatorWhen) => onChange({ operatorWhen })}
+          />
           <div className="flex flex-col gap-1">
             <FieldRow label={tr("attendWithin", d)}>
               <PillNumber
@@ -281,12 +335,15 @@ export default function LevelResponseDetail({
   findings,
   symptom,
   rules,
+  operatorCondition = { fields: [], problems: [] },
   audience,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   response: LevelResponse;
+  /** The fields "Solo cuando…" reads (the source's) and its findings. */
+  operatorCondition?: OperatorCondition;
   /** The symptom's close and note rules; absent where they are not edited. */
   rules?: LifecycleRules;
   /** The texts of the "contacts from the book" condition the steps use. */
@@ -327,6 +384,7 @@ export default function LevelResponseDetail({
       <OperatorBlock
         response={response}
         findings={findings}
+        condition={operatorCondition}
         cases={
           symptom ? { symptomName: symptom.name, icu: symptom.icu } : undefined
         }

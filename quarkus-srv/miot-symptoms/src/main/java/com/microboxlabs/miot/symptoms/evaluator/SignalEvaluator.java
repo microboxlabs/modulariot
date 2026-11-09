@@ -364,18 +364,8 @@ public class SignalEvaluator {
             store.delete(tenantCode, assetId, s.definitionId());
             return List.of(closedByStateChange(found.get(), s, assetId, at));
         }
-        Episode e = found.orElseGet(() -> Episode.start(s.definitionId(), s.version(), assetId));
+        Episode e = found.orElseGet(() -> recoverEpisode(tenantCode, assetId, s, recoverClose));
         Reading r = read(s, e, root, at);
-        if (found.isEmpty() && recoverClose) {
-            // Recover only before this source has progressed. A prior normal or other-trip frame already cleared
-            // the block; restoring it again would suppress a new episode. A normal first frame must recover it too.
-            Optional<Episode> marker = store.lastOperatorClose(tenantCode, assetId, s.definitionId())
-                    .map(c -> c.marker(s.definitionId(), assetId));
-            if (marker.isPresent()) {
-                e = marker.get();
-                r = read(s, e, root, at);
-            }
-        }
         boolean held = s.state() == SymptomState.ACTIVE
                 && holds.held(tenantCode, assetId, s.definitionId(), e.openedAt());
         Step next = e.open() ? whileOpen(s, e, at, r, held, root) : whileClosed(s, e, at, r, held, root);
@@ -392,6 +382,15 @@ public class SignalEvaluator {
             out.add(next.note());
         }
         return out;
+    }
+
+    private Episode recoverEpisode(String tenant, String asset, CompiledSymptom s, boolean recoverClose) {
+        // Recover before reading the rules: a malformed first frame must not lose the operator's decision.
+        // Once the source progressed, a normal or other-trip frame may already have cleared the block.
+        Optional<Episode> marker = recoverClose ? store.lastOperatorClose(tenant, asset, s.definitionId())
+                .map(c -> c.marker(s.definitionId(), asset)) : Optional.empty();
+        marker.ifPresent(e -> store.save(tenant, e));
+        return marker.orElseGet(() -> Episode.start(s.definitionId(), s.version(), asset));
     }
 
     private static Reading read(CompiledSymptom s, Episode e, Map<String, Object> root, Instant at) {
@@ -478,7 +477,7 @@ public class SignalEvaluator {
                         : null;
                 return new Step(kept, evidence);
             }
-            int initial = e.level() > 0 ? s.levels().keySet().iterator().next() : r.level();
+            int initial = initialLevel(s, e, r, reopenAbove);
             Episode opened = new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                     r.conditionSince(), r.normalSince(), r.levelSince(), at, at, initial, r.measure(), s.state(),
                     null, null, offTrip(root) ? at : null, activeTripId(root), Map.of());
@@ -487,6 +486,11 @@ public class SignalEvaluator {
         return new Step(new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                 r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0, null, marker, markedAt, null,
                 null, null, false, reopenAbove), null);
+    }
+
+    private static int initialLevel(CompiledSymptom s, Episode e, Reading r, Integer reopenAbove) {
+        if (reopenAbove != null) return r.level();
+        return e.level() > 0 ? s.levels().keySet().iterator().next() : r.level();
     }
 
     private static Integer reopenAbove(Episode e, String marker, Reading r) {

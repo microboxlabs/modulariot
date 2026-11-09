@@ -25,10 +25,8 @@ public interface EpisodeRepository {
 
     /** Recheck under the database case locks, before any transition from this snapshot is written. */
     default Uni<Void> validate(AssetEpisodes snapshot) {
-        return Uni.createFrom().item(() -> {
-            snapshot.requireRevision(load(snapshot.tenantCode(), snapshot.assetId()).closeRevision());
-            return (Void) null;
-        });
+        return Uni.createFrom().voidItem().invoke(() ->
+                snapshot.requireRevision(load(snapshot.tenantCode(), snapshot.assetId()).closeRevision()));
     }
 
 

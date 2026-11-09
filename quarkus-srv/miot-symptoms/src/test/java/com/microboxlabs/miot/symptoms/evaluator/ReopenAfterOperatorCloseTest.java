@@ -78,6 +78,10 @@ class ReopenAfterOperatorCloseTest {
     }
 
     private EvaluatorStream consumer(EpisodeRepository repository) {
+        return consumer(repository, Holds.NONE);
+    }
+
+    private EvaluatorStream consumer(EpisodeRepository repository, Holds holds) {
         SimpleMeterRegistry meters = new SimpleMeterRegistry();
         Clock clock = Clock.systemUTC();
         TripChecks checks = new TripChecks(catalog, repository, log, events,
@@ -85,7 +89,7 @@ class ReopenAfterOperatorCloseTest {
         LostSignalDetector detector = new LostSignalDetector(true, new InMemoryLossStore(), LossSettings.defaults(),
                 TickerSettings.defaults(), checks, meters, clock);
         return new EvaluatorStream(true, catalog, new EvaluatorStream.Sinks(log, events, meters), clock,
-                repository, SignalSamples.inMemory(), LateFrames.NONE, detector);
+                repository, SignalSamples.inMemory(), LateFrames.NONE, detector, holds);
     }
 
     private static String signal(int second, double minutes, String trip) {
@@ -239,6 +243,30 @@ class ReopenAfterOperatorCloseTest {
         EvaluatorStream after = consumer();
         assertEquals(List.of(), drive(after, 20, 200));
         assertEquals(List.of("OPENED:1"), drive(after, 30, 280));
+    }
+
+    @Test
+    void aRuleErrorOnTheFirstRestartFrameDoesNotLoseSuppression() {
+        publish(LIFECYCLE);
+        EvaluatorStream before = consumer();
+        drive(before, 0, 280);
+        operatorCloses(before, 10, 1, true);
+        EvaluatorStream after = consumer();
+        after.evaluate(signal(20, 280, TRIP).replace("\"speed\":280.0", "\"missing_speed\":280.0"));
+        assertEquals(List.of(), drive(after, 30, 280));
+    }
+
+    @Test
+    void aHeldReopeningKeepsItsLevelAboveTheHandledClose() {
+        publish(LIFECYCLE);
+        boolean[] held = {false};
+        EvaluatorStream consumer = consumer(new InMemoryEpisodeRepository(), (tenant, asset, definition, opened) -> held[0]);
+        drive(consumer, 0, 280, 310);
+        operatorCloses(consumer, 10, 2, false);
+        held[0] = true;
+        assertEquals(List.of("HELD:3"), drive(consumer, 20, 340));
+        held[0] = false;
+        assertEquals(List.of("OPENED:3"), drive(consumer, 30, 340));
     }
 
     @Test

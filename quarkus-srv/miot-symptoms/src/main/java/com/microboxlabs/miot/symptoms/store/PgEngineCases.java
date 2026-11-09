@@ -52,6 +52,8 @@ public class PgEngineCases implements EngineCaseStore {
     private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final String FROM_SUBQUERY = " FROM (";
     private static final String ASSET_ID = "asset_id";
+    private static final String TRIP_ID = "trip_id";
+    private static final String LEVEL = "level";
     private static final String DEFINITION_ID = "definition_id";
     private static final String MEASURE = "measure";
     private static final String SPEED_KMH = "speed_kmh";
@@ -774,7 +776,7 @@ public class PgEngineCases implements EngineCaseStore {
         if (!iterator.hasNext()) return Uni.createFrom().item(false);
         Row row = iterator.next();
         var current = how == null ? null : new OperatorClose(
-                row.getString("trip_id"), at, row.getInteger("level"), how.invalidated());
+                row.getString(TRIP_ID), at, row.getInteger(LEVEL), how.invalidated());
         JsonObject context = current == null ? null : new JsonObject(current.context());
         // The Redis and duty collaborators block; keep their work off the SQL connection's event loop.
         return Uni.createFrom().item(() -> {
@@ -873,7 +875,7 @@ public class PgEngineCases implements EngineCaseStore {
     public static StaleCase staleCase(Row r) {
         return new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
                 r.getUUID(DEFINITION_ID), r.getString("version"), "TEST".equals(r.getString("state")),
-                r.getString(ASSET_ID), r.getInteger("level"), r.getString("trip_id"), r.getDouble("latitude"),
+                r.getString(ASSET_ID), r.getInteger(LEVEL), r.getString(TRIP_ID), r.getDouble("latitude"),
                 r.getDouble("longitude"), r.getDouble(SPEED_KMH), r.getOffsetDateTime("opened_at").toInstant());
     }
 
@@ -881,7 +883,7 @@ public class PgEngineCases implements EngineCaseStore {
         OffsetDateTime closed = r.getOffsetDateTime("closed_at");
         return new EngineCase(r.getLong("id"), r.getUUID(DEFINITION_ID), r.getString("version"),
                 r.getString("name"), r.getString("family"), r.getString(ASSET_ID),
-                r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
+                r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString(TRIP_ID),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble(SPEED_KMH),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
                 r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"), r.getString("trip_code_fallback"))).withTrip(trip(r))
@@ -924,7 +926,7 @@ public class PgEngineCases implements EngineCaseStore {
         for (JsonNode step : steps) {
             try {
                 Instant at = OffsetDateTime.parse(step.path("at").asText()).toInstant();
-                int level = step.path("level").asInt();
+                int level = step.path(LEVEL).asInt();
                 String expression = step.path("measure_expression").asText(null);
                 Double speed = number(step.path(SPEED_KMH));
                 out.add(speedStep(at, level, expression, speed, step.get("speed_limit"),

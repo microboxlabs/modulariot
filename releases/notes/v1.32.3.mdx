@@ -1,0 +1,110 @@
+# 🔔 Release Notes v1.32.3 — ModularIoT
+
+### Fecha: 09/11/2026
+
+**Objetivo**: Fortalecer la operación de la Torre de control, la gestión de viajes y las comunicaciones mediante las integraciones del stack 0.6.3.
+
+Los cambios descritos corresponden a la **integración OSS del milestone MIOT-0.6.3**. No se proporcionaron incidencias del milestone privado Release 1.32.3.
+
+## 🚀 Evolutivos
+
+- **📍 Detección de pérdida de señal**
+  - **Funcionalidad**: El detector calcula el silencio esperado por vehículo y contempla cobertura, retrasos de entrega y disponibilidad de la ingesta. Los casos de nivel 1 se cierran cuando vuelve la señal; los de niveles superiores quedan para el operador.
+  - **Detalle técnico**: Utiliza perfiles de llegada y un mapa de cobertura de los últimos 30 días. El estado se muestra en mapas y flota. [#2361](https://github.com/microboxlabs/modulariot/issues/2361), [#2362](https://github.com/microboxlabs/modulariot/issues/2362), [#2372](https://github.com/microboxlabs/modulariot/issues/2372), [#2374](https://github.com/microboxlabs/modulariot/issues/2374), [#2377](https://github.com/microboxlabs/modulariot/issues/2377)
+
+- **📍 Nuevas señales y plantillas de síntomas**
+  - **Funcionalidad**: Se incorporan plantillas para velocidad, conducción y descanso continuos, zonas, horarios, desviación de ETA, rotación de conductores y eventos de dispositivos.
+  - **Detalle técnico**: Las reglas reciben límites de velocidad, tiempos de conducción y descanso, zonas y horarios de riesgo. La ETA utiliza tiempos históricos de ruta; los eventos GPS también pueden cerrar casos o registrar notas. [#2456](https://github.com/microboxlabs/modulariot/issues/2456), [#2462](https://github.com/microboxlabs/modulariot/issues/2462), [#2463](https://github.com/microboxlabs/modulariot/issues/2463), [#2498](https://github.com/microboxlabs/modulariot/issues/2498), [#2522](https://github.com/microboxlabs/modulariot/issues/2522), [#2403](https://github.com/microboxlabs/modulariot/issues/2403)
+
+- **📍 Atención de casos en Torre de control**
+  - **Funcionalidad**: La bandeja prioriza los casos que requieren operador. Es posible ignorar temporalmente una condición, reanudarla y revisar las acciones por nivel en la cronología.
+  - **Detalle técnico**: Los casos del motor pueden filtrarse por conductor, transportista, origen y destino, y muestran el código de servicio del viaje. [#2432](https://github.com/microboxlabs/modulariot/issues/2432), [#2397](https://github.com/microboxlabs/modulariot/issues/2397), [#2392](https://github.com/microboxlabs/modulariot/issues/2392), [#2376](https://github.com/microboxlabs/modulariot/issues/2376), [#2348](https://github.com/microboxlabs/modulariot/issues/2348)
+
+- **📍 Reglas y respuestas de síntomas**
+  - **Funcionalidad**: El editor permite renombrar síntomas, consultar y filtrar campos, configurar guiones y previsualizar el cierre con casos reales.
+  - **Detalle técnico**: El autocompletado CEL explica tipos, unidades y significado; las condiciones de contacto pueden usar el origen y destino del viaje. [#2471](https://github.com/microboxlabs/modulariot/issues/2471), [#2472](https://github.com/microboxlabs/modulariot/issues/2472), [#2502](https://github.com/microboxlabs/modulariot/issues/2502), [#2419](https://github.com/microboxlabs/modulariot/issues/2419), [#2420](https://github.com/microboxlabs/modulariot/issues/2420), [#2495](https://github.com/microboxlabs/modulariot/issues/2495)
+
+- **📍 Llamadas y contactos**
+  - **Funcionalidad**: Los operadores pueden llamar desde el navegador con Telnyx o desde Teams con Teams Phone. La sesión de llamada permanece visible al navegar; una llamada Telnyx en el navegador se interrumpe al recargar, con resultado registrable.
+  - **Detalle técnico**: Los pasos usan contactos y canales registrados, pueden identificar personas del viaje y aprovechar el teléfono del viaje cuando falta en el contacto. La sincronización de flota mantiene contactos de conductores. [#2423](https://github.com/microboxlabs/modulariot/issues/2423), [#2424](https://github.com/microboxlabs/modulariot/issues/2424), [#2478](https://github.com/microboxlabs/modulariot/issues/2478), [#2416](https://github.com/microboxlabs/modulariot/issues/2416), [#2445](https://github.com/microboxlabs/modulariot/issues/2445), [#2386](https://github.com/microboxlabs/modulariot/issues/2386)
+
+- **📍 Telefonía administrada**
+  - **Funcionalidad**: Se añade una línea Telnyx compartida con plan, cuota por organización y límite de canales, junto con pantallas de administración y uso.
+  - **Detalle técnico**: El consumo se mide por minuto con datos de Telnyx; las organizaciones pueden configurar su proveedor de telefonía. [#2426](https://github.com/microboxlabs/modulariot/issues/2426), [#2422](https://github.com/microboxlabs/modulariot/issues/2422), [#2481](https://github.com/microboxlabs/modulariot/issues/2481)
+
+- **📍 Viajes y ubicaciones**
+  - **Funcionalidad**: Los feeds pueden identificar geocercas de la organización y resolver direcciones o Plus Codes en origen y destino. También mejora la búsqueda de direcciones internas en Chile.
+  - **Detalle técnico**: Las geocercas vinculadas generan señales de salida del origen y entrada al destino cuando está habilitado el componente de viajes. [#2333](https://github.com/microboxlabs/modulariot/issues/2333), [#2329](https://github.com/microboxlabs/modulariot/issues/2329), [#2328](https://github.com/microboxlabs/modulariot/issues/2328), [#2340](https://github.com/microboxlabs/modulariot/issues/2340)
+
+- **📍 Plantillas de comunicación**
+  - **Funcionalidad**: El editor ofrece plantillas por canal, vistas previas y envío de plantillas de WhatsApp a Meta. Los correos admiten contenido HTML.
+  - **Detalle técnico**: Las alertas de cuota de geocodificación pasan por el motor de reglas de comunicaciones. [#2315](https://github.com/microboxlabs/modulariot/issues/2315), [#2314](https://github.com/microboxlabs/modulariot/issues/2314)
+
+## 🔧 Integraciones
+
+- **🔌 Motor de síntomas**
+  - **Alcance**: Puede ejecutarse en un despliegue independiente con varias réplicas; el evaluador reduce consultas y admite concurrencia por vehículo de forma optativa. El constructor de señales expone métricas de vehículos en línea para Prometheus. [#2509](https://github.com/microboxlabs/modulariot/issues/2509), [#2511](https://github.com/microboxlabs/modulariot/issues/2511), [#2514](https://github.com/microboxlabs/modulariot/issues/2514)
+
+- **🔌 Fuentes GPS y eventos**
+  - **Alcance**: El motor consulta límites viales y personalizados en la base de velocidad existente, y recibe eventos de dispositivos como emergencia, asistencia y fatiga. Los eventos siguen la configuración del constructor de señales. [#2505](https://github.com/microboxlabs/modulariot/issues/2505), [#2512](https://github.com/microboxlabs/modulariot/issues/2512), [#2484](https://github.com/microboxlabs/modulariot/issues/2484), [#2500](https://github.com/microboxlabs/modulariot/issues/2500)
+
+- **🔌 Configuración y herramientas**
+  - **Alcance**: La Torre de control puede configurarse para mostrar solo casos del nuevo motor. El detector de pérdida de señal sigue la habilitación del evaluador, y Harness permite dirigir las herramientas de síntomas a otro modulith mediante `MIOT_HARNESS_SYMPTOMS_URL`. [#2375](https://github.com/microboxlabs/modulariot/issues/2375), [#2327](https://github.com/microboxlabs/modulariot/issues/2327), [#2529](https://github.com/microboxlabs/modulariot/issues/2529)
+
+- **🔌 WhatsApp Business**
+  - **Alcance**: Se prepara la solicitud de permisos y la infraestructura de llamadas detrás de configuraciones desactivadas por defecto; todavía no hay una vía de audio. [#2421](https://github.com/microboxlabs/modulariot/issues/2421), [#2425](https://github.com/microboxlabs/modulariot/issues/2425)
+
+- **🔌 Documentación y entrega**
+  - **Alcance**: La referencia de Asset Track se alinea con `gps-model` 1.6.1 y se documenta la resolución de ubicaciones en feeds. El análisis SonarCloud de Quarkus se ejecuta en un trabajo de CI independiente. [#2523](https://github.com/microboxlabs/modulariot/issues/2523), [#2317](https://github.com/microboxlabs/modulariot/issues/2317), [#2460](https://github.com/microboxlabs/modulariot/issues/2460)
+
+## 🐛 Correcciones
+
+- **🐛 Cierre y seguimiento de casos**
+  - **Impacto**: Algunos casos de pérdida de señal permanecían abiertos al terminar un viaje y los cierres podían perder contexto; el temporizador SLA omitía especificaciones guardadas como texto JSON.
+  - **Solución**: El fin del viaje cierra los casos correspondientes y conserva viaje, contexto final y máximo del caso; el temporizador interpreta las especificaciones almacenadas. [#2503](https://github.com/microboxlabs/modulariot/issues/2503), [#2527](https://github.com/microboxlabs/modulariot/issues/2527), [#2506](https://github.com/microboxlabs/modulariot/issues/2506)
+
+- **🐛 Cálculo de conducción y cobertura**
+  - **Impacto**: Los períodos sin observaciones podían contabilizarse como conducción continua y el cálculo de cobertura podía agotar memoria o superar el tiempo de consulta.
+  - **Solución**: Las brechas superiores a una hora se tratan como detención; el procesamiento de cobertura usa lectura por cursor y consultas optimizadas. [#2516](https://github.com/microboxlabs/modulariot/issues/2516), [#2382](https://github.com/microboxlabs/modulariot/issues/2382), [#2380](https://github.com/microboxlabs/modulariot/issues/2380)
+
+- **🐛 Información y actualización de casos**
+  - **Impacto**: Faltaban límites de velocidad en el mapa, la cronología podía quedar desactualizada y algunos operadores aparecían en niveles que no habían tratado.
+  - **Solución**: Se incluyen velocidad y límite aplicable, se refrescan las vistas tras guardar tratamientos y se atribuyen operadores a los niveles correspondientes. [#2518](https://github.com/microboxlabs/modulariot/issues/2518), [#2486](https://github.com/microboxlabs/modulariot/issues/2486), [#2400](https://github.com/microboxlabs/modulariot/issues/2400)
+
+- **🐛 Panel de llamadas**
+  - **Impacto**: Las llamadas de otros casos podían marcar un contacto como llamado; los pasos omitidos o el SLA podían perderse al recargar y las listas largas tenían contactos inaccesibles.
+  - **Solución**: Los contadores se limitan al caso actual, se conservan los pasos y el SLA, y el panel permite desplazarse por los contactos. [#2491](https://github.com/microboxlabs/modulariot/issues/2491), [#2464](https://github.com/microboxlabs/modulariot/issues/2464), [#2439](https://github.com/microboxlabs/modulariot/issues/2439), [#2443](https://github.com/microboxlabs/modulariot/issues/2443)
+
+- **🐛 Feeds y mapas de viajes**
+  - **Impacto**: Algunos servicios con recursos inactivos o sin cierre se omitían; ciertos mapas no mostraban el camión o mostraban solo la primera semana de viajes largos.
+  - **Solución**: Los feeds aceptan recursos existentes inactivos con advertencias y mantienen en curso los servicios iniciados sin cierre. Los mapas incluyen posiciones del camión asignado y los últimos siete días del viaje. [#2526](https://github.com/microboxlabs/modulariot/issues/2526), [#2331](https://github.com/microboxlabs/modulariot/issues/2331), [#2342](https://github.com/microboxlabs/modulariot/issues/2342), [#2341](https://github.com/microboxlabs/modulariot/issues/2341)
+
+- **🐛 Credenciales y navegación**
+  - **Impacto**: Las credenciales de mapas podían seleccionarse en un ámbito indebido y algunos menús no permitían acceder a todos sus elementos.
+  - **Solución**: Mapbox y Google Maps quedan restringidos al ámbito de plataforma para nuevas credenciales; se corrige el desplazamiento de los menús de plataforma y documentación. [#2458](https://github.com/microboxlabs/modulariot/issues/2458), [#2446](https://github.com/microboxlabs/modulariot/issues/2446), [#2318](https://github.com/microboxlabs/modulariot/issues/2318)
+
+## 📊 Beneficios
+
+- Mayor visibilidad de vehículos sin señal y de casos que requieren atención.
+- Respuestas más ágiles con llamadas, contactos y cronologías integrados.
+- Reglas de síntomas con más contexto de viaje, zona, velocidad y dispositivos.
+- Mayor continuidad operativa en feeds y seguimiento de viajes.
+- Despliegue y observabilidad más flexibles para el motor de síntomas.
+- Documentación de integración más consistente con los datos aceptados.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.3`.
+- Aplicación: `app@v0.6.3` — con cambios.
+- Documentación: `docs@v0.6.3` — con cambios.
+- Web: `web@v0.6.3` — con cambios.
+- Modulith: `modulith@v0.5.42` — con cambios.
+- Harness: `harness@v0.1.15` — con cambios.
+
+Los digest exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de publicación `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión integra mejoras del milestone OSS MIOT-0.6.3 para la detección y atención de síntomas, las comunicaciones y el seguimiento de viajes.
+
+El motor de síntomas gana opciones de despliegue independiente y nuevas fuentes de contexto. Las capacidades de llamadas por WhatsApp permanecen preparadas, pero desactivadas por defecto y sin audio.

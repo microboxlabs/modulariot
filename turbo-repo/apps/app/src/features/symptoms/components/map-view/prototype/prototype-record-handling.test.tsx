@@ -22,6 +22,8 @@ const OUTCOMES = [
   { id: "handling_outcome_3", name: "Otro", description: "" },
 ];
 
+let selectableOptions = OUTCOMES;
+
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => api);
 vi.mock("@/features/common/providers/client-api.provider", () => api);
 vi.mock("@/features/runtime-config/runtime-config-context", () => ({
@@ -52,9 +54,16 @@ vi.mock("./prototype-form-kit", () => {
       <select
         aria-label="outcome"
         value={value}
-        onChange={(e) =>
-          onSelect(OUTCOMES.find((o) => o.id === e.target.value)!)
-        }
+        onChange={(e) => {
+          const ids = e.target.value.split(",");
+          onSelect({
+            id: e.target.value,
+            name: OUTCOMES.filter((o) => ids.includes(o.id))
+              .map((o) => o.name)
+              .join(", "),
+            description: "",
+          });
+        }}
       >
         <option value="" />
         {OUTCOMES.map((o) => (
@@ -62,10 +71,13 @@ vi.mock("./prototype-form-kit", () => {
             {o.name}
           </option>
         ))}
+        <option value={OUTCOMES.map((o) => o.id).join(",")}>
+          Both outcomes
+        </option>
       </select>
     ),
     GeneralInfoGrid: () => null,
-    useSelectableOptions: () => ({ options: OUTCOMES }),
+    useSelectableOptions: () => ({ options: selectableOptions }),
     fieldLabel: "",
     fillTextarea: "",
   };
@@ -84,7 +96,7 @@ const engineCase: TreatmentsRequest = {
 
 function renderForm(request = engineCase) {
   const closeMenu = vi.fn();
-  render(
+  const form = () => (
     <PrototypeRecordHandling
       dict={es as I18nRecord}
       treatmentData={null}
@@ -93,7 +105,8 @@ function renderForm(request = engineCase) {
       setIsMenuOpen={closeMenu}
     />
   );
-  return closeMenu;
+  const { rerender } = render(form());
+  return { closeMenu, refreshOptions: () => rerender(form()) };
 }
 
 const saveButton = () =>
@@ -101,6 +114,7 @@ const saveButton = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  selectableOptions = OUTCOMES;
   api.openTreatment.mockResolvedValue({ id: "t-1", type: "CALL" });
   api.addTreatmentAction.mockResolvedValue({});
   api.closeTreatment.mockResolvedValue({});
@@ -130,7 +144,7 @@ describe("Registrar gestión", () => {
 
   it("stores a NOTE with the outcome and note and closes the engine case as handled", async () => {
     const user = userEvent.setup();
-    const closeMenu = renderForm();
+    const { closeMenu } = renderForm();
 
     await user.selectOptions(screen.getByLabelText("outcome"), [
       "handling_outcome_1",
@@ -189,7 +203,7 @@ describe("Registrar gestión", () => {
   it("keeps the form open and says so when the save fails", async () => {
     api.closeTreatment.mockRejectedValue(new Error("409"));
     const user = userEvent.setup();
-    const closeMenu = renderForm();
+    const { closeMenu } = renderForm();
 
     await user.selectOptions(screen.getByLabelText("outcome"), [
       "handling_outcome_1",
@@ -204,5 +218,58 @@ describe("Registrar gestión", () => {
     );
     expect(closeMenu).not.toHaveBeenCalled();
     expect(saveButton()).toBeEnabled();
+  });
+
+  it("requires an outcome from the currently bound list", async () => {
+    const user = userEvent.setup();
+    const { refreshOptions } = renderForm();
+    await user.selectOptions(screen.getByLabelText("outcome"), [
+      "handling_outcome_1",
+    ]);
+    await user.type(screen.getByLabelText("Nota *"), "Revisado");
+    expect(saveButton()).toBeEnabled();
+
+    selectableOptions = [];
+    refreshOptions();
+
+    expect(saveButton()).toBeDisabled();
+    expect(api.addTreatmentAction).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed close without adding a duplicate handling record", async () => {
+    api.closeTreatment.mockRejectedValueOnce(new Error("503"));
+    const user = userEvent.setup();
+    const { closeMenu } = renderForm();
+    await user.selectOptions(screen.getByLabelText("outcome"), [
+      "handling_outcome_1",
+    ]);
+    await user.type(screen.getByLabelText("Nota *"), "Revisado");
+    await user.click(saveButton());
+    await waitFor(() => expect(saveButton()).toBeEnabled());
+    await user.click(saveButton());
+
+    await waitFor(() => expect(closeMenu).toHaveBeenCalledWith(false));
+    expect(api.openTreatment).toHaveBeenCalledTimes(1);
+    expect(api.addTreatmentAction).toHaveBeenCalledTimes(1);
+    expect(api.closeTreatment).toHaveBeenCalledTimes(2);
+  });
+
+  it("stores the labels when bound to a multiple-selection list", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await user.selectOptions(screen.getByLabelText("outcome"), [
+      "handling_outcome_1,handling_outcome_3",
+    ]);
+    await user.type(screen.getByLabelText("Nota *"), "Revisado");
+    await user.click(saveButton());
+
+    await waitFor(() => expect(api.addTreatmentAction).toHaveBeenCalled());
+    expect(api.addTreatmentAction).toHaveBeenCalledWith(
+      "t-1",
+      expect.objectContaining({
+        outcomeKey: "handling_outcome_1,handling_outcome_3",
+        outcomeLabel: "Verificado por GPS, Otro",
+      })
+    );
   });
 });

@@ -1083,7 +1083,7 @@ public class EngineCaseService {
             description.put(DRIVER_RESPONSE, joined(a.outcomeLabel(), a.note()));
         } else {
             row.put(TREATMENT_TYPE, otherTreatmentType(a.kind()));
-            description.put(MESSAGE, a.outcomeLabel());
+            description.put(MESSAGE, a.outcomeLabel() != null ? a.outcomeLabel() : a.outcomeKey());
             description.put(DRIVER_RESPONSE, a.note());
         }
         row.put("at", a.performedAt() == null ? null : a.performedAt().toInstant().toString());

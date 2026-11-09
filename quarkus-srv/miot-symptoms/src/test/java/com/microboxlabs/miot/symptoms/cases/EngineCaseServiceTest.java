@@ -776,6 +776,22 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void aHandlingOutcomeKeyIsVisibleWhenNoLabelWasSent() {
+        store.add(panic(12, "DEMO01"));
+        TreatmentAction handling = new TreatmentAction("a", "t", TENANT, 1, ActionKind.NOTE, null, null,
+                null, null, null, "handling_outcome_1", null, null, null, null, "Verificado", List.of(),
+                Map.of(), "operator@example.com", OPENED.atOffset(ZoneOffset.UTC));
+
+        JsonNode row = EngineCaseService.withTreatments(service.header(TENANT, -12),
+                List.of(treatment(TreatmentStatus.CLOSED, handling)))
+                .path("timeline").get(0).path("conditions_agg").get(0).path("treatments").get(0);
+
+        assertEquals("registrar gestion", row.path("treatment_type").asText());
+        assertEquals("handling_outcome_1", row.path("description").path("message").asText());
+        assertEquals("Verificado", row.path("description").path("driver_response").asText());
+    }
+
+    @Test
     void gpsEventNotesLandInTheStepOfTheirFrameBeforeTheTreatments() throws Exception {
         store.add(escalated(OPENED.plusSeconds(10_000)));
         store.notes.put(12L, List.of(

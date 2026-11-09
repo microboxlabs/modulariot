@@ -72,9 +72,7 @@ describe("the case panel's actions", () => {
     config.pastForms = true;
     renderPanel("record_handling", true);
 
-    expect(
-      screen.getByText("Inline form record_handling")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Inline form record_handling")).toBeInTheDocument();
     expect(screen.queryByText("Past modal")).not.toBeInTheDocument();
     expect(screen.queryByText("Timeline")).not.toBeInTheDocument();
   });

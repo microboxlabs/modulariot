@@ -61,8 +61,13 @@ export default function PrototypeRecordHandling({
   const engineProgress = useRef<EngineTreatmentProgress>({});
 
   const { options } = useSelectableOptions(HANDLING_OUTCOME_FIELD);
-  const outcomeLabel = options.find((o) => o.id === outcomeId)?.name ?? "";
-  const canSave = outcomeId !== "" && note.trim().length > 0;
+  const outcomeIds = outcomeId.split(",").filter(Boolean);
+  const selectedOutcomes = options.filter((o) => outcomeIds.includes(o.id));
+  const outcomeLabel = selectedOutcomes.map((o) => o.name).join(", ");
+  const canSave =
+    selectedOutcomes.length > 0 &&
+    selectedOutcomes.length === outcomeIds.length &&
+    note.trim().length > 0;
 
   const handleSave = async () => {
     if (!canSave || submitting.current) return;

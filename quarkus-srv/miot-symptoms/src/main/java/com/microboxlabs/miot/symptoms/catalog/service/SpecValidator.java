@@ -139,6 +139,7 @@ public final class SpecValidator {
             out.add(new Finding("lifecycle", Severity.ERROR, RuleMessage.of("lifecycleMissing"), -1));
         } else {
             RuleSchema lifecycle = RuleSchema.lifecycle(source);
+            afterTripEnd(out, spec.lifecycle());
             rule(out, "lifecycle.open", lifecycle, spec.lifecycle().open(), Expect.CONDITION);
             rule(out, "lifecycle.close", lifecycle, spec.lifecycle().close(), Expect.CONDITION);
             if (spec.lifecycle().note() != null) {
@@ -156,6 +157,12 @@ public final class SpecValidator {
             out.add(new Finding("state", Severity.ERROR, RuleMessage.of("engineNotReady"), -1));
         }
         return new Report(out);
+    }
+
+    private static void afterTripEnd(List<Finding> out, SymptomSpec.Lifecycle lifecycle) {
+        if (!SymptomSpec.Lifecycle.AFTER_TRIP_END_VALUES.contains(lifecycle.effectiveAfterTripEnd())) {
+            out.add(new Finding("lifecycle.after_trip_end", Severity.ERROR, RuleMessage.of("afterTripEndInvalid"), -1));
+        }
     }
 
     private static void replyResults(List<Finding> out, SymptomSpec spec, Predicate<String> knownResult) {

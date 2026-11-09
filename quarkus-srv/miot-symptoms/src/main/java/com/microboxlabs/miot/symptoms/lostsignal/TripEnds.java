@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-/** Which trips ended or reached their destination, and closing a trip's lost-signal cases. */
+/** Which trips ended or reached their destination, and closing a trip's cases. */
 public interface TripEnds {
 
     /**
@@ -106,6 +106,9 @@ public interface TripEnds {
      */
     Map<String, State> states(Map<String, String> tripByTenant);
 
-    /** Closes the trip's open cases of those symptoms with {@link #REASON}; returns the ones it closed. */
+    /**
+     * Closes the trip's open cases of those symptoms ({@code null} for every symptom) with {@link #REASON}; returns
+     * the ones it closed.
+     */
     List<StaleCase> close(String tenant, String tripId, List<UUID> definitionIds, Instant at);
 }

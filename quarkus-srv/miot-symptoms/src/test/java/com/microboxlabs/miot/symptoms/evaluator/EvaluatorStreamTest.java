@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -34,11 +35,14 @@ import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -123,6 +127,87 @@ class EvaluatorStreamTest {
         assertEquals("T-1", repository.load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).orElseThrow().closedOnTrip());
         consumer.forget(DEMO, "DEMO01", id);
         assertTrue(repository.load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).isEmpty());
+    }
+
+    @Test
+    void withoutRedisATripCloseClearsTheEvaluatorsEpisodeAndInvalidatesAnInflightFrame() {
+        var redis = new EvaluatorRedis(Optional.empty(), 16, 256, null);
+        var stores = EvaluatorStream.Stores.of(redis, Duration.ofDays(7));
+        var detectorEpisodes = redis.episodes(Duration.ofDays(7));
+        assertSame(detectorEpisodes, stores.episodes());
+        var consumer = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()), Clock.systemUTC(), stores,
+                samples, LateFrames.NONE, LostSignalDetector.off(), Holds.NONE);
+        assertEquals(1, consumer.evaluate(signal("2026-01-01T00:00:00Z", true, DEMO)));
+        var id = evaluatorCatalog.forSource(DEMO, "gps_signal").symptoms().get(0).definitionId();
+        var inflight = stores.episodes().load(DEMO, "DEMO01");
+        Episode opened = inflight.find(DEMO, "DEMO01", id).orElseThrow();
+
+        detectorEpisodes.forgetStale(DEMO, "DEMO01", id, opened.state(), opened.openedAt());
+
+        assertTrue(stores.episodes().load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).isEmpty());
+        assertThrows(ConcurrentModificationException.class, () -> detectorEpisodes.save(inflight));
+        assertEquals(1, consumer.evaluate(signal("2026-01-01T00:01:00Z", true, DEMO)),
+                "the old episode cannot suppress the next case while the condition continues");
+    }
+
+    @Test
+    void aRejectedQueuedOpeningSavesNoEpisodeAfterOffTripWatchRemoval() throws Exception {
+        var repository = new InMemoryEpisodeRepository();
+        var ended = new java.util.concurrent.atomic.AtomicBoolean();
+        TransitionLog guarded = new TransitionLog() {
+            @Override
+            public List<Recorded> append(String tenant, List<Transition> changes, Place place, Map<String, Object> context) {
+                return log.append(tenant, changes, place, context);
+            }
+
+            @Override
+            public Appended appendEvaluated(String tenant, List<Transition> changes, Place place, Map<String, Object> context) {
+                if (!ended.get()) return TransitionLog.super.appendEvaluated(tenant, changes, place, context);
+                var rejected = changes.stream().filter(t -> t.kind() == Kind.OPENED).map(Transition::definitionId)
+                        .collect(java.util.stream.Collectors.toSet());
+                return new Appended(log.append(tenant, changes.stream().filter(t -> t.kind() != Kind.OPENED).toList(),
+                        place, context), rejected);
+            }
+        };
+        var clock = Clock.fixed(Instant.parse("2026-01-01T00:02:00Z"), java.time.ZoneOffset.UTC);
+        var meters = new SimpleMeterRegistry();
+        var loss = new InMemoryLossStore(clock);
+        var checks = new TripChecks(evaluatorCatalog, repository, guarded, events,
+                new AuditService(new InMemoryAuditStore()), meters);
+        var detector = new LostSignalDetector(true, loss, LossSettings.defaults(), TickerSettings.defaults(), checks, meters, clock);
+        var consumer = new EvaluatorStream(true, evaluatorCatalog, new EvaluatorStream.Sinks(guarded, events, meters),
+                clock, repository, samples, LateFrames.NONE, detector);
+        var json = new ObjectMapper();
+        var initial = (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree(signal("2026-01-01T00:00:00Z", false, DEMO));
+        initial.putObject("trips").putObject(DEMO).put("active", true).put("double_driver", false)
+                .put("id", "00000000-0000-4000-8000-000000000001");
+        consumer.evaluate(initial.toString());
+        assertFalse(loss.vehicle("DEMO01").watch().trips().isEmpty());
+        ended.set(true);
+        consumer.evaluate(signal("2026-01-01T00:00:10Z", false, DEMO));
+        var watch = loss.vehicle("DEMO01").watch();
+        assertTrue(watch == null || watch.trips().isEmpty());
+        initial.put("at", "2026-01-01T00:00:20Z");
+        ((com.fasterxml.jackson.databind.node.ObjectNode) initial.path("frame").path("sensors")).put("panic_button", true);
+        consumer.evaluate(initial.toString());
+        assertTrue(recorded.isEmpty());
+        var id = evaluatorCatalog.forSource(DEMO, "gps_signal").symptoms().get(0).definitionId();
+        assertTrue(repository.load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).isEmpty());
+    }
+
+    @Test
+    void aLateOpeningAnnotatedByItsPolicyKeepsTheEpisode() {
+        var repository = new InMemoryEpisodeRepository();
+        TransitionLog annotated = (tenant, changes, place, context) -> log.append(tenant,
+                changes.stream().map(t -> t.kind() == Kind.OPENED
+                        ? t.withDetail(Map.of("after_trip_end", "open_and_keep")) : t).toList(), place, context);
+        var consumer = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(annotated, events, new SimpleMeterRegistry()), Clock.systemUTC(), repository, samples);
+        consumer.evaluate(signal("2026-01-01T00:01:00Z", false, DEMO));
+        consumer.evaluate(signal("2026-01-01T00:00:00Z", true, DEMO));
+        var id = evaluatorCatalog.forSource(DEMO, "gps_signal").symptoms().get(0).definitionId();
+        assertTrue(repository.load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).orElseThrow().open());
     }
 
     @Test

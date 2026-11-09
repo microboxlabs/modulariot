@@ -115,6 +115,21 @@ public final class SeedTemplates {
                         description, version, spec) : t);
             }
         }
+        Matcher policies = Pattern.compile("\\('([^']+)', '(open_and_keep|open_and_close)'\\)")
+                .matcher(read("/db/migration/symptoms/V0.12.26__after_trip_end_policy.sql"));
+        while (policies.find()) {
+            String key = policies.group(1);
+            String policy = policies.group(2);
+            out.replaceAll(t -> {
+                if (!t.key().equals(key)) return t;
+                SymptomSpec s = t.spec();
+                var l = s.lifecycle();
+                SymptomSpec updated = new SymptomSpec(s.source(), s.activation(), s.measure(), s.levels(),
+                        new SymptomSpec.Lifecycle(l.open(), l.close(), l.levelDown(), l.note(), policy),
+                        s.recurrence(), s.family(), s.state());
+                return new SymptomTemplate(t.key(), t.name(), t.family(), t.icon(), t.description(), t.version(), updated);
+            });
+        }
         return List.copyOf(out);
     }
 

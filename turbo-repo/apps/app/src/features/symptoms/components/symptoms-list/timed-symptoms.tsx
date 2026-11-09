@@ -104,7 +104,7 @@ export default function TimedSymptoms({
                     ),
                   },
                   {
-                    text: "ID: " + item.trip_id,
+                    text: "ID: " + (item.trip_code?.trim() || item.trip_id),
                   },
                   {
                     text: loading ? (

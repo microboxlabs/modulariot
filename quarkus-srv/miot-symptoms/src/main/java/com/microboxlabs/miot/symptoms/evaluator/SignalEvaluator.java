@@ -208,12 +208,18 @@ public class SignalEvaluator {
      */
     public Result evaluateLate(String tenantCode, String assetId, Instant at, Map<String, Object> source,
             List<CompiledSymptom> symptoms) {
+        return evaluateLate(tenantCode, assetId, at, source, symptoms, false);
+    }
+
+    /** An ended-trip fact also lets an explicitly opted-in ordinary symptom evaluate its buffered frame. */
+    public Result evaluateLate(String tenantCode, String assetId, Instant at, Map<String, Object> source,
+            List<CompiledSymptom> symptoms, boolean afterTripEnd) {
         Map<String, Object> root = RuleLanguage.converted(source);
         List<Transition> transitions = new ArrayList<>();
         List<RuleError> errors = new ArrayList<>();
         for (CompiledSymptom s : symptoms) {
             Optional<Episode> before = store.find(tenantCode, assetId, s.definitionId());
-            if (!s.eventDriven() || before.filter(e -> stale(e, s)).isPresent()) {
+            if ((!s.eventDriven() && !(afterTripEnd && s.allowsAfterTripEnd())) || before.filter(e -> stale(e, s)).isPresent()) {
                 // A late frame leaves a case of the old state to the next frame in order.
                 continue;
             }
@@ -225,7 +231,7 @@ public class SignalEvaluator {
                             lateWhileOpen(tenantCode, at, root, s, before.get(), changes);
                         }
                     } else {
-                        changes.addAll(lateOpening(tenantCode, assetId, at, root, s, before));
+                        changes.addAll(lateOpening(tenantCode, assetId, at, root, s, before, afterTripEnd));
                     }
                 } finally {
                     transitions.addAll(withOperator(s, changes, root, errors));
@@ -267,12 +273,12 @@ public class SignalEvaluator {
 
     /** A buffered event may open a case, but must not leave partial hold-time state behind. */
     private List<Transition> lateOpening(String tenantCode, String assetId, Instant at, Map<String, Object> root,
-            CompiledSymptom s, Optional<Episode> before) {
+            CompiledSymptom s, Optional<Episode> before, boolean afterTripEnd) {
         // A buffered frame cannot prove the vehicle has left the newer trip an operator closed a case on.
         if (before.map(Episode::closedOnTrip).filter(trip -> !trip.equals(tripId(root))).isPresent()) {
             return List.of();
         }
-        if (!s.opensOnEvents() || !condition(s.activation(), root, "activation")) {
+        if ((!s.opensOnEvents() && !(afterTripEnd && s.allowsAfterTripEnd())) || !condition(s.activation(), root, "activation")) {
             return List.of();
         }
         List<Transition> transitions = step(tenantCode, assetId, at, root, s).stream()

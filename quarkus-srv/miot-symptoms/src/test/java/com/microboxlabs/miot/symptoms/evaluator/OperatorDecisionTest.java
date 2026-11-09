@@ -29,7 +29,10 @@ class OperatorDecisionTest {
 
     /** Speeding (levels 3 and 4 have an operator), with {@code when} on both operator levels. */
     private static CompiledSymptom symptom(String when) {
-        SymptomSpec base = Specs.speeding();
+        return symptom(when, Specs.speeding());
+    }
+
+    private static CompiledSymptom symptom(String when, SymptomSpec base) {
         List<SymptomSpec.Level> levels = new ArrayList<>();
         for (SymptomSpec.Level l : base.levels()) {
             levels.add(new SymptomSpec.Level(l.icu(), l.applies(), l.when(), l.response().withOperatorWhen(when),
@@ -105,6 +108,24 @@ class OperatorDecisionTest {
         assertTrue(run(evaluator, "truck-1", 1, 105, "v", s).transitions().isEmpty());
         assertTrue(run(evaluator, "truck-1", 2, 115, "v", s).transitions().isEmpty());
         assertEquals(Boolean.TRUE, run(evaluator, "truck-1", 62, 115, "v", s).transitions().getFirst().operator());
+    }
+
+    @Test
+    void bufferedOpeningsKeepBothTheAfterTripPolicyAndTheOperatorDecision() {
+        CompiledSymptom s = symptom(NOT_OTR_OTE,
+                Specs.withAfterTripEnd(Specs.speeding(), SymptomSpec.Lifecycle.KEEP)).withState(SymptomState.TEST);
+        assertEquals(SymptomSpec.Lifecycle.KEEP, s.afterTripEnd());
+        for (String type : List.of("otr", "v")) {
+            Result result = new SignalEvaluator(new InMemoryEpisodeStore()).evaluateLate(TENANT, "truck-1", T0,
+                    signal(105, type), List.of(s), true);
+            assertTrue(result.errors().isEmpty());
+            assertEquals(List.of(Kind.OPENED), result.transitions().stream().map(Transition::kind).toList());
+            assertEquals(type.equals("v"), result.transitions().getFirst().operator());
+        }
+        Result missing = new SignalEvaluator(new InMemoryEpisodeStore()).evaluateLate(TENANT, "truck-1", T0,
+                signal(105, null), List.of(s), true);
+        assertTrue(missing.errors().isEmpty());
+        assertEquals(Boolean.FALSE, missing.transitions().getFirst().operator());
     }
 
     @Test

@@ -166,11 +166,12 @@ public class PgEngineCases implements EngineCaseStore {
             + " AND CASE WHEN $9::boolean THEN z.hold_id IS NOT NULL AND z.closed_id IS NULL"
             + " WHEN $5::timestamptz IS NULL AND $6::timestamptz IS NULL THEN z.hold_id IS NULL ELSE true END"
             + " ORDER BY " + INBOX_ORDER + ", z.at DESC LIMIT 200";
+    /** The case's trip id as a UUID; null for a legacy trip id, which the trips module does not know. */
+    private static final String TRIP_UUID = """
+            CASE WHEN %1$s.trip_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                 THEN %1$s.trip_id::uuid END""";
     /** The case's live trip: a trips-module trip id is a UUID. */
-    private static final String LIVE_TRIP = """
-            t.tenant_code = %s.tenant_code AND t.trip_id = CASE
-                 WHEN %<s.trip_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-                 THEN %<s.trip_id::uuid END""";
+    private static final String LIVE_TRIP = "t.tenant_code = %1$s.tenant_code AND t.trip_id = " + TRIP_UUID;
     /** A RUT or id without dots, dashes or spaces, upper case; the parameter comes normalized the same way. */
     private static final String PLAIN = "upper(regexp_replace(%s, '[^0-9A-Za-z]', '', 'g'))";
     /**
@@ -252,16 +253,36 @@ public class PgEngineCases implements EngineCaseStore {
                      LIMIT 1) AS level_rule
               FROM (%s) w
             """.formatted(WITH_SLA.formatted(SELECT.formatted(TREATABLE_CASES + " AND o.id = $2")));
-    /** Enrich only the returned page, without changing counts or looking up each trip separately. */
-    private static final String WITH_TRIP_CODE = """
+    private static final String LIVE_TRIP_COLUMNS = """
             SELECT c.*, t.mandate_codes::text AS trip_mandate_codes, t.driver_name AS trip_driver,
                    t.carrier_name AS trip_carrier, t.origin_geofence_label AS trip_origin,
-                   t.destination_geofence_label AS trip_destination, t.asset_id AS trip_asset
+                   t.destination_geofence_label AS trip_destination, t.asset_id AS trip_asset,
+            """;
+    /**
+     * Enrich only the returned page, without changing counts or looking up each trip separately. A trip without a
+     * {@code trip_live} row (it ended) takes its code from its first current mandate, else from its feed service.
+     */
+    private static final String WITH_TRIP_CODE = LIVE_TRIP_COLUMNS + """
+                   CASE WHEN t.trip_id IS NULL AND u.id IS NOT NULL THEN COALESCE(
+                       (SELECT NULLIF(btrim(m.external_code), '') FROM miot_trips.trip_mandate tm
+                          JOIN miot_trips.mandate m ON m.id = tm.mandate_id AND m.tenant_code = tm.tenant_code
+                         WHERE tm.trip_id = u.id AND tm.tenant_code = c.tenant_code
+                           AND tm.version_of IS NULL AND tm.is_active
+                         ORDER BY tm.seq LIMIT 1),
+                       (SELECT f.external_code FROM miot_trips.feed_service f
+                         WHERE f.tenant_code = c.tenant_code AND f.trip_id = u.id
+                         ORDER BY f.updated_at DESC LIMIT 1)) END AS trip_code_fallback
               FROM (%%s) c
-              LEFT JOIN miot_trips.trip_live t ON %s
+              CROSS JOIN LATERAL (SELECT %s AS id) u
+              LEFT JOIN miot_trips.trip_live t ON t.tenant_code = c.tenant_code AND t.trip_id = u.id
              ORDER BY c.at DESC
-            """.formatted(LIVE_TRIP.formatted("c"));
+            """.formatted(TRIP_UUID.formatted("c"));
+    /** Older trips deployments still supply their live-trip fields and support the same trip filters. */
+    private static final String WITH_LIVE_TRIP = LIVE_TRIP_COLUMNS
+            + " NULL::text AS trip_code_fallback FROM (%s) c LEFT JOIN miot_trips.trip_live t ON "
+            + LIVE_TRIP.formatted("c") + " ORDER BY c.at DESC";
     private static final String WITHOUT_TRIP = "SELECT c.*, NULL::text AS trip_mandate_codes,"
+            + " NULL::text AS trip_code_fallback,"
             + " NULL::text AS trip_driver, NULL::text AS trip_carrier, NULL::text AS trip_origin,"
             + " NULL::text AS trip_destination, NULL::text AS trip_asset FROM (%s) c ORDER BY c.at DESC";
     private static final String OPENED = CASES + " AND o.at >= $2 AND o.at < $3";
@@ -356,12 +377,10 @@ public class PgEngineCases implements EngineCaseStore {
 
     private static final String TRIP_DEFINITIONS = """
             SELECT id FROM miot_symptoms.symptom_definition
-             WHERE tenant_code = $1 AND id = ANY($2::uuid[])
+             WHERE tenant_code = $1 AND ($2::uuid[] IS NULL OR id = ANY($2::uuid[]))
              ORDER BY id FOR SHARE
             """;
-    private static final String TRIP_STATE_LOCK = """
-            SELECT id FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2 FOR SHARE
-            """;
+
     private static final String TRIP_ASSET_LOCK = """
             SELECT asset_id FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id = $2 FOR SHARE
             """;
@@ -411,7 +430,9 @@ public class PgEngineCases implements EngineCaseStore {
     /** Locks the trip's OPENED rows, so an operator's close of one of them and this close run one after the other. */
     private static final String LOCK_TRIP = """
             SELECT o.*, o.id AS case_id, o.at AS opened_at FROM miot_symptoms.signal_transitions o
-             WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED' AND o.definition_id = ANY($3::uuid[])
+             WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED'
+               AND ($4::varchar IS NOT NULL OR COALESCE(o.context ->> 'after_trip_end', '') <> 'open_and_keep')
+               AND ($3::uuid[] IS NULL OR o.definition_id = ANY($3::uuid[]))
                AND ($4::varchar IS NULL OR upper(o.asset_id) <> upper($4))
                AND NOT EXISTS (SELECT 1 FROM miot_symptoms.signal_transitions c
                     WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
@@ -451,7 +472,8 @@ public class PgEngineCases implements EngineCaseStore {
                      AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED' AND l.id > o.id
                    ) lv ON true
              WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED' AND o.state IN ('ACTIVE', 'TEST')
-               AND o.definition_id = ANY($3::uuid[])
+               AND ($5::text <> 'trip_ended' OR COALESCE(o.context ->> 'after_trip_end', '') <> 'open_and_keep')
+               AND ($3::uuid[] IS NULL OR o.definition_id = ANY($3::uuid[]))
                AND ($7::varchar IS NULL OR upper(o.asset_id) <> upper($7))
                AND NOT EXISTS (
                    SELECT 1 FROM miot_symptoms.signal_transitions c
@@ -495,6 +517,11 @@ public class PgEngineCases implements EngineCaseStore {
             return PgIds.query(pool.get(), WITH_TRIP_CODE.formatted(query), args);
         } catch (RuntimeException e) {
             LOG.debug("Engine case trip codes unavailable", e);
+        }
+        try {
+            return PgIds.query(pool.get(), WITH_LIVE_TRIP.formatted(query), args);
+        } catch (RuntimeException e) {
+            LOG.debug("Engine case live trips unavailable", e);
             return PgIds.query(pool.get(), WITHOUT_TRIP.formatted(query), args);
         }
     }
@@ -526,8 +553,7 @@ public class PgEngineCases implements EngineCaseStore {
         args.addString(driver).addString(carrier).addString(f.carrierId() == null ? null : f.carrierId().trim())
                 .addString(lower(f.origin())).addString(lower(f.destination()));
         try {
-            PgIds.query(pool.get(), WITH_TRIP_CODE.formatted(MATCHING_BY_TRIP), args)
-                    .forEach(r -> out.add(engineCase(r)));
+            cases(MATCHING_BY_TRIP, args).forEach(r -> out.add(engineCase(r)));
         } catch (PgException e) {
             // Without the trips or fleet tables no case has a live trip to match.
             if (!"42P01".equals(e.getSqlState())) {
@@ -723,18 +749,20 @@ public class PgEngineCases implements EngineCaseStore {
     @Override
     public List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
             String reason, String keepAsset, Function<StaleCase, ClosingFrame> frames) {
-        if (definitionIds.isEmpty()) {
+        if (definitionIds != null && definitionIds.isEmpty()) {
             return List.of();
         }
-        UUID[] ids = definitionIds.toArray(UUID[]::new);
+        UUID[] ids = definitionIds == null ? null : definitionIds.toArray(UUID[]::new);
         // Every trip_live change asks; most trips have no case on another vehicle.
         if (keepAsset != null && !pool.get().preparedQuery(OTHER_VEHICLE_OPEN)
                 .execute(Tuple.of(tenantCode, tripId, ids, keepAsset)).await().atMost(QUERY_TIMEOUT).iterator()
                 .hasNext()) {
             return List.of();
         }
-        return pool.get().withTransaction(conn -> conn.preparedQuery(TRIP_STATE_LOCK)
-                .execute(Tuple.of(tenantCode, TripEnds.uuid(tripId)))
+        return pool.get().withTransaction(conn -> PgTripState.lock(conn, tenantCode, tripId)
+                .flatMap(window -> TripEnds.REASON.equals(reason)
+                        ? PgTripState.remember(conn, tenantCode, tripId, at, window)
+                        : io.smallrye.mutiny.Uni.createFrom().voidItem())
                 .flatMap(locked -> lockTripAsset(conn, tenantCode, tripId, keepAsset))
                 .flatMap(locked -> conn.preparedQuery(TRIP_DEFINITIONS).execute(Tuple.of(tenantCode, ids)))
                 .flatMap(locked -> conn.preparedQuery(LOCK_TRIP).execute(Tuple.of(tenantCode, tripId, ids, keepAsset)))
@@ -794,7 +822,7 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble(SPEED_KMH),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
-                r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"))).withTrip(trip(r))
+                r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"), r.getString("trip_code_fallback"))).withTrip(trip(r))
                 .withHold(hold(r), instant(r.getOffsetDateTime("returned_at")))
                 .withLevelAt(instant(r.getOffsetDateTime("level_at")))
                 .withTest("TEST".equals(r.getString("state")));
@@ -871,6 +899,15 @@ public class PgEngineCases implements EngineCaseStore {
             LOG.debug("Engine case level context is not valid JSON", e);
             return null;
         }
+    }
+
+    /** The live trip's first mandate code, else the code of the ended trip. */
+    static String tripCode(String mandates, String fallback) {
+        String code = tripCode(mandates);
+        if (code != null) {
+            return code;
+        }
+        return fallback == null || fallback.isBlank() ? null : fallback.strip();
     }
 
     /** Decode each trip independently so a malformed projection never hides another trip's code. */

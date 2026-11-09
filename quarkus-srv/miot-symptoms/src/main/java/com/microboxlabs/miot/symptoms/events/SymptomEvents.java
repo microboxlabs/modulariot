@@ -85,9 +85,11 @@ public class SymptomEvents {
             }
             Name n = name(tenantCode, t.definitionId());
             Place at = place.of(t);
+            String closedBy = t.kind() == Transition.Kind.CLOSED && t.detail() != null
+                    && "trip_ended".equals(t.detail().get("reason")) ? "trip_ended" : null;
             SymptomCaseData data = new SymptomCaseData(-r.caseId(), t.definitionId(), t.version(), n.key(),
                     n.name(), t.level(), t.previousLevel(), t.assetId(), at.tripId(), at.driverId(),
-                    t.measure(), at.latitude(), at.longitude(), at.speedKmh(), null, null, null, null, null);
+                    t.measure(), at.latitude(), at.longitude(), at.speedKmh(), closedBy, null, null, null, null);
             publish(type(t.kind()), tenantCode, t.at(), data, t.state() != SymptomState.ACTIVE);
         }
     }

@@ -29,13 +29,13 @@ describe("truck change header layout", () => {
 
       render(
         <TagManager
-          tags={[plateTag(false, "KTKJ69", "KGXR80", es)]}
+          tags={[plateTag(false, "TRUCK1", "TRUCK2", es)]}
           tag_style=""
         />
       );
 
       if (visible) {
-        expect(screen.getByText(/Viaje ahora en KGXR80/)).toBeInTheDocument();
+        expect(screen.getByText(/Viaje ahora en TRUCK2/)).toBeInTheDocument();
         expect(screen.queryByText("+1")).not.toBeInTheDocument();
       } else {
         expect(screen.getByText("+1")).toBeInTheDocument();

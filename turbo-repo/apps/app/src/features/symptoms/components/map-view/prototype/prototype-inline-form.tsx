@@ -19,11 +19,16 @@ import type { CallFormDraft } from "./prototype-call-driver";
 import { useFieldEditorMode } from "./call-center/field-editor-mode";
 import WhatsAppContact from "../../blurrable-stepped-menu/menus/whatsapp-contact/whatsapp-contact";
 import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
-import { startPendingTreatment } from "./prototype-api-guard";
+import {
+  RECORD_HANDLING_TYPE,
+  startPendingTreatment,
+} from "./prototype-api-guard";
 import PrototypeIgnoreCondition from "./prototype-ignore-condition";
 import PrototypeInvalidateSymptom from "./prototype-invalidate-symptom";
+import PrototypeRecordHandling from "./prototype-record-handling";
 import { TiDelete } from "react-icons/ti";
 import { MdBlock } from "react-icons/md";
+import { HiOutlineClipboardCheck } from "react-icons/hi";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
 import { useOptionalCallSession } from "./call-center/call-session";
 
@@ -340,6 +345,25 @@ export default function PrototypeInlineForm({
         />
       ),
       icon: <MdBlock className="h-7 w-7" />,
+    },
+    record_handling: {
+      title: (dict.symptoms as I18nRecord).record_handling,
+      preactions: () =>
+        startPendingTreatment(
+          treatmentRequest,
+          setTreatmentRequest,
+          RECORD_HANDLING_TYPE
+        ),
+      component: (
+        <PrototypeRecordHandling
+          dict={dict}
+          treatmentData={treatmentData}
+          treatmentRequest={treatmentRequest}
+          setTreatmentRequest={setTreatmentRequest}
+          setIsMenuOpen={setIsMenuOpen}
+        />
+      ),
+      icon: <HiOutlineClipboardCheck className="h-7 w-7" />,
     },
   };
 

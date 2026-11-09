@@ -5,4 +5,5 @@ export type SelectedOption =
   | "contact_via_whatsapp"
   | "copilot"
   | "ignore_condition"
-  | "invalidate_symptom";
+  | "invalidate_symptom"
+  | "record_handling";

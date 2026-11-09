@@ -49,6 +49,9 @@ export function isEngineCase(payload: TreatmentsRequest): boolean {
   return Number(payload.symptom_id) < 0;
 }
 
+/** "Registrar gestión": handled without a call, stored as a NOTE with an outcome. */
+export const RECORD_HANDLING_TYPE = "registrar gestion";
+
 const TOWER_TREATMENT_TYPES: Record<string, TowerTreatmentType> = {
   "llamar al conductor": "CALL",
   "ignorar condicion": "IGNORE_CONDITION",
@@ -98,12 +101,13 @@ function engineAction(
 ): AddActionBody {
   const type = towerType(payload);
   const reason = payload.description ?? undefined;
+  const handling = payload.treatment_type === RECORD_HANDLING_TYPE;
   return {
-    kind: TOWER_ACTION_KINDS[type],
+    kind: handling ? "NOTE" : TOWER_ACTION_KINDS[type],
     outcomeLabel: reason,
     message: payload.message ?? undefined,
     note: payload.driver_response ?? undefined,
-    contactName: type === "CALL" ? "Conductor" : undefined,
+    contactName: type === "CALL" && !handling ? "Conductor" : undefined,
     ...extra,
   };
 }

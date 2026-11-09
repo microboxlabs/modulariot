@@ -37,6 +37,7 @@ const MENU_OPTIONS: SelectedOption[] = [
   "copilot",
   "ignore_condition",
   "invalidate_symptom",
+  "record_handling",
 ];
 
 function isSelectedOption(value: string | null): value is SelectedOption {

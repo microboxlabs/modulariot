@@ -254,7 +254,7 @@ public class WhatsAppCalls {
         Instant now = clock.instant();
         int missed = 0;
         for (InboundWhatsAppCall c : store.unansweredBefore(now.minus(config.ringTimeout()))) {
-            if (usage.locked(c.connectionId(), () -> expireUnanswered(c.id(), now))) missed++;
+            if (Boolean.TRUE.equals(usage.locked(c.connectionId(), () -> expireUnanswered(c.id(), now)))) missed++;
         }
         return missed;
     }
@@ -279,7 +279,7 @@ public class WhatsAppCalls {
         Instant now = clock.instant();
         int ended = 0;
         for (InboundWhatsAppCall call : store.activeBefore(now.minus(IntegrationsTelephony.HOLD).plusSeconds(60))) {
-            if (usage.locked(call.connectionId(), () -> endOverdue(call.id(), now))) ended++;
+            if (Boolean.TRUE.equals(usage.locked(call.connectionId(), () -> endOverdue(call.id(), now)))) ended++;
         }
         return ended;
     }

@@ -19,6 +19,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class TelnyxClient {
 
+    private static final String JSON = "application/json";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String COMMAND_ID = ",\"command_id\":";
 
@@ -68,7 +69,7 @@ public class TelnyxClient {
             throws IOException, InterruptedException {
         String body = "{\"connection_id\":" + json(connectionId) + ",\"name\":" + json(name) + "}";
         return http.send(request(apiKey, "/v2/telephony_credentials")
-                .header(CONTENT_TYPE, "application/json")
+                .header(CONTENT_TYPE, JSON)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build());
     }
@@ -125,7 +126,7 @@ public class TelnyxClient {
                 + COMMAND_ID + json(d.commandId()) + ",\"link_to\":" + json(d.linkTo())
                 + ",\"timeout_secs\":45,\"time_limit_secs\":" + d.timeLimitSeconds() + "}";
         return http.send(request(apiKey, "/v2/calls")
-                .header(CONTENT_TYPE, "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build());
+                .header(CONTENT_TYPE, JSON).POST(HttpRequest.BodyPublishers.ofString(body)).build());
     }
 
     /** Joins {@code callId} with {@code otherCallId}. */
@@ -156,7 +157,7 @@ public class TelnyxClient {
     private HttpResponse<String> command(String apiKey, String callId, String action, String body)
             throws IOException, InterruptedException {
         return http.send(request(apiKey, "/v2/calls/" + segment(callId) + "/actions/" + action)
-                .header(CONTENT_TYPE, "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build());
+                .header(CONTENT_TYPE, JSON).POST(HttpRequest.BodyPublishers.ofString(body)).build());
     }
 
     private static String json(String value) {

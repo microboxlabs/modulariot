@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 /** Real routing SQL against an explicitly supplied scratch database, without containers. */
-@EnabledIfSystemProperty(named = "miot.symptoms.test.pg-url", matches = ".+")
+@EnabledIfSystemProperty(named = "miot.symptoms.test.inbound-pg-url", matches = ".+")
 class PgInboundCallersQueriesTest {
 
     private static final Duration WAIT = Duration.ofSeconds(10);
@@ -25,7 +25,7 @@ class PgInboundCallersQueriesTest {
     void duplicateContactsCannotHideAnotherOrganizationAndCasesStayInTheMatchedOrganization() {
         Vertx vertx = Vertx.vertx();
         Pool pool = PgBuilder.pool()
-                .connectingTo(PgConnectOptions.fromUri(System.getProperty("miot.symptoms.test.pg-url")))
+                .connectingTo(PgConnectOptions.fromUri(System.getProperty("miot.symptoms.test.inbound-pg-url")))
                 .using(vertx).build();
         String schema = "cert_inbound_" + UUID.randomUUID().toString().replace("-", "");
         try {

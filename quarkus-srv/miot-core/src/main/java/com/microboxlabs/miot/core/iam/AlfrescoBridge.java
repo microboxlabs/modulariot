@@ -14,6 +14,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -73,10 +74,10 @@ public class AlfrescoBridge {
 
     /**
      * Copies the Alfresco group of {@code slug}'s top-level organization into memberships, under a lock per
-     * organization so concurrent runs wait for each other.
+     * organization so concurrent runs wait for each other, up to {@code limit} (see {@link #lock}).
      */
-    public Uni<ImportResult> importMembers(String slug, String actor) {
-        return Panache.withTransaction(() -> lock(slug)
+    public Uni<ImportResult> importMembers(String slug, String actor, Duration limit) {
+        return Panache.withTransaction(() -> lock(slug, limit)
                 .flatMap(locked -> Organization.findBySlug(slug))
                 .flatMap(found -> {
                     if (found == null) {
@@ -99,12 +100,21 @@ public class AlfrescoBridge {
                         .persist().replaceWith(result));
     }
 
-    /** Holds a transaction-scoped lock for this organization's import until the transaction ends. */
-    static Uni<Void> lock(String slug) {
+    /**
+     * Holds a transaction-scoped lock for this organization's import until the transaction ends. Postgres gives up
+     * waiting for it after {@code limit}, and ends the transaction when it sits idle that long, so a run that stalls
+     * or is cancelled does not keep the lock or a pooled connection.
+     */
+    static Uni<Void> lock(String slug, Duration limit) {
+        String ms = String.valueOf(limit.toMillis());
         return Panache.getSession()
-                .flatMap(session -> session.createNativeQuery("select pg_advisory_xact_lock(hashtext(?1))")
-                        .setParameter(1, "iam-alfresco-import:" + slug)
-                        .executeUpdate())
+                .flatMap(session -> session.createNativeQuery("select set_config('lock_timeout', ?1, true),"
+                                + " set_config('idle_in_transaction_session_timeout', ?1, true)")
+                        .setParameter(1, ms)
+                        .getSingleResult()
+                        .flatMap(set -> session.createNativeQuery("select pg_advisory_xact_lock(hashtext(?1))")
+                                .setParameter(1, "iam-alfresco-import:" + slug)
+                                .executeUpdate()))
                 .replaceWithVoid();
     }
 

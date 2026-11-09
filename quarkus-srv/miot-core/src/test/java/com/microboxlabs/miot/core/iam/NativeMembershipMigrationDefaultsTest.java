@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.core.iam;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,13 +27,17 @@ import org.junit.jupiter.api.Test;
 @TestProfile(NativeMembershipMigrationDefaultsTest.LegacyDefaults.class)
 class NativeMembershipMigrationDefaultsTest {
 
-    /** Imports from the stub clients, with three modules that have a legacy-default role; no scheduled runs. */
+    /**
+     * Imports from the stub clients, with three modules that have a legacy-default role; no scheduled runs, and a
+     * short timeout.
+     */
     public static class LegacyDefaults extends NativeMembershipMigrationTest.ImportStub {
         @Override
         public Map<String, String> getConfigOverrides() {
             Map<String, String> overrides = new HashMap<>(super.getConfigOverrides());
             overrides.put(LegacyDefaultsTestCatalog.PROPERTY, "true");
             overrides.put("miot.iam.native-migration.every", "off");
+            overrides.put(NativeMembershipMigration.TIMEOUT_PROPERTY, "5s");
             return overrides;
         }
     }
@@ -98,6 +103,31 @@ class NativeMembershipMigrationDefaultsTest {
         assertEquals(String.valueOf(expected), query("SELECT count(*) FROM miot_iam.iam_role_binding b "
                 + "JOIN miot_core.organizations o ON o.id = b.organization_id WHERE o.slug = '" + ORG
                 + "' AND b.created_by = '" + NativeMembershipMigration.ACTOR + "'"));
+    }
+
+    @Test
+    void aRunThatDoesNotFinishFailsAndTheNextOneMovesTheOrganization() throws SQLException {
+        try (Connection holder = ds.getConnection()) {
+            // Another run holds the organization's lock.
+            holder.setAutoCommit(false);
+            try (var st = holder.createStatement()) {
+                st.execute("SELECT pg_advisory_xact_lock(hashtext('iam-alfresco-import:" + ORG + "'))");
+            }
+            given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                    .when().post(MIGRATE)
+                    .then().statusCode(200)
+                    .body("find { it.organization == '" + ORG + "' }.error", containsString("Not done after"));
+            assertEquals("ALFRESCO", query("SELECT membership_source FROM miot_core.organizations WHERE slug = '"
+                    + ORG + "'"));
+            holder.rollback();
+        }
+
+        given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().post(MIGRATE)
+                .then().statusCode(200)
+                .body("find { it.organization == '" + ORG + "' }.error", nullValue());
+        assertEquals("NATIVE", query("SELECT membership_source FROM miot_core.organizations WHERE slug = '"
+                + ORG + "'"));
     }
 
     private String query(String sql) throws SQLException {

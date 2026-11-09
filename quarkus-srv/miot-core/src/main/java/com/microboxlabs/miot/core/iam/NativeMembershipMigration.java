@@ -10,6 +10,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -31,7 +33,8 @@ import org.jboss.logging.Logger;
  * An organization with a sub-account that has its own Alfresco group is left pending: only the top-level group is
  * imported.
  *
- * <p>Runs a second after start and every minute; a failed organization is tried again on the next run. See
+ * <p>Runs a second after start and every minute; a failed organization, or one not done within
+ * {@value #TIMEOUT_PROPERTY} (5 minutes by default), is tried again on the next run. See
  * {@link NativeMembershipReadiness} for how traffic waits for it.
  */
 @ApplicationScoped
@@ -44,6 +47,7 @@ public class NativeMembershipMigration {
     static final String IMPORT_STUB_PROPERTY = "miot.iam.native-migration.import-stub";
     /** Off on a pod that does not serve the API: without the Alfresco settings it would skip the import. */
     static final String ENABLED_PROPERTY = "miot.iam.native-migration.enabled";
+    static final String TIMEOUT_PROPERTY = "miot.iam.native-migration.timeout";
     private static final Logger LOG = Logger.getLogger(NativeMembershipMigration.class);
 
     /** One organization: how many people the import added and suspended, how many default roles were bound. */
@@ -58,6 +62,7 @@ public class NativeMembershipMigration {
     private final AccessRegistry registry;
     private final boolean alreadyNative;
     private final boolean scheduled;
+    private final Duration timeout;
     private final AtomicBoolean done = new AtomicBoolean();
 
     @Inject
@@ -66,12 +71,14 @@ public class NativeMembershipMigration {
             @ConfigProperty(name = ALFRESCO_AUTH_PROPERTY, defaultValue = "stub") String alfrescoAuth,
             @ConfigProperty(name = IMPORT_STUB_PROPERTY, defaultValue = "false") boolean importStub,
             @ConfigProperty(name = "miot.iam.native-migration.every", defaultValue = "1m") String every,
-            @ConfigProperty(name = ENABLED_PROPERTY, defaultValue = "true") boolean enabled) {
+            @ConfigProperty(name = ENABLED_PROPERTY, defaultValue = "true") boolean enabled,
+            @ConfigProperty(name = TIMEOUT_PROPERTY, defaultValue = "5m") Duration timeout) {
         this.bridge = bridge;
         this.registry = registry;
         this.alreadyNative = "native".equalsIgnoreCase(legacyMembership.trim())
                 || ("stub".equalsIgnoreCase(alfrescoAuth.trim()) && !importStub);
         this.scheduled = enabled && !"off".equalsIgnoreCase(every.trim());
+        this.timeout = timeout;
     }
 
     @Scheduled(every = "${miot.iam.native-migration.every:1m}", delayed = "1s",
@@ -95,9 +102,11 @@ public class NativeMembershipMigration {
             List<Migrated> results = new ArrayList<>();
             Uni<Void> chain = Uni.createFrom().voidItem();
             for (String slug : orgs.stream().map(o -> o.slug).toList()) {
-                chain = chain.flatMap(i -> migrate(slug)
+                chain = chain.flatMap(i -> Uni.createFrom().deferred(() -> migrate(slug))
+                        .ifNoItem().after(timeout).failWith(() -> new TimeoutException(
+                                "Not done after " + timeout + "; tried again on the next run"))
                         .onFailure().recoverWithItem(e -> {
-                            LOG.warnf("Moving %s to native membership failed: %s", slug, e.getMessage());
+                            LOG.warnf(e, "Moving %s to native membership failed: %s", slug, e.getMessage());
                             return Migrated.failed(slug, e);
                         })
                         .invoke(results::add)
@@ -119,7 +128,7 @@ public class NativeMembershipMigration {
         return Panache.withSession(() -> withoutChildGroups(slug)).flatMap(org -> {
             Uni<Migrated> imported = org.alfrescoGroupId == null
                     ? Uni.createFrom().item(new Migrated(slug, 0, 0, 0, null))
-                    : bridge.importMembers(slug, ACTOR)
+                    : bridge.importMembers(slug, ACTOR, timeout)
                             .map(r -> new Migrated(slug, r.added(), r.suspended(), 0, null));
             return imported
                     .flatMap(result -> bindDefaults(slug).map(bound -> new Migrated(slug, result.added(),
@@ -148,7 +157,7 @@ public class NativeMembershipMigration {
         if (defaults.isEmpty()) {
             return Uni.createFrom().item(0);
         }
-        return Panache.withTransaction(() -> AlfrescoBridge.lock(slug)
+        return Panache.withTransaction(() -> AlfrescoBridge.lock(slug, timeout)
                 .flatMap(locked -> Organization.findBySlug(slug))
                 .flatMap(org -> IamMembership.findByOrganization(org.id).flatMap(rows -> IamRoleBinding
                         .findByOrganization(org.id).flatMap(this::modulesHeld)

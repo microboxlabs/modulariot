@@ -26,7 +26,7 @@ class WhatsAppUsageRecoveryTest {
         calls.saveLeg("ref", "wa-leg");
     }
 
-    private String record(String leg, String app) {
+    private String detailRecord(String leg, String app) {
         return """
                 {"data":[{"call_control_id":"%s","connection_id":"%s","call_sec":61,
                 "started_at":"2026-11-09T07:45:00Z","answered_at":"2026-11-09T07:45:10Z",
@@ -37,7 +37,7 @@ class WhatsAppUsageRecoveryTest {
     @Test
     void recoversTheSavedWhatsAppLegOnceAndPreservesItsChannelAndContact() {
         reserve(UsageRow.WHATSAPP_CALL);
-        http.reply("/v2/detail_records", 200, record("wa-leg", "wa-app"));
+        http.reply("/v2/detail_records", 200, detailRecord("wa-leg", "wa-app"));
         assertEquals(1, recovery.recover("managed", "test-key", NOW));
         UsageRow row = usage.find("ref").orElseThrow();
         assertEquals(UsageRow.CONFIRMED, row.status());
@@ -60,13 +60,13 @@ class WhatsAppUsageRecoveryTest {
     @Test
     void rejectsOtherLegsAndApplicationsAndRetriesTransientFailures() {
         reserve(UsageRow.WHATSAPP_INBOUND);
-        http.reply("/v2/detail_records", 200, record("operator-leg", "wa-app"));
+        http.reply("/v2/detail_records", 200, detailRecord("operator-leg", "wa-app"));
         assertEquals(0, recovery.recover("managed", "test-key", NOW));
-        http.reply("/v2/detail_records", 200, record("wa-leg", "other-app"));
+        http.reply("/v2/detail_records", 200, detailRecord("wa-leg", "other-app"));
         assertEquals(0, recovery.recover("managed", "test-key", NOW));
         http.reply("/v2/detail_records", 503, "{}");
         assertEquals(0, recovery.recover("managed", "test-key", NOW));
-        http.reply("/v2/detail_records", 200, record("wa-leg", "wa-app"));
+        http.reply("/v2/detail_records", 200, detailRecord("wa-leg", "wa-app"));
         assertEquals(0, recovery.recover("other-connection", "test-key", NOW));
         assertEquals(1, recovery.recover("managed", "test-key", NOW));
         assertEquals(UsageRow.WHATSAPP_INBOUND, usage.find("ref").orElseThrow().destinationType());

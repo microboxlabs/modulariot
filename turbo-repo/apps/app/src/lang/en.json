@@ -2482,6 +2482,8 @@
         "searchInvitations": "Search by email or inviter",
         "searchTeams": "Search teams",
         "searchKeys": "Search service accounts or keys",
+        "searchPermissions": "Search permissions or modules",
+        "clearSearch": "Clear search",
         "filterBaseRole": "Base role",
         "filterModuleRole": "Module role",
         "filterStatus": "Status",

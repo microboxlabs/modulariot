@@ -34,6 +34,7 @@ import {
   distinctValues,
   filterInvitations,
   filterMembers,
+  filterPermissions,
   filterServiceAccounts,
   filterTeams,
   heldRoles,
@@ -182,6 +183,7 @@ export default function TeamPageContent({
   const [invitationQuery, setInvitationQuery] = useState("");
   const [teamQuery, setTeamQuery] = useState("");
   const [keyQuery, setKeyQuery] = useState("");
+  const [permissionQuery, setPermissionQuery] = useState("");
 
   // Same SWR keys as the Teams and API keys tabs, so these share their requests.
   const teams = useTeams(tab === "members" || tab === "teams");
@@ -249,6 +251,19 @@ export default function TeamPageContent({
           placeholder={tr("searchKeys", d)}
           shown={filterServiceAccounts(accountList, keyQuery).length}
           total={accountList.length}
+          d={d}
+        />
+      );
+    }
+    if (tab === "roles" && catalog) {
+      return (
+        <TeamSearchToolbar
+          id="team-permission-search"
+          query={permissionQuery}
+          onQuery={setPermissionQuery}
+          placeholder={tr("searchPermissions", d)}
+          shown={filterPermissions(catalog.permissions, permissionQuery).length}
+          total={catalog.permissions.length}
           d={d}
         />
       );
@@ -395,7 +410,12 @@ export default function TeamPageContent({
           <TeamKeysTab query={keyQuery} roles={roles} lang={lang} d={d} />
         )}
         {tab === "roles" && catalog && (
-          <TeamRolesTab catalog={catalog} lang={lang} d={d} />
+          <TeamRolesTab
+            catalog={catalog}
+            query={permissionQuery}
+            lang={lang}
+            d={d}
+          />
         )}
       </div>
 

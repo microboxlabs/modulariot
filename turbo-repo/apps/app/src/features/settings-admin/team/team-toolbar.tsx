@@ -96,6 +96,7 @@ export function TeamSearchToolbar({
         id={id}
         value={query}
         placeholder={placeholder}
+        clearLabel={tr("clearSearch", d)}
         onChange={onQuery}
       />
       <ShownCount shown={shown} total={total} d={d} />
@@ -133,6 +134,7 @@ export function TeamMembersToolbar({
         id="team-member-search"
         value={filters.query}
         placeholder={tr("searchMembers", d)}
+        clearLabel={tr("clearSearch", d)}
         onChange={(query) => onFiltersChange({ ...filters, query })}
       />
       {LIST_KEYS.filter((key) => options[key].length >= MIN_OPTIONS[key]).map(

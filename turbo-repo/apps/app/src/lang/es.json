@@ -2482,6 +2482,8 @@
         "searchInvitations": "Buscar por correo o quién invitó",
         "searchTeams": "Buscar equipos",
         "searchKeys": "Buscar cuentas de servicio o llaves",
+        "searchPermissions": "Buscar permisos o módulos",
+        "clearSearch": "Limpiar búsqueda",
         "filterBaseRole": "Rol base",
         "filterModuleRole": "Rol de módulo",
         "filterStatus": "Estado",

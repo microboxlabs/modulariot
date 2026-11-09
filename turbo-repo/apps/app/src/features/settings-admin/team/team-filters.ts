@@ -1,4 +1,5 @@
 import type {
+  CatalogPermission,
   Invitation,
   ServiceAccount,
   Team,
@@ -120,6 +121,20 @@ export function filterInvitations(
 
 export function filterTeams(teams: readonly Team[], query: string): Team[] {
   return teams.filter((t) => matchesText(query, [t.name, t.description]));
+}
+
+/** Search the permission matrix by key, module and translated labels. */
+export function filterPermissions(
+  permissions: readonly CatalogPermission[],
+  query: string
+): CatalogPermission[] {
+  return permissions.filter((permission) =>
+    matchesText(query, [
+      permission.key,
+      permission.module,
+      ...Object.values(permission.label),
+    ])
+  );
 }
 
 export function filterServiceAccounts(

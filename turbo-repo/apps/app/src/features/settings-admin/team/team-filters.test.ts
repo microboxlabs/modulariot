@@ -3,6 +3,7 @@ import {
   distinctValues,
   filterInvitations,
   filterMembers,
+  filterPermissions,
   filterServiceAccounts,
   filterTeams,
   heldRoles,
@@ -33,28 +34,28 @@ function member(over: Partial<TeamMember> & { userId: string }): TeamMember {
   };
 }
 
-const ana = member({
+const alpha = member({
   userId: "u1",
-  name: "Ana Pérez",
-  email: "ana.perez@example.test",
+  name: "Member Álpha",
+  email: "alpha@example.test",
   baseRole: "OWNER",
   roles: ["CONTROL_TOWER_OPERATOR"],
 });
-const bruno = member({
+const beta = member({
   userId: "u2",
-  name: "Bruno Soto",
+  name: "Member Beta",
   baseRole: "ADMIN",
   roles: ["CONTROL_TOWER_OPERATOR", "TRIPS_VIEWER"],
   source: "ALFRESCO",
 });
-const carla = member({
+const gamma = member({
   userId: "u3",
   name: null,
-  email: "carla@example.test",
+  email: "gamma@example.test",
   status: "SUSPENDED",
   source: "TOKEN",
 });
-const members = [ana, bruno, carla];
+const members = [alpha, beta, gamma];
 
 const team = (id: string, memberIds: string[]): Team => ({
   id,
@@ -73,10 +74,10 @@ const withFilters = (over: Partial<MemberFilters>) =>
 
 describe("matchesText", () => {
   it("matches every word in any field, ignoring case and accents", () => {
-    expect(matchesText("perez ANA", ["Ana Pérez", null])).toBe(true);
-    expect(matchesText("ana soto", ["Ana Pérez", "ana@example.test"])).toBe(
-      false
-    );
+    expect(matchesText("ALPHA member", ["Member Álpha", null])).toBe(true);
+    expect(
+      matchesText("alpha missing", ["Member Álpha", "alpha@example.test"])
+    ).toBe(false);
   });
 
   it("passes everything for a blank query", () => {
@@ -94,8 +95,8 @@ describe("filterMembers", () => {
   });
 
   it("searches name and email", () => {
-    expect(ids(withFilters({ query: "bruno" }))).toEqual(["u2"]);
-    expect(ids(withFilters({ query: "carla@" }))).toEqual(["u3"]);
+    expect(ids(withFilters({ query: "beta" }))).toEqual(["u2"]);
+    expect(ids(withFilters({ query: "gamma@" }))).toEqual(["u3"]);
   });
 
   it("filters by base role, any of the picked ones", () => {
@@ -131,7 +132,7 @@ describe("filterMembers", () => {
         withFilters({
           roles: ["CONTROL_TOWER_OPERATOR"],
           teams: ["night"],
-          query: "ana",
+          query: "alpha",
         })
       )
     ).toEqual(["u1"]);
@@ -176,6 +177,22 @@ describe("member filter helpers", () => {
 });
 
 describe("search on the other tabs", () => {
+  it("searches permission keys, modules and translated labels", () => {
+    const list = [
+      {
+        key: "tower:read",
+        module: "tower",
+        label: { en: "Read tower", es: "Leer torre" },
+        explicitOnly: false,
+        ownerOnly: false,
+      },
+    ];
+    for (const query of ["tower:read", "tower", "Leer torre", "READ"]) {
+      expect(filterPermissions(list, query)).toEqual(list);
+    }
+    expect(filterPermissions(list, "missing")).toEqual([]);
+    expect(filterPermissions(list, "  ")).toEqual(list);
+  });
   it("searches invitations by email and inviter", () => {
     const invitation = (id: string, email: string, invitedBy: string) =>
       ({ id, email, invitedBy }) as Invitation;

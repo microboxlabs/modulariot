@@ -77,6 +77,20 @@ class PgSlaStoreTest {
                     ADD COLUMN IF NOT EXISTS carrier_name text, ADD COLUMN IF NOT EXISTS origin_geofence_label text,
                     ADD COLUMN IF NOT EXISTS destination_geofence_label text
                 """).execute().await().atMost(WAIT);
+        pool.query("""
+                CREATE TABLE IF NOT EXISTS miot_trips.mandate (
+                    id uuid PRIMARY KEY, tenant_code text NOT NULL, external_code text NOT NULL)
+                """).execute().await().atMost(WAIT);
+        pool.query("""
+                CREATE TABLE IF NOT EXISTS miot_trips.trip_mandate (
+                    trip_id uuid NOT NULL, mandate_id uuid NOT NULL, tenant_code text NOT NULL, seq int NOT NULL,
+                    version_of uuid, is_active boolean NOT NULL DEFAULT true)
+                """).execute().await().atMost(WAIT);
+        pool.query("""
+                CREATE TABLE IF NOT EXISTS miot_trips.feed_service (
+                    tenant_code text NOT NULL, feed_key text NOT NULL, external_code text NOT NULL, trip_id uuid,
+                    updated_at timestamptz NOT NULL DEFAULT now())
+                """).execute().await().atMost(WAIT);
         pool.query("CREATE SCHEMA IF NOT EXISTS miot_fleet").execute().await().atMost(WAIT);
         pool.query("""
                 CREATE TABLE IF NOT EXISTS miot_fleet.carrier (
@@ -214,6 +228,90 @@ class PgSlaStoreTest {
                 "the service code still belongs to the trip after its vehicle changes");
     }
 
+    private static void mandate(String tenant, UUID trip, int seq, String code, boolean current) {
+        UUID mandate = UUID.randomUUID();
+        PgIds.query(pool, "INSERT INTO miot_trips.mandate (id, tenant_code, external_code) VALUES ($1, $2, $3)",
+                Tuple.of(mandate, tenant, code));
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.trip_mandate (trip_id, mandate_id, tenant_code, seq, is_active)
+                VALUES ($1, $2, $3, $4, $5)
+                """, Tuple.of(trip, mandate, tenant, seq, current));
+    }
+
+    @Test
+    void anEndedTripKeepsItsServiceCodeFromItsMandateOrFeed() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        UUID ended = UUID.randomUUID();
+        UUID fed = UUID.randomUUID();
+        UUID blank = UUID.randomUUID();
+        UUID live = UUID.randomUUID();
+        UUID unknown = UUID.randomUUID();
+        Instant at = Instant.parse("2026-01-01T00:00:00Z");
+        java.util.Map<UUID, Long> ids = new java.util.LinkedHashMap<>();
+        int n = 0;
+        for (UUID trip : List.of(ended, fed, blank, live, unknown)) {
+            ids.put(trip, log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0",
+                    SymptomState.ACTIVE, "vehicle-" + n, at.plusSeconds(n++), 3, 0, 30)),
+                    new TransitionLog.Place(trip.toString(), null, null, null, null)).get(0).caseId());
+        }
+        mandate(tenant, ended, 2, "SERVICE-B", true);
+        mandate(tenant, ended, 1, "SERVICE-A", true);
+        mandate(tenant, ended, 0, "SERVICE-OLD", false);
+        mandate("other-" + tenant, fed, 1, "OTHER-TENANT", true);
+        mandate(tenant, blank, 1, "   ", true);
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.feed_service (tenant_code, feed_key, external_code, trip_id)
+                VALUES ($1, 'demo-feed', 'FEED-001', $2), ($1, 'demo-feed', 'FEED-BLANK', $3)
+                """, Tuple.of(tenant, fed, blank));
+        mandate(tenant, live, 1, "SERVICE-ENDED-NAME", true);
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id, mandate_codes)
+                VALUES ($1, $2, 'vehicle-3', '[{"code":"SERVICE-LIVE"}]')
+                """, Tuple.of(live, tenant));
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        List<String> expected = Arrays.asList(null, "SERVICE-LIVE", "FEED-BLANK", "FEED-001", "SERVICE-A");
+        assertEquals(expected, cases.list(tenant, EngineCaseStore.CaseFilter.OPEN).stream()
+                .map(EngineCase::tripCode).toList());
+        assertEquals(expected, cases.open(tenant).stream().map(EngineCase::tripCode).toList());
+        assertEquals("SERVICE-A", cases.find(tenant, ids.get(ended)).orElseThrow().tripCode());
+        assertEquals("FEED-001", cases.find(tenant, ids.get(fed)).orElseThrow().tripCode());
+        assertEquals("FEED-BLANK", cases.find(tenant, ids.get(blank)).orElseThrow().tripCode());
+        assertEquals("SERVICE-LIVE", cases.find(tenant, ids.get(live)).orElseThrow().tripCode());
+        assertNull(cases.find(tenant, ids.get(unknown)).orElseThrow().tripCode());
+        assertTrue(cases.close(tenant, ids.get(ended), "ops@example.com", at.plusSeconds(60)));
+        EngineCase closed = cases.find(tenant, ids.get(ended)).orElseThrow();
+        assertEquals(at.plusSeconds(60), closed.closedAt());
+        assertEquals("SERVICE-A", closed.tripCode(), "a closed case");
+    }
+
+    @Test
+    void missingFeedTablesKeepLiveTripCodesDetailsAndFilters() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID definition = symptom(tenant);
+        UUID trip = liveTrip(tenant, "demo-driver", null, null, "Demo origin", "Demo destination");
+        PgIds.query(pool, """
+                UPDATE miot_trips.trip_live SET mandate_codes = '[{"code":"SERVICE-LIVE"}]' WHERE trip_id = $1
+                """, Tuple.of(trip));
+        long id = log.append(tenant, List.of(t(Kind.OPENED, definition, Instant.parse("2026-01-01T00:00:00Z"), 3, 0)),
+                new TransitionLog.Place(trip.toString(), null, null, null, null)).get(0).caseId();
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+        pool.query("ALTER TABLE miot_trips.feed_service RENAME TO unavailable_feed_service").execute().await().atMost(WAIT);
+        try {
+            assertEquals("SERVICE-LIVE", cases.list(tenant, EngineCaseStore.CaseFilter.OPEN).get(0).tripCode());
+            assertEquals("SERVICE-LIVE", cases.open(tenant).get(0).tripCode());
+            EngineCase detail = cases.find(tenant, id).orElseThrow();
+            assertEquals("SERVICE-LIVE", detail.tripCode());
+            assertEquals("Demo origin", detail.trip().origin());
+            assertEquals(List.of(id), ids(cases.list(tenant, byTrip(null, null, "Demo origin", null))));
+            assertTrue(cases.list(tenant, byTrip(null, null, "Another origin", null)).isEmpty());
+        } finally {
+            pool.query("ALTER TABLE miot_trips.unavailable_feed_service RENAME TO feed_service")
+                    .execute().await().atMost(WAIT);
+        }
+    }
+
     @Test
     void malformedTripDataAndNonUuidIdsDoNotHideValidCodesOnThePage() {
         String tenant = "tenant-" + UUID.randomUUID();
@@ -255,7 +353,8 @@ class PgSlaStoreTest {
         log.append(tenant, List.of(t(Kind.OPENED, speeding, t0.plusSeconds(120), 1, 0)), place);
         log.append(tenant, List.of(t(Kind.LEVEL_CHANGED, speeding, t0.plusSeconds(180), 4, 1)), place);
 
-        assertEquals(List.of(new EngineCaseStore.OpenLevel("DEMO01", "Exceso de velocidad", 4)),
+        assertEquals(List.of(new EngineCaseStore.OpenLevel("DEMO01", "Exceso de velocidad", 4,
+                new EngineCase.LevelStep(t0.plusSeconds(180), 4))),
                 cases.openLevels(tenant));
         assertTrue(cases.openLevels("other-" + tenant).isEmpty());
     }

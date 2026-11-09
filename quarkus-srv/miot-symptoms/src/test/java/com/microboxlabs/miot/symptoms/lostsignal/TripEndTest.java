@@ -69,7 +69,7 @@ class TripEndTest {
             for (int i = 0; i < engine.recorded.size(); i++) {
                 Transition t = engine.recorded.get(i);
                 if (t.kind() == Transition.Kind.OPENED && tripId.equals(engine.places.get(i).tripId())
-                        && definitionIds.contains(t.definitionId()) && closed.add(i)) {
+                        && (definitionIds == null || definitionIds.contains(t.definitionId())) && closed.add(i)) {
                     out.add(new StaleCase(tenant, i + 1L, t.definitionId(), t.version(), false, t.assetId(),
                             t.level(), tripId, null, null, null, t.at()));
                 }
@@ -150,9 +150,36 @@ class TripEndTest {
         assertEquals(0, detector.tripChanged(TENANT, "T-1"), "a repeated notice closes nothing");
     }
 
+    /** A case the frame evaluator opened (speed, ETA deviation, rest) on the vehicle's trip. */
+    private UUID evaluatorCase(String asset, String trip) {
+        UUID definition = UUID.randomUUID();
+        engine.log.append(TENANT, List.of(new Transition(Transition.Kind.OPENED, definition, "1.0.0",
+                SymptomState.ACTIVE, asset, T0, 2, 0, 95)),
+                new com.microboxlabs.miot.symptoms.evaluator.TransitionLog.Place(trip, null, null, null, null));
+        return definition;
+    }
+
+    @Test
+    void theTripEndClosesTheEvaluatorsCasesAndLeavesAnotherTripsCaseOpen() {
+        UUID ended = evaluatorCase("V1", "T-1");
+        UUID next = evaluatorCase("V1", "T-2");
+        tripsModule.states.put("T-1", new TripEnds.State(true, false));
+
+        assertEquals(1, detector.tripChanged(TENANT, "T-1"), "no lost-signal symptom is needed");
+
+        SymptomCaseData closed = (SymptomCaseData) engine.fired.get(engine.fired.size() - 1).data();
+        assertEquals(ended, closed.definitionId());
+        assertEquals(TripEnds.REASON, closed.closedBy());
+        assertEquals("T-1", closed.tripId());
+        assertEquals(Set.of(0), tripsModule.closed, "the case on T-2 stays open");
+        assertTrue(engine.fired.stream().noneMatch(e -> e.data() instanceof SymptomCaseData d
+                && d.definitionId().equals(next)));
+        assertEquals(0, detector.tripChanged(TENANT, "T-1"), "a repeated notice closes nothing");
+    }
+
     @Test
     void aTruckChangeClosesTheOldTrucksCaseOnTheTripNotice() {
-        // Mintral 1711312: the case stayed open on KTKJ69 after the trip moved to KGXR80.
+        // Mintral 1711312: the case stayed open on TRUCK1 after the trip moved to TRUCK2.
         template();
         frame("T-1", 0);
         tickUntil(1830);

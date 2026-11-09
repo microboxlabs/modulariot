@@ -176,9 +176,10 @@ public class TripChecks {
     }
 
     /**
-     * The trip ended: closes its open {@code trip_check} cases, whatever their level, with {@link TripEnds#REASON},
-     * drops their episodes and publishes {@code symptom.case.closed} for each. A case already closed is left alone,
-     * so a repeat closes nothing.
+     * The trip ended: closes its open cases of every symptom (lost signal, the evaluator's and the others), whatever
+     * their level, with {@link TripEnds#REASON}, drops their episodes and publishes {@code symptom.case.closed} for
+     * each. Cases of the vehicle's other trips stay open. A case already closed is left alone, so a repeat closes
+     * nothing.
      *
      * @return how many cases it closed
      */
@@ -186,11 +187,7 @@ public class TripChecks {
         if (tripId == null) {
             return 0;
         }
-        List<UUID> definitions = symptoms(tenant, now).stream().map(CompiledSymptom::definitionId).toList();
-        if (definitions.isEmpty()) {
-            return 0;
-        }
-        int closed = ends.end(tenant, tripId, definitions, now, this::closed);
+        int closed = ends.end(tenant, tripId, null, now, this::closed);
         if (closed > 0) {
             meters.counter("miot.symptoms.lost_signal.trip_ended_closes").increment(closed);
         }

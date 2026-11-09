@@ -98,6 +98,8 @@ public interface EngineCaseStore {
     /**
      * Closes the open cases of the trip among {@code definitionIds}, whatever their level, with {@code reason} as
      * {@code closed_by} and in the context, and returns them. A case already closed is left alone.
+     *
+     * @param definitionIds null for every symptom of the organization
      */
     default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
             String reason) {

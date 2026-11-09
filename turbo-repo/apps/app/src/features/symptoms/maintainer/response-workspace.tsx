@@ -210,6 +210,9 @@ export default function ResponseWorkspace({
   const rules: LifecycleRules = {
     close: lifecycle.close ?? "",
     note: lifecycle.note ?? "",
+    afterTripEnd: lifecycle.after_trip_end ?? "ignore",
+    onAfterTripEnd: (after_trip_end) =>
+      onChange({ ...spec, lifecycle: { ...lifecycle, after_trip_end } }),
     fields: rulesFields,
     closeProblems: problemsFor(findings, "lifecycle.close", d),
     noteProblems: problemsFor(findings, "lifecycle.note", d),

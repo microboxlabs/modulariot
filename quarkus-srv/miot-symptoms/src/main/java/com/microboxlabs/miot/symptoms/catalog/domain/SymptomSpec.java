@@ -267,14 +267,32 @@ public record SymptomSpec(
      * @param note      optional CEL over {@code case} and the source: when it holds on a signal of an open case
      *                  that does not close it, the case's timeline gets an entry with the matching device event.
      *                  Null for none
+     * @param afterTripEnd ignore (default), open_and_keep or open_and_close, for events occurring during a trip
+     *                     but processed after its end
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Lifecycle(String open, String close, boolean levelDown,
-            @JsonInclude(JsonInclude.Include.NON_NULL) String note) {
+            @JsonInclude(JsonInclude.Include.NON_NULL) String note,
+            @JsonProperty("after_trip_end") @JsonInclude(JsonInclude.Include.NON_NULL) String afterTripEnd) {
+
+        public static final String IGNORE = "ignore";
+        public static final String KEEP = "open_and_keep";
+        public static final String OPEN_AND_CLOSE = "open_and_close";
+        public static final List<String> AFTER_TRIP_END_VALUES = List.of(IGNORE, KEEP, OPEN_AND_CLOSE);
 
         /** A blank note rule is none. */
         public Lifecycle {
             note = note == null || note.isBlank() ? null : note;
+        }
+
+        /** Omitted policies ignore openings on an ended trip. */
+        public String effectiveAfterTripEnd() {
+            return afterTripEnd == null ? IGNORE : afterTripEnd;
+        }
+
+        /** A lifecycle using the default policy for events processed after trip end. */
+        public Lifecycle(String open, String close, boolean levelDown, String note) {
+            this(open, close, levelDown, note, null);
         }
 
         /** A lifecycle without a note rule. */

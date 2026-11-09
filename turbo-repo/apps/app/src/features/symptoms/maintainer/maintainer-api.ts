@@ -109,6 +109,7 @@ export interface SymptomSpec {
     levelDown?: boolean;
     /** When it holds on a signal of an open case, the case's timeline gets an entry; the case does not close. */
     note?: string | null;
+    after_trip_end?: "ignore" | "open_and_keep" | "open_and_close";
   } | null;
   recurrence: {
     enabled: boolean;

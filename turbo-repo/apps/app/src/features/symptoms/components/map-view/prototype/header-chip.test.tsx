@@ -24,34 +24,34 @@ describe("chipText", () => {
 describe("plateChip", () => {
   it("adds the trip's current plate after a truck change", () => {
     const { container } = render(
-      <>{plateChip("Patente: KTKJ69", "KGXR80", es)}</>
+      <>{plateChip("Patente: TRUCK1", "TRUCK2", es)}</>
     );
     expect(container.textContent).toBe(
-      "Patente: KTKJ69· Viaje ahora en KGXR80"
+      "Patente: TRUCK1· Viaje ahora en TRUCK2"
     );
   });
 
   it("keeps the plate alone without a change", () => {
-    expect(plateChip("Patente: KGXR80", null, es)).toBe("Patente: KGXR80");
+    expect(plateChip("Patente: TRUCK2", null, es)).toBe("Patente: TRUCK2");
   });
 
   it("measures both plates in the responsive header", () => {
-    const tag = plateTag(false, "KTKJ69", "KGXR80", es);
-    expect(tag.measurementText).toBe("Patente: KTKJ69 · Viaje ahora en KGXR80");
+    const tag = plateTag(false, "TRUCK1", "TRUCK2", es);
+    expect(tag.measurementText).toBe("Patente: TRUCK1 · Viaje ahora en TRUCK2");
     const { container } = render(<>{tag.text}</>);
-    expect(container.textContent).toContain("Viaje ahora en KGXR80");
+    expect(container.textContent).toContain("Viaje ahora en TRUCK2");
   });
 
   it("measures a single plate when it did not change", () => {
-    expect(plateTag(false, "KGXR80", "kgxr80", es).measurementText).toBe(
-      "Patente: KGXR80"
+    expect(plateTag(false, "TRUCK2", "truck2", es).measurementText).toBe(
+      "Patente: TRUCK2"
     );
   });
 
   it("keeps the loading placeholder without exposing a stale trip plate", () => {
-    const tag = plateTag(true, "KTKJ69", "KGXR80", es);
+    const tag = plateTag(true, "TRUCK1", "TRUCK2", es);
     const { container } = render(<>{tag.text}</>);
-    expect(container.textContent).not.toContain("KGXR80");
+    expect(container.textContent).not.toContain("TRUCK2");
     expect(tag.measurementText).toBeUndefined();
   });
 });

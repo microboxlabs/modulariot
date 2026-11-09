@@ -68,6 +68,8 @@ describe("map layers card", () => {
   it("offers only the layers each view draws", () => {
     expect(capasDeVista(null)).toEqual(["vehiculos", "geocercas"]);
     expect(capasDeVista("places")).toEqual(["geocercas", "trayectos"]);
+    // sin places:view no hay geocercas que apagar
+    expect(capasDeVista(null, false)).toEqual(["vehiculos"]);
   });
 
   it("switches a layer from its on/off button", () => {
@@ -116,10 +118,8 @@ describe("map layers card", () => {
     expect(boton("Trayectos")).toHaveClass("rounded-full");
   });
 
-  it("fades the pill out, swaps its buttons unseen and fades it back in", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  it("swaps its buttons at once when the view changes", () => {
     const props = { dict, capas: CAPAS_POR_DEFECTO, onCambiar: vi.fn() };
-    const pildora = () => document.querySelector("[data-capas-visible]");
     const botones = () =>
       [...document.querySelectorAll("[data-capa]")].map((el) =>
         el.getAttribute("data-capa")
@@ -127,26 +127,16 @@ describe("map layers card", () => {
     const { rerender } = render(
       <MapLayersCard {...props} disponibles={capasDeVista(null)} />
     );
-    // first render: shown straight away, no fade
-    expect(pildora()).toHaveAttribute("data-capas-visible", "in");
     expect(botones()).toEqual(["vehiculos", "geocercas"]);
 
+    const geocercasAntes = screen.getByRole("button", { name: "Geocercas" });
     rerender(<MapLayersCard {...props} disponibles={capasDeVista("places")} />);
-    // fading out, still with the old buttons: nothing changes shape in view
-    expect(pildora()).toHaveAttribute("data-capas-visible", "out");
-    expect(botones()).toEqual(["vehiculos", "geocercas"]);
-
-    act(() => vi.advanceTimersByTime(75));
-    // swapped while invisible, after a quick 75 ms
+    // a new button, not the old one changing shape: its shape has no transition
+    expect(screen.getByRole("button", { name: "Geocercas" })).not.toBe(
+      geocercasAntes
+    );
+    // no fade and no wait: the new pair is there on the same render
     expect(botones()).toEqual(["geocercas", "trayectos"]);
-    vi.useRealTimers();
-    await act(async () => {
-      await new Promise((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))
-      );
-    });
-    expect(pildora()).toHaveAttribute("data-capas-visible", "in");
-    // the joined blue block is the new pair: geofences + routes
     const boton = (name: string) => screen.getByRole("button", { name });
     expect(boton("Geocercas")).toHaveClass("rounded-t-full");
     expect(boton("Trayectos")).toHaveClass("rounded-b-full");

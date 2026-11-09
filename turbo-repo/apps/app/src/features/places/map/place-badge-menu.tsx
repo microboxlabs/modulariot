@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { HiOutlineCog, HiOutlineTrash } from "react-icons/hi";
+import { usePlacesT } from "../i18n/places-i18n";
 
 /** Menú del clic derecho sobre el badge de un lugar: configurarlo o eliminarlo. */
 export default function PlaceBadgeMenu({
@@ -19,6 +20,7 @@ export default function PlaceBadgeMenu({
   onEliminar: () => void;
   onClose: () => void;
 }>) {
+  const t = usePlacesT();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -31,7 +33,7 @@ export default function PlaceBadgeMenu({
   return (
     <div
       role="menu"
-      aria-label={`Opciones de ${nombre}`}
+      aria-label={t("common.options_of", { nombre })}
       style={{ left: x, top: y }}
       className="absolute z-40 w-44 translate-x-1 translate-y-1 rounded-lg border border-gray-200 bg-white p-1 shadow-xl dark:border-gray-700 dark:bg-gray-800"
     >
@@ -45,7 +47,7 @@ export default function PlaceBadgeMenu({
         onClick={onConfigurar}
       >
         <HiOutlineCog className="h-4 w-4 text-blue-600" />
-        Configuración
+        {t("map.settings")}
       </button>
       <button
         type="button"
@@ -54,7 +56,7 @@ export default function PlaceBadgeMenu({
         onClick={onEliminar}
       >
         <HiOutlineTrash className="h-4 w-4" />
-        Eliminar
+        {t("common.delete")}
       </button>
     </div>
   );

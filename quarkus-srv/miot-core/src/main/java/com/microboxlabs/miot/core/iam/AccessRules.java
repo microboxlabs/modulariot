@@ -11,7 +11,6 @@ import java.util.TreeSet;
  *   <li>A user needs a membership; its base role is the membership's.</li>
  *   <li>The organization's own M2M client is a Member; so is a service account of the organization.</li>
  *   <li>An M2M client holding no role of a module gets that module's legacy-default role.</li>
- *   <li>Anyone with a base role holding no role of a module gets that module's member-default role.</li>
  *   <li>A platform owner is Owner of every organization, with or without a membership.</li>
  * </ul>
  */
@@ -44,9 +43,8 @@ public final class AccessRules {
         }
         Set<String> roles = new TreeSet<>(facts.boundRoles());
         if (caller.isClient()) {
-            addDefaults(roles, registry.legacyDefaults(), registry);
+            addLegacyDefaults(roles, registry);
         }
-        addDefaults(roles, registry.memberDefaults(), registry);
         return new Access(organizationId, slug, base, roles, registry.permissionsOf(base, roles));
     }
 
@@ -63,9 +61,8 @@ public final class AccessRules {
         return facts.platformOwner() ? BaseRole.OWNER : facts.membershipRole();
     }
 
-    /** Adds each module's default role when {@code roles} holds none of that module. */
-    private static void addDefaults(Set<String> roles, Map<String, RoleDef> defaults, AccessRegistry registry) {
-        for (Map.Entry<String, RoleDef> entry : defaults.entrySet()) {
+    private static void addLegacyDefaults(Set<String> roles, AccessRegistry registry) {
+        for (Map.Entry<String, RoleDef> entry : registry.legacyDefaults().entrySet()) {
             String module = entry.getKey();
             boolean holdsOne = roles.stream()
                     .anyMatch(key -> registry.role(key).map(r -> r.module().equals(module)).orElse(false));

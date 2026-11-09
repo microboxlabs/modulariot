@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 import type { GeomKind } from "./geofence-editor";
+import { usePlacesT, type ClaveLugares } from "../i18n/places-i18n";
 
 function IconoCirculo() {
   return (
@@ -66,11 +67,11 @@ function IconoTriangulo() {
   );
 }
 
-const OPCIONES: { value: GeomKind; label: string; icono: ReactNode }[] = [
-  { value: "circle", label: "Círculo", icono: <IconoCirculo /> },
-  { value: "polygon", label: "Polígono", icono: <IconoPoligono /> },
-  { value: "square", label: "Cuadrado", icono: <IconoCuadrado /> },
-  { value: "tri", label: "Triángulo", icono: <IconoTriangulo /> },
+const OPCIONES: { value: GeomKind; label: ClaveLugares; icono: ReactNode }[] = [
+  { value: "circle", label: "shapes.circle", icono: <IconoCirculo /> },
+  { value: "polygon", label: "shapes.polygon", icono: <IconoPoligono /> },
+  { value: "square", label: "shapes.square", icono: <IconoCuadrado /> },
+  { value: "tri", label: "shapes.triangle", icono: <IconoTriangulo /> },
 ];
 
 function GeomIconButton({
@@ -116,6 +117,7 @@ export default function GeomIconBar({
   onChange: (value: GeomKind) => void;
   compact?: boolean;
 }>) {
+  const t = usePlacesT();
   const i = Math.max(
     0,
     OPCIONES.findIndex((o) => o.value === value)
@@ -124,7 +126,7 @@ export default function GeomIconBar({
 
   return (
     <fieldset
-      aria-label="Forma de la geocerca"
+      aria-label={t("shapes.geofence_shape")}
       className="min-w-0 relative flex w-full overflow-hidden border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40"
     >
       <span
@@ -139,7 +141,7 @@ export default function GeomIconBar({
         <GeomIconButton
           key={o.value}
           value={o.value}
-          label={o.label}
+          label={t(o.label)}
           icono={o.icono}
           activo={value === o.value}
           compact={compact}

@@ -12,12 +12,15 @@ import {
 } from "./list-card";
 import type { Trayecto } from "../places.types";
 import { longitudM, textoDistancia } from "../routes/recorrido";
+import { usePlacesT, type TextosLugares } from "../i18n/places-i18n";
 
 /** Como en los lugares: sus categorías y, después, cuánto mide. */
-function detalleTrayecto(t: Trayecto): string {
+function detalleTrayecto(t: Trayecto, tx: TextosLugares): string {
   const categorias =
-    t.categorias_nombres || t.categorias?.join(", ") || "sin categoría";
-  return `${categorias} · ${textoDistancia(longitudM(t.points))}`;
+    t.categorias_nombres ||
+    t.categorias?.join(", ") ||
+    tx("common.no_category");
+  return `${categorias} · ${textoDistancia(longitudM(t.points), tx)}`;
 }
 
 export function TrayectoList({
@@ -42,13 +45,18 @@ export function TrayectoList({
   onEditar?: (t: Trayecto) => void;
   onEliminar?: (t: Trayecto) => void;
 }>) {
+  const tx = usePlacesT();
   return (
     <ListSection
       seleccion={marcas && { ids: trayectos.map((t) => t.trayecto_id), marcas }}
-      titulo="Trayectos"
+      titulo={tx("catalog.routes")}
       icono={<TbRoute className="h-4 w-4 text-gray-500 dark:text-gray-400" />}
       total={trayectos.length}
-      vacio={busqueda ? `Sin trayectos para «${busqueda}».` : "Sin trayectos."}
+      vacio={
+        busqueda
+          ? tx("catalog.no_routes_for", { busqueda })
+          : tx("catalog.no_routes")
+      }
     >
       {trayectos.map((t) => (
         <ListCardRow
@@ -61,7 +69,7 @@ export function TrayectoList({
             />
           }
           nombre={t.name}
-          detalle={detalleTrayecto(t)}
+          detalle={detalleTrayecto(t, tx)}
           seleccionado={seleccionadoId === t.trayecto_id}
           onIr={() => onIr(t)}
           onEditar={onEditar && (() => onEditar(t))}

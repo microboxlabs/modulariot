@@ -102,7 +102,8 @@ const placeBaseSchema = z.object({
   color: z.string().nullable(),
   address: z.string().nullable(),
   categories: categoriasSchema.nullable(),
-  metadata: z.record(z.string(), z.string()),
+  // lo que el formulario no tocó vuelve con su tipo (número, booleano, objeto)
+  metadata: z.record(z.string(), z.unknown()),
   geojson: z.object({
     type: z.literal("Feature"),
     geometry: geometria,
@@ -126,8 +127,19 @@ export const placeRequestSchema = placeBaseSchema.extend({
 
 export type PlaceRequest = z.infer<typeof placeRequestSchema>;
 
-/** Lo guardado, ya con la forma que usa Lugares. */
-export type Guardados = { lugares: Lugar[]; trayectos: Trayecto[] };
+/** Metadata tal como está guardada, con sus tipos, por id del lugar o trayecto. */
+export type MetadatosGuardados = Record<string, Record<string, unknown>>;
+
+/**
+ * Lo guardado, ya con la forma que usa Lugares. `metadatos`: la metadata de
+ * cada uno con sus tipos, que el formulario lee como texto (ver
+ * {@link conMetadataGuardada}).
+ */
+export type Guardados = {
+  lugares: Lugar[];
+  trayectos: Trayecto[];
+  metadatos?: MetadatosGuardados;
+};
 
 const CLAVES_PROPIAS = new Set([
   ICON_KEY,
@@ -298,6 +310,57 @@ export function requestDesdeTrayecto(t: Trayecto): PlaceRequest {
 const textoDeDato = (val: unknown): string =>
   typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
 
+/**
+ * La metadata a enviar con sus tipos: un valor que el formulario no cambió
+ * (su texto es el del guardado) vuelve como estaba guardado, número, booleano
+ * u objeto. Uno cambiado va como texto: el formulario no sabe qué tipo quiso
+ * quien lo escribió.
+ */
+export function metadataConTipos(
+  enviada: Record<string, unknown>,
+  guardada: Record<string, unknown> | null | undefined
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...enviada };
+  for (const [k, v] of Object.entries(enviada)) {
+    const antes = guardada?.[k];
+    if (
+      antes !== undefined &&
+      typeof v === "string" &&
+      textoDeDato(antes) === v
+    )
+      out[k] = antes;
+  }
+  return out;
+}
+
+/**
+ * El cuerpo a guardar sin perder los tipos de la metadata guardada: la de la
+ * geocerca y la de cada interior ya guardada, por su id. Un trayecto no edita
+ * su metadata: va la guardada tal cual.
+ */
+export function conMetadataGuardada(
+  id: string | null,
+  body: PlaceRequest,
+  metadatos: MetadatosGuardados | undefined
+): PlaceRequest {
+  const guardada = id ? metadatos?.[id] : undefined;
+  const metadata =
+    body.kind === "route"
+      ? (guardada ?? body.metadata)
+      : metadataConTipos(body.metadata, guardada);
+  return {
+    ...body,
+    metadata,
+    inners: body.inners?.map((inner) => ({
+      ...inner,
+      metadata: metadataConTipos(
+        inner.metadata,
+        inner.id ? metadatos?.[inner.id] : undefined
+      ),
+    })),
+  };
+}
+
 /** metadata de la app: la libre más icono, color, categorías y padre. */
 function metadataDeLugar(v: PlaceView): Record<string, string> {
   const out: Record<string, string> = {};
@@ -403,11 +466,14 @@ export function trayectoDesdePlace(v: PlaceView): Trayecto | null {
 export function guardadosDesdePlaces(vs: PlaceView[]): Guardados {
   const lugares: Lugar[] = [];
   const trayectos: Trayecto[] = [];
+  const metadatos: MetadatosGuardados = {};
   for (const v of vs) {
+    if (v.metadata && Object.keys(v.metadata).length > 0)
+      metadatos[v.id] = v.metadata;
     const lugar = lugarDesdePlace(v);
     if (lugar) lugares.push(lugar);
     const trayecto = trayectoDesdePlace(v);
     if (trayecto) trayectos.push(trayecto);
   }
-  return { lugares, trayectos };
+  return { lugares, trayectos, metadatos };
 }

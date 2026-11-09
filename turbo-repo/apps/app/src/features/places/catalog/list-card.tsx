@@ -15,6 +15,7 @@ import {
   HiOutlineTrash,
 } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
+import { usePlacesT, type TextosLugares } from "../i18n/places-i18n";
 
 /** Selección de filas para acciones en lote (borrar varios). */
 export type MarcasLista = {
@@ -85,12 +86,13 @@ function CasillaSeccion({
   ids: string[];
   marcas: MarcasLista;
 }>) {
+  const t = usePlacesT();
   const todas = ids.length > 0 && ids.every((id) => marcas.marcados.has(id));
   return (
     <IconoOCasilla icono={icono} visible={marcas.siempre}>
       <Checkbox
         color="blue"
-        aria-label={`Seleccionar todos: ${titulo}`}
+        aria-label={t("catalog.select_all_of", { titulo })}
         className={CASILLA_SIN_ANILLO}
         checked={todas}
         onChange={() => marcas.onMarcarVarios(ids, !todas)}
@@ -105,11 +107,12 @@ function CasillaFila({
   nombre,
   icono,
 }: Readonly<{ marca: MarcaFila; nombre: string; icono?: ReactNode }>) {
+  const t = usePlacesT();
   return (
     <IconoOCasilla icono={icono} visible={marca.siempre || marca.marcado}>
       <Checkbox
         color="blue"
-        aria-label={`Seleccionar ${nombre}`}
+        aria-label={t("catalog.select_item", { nombre })}
         className={CASILLA_SIN_ANILLO}
         checked={marca.marcado}
         onChange={(e) => marca.onMarcar(e.target.checked)}
@@ -144,6 +147,7 @@ export function ListSection({
   vacio: string;
   children: ReactNode;
 }>) {
+  const t = usePlacesT();
   const [abierto, setAbierto] = useState(true);
   const plegar = () => setAbierto((v) => !v);
 
@@ -162,7 +166,12 @@ export function ListSection({
         <button
           type="button"
           aria-expanded={abierto}
-          aria-label={abierto ? `Ocultar ${titulo}` : `Mostrar ${titulo}`}
+          aria-label={t(
+            abierto ? "catalog.hide_section" : "catalog.show_section",
+            {
+              titulo,
+            }
+          )}
           onClick={plegar}
           className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 py-1 pr-3 text-left"
         >
@@ -197,6 +206,7 @@ function RowMenu({
   onEditar: () => void;
   onEliminar: () => void;
 }>) {
+  const t = usePlacesT();
   return (
     <Dropdown
       label=""
@@ -206,7 +216,7 @@ function RowMenu({
       renderTrigger={() => (
         <button
           type="button"
-          aria-label={`Opciones de ${nombre}`}
+          aria-label={t("common.options_of", { nombre })}
           className="flex h-7 w-7 flex-none items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
         >
           <HiDotsVertical className="h-4 w-4" />
@@ -214,7 +224,7 @@ function RowMenu({
       )}
     >
       <DropdownItem icon={HiOutlinePencil} onClick={onEditar}>
-        Editar
+        {t("common.edit")}
       </DropdownItem>
       <DropdownDivider />
       <DropdownItem
@@ -222,7 +232,7 @@ function RowMenu({
         onClick={onEliminar}
         className="text-rose-600 dark:text-rose-400"
       >
-        Eliminar
+        {t("common.delete")}
       </DropdownItem>
     </Dropdown>
   );
@@ -230,13 +240,14 @@ function RowMenu({
 
 /** Nombre accesible del botón cuando la fila pliega interiores. */
 function etiquetaExpandir(
+  t: TextosLugares,
   nombre: string,
   onExpandir: (() => void) | undefined,
   expandido: boolean | undefined
 ): string | undefined {
   if (!onExpandir) return undefined;
-  if (expandido) return `Ocultar interiores de ${nombre}`;
-  return `Mostrar interiores de ${nombre}`;
+  if (expandido) return t("catalog.hide_inners_of", { nombre });
+  return t("catalog.show_inners_of", { nombre });
 }
 
 export function ListCardRow({
@@ -283,6 +294,7 @@ export function ListCardRow({
 }>) {
   // la fila se pliega desde su nombre (un botón); la casilla y el menú
   // quedan aparte, sin manejadores de clic en elementos no interactivos
+  const t = usePlacesT();
   const irYExpandir = () => {
     onIr();
     onExpandir?.();
@@ -310,9 +322,9 @@ export function ListCardRow({
       <button
         type="button"
         className="min-w-0 flex-1 text-left"
-        title="Ver en el mapa"
+        title={t("catalog.see_on_map")}
         aria-expanded={onExpandir ? expandido : undefined}
-        aria-label={etiquetaExpandir(nombre, onExpandir, expandido)}
+        aria-label={etiquetaExpandir(t, nombre, onExpandir, expandido)}
         onClick={irYExpandir}
       >
         <div

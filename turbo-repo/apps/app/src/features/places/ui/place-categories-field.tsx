@@ -25,13 +25,13 @@ import {
   SelectableBindingControl,
   SelectableDropdown,
 } from "@/features/symptoms/components/map-view/prototype/prototype-form-kit";
+import { usePlacesT } from "../i18n/places-i18n";
 
 export const CAMPO_CATEGORIAS = "place_categories";
 /** Categorías de los trayectos: su propia lista, aparte de la de lugares. */
 export const CAMPO_CATEGORIAS_TRAYECTO = "trayecto_categories";
 /** Categoría de cada punto intermedio de un trayecto. */
 export const CAMPO_CATEGORIA_PUNTO = "trayecto_point_category";
-const FALLO = "No se pudieron cargar las listas";
 /**
  * Temporal: el control de lista se muestra a todos mientras se prueba. Al
  * volver a `false`, solo el dueño de la organización lo ve (la API igual
@@ -57,8 +57,10 @@ export function useListaCampo(fieldKey: string, listaGuardada?: string | null) {
   const { activeOrg } = useOrgScopes();
   // como en Seleccionables: cualquiera lee, solo el dueño cambia las listas
   const puedeConfigurar = AJUSTES_PARA_TODOS || activeOrg?.role === "OWNER";
-  const { selectables, hydrated } = useSelectables(FALLO);
-  const [listaKey] = useFieldSelectableBinding(fieldKey, FALLO);
+  const t = usePlacesT();
+  const fallo = t("form.lists_failed");
+  const { selectables, hydrated } = useSelectables(fallo);
+  const [listaKey] = useFieldSelectableBinding(fieldKey, fallo);
   // hasta que lleguen los vínculos, `listaKey` es la clave del campo y no su lista
   const { data: vinculos, error: falloVinculos } = useSelectableBindings();
   const listo = hydrated && (vinculos !== undefined || !!falloVinculos);
@@ -97,6 +99,7 @@ export default function CampoCategorias({
   /** Diccionario completo (textos del selector y del control de lista). */
   dict: I18nRecord;
 }>) {
+  const t = usePlacesT();
   const { puedeConfigurar, lista, lang, listo } = useListaCampo(fieldKey);
   const { opciones } = useListaCampo(fieldKey, listaGuardada);
   const listaActual = lista?.key ?? fieldKey;
@@ -129,10 +132,12 @@ export default function CampoCategorias({
             dict={dict}
             value={deOtraLista ? "" : value.join(",")}
             onSelect={elegir}
-            placeholder="Sin categoría"
+            placeholder={t("form.no_category")}
             // vaciar el campo es una opción del propio desplegable
             clearLabel={
-              lista?.mode === "MULTIPLE" ? "Limpiar selección" : "Sin categoría"
+              lista?.mode === "MULTIPLE"
+                ? t("form.clear_selection")
+                : t("form.no_category")
             }
             onClear={() => onChange([], null)}
           />
@@ -142,7 +147,10 @@ export default function CampoCategorias({
         )}
       </fieldset>
       {verElegidas && (
-        <ul aria-label={`${label} elegidas`} className="flex flex-wrap gap-1">
+        <ul
+          aria-label={t("form.chosen", { label })}
+          className="flex flex-wrap gap-1"
+        >
           {value.map((codigo) => {
             // un código que ya no está en la lista se muestra tal cual
             const opcion = opciones.find((o) => o.value === codigo) ?? {
@@ -154,7 +162,9 @@ export default function CampoCategorias({
                 <OptionBadge
                   option={opcion}
                   lang={lang}
-                  removeLabel={`Quitar ${pickText(opcion.label, lang) || codigo}`}
+                  removeLabel={t("form.remove_item", {
+                    nombre: pickText(opcion.label, lang) || codigo,
+                  })}
                   onRemove={quitar}
                 />
               </li>

@@ -2,13 +2,25 @@
 
 // Permiso "Editar lugares" (Lugares › Mantenedor, o un Admin u Owner; Ajustes ›
 // Equipo): sin él, el editor de lugares no aparece en la vista geográfica y el
-// modulith rechaza el guardado. Ver lugares lo tiene todo miembro. Para probar
+// modulith rechaza el guardado. Ver lugares (Lugares › Lector o Mantenedor):
+// sin él, Lugares y las geocercas no aparecen en ningún mapa; un miembro sin
+// rol de Lugares no tiene acceso. Para probar
 // cómo se ve con y sin el permiso, un modo debug lo fuerza en este navegador
 // (mismo patrón localStorage + evento que el modo editor de campos).
 import { useCallback, useEffect, useState } from "react";
 import { useMyAccess } from "@/features/settings-admin/team/team-api";
 
 export const PERMISO_EDITOR_LUGARES = "places:write";
+export const PERMISO_VER_LUGARES = "places:view";
+
+/**
+ * Si se ven Lugares y sus geocercas en el mapa. Mientras el acceso carga es
+ * false: nada se pide al modulith antes de saber que se puede.
+ */
+export function usePermisoVerLugares(): boolean {
+  const { can } = useMyAccess();
+  return can(PERMISO_VER_LUGARES);
+}
 
 /**
  * Control debug del permiso, apagado por defecto. Para probar la vista de

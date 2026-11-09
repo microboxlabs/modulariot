@@ -50,18 +50,21 @@ vi.mock("./tool-bar/tool-bar", () => ({
     geofences_mode?: {
       geofencesMode: string;
       setGeofencesMode: (m: "all" | "trip" | "none") => void;
+      modes?: readonly ("all" | "trip" | "none")[];
     };
   }) => (
     <div data-testid="modo-geocercas" data-modo={geofences_mode?.geofencesMode}>
-      {(["all", "trip", "none"] as const).map((m) => (
-        <button
-          key={m}
-          type="button"
-          onClick={() => geofences_mode?.setGeofencesMode(m)}
-        >
-          {`modo-${m}`}
-        </button>
-      ))}
+      {(geofences_mode?.modes ?? (["all", "trip", "none"] as const)).map(
+        (m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => geofences_mode?.setGeofencesMode(m)}
+          >
+            {`modo-${m}`}
+          </button>
+        )
+      )}
     </div>
   ),
 }));
@@ -69,8 +72,11 @@ vi.mock("./places-overlay/places-floating-overlay", () => ({
   default: ({ externas }: { externas?: { titulo: string } }) =>
     externas ? <span data-testid="externas">{externas.titulo}</span> : null,
 }));
+// ver Lugares (places:view) se apaga por test; editar, siempre
+const permisoVer = vi.hoisted(() => ({ activo: true }));
 vi.mock("../profiles/places-permission", () => ({
   usePermisoEditorLugares: () => true,
+  usePermisoVerLugares: () => permisoVer.activo,
 }));
 vi.mock("@/features/places", async () => ({
   ...(await vi.importActual<object>("@/features/places/panel")),
@@ -200,6 +206,23 @@ describe("MapVisualizationTrip controls", () => {
     expect(screen.getByTestId("capas-lugares")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "modo-none" }));
     expect(screen.queryByTestId("capas-lugares")).toBeNull();
+  });
+
+  it("without places:view offers no Lugares and no places geofences, only the trip's", () => {
+    permisoVer.activo = false;
+    try {
+      renderViaje({ positions: [] });
+      expect(
+        screen.queryByRole("button", { name: "Lugares de interés" })
+      ).toBeNull();
+      expect(screen.queryByRole("button", { name: "modo-all" })).toBeNull();
+      expect(
+        screen.getByRole("button", { name: "modo-trip" })
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId("capas-lugares")).toBeNull();
+    } finally {
+      permisoVer.activo = true;
+    }
   });
 
   it("shows the places geofences while the editor is open, whatever the mode", () => {

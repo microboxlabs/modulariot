@@ -10,6 +10,7 @@ import {
 import { HiLink } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import { RECT_MAX, RECT_MIN, normalizarPolyBase } from "./geofence-editor";
+import { usePlacesT, type TextosLugares } from "../i18n/places-i18n";
 
 const PASO_M = 10;
 const PX_POR_PASO = 4;
@@ -88,6 +89,7 @@ export function SizeInput({
   min?: number;
   max?: number;
 }>) {
+  const t = usePlacesT();
   const idInput = useId();
   const caja = useRef<HTMLDivElement>(null);
   const arrastre = useRef<{
@@ -180,7 +182,7 @@ export function SizeInput({
     <div
       ref={caja}
       className="flex w-full min-w-0 cursor-ew-resize select-none items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-600 dark:bg-gray-700/60"
-      title="Arrastra para ajustar"
+      title={t("form.drag_to_adjust")}
     >
       <label
         htmlFor={idInput}
@@ -219,19 +221,20 @@ export default function PolyBaseFields({
   onAlto: (value: number) => void;
   onVincular: (value: boolean) => void;
 }>) {
+  const t = usePlacesT();
   const toggleVinculo = () => onVincular(!vinculado);
 
   return (
     <div className="flex items-stretch gap-1">
       <div className="min-w-0 flex-1 space-y-1">
-        <SizeInput label="Ancho" value={anchoM} onChange={onAncho} />
-        <SizeInput label="Alto" value={altoM} onChange={onAlto} />
+        <SizeInput label={t("form.width")} value={anchoM} onChange={onAncho} />
+        <SizeInput label={t("form.height")} value={altoM} onChange={onAlto} />
       </div>
       <button
         type="button"
         aria-pressed={vinculado}
-        aria-label="Vincular ancho y alto"
-        title={vinculado ? "Ancho y alto vinculados" : "Vincular ancho y alto"}
+        aria-label={t("form.link_size")}
+        title={vinculado ? t("form.size_linked") : t("form.link_size")}
         onClick={toggleVinculo}
         className={twMerge(
           "flex w-7 flex-none items-center justify-center rounded-md border",
@@ -246,10 +249,14 @@ export default function PolyBaseFields({
   );
 }
 
-export function pistaPoligono(polyBase: string, ubicado: boolean): string {
+export function pistaPoligono(
+  t: TextosLugares,
+  polyBase: string,
+  ubicado: boolean
+): string {
   if (normalizarPolyBase(polyBase) === "libre") {
-    return "Clic en el mapa para los vértices. Cierra la figura para crear geocerca.";
+    return t("form.hint_free_polygon");
   }
-  if (!ubicado) return "Clic en el mapa para ubicar la forma";
-  return "Ajusta el tamaño o un vértice. Editar un vértice pasa a polígono.";
+  if (!ubicado) return t("form.hint_place_shape");
+  return t("form.hint_adjust_shape");
 }

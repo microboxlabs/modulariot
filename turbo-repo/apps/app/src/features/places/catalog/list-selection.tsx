@@ -7,14 +7,32 @@ import { Button, Checkbox } from "flowbite-react";
 import { HiOutlineTrash } from "react-icons/hi";
 import { CASILLA_SIN_ANILLO, type MarcasLista } from "./list-card";
 import type { Lugar, Trayecto } from "../places.types";
+import {
+  textosLugares,
+  usePlacesT,
+  type TextosLugares,
+} from "../i18n/places-i18n";
 
 /** "3 lugares y 2 trayectos" para la confirmación del lote. */
-export function resumenSeleccion(lugares: number, trayectos: number): string {
+export function resumenSeleccion(
+  lugares: number,
+  trayectos: number,
+  t: TextosLugares = textosLugares()
+): string {
   const partes: string[] = [];
-  if (lugares) partes.push(`${lugares} lugar${lugares === 1 ? "" : "es"}`);
+  if (lugares)
+    partes.push(
+      t(lugares === 1 ? "catalog.places_one" : "catalog.places_many", {
+        n: lugares,
+      })
+    );
   if (trayectos)
-    partes.push(`${trayectos} trayecto${trayectos === 1 ? "" : "s"}`);
-  return partes.join(" y ");
+    partes.push(
+      t(trayectos === 1 ? "catalog.routes_one" : "catalog.routes_many", {
+        n: trayectos,
+      })
+    );
+  return partes.join(t("catalog.and"));
 }
 
 function conVarios(prev: Set<string>, ids: string[], marcado: boolean) {
@@ -123,25 +141,28 @@ export function SelectionBar({
   onCancelar: () => void;
   onEliminar: () => void;
 }>) {
+  const t = usePlacesT();
   return (
     <div className="flex shrink-0 items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 py-1 pr-1 pl-3 dark:border-blue-900/50 dark:bg-blue-900/20">
       <Checkbox
         color="blue"
         id="seleccionar-todos"
-        aria-label="Seleccionar todo lo visible"
+        aria-label={t("catalog.select_visible")}
         className={CASILLA_SIN_ANILLO}
         checked={todosVisibles}
         onChange={onTodos}
       />
       <span className="min-w-0 flex-1 truncate text-xs font-medium text-blue-900 dark:text-blue-100">
-        {total === 1 ? "1 seleccionado" : `${total} seleccionados`}
+        {total === 1
+          ? t("catalog.selected_one")
+          : t("catalog.selected_many", { n: total })}
       </span>
       <Button size="xs" color="alternative" onClick={onCancelar}>
-        Cancelar
+        {t("common.cancel")}
       </Button>
       <Button size="xs" color="red" onClick={onEliminar}>
         <HiOutlineTrash className="mr-1 h-3.5 w-3.5" />
-        Eliminar
+        {t("common.delete")}
       </Button>
     </div>
   );

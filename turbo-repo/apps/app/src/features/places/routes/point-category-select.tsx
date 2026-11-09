@@ -8,6 +8,7 @@ import CampoCategorias, {
   CAMPO_CATEGORIA_PUNTO,
   useListaCampo,
 } from "../ui/place-categories-field";
+import { usePlacesT } from "../i18n/places-i18n";
 
 /** Nombre de la categoría elegida (o el código si ya no está en la lista). */
 export function useNombreCategoriaPunto(
@@ -44,10 +45,11 @@ export default function PointCategorySelect({
   onChange: (codigo: string | undefined, lista: string | null) => void;
   dict: I18nRecord;
 }>) {
+  const t = usePlacesT();
   return (
     <CampoCategorias
       fieldKey={CAMPO_CATEGORIA_PUNTO}
-      label={`Categoría de ${label}`}
+      label={t("routes.category_of", { label })}
       value={value ? value.split(",").filter(Boolean) : []}
       listaGuardada={lista}
       onChange={(codigos, nueva) =>

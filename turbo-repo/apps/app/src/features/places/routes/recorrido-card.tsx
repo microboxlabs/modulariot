@@ -38,6 +38,7 @@ import {
   reordenar,
   textoPunto,
 } from "./recorrido";
+import { usePlacesT, type TextosLugares } from "../i18n/places-i18n";
 
 /** Aplica un cambio al recorrido; `foco` = punto a centrar si aún no hay ruta. */
 export type OnRecorrido = (
@@ -65,13 +66,18 @@ function BotonCategoriaPunto({
   abierta: boolean;
   onAlternar: () => void;
 }>) {
+  const t = usePlacesT();
   const nombre = useNombreCategoriaPunto(categoria, lista);
   return (
     <button
       type="button"
       aria-expanded={abierta}
-      aria-label={`Categoría de ${label}`}
-      title={nombre ? `Categoría: ${nombre}` : "Elegir categoría"}
+      aria-label={t("routes.category_of", { label })}
+      title={
+        nombre
+          ? t("routes.category_named", { nombre })
+          : t("routes.choose_category")
+      }
       onClick={onAlternar}
       className={twMerge(
         "flex h-7 max-w-24 flex-none items-center gap-0.5 rounded-md px-1 text-[10px] text-gray-500 hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-gray-700 dark:hover:text-blue-300",
@@ -102,17 +108,18 @@ function BotonTipoPunto({
   distintivo: Distintivo;
   onCambiar: (tipo: TipoPunto) => void;
 }>) {
+  const t = usePlacesT();
   const esParada = distintivo.rol === "parada";
   const alternar = () => onCambiar(esParada ? "desvio" : "parada");
   return (
     <button
       type="button"
       aria-pressed={esParada}
-      aria-label={`${distintivo.label}: ${esParada ? "parada" : "desvío"}`}
+      aria-label={t(esParada ? "routes.is_stop" : "routes.is_detour", {
+        label: distintivo.label,
+      })}
       title={
-        esParada
-          ? "Parada · clic para que sea desvío (solo pasa por ahí)"
-          : "Desvío · clic para que sea parada"
+        esParada ? t("routes.stop_toggle_hint") : t("routes.detour_toggle_hint")
       }
       onClick={alternar}
       className="flex h-7 w-7 flex-none items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -161,6 +168,7 @@ function FilaPunto({
   onRecorrido: OnRecorrido;
   onElegirEnMapa: (id: string) => void;
 }>) {
+  const tx = usePlacesT();
   const id = punto.id;
   const { letra, colorCls, label, rol } = distintivo;
   // A y B son origen y destino; solo los del medio son parada o desvío
@@ -183,8 +191,8 @@ function FilaPunto({
       <div className="flex items-center gap-1 px-1.5 py-1.5">
         <span
           className="drag-handle flex h-7 w-5 flex-none cursor-grab items-center justify-center text-gray-400 hover:text-gray-700 active:cursor-grabbing dark:hover:text-gray-200"
-          title="Arrastra para cambiar el orden"
-          aria-label={`Mover ${label}`}
+          title={tx("routes.drag_to_reorder")}
+          aria-label={tx("routes.move_point", { label })}
         >
           <MdDragIndicator className="h-4 w-4" />
         </span>
@@ -219,11 +227,13 @@ function FilaPunto({
           aria-pressed={eligiendo}
           aria-label={
             eligiendo
-              ? `Cancelar marcar ${label} en el mapa`
-              : `Marcar ${label} en el mapa`
+              ? tx("routes.cancel_mark_on_map", { label })
+              : tx("routes.mark_on_map", { label })
           }
           title={
-            eligiendo ? "Clic en el mapa para ubicar" : "Ubicar en el mapa"
+            eligiendo
+              ? tx("routes.click_map_to_place")
+              : tx("form.locate_on_map")
           }
           onClick={marcarEnMapa}
           className={twMerge(
@@ -237,7 +247,7 @@ function FilaPunto({
         </button>
         <button
           type="button"
-          aria-label={`Quitar ${label}`}
+          aria-label={tx("form.remove_item", { nombre: label })}
           disabled={total <= MIN_PUNTOS}
           onClick={quitar}
           className="flex h-7 w-6 flex-none items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-rose-600 disabled:hidden dark:hover:bg-gray-700"
@@ -277,11 +287,14 @@ function sinTipo() {
   // sin tipo de punto: la tarjeta solo muestra el recorrido
 }
 
-function estadoRecorrido(tray: FormTrayecto, calculando: boolean): string {
-  if (calculando) return "Calculando ruta…";
-  if (puedeConfirmar(tray))
-    return "Haz clic en «Listo» para ver cómo quedará el trayecto";
-  return `${tray.recorrido.length} puntos`;
+function estadoRecorrido(
+  t: TextosLugares,
+  tray: FormTrayecto,
+  calculando: boolean
+): string {
+  if (calculando) return t("routes.calculating");
+  if (puedeConfirmar(tray)) return t("routes.click_done_hint");
+  return t("draw.points_many", { n: tray.recorrido.length });
 }
 
 export default function RecorridoCard({
@@ -320,8 +333,9 @@ export default function RecorridoCard({
   eligiendoPuntoId?: string | null;
   onElegirEnMapa: (id: string) => void;
 }>) {
+  const t = usePlacesT();
   const total = tray.recorrido.length;
-  const ds = distintivos(tray.recorrido);
+  const ds = distintivos(tray.recorrido, t);
   const lleno = total >= MAX_PUNTOS;
   // el punto nuevo queda listo para ubicarlo con un clic en el mapa
   const agregarYUbicar = () => {
@@ -336,7 +350,9 @@ export default function RecorridoCard({
   const iEligiendo = tray.recorrido.findIndex((p) => p.id === eligiendoPuntoId);
   const hintMapa =
     iEligiendo >= 0
-      ? `Clic en el mapa para ubicar ${ds[iEligiendo]?.label ?? ""}`
+      ? t("routes.click_map_to_place_named", {
+          label: ds[iEligiendo]?.label ?? "",
+        })
       : null;
 
   useEffect(() => {
@@ -359,10 +375,10 @@ export default function RecorridoCard({
     >
       <div className="flex shrink-0 items-center justify-between rounded-t-lg border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-700/50">
         <h3 className="text-xs font-semibold text-gray-900 dark:text-white">
-          Recorrido
+          {t("routes.path")}
         </h3>
         <span className="text-[11px] text-gray-500 dark:text-gray-400">
-          {hintMapa ?? estadoRecorrido(tray, calculando)}
+          {hintMapa ?? estadoRecorrido(t, tray, calculando)}
         </span>
       </div>
 
@@ -410,7 +426,9 @@ export default function RecorridoCard({
         className="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-b-lg bg-blue-600 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-gray-600"
       >
         <HiPlus className="h-3.5 w-3.5" />
-        {lleno ? `Máximo ${MAX_PUNTOS} puntos` : "Agregar punto"}
+        {lleno
+          ? t("routes.max_points", { n: MAX_PUNTOS })
+          : t("routes.add_point")}
       </button>
     </div>
   );

@@ -3,6 +3,7 @@
 // (forma inválida, código repetido, sin permiso) es { ok: false, error }.
 import { z } from "zod";
 import { URL_LUGARES_GUARDADOS, type PlaceRequest } from "./saved-places";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
 
 export type Escritura = { ok: true; id: string } | { ok: false; error: string };
 
@@ -51,9 +52,10 @@ export async function guardarPlace(
  * interiores). Sin código no hay a quién borrar en el servidor.
  */
 export async function borrarPlace(
-  codigo: string | null
+  codigo: string | null,
+  t: TextosLugares = textosLugares()
 ): Promise<Escritura | null> {
-  if (!codigo) return { ok: false, error: "Sin External ID guardado" };
+  if (!codigo) return { ok: false, error: t("workspace.no_saved_code") };
   const r = await enviar(
     `${URL_LUGARES_GUARDADOS}?code=${encodeURIComponent(codigo)}`,
     { method: "DELETE" }

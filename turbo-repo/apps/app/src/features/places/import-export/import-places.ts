@@ -10,6 +10,7 @@ import {
   type TipoPunto,
 } from "../places.types";
 import { MAX_PUNTOS } from "../routes/recorrido";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
 
 export const MAX_FILAS_IMPORT = 500;
 export const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
@@ -483,7 +484,10 @@ function filasDesdeFeature(feat: GeoLoose, fallback: string): FilaImport[] {
   );
 }
 
-export function filasGeoJson(texto: string): FilaImport[] {
+export function filasGeoJson(
+  texto: string,
+  t: TextosLugares = textosLugares()
+): FilaImport[] {
   let data: GeoLoose;
   try {
     data = JSON.parse(texto) as GeoLoose;
@@ -494,11 +498,14 @@ export function filasGeoJson(texto: string): FilaImport[] {
     return [];
   if (data.type === "FeatureCollection" && Array.isArray(data.features)) {
     return acotar(
-      data.features.flatMap((f, i) => filasDesdeFeature(f, `Lugar ${i + 1}`))
+      data.features.flatMap((f, i) =>
+        filasDesdeFeature(f, t("import.default_name_n", { n: i + 1 }))
+      )
     );
   }
-  if (data.type === "Feature") return acotar(filasDesdeFeature(data, "Lugar"));
-  return acotar(filasDesdeGeometria(data, "Lugar", {}, data.bbox));
+  const lugar = t("map.unnamed_place");
+  if (data.type === "Feature") return acotar(filasDesdeFeature(data, lugar));
+  return acotar(filasDesdeGeometria(data, lugar, {}, data.bbox));
 }
 
 function paresCoordsKml(texto: string): number[][] {
@@ -537,8 +544,8 @@ function datosExtendidos(pm: NodoXml): Record<string, ValorJson> {
   return out;
 }
 
-function filaDesdePlacemark(pm: NodoXml): FilaImport | null {
-  const name = textoDe(hijoTag(pm, "name") ?? null) || "Sin nombre";
+function filaDesdePlacemark(pm: NodoXml, sinNombre: string): FilaImport | null {
+  const name = textoDe(hijoTag(pm, "name") ?? null) || sinNombre;
   const address = textoDe(hijoTag(pm, "address") ?? null) || undefined;
   const extra: Partial<FilaImport> = address ? { address } : {};
   const poly = hijoTag(pm, "Polygon") ?? hijoTag(pm, "LinearRing");
@@ -586,7 +593,10 @@ function filaDesdePlacemark(pm: NodoXml): FilaImport | null {
  * navegador: el contenido del archivo nunca llega a ser DOM de la página. Un
  * archivo mal formado no rompe el import: queda sin filas.
  */
-export function filasKml(xml: string): FilaImport[] {
+export function filasKml(
+  xml: string,
+  t: TextosLugares = textosLugares()
+): FilaImport[] {
   let doc;
   try {
     doc = new DOMParser({ onError: ignorarErrorXml }).parseFromString(
@@ -597,7 +607,7 @@ export function filasKml(xml: string): FilaImport[] {
     return [];
   }
   const filas = [...doc.getElementsByTagName("Placemark")]
-    .map(filaDesdePlacemark)
+    .map((pm) => filaDesdePlacemark(pm, t("inners.unnamed")))
     .filter((r): r is FilaImport => r != null);
   return acotar(filas);
 }
@@ -632,13 +642,13 @@ function readKmlEntry(entry: JSZip.JSZipObject): Promise<string> {
   });
 }
 
-async function filasKmz(file: File): Promise<FilaImport[]> {
+async function filasKmz(file: File, t: TextosLugares): Promise<FilaImport[]> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer());
   const entry = Object.values(zip.files).find((f) =>
     f.name.toLowerCase().endsWith(".kml")
   );
   if (!entry) return [];
-  return filasKml(await readKmlEntry(entry));
+  return filasKml(await readKmlEntry(entry), t);
 }
 
 function col(head: string[], row: string[], ...names: string[]): string | null {
@@ -737,8 +747,8 @@ function extraDeCsv(valor: ValorCsv): Partial<FilaImport> {
 }
 
 /** Una fila del CSV: polígono (WKT, lista o caja) o, si no, círculo. */
-function filaDesdeCsv(valor: ValorCsv): FilaImport | null {
-  const name = valor("name", "nombre") ?? "Sin nombre";
+function filaDesdeCsv(valor: ValorCsv, sinNombre: string): FilaImport | null {
+  const name = valor("name", "nombre") ?? sinNombre;
   const extra = extraDeCsv(valor);
   const vs = verticesDeCsv(valor);
   if (vs.length >= 3) return filaPoligono(name, vs, extra);
@@ -761,7 +771,10 @@ function filaDesdeCsv(valor: ValorCsv): FilaImport | null {
   return filaCirculo(name, lat, lon, extra);
 }
 
-export function filasCsv(texto: string): FilaImport[] {
+export function filasCsv(
+  texto: string,
+  t: TextosLugares = textosLugares()
+): FilaImport[] {
   const first = texto.split(/\r?\n/, 1)[0] ?? "";
   const sep = first.includes(";") ? ";" : ",";
   let rows: string[][];
@@ -780,31 +793,38 @@ export function filasCsv(texto: string): FilaImport[] {
   const filas = rows
     .slice(1)
     .flatMap((row) =>
-      comoFilas(filaDesdeCsv((...names) => col(head, row, ...names)))
+      comoFilas(
+        filaDesdeCsv(
+          (...names) => col(head, row, ...names),
+          t("inners.unnamed")
+        )
+      )
     );
   return acotar(filas);
 }
 
 export function parsearTextoLugares(
   nombre: string,
-  texto: string
+  texto: string,
+  t: TextosLugares = textosLugares()
 ): { formato: string; filas: FilaImport[] } {
   checkImportSize(texto.length);
   const ext = extensionDe(nombre);
-  if (ext === "kml") return { formato: "kml", filas: filasKml(texto) };
+  if (ext === "kml") return { formato: "kml", filas: filasKml(texto, t) };
   if (ext === "geojson" || ext === "json")
-    return { formato: "geojson", filas: filasGeoJson(texto) };
-  return { formato: "csv", filas: filasCsv(texto) };
+    return { formato: "geojson", filas: filasGeoJson(texto, t) };
+  return { formato: "csv", filas: filasCsv(texto, t) };
 }
 
 export async function parsearArchivoLugares(
-  file: File
+  file: File,
+  t: TextosLugares = textosLugares()
 ): Promise<{ formato: string; filas: FilaImport[] }> {
   checkImportSize(file.size);
   if (extensionDe(file.name) === "kmz") {
-    return { formato: "kmz", filas: await filasKmz(file) };
+    return { formato: "kmz", filas: await filasKmz(file, t) };
   }
-  return parsearTextoLugares(file.name, await file.text());
+  return parsearTextoLugares(file.name, await file.text(), t);
 }
 
 export function lugarDesdeFilaImport(

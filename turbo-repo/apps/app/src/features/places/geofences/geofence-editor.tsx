@@ -14,6 +14,7 @@ import {
   handleCentro,
 } from "../map/map-handles";
 import PolygonHandles from "./polygon-editor";
+import { usePlacesT } from "../i18n/places-i18n";
 
 export const RADIO_MIN = 1;
 /** Techo de seguridad (~1000 km); el input no está limitado a 5 km. */
@@ -249,6 +250,7 @@ function CircleHandles({
   radioMin?: number;
   radioMax?: number;
 }>) {
+  const t = usePlacesT();
   // El handle del radio se queda en el ángulo al que se arrastró: si siempre
   // volviera al este, saltaría lejos del cursor en cada movimiento.
   const [angulo, setAngulo] = useState(0);
@@ -277,7 +279,7 @@ function CircleHandles({
         onDrag={moverCentro}
         onClick={frenar}
       >
-        <span className={handleCentro} title="Arrastra para mover" />
+        <span className={handleCentro} title={t("form.drag_to_move")} />
       </Marker>
       <Marker
         longitude={borde[1]}
@@ -288,10 +290,7 @@ function CircleHandles({
         onClick={frenar}
       >
         <span className="relative block">
-          <span
-            className={handleBorde}
-            title="Arrastra para cambiar el radio"
-          />
+          <span className={handleBorde} title={t("form.drag_to_resize")} />
           <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-white/90 px-1 text-[10px] font-semibold text-blue-700 shadow dark:bg-gray-800/90 dark:text-blue-300">
             {form.radius_m} m
           </span>

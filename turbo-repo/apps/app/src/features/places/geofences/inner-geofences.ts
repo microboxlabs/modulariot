@@ -21,6 +21,7 @@ import {
   type LatLon,
   type Lugar,
 } from "../places.types";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
 
 export const INNER_COLOR_DEF = "#1C64F2";
 
@@ -267,11 +268,14 @@ export function hayFaltantes(f: FaltantesLugar): boolean {
   return f.name || f.ubicacion || f.geometria || !!f.codigo;
 }
 
-export function mensajePadreIncompleto(form: FormLugar): string | null {
+export function mensajePadreIncompleto(
+  form: FormLugar,
+  t: TextosLugares = textosLugares()
+): string | null {
   const f = faltantesPadre(form);
-  if (f.name) return "Falta el nombre.";
-  if (f.ubicacion) return "Fija el centro con clic en el mapa.";
-  if (f.geometria) return "El polígono necesita al menos 3 vértices.";
+  if (f.name) return t("validation.name_missing");
+  if (f.ubicacion) return t("validation.center_missing");
+  if (f.geometria) return t("validation.polygon_vertices");
   return null;
 }
 
@@ -293,16 +297,16 @@ export function faltantesInner(inner: InnerGeofence): FaltantesLugar {
   return { name, codigo, ubicacion: inner.lat == null, geometria: false };
 }
 
-export function mensajeInnerIncompleto(inner: InnerGeofence): string | null {
+export function mensajeInnerIncompleto(
+  inner: InnerGeofence,
+  t: TextosLugares = textosLugares()
+): string | null {
   const f = faltantesInner(inner);
-  if (f.name) return "Cada geocerca interior necesita un nombre.";
-  if (f.codigo) return `Falta el External ID de «${inner.name}».`;
-  if (f.ubicacion) {
-    return `Ubica «${inner.name}» con un clic dentro del lugar.`;
-  }
-  if (f.geometria) {
-    return `El interior «${inner.name}» necesita al menos 3 vértices.`;
-  }
+  const nombre = inner.name;
+  if (f.name) return t("validation.inner_name_missing");
+  if (f.codigo) return t("validation.inner_code_missing", { nombre });
+  if (f.ubicacion) return t("validation.inner_place", { nombre });
+  if (f.geometria) return t("validation.inner_vertices", { nombre });
   return null;
 }
 

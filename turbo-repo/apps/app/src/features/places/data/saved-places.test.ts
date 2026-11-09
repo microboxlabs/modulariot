@@ -9,7 +9,9 @@ import {
   type Trayecto,
 } from "../places.types";
 import {
+  conMetadataGuardada,
   guardadosDesdePlaces,
+  metadataConTipos,
   placeRequestSchema,
   placeViewSchema,
   requestDesdeGeocerca,
@@ -269,6 +271,61 @@ describe("saved places", () => {
       piso: "2",
       details: '{"zone":"A"}',
     });
+  });
+
+  it("saves back the metadata types the form did not change", () => {
+    const guardada = {
+      piso: 2,
+      activo: true,
+      details: { zone: "A" },
+      turno: "B",
+    };
+    // what the form shows: every value as text; the user changed turno only
+    const enviada = {
+      piso: "2",
+      activo: "true",
+      details: '{"zone":"A"}',
+      turno: "C",
+    };
+    expect(metadataConTipos(enviada, guardada)).toEqual({
+      piso: 2,
+      activo: true,
+      details: { zone: "A" },
+      turno: "C",
+    });
+    // a changed value stays text; a removed one stays removed
+    expect(metadataConTipos({ piso: "3" }, guardada)).toEqual({ piso: "3" });
+    expect(metadataConTipos({ nuevo: "x" }, null)).toEqual({ nuevo: "x" });
+  });
+
+  it("keeps the types of a geofence and of each saved inner one through an edit", () => {
+    const vistas = [
+      placeViewSchema.parse({
+        ...vista("p-1", requestDesdeLugar(lugar({ metadata: null }), null)),
+        metadata: { piso: 2 },
+      }),
+      placeViewSchema.parse({
+        ...vista("i-1", requestDesdeLugar(lugar({ metadata: null }), "p-1")),
+        metadata: { activo: false },
+      }),
+    ];
+    const { lugares, metadatos } = guardadosDesdePlaces(vistas);
+    const [padre, hijo] = lugares;
+    if (!padre || !hijo) throw new Error("missing places");
+    const body = conMetadataGuardada(
+      "p-1",
+      requestDesdeGeocerca(padre, [{ lugar: hijo, id: "i-1" }]),
+      metadatos
+    );
+    expect(body.metadata).toMatchObject({ piso: 2 });
+    expect(body.inners?.[0]?.metadata).toMatchObject({ activo: false });
+    expect(placeRequestSchema.safeParse(body).success).toBe(true);
+  });
+
+  it("sends a route's saved metadata as it is: the form does not edit it", () => {
+    const body = requestDesdeTrayecto(trayecto);
+    const out = conMetadataGuardada("t-1", body, { "t-1": { carril: 2 } });
+    expect(out.metadata).toEqual({ carril: 2 });
   });
 
   it("reads the server's version of a geofence; an inner one has none", () => {

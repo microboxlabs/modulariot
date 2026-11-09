@@ -16,6 +16,7 @@ import {
   type QueExportar,
 } from "../import-export/export-places";
 import type { Lugar, Trayecto } from "../places.types";
+import { usePlacesT } from "../i18n/places-i18n";
 
 function descargar(contenido: string, nombre: string, mime: string) {
   const url = URL.createObjectURL(new Blob([contenido], { type: mime }));
@@ -35,6 +36,7 @@ export default function ExportButton({
   trayectos: Trayecto[];
   className?: string;
 }>) {
+  const t = usePlacesT();
   const [abierto, setAbierto] = useState(false);
   const [que, setQue] = useState<QueExportar>("ambos");
   const [formato, setFormato] = useState<FormatoExport>("geojson");
@@ -77,8 +79,8 @@ export default function ExportButton({
       <button
         type="button"
         aria-expanded={abierto}
-        aria-label="Exportar"
-        title="Exportar"
+        aria-label={t("export.title")}
+        title={t("export.title")}
         onClick={() => setAbierto((x) => !x)}
         className={twMerge(
           "flex h-full cursor-pointer items-center justify-center",
@@ -91,29 +93,32 @@ export default function ExportButton({
       {abierto && (
         <dialog
           open
-          aria-label="Exportar"
+          aria-label={t("export.title")}
           className="absolute top-full right-0 left-auto m-0 text-gray-900 dark:text-white z-30 mt-1 w-96 max-w-[calc(100vw-2rem)] space-y-3 rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-lg dark:border-gray-700 dark:bg-gray-800"
         >
           <div className="space-y-1">
             <p className="font-medium text-gray-700 dark:text-gray-200">
-              Qué exportar
+              {t("export.what")}
             </p>
             <Segmented
               value={que}
               onChange={setQue}
               options={[
-                { value: "lugares", label: `Lugares (${lugares.length})` },
+                {
+                  value: "lugares",
+                  label: t("export.places_count", { n: lugares.length }),
+                },
                 {
                   value: "trayectos",
-                  label: `Trayectos (${trayectos.length})`,
+                  label: t("export.routes_count", { n: trayectos.length }),
                 },
-                { value: "ambos", label: "Ambos" },
+                { value: "ambos", label: t("export.both") },
               ]}
             />
           </div>
           <div className="space-y-1">
             <p className="font-medium text-gray-700 dark:text-gray-200">
-              Formato
+              {t("export.format")}
             </p>
             <Segmented
               value={formatoValido}
@@ -125,7 +130,7 @@ export default function ExportButton({
             />
             {que !== "lugares" && (
               <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                CSV solo está disponible para lugares.
+                {t("export.csv_places_only")}
               </p>
             )}
           </div>
@@ -137,7 +142,7 @@ export default function ExportButton({
             className="w-full"
           >
             <HiDownload className="mr-1 h-3.5 w-3.5" />
-            Descargar ({cuantos})
+            {t("export.download", { n: cuantos })}
           </Button>
         </dialog>
       )}

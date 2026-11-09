@@ -17,12 +17,7 @@ import {
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import {
-  labelOf,
-  memberDefaultOf,
-  permissionsByModule,
-  textOf,
-} from "./team-model";
+import { labelOf, permissionsByModule, textOf } from "./team-model";
 import type { AccessCatalog, CatalogModule, CatalogRole } from "./team.types";
 
 const MODULE_ICONS: Record<string, IconType> = {
@@ -161,47 +156,6 @@ interface ModuleCardProps {
   readonly onChange: (roleKey: string) => void;
 }
 
-interface RoleOption {
-  key: string;
-  label: string;
-  description: string;
-  permissions: string[];
-}
-
-/**
- * The choices of a module card: "no access", unless the module gives every
- * member a role (then it starts at that role), and each of its roles.
- */
-export function moduleOptions(
-  roles: readonly CatalogRole[],
-  catalog: AccessCatalog,
-  lang: string,
-  d: I18nRecord
-): RoleOption[] {
-  const none: RoleOption[] = memberDefaultOf(roles)
-    ? []
-    : [
-        {
-          key: "",
-          label: tr("moduleNone", d),
-          description: tr("moduleNoneHelp", d),
-          permissions: [],
-        },
-      ];
-  return [
-    ...none,
-    ...roles.map((role) => ({
-      key: role.key,
-      label: labelOf(role, lang),
-      description: textOf(role.description, lang),
-      // In catalog order, so the lists read the same in every role.
-      permissions: catalog.permissions
-        .map((p) => p.key)
-        .filter((key) => role.permissions.includes(key)),
-    })),
-  ];
-}
-
 /** One module: what it is for, and its roles to pick from, each with its permissions. */
 export function ModuleCard({
   mod,
@@ -219,12 +173,28 @@ export function ModuleCard({
     ? "bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
     : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400";
   const name = textOf(mod.label, lang) || mod.key;
-  const options = moduleOptions(roles, catalog, lang, d);
-  // A module with a member-default role has no "no access": holding no role
-  // of it is holding that one, and choosing it again drops the explicit role.
-  const memberDefault = memberDefaultOf(roles)?.key;
-  const shown = value || memberDefault || "";
-  const pick = (key: string) => onChange(key === memberDefault ? "" : key);
+  const options: {
+    key: string;
+    label: string;
+    description: string;
+    permissions: string[];
+  }[] = [
+    {
+      key: "",
+      label: tr("moduleNone", d),
+      description: tr("moduleNoneHelp", d),
+      permissions: [],
+    },
+    ...roles.map((role) => ({
+      key: role.key,
+      label: labelOf(role, lang),
+      description: textOf(role.description, lang),
+      // In catalog order, so the lists read the same in every role.
+      permissions: catalog.permissions
+        .map((p) => p.key)
+        .filter((key) => role.permissions.includes(key)),
+    })),
+  ];
   return (
     <div className={CARD}>
       <div className="flex items-start gap-3 border-b border-gray-100 p-4 dark:border-gray-700">
@@ -257,7 +227,7 @@ export function ModuleCard({
       >
         <legend className="sr-only">{name}</legend>
         {options.map((option) => {
-          const selected = option.key === shown;
+          const selected = option.key === value;
           const id = `role-${mod.key}-${option.key || "none"}`;
           return (
             <label
@@ -274,7 +244,7 @@ export function ModuleCard({
                 name={`module-${mod.key}`}
                 value={option.key}
                 checked={selected}
-                onChange={() => pick(option.key)}
+                onChange={() => onChange(option.key)}
                 className="mt-0.5"
               />
               <div className="min-w-0">

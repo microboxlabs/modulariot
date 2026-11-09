@@ -31,7 +31,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import org.junit.jupiter.api.Test;
 
-/** Access to Lugares is decided by its own two permissions: every member views, Lugares › Mantenedor edits. */
+/** Access to Lugares is decided by its own two permissions: Lugares › Lector views, Lugares › Mantenedor edits. */
 class PlacesPermissionsTest {
 
     private static final List<Class<?>> RESOURCES = List.of(OrgGeofencesResource.class, OrgPlacesResource.class);
@@ -86,32 +86,31 @@ class PlacesPermissionsTest {
     }
 
     @Test
-    void everyMemberViewsWithoutARoleButOnlyAMaintainerEdits() {
+    void aMemberWithoutAPlacesRoleHasNoAccess() {
         AccessRegistry registry = registry();
         Set<String> member = member(registry, Set.of());
-        assertTrue(member.contains(VIEW) && !member.contains(WRITE), "Lector is every member's default");
+        assertFalse(member.contains(VIEW) || member.contains(WRITE), "no role of Lugares is no access");
 
         Set<String> client = AccessRules.resolve(1L, "acme", Caller.client("acme-client"),
                 new AccessRules.Facts(null, true, Set.of()), registry).permissions();
-        assertTrue(client.contains(VIEW) && !client.contains(WRITE));
+        assertFalse(client.contains(VIEW) || client.contains(WRITE));
 
         Set<String> admin = AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
                 new AccessRules.Facts(BaseRole.ADMIN, false, Set.of()), registry).permissions();
-        assertTrue(admin.contains(WRITE), "an Admin holds every permission");
+        assertTrue(admin.containsAll(Set.of(VIEW, WRITE)), "an Admin holds every permission");
     }
 
     @Test
-    void anotherModulesMaintainerDoesNotEditPlaces() {
+    void anotherModulesMaintainerGetsNothingFromPlaces() {
         AccessRegistry registry = registry();
         Set<String> tower = member(registry, Set.of("TOWER_MAINTAINER"));
-        assertTrue(tower.contains(VIEW), "still a member, so still a viewer");
-        assertFalse(tower.contains(WRITE));
+        assertFalse(tower.contains(VIEW) || tower.contains(WRITE));
     }
 
     @Test
-    void lugaresHasNoNoAccessOption() {
-        Map<String, RoleDef> defaults = registry().memberDefaults();
-        assertEquals(PlacesAccessCatalog.VIEWER, defaults.get(PlacesAccessCatalog.MODULE).key());
+    void lugaresGivesNoRoleByDefault() {
+        AccessRegistry registry = registry();
+        assertFalse(registry.legacyDefaults().containsKey(PlacesAccessCatalog.MODULE));
     }
 
     private static AccessRegistry registry() {

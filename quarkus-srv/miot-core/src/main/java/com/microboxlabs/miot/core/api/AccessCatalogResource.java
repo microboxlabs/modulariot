@@ -33,9 +33,8 @@ public class AccessCatalogResource {
     public record ModuleDto(String key, Map<String, String> label, Map<String, String> description, boolean ai) {
     }
 
-    /** {@code memberDefault}: every member holding no role of the module has this one; the module has no "none". */
     public record RoleDto(String key, String module, Map<String, String> label, Map<String, String> description,
-            Set<String> permissions, boolean memberDefault) {
+            Set<String> permissions) {
     }
 
     public record CatalogDto(List<String> baseRoles, List<ModuleDto> modules, List<PermissionDto> permissions,
@@ -66,6 +65,6 @@ public class AccessCatalogResource {
     }
 
     private static RoleDto toDto(RoleDef r) {
-        return new RoleDto(r.key(), r.module(), r.label(), r.description(), r.permissions(), r.memberDefault());
+        return new RoleDto(r.key(), r.module(), r.label(), r.description(), r.permissions());
     }
 }

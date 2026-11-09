@@ -3,7 +3,6 @@ package com.microboxlabs.miot.core.iam;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -93,58 +92,6 @@ class AccessRulesTest {
         assertFalse(resolve(client, new AccessRules.Facts(null, false, Set.of())).member());
         Access viewer = resolve(client, new AccessRules.Facts(null, true, Set.of("TOWER_VIEWER")));
         assertEquals(Set.of("TOWER_VIEWER"), viewer.roles(), "an explicit module role replaces the default");
-    }
-
-    /** A module every member can see, as Lugares declares: its viewer is the member default. */
-    static final AccessCatalog MAP = new AccessCatalog() {
-        @Override
-        public List<PermissionDef> permissions() {
-            return List.of(PermissionDef.of("map:view", "Ver", "View"), PermissionDef.of("map:write", "Editar", "Edit"));
-        }
-
-        @Override
-        public List<RoleDef> roles() {
-            return List.of(RoleDef.of("MAP_VIEWER", "map", "Lector", "Viewer", Set.of("map:view")).asMemberDefault(),
-                    RoleDef.of("MAP_MAINTAINER", "map", "Mantenedor", "Maintainer", Set.of("map:view", "map:write")));
-        }
-    };
-
-    @Test
-    void everyMemberGetsTheMemberDefaultOfAModuleTheyHoldNoRoleOf() {
-        AccessRegistry registry = new AccessRegistry(List.of(new CoreAccessCatalog(), TOWER, MAP));
-        Access ana = AccessRules.resolve(1L, "acme", ANA, nativeFacts(BaseRole.MEMBER), registry);
-        assertEquals(Set.of("MAP_VIEWER"), ana.roles(), "the member default, and no legacy default for a user");
-        assertTrue(ana.can("map:view"));
-        assertFalse(ana.can("map:write"));
-
-        Access maintainer = AccessRules.resolve(1L, "acme", ANA, nativeFacts(BaseRole.MEMBER, "MAP_MAINTAINER"),
-                registry);
-        assertEquals(Set.of("MAP_MAINTAINER"), maintainer.roles(), "an explicit module role replaces the default");
-
-        Access client = AccessRules.resolve(1L, "acme", Caller.client("client-acme"),
-                new AccessRules.Facts(null, true, Set.of()), registry);
-        assertEquals(Set.of("TOWER_OPERATOR", "MAP_VIEWER"), client.roles());
-
-        assertFalse(AccessRules.resolve(1L, "acme", ANA, nativeFacts(null), registry).can("map:view"),
-                "not a member, so no default");
-    }
-
-    @Test
-    void aModuleHasAtMostOneMemberDefault() {
-        AccessCatalog twice = new AccessCatalog() {
-            @Override
-            public List<PermissionDef> permissions() {
-                return List.of(PermissionDef.of("two:view", "Ver", "View"));
-            }
-
-            @Override
-            public List<RoleDef> roles() {
-                return List.of(RoleDef.of("TWO_A", "two", "A", "A", Set.of("two:view")).asMemberDefault(),
-                        RoleDef.of("TWO_B", "two", "B", "B", Set.of("two:view")).asMemberDefault());
-            }
-        };
-        List<AccessCatalog> catalogs = List.of(new CoreAccessCatalog(), twice);
-        assertThrows(IllegalStateException.class, () -> new AccessRegistry(catalogs));
     }
 
     @Test

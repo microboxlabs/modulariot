@@ -13,6 +13,7 @@ import {
   type EstadoCodigo,
   type UsoCodigo,
 } from "./use-codigo-en-uso";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
 
 const ESPERA_MS = 300;
 
@@ -20,9 +21,9 @@ type Interior = Pick<InnerGeofence, "id" | "name" | "external_id">;
 
 const codigoDe = (i: Interior) => (i.external_id ?? "").trim();
 
-const enUso = (nombre: string): EstadoCodigo => ({
+const enUso = (t: TextosLugares, nombre: string): EstadoCodigo => ({
   estado: "en-uso",
-  aviso: `En uso por «${nombre}»`,
+  aviso: t("form.code_used_by", { nombre }),
 });
 
 /** Si el servidor dice que el código lo tiene una interior que se está quitando. */
@@ -41,7 +42,8 @@ export function estadosDeInteriores(
   padre: { codigo: string; nombre: string },
   usos: Readonly<Record<string, UsoCodigo>> | null,
   fija: (id: string) => boolean,
-  quitadas: ReadonlySet<string> = new Set()
+  quitadas: ReadonlySet<string> = new Set(),
+  t: TextosLugares = textosLugares()
 ): Record<string, EstadoCodigo> {
   const out: Record<string, EstadoCodigo> = {};
   const delPadre = padre.codigo.trim().toLowerCase();
@@ -49,14 +51,14 @@ export function estadosDeInteriores(
     const codigo = codigoDe(inner).toLowerCase();
     if (!codigo || fija(inner.id)) return;
     if (codigo === delPadre) {
-      out[inner.id] = enUso(padre.nombre.trim() || "su geocerca");
+      out[inner.id] = enUso(t, padre.nombre.trim() || t("form.its_geofence"));
       return;
     }
     const otra = inners.find(
       (x, j) => j !== i && codigoDe(x).toLowerCase() === codigo
     );
     if (otra) {
-      out[inner.id] = enUso(otra.name.trim() || "otra interior");
+      out[inner.id] = enUso(t, otra.name.trim() || t("form.another_inner"));
       return;
     }
     if (!usos) {
@@ -65,7 +67,7 @@ export function estadosDeInteriores(
     }
     const uso = usos[codigo];
     if (uso && !deUnaQuitada(uso, quitadas))
-      out[inner.id] = estadoDeUso(inner.id, uso);
+      out[inner.id] = estadoDeUso(inner.id, uso, t);
   });
   return out;
 }
@@ -87,7 +89,10 @@ export function useCodigosInteriores({
   fija,
   quitadas,
   activo = true,
+  t = textosLugares(),
 }: Readonly<{
+  /** Los textos de Lugares (el aviso de en uso). */
+  t?: TextosLugares;
   /** La organización activa: la respuesta de una no sirve para otra. */
   scope: string | null;
   inners: readonly Interior[];
@@ -127,7 +132,7 @@ export function useCodigosInteriores({
     // sin respuesta (falló la consulta), no se dice nada: el guardado lo revisa
     const respondidos = error ? {} : (data ?? {});
     const usos = revisando ? null : respondidos;
-    return estadosDeInteriores(inners, padre, usos, fija, quitadas);
+    return estadosDeInteriores(inners, padre, usos, fija, quitadas, t);
   }, [
     activo,
     scope,
@@ -138,6 +143,7 @@ export function useCodigosInteriores({
     data,
     inners,
     padre,
+    t,
     fija,
     quitadas,
   ]);

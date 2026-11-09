@@ -50,6 +50,7 @@ import { conCodigoPadre, faltantesPadre } from "./inner-geofences";
 import { faltaExternalId } from "./place-validation";
 import VersionBadge from "../versioning/version-badge";
 import type { EstadoCodigo } from "../hooks/use-codigo-en-uso";
+import { usePlacesT } from "../i18n/places-i18n";
 
 /** El punto del lugar, solo si quedó ubicado desde la búsqueda. */
 function puntoUbicado({ ubicadoEn, lat, lon }: FormLugar): LatLon | null {
@@ -104,6 +105,7 @@ export default function PlaceForm({
   cerca?: () => LatLon | null;
   onUbicar?: (punto: LatLon, radioM: number) => void;
 }>) {
+  const t = usePlacesT();
   // la búsqueda va en el formulario: así vuelve con el borrador al recargar
   const { busqueda } = form;
   const [intento, setIntento] = useState(false);
@@ -169,10 +171,12 @@ export default function PlaceForm({
     "transition-opacity duration-200 ease-out motion-reduce:duration-0",
     visible ? "opacity-100" : "pointer-events-none opacity-0"
   );
-  const geocercaTitle = form.place_id ? "Editar lugar" : "Crear lugar";
+  const geocercaTitle = form.place_id
+    ? t("form.edit_place")
+    : t("map.create_place");
   const interioresTitle = form.name.trim()
-    ? `Interiores · ${form.name}`
-    : "Geocercas interiores";
+    ? t("form.inners_of", { nombre: form.name })
+    : t("form.inners_title");
 
   return (
     <FloatingWindow
@@ -191,17 +195,17 @@ export default function PlaceForm({
             <div className="space-y-1.5 border-b border-sky-100 bg-sky-50 px-4 py-2.5 dark:border-sky-900/40 dark:bg-sky-950/40">
               <div className="flex items-start gap-1.5 text-[11px] leading-snug text-sky-900 dark:text-sky-100">
                 <HiOutlineSearch className="mt-0.5 h-3.5 w-3.5 flex-none" />
-                <span>Posicionar geocerca</span>
+                <span>{t("form.position_geofence")}</span>
               </div>
               <AddressInput
-                label="Ubicar en el mapa"
+                label={t("form.locate_on_map")}
                 value={{
                   texto: busqueda,
                   punto: puntoUbicado(form),
                 }}
                 token={token}
                 cerca={cerca ?? sinPunto}
-                placeholder="Buscar dirección o Plus Code…"
+                placeholder={t("form.search_address")}
                 invalido={!!faltan?.ubicacion}
                 onTexto={cambiarBusqueda}
                 onElegir={ubicarDesdeBusqueda}
@@ -219,9 +223,9 @@ export default function PlaceForm({
             <FormFooter
               msg={msg}
               guardando={guardando}
-              saveLabel="Guardar e interiores"
+              saveLabel={t("form.save_and_inners")}
               saveCls="bg-blue-600 hover:bg-blue-700"
-              altLabel="Guardar y salir"
+              altLabel={t("form.save_and_exit")}
               onAlt={intentarGuardar}
               onSave={intentarContinuar}
             />
@@ -230,9 +234,9 @@ export default function PlaceForm({
             <FormFooter
               msg={msg}
               guardando={guardando}
-              saveLabel="Guardar y salir"
+              saveLabel={t("form.save_and_exit")}
               saveCls="bg-blue-600 hover:bg-blue-700"
-              altLabel="Atrás"
+              altLabel={t("form.back")}
               onAlt={onBack}
               onSave={intentarGuardar}
             />
@@ -250,7 +254,7 @@ export default function PlaceForm({
             <div className="shrink-0 space-y-3">
               {geomKindDe(form) === "circle" && (
                 <SizeInput
-                  label="Radio"
+                  label={t("form.radius")}
                   value={form.radius_m}
                   min={RADIO_MIN}
                   max={RADIO_MAX}
@@ -276,11 +280,11 @@ export default function PlaceForm({
                       : "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200"
                   )}
                 >
-                  {pistaPoligono(form.polyBase, form.lat != null)}
+                  {pistaPoligono(t, form.polyBase, form.lat != null)}
                 </p>
               )}
 
-              <Field label="Nombre *">
+              <Field label={t("form.name_required")}>
                 <div className="flex items-center gap-1">
                   <GeofenceColorPicker
                     color={colorDeFormLugar(form)}
@@ -293,7 +297,7 @@ export default function PlaceForm({
                   />
                   <input
                     className={twMerge(inputCls, faltan?.name && inputErrorCls)}
-                    placeholder="Ej: Planta Quilicura"
+                    placeholder={t("form.name_placeholder")}
                     aria-invalid={!!faltan?.name}
                     value={form.name}
                     onChange={(e) => set("name", e.target.value)}
@@ -302,19 +306,19 @@ export default function PlaceForm({
               </Field>
 
               <Field
-                label="External ID *"
+                label={t("form.external_id_required")}
                 aside={codigoFijo ? <AvisoCodigoFijo /> : undefined}
               >
                 <div className="relative">
                   <input
-                    aria-label="External ID"
+                    aria-label={t("form.external_id")}
                     className={twMerge(
                       inputCls,
                       inputConIconoCls,
                       (faltaCodigo || codigoEnUso) && inputErrorCls,
                       codigoFijo && inputFijoCls
                     )}
-                    placeholder="Ej: SCL-01"
+                    placeholder={t("form.code_placeholder")}
                     aria-invalid={faltaCodigo || codigoEnUso}
                     readOnly={codigoFijo}
                     value={form.external_id}
@@ -327,10 +331,10 @@ export default function PlaceForm({
                 )}
               </Field>
 
-              <Field label="Categorías">
+              <Field label={t("common.categories")}>
                 <CampoCategorias
                   fieldKey={CAMPO_CATEGORIAS}
-                  label="Categorías"
+                  label={t("common.categories")}
                   value={form.categorias}
                   listaGuardada={form.categorias_lista}
                   onChange={cambiarCategorias}
@@ -341,20 +345,20 @@ export default function PlaceForm({
 
             <div className="shrink-0 space-y-2 border-t border-gray-100 pt-3 dark:border-gray-700">
               <div className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
-                Vigencia
+                {t("form.validity")}
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Field label="Desde">
+                <Field label={t("form.from")}>
                   <DateField
-                    label="Vigente desde"
+                    label={t("form.valid_from")}
                     value={form.active_from}
                     maxDate={form.active_until || undefined}
                     onChange={(v) => set("active_from", v)}
                   />
                 </Field>
-                <Field label="Hasta">
+                <Field label={t("form.until")}>
                   <DateField
-                    label="Vigente hasta"
+                    label={t("form.valid_until")}
                     value={form.active_until}
                     minDate={form.active_from || undefined}
                     onChange={(v) => set("active_until", v)}

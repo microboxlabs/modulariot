@@ -16,6 +16,7 @@ import {
   mensajePadreIncompleto,
 } from "./inner-geofences";
 import type { FormLugar } from "../places.types";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
 
 const enRango = (n: number, min: number, max: number) =>
   Number.isFinite(n) && n >= min && n <= max;
@@ -24,9 +25,12 @@ const enRango = (n: number, min: number, max: number) =>
 const fechaValida = (s: string) =>
   s === "" || !Number.isNaN(Date.parse(`${s}T00:00:00Z`));
 
-function errorForma(form: FormLugar): string | null {
+function errorForma(form: FormLugar, t: TextosLugares): string | null {
   if (form.geom === "circle" && !enRango(form.radius_m, RADIO_MIN, RADIO_MAX))
-    return `El radio debe estar entre ${RADIO_MIN} y ${RADIO_MAX.toLocaleString("es-CL")} m.`;
+    return t("validation.radius_range", {
+      min: RADIO_MIN,
+      max: RADIO_MAX.toLocaleString(t("common.number_locale")),
+    });
   if (
     esFormaParametrica(geomKindDe(form)) &&
     !(
@@ -34,18 +38,20 @@ function errorForma(form: FormLugar): string | null {
       enRango(form.rect_h_m, RECT_MIN, RECT_MAX)
     )
   )
-    return `El ancho y el alto deben estar entre ${RECT_MIN} y ${RECT_MAX.toLocaleString("es-CL")} m.`;
+    return t("validation.size_range", {
+      min: RECT_MIN,
+      max: RECT_MAX.toLocaleString(t("common.number_locale")),
+    });
   if (esPoligonoLibre(form) && !form.cerrado)
-    return "Cierra el polígono (une el último punto con el primero) antes de guardar.";
+    return t("validation.close_polygon");
   return null;
 }
 
-function errorVigencia(form: FormLugar): string | null {
+function errorVigencia(form: FormLugar, t: TextosLugares): string | null {
   const { active_from: desde, active_until: hasta } = form;
   if (!fechaValida(desde) || !fechaValida(hasta))
-    return "Revisa las fechas de vigencia.";
-  if (desde && hasta && desde > hasta)
-    return "La vigencia «Desde» no puede ser posterior a «Hasta».";
+    return t("validation.check_dates");
+  if (desde && hasta && desde > hasta) return t("validation.dates_order");
   return null;
 }
 
@@ -56,19 +62,22 @@ function errorVigencia(form: FormLugar): string | null {
 export const faltaExternalId = (form: FormLugar) => !form.external_id.trim();
 
 /** Primer problema que impide guardar el lugar, o null si está listo. */
-export function errorLugar(form: FormLugar): string | null {
-  const incompleto = mensajePadreIncompleto(form);
+export function errorLugar(
+  form: FormLugar,
+  t: TextosLugares = textosLugares()
+): string | null {
+  const incompleto = mensajePadreIncompleto(form, t);
   if (incompleto) return incompleto;
-  if (faltaExternalId(form)) return "Falta el External ID.";
-  const forma = errorForma(form);
+  if (faltaExternalId(form)) return t("validation.code_missing");
+  const forma = errorForma(form, t);
   if (forma) return forma;
-  const vigencia = errorVigencia(form);
+  const vigencia = errorVigencia(form, t);
   if (vigencia) return vigencia;
   for (const inner of innersParaGuardar(form.inners)) {
-    const msg = mensajeInnerIncompleto(inner);
+    const msg = mensajeInnerIncompleto(inner, t);
     if (msg) return msg;
     if (esPoligonoLibre(inner) && !inner.cerrado)
-      return `Cierra el polígono del interior «${inner.name}» antes de guardar.`;
+      return t("validation.close_inner_polygon", { nombre: inner.name });
   }
   return null;
 }

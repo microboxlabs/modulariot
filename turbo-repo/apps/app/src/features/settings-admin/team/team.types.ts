@@ -66,11 +66,6 @@ export interface CatalogRole {
   /** What the role is for, per language. Empty when the module gives none. */
   description?: Record<string, string>;
   permissions: string[];
-  /**
-   * Every member who holds no role of the module has this one, so the module
-   * has no "no access" option (Lugares › Lector).
-   */
-  memberDefault?: boolean;
 }
 
 /** A module that has roles. `ai` marks assistant modules, shown with the AI accent. */

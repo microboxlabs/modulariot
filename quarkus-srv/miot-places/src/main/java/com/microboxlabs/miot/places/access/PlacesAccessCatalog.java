@@ -10,14 +10,14 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The places module's permissions and roles; access to Lugares is decided by these alone. Every member sees the
- * organization's places ({@value #VIEWER} is the member default, so the module has no "no access"); editing them is
- * {@value #MAINTAINER}'s, or an Admin's or Owner's.
+ * The places module's permissions and roles; access to Lugares is decided by these alone. A member holding neither
+ * role has no access: Lugares and the geofences on the map are hidden and the endpoints refuse them. Seeing the
+ * places is {@value #VIEWER}'s, editing them {@value #MAINTAINER}'s; an Admin or Owner holds both.
  *
  * <table>
  *   <caption>Roles</caption>
  *   <tr><th>Role</th><th>Permissions</th></tr>
- *   <tr><td>{@value #VIEWER} (every member)</td><td>{@value #VIEW}</td></tr>
+ *   <tr><td>{@value #VIEWER}</td><td>{@value #VIEW}</td></tr>
  *   <tr><td>{@value #MAINTAINER}</td><td>+ {@value #WRITE}</td></tr>
  * </table>
  */
@@ -46,9 +46,8 @@ public class PlacesAccessCatalog implements AccessCatalog {
     public List<RoleDef> roles() {
         return List.of(
                 RoleDef.of(VIEWER, MODULE, "Lector", "Viewer", Set.of(VIEW))
-                        .asMemberDefault()
-                        .describedAs("Ve los lugares: geocercas, geocercas internas y trayectos. Todo miembro lo tiene.",
-                                "Sees places: geofences, inner geofences and routes. Every member has it."),
+                        .describedAs("Ve los lugares, también en el mapa: geocercas, geocercas internas y trayectos.",
+                                "Sees places, also on the map: geofences, inner geofences and routes."),
                 RoleDef.of(MAINTAINER, MODULE, "Mantenedor", "Maintainer", Set.of(VIEW, WRITE))
                         .describedAs("Además crea, cambia y elimina geocercas, geocercas internas y trayectos.",
                                 "Also creates, changes and deletes geofences, inner geofences and routes."));

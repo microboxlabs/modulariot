@@ -2,6 +2,7 @@
 // escribiendo origen y destino.
 import type { LatLon } from "../places.types";
 import { decodificar, extraerPlusCode, recuperarCorto } from "./plus-code";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
 
 /** Las operaciones son en Chile: limitar resultados al país. */
 const PAIS = "cl";
@@ -55,7 +56,8 @@ async function sugerenciaPlusCode(
   q: string,
   token: string,
   cerca: LatLon | null | undefined,
-  signal?: AbortSignal
+  signal: AbortSignal | undefined,
+  t: TextosLugares
 ): Promise<Sugerencia[] | null> {
   const pc = extraerPlusCode(q);
   if (!pc) return null;
@@ -73,13 +75,13 @@ async function sugerenciaPlusCode(
       .join(", ");
     return sugerencia(
       recuperarCorto(pc.codigo, localidad.punto),
-      `Plus Code · ${donde}`
+      t("form.plus_code_near", { donde })
     );
   }
   if (!cerca) return [];
   return sugerencia(
     recuperarCorto(pc.codigo, cerca),
-    "Plus Code · cerca del centro del mapa"
+    t("form.plus_code_map_center")
   );
 }
 
@@ -91,11 +93,12 @@ export async function buscarDirecciones(
   q: string,
   token: string,
   cerca?: LatLon | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  t: TextosLugares = textosLugares()
 ): Promise<Sugerencia[]> {
   const texto = q.trim();
   if (texto.length < 3) return [];
-  const plus = await sugerenciaPlusCode(texto, token, cerca, signal);
+  const plus = await sugerenciaPlusCode(texto, token, cerca, signal, t);
   return plus ?? buscarEnMapbox(texto, token, cerca, signal);
 }
 

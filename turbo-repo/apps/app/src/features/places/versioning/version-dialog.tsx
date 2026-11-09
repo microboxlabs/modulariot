@@ -33,22 +33,39 @@ import {
   type CambioVersion,
   type VersionBump,
 } from "./versioning";
+import {
+  usePlacesT,
+  type ClaveLugares,
+  type TextosLugares,
+} from "../i18n/places-i18n";
 
-/** Textos de BumpBadge (el módulo de lugares va en español). */
-const DICT_BUMP = {
-  bumpMajor: "MAYOR",
-  bumpMinor: "MENOR",
-  bumpPatch: "PARCHE",
-};
+/** Textos de BumpBadge, en el idioma de la página. */
+const dictBump = (t: TextosLugares) => ({
+  bumpMajor: t("versioning.bump_major"),
+  bumpMinor: t("versioning.bump_minor"),
+  bumpPatch: t("versioning.bump_patch"),
+});
 
-const TAMANOS: { bump: VersionBump; nombre: string; por: string }[] = [
-  { bump: "MAJOR", nombre: "Mayor", por: "cambia la forma o el recorrido" },
+const TAMANOS: {
+  bump: VersionBump;
+  nombre: ClaveLugares;
+  por: ClaveLugares;
+}[] = [
+  {
+    bump: "MAJOR",
+    nombre: "versioning.size_major",
+    por: "versioning.size_major_why",
+  },
   {
     bump: "MINOR",
-    nombre: "Menor",
-    por: "cambian categorías, vigencia, interiores o puntos",
+    nombre: "versioning.size_minor",
+    por: "versioning.size_minor_why",
   },
-  { bump: "PATCH", nombre: "Parche", por: "cambia el nombre u otros datos" },
+  {
+    bump: "PATCH",
+    nombre: "versioning.size_patch",
+    por: "versioning.size_patch_why",
+  },
 ];
 
 export type VersionPendiente = {
@@ -71,6 +88,7 @@ function DetalleTamano({
   version: string;
   recomendado: boolean;
 }>) {
+  const t = usePlacesT();
   return (
     <span className="flex min-w-0 flex-1 flex-col text-left">
       <span className="flex items-center gap-2">
@@ -82,7 +100,7 @@ function DetalleTamano({
         </span>
         {recomendado && (
           <span className="rounded bg-blue-600 px-1.5 text-[10px] font-semibold text-white">
-            Recomendada
+            {t("versioning.recommended")}
           </span>
         )}
       </span>
@@ -111,6 +129,7 @@ function TamanoDropdown({
   recomendado: VersionBump | null;
   onElegir: (b: VersionBump) => void;
 }>) {
+  const tx = usePlacesT();
   const [abierto, setAbierto] = useState(false);
   const { refs, floatingStyles, context } = useFloating({
     open: abierto,
@@ -175,7 +194,7 @@ function TamanoDropdown({
         className={`${dropdownTriggerBaseClass} ${dropdownDefaultBorderClass}`}
       >
         <DetalleTamano
-          nombre={elegido.nombre}
+          nombre={tx(elegido.nombre)}
           version={nextVersion(actual, elegido.bump)}
           recomendado={recomendado === elegido.bump}
         />
@@ -204,8 +223,8 @@ function TamanoDropdown({
                   className={`flex w-full cursor-pointer items-center px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-600 dark:focus:bg-gray-600 ${t.bump === bump ? "bg-gray-100 dark:bg-gray-600" : ""}`}
                 >
                   <DetalleTamano
-                    nombre={t.nombre}
-                    por={t.por}
+                    nombre={tx(t.nombre)}
+                    por={tx(t.por)}
                     version={nextVersion(actual, t.bump)}
                     recomendado={recomendado === t.bump}
                   />
@@ -230,6 +249,7 @@ export default function VersionDialog({
   onCancelar: () => void;
   onConfirmar: (bump: VersionBump, descripcion: string) => void;
 }>) {
+  const t = usePlacesT();
   const recomendado = pendiente ? bumpRecomendado(pendiente.cambios) : null;
   const [bump, setBump] = useState<VersionBump>("PATCH");
   const [descripcion, setDescripcion] = useState("");
@@ -243,12 +263,17 @@ export default function VersionDialog({
 
   if (!pendiente) return null;
   const destino = nextVersion(pendiente.actual, bump);
+  const DICT_BUMP = dictBump(t);
+  const titulo = t("versioning.dialog_title", {
+    que: pendiente.que,
+    nombre: pendiente.nombre,
+  });
 
   return (
     <AbsoluteModal
       selected={pendiente}
       setSelected={onCancelar}
-      ariaLabel={`Nueva versión de ${pendiente.que} «${pendiente.nombre}»`}
+      ariaLabel={titulo}
       maxWidth="36rem"
       maxHeight="92vh"
       className="w-full rounded-2xl border border-gray-200 bg-white text-left text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-800 dark:text-white"
@@ -256,7 +281,7 @@ export default function VersionDialog({
       <div className="flex min-h-0 w-full flex-col">
         <div className="shrink-0 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Nueva versión de {pendiente.que} «{pendiente.nombre}»
+            {titulo}
           </h2>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm">
             <span className="font-mono text-gray-500 dark:text-gray-400">
@@ -272,14 +297,14 @@ export default function VersionDialog({
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-5">
           <div>
             <p className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">
-              {"Cambios"}
+              {t("versioning.changes")}
               <span className="rounded-full bg-gray-200 px-1.5 py-px text-[10px] font-medium text-gray-700 normal-case dark:bg-gray-600 dark:text-gray-200">
                 {pendiente.cambios.length}
               </span>
             </p>
             {/* tope de ~4 cambios y scroll propio: muchos no estiran el modal */}
             <ul
-              aria-label="Cambios"
+              aria-label={t("versioning.changes")}
               className="max-h-40 divide-y divide-gray-100 overflow-y-auto overscroll-contain rounded-lg border border-gray-200 text-sm text-gray-700 dark:divide-gray-700 dark:border-gray-700 dark:text-gray-300"
             >
               {pendiente.cambios.map((c) => (
@@ -291,7 +316,7 @@ export default function VersionDialog({
             </ul>
           </div>
           <div>
-            <Label htmlFor="version-tipo">Tipo de actualización</Label>
+            <Label htmlFor="version-tipo">{t("versioning.update_type")}</Label>
             <TamanoDropdown
               actual={pendiente.actual}
               bump={bump}
@@ -301,7 +326,7 @@ export default function VersionDialog({
           </div>
           <div>
             <Label htmlFor="version-descripcion">
-              Descripción (queda en el historial)
+              {t("versioning.description")}
             </Label>
             <Textarea
               id="version-descripcion"
@@ -309,20 +334,20 @@ export default function VersionDialog({
               maxLength={500}
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Qué se actualizó y por qué"
+              placeholder={t("versioning.description_placeholder")}
             />
           </div>
         </div>
         <div className="flex shrink-0 justify-end gap-2 border-t border-gray-200 px-6 py-3 dark:border-gray-700">
           <Button color="alternative" onClick={onCancelar}>
-            Cancelar
+            {t("common.cancel")}
           </Button>
           <Button
             color="blue"
             disabled={guardando || !descripcion.trim()}
             onClick={() => onConfirmar(bump, descripcion.trim())}
           >
-            Guardar versión {destino}
+            {t("versioning.save_version", { version: destino })}
           </Button>
         </div>
       </div>

@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import useSWR from "swr";
 import { useDebounce } from "use-debounce";
 import { z } from "zod";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
 
 const URL_CODIGO_EN_USO = "/app/api/places/items/code-usage";
 const ESPERA_MS = 300;
@@ -47,19 +48,21 @@ export const bloqueaCodigo = (e: EstadoCodigo | null | undefined) =>
 /** El estado de un código ya respondido por el servidor. */
 export function estadoDeUso(
   propioId: string | null,
-  uso: UsoCodigo
+  uso: UsoCodigo,
+  t: TextosLugares = textosLugares()
 ): EstadoCodigo {
-  const aviso = avisoDeCodigo(propioId, uso);
+  const aviso = avisoDeCodigo(propioId, uso, t);
   return aviso ? { estado: "en-uso", aviso } : LIBRE;
 }
 
 /** El aviso de un código, sabiendo quién lo tiene. El propio lugar no cuenta. */
 export function avisoDeCodigo(
   propioId: string | null,
-  uso: UsoCodigo | undefined
+  uso: UsoCodigo | undefined,
+  t: TextosLugares = textosLugares()
 ): string | null {
   if (!uso?.inUse || uso.placeId === propioId) return null;
-  return `En uso por «${uso.name}»`;
+  return t("form.code_used_by", { nombre: uso.name ?? "" });
 }
 
 export function useCodigoEnUso({
@@ -67,11 +70,14 @@ export function useCodigoEnUso({
   codigo,
   propioId,
   activo = true,
+  t = textosLugares(),
 }: Readonly<{
   /** La organización activa: la respuesta de una no sirve para otra. */
   scope: string | null;
   codigo: string;
   propioId: string | null;
+  /** Los textos de Lugares (el aviso de en uso). */
+  t?: TextosLugares;
   /** Un External ID que no se puede editar no se revisa. */
   activo?: boolean;
 }>): EstadoCodigo | null {
@@ -88,6 +94,6 @@ export function useCodigoEnUso({
     // lo respondido es del texto anterior mientras se sigue escribiendo
     if (consultado !== escrito || isLoading) return REVISANDO;
     if (error || !data) return null;
-    return estadoDeUso(propioId, data);
-  }, [activo, scope, escrito, consultado, isLoading, error, data, propioId]);
+    return estadoDeUso(propioId, data, t);
+  }, [activo, scope, escrito, consultado, isLoading, error, data, propioId, t]);
 }

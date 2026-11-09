@@ -8,6 +8,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { GeographicMapViewId } from "../../profiles/geographic-profile-context";
 import { useGeographicProfile } from "../../profiles/geographic-profile-context";
+import { usePermisoVerLugares } from "../../profiles/places-permission";
 
 const ITEM_SIZE = 40;
 
@@ -167,6 +168,8 @@ export default function MapNotch({
   alSalirDeLugares?: (seguir: () => void) => void;
 }>) {
   const { activeView, setActiveView, can } = useGeographicProfile();
+  // sin permiso para ver Lugares (Ajustes › Equipo) su botón no aparece
+  const verLugares = usePermisoVerLugares();
   const toggleView = (id: GeographicMapViewId) => {
     const siguiente = activeView === id ? null : id;
     const seguir = () => setActiveView(siguiente);
@@ -176,7 +179,9 @@ export default function MapNotch({
   return (
     <MapNotchBar
       dict={dict}
-      items={NOTCH_ITEMS.filter((item) => can(item.capability))}
+      items={NOTCH_ITEMS.filter(
+        (item) => can(item.capability) && (item.id !== "places" || verLugares)
+      )}
       activeView={activeView}
       onToggle={toggleView}
     />

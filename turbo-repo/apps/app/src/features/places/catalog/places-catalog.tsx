@@ -36,6 +36,7 @@ import {
 } from "../import-export/import-conflict-table";
 import type { PlacesWorkspace } from "../hooks/use-places-workspace";
 import type { GeocercaExterna, Lugar } from "../places.types";
+import { usePlacesT, type TextosLugares } from "../i18n/places-i18n";
 
 export function PlacesImportCard({
   ws,
@@ -46,6 +47,7 @@ export function PlacesImportCard({
 }>) {
   const { imp, fileRef, onArchivos, confirmarImport, guardando, abrirImport } =
     ws;
+  const t = usePlacesT();
   const [arrastrando, setArrastrando] = useState(false);
   const profundidadArrastre = useRef(0);
   const lotes = imp.lotes ?? [];
@@ -133,7 +135,7 @@ export function PlacesImportCard({
             >
               <span className="flex w-full flex-row items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800">
                 <MdOutlineFileUpload className="h-4 w-4" />
-                Importar otro archivo
+                {t("import.another_file")}
               </span>
             </label>
             <ImportSelectionBar
@@ -154,7 +156,7 @@ export function PlacesImportCard({
         ) : (
           <label
             htmlFor="places-import-file"
-            aria-label="Arrastra o elige un archivo"
+            aria-label={t("import.drop_or_choose")}
             className="flex min-h-0 flex-1 cursor-pointer flex-col items-center justify-center"
           >
             <div className="flex flex-col items-center justify-center gap-2">
@@ -162,11 +164,11 @@ export function PlacesImportCard({
                 <MdOutlineFileUpload className="h-6 w-6 text-gray-500 dark:text-gray-300" />
               </div>
               <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-                Arrastra CSV, KML o GeoJSON aquí
+                {t("import.drop_here")}
               </p>
               <span className="flex flex-row items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-white hover:bg-blue-800">
                 <MdOutlineFileUpload className="h-4 w-4" />
-                Seleccionar archivo
+                {t("import.choose_file")}
               </span>
             </div>
           </label>
@@ -178,7 +180,7 @@ export function PlacesImportCard({
           multiple
           accept={ACCEPT_IMPORT}
           className="hidden"
-          aria-label="Seleccionar archivo"
+          aria-label={t("import.choose_file")}
           onChange={alElegirArchivo}
         />
       </div>
@@ -195,7 +197,7 @@ export function PlacesImportCard({
           className="min-w-0 flex-1 py-2.5 text-sm"
           onClick={cancelar}
         >
-          Cancelar
+          {t("common.cancel")}
         </Button>
         <Button
           type="button"
@@ -204,7 +206,7 @@ export function PlacesImportCard({
           className="min-w-0 flex-1 py-2.5 text-sm"
           onClick={importar}
         >
-          {guardando ? "Importando…" : "Importar"}
+          {guardando ? t("import.importing") : t("import.import")}
         </Button>
       </ButtonGroup>
     </div>
@@ -272,11 +274,12 @@ function externasVisibles(
 function textoSinResultados(
   busca: string,
   etiquetas: EtiquetaBusqueda[],
-  dict: I18nRecord
+  dict: I18nRecord,
+  t: TextosLugares
 ): string {
   if (etiquetas.length > 0)
     return tr("geographic_view.places.search.no_results_tags", dict);
-  return `Sin resultados para «${busca.trim()}».`;
+  return t("catalog.no_results_for", { busqueda: busca.trim() });
 }
 
 export function PlacesCatalogLists({
@@ -292,6 +295,7 @@ export function PlacesCatalogLists({
   /** Textos de la barra de búsqueda. */
   dict?: I18nRecord;
 }>) {
+  const t = usePlacesT();
   // sin el permiso "Editor de lugares": solo listar, buscar y descargar
   const editable = ws.puedeEditar !== false;
   const todosLugares = ws.todosLugares ?? ws.lugares;
@@ -356,7 +360,7 @@ export function PlacesCatalogLists({
                 }`}
                 onClick={ws.abrirImport}
               >
-                Importar
+                {t("import.import")}
               </button>
             )}
             <ExportButton
@@ -388,7 +392,7 @@ export function PlacesCatalogLists({
         <ListCard>
           {sinResultados ? (
             <p className="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">
-              {textoSinResultados(ws.busca, etiquetas, dict)}
+              {textoSinResultados(ws.busca, etiquetas, dict, t)}
             </p>
           ) : (
             <>
@@ -417,7 +421,9 @@ export function PlacesCatalogLists({
                 <ExternalGeofencesList
                   titulo={externas.titulo}
                   items={externasFiltradas}
-                  vacio={`Sin ${externas.titulo.toLowerCase()}.`}
+                  vacio={t("catalog.none_of", {
+                    titulo: externas.titulo.toLowerCase(),
+                  })}
                   onIr={(g) => ws.irAPunto(g.ancla)}
                 />
               )}

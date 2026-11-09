@@ -46,18 +46,23 @@ import {
 } from "./inner-geofences";
 import type { FormLugar, InnerGeofence } from "../places.types";
 import type { EstadoCodigo } from "../hooks/use-codigo-en-uso";
+import { usePlacesT, type TextosLugares } from "../i18n/places-i18n";
 
-function innerDetalle(inner: InnerGeofence): string {
+function innerDetalle(t: TextosLugares, inner: InnerGeofence): string {
   if (inner.geom === "polygon") {
     const kind = geomKindDe(inner);
     if (kind === "square") {
-      return esRectVinculado(inner) ? "Cuadrado" : "Rectángulo";
+      return esRectVinculado(inner)
+        ? t("shapes.square")
+        : t("shapes.rectangle");
     }
-    if (kind === "tri") return "Triángulo";
-    return inner.vertices.length >= 3 ? "Polígono" : "Polígono · sin cerrar";
+    if (kind === "tri") return t("shapes.triangle");
+    return inner.vertices.length >= 3
+      ? t("shapes.polygon")
+      : t("shapes.polygon_open");
   }
-  if (inner.lat == null) return "Círculo · sin ubicar";
-  return `Círculo · ${inner.radius_m} m`;
+  if (inner.lat == null) return t("shapes.circle_unplaced");
+  return t("shapes.circle_radius", { radio: String(inner.radius_m) });
 }
 
 /** El External ID de la interior: obligatorio, sin repetirse y fijo una vez guardado. */
@@ -74,21 +79,25 @@ function CodigoInterior({
   estado: EstadoCodigo | null;
   fijo: boolean;
 }>) {
+  const t = usePlacesT();
   const setCodigo = (e: ChangeEvent<HTMLInputElement>) =>
     onChange({ ...inner, external_id: e.target.value });
   const invalido = falta || estado?.estado === "en-uso";
   return (
-    <Field label="External ID *" aside={fijo ? <AvisoCodigoFijo /> : undefined}>
+    <Field
+      label={t("form.external_id_required")}
+      aside={fijo ? <AvisoCodigoFijo /> : undefined}
+    >
       <div className="relative">
         <input
-          aria-label="External ID de la geocerca interior"
+          aria-label={t("inners.code_label")}
           className={twMerge(
             inputCls,
             inputConIconoCls,
             invalido && inputErrorCls,
             fijo && inputFijoCls
           )}
-          placeholder="Ej: SCL-01-A"
+          placeholder={t("inners.code_placeholder")}
           aria-invalid={invalido}
           readOnly={fijo}
           value={inner.external_id ?? ""}
@@ -114,6 +123,7 @@ function InnerEditor({
   estado: EstadoCodigo | null;
   codigoFijo: boolean;
 }>) {
+  const t = usePlacesT();
   const kind = geomKindDe(inner);
   const polyBase = normalizarPolyBase(inner.polyBase);
   const vinculado = esRectVinculado(inner);
@@ -138,8 +148,8 @@ function InnerEditor({
 
   const pista =
     kind === "circle"
-      ? pistaCirculo(ubicada)
-      : pistaPoligono(polyBase, inner.lat != null);
+      ? pistaCirculo(t, ubicada)
+      : pistaPoligono(t, polyBase, inner.lat != null);
 
   return (
     <div className="space-y-2 px-2 pb-2">
@@ -153,7 +163,7 @@ function InnerEditor({
       <GeomIconBar compact value={kind} onChange={setKind} />
       {kind === "circle" && (
         <SizeInput
-          label="Radio"
+          label={t("form.radius")}
           value={inner.radius_m}
           min={INNER_RADIO_MIN}
           max={INNER_RADIO_MAX}
@@ -204,6 +214,7 @@ function InnerRow({
   estado: EstadoCodigo | null;
   codigoFijo: boolean;
 }>) {
+  const t = usePlacesT();
   const elegir = () => onSelect();
   const quitar = () => onRemove();
   const setColor = (color: string) => onChange({ ...inner, color });
@@ -232,15 +243,17 @@ function InnerRow({
                 "min-w-0 flex-1",
                 faltan.name && inputErrorCls
               )}
-              placeholder="Ej: Lote VIP"
-              aria-label="Nombre de la geocerca interior"
+              placeholder={t("inners.name_placeholder")}
+              aria-label={t("inners.name_label")}
               aria-invalid={faltan.name}
               value={inner.name}
               onChange={setNombre}
             />
             <button
               type="button"
-              aria-label={`Quitar ${inner.name || "geocerca interior"}`}
+              aria-label={t("form.remove_item", {
+                nombre: inner.name || t("inners.an_inner"),
+              })}
               onClick={quitar}
               className="rounded-md p-1.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
             >
@@ -256,10 +269,10 @@ function InnerRow({
             <GeofenceColorPicker color={colorInner(inner)} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm text-gray-900 dark:text-white">
-                {inner.name.trim() || "Sin nombre"}
+                {inner.name.trim() || t("inners.unnamed")}
               </div>
               <div className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-                {innerDetalle(inner)}
+                {innerDetalle(t, inner)}
               </div>
             </div>
           </button>
@@ -281,10 +294,8 @@ function InnerRow({
 const SIN_ESTADOS: Readonly<Record<string, EstadoCodigo>> = {};
 const sinCodigoFijo = () => false;
 
-function pistaCirculo(ubicada: boolean): string {
-  return ubicada
-    ? "Arrastra el centro o el radio en el mapa"
-    : "Clic dentro del lugar para ubicarla";
+function pistaCirculo(t: TextosLugares, ubicada: boolean): string {
+  return ubicada ? t("inners.hint_drag") : t("inners.hint_place");
 }
 
 export default function InnerGeofenceFields({
@@ -302,6 +313,7 @@ export default function InnerGeofenceFields({
   /** Interior guardada con su External ID: ese no se cambia. */
   codigoFijo?: (id: string) => boolean;
 }>) {
+  const t = usePlacesT();
   const [busca, setBusca] = useState("");
   const padreListo = padreTieneGeometria(form);
   const q = busca.trim().toLowerCase();
@@ -341,8 +353,8 @@ export default function InnerGeofenceFields({
     setForm((f) => ({ ...f, innerEditId: id }));
 
   const vacio = q
-    ? `Sin geocercas interiores para «${busca.trim()}».`
-    : "Aún no hay geocercas interiores.";
+    ? t("inners.none_for", { busqueda: busca.trim() })
+    : t("inners.none");
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -351,15 +363,15 @@ export default function InnerGeofenceFields({
         <input
           type="search"
           className={twMerge(inputCls, "pl-8")}
-          placeholder="Buscar geocerca interior…"
+          placeholder={t("inners.search_placeholder")}
           value={busca}
-          aria-label="Buscar geocerca interior"
+          aria-label={t("inners.search")}
           onChange={(e) => setBusca(e.target.value)}
         />
       </div>
       {!padreListo && (
         <p className="shrink-0 text-[11px] text-amber-700 dark:text-amber-400">
-          Primero ubica el lugar en el mapa para poder dibujar interiores.
+          {t("inners.place_parent_first")}
         </p>
       )}
       <ul className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/60">
@@ -390,7 +402,7 @@ export default function InnerGeofenceFields({
         className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
       >
         <HiPlus className="h-4 w-4" />
-        Agregar Geocerca Interior
+        {t("inners.add")}
       </button>
     </div>
   );

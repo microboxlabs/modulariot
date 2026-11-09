@@ -186,7 +186,7 @@ public class IntegrationsTelephony implements Telephony {
         IntegrationConnection connection = connections.apply(connectionTenant, ProviderType.TELNYX);
         String ref = UUID.randomUUID().toString();
         usage.locked(connectionId, () -> {
-            if (line.managed()) plan.requireMinutes(tenantCode);
+            if (line.managed() && UsageRow.VOICE.equals(channel)) plan.requireMinutes(tenantCode);
             int limit = channelLimit(connection);
             if (usage.busyChannels(connectionId, now.minus(HOLD)) >= limit) {
                 throw new TelephonyUnavailableException(TelephonyUnavailableException.CHANNELS_BUSY,

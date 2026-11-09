@@ -29,6 +29,9 @@ import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -57,6 +60,7 @@ class WhatsAppCallsTest {
             Map.of(PlatformScope.TENANT + "|" + ProviderType.TELNYX, managed));
     private final Map<String, InboundCallers.Caller> book = new HashMap<>();
     private Optional<Boolean> permission = Optional.empty();
+    private final Set<String> ambiguous = new HashSet<>();
 
     private final TelnyxClient client = new TelnyxClient(http, API);
     private final TelephonyPlanService plan = new TelephonyPlanService(usage, clock);
@@ -69,7 +73,17 @@ class WhatsAppCallsTest {
     }
 
     private WhatsAppCalls whatsApp() {
-        return new WhatsAppCalls(config, usage, calls, client, id -> "KEY_test", e164 -> Optional.ofNullable(book.get(e164)),
+        return new WhatsAppCalls(config, usage, calls, client, id -> "KEY_test", new InboundCallers() {
+            @Override
+            public Optional<Caller> find(String e164) {
+                return Optional.ofNullable(book.get(e164));
+            }
+
+            @Override
+            public Lookup lookup(String e164) {
+                return new Lookup(find(e164), ambiguous.contains(e164));
+            }
+        },
                 new InboundRouter(usage), json, clock);
     }
 
@@ -254,14 +268,24 @@ class WhatsAppCallsTest {
         assertTrue(state.startsWith(WhatsAppCalls.LEG));
         assertNull(sent("/v2/calls"), "nothing is dialed for an inbound call");
 
-        events.apply("p1", waLeg("call.answered", ref, "wa-in-1", Map.of("direction", "incoming")));
+        events.apply("p1", waLeg("call.answered", ref, "wa-in-1",
+                Map.of("direction", "incoming", "to", "+12025550100")));
+        assertEquals(DRIVER, usage.find(ref).orElseThrow().calleeNumber(), "the business number is not the caller");
         assertEquals("/v2/calls/sdk-in/actions/bridge", sent("/actions/bridge").path());
         assertEquals(InboundWhatsAppCall.ANSWERED, calls.inbound(inboundId).orElseThrow().status());
+
+        int commands = http.seen().size();
+        events.apply("p1", parkedLeg("call.initiated", ref, "sdk-in"));
+        assertEquals(commands, http.seen().size(), "an admission retry cannot hang up an answered inbound call");
 
         clock.at = NOW.plusSeconds(30);
         events.apply("p1", waLeg("call.hangup", ref, "wa-in-1",
                 Map.of("direction", "incoming", "end_time", NOW.plusSeconds(30).toString())));
         assertEquals(UsageRow.CONFIRMED, usage.find(ref).orElseThrow().status());
+        assertEquals(InboundWhatsAppCall.ENDED, calls.inbound(inboundId).orElseThrow().status());
+        commands = http.seen().size();
+        events.apply("p1", waLeg("call.answered", ref, "wa-in-1", Map.of("direction", "incoming")));
+        assertEquals(commands, http.seen().size(), "a late answer cannot bridge an ended call");
         assertEquals(InboundWhatsAppCall.ENDED, calls.inbound(inboundId).orElseThrow().status());
     }
 
@@ -331,6 +355,77 @@ class WhatsAppCallsTest {
         events(whatsApp).apply("p1", event("call.initiated", Map.of("direction", "incoming", "connection_id", APP,
                 "from", DRIVER, "call_control_id", "wa-in-6")));
         assertEquals("acme", calls.inboundByCallControl("wa-in-6").orElseThrow().tenantCode());
+    }
+
+    @Test
+    void ambiguousContactsNeverFallBackToTheLatestManagedCall() {
+        usage.insert(new UsageRow("00000000-0000-0000-0000-000000000004", "acme", UsageRow.WHATSAPP_CALL, true, "p1",
+                "wa-old", null, DRIVER, UsageRow.WHATSAPP_CALL, UsageRow.CONFIRMED, NOW.minusSeconds(600), 60, 1,
+                null, null, UsageRow.SOURCE_WEBHOOK, NOW.minusSeconds(600), NOW.minusSeconds(540), NOW));
+        ambiguous.add(DRIVER);
+        WhatsAppCalls whatsApp = whatsApp();
+        events(whatsApp).apply("p1", event("call.initiated", Map.of("direction", "incoming", "connection_id", APP,
+                "from", DRIVER, "call_control_id", "wa-ambiguous")));
+        assertNull(calls.inboundByCallControl("wa-ambiguous").orElseThrow().tenantCode());
+        assertTrue(whatsApp.ringing("acme").isEmpty());
+        assertTrue(whatsApp.ringing("other").isEmpty());
+        assertTrue(sent("/wa-ambiguous/actions/answer") != null, "ambiguous callers hear the platform notice");
+    }
+
+    @Test
+    void exhaustedVoiceQuotaDoesNotPreventOutboundOrInboundWhatsAppCalls() {
+        usage.setPlan(new Plan(0, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
+                BigDecimal.ZERO, true, null, null), "owner");
+        WhatsAppCalls whatsApp = whatsApp();
+        IntegrationsTelephony telephony = telephony(whatsApp);
+        TelnyxCallEvents events = events(whatsApp);
+        assertEquals(TelephonyUnavailableException.QUOTA_EXHAUSTED,
+                assertThrows(TelephonyUnavailableException.class,
+                        () -> telephony.webRtcToken("acme", "p1", "op@acme.test", DRIVER, null)).code());
+        String outbound = telephony.whatsAppCall("acme", "p1", "op@acme.test", DRIVER, null).callRef();
+        events.apply("p1", parkedLeg("call.initiated", outbound, "sdk-out"));
+        assertTrue(sent("/v2/calls") != null, "WhatsApp admission also bypasses the voice quota");
+
+        book.put(DRIVER, new InboundCallers.Caller("acme", "Test contact", null));
+        events.apply("p1", event("call.initiated", Map.of("direction", "incoming", "connection_id", APP,
+                "from", DRIVER, "call_control_id", "wa-free-inbound")));
+        String id = whatsApp.ringing("acme").getFirst().id();
+        String inbound = telephony.answerWhatsAppCall("acme", "p1", "op@acme.test", id).callRef();
+        events.apply("p1", parkedLeg("call.initiated", inbound, "sdk-in"));
+        assertTrue(sent("/wa-free-inbound/actions/answer") != null);
+    }
+
+    @Test
+    void everyMissingRequiredConfigurationKeyDisablesCalling() {
+        List<String> values = List.of(APP, "meta.sip.test", "+12025550100", "12025550100", "placeholder-secret", "DTLS");
+        for (int missing = 0; missing < values.size(); missing++) {
+            String[] v = values.toArray(String[]::new);
+            v[missing] = null;
+            config = new WhatsAppSipConfig(v[0], v[1], v[2], v[3], v[4], v[5], Duration.ofSeconds(30), "x");
+            assertFalse(telephony(whatsApp()).whatsAppCalling("acme"), "missing key " + missing);
+            v[missing] = " ";
+            config = new WhatsAppSipConfig(v[0], v[1], v[2], v[3], v[4], v[5], Duration.ofSeconds(30), "x");
+            assertFalse(telephony(whatsApp()).whatsAppCalling("acme"), "blank key " + missing);
+        }
+    }
+
+    @Test
+    void theOperatorDetailRecordCannotAddAVoiceChargeToAWhatsAppCall() throws Exception {
+        WhatsAppCalls whatsApp = whatsApp();
+        String ref = telephony(whatsApp).whatsAppCall("acme", "p1", "op@acme.test", DRIVER, null).callRef();
+        TelnyxCallEvents events = events(whatsApp);
+        events.apply("p1", parkedLeg("call.initiated", ref, "sdk-meter"));
+        events.apply("p1", waLeg("call.answered", ref, "wa-leg-1", Map.of()));
+        events.apply("p1", waLeg("call.hangup", ref, "wa-leg-1", Map.of("end_time", NOW.plusSeconds(61).toString())));
+        var reconciler = new TelnyxUsageReconciler(t -> managed, (t, c) -> null, client, usage, json, clock, true);
+        JsonNode cdr = json.createObjectNode().put("call_control_id", "sdk-meter")
+                .put("auth_username", "gencred-acme-1").put("connection_id", "sip-1")
+                .put("answered_at", NOW.toString()).put("call_sec", 61).put("cld", DRIVER);
+        assertEquals(TelnyxUsageReconciler.Applied.SKIPPED, reconciler.apply("p1", cdr, NOW.plusSeconds(62)));
+        assertEquals(TelnyxUsageReconciler.Applied.SKIPPED, reconciler.apply("p1", cdr, NOW.plusSeconds(63)));
+        assertEquals(1, usage.rows("acme", NOW.minusSeconds(1), NOW.plusSeconds(100)).size());
+        assertEquals(2, usage.find(ref).orElseThrow().billedMinutes());
+        assertEquals(0, usage.billedMinutes("acme", NOW.minusSeconds(1), NOW.plusSeconds(100)));
     }
 
     @Test

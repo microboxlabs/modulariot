@@ -12,5 +12,13 @@ public interface InboundCallers {
     record Caller(String tenantCode, String name, String caseRef) {
     }
 
+    /** Ambiguity must not fall back to another routing source. */
+    record Lookup(Optional<Caller> caller, boolean ambiguous) {
+    }
+
     Optional<Caller> find(String callerE164);
+
+    default Lookup lookup(String callerE164) {
+        return new Lookup(find(callerE164), false);
+    }
 }

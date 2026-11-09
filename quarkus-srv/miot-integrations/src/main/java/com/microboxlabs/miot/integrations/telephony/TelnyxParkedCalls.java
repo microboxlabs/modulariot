@@ -129,7 +129,7 @@ public class TelnyxParkedCalls {
             throw new TelephonyUnavailableException("No unused call reservation");
         }
         IntegrationConnection connection = requireConnection(connectionId);
-        if (row.managed()) plan.requireMinutes(row.tenantCode());
+        if (row.managed() && UsageRow.VOICE.equals(row.channel())) plan.requireMinutes(row.tenantCode());
         if (usage.busyChannels(connectionId, clock.instant().minus(IntegrationsTelephony.HOLD))
                 > IntegrationsTelephony.channelLimit(connection)) {
             throw new TelephonyUnavailableException("The line has no available channel");

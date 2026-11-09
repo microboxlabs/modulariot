@@ -110,11 +110,10 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
     @Operation(operationId = "telephonyCallOutcome",
             summary = "Why the provider ended the call before it connected: failure whatsapp_no_permission when the"
                     + " contact has not allowed WhatsApp calls; null otherwise")
-    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> callOutcome(@PathParam(ORG) String organizationId, @PathParam("callRef") String callRef) {
         String tenant = tenantCode(organizationId);
-        operator();
         return work(() -> Response.ok(telephony.outcome(tenant, callRef)).header("Cache-Control", "no-store").build());
     }
 
@@ -122,11 +121,10 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
     @Path("/whatsapp-calls")
     @Operation(operationId = "ringingWhatsAppCalls",
             summary = "WhatsApp calls from contacts ringing in the tower, oldest first")
-    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> ringingWhatsAppCalls(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        operator();
         return work(() -> Response.ok(telephony.ringingWhatsAppCalls(tenant)).header("Cache-Control", "no-store")
                 .build());
     }

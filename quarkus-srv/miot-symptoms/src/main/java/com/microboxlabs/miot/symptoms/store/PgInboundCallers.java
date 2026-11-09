@@ -10,12 +10,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -32,9 +27,10 @@ public class PgInboundCallers implements InboundCallers {
     private static final String CHANNELS = "(CASE WHEN jsonb_typeof(channels) = 'string' "
             + "THEN (channels #>> '{}')::jsonb ELSE channels END)";
     private static final String DIGITS = "regexp_replace(coalesce(%s, ''), '\\D', '', 'g') = ANY($1)";
-    static final String CONTACTS = "SELECT tenant_code, id, name FROM miot_symptoms.contact WHERE active AND ("
+    static final String CONTACTS = "SELECT tenant_code, array_agg(id) AS ids, "
+            + "(array_agg(name ORDER BY created_at, id))[1] AS name FROM miot_symptoms.contact WHERE active AND ("
             + DIGITS.formatted("phone") + " OR " + DIGITS.formatted(CHANNELS + " ->> 'whatsapp'") + " OR "
-            + DIGITS.formatted(CHANNELS + " ->> 'phone'") + ") ORDER BY tenant_code, created_at LIMIT 20";
+            + DIGITS.formatted(CHANNELS + " ->> 'phone'") + ") GROUP BY tenant_code ORDER BY tenant_code LIMIT 2";
     static final String OPEN_CASE = """
             SELECT t.symptom_id FROM miot_symptoms.treatment t
               JOIN miot_symptoms.treatment_action a ON a.treatment_id = t.id AND a.tenant_code = t.tenant_code
@@ -55,22 +51,22 @@ public class PgInboundCallers implements InboundCallers {
 
     @Override
     public Optional<Caller> find(String callerE164) {
+        return lookup(callerE164).caller();
+    }
+
+    @Override
+    public Lookup lookup(String callerE164) {
         String[] forms = forms(callerE164);
-        if (forms.length == 0) return Optional.empty();
-        Set<String> tenants = new LinkedHashSet<>();
-        List<UUID> ids = new ArrayList<>();
-        String name = null;
-        for (Row r : run(CONTACTS, Tuple.tuple().addArrayOfString(forms))) {
-            tenants.add(r.getString("tenant_code"));
-            ids.add(r.getUUID("id"));
-            if (name == null) name = r.getString("name");
-        }
-        if (tenants.size() != 1) return Optional.empty();
-        String tenant = tenants.iterator().next();
+        if (forms.length == 0) return new Lookup(Optional.empty(), false);
+        var matches = run(CONTACTS, Tuple.tuple().addArrayOfString(forms)).iterator();
+        if (!matches.hasNext()) return new Lookup(Optional.empty(), false);
+        Row contact = matches.next();
+        if (matches.hasNext()) return new Lookup(Optional.empty(), true);
+        String tenant = contact.getString("tenant_code");
         var cases = run(OPEN_CASE, Tuple.tuple().addArrayOfString(forms).addString(tenant)
-                .addArrayOfUUID(ids.toArray(UUID[]::new))).iterator();
+                .addArrayOfUUID(contact.getArrayOfUUIDs("ids"))).iterator();
         String caseRef = cases.hasNext() ? String.valueOf(cases.next().getLong("symptom_id")) : null;
-        return Optional.of(new Caller(tenant, name, caseRef));
+        return new Lookup(Optional.of(new Caller(tenant, contact.getString("name"), caseRef)), false);
     }
 
     /** The caller's digits, and for a Chilean number (56 and 9 digits) also the 9 national digits. */

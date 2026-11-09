@@ -108,8 +108,9 @@ public class TelnyxCallEvents {
                     r.answeredAt(), token.caseRef());
         }
         if (!UsageRow.SOURCE_DETAIL_RECORD.equals(r.source())) {
-            String callee = PhoneNumbers.e164(text(p, "to"));
-            // A WhatsApp leg's "to" is a SIP address: the contact's number stays the one reserved.
+            // For inbound WhatsApp the provider's "to" can be the business number. Keep the contact reserved.
+            String callee = UsageRow.WHATSAPP_CALL.equals(r.channel()) ? r.calleeNumber()
+                    : PhoneNumbers.e164(text(p, "to"));
             if (callee == null && (r.externalId() != null || !UsageRow.VOICE.equals(r.channel()))) {
                 callee = r.calleeNumber();
             }

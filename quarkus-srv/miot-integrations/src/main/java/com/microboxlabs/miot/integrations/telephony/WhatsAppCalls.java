@@ -134,7 +134,7 @@ public class WhatsAppCalls {
         String leg = saved == null ? callId : saved;
         if (!leg.equals(callId)) return new Handling(true, null);
         Optional<InboundWhatsAppCall> inbound = store.inboundByCallRef(row.id());
-        if ("call.answered".equals(event)) {
+        if ("call.answered".equals(event) && row.endedAt() == null) {
             require(() -> client.bridge(apiKeys.apply(connectionId), admission.parkedCallId(), leg, row.id() + ":bridge"),
                     "bridge the WhatsApp call");
             inbound.ifPresent(c -> store.updateInbound(c.with(InboundWhatsAppCall.ANSWERED, c.callRef(), clock.instant())));
@@ -157,6 +157,7 @@ public class WhatsAppCalls {
         String apiKey = apiKeys.apply(connectionId);
         InboundWhatsAppCall inbound = store.inboundByCallRef(row.id()).orElse(null);
         if (inbound != null) {
+            if (InboundWhatsAppCall.ANSWERED.equals(inbound.status())) return;
             if (!InboundWhatsAppCall.CLAIMED.equals(inbound.status())) {
                 hangupQuietly(connectionId, admission.parkedCallId());
                 return;
@@ -207,8 +208,10 @@ public class WhatsAppCalls {
         if (store.inboundByCallControl(callId).isPresent()) return true;
         String caller = callerE164(from);
         Instant now = clock.instant();
-        Caller who = caller == null ? null : callers.find(caller).orElse(null);
-        if (who == null && caller != null) {
+        InboundCallers.Lookup lookup = caller == null ? new InboundCallers.Lookup(Optional.empty(), false)
+                : callers.lookup(caller);
+        Caller who = lookup.caller().orElse(null);
+        if (who == null && caller != null && !lookup.ambiguous()) {
             who = router.route(caller, now).map(t -> new Caller(t, null, null)).orElse(null);
         }
         String tenant = who == null ? null : who.tenantCode();

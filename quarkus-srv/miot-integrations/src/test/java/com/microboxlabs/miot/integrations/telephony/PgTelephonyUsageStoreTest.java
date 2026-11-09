@@ -33,7 +33,7 @@ class PgTelephonyUsageStoreTest {
         try {
             pool.query("CREATE SCHEMA " + schema).execute().await().indefinitely();
             for (String migration : new String[]{"V0.6.39__telephony_usage.sql", "V0.6.40__telephony_destination_width.sql",
-                    "V0.6.41__telephony_admissions_and_reconcile_progress.sql"}) {
+                    "V0.6.41__telephony_admissions_and_reconcile_progress.sql", "V0.6.42__whatsapp_calls.sql"}) {
                 try (var resource = getClass().getResourceAsStream("/db/migration/integrations/" + migration)) {
                     assertNotNull(resource);
                     pool.query(new String(resource.readAllBytes(), StandardCharsets.UTF_8).replace("miot_integrations", schema))

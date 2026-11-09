@@ -161,15 +161,15 @@ The app checks the permission with `GET /api/v1/orgs/{organizationId}/conversati
 ### Contact calls the tower
 
 1. `call.initiated`, direction incoming, on the WhatsApp application: the server reads the caller from `from`.
-2. The caller's organization is the one organization whose contact book has an active contact with that phone or WhatsApp number (trip drivers are synced into the book). Else the organization of the latest managed call to that number in 24 hours. The case is the latest open treatment with a call to that contact.
+2. The caller's organization is the one organization whose contact book has an active contact with that phone or WhatsApp number (trip drivers are synced into the book). When no contact matches, use the organization of the latest managed call to that number in 24 hours. A match in several organizations is ambiguous: it goes to the platform notice and never falls back to the ledger. The case is the latest open treatment with a call to that contact.
 3. A known caller's call rings (it is not answered) and is listed in `GET /whatsapp-calls` for the organization's operators. The app shows it with "Contestar".
 4. "Contestar" asks `POST /whatsapp-calls/{id}/answer`, a login with a reservation. 409 `whatsapp_call_taken` when another operator took it or it ended. The browser dials; on admission the server answers the WhatsApp leg and bridges it to the operator's leg.
 5. An unknown caller, or a call nobody takes within `ring-timeout`, is answered, hears `unanswered-message`, and is hung up.
 
 | Endpoint (under `/control-tower/telephony`) | Permission | Result |
 | --- | --- | --- |
-| `GET /calls/{callRef}` | `controltower:case.treat` | `{failure}`: why the provider ended the call before it connected, or null |
-| `GET /whatsapp-calls` | `controltower:case.treat` | ringing calls: `id`, `callerNumber`, `callerName`, `caseRef`, `since` |
+| `GET /calls/{callRef}` | `controltower:view` | `{failure}`: why the provider ended the call before it connected, or null |
+| `GET /whatsapp-calls` | `controltower:view` | ringing calls: `id`, `callerNumber`, `callerName`, `caseRef`, `since` |
 | `POST /whatsapp-calls/{id}/answer` | `controltower:case.treat` | `{token, callerNumber, expiresAt, callRef}` |
 
 `GET /telephony` answers `whatsAppCalling: true` when the active line is the managed one and the configuration is complete.

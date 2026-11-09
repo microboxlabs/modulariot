@@ -2,8 +2,8 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import static com.microboxlabs.miot.symptoms.evaluator.Episode.seconds;
 
-import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.PreparedRule;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleResult;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
@@ -114,7 +114,7 @@ public class SignalEvaluator {
                 store.save(tenant, new Episode(e.definitionId(), e.version(), asset, at, e.conditionSince(),
                         e.normalSince(), restarted, e.lastSignalAt(), e.openedAt(), e.level(), e.maxMeasure(),
                         e.state(), e.closedOnTrip(), e.closedOnTripAt(), e.offTripSince(), e.tripId(), e.lastContext(),
-                        e.tripEnded()));
+                        e.tripEnded(), e.reopenAbove()));
             }
         }
         return closed;
@@ -195,7 +195,7 @@ public class SignalEvaluator {
         }
         for (CompiledSymptom s : group) {
             try {
-                transitions.addAll(withOperator(s, step(tenantCode, assetId, at, root, s), root, errors));
+                transitions.addAll(withOperator(s, step(tenantCode, assetId, at, root, s, last.isEmpty()), root, errors));
             } catch (RuleFailure f) {
                 errors.add(new RuleError(s.definitionId(), s.version(), f.section, f.getMessage()));
             }
@@ -285,7 +285,8 @@ public class SignalEvaluator {
         if ((!s.opensOnEvents() && !(afterTripEnd && s.allowsAfterTripEnd())) || !condition(s.activation(), root, "activation")) {
             return List.of();
         }
-        List<Transition> transitions = step(tenantCode, assetId, at, root, s).stream()
+        List<Transition> transitions = step(tenantCode, assetId, at, root, s,
+                store.watermark(tenantCode, assetId, s.sourceKey()).isEmpty()).stream()
                 .filter(t -> t.kind() == Kind.OPENED || t.kind() == Kind.HELD).toList();
         if (transitions.stream().noneMatch(t -> t.kind() == Kind.OPENED)) {
             before.ifPresentOrElse(e -> store.save(tenantCode, e),
@@ -357,7 +358,7 @@ public class SignalEvaluator {
     }
 
     private List<Transition> step(String tenantCode, String assetId, Instant at, Map<String, Object> root,
-            CompiledSymptom s) {
+            CompiledSymptom s, boolean recoverClose) {
         Optional<Episode> found = store.find(tenantCode, assetId, s.definitionId());
         if (found.filter(old -> stale(old, s)).isPresent()) {
             store.delete(tenantCode, assetId, s.definitionId());
@@ -365,8 +366,9 @@ public class SignalEvaluator {
         }
         Episode e = found.orElseGet(() -> Episode.start(s.definitionId(), s.version(), assetId));
         Reading r = read(s, e, root, at);
-        if (found.isEmpty() && r.active()) {
-            // No episode while the condition holds: after a restart, the operator's close is read back from the log.
+        if (found.isEmpty() && recoverClose) {
+            // Recover only before this source has progressed. A prior normal or other-trip frame already cleared
+            // the block; restoring it again would suppress a new episode. A normal first frame must recover it too.
             Optional<Episode> marker = store.lastOperatorClose(tenantCode, assetId, s.definitionId())
                     .map(c -> c.marker(s.definitionId(), assetId));
             if (marker.isPresent()) {
@@ -457,7 +459,7 @@ public class SignalEvaluator {
         String marker = e.closedOnTrip() != null && e.closedOnTrip().equals(tripId(root)) ? e.closedOnTrip() : null;
         Instant markedAt = marker == null ? null : e.closedOnTripAt();
         // The block lasts while the condition holds on that trip; one normal signal ends it.
-        Integer reopenAbove = marker != null && r.active() ? e.reopenAbove() : null;
+        Integer reopenAbove = reopenAbove(e, marker, r);
         if (reopenAbove != null && r.level() <= reopenAbove) {
             return new Step(new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                     r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0, null, marker, markedAt, null,
@@ -485,6 +487,12 @@ public class SignalEvaluator {
         return new Step(new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                 r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0, null, marker, markedAt, null,
                 null, null, false, reopenAbove), null);
+    }
+
+    private static Integer reopenAbove(Episode e, String marker, Reading r) {
+        // After losing timers, a level waiting for held_s still qualifies for the ongoing condition.
+        boolean ongoing = r.active() || !r.levelSince().isEmpty();
+        return marker != null && ongoing ? e.reopenAbove() : null;
     }
 
     /** The trip id the source carries ({@code signal.trip.id}, {@code check.trip.id}), or null. */

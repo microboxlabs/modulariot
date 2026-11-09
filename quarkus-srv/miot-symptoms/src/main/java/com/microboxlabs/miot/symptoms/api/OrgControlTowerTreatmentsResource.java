@@ -1,24 +1,24 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import com.microboxlabs.miot.core.auth.OrganizationContext;
+import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.iam.OrgPermission;
+import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import com.microboxlabs.miot.symptoms.cases.HoldService;
-import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.domain.ActionKind;
-import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
-import io.quarkus.security.PermissionsAllowed;
-import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
-import com.microboxlabs.miot.core.iam.OrgPermission;
-import com.microboxlabs.miot.core.auth.OrganizationContext;
-import com.microboxlabs.miot.core.auth.TenantContext;
-import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
 import com.microboxlabs.miot.symptoms.dto.CloseTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.OpenTreatmentRequest;
+import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.service.TreatmentService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
+import io.quarkus.security.PermissionsAllowed;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
@@ -96,8 +96,7 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
             }
             TreatmentService.OpenResult result = treatments.open(tenant, actor, id, body);
             return Response.status(result.created() ? Response.Status.CREATED : Response.Status.OK)
-                    .entity(result.treatment())
-                    .build();
+                    .entity(result.treatment()).build();
         });
     }
 

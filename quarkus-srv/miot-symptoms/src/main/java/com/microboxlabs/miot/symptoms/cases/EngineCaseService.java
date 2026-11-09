@@ -44,6 +44,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import org.jboss.logging.Logger;
 
@@ -145,6 +146,10 @@ public class EngineCaseService {
             closed(tenantCode, assetId, definitionId, close.tripId());
         }
 
+        default Consumer<OperatorClose> operatorClose(String tenant, String asset, UUID definition) {
+            return close -> closed(tenant, asset, definition, close);
+        }
+
         default void staleEpisode(EngineCaseStore.StaleCase c) {
             episode(c.tenantCode(), c.assetId(), c.definitionId());
         }
@@ -192,6 +197,11 @@ public class EngineCaseService {
             @Override
             public void closed(String tenantCode, String assetId, UUID definitionId, OperatorClose close) {
                 evaluator.closedByOperator(tenantCode, assetId, definitionId, close);
+            }
+
+            @Override
+            public Consumer<OperatorClose> operatorClose(String tenant, String asset, UUID definition) {
+                return evaluator.operatorCloseAction(tenant, asset, definition);
             }
 
             @Override
@@ -1195,12 +1205,7 @@ public class EngineCaseService {
         return new SignalWindow(c.assetId(), from, to.isBefore(opened) ? opened : to);
     }
 
-    /**
-     * A treatment opens only on an open case.
-     *
-     * @throws NoSuchElementException when there is no such case
-     * @throws IllegalStateException  when the case is closed
-     */
+    /** A treatment opens only on an open case. The persistent treatment store rechecks under the case lock. */
     public void requireOpen(String tenantCode, long symptomId) {
         if (find(tenantCode, symptomId).closedAt() != null) {
             throw new IllegalStateException("the case is closed");
@@ -1215,8 +1220,8 @@ public class EngineCaseService {
     /**
      * An operator closed the case's treatment: the case closes. While the condition holds on the case's trip, the
      * symptom opens no new case on the vehicle after an invalidation, and after a handled close only above the
-     * case's level ({@link OperatorClose}). The episode goes first, so a failed drop leaves the case open and the
-     * call can be retried. The CLOSED row records the close, so a restart keeps the block. Publishes
+     * case's level ({@link OperatorClose}). The marker is installed under the case lock before the CLOSED row,
+     * so a failed marker write leaves the case open and the call can be retried. The CLOSED row records the close, so a restart keeps the block. Publishes
      * {@code symptom.case.closed}.
      *
      * @param invalidated the operator invalidated the case
@@ -1226,8 +1231,8 @@ public class EngineCaseService {
         if (c.closedAt() == null) {
             Instant at = clock.instant();
             OperatorClose how = new OperatorClose(c.tripId(), at, c.level(), invalidated);
-            forget.closed(tenantCode, c.assetId(), c.definitionId(), how);
-            if (store.close(tenantCode, c.id(), actor, at, how)) {
+            var mark = forget.operatorClose(tenantCode, c.assetId(), c.definitionId());
+            if (store.close(tenantCode, c.id(), actor, at, how, mark)) {
                 events.closedByOperator(tenantCode, c, actor, at);
             }
         }

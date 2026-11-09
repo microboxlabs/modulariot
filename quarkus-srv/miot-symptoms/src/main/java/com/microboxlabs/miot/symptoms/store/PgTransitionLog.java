@@ -2,9 +2,9 @@ package com.microboxlabs.miot.symptoms.store;
 
 import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Lifecycle;
 import com.microboxlabs.miot.symptoms.evaluator.Episode;
 import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
-import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Lifecycle;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
 import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
@@ -14,23 +14,23 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
-import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.mutiny.sqlclient.SqlConnection;
+import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
-import java.time.ZoneOffset;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.Set;
-import java.util.UUID;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -174,19 +174,31 @@ public class PgTransitionLog implements TransitionLog {
     @Override
     public List<Recorded> append(String tenantCode, List<Transition> transitions, Place place,
             Map<String, Object> context) {
-        return append(tenantCode, transitions, place, context, false, false).recorded();
+        return append(tenantCode, transitions, place, context, false, false, () -> Uni.createFrom().voidItem()).recorded();
     }
 
     @Override
     public List<Recorded> appendTripCheck(String tenantCode, List<Transition> transitions, Place place,
             Map<String, Object> context) {
-        return append(tenantCode, transitions, place, context, true, false).recorded();
+        return append(tenantCode, transitions, place, context, true, false, () -> Uni.createFrom().voidItem()).recorded();
     }
 
     @Override
     public Appended appendEvaluated(String tenantCode, List<Transition> transitions, Place place,
             Map<String, Object> context) {
-        return append(tenantCode, transitions, place, context, false, true);
+        return append(tenantCode, transitions, place, context, false, true, () -> Uni.createFrom().voidItem());
+    }
+
+    @Override
+    public Appended appendEvaluated(String tenantCode, List<Transition> transitions, Place place,
+            Map<String, Object> context, Supplier<Uni<Void>> validation) {
+        return append(tenantCode, transitions, place, context, false, true, validation);
+    }
+
+    @Override
+    public List<Recorded> appendTripCheck(String tenantCode, List<Transition> transitions, Place place,
+            Map<String, Object> context, Supplier<Uni<Void>> validation) {
+        return append(tenantCode, transitions, place, context, true, false, validation).recorded();
     }
 
     @Override
@@ -196,7 +208,7 @@ public class PgTransitionLog implements TransitionLog {
     }
 
     private Appended append(String tenantCode, List<Transition> transitions, Place place,
-            Map<String, Object> context, boolean checkTrip, boolean evaluated) {
+            Map<String, Object> context, boolean checkTrip, boolean evaluated, Supplier<Uni<Void>> validation) {
         if (transitions.isEmpty()) return new Appended(List.of(), Set.of());
         boolean opening = transitions.stream().anyMatch(t -> t.kind() == Transition.Kind.OPENED);
         return pool.get().withTransaction(conn -> {
@@ -210,7 +222,7 @@ public class PgTransitionLog implements TransitionLog {
                     throw new IllegalStateException("Trip ended; retry the lost-signal check");
                 }
             }).flatMap(assetCheck::replaceWith)
-                    .flatMap(window -> write(conn, tenantCode, transitions, place, context, window, evaluated));
+                    .flatMap(window -> write(conn, tenantCode, transitions, place, context, window, evaluated, validation));
         }).await().atMost(QUERY_TIMEOUT);
     }
 
@@ -228,8 +240,9 @@ public class PgTransitionLog implements TransitionLog {
                 }).replaceWithVoid();
     }
 
+    @SuppressWarnings("java:S107") // Locked transaction, write policy and snapshot validation.
     private Uni<Appended> write(SqlConnection conn, String tenant, List<Transition> transitions, Place place,
-            Map<String, Object> context, PgTripState.Window trip, boolean evaluated) {
+            Map<String, Object> context, PgTripState.Window trip, boolean evaluated, Supplier<Uni<Void>> validation) {
         Map<Transition, String> policies = new HashMap<>();
         Uni<Void> locks = Uni.createFrom().voidItem();
         // Trip, definitions and cases always lock in the same order as trip-end closure.
@@ -247,7 +260,7 @@ public class PgTransitionLog implements TransitionLog {
         }
         List<Recorded> recorded = new ArrayList<>();
         Set<UUID> discarded = new HashSet<>();
-        Uni<Void> writes = locks;
+        Uni<Void> writes = locks.flatMap(ignored -> validation.get());
         for (Transition t : transitions) {
             writes = writes.flatMap(ignored -> persist(conn, tenant, t, place, context, trip,
                     evaluated ? policies.get(t) : null, evaluated, recorded, discarded));

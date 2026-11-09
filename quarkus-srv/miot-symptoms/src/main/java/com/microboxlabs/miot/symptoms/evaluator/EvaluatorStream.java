@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -533,7 +534,8 @@ public class EvaluatorStream {
         TransitionLog.Place place = place(signal);
         List<Transition> changes = asRecorded(result.transitions(), state, signal, context);
         // Only the changes new to the log: a replayed signal publishes nothing twice.
-        TransitionLog.Appended appended = transitionLog.appendEvaluated(tenant, changes, place, context);
+        TransitionLog.Appended appended = transitionLog.appendEvaluated(tenant, changes, place, context,
+                () -> episodes.validate(state));
         appended.discarded().forEach(id -> state.delete(tenant, assetId, id));
         List<TransitionLog.Recorded> recorded = appended.recorded();
         events.transitions(tenant, recorded.stream()
@@ -582,13 +584,27 @@ public class EvaluatorStream {
      * the symptom opens a new case only above the close's {@link OperatorClose#reopenAbove()}.
      */
     public void closedByOperator(String tenant, String assetId, java.util.UUID definitionId, OperatorClose close) {
-        forget(tenant, assetId, definitionId, close.marker(definitionId, assetId));
+        operatorCloseAction(tenant, assetId, definitionId).accept(close);
+    }
+
+    /** Prepare catalog reads before the case lock; the returned action only writes shared episode/duty state. */
+    public Consumer<OperatorClose> operatorCloseAction(String tenant, String assetId,
+            java.util.UUID definitionId) {
+        boolean restart = restartsDuty(tenant, definitionId);
+        return close -> forget(tenant, assetId, definitionId, close.marker(definitionId, assetId), restart);
+    }
+
+    private boolean restartsDuty(String tenant, java.util.UUID definitionId) {
+        return dutySymptoms(tenant).stream().anyMatch(s -> s.definitionId().equals(definitionId) && DutyChecks.readsDuty(s));
     }
 
     private void forget(String tenant, String assetId, java.util.UUID definitionId, Episode marker) {
+        forget(tenant, assetId, definitionId, marker, restartsDuty(tenant, definitionId));
+    }
+
+    private void forget(String tenant, String assetId, java.util.UUID definitionId, Episode marker, boolean restart) {
         // Reset counters before exposing a closed episode, so an interleaved frame cannot reopen from old duty.
-        if (dutySymptoms(tenant).stream().anyMatch(s -> s.definitionId().equals(definitionId)
-                && DutyChecks.readsDuty(s))) {
+        if (restart) {
             duty.restartDuty(tenant, assetId);
         }
         // Both consumers may share Redis. Neither close may expose an empty episode before installing its marker.

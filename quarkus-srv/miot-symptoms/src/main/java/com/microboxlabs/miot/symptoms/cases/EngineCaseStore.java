@@ -1,9 +1,11 @@
 package com.microboxlabs.miot.symptoms.cases;
 
+import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /** The evaluator's cases: open ones, one by id, the operator's close, and the close after a state change. */
 public interface EngineCaseStore {
@@ -85,8 +87,16 @@ public interface EngineCaseStore {
 
     /** As {@link #close(String, long, String, Instant)}, and the CLOSED row keeps how the operator closed it. */
     default boolean close(String tenantCode, long caseId, String actor, Instant at,
-            com.microboxlabs.miot.symptoms.evaluator.OperatorClose how) {
+            OperatorClose how) {
         return close(tenantCode, caseId, actor, at);
+    }
+
+    /** Install the marker under the persistent store's case lock, before recording the close. */
+    default boolean close(String tenantCode, long caseId, String actor, Instant at,
+            OperatorClose how,
+            Consumer<OperatorClose> beforeClose) {
+        beforeClose.accept(how);
+        return close(tenantCode, caseId, actor, at, how);
     }
 
     /**

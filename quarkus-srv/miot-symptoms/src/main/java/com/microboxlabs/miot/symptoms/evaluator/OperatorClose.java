@@ -17,7 +17,7 @@ public record OperatorClose(String tripId, Instant at, int level, boolean invali
 
     /** The key of the CLOSED row's context that records the operator's close. */
     public static final String CONTEXT_KEY = "operator_close";
-    static final String INVALIDATED = "INVALIDATED";
+    static final String INVALIDATED_OUTCOME = "INVALIDATED";
     static final String HANDLED = "HANDLED";
 
     /** An invalidated case blocks every level; a handled one blocks up to its level. */
@@ -28,7 +28,7 @@ public record OperatorClose(String tripId, Instant at, int level, boolean invali
     /** The CLOSED row's context. */
     public Map<String, Object> context() {
         Map<String, Object> close = new LinkedHashMap<>();
-        close.put("outcome", invalidated ? INVALIDATED : HANDLED);
+        close.put("outcome", invalidated ? INVALIDATED_OUTCOME : HANDLED);
         close.put("level", level);
         return Map.of(CONTEXT_KEY, close);
     }
@@ -39,7 +39,7 @@ public record OperatorClose(String tripId, Instant at, int level, boolean invali
                 || !(close.get("level") instanceof Number level)) {
             return Optional.empty();
         }
-        return Optional.of(new OperatorClose(tripId, at, level.intValue(), INVALIDATED.equals(close.get("outcome"))));
+        return Optional.of(new OperatorClose(tripId, at, level.intValue(), INVALIDATED_OUTCOME.equals(close.get("outcome"))));
     }
 
     /** The episode marker this close leaves, or null without a trip. */

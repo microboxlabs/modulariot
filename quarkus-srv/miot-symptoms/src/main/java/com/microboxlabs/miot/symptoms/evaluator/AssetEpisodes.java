@@ -1,10 +1,11 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
 import java.time.Instant;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -134,6 +135,13 @@ public class AssetEpisodes implements EpisodeStore {
     /** The operator-close revision captured with this snapshot. */
     long closeRevision() {
         return closeRevision;
+    }
+
+    /** A close invalidates both the episode writes and the transitions derived from this snapshot. */
+    public void requireRevision(long current) {
+        if (current != closeRevision) {
+            throw new ConcurrentModificationException("An operator closed a case after the episodes were loaded");
+        }
     }
 
     boolean hasEpisodes() {

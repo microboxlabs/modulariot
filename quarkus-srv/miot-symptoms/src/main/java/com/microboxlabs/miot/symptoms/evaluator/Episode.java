@@ -170,6 +170,19 @@ public record Episode(
                 null, null, null, false, reopenAbove);
     }
 
+    /** Keep the condition's timers when an operator closes its case; closing is not a new run. */
+    Episode continuingCondition(Episode previous) {
+        if (previous == null || closedOnTrip == null
+                || !(closedOnTrip.equals(previous.tripId()) || closedOnTrip.equals(previous.closedOnTrip()))) {
+            return this;
+        }
+        boolean normal = previous.normalSince() != null && previous.levelSince().isEmpty();
+        return new Episode(definitionId, previous.version(), assetId, previous.candidateSince(),
+                previous.conditionSince(), previous.normalSince(), previous.levelSince(), previous.lastSignalAt(),
+                null, 0, 0, null, closedOnTrip, closedOnTripAt, null, null, null, false,
+                normal ? null : reopenAbove);
+    }
+
     public static Episode start(UUID definitionId, String version, String assetId) {
         return new Episode(definitionId, version, assetId, null, null, null, Map.of(), null, null, 0, 0);
     }

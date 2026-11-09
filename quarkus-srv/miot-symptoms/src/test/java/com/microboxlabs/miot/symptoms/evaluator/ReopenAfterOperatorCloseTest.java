@@ -7,24 +7,30 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
-import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.InMemoryLossStore;
 import com.microboxlabs.miot.symptoms.lostsignal.LossSettings;
-import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector.TickerSettings;
+import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
 import com.microboxlabs.miot.symptoms.lostsignal.TripChecks;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.vertx.mutiny.core.Vertx;
+import io.vertx.mutiny.redis.client.Redis;
+import io.vertx.mutiny.redis.client.RedisAPI;
+import io.vertx.redis.client.RedisOptions;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 /**
  * A case an operator closes does not reopen while its condition holds on the same trip. The rule is production's
@@ -34,7 +40,7 @@ import org.junit.jupiter.api.Test;
 class ReopenAfterOperatorCloseTest {
 
     private static final String TENANT = "tenant-a";
-    private static final String ASSET = "vehicle-1";
+    private static final String ASSET = "vehicle-" + UUID.randomUUID();
     private static final String TRIP = "T-1";
     private static final Instant T0 = Instant.parse("2026-10-22T14:08:45Z");
     private static final String MINUTES = "signal.frame.gps.speed";
@@ -47,16 +53,19 @@ class ReopenAfterOperatorCloseTest {
     private UUID id;
 
     private void publish(SymptomSpec.Lifecycle lifecycle) {
+        publish(new SymptomSpec("gps_signal", "signal.trip.active && " + MINUTES + " >= 270.0", null,
+                Specs.levels(MINUTES + " < 300.0", MINUTES + " >= 300.0 && " + MINUTES + " < 330.0",
+                        MINUTES + " >= 330.0 && " + MINUTES + " < 360.0", MINUTES + " >= 360.0"),
+                lifecycle, null));
+    }
+
+    private void publish(SymptomSpec spec) {
         InMemoryCatalog store = new InMemoryCatalog();
         events = new SymptomEvents(e -> CompletableFuture.completedFuture(null), store::findDefinition,
                 Clock.systemUTC());
         DataSourceService sources = new DataSourceService(store, SignalSamples.inMemory());
         SymptomCatalogService symptoms = new SymptomCatalogService(store, sources,
                 new AuditService(new InMemoryAuditStore()));
-        SymptomSpec spec = new SymptomSpec("gps_signal", "signal.trip.active && " + MINUTES + " >= 270.0", null,
-                Specs.levels(MINUTES + " < 300.0", MINUTES + " >= 300.0 && " + MINUTES + " < 330.0",
-                        MINUTES + " >= 330.0 && " + MINUTES + " < 360.0", MINUTES + " >= 360.0"),
-                lifecycle, null);
         id = symptoms.create(TENANT, "owner@example.com", new CreateRequest("continuous-driving", "Conducción",
                 null, null, null, "gps_signal", null, spec)).definition().id();
         symptoms.publish(TENANT, "owner@example.com", id, "Primera versión", null, SymptomState.ACTIVE);
@@ -65,15 +74,18 @@ class ReopenAfterOperatorCloseTest {
 
     /** The GPS consumer with its own episodes; a new one with new episodes is a restart. */
     private EvaluatorStream consumer() {
+        return consumer(new InMemoryEpisodeRepository());
+    }
+
+    private EvaluatorStream consumer(EpisodeRepository repository) {
         SimpleMeterRegistry meters = new SimpleMeterRegistry();
         Clock clock = Clock.systemUTC();
-        InMemoryEpisodeRepository detectorEpisodes = new InMemoryEpisodeRepository();
-        TripChecks checks = new TripChecks(catalog, detectorEpisodes, log, events,
+        TripChecks checks = new TripChecks(catalog, repository, log, events,
                 new AuditService(new InMemoryAuditStore()), meters);
         LostSignalDetector detector = new LostSignalDetector(true, new InMemoryLossStore(), LossSettings.defaults(),
                 TickerSettings.defaults(), checks, meters, clock);
         return new EvaluatorStream(true, catalog, new EvaluatorStream.Sinks(log, events, meters), clock,
-                new InMemoryEpisodeRepository(), SignalSamples.inMemory(), LateFrames.NONE, detector);
+                repository, SignalSamples.inMemory(), LateFrames.NONE, detector);
     }
 
     private static String signal(int second, double minutes, String trip) {
@@ -159,6 +171,44 @@ class ReopenAfterOperatorCloseTest {
     }
 
     @Test
+    void anOperatorCloseKeepsTheConditionTimers() {
+        publish(new SymptomSpec("gps_signal", "signal.trip.active && " + MINUTES + " >= 270.0", null,
+                Specs.levels(MINUTES + " < 300.0 && held_s >= 30", "false", "false", "false"), LIFECYCLE, null));
+        EvaluatorStream consumer = consumer();
+        assertEquals(List.of(), drive(consumer, 0, 280));
+        assertEquals(List.of("OPENED:1"), drive(consumer, 30, 280));
+        operatorCloses(consumer, 40, 1, true);
+        assertEquals(List.of(), drive(consumer, 50, 280));
+        assertEquals(List.of(), drive(consumer, 80, 280), "resetting held_s must not manufacture a normal episode");
+    }
+
+    @Test
+    void recoveryDoesNotMistakeWaitingForAHoldTimeForANormalCondition() {
+        publish(new SymptomSpec("gps_signal", "signal.trip.active && " + MINUTES + " >= 270.0", null,
+                Specs.levels(MINUTES + " < 300.0 && held_s >= 30", "false", "false", "false"), LIFECYCLE, null));
+        EvaluatorStream before = consumer();
+        drive(before, 0, 280);
+        drive(before, 30, 280);
+        operatorCloses(before, 40, 1, true);
+        EvaluatorStream after = consumer();
+        assertEquals(List.of(), drive(after, 50, 280));
+        assertEquals(List.of(), drive(after, 80, 280));
+        assertEquals(List.of(), drive(after, 90, 200));
+        assertEquals(List.of(), drive(after, 100, 280));
+        assertEquals(List.of("OPENED:1"), drive(after, 130, 280));
+    }
+
+    @Test
+    void closingAfterTheConditionAlreadyClearedDoesNotBlockTheNextEpisode() {
+        publish(new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.normal_s >= 120", true));
+        EvaluatorStream consumer = consumer();
+        drive(consumer, 0, 280);
+        assertEquals(List.of(), drive(consumer, 10, 200));
+        operatorCloses(consumer, 20, 1, true);
+        assertEquals(List.of("OPENED:1"), drive(consumer, 30, 280));
+    }
+
+    @Test
     void aCaseTheEngineClosesReopensAsBefore() {
         publish(LIFECYCLE);
         EvaluatorStream consumer = consumer();
@@ -177,6 +227,18 @@ class ReopenAfterOperatorCloseTest {
         assertEquals(List.of(), drive(after, 20, 365.5, 370.5), "no episode: the CLOSED row restores the block");
         assertEquals(List.of(), drive(after, 30, 200));
         assertEquals(List.of("OPENED:1"), drive(after, 40, 275));
+    }
+
+    @Test
+    void aNormalFirstFrameAfterRestartEndsTheBlock() {
+        publish(LIFECYCLE);
+        EvaluatorStream before = consumer();
+        drive(before, 0, 280);
+        operatorCloses(before, 10, 1, true);
+
+        EvaluatorStream after = consumer();
+        assertEquals(List.of(), drive(after, 20, 200));
+        assertEquals(List.of("OPENED:1"), drive(after, 30, 280));
     }
 
     @Test
@@ -202,6 +264,16 @@ class ReopenAfterOperatorCloseTest {
     }
 
     @Test
+    void aNormalFrameOnAnotherTripDoesNotRestoreAnOldBlock() {
+        publish(LIFECYCLE);
+        EvaluatorStream consumer = consumer();
+        drive(consumer, 0, 280);
+        operatorCloses(consumer, 10, 1, true);
+        assertEquals(List.of(), drive(consumer, "T-2", 20, 200));
+        assertEquals(List.of("OPENED:1"), drive(consumer, 30, 280));
+    }
+
+    @Test
     void anOpenRuleOnClosedOnTripStillBlocksTheWholeTrip() {
         publish(new SymptomSpec.Lifecycle("case.condition_s >= 0 && !case.closed_on_trip", "case.normal_s >= 0",
                 true));
@@ -212,6 +284,33 @@ class ReopenAfterOperatorCloseTest {
         assertEquals(List.of(), drive(consumer, 20, 200, 275, 365),
                 "a new episode on the same trip stays closed by the rule");
         assertEquals(List.of("OPENED:4"), drive(consumer, "T-2", 30, 365), "another trip opens");
+    }
+
+    @Test
+    @EnabledIfSystemProperty(named = "miot.symptoms.test.redis-url", matches = ".+")
+    void replicasAndRestartsShareSuppressionUntilANormalFrame() {
+        publish(LIFECYCLE);
+        var vertx = Vertx.vertx();
+        var client = Redis.createClient(vertx,
+                new RedisOptions()
+                        .setConnectionString(System.getProperty("miot.symptoms.test.redis-url")));
+        var api = RedisAPI.api(client);
+        var first = new RedisEpisodes(api, Duration.ofDays(7));
+        var second = new RedisEpisodes(api, Duration.ofDays(7));
+        try {
+            EvaluatorStream one = consumer(first);
+            drive(one, 0, 280);
+            operatorCloses(one, 10, 1, true);
+            EvaluatorStream two = consumer(second);
+            assertEquals(List.of(), drive(two, 20, 310, 370));
+            assertEquals(List.of(), drive(consumer(new RedisEpisodes(api, Duration.ofDays(7))), 30, 380));
+            assertEquals(List.of(), drive(two, 40, 200));
+            assertEquals(List.of("OPENED:1"), drive(one, 50, 280));
+        } finally {
+            first.forget(TENANT, ASSET, id);
+            client.close();
+            vertx.close().await().indefinitely();
+        }
     }
 
     @Test

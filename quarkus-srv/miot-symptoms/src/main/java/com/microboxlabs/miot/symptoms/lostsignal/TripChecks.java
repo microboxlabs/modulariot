@@ -347,7 +347,7 @@ public class TripChecks {
         TransitionLog.Place place = place(trip, last);
         if (!result.transitions().isEmpty()) {
             List<TransitionLog.Recorded> recorded = log.appendTripCheck(tenant, withCaseTrips(state,
-                    result.transitions(), activeTrip, context), place, context);
+                    result.transitions(), activeTrip, context), place, context, () -> episodes.validate(state));
             recorded.stream().filter(r -> r.transition().kind() == Transition.Kind.OPENED)
                     .forEach(r -> open.put(key(tenant, r.transition().definitionId()),
                             new OpenCase(r.caseId(), r.transition().version(), r.transition().state())));

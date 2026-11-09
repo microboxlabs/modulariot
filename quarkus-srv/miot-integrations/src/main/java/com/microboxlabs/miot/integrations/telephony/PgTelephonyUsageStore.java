@@ -29,6 +29,7 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final String T = "miot_integrations.telephony_usage";
+    private static final String ADMISSIONS = "miot_integrations.telephony_call_admissions";
     private static final String COLUMNS = """
             id, tenant_code, channel, managed, connection_id, external_id, case_ref, callee_number, destination_type,
             status, answered_at, seconds, billed_minutes, provider_cost, provider_currency, source, started_at,
@@ -46,12 +47,16 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
     private static final String FIND = "SELECT " + COLUMNS + " FROM " + T + " WHERE id = $1";
     private static final String FIND_EXTERNAL = "SELECT " + COLUMNS + " FROM " + T
             + " WHERE channel = $1 AND external_id = $2";
-    private static final String BUSY = "SELECT count(*) AS n FROM " + T
-            + " WHERE connection_id = $1 AND started_at > $2 AND ended_at IS NULL AND status IN ('STARTED', 'ENDED')";
-    private static final String EXPIRE = "UPDATE " + T
-            + " SET status = 'EXPIRED' WHERE status IN ('STARTED', 'ENDED') AND started_at < $1";
+    private static final String LIVE_INBOUND = "channel = 'WHATSAPP_CALL' AND destination_type IS NOT DISTINCT FROM 'WHATSAPP_INBOUND'"
+            + " AND ended_at IS NULL AND EXISTS (SELECT 1 FROM " + ADMISSIONS + " a WHERE a.call_ref = u.id)";
+    private static final String BUSY = "SELECT count(*) AS n FROM " + T + " u"
+            + " WHERE connection_id = $1 AND (started_at > $2 OR (" + LIVE_INBOUND + "))"
+            + " AND ended_at IS NULL AND status IN ('STARTED', 'ENDED')";
+    private static final String EXPIRE = "UPDATE " + T + " u"
+            + " SET status = 'EXPIRED' WHERE status IN ('STARTED', 'ENDED') AND started_at < $1"
+            + " AND NOT (" + LIVE_INBOUND + ")";
     private static final String LATEST_CALLER = "SELECT tenant_code FROM " + T + " " + """
-             WHERE managed AND channel = 'VOICE' AND external_id IS NOT NULL AND source IS NOT NULL AND regexp_replace(callee_number, '\\D', '', 'g') = $1
+             WHERE managed AND channel IN ('VOICE', 'WHATSAPP_CALL') AND external_id IS NOT NULL AND source IS NOT NULL AND regexp_replace(callee_number, '\\D', '', 'g') = $1
                AND started_at > $2
              ORDER BY started_at DESC LIMIT 1""";
     private static final String BILLED = "SELECT coalesce(sum(billed_minutes), 0) AS m FROM " + T + " " + """
@@ -69,7 +74,6 @@ public class PgTelephonyUsageStore implements TelephonyUsageStore {
             VALUES ($1, $2, $3, $4) ON CONFLICT (sip_username) DO NOTHING""";
     private static final String TENANT_OF_SIP =
             "SELECT tenant_code FROM miot_integrations.telephony_operator_credentials WHERE sip_username = $1 AND connection_id = $2";
-    private static final String ADMISSIONS = "miot_integrations.telephony_call_admissions";
     private static final String ADMISSION_COLUMNS = "SELECT call_ref, parked_call_id, target_state FROM " + ADMISSIONS;
     private static final String CURSORS = "miot_integrations.telephony_reconcile_progress";
     private static final String PLAN_COLUMNS = """

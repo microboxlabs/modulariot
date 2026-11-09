@@ -14,6 +14,7 @@ import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
 import com.microboxlabs.miot.symptoms.lostsignal.SignalStateReader.Reported;
+import com.microboxlabs.miot.symptoms.map.TripWindows;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -149,7 +150,16 @@ public class EngineCaseService {
     private final Clock clock;
     private final SymptomEvents events;
     private final Vehicles vehicles;
+    private final TripTracks tripTracks;
     private static final String CHECK = "check";
+
+    /** The time range of a case's trip for its map ({@link TripWindows#track}); empty without one. */
+    @FunctionalInterface
+    public interface TripTracks {
+        TripTracks NONE = (tenantCode, tripId, assetId) -> Optional.empty();
+
+        Optional<TripWindows.Window> track(String tenantCode, String tripId, String assetId);
+    }
 
     /** What the lost-signal detector's profiles say about a vehicle now; empty without a profile. */
     @FunctionalInterface
@@ -161,7 +171,7 @@ public class EngineCaseService {
 
     @Inject
     EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, Instance<Pool> pool, SymptomEvents events,
-            LostSignalDetector lostSignal) {
+            LostSignalDetector lostSignal, TripWindows tripWindows) {
         this(store, new Forget() {
             @Override
             public void episode(String tenantCode, String assetId, UUID definitionId) {
@@ -178,7 +188,8 @@ public class EngineCaseService {
                 evaluator.forgetStale(c);
             }
         }, t -> readTrip(pool.get(), t), Clock.systemUTC(), events,
-                lostSignal::reported);
+                lostSignal::reported, (tenant, trip, asset) -> TripWindows.tripsModuleId(trip)
+                        .flatMap(id -> tripWindows.track(tenant, id, asset)));
     }
 
     private static Row readTrip(Pool pool, Tuple key) {
@@ -201,7 +212,13 @@ public class EngineCaseService {
 
     public EngineCaseService(EngineCaseStore store, Forget forget, Function<Tuple, Row> trips, Clock clock,
             SymptomEvents events, Vehicles vehicles) {
+        this(store, forget, trips, clock, events, vehicles, TripTracks.NONE);
+    }
+
+    public EngineCaseService(EngineCaseStore store, Forget forget, Function<Tuple, Row> trips, Clock clock,
+            SymptomEvents events, Vehicles vehicles, TripTracks tripTracks) {
         this.vehicles = vehicles;
+        this.tripTracks = tripTracks;
         this.store = store;
         this.forget = forget;
         this.trips = trips;
@@ -724,6 +741,7 @@ public class EngineCaseService {
         symptom.put("duration_sec", Duration.between(started, ended).toSeconds());
         putHold(symptom, c);
         out.set("level_reason", levelReason(c));
+        putMapWindow(out.putObject("map_window"), signalWindow(tenantCode, c), started, ended);
         out.set("level_response", c.levelResponse() == null ? JSON.nullNode() : c.levelResponse());
         ObjectNode trip = out.putObject("trip_info");
         trip.put(POSITION_ASSET_ID, c.assetId());
@@ -1117,15 +1135,54 @@ public class EngineCaseService {
     }
 
     /** The vehicle and the time range of the signals the treatment page shows for a case. */
-    public record SignalWindow(String assetId, Instant from, Instant to) {
+    public record SignalWindow(String assetId, Instant from, Instant to, boolean onTrip) {
+        public SignalWindow(String assetId, Instant from, Instant to) {
+            this(assetId, from, to, false);
+        }
     }
 
     /**
      * From an hour before the case's condition began, or from the vehicle's previous case when that opened later,
-     * until the case closed or now; at most {@link #SIGNALS_AT_MOST} after the start.
+     * until the case closed or now; at most {@link #SIGNALS_AT_MOST} after the start. A case on a trips-module trip
+     * uses the trip's bounded range ({@link TripWindows#track}), and {@code onTrip} is true. The case's own time
+     * remains in the header and timeline, even when it falls outside that range.
      */
     public SignalWindow signalWindow(String tenantCode, long symptomId) {
-        EngineCase c = find(tenantCode, symptomId);
+        return signalWindow(tenantCode, find(tenantCode, symptomId));
+    }
+
+    private SignalWindow signalWindow(String tenantCode, EngineCase c) {
+        return tripTrack(tenantCode, c)
+                .map(t -> new SignalWindow(c.assetId(), t.from(), t.to(), true))
+                .orElseGet(() -> caseSignalWindow(tenantCode, c));
+    }
+
+    private Optional<TripWindows.Window> tripTrack(String tenantCode, EngineCase c) {
+        if (c.tripId() == null) {
+            return Optional.empty();
+        }
+        try {
+            return tripTracks.track(tenantCode, c.tripId(), c.assetId());
+        } catch (RuntimeException e) {
+            LOG.debugf("Engine case %d: trip range unavailable (%s)", c.id(), e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * {@code track_from}/{@code track_to}: the range of the positions the map draws ({@link #signalWindow}), the
+     * trip's when {@code on_trip}; {@code case_from}/{@code case_to}: the case's own time, whose signals the map
+     * highlights.
+     */
+    private static void putMapWindow(ObjectNode out, SignalWindow track, Instant caseFrom, Instant caseTo) {
+        out.put("track_from", track.from().toString());
+        out.put("track_to", track.to().toString());
+        out.put("on_trip", track.onTrip());
+        out.put("case_from", caseFrom.toString());
+        out.put("case_to", caseTo.toString());
+    }
+
+    private SignalWindow caseSignalWindow(String tenantCode, EngineCase c) {
         Instant opened = start(c);
         Instant earliest = opened.minus(SIGNALS_BEFORE);
         Instant from = store.previousOpening(tenantCode, c.assetId(), c.id(), earliest, opened).orElse(earliest);

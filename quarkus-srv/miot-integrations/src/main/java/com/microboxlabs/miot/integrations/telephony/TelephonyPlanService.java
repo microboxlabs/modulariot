@@ -135,8 +135,7 @@ public class TelephonyPlanService {
             long[] c = e.getValue();
             boolean perMessage = UsageRow.WHATSAPP_TEMPLATE.equals(k[0]);
             // A WhatsApp call the contact placed costs nothing on Meta's side; its Telnyx minutes are still shown.
-            BigDecimal price = UsageRow.WHATSAPP_INBOUND.equals(k[1]) ? BigDecimal.ZERO
-                    : plan.price(UsageRow.VOICE.equals(k[0]) ? k[1] : k[0]);
+            BigDecimal price = price(plan, k[0], k[1]);
             BigDecimal lineCharge = price.multiply(BigDecimal.valueOf(perMessage ? c[0] : c[2]));
             charge = charge.add(lineCharge);
             BigDecimal lineCost = costs.get(e.getKey());
@@ -149,6 +148,11 @@ public class TelephonyPlanService {
             lines.add(new Line(k[0], k[1], c[0], c[1], c[2], lineCharge, lineCost));
         }
         return new Usage(from, to, quota(tenantCode), voiceMinutes, pending, charge, cost, lines);
+    }
+
+    private static BigDecimal price(Plan plan, String channel, String destination) {
+        if (UsageRow.WHATSAPP_INBOUND.equals(destination)) return BigDecimal.ZERO;
+        return plan.price(UsageRow.VOICE.equals(channel) ? destination : channel);
     }
 
     private static String destination(UsageRow r) {

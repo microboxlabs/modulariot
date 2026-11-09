@@ -34,6 +34,9 @@ public interface WhatsAppCallStore {
     /** The tenant's RINGING calls, oldest first. */
     List<InboundWhatsAppCall> ringing(String tenantCode);
 
-    /** RINGING calls created before {@code before}, of every tenant. */
-    List<InboundWhatsAppCall> ringingBefore(Instant before);
+    /** RINGING calls created, or CLAIMED calls last updated, before the cutoff. */
+    List<InboundWhatsAppCall> unansweredBefore(Instant before);
+
+    /** Claimed or answered inbound calls created before the cutoff, for the duration deadline. */
+    List<InboundWhatsAppCall> activeBefore(Instant before);
 }

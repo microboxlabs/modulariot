@@ -43,6 +43,13 @@ public record UsageRow(String id, String tenantCode, String channel, boolean man
                 providerCost, providerCurrency, source, started == null ? startedAt : started, endedAt, confirmedAt);
     }
 
+    /** A successful provider teardown frees capacity while its billing webhook is still pending. */
+    UsageRow endedPending(Instant at) {
+        return new UsageRow(id, tenantCode, channel, managed, connectionId, externalId, caseRef, calleeNumber,
+                destinationType, ENDED, answeredAt, seconds, billedMinutes, providerCost, providerCurrency,
+                source, startedAt, at, confirmedAt);
+    }
+
     UsageRow confirmed(int seconds, BigDecimal cost, String currency, String source, Instant endedAt, Instant now) {
         return new UsageRow(id, tenantCode, channel, managed, connectionId, externalId, caseRef, calleeNumber,
                 destinationType, CONFIRMED, answeredAt, seconds, billedMinutes(seconds),

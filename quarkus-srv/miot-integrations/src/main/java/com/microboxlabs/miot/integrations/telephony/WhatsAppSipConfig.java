@@ -37,17 +37,24 @@ public class WhatsAppSipConfig {
             @ConfigProperty(name = PREFIX + "unanswered-message",
                     defaultValue = "Hola. En este momento no hay operadores disponibles. Por favor, vuelva a llamar"
                             + " en unos minutos.") String unansweredMessage) {
-        this(connectionId.orElse(null), sipHost.orElse(null), businessNumber.orElse(null), sipUsername.orElse(null),
-                sipPassword.orElse(null), mediaEncryption.orElse(null), ringTimeout, unansweredMessage);
+        this(new SipAccount(connectionId.orElse(null), sipHost.orElse(null), businessNumber.orElse(null),
+                sipUsername.orElse(null), sipPassword.orElse(null)), mediaEncryption.orElse(null), ringTimeout,
+                unansweredMessage);
     }
 
-    public WhatsAppSipConfig(String connectionId, String sipHost, String businessNumber, String sipUsername,
-            String sipPassword, String mediaEncryption, Duration ringTimeout, String unansweredMessage) {
-        this.connectionId = blankToNull(connectionId);
-        this.sipHost = blankToNull(sipHost);
-        this.businessNumber = PhoneNumbers.e164(blankToNull(businessNumber));
-        this.sipUsername = blankToNull(sipUsername);
-        this.sipPassword = blankToNull(sipPassword);
+    public record SipAccount(String connectionId, String host, String businessNumber, String username, String password) {
+        @Override
+        public String toString() {
+            return "SipAccount[credentials=<redacted>]";
+        }
+    }
+
+    public WhatsAppSipConfig(SipAccount account, String mediaEncryption, Duration ringTimeout, String unansweredMessage) {
+        this.connectionId = blankToNull(account.connectionId());
+        this.sipHost = blankToNull(account.host());
+        this.businessNumber = PhoneNumbers.e164(blankToNull(account.businessNumber()));
+        this.sipUsername = blankToNull(account.username());
+        this.sipPassword = blankToNull(account.password());
         String encryption = blankToNull(mediaEncryption);
         this.mediaEncryption = encryption == null ? null : encryption.toUpperCase(Locale.ROOT);
         this.ringTimeout = ringTimeout == null ? Duration.ofSeconds(45) : ringTimeout;

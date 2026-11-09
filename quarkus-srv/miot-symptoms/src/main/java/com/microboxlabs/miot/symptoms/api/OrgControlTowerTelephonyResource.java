@@ -26,6 +26,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -42,6 +43,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class OrgControlTowerTelephonyResource extends ControlTowerResourceSupport {
 
+    private static final String NO_STORE = "no-store";
     private static final String ORG = "organizationId";
 
     private final TelephonyChoiceService telephony;
@@ -96,7 +98,7 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
 
     private static Response token(java.util.function.Supplier<Object> issue) {
         try {
-            return Response.ok(issue.get()).header("Cache-Control", "no-store").build();
+            return Response.ok(issue.get()).header(HttpHeaders.CACHE_CONTROL, NO_STORE).build();
         } catch (TelephonyUnavailableException e) {
             return Response.status(Response.Status.CONFLICT)
                     .entity(Map.of("error", e.getMessage(), "code", e.code())).build();
@@ -114,7 +116,7 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
             params = "organizationId")
     public Uni<Response> callOutcome(@PathParam(ORG) String organizationId, @PathParam("callRef") String callRef) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(telephony.outcome(tenant, callRef)).header("Cache-Control", "no-store").build());
+        return work(() -> Response.ok(telephony.outcome(tenant, callRef)).header(HttpHeaders.CACHE_CONTROL, NO_STORE).build());
     }
 
     @GET
@@ -125,7 +127,7 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
             params = "organizationId")
     public Uni<Response> ringingWhatsAppCalls(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(telephony.ringingWhatsAppCalls(tenant)).header("Cache-Control", "no-store")
+        return work(() -> Response.ok(telephony.ringingWhatsAppCalls(tenant)).header(HttpHeaders.CACHE_CONTROL, NO_STORE)
                 .build());
     }
 

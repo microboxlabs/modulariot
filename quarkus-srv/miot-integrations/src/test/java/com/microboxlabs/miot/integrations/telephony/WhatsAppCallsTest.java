@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import com.microboxlabs.miot.integrations.telephony.WhatsAppSipConfig.SipAccount;
 
 class WhatsAppCallsTest {
 
@@ -68,12 +69,12 @@ class WhatsAppCallsTest {
     private WhatsAppSipConfig config = config("DTLS");
 
     private static WhatsAppSipConfig config(String encryption) {
-        return new WhatsAppSipConfig(APP, "meta.sip.test", "+56 2 2000 0000", "56220000000", "placeholder-secret",
+        return new WhatsAppSipConfig(new SipAccount(APP, "meta.sip.test", "+56 2 2000 0000", "56220000000", "placeholder-secret"),
                 encryption, Duration.ofSeconds(30), "No hay operadores.");
     }
 
     private WhatsAppCalls whatsApp() {
-        return new WhatsAppCalls(config, usage, calls, client, id -> "KEY_test", new InboundCallers() {
+        return new WhatsAppCalls(new WhatsAppCalls.SipGateway(config, client, id -> "KEY_test"), usage, calls, new InboundCallers() {
             @Override
             public Optional<Caller> find(String e164) {
                 return Optional.ofNullable(book.get(e164));
@@ -212,7 +213,7 @@ class WhatsAppCallsTest {
 
     @Test
     void missingConfigurationTurnsWhatsAppCallingOff() {
-        config = new WhatsAppSipConfig(APP, "meta.sip.test", "+56220000000", "56220000000", null, "DTLS",
+        config = new WhatsAppSipConfig(new SipAccount(APP, "meta.sip.test", "+56220000000", "56220000000", null), "DTLS",
                 Duration.ofSeconds(30), "x");
         assertFalse(config.enabled());
         assertFalse(config("NONE").enabled(), "only DTLS or SRTP");
@@ -347,6 +348,73 @@ class WhatsAppCallsTest {
     }
 
     @Test
+    void anAbandonedUnadmittedClaimExpiresAndCannotBeAdmittedLater() {
+        book.put(DRIVER, new InboundCallers.Caller("acme", "Test contact", null));
+        WhatsAppCalls whatsApp = whatsApp();
+        IntegrationsTelephony telephony = telephony(whatsApp);
+        TelnyxCallEvents events = events(whatsApp);
+        events.apply("p1", event("call.initiated", Map.of("direction", "incoming", "connection_id", APP,
+                "from", DRIVER, "call_control_id", "wa-lease")));
+        String id = whatsApp.ringing("acme").getFirst().id();
+        String ref = telephony.answerWhatsAppCall("acme", "p1", "op@acme.test", id).callRef();
+        clock.at = NOW.plusSeconds(31);
+        assertEquals(1, whatsApp.expireRinging());
+        assertEquals(UsageRow.EXPIRED, usage.find(ref).orElseThrow().status());
+        assertEquals(InboundWhatsAppCall.MISSED, calls.inbound(id).orElseThrow().status());
+        assertTrue(sent("/wa-lease/actions/answer") != null);
+        events.apply("p1", parkedLeg("call.initiated", ref, "sdk-late"));
+        assertTrue(usage.admission(ref).isEmpty());
+        assertTrue(sent("/sdk-late/actions/hangup") != null);
+    }
+
+    @Test
+    void anInboundCallRetainsCapacityUntilItsDeadlineTeardownSucceeds() {
+        book.put(DRIVER, new InboundCallers.Caller("acme", "Test contact", null));
+        WhatsAppCalls whatsApp = whatsApp();
+        IntegrationsTelephony telephony = telephony(whatsApp);
+        TelnyxCallEvents events = events(whatsApp);
+        events.apply("p1", event("call.initiated", Map.of("direction", "incoming", "connection_id", APP,
+                "from", DRIVER, "call_control_id", "wa-bounded")));
+        String id = whatsApp.ringing("acme").getFirst().id();
+        String ref = telephony.answerWhatsAppCall("acme", "p1", "op@acme.test", id).callRef();
+        events.apply("p1", parkedLeg("call.initiated", ref, "sdk-bounded"));
+        events.apply("p1", waLeg("call.answered", ref, "wa-bounded", Map.of()));
+        assertEquals(0, whatsApp.expireActive());
+        clock.at = NOW.plus(IntegrationsTelephony.HOLD).plusSeconds(1);
+        http.failWith(new java.io.IOException("temporary network failure"));
+        assertThrows(IllegalStateException.class, whatsApp::expireActive);
+        assertEquals(0, usage.expireStarted(clock.instant().minus(IntegrationsTelephony.HOLD)));
+        assertEquals(1, usage.busyChannels("p1", clock.instant().minus(IntegrationsTelephony.HOLD)));
+        assertEquals(InboundWhatsAppCall.ANSWERED, calls.inbound(id).orElseThrow().status());
+        http.failWith(null);
+        assertEquals(1, whatsApp.expireActive());
+        assertEquals(UsageRow.ENDED, usage.find(ref).orElseThrow().status());
+        assertEquals(0, usage.busyChannels("p1", clock.instant().minus(IntegrationsTelephony.HOLD)));
+        assertTrue(sent("/wa-bounded/actions/hangup") != null);
+        assertTrue(sent("/sdk-bounded/actions/hangup") != null);
+        assertNull(usage.find(ref).orElseThrow().billedMinutes(), "only the provider webhook confirms minutes");
+    }
+
+    @Test
+    void aTransientCounterpartHangupFailureMakesTheWebhookRetry() {
+        WhatsAppCalls whatsApp = whatsApp();
+        String ref = telephony(whatsApp).whatsAppCall("acme", "p1", "op@acme.test", DRIVER, null).callRef();
+        TelnyxCallEvents events = events(whatsApp);
+        events.apply("p1", parkedLeg("call.initiated", ref, "sdk-teardown"));
+        events.apply("p1", waLeg("call.answered", ref, "wa-leg-1", Map.of()));
+        http.failWith(new java.io.IOException("temporary network failure"));
+        String hangup = parkedLeg("call.hangup", ref, "sdk-teardown");
+        assertThrows(IllegalStateException.class, () -> events.apply("p1", hangup));
+        http.failWith(null);
+        http.reply("POST /v2/calls/", 503, "{}");
+        assertThrows(IllegalStateException.class, () -> events.apply("p1", hangup));
+        http.reply("POST /v2/calls/", 200, "{}");
+        events.apply("p1", hangup);
+        assertTrue(sent("/wa-leg-1/actions/hangup") != null);
+        assertTrue(http.seen().stream().filter(s -> s.path().endsWith("/wa-leg-1/actions/hangup")).count() >= 2);
+    }
+
+    @Test
     void anUnknownNumberCalledBackRecentlyIsRoutedByTheLedger() {
         usage.insert(new UsageRow("00000000-0000-0000-0000-000000000001", "acme", UsageRow.WHATSAPP_CALL, true, "p1",
                 "wa-old", null, DRIVER, UsageRow.WHATSAPP_CALL, UsageRow.CONFIRMED, NOW.minusSeconds(600), 60, 1,
@@ -401,10 +469,10 @@ class WhatsAppCallsTest {
         for (int missing = 0; missing < values.size(); missing++) {
             String[] v = values.toArray(String[]::new);
             v[missing] = null;
-            config = new WhatsAppSipConfig(v[0], v[1], v[2], v[3], v[4], v[5], Duration.ofSeconds(30), "x");
+            config = new WhatsAppSipConfig(new SipAccount(v[0], v[1], v[2], v[3], v[4]), v[5], Duration.ofSeconds(30), "x");
             assertFalse(telephony(whatsApp()).whatsAppCalling("acme"), "missing key " + missing);
             v[missing] = " ";
-            config = new WhatsAppSipConfig(v[0], v[1], v[2], v[3], v[4], v[5], Duration.ofSeconds(30), "x");
+            config = new WhatsAppSipConfig(new SipAccount(v[0], v[1], v[2], v[3], v[4]), v[5], Duration.ofSeconds(30), "x");
             assertFalse(telephony(whatsApp()).whatsAppCalling("acme"), "blank key " + missing);
         }
     }

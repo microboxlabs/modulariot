@@ -104,8 +104,8 @@ public class IntegrationsTelephony implements Telephony {
         TelephonyLine line = telnyxLine(tenantCode, connectionId);
         String callee = PhoneNumbers.e164(calleeNumber);
         if (callee == null) throw new IllegalArgumentException("An E.164 callee is required");
-        return reserve(tenantCode, line, operator, callee, caseRef, UsageRow.VOICE,
-                TelephonyPlanService.destinationType(callee), ref -> { }, ref -> { });
+        return reserve(tenantCode, line, new CallIntent(operator, callee, caseRef, UsageRow.VOICE,
+                TelephonyPlanService.destinationType(callee)), ref -> { }, ref -> { });
     }
 
     /** WhatsApp calls go through the platform's Telnyx account, so only the managed line reaches them. */
@@ -122,12 +122,12 @@ public class IntegrationsTelephony implements Telephony {
         String callee = PhoneNumbers.e164(calleeNumber);
         if (callee == null) throw new IllegalArgumentException("An E.164 callee is required");
         Optional<Boolean> allowed = permissions == null ? Optional.empty() : permissions.allows(tenantCode, callee);
-        if (allowed.isPresent() && !allowed.get()) {
+        if (allowed.filter(Boolean.FALSE::equals).isPresent()) {
             throw new TelephonyUnavailableException(TelephonyUnavailableException.WHATSAPP_NO_PERMISSION,
                     "The contact has not allowed WhatsApp calls");
         }
-        return reserve(tenantCode, line, operator, callee, caseRef, UsageRow.WHATSAPP_CALL, UsageRow.WHATSAPP_CALL,
-                ref -> { }, ref -> { });
+        return reserve(tenantCode, line, new CallIntent(operator, callee, caseRef, UsageRow.WHATSAPP_CALL,
+                UsageRow.WHATSAPP_CALL), ref -> { }, ref -> { });
     }
 
     @Override
@@ -146,8 +146,9 @@ public class IntegrationsTelephony implements Telephony {
                 .filter(c -> tenantCode.equals(c.tenantCode()) && c.connectionId().equals(connectionId))
                 .orElseThrow(() -> new TelephonyUnavailableException(TelephonyUnavailableException.WHATSAPP_CALL_TAKEN,
                         "The WhatsApp call is no longer ringing"));
-        return reserve(tenantCode, line, operator, call.callerNumber(), call.caseRef(), UsageRow.WHATSAPP_CALL,
-                UsageRow.WHATSAPP_INBOUND, ref -> whatsApp.claim(tenantCode, inboundCallId, ref), whatsApp::unclaim);
+        return reserve(tenantCode, line, new CallIntent(operator, call.callerNumber(), call.caseRef(),
+                UsageRow.WHATSAPP_CALL, UsageRow.WHATSAPP_INBOUND),
+                ref -> whatsApp.claim(tenantCode, inboundCallId, ref), whatsApp::unclaim);
     }
 
     @Override
@@ -173,12 +174,14 @@ public class IntegrationsTelephony implements Telephony {
         return line;
     }
 
+    private record CallIntent(String operator, String callee, String caseRef, String channel, String destinationType) {
+    }
+
     /**
      * Holds a channel of the line with a STARTED row and issues the operator's login. {@code claim} runs under the
      * line's lock after the row is written; {@code release} undoes it when the login fails.
      */
-    private WebRtcToken reserve(String tenantCode, TelephonyLine line, String operator, String callee,
-            String caseRef, String channel, String destinationType, Consumer<String> claim,
+    private WebRtcToken reserve(String tenantCode, TelephonyLine line, CallIntent intent, Consumer<String> claim,
             Consumer<String> release) {
         String connectionId = line.connectionId();
         String connectionTenant = line.managed() ? PlatformScope.TENANT : tenantCode;
@@ -186,14 +189,14 @@ public class IntegrationsTelephony implements Telephony {
         IntegrationConnection connection = connections.apply(connectionTenant, ProviderType.TELNYX);
         String ref = UUID.randomUUID().toString();
         usage.locked(connectionId, () -> {
-            if (line.managed() && UsageRow.VOICE.equals(channel)) plan.requireMinutes(tenantCode);
+            if (line.managed() && UsageRow.VOICE.equals(intent.channel())) plan.requireMinutes(tenantCode);
             int limit = channelLimit(connection);
             if (usage.busyChannels(connectionId, now.minus(HOLD)) >= limit) {
                 throw new TelephonyUnavailableException(TelephonyUnavailableException.CHANNELS_BUSY,
                         "All " + limit + " channels of the line are in a call; try again in a moment");
             }
-            usage.insert(new UsageRow(ref, tenantCode, channel, line.managed(), connectionId, null, caseRef,
-                    callee, destinationType, UsageRow.STARTED, null, null, null, null,
+            usage.insert(new UsageRow(ref, tenantCode, intent.channel(), line.managed(), connectionId, null, intent.caseRef(),
+                    intent.callee(), intent.destinationType(), UsageRow.STARTED, null, null, null, null,
                     null, null, now, null, null));
             try {
                 claim.accept(ref);
@@ -203,6 +206,13 @@ public class IntegrationsTelephony implements Telephony {
             }
             return true;
         });
+        return issueToken(tenantCode, line, connection, intent.operator(), ref, release);
+    }
+
+    private WebRtcToken issueToken(String tenantCode, TelephonyLine line, IntegrationConnection connection,
+            String operator, String ref, Consumer<String> release) {
+        String connectionId = line.connectionId();
+        String connectionTenant = line.managed() ? PlatformScope.TENANT : tenantCode;
         TelnyxWebRtcTokens.Issued issued;
         try {
             issued = telnyx.issueFor(connectionTenant, connectionId, tenantCode, operator);

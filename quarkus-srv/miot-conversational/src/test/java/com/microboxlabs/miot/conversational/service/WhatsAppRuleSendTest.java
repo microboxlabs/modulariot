@@ -91,6 +91,20 @@ class WhatsAppRuleSendTest {
     }
 
     @Test
+    void managedSipPermissionRequestsUseThePlatformEvenWhenMessagingUsesTheOrganizationsNumber() {
+        connections.put(PLATFORM, connection("conn-platform", "PLATFORM-PNID"));
+        connections.put(TENANT, connection("conn-org", "ORG-PNID"));
+        accounts.own(TENANT, "whatsapp");
+        var number = service.sendingNumber(PLATFORM, DRIVER);
+        String id = service.sendManagedCallPermission(TENANT, number, DRIVER, "permission-template", "es", Map.of());
+        Message sent = store.messages.stream().filter(m -> id.equals(m.providerMessageId())).findFirst().orElseThrow();
+        assertEquals(List.of("PLATFORM-PNID"), sentFrom);
+        assertEquals(TENANT, store.conversations.get(sent.conversationId()).tenantCode());
+        assertEquals(PLATFORM, sent.metadata().get(WhatsAppMessagingService.CONNECTION_TENANT));
+        assertEquals(List.of(TENANT + " via " + PLATFORM), metered);
+    }
+
+    @Test
     void withoutAPlatformAccountTheMessageFails() {
         connections.put(TENANT, connection("conn-org", "ORG-PNID"));
 

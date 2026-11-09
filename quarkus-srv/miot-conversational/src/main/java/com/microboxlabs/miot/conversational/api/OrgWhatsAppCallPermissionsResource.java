@@ -25,7 +25,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
  * Whether the organization's WhatsApp number may call a contact, and a request for that permission sent now. A
- * refused request answers 200 with {@code sent: false} and the reason.
+ * refused request answers 200 with {@code sent: false} and the reason. With {@code managed=true}, permission and
+ * requests use the platform's SIP caller number; messages and usage still belong to the organization.
  */
 @Path("/api/v1/orgs/{organizationId}/conversations/whatsapp-call-permissions")
 @Produces(MediaType.APPLICATION_JSON)
@@ -56,9 +57,11 @@ public class OrgWhatsAppCallPermissionsResource extends OrgResourceSupport {
     @Operation(operationId = "getWhatsAppCallPermission",
             summary = "The contact's call permission on the organization's WhatsApp number, and whether a request"
                     + " may be sent now")
-    public Uni<Response> get(@PathParam("organizationId") String organizationId, @QueryParam("phone") String phone) {
+    public Uni<Response> get(@PathParam("organizationId") String organizationId, @QueryParam("phone") String phone,
+            @QueryParam("managed") boolean managed) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(permissions.view(tenant, phone)).build());
+        CallPermissionService scoped = managed ? permissions.forManagedCalls() : permissions;
+        return work(() -> Response.ok(scoped.view(tenant, phone)).build());
     }
 
     @POST
@@ -67,10 +70,12 @@ public class OrgWhatsAppCallPermissionsResource extends OrgResourceSupport {
     @Operation(operationId = "requestWhatsAppCallPermission",
             summary = "Sends the call permission request now; refused when calling is off, the contact already"
                     + " allows calls, or Meta's limits (1 per day, 2 per week) are reached")
-    public Uni<Response> request(@PathParam("organizationId") String organizationId, RequestBody body) {
+    public Uni<Response> request(@PathParam("organizationId") String organizationId,
+            @QueryParam("managed") boolean managed, RequestBody body) {
         String tenant = tenantCode(organizationId);
         String who = actor();
-        return work(() -> Response.ok(permissions.request(tenant, body == null ? null : body.phone(),
+        CallPermissionService scoped = managed ? permissions.forManagedCalls() : permissions;
+        return work(() -> Response.ok(scoped.request(tenant, body == null ? null : body.phone(),
                 body == null ? null : body.name(), who)).build());
     }
 }

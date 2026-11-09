@@ -93,6 +93,34 @@ class PgTelephonyUsageStoreTest {
             assertEquals(41, store.reconcileCursor("p1").orElseThrow().nextPage());
             store.clearReconcileCursor("p1");
             assertTrue(store.reconcileCursor("p1").isEmpty());
+
+            String inboundRef = UUID.randomUUID().toString();
+            Instant old = now.minus(IntegrationsTelephony.HOLD).minusSeconds(1);
+            UsageRow liveInbound = new UsageRow(inboundRef, "acme", UsageRow.WHATSAPP_CALL, true, "p1", null, null,
+                    "+12025550101", UsageRow.WHATSAPP_INBOUND, UsageRow.STARTED, old, null, null, null, null,
+                    null, old, null, null);
+            store.insert(liveInbound);
+            store.saveAdmission(new CallAdmission(inboundRef, "sdk-inbound", UUID.randomUUID().toString()));
+            assertEquals(1, store.busyChannels("p1", now.minus(IntegrationsTelephony.HOLD)));
+            assertEquals(0, store.expireStarted(now.minus(IntegrationsTelephony.HOLD)));
+
+            var calls = new PgWhatsAppCallStore(() -> pool) {
+                @Override protected RowSet<Row> run(String sql, Tuple params) {
+                    return super.run(sql.replace("miot_integrations", schema), params);
+                }
+            };
+            var inbound = new InboundWhatsAppCall(UUID.randomUUID().toString(), "p1", "wa-inbound", "acme",
+                    "+12025550101", "Test contact", null, InboundWhatsAppCall.CLAIMED, inboundRef, old, old);
+            calls.insertInbound(inbound);
+            assertEquals(1, calls.unansweredBefore(now.minusSeconds(45)).size());
+            assertEquals(1, calls.activeBefore(now.minus(IntegrationsTelephony.HOLD).plusSeconds(60)).size());
+            calls.updateInbound(inbound.with(InboundWhatsAppCall.ANSWERED, inboundRef, now));
+            assertTrue(calls.unansweredBefore(now.minusSeconds(45)).isEmpty());
+            store.update(liveInbound.endedPending(now));
+            assertEquals(0, store.busyChannels("p1", now.minus(IntegrationsTelephony.HOLD)));
+            assertEquals(1, store.expireStarted(now.minus(IntegrationsTelephony.HOLD)));
+            calls.updateInbound(inbound.with(InboundWhatsAppCall.ENDED, inboundRef, now));
+            assertTrue(calls.activeBefore(now).isEmpty());
         } finally {
             pool.query("DROP SCHEMA " + schema + " CASCADE").execute().await().indefinitely();
             pool.closeAndAwait(); vertx.closeAndAwait();

@@ -135,7 +135,9 @@ function OverActions({
 }: Readonly<{ call: ActiveCall; t: (k: string) => string }>) {
   const session = useCallSession();
   const goToCall = useGoToCall();
-  const canRecord = call.status === "ended" || call.status === "dropped";
+  const inbound = call.key.startsWith("wa-in:");
+  const canRecord =
+    !inbound && (call.status === "ended" || call.status === "dropped");
   return (
     <>
       {canRecord && (
@@ -150,7 +152,7 @@ function OverActions({
           {t("call_record_result")}
         </button>
       )}
-      {call.status !== "ended" && (
+      {(call.status !== "ended" || inbound) && (
         <button
           type="button"
           onClick={session.clear}

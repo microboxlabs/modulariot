@@ -23,6 +23,7 @@ import java.util.function.Supplier;
 public class PgWhatsAppCallStore implements WhatsAppCallStore {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
+    private static final String INSERT_INTO = "INSERT INTO ";
     private static final String LEGS = "miot_integrations.telephony_whatsapp_legs";
     private static final String INBOUND = "miot_integrations.whatsapp_inbound_calls";
     private static final String COLUMNS = """
@@ -43,7 +44,7 @@ public class PgWhatsAppCallStore implements WhatsAppCallStore {
 
     @Override
     public void saveLeg(String callRef, String legCallId) {
-        run("INSERT INTO " + LEGS + " (call_ref, leg_call_id) VALUES ($1, $2) ON CONFLICT (call_ref)"
+        run(INSERT_INTO + LEGS + " (call_ref, leg_call_id) VALUES ($1, $2) ON CONFLICT (call_ref)"
                 + " DO UPDATE SET leg_call_id = EXCLUDED.leg_call_id, updated_at = now()",
                 Tuple.of(UUID.fromString(callRef), legCallId));
     }
@@ -55,7 +56,7 @@ public class PgWhatsAppCallStore implements WhatsAppCallStore {
 
     @Override
     public void saveFailure(String callRef, String failure) {
-        run("INSERT INTO " + LEGS + " (call_ref, failure) VALUES ($1, $2) ON CONFLICT (call_ref)"
+        run(INSERT_INTO + LEGS + " (call_ref, failure) VALUES ($1, $2) ON CONFLICT (call_ref)"
                 + " DO UPDATE SET failure = EXCLUDED.failure, updated_at = now()",
                 Tuple.of(UUID.fromString(callRef), failure));
     }
@@ -67,7 +68,7 @@ public class PgWhatsAppCallStore implements WhatsAppCallStore {
 
     @Override
     public void insertInbound(InboundWhatsAppCall c) {
-        run("INSERT INTO " + INBOUND + " (" + COLUMNS + ") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
+        run(INSERT_INTO + INBOUND + " (" + COLUMNS + ") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
                 + " ON CONFLICT (call_control_id) DO NOTHING", params(c));
     }
 
@@ -102,8 +103,15 @@ public class PgWhatsAppCallStore implements WhatsAppCallStore {
     }
 
     @Override
-    public List<InboundWhatsAppCall> ringingBefore(Instant before) {
-        return all(run(SELECT + "WHERE status = 'RINGING' AND created_at < $1 ORDER BY created_at",
+    public List<InboundWhatsAppCall> unansweredBefore(Instant before) {
+        return all(run(SELECT + "WHERE (status = 'RINGING' AND created_at < $1)"
+                + " OR (status = 'CLAIMED' AND updated_at < $1) ORDER BY created_at",
+                Tuple.of(utc(before))));
+    }
+
+    @Override
+    public List<InboundWhatsAppCall> activeBefore(Instant before) {
+        return all(run(SELECT + "WHERE status IN ('CLAIMED', 'ANSWERED') AND created_at < $1 ORDER BY created_at",
                 Tuple.of(utc(before))));
     }
 

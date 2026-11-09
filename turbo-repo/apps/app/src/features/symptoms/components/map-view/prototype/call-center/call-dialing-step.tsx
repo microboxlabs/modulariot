@@ -282,16 +282,18 @@ export default function CallDialingStep({
   const waCall =
     whatsAppCalling &&
     methods.includes("whatsapp") &&
-    waDestination !== null &&
-    waDestination.startsWith("+");
+    waDestination?.startsWith("+") === true;
   // Same SWR key as the permission row: one request for both.
   const { data: waPermission } = useWhatsAppCallPermission(
-    waCall ? waPhone : null
+    waCall ? waPhone : null,
+    true
   );
   // Unknown permission (loading, flow off): Meta decides, and a 403 is shown after.
   const waBlocked =
     waCall &&
     waPermission?.callingEnabled === true &&
+    waPermission.refusal !== "NO_CONNECTION" &&
+    waPermission.refusal !== "INVALID_PHONE" &&
     waPermission.state !== "CAN_CALL";
   const teamsVia = (id: CallMethod): TelephonyLine | null => {
     if (destination === null || serviceNumber) return null;
@@ -425,6 +427,7 @@ export default function CallDialingStep({
             phone={channels?.whatsapp ?? contactPhone}
             name={contactName}
             lang={lang}
+            managed={whatsAppCalling}
           />
         )}
 

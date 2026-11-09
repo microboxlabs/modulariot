@@ -22,7 +22,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import org.jboss.logging.Logger;
 
 /**
@@ -54,7 +54,7 @@ public class WhatsAppCalls {
     private final TelephonyUsageStore usage;
     private final WhatsAppCallStore store;
     private final TelnyxClient client;
-    private final Function<String, String> apiKeys;
+    private final UnaryOperator<String> apiKeys;
     private final InboundCallers callers;
     private final InboundRouter router;
     private final ObjectMapper json;
@@ -64,24 +64,26 @@ public class WhatsAppCalls {
     public WhatsAppCalls(WhatsAppSipConfig config, TelephonyUsageStore usage, WhatsAppCallStore store,
             TelnyxClient client, IntegrationConnectionRepository connections, IntegrationConnectionResolver resolver,
             InboundCallers callers, InboundRouter router, ObjectMapper json) {
-        this(config, usage, store, client, connectionId -> {
+        this(new SipGateway(config, client, connectionId -> {
             IntegrationConnection c = connections.findActiveTelnyxById(connectionId);
             if (c == null || !client.serves(c.baseUrl())) {
                 throw new TelephonyUnavailableException("The Telnyx line is unavailable");
             }
             return resolver.resolve(c.tenantCode(), c).secretString(TelephonyKeys.TOKEN);
-        }, callers, router, json, Clock.systemUTC());
+        }), usage, store, callers, router, json, Clock.systemUTC());
     }
 
-    /** {@code apiKeys}: the API key of a TELNYX connection, by id. */
-    public WhatsAppCalls(WhatsAppSipConfig config, TelephonyUsageStore usage, WhatsAppCallStore store,
-            TelnyxClient client, Function<String, String> apiKeys, InboundCallers callers, InboundRouter router,
-            ObjectMapper json, Clock clock) {
-        this.config = config;
+    /** The configured SIP gateway and the API key of a TELNYX connection, by id. */
+    public record SipGateway(WhatsAppSipConfig config, TelnyxClient client, UnaryOperator<String> apiKeys) {
+    }
+
+    public WhatsAppCalls(SipGateway gateway, TelephonyUsageStore usage, WhatsAppCallStore store,
+            InboundCallers callers, InboundRouter router, ObjectMapper json, Clock clock) {
+        this.config = gateway.config();
         this.usage = usage;
         this.store = store;
-        this.client = client;
-        this.apiKeys = apiKeys;
+        this.client = gateway.client();
+        this.apiKeys = gateway.apiKeys();
         this.callers = callers;
         this.router = router;
         this.json = json;
@@ -126,7 +128,7 @@ public class WhatsAppCalls {
         CallAdmission admission = usage.admissionByTargetState(targetState).orElse(null);
         UsageRow row = admission == null ? null : usage.find(admission.callRef()).orElse(null);
         if (row == null || !connectionId.equals(row.connectionId()) || !UsageRow.WHATSAPP_CALL.equals(row.channel())) {
-            if ("call.initiated".equals(event)) hangupQuietly(connectionId, callId);
+            if ("call.initiated".equals(event)) hangup(connectionId, callId);
             return new Handling(true, null);
         }
         String saved = store.leg(row.id()).orElse(null);
@@ -142,7 +144,7 @@ public class WhatsAppCalls {
             if (row.answeredAt() == null && SIP_FORBIDDEN.equals(text(p, "sip_hangup_cause"))) {
                 store.saveFailure(row.id(), TelephonyUnavailableException.WHATSAPP_NO_PERMISSION);
             }
-            hangupQuietly(connectionId, admission.parkedCallId());
+            hangup(connectionId, admission.parkedCallId());
             inbound.ifPresent(c -> store.updateInbound(c.with(InboundWhatsAppCall.ENDED, c.callRef(), clock.instant())));
         }
         return new Handling(false, row.id());
@@ -159,7 +161,7 @@ public class WhatsAppCalls {
         if (inbound != null) {
             if (InboundWhatsAppCall.ANSWERED.equals(inbound.status())) return;
             if (!InboundWhatsAppCall.CLAIMED.equals(inbound.status())) {
-                hangupQuietly(connectionId, admission.parkedCallId());
+                hangup(connectionId, admission.parkedCallId());
                 return;
             }
             usage.locked(connectionId, () -> {
@@ -172,7 +174,7 @@ public class WhatsAppCalls {
         }
         if (store.leg(row.id()).isPresent()) return;
         if (!config.enabled()) {
-            hangupQuietly(connectionId, admission.parkedCallId());
+            hangup(connectionId, admission.parkedCallId());
             return;
         }
         int limit = (int) Math.max(30, Duration.between(clock.instant(),
@@ -193,10 +195,10 @@ public class WhatsAppCalls {
     /** The operator's parked leg ended: the WhatsApp leg ends with it. */
     void parkedHungUp(String connectionId, UsageRow row) {
         usage.locked(connectionId, () -> {
-            store.leg(row.id()).ifPresent(leg -> hangupQuietly(connectionId, leg));
+            store.leg(row.id()).ifPresent(leg -> hangup(connectionId, leg));
             store.inboundByCallRef(row.id()).ifPresent(c -> {
                 if (!InboundWhatsAppCall.ENDED.equals(c.status())) {
-                    hangupQuietly(connectionId, c.callControlId());
+                    hangup(connectionId, c.callControlId());
                     store.updateInbound(c.with(InboundWhatsAppCall.ENDED, c.callRef(), clock.instant()));
                 }
             });
@@ -228,8 +230,10 @@ public class WhatsAppCalls {
         if (InboundWhatsAppCall.RINGING.equals(c.status())) {
             store.updateInbound(c.with(InboundWhatsAppCall.MISSED, null, clock.instant()));
         } else if (InboundWhatsAppCall.CLAIMED.equals(c.status())) {
+            Optional<CallAdmission> admission = usage.admission(c.callRef());
+            if (admission.isPresent()) hangup(connectionId, admission.get().parkedCallId());
+            else usage.find(c.callRef()).ifPresent(r -> usage.update(r.retired()));
             store.updateInbound(c.with(InboundWhatsAppCall.ENDED, c.callRef(), clock.instant()));
-            usage.admission(c.callRef()).ifPresent(a -> hangupQuietly(connectionId, a.parkedCallId()));
         }
     }
 
@@ -240,6 +244,7 @@ public class WhatsAppCalls {
         if (!config.enabled()) return;
         try {
             expireRinging();
+            expireActive();
         } catch (RuntimeException e) {
             LOG.warnf("WhatsApp ringing check failed: %s", e.getMessage());
         }
@@ -248,18 +253,48 @@ public class WhatsAppCalls {
     public int expireRinging() {
         Instant now = clock.instant();
         int missed = 0;
-        for (InboundWhatsAppCall c : store.ringingBefore(now.minus(config.ringTimeout()))) {
-            boolean expired = usage.locked(c.connectionId(), () -> {
-                InboundWhatsAppCall current = store.inbound(c.id()).orElse(null);
-                if (current == null || !InboundWhatsAppCall.RINGING.equals(current.status())) return false;
-                InboundWhatsAppCall missedCall = current.with(InboundWhatsAppCall.MISSED, null, now);
-                store.updateInbound(missedCall);
-                answerForMessage(c.connectionId(), missedCall);
-                return true;
-            });
-            if (expired) missed++;
+        for (InboundWhatsAppCall c : store.unansweredBefore(now.minus(config.ringTimeout()))) {
+            if (usage.locked(c.connectionId(), () -> expireUnanswered(c.id(), now))) missed++;
         }
         return missed;
+    }
+
+    private boolean expireUnanswered(String id, Instant now) {
+        InboundWhatsAppCall current = store.inbound(id).orElse(null);
+        if (current == null) return false;
+        if (InboundWhatsAppCall.CLAIMED.equals(current.status())) {
+            if (usage.admission(current.callRef()).isPresent()) return false;
+            usage.find(current.callRef()).ifPresent(r -> usage.update(r.retired()));
+        } else if (!InboundWhatsAppCall.RINGING.equals(current.status())) {
+            return false;
+        }
+        InboundWhatsAppCall missed = current.with(InboundWhatsAppCall.MISSED, null, now);
+        store.updateInbound(missed);
+        answerForMessage(current.connectionId(), missed);
+        return true;
+    }
+
+    /** Bound inbound calls like outbound legs; do not free their channel until teardown succeeds. */
+    public int expireActive() {
+        Instant now = clock.instant();
+        int ended = 0;
+        for (InboundWhatsAppCall call : store.activeBefore(now.minus(IntegrationsTelephony.HOLD).plusSeconds(60))) {
+            if (usage.locked(call.connectionId(), () -> endOverdue(call.id(), now))) ended++;
+        }
+        return ended;
+    }
+
+    private boolean endOverdue(String id, Instant now) {
+        InboundWhatsAppCall call = store.inbound(id).orElse(null);
+        if (call == null || !(InboundWhatsAppCall.CLAIMED.equals(call.status())
+                || InboundWhatsAppCall.ANSWERED.equals(call.status()))) return false;
+        UsageRow row = usage.find(call.callRef()).orElse(null);
+        if (row == null || row.startedAt().plus(IntegrationsTelephony.HOLD).minusSeconds(60).isAfter(now)) return false;
+        hangup(call.connectionId(), call.callControlId());
+        usage.admission(row.id()).ifPresent(a -> hangup(call.connectionId(), a.parkedCallId()));
+        if (row.endedAt() == null && !UsageRow.CONFIRMED.equals(row.status())) usage.update(row.endedPending(now));
+        store.updateInbound(call.with(InboundWhatsAppCall.ENDED, call.callRef(), now));
+        return true;
     }
 
     /** The tenant's ringing calls, oldest first. */
@@ -297,20 +332,20 @@ public class WhatsAppCalls {
         if ("call.answered".equals(event)) {
             String text = config.unansweredMessage();
             if (text == null || text.isBlank()) {
-                hangupQuietly(connectionId, callId);
+                hangup(connectionId, callId);
                 return;
             }
             try {
                 if (!ok(client.speak(apiKeys.apply(connectionId), callId, text, encode(BYE)).statusCode())) {
-                    hangupQuietly(connectionId, callId);
+                    hangup(connectionId, callId);
                 }
             } catch (IOException | RuntimeException e) {
-                hangupQuietly(connectionId, callId);
+                hangup(connectionId, callId);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         } else if ("call.speak.ended".equals(event)) {
-            hangupQuietly(connectionId, callId);
+            hangup(connectionId, callId);
         }
     }
 
@@ -318,25 +353,28 @@ public class WhatsAppCalls {
         try {
             int status = client.answer(apiKeys.apply(connectionId), c.callControlId(), encode(BYE + c.id()),
                     c.id() + ":bye").statusCode();
-            if (!ok(status)) hangupQuietly(connectionId, c.callControlId());
+            if (!ok(status)) hangup(connectionId, c.callControlId());
         } catch (IOException | RuntimeException e) {
             LOG.warnf("Could not answer WhatsApp call %s for its message: %s", c.id(), e.getMessage());
-            hangupQuietly(connectionId, c.callControlId());
+            hangup(connectionId, c.callControlId());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
 
-    private void hangupQuietly(String connectionId, String callId) {
+    private void hangup(String connectionId, String callId) {
         if (callId == null || callId.isBlank()) return;
         try {
             int status = client.hangup(apiKeys.apply(connectionId), callId).statusCode();
-            // 422: the call already ended.
-            if (!ok(status) && status != 422) LOG.debugf("Telnyx hangup of %s returned HTTP %d", callId, status);
-        } catch (IOException | RuntimeException e) {
-            LOG.debugf("Telnyx hangup of %s failed: %s", callId, e.getMessage());
+            // 422: the call already ended. Other failures must retain the webhook/sweep retry.
+            if (!ok(status) && status != 422) {
+                throw new IllegalStateException("Telnyx hangup needs a retry: HTTP " + status);
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Telnyx hangup needs a retry", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new IllegalStateException("Telnyx hangup was interrupted", e);
         }
     }
 

@@ -85,6 +85,7 @@ public class CallPermissionService {
     private final Function<String, Optional<ConvTemplate>> templates;
     private final Numbers numbers;
     private final Sender sender;
+    private final Sender managedSender;
     private final boolean enabled;
     private final Clock clock;
 
@@ -94,18 +95,31 @@ public class CallPermissionService {
             @ConfigProperty(name = "miot.conversational.whatsapp-calling.enabled", defaultValue = "false")
             boolean enabled) {
         this(store, key -> templates.find(ConvTemplate.PLATFORM_TENANT, key), whatsapp::sendingNumber,
-                whatsapp::sendCallPermission,
+                whatsapp::sendCallPermission, whatsapp::sendManagedCallPermission,
                 enabled, Clock.systemUTC());
     }
 
     public CallPermissionService(CallPermissionStore store, Function<String, Optional<ConvTemplate>> templates,
             Numbers numbers, Sender sender, boolean enabled, Clock clock) {
+        this(store, templates, numbers, sender, sender, enabled, clock);
+    }
+
+    private CallPermissionService(CallPermissionStore store, Function<String, Optional<ConvTemplate>> templates,
+            Numbers numbers, Sender sender, Sender managedSender, boolean enabled, Clock clock) {
         this.store = store;
         this.templates = templates;
         this.numbers = numbers;
         this.sender = sender;
+        this.managedSender = managedSender;
         this.enabled = enabled;
         this.clock = clock;
+    }
+
+    /** Same organization ledger and limits, with permission and requests on the managed SIP caller's number. */
+    public CallPermissionService forManagedCalls() {
+        return new CallPermissionService(store, templates,
+                (tenant, to) -> numbers.resolve(com.microboxlabs.miot.core.auth.PlatformScope.TENANT, to),
+                managedSender, managedSender, enabled, clock);
     }
 
     public boolean enabled() {

@@ -19,6 +19,9 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class TelnyxClient {
 
+    private static final String CONTENT_TYPE = "Content-Type";
+    private static final String COMMAND_ID = ",\"command_id\":";
+
     private final TelephonyHttp http;
     private final URI baseUrl;
 
@@ -65,7 +68,7 @@ public class TelnyxClient {
             throws IOException, InterruptedException {
         String body = "{\"connection_id\":" + json(connectionId) + ",\"name\":" + json(name) + "}";
         return http.send(request(apiKey, "/v2/telephony_credentials")
-                .header("Content-Type", "application/json")
+                .header(CONTENT_TYPE, "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build());
     }
@@ -98,7 +101,7 @@ public class TelnyxClient {
     public HttpResponse<String> transfer(String apiKey, String callId, String to, String from,
             String targetState, String commandId, int timeLimitSeconds) throws IOException, InterruptedException {
         return command(apiKey, callId, "transfer", "{\"to\":" + json(to) + ",\"from\":" + json(from)
-                + ",\"target_leg_client_state\":" + json(targetState) + ",\"command_id\":" + json(commandId)
+                + ",\"target_leg_client_state\":" + json(targetState) + COMMAND_ID + json(commandId)
                 + ",\"timeout_secs\":30,\"time_limit_secs\":" + timeLimitSeconds + "}");
     }
 
@@ -119,23 +122,23 @@ public class TelnyxClient {
                 + ",\"sip_auth_password\":" + json(d.sipPassword())
                 + ",\"sip_transport_protocol\":\"TLS\",\"media_encryption\":" + json(d.mediaEncryption())
                 + ",\"preferred_codecs\":\"OPUS\",\"client_state\":" + json(d.clientState())
-                + ",\"command_id\":" + json(d.commandId()) + ",\"link_to\":" + json(d.linkTo())
+                + COMMAND_ID + json(d.commandId()) + ",\"link_to\":" + json(d.linkTo())
                 + ",\"timeout_secs\":45,\"time_limit_secs\":" + d.timeLimitSeconds() + "}";
         return http.send(request(apiKey, "/v2/calls")
-                .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build());
+                .header(CONTENT_TYPE, "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build());
     }
 
     /** Joins {@code callId} with {@code otherCallId}. */
     public HttpResponse<String> bridge(String apiKey, String callId, String otherCallId, String commandId)
             throws IOException, InterruptedException {
-        return command(apiKey, callId, "bridge", "{\"call_control_id\":" + json(otherCallId) + ",\"command_id\":"
+        return command(apiKey, callId, "bridge", "{\"call_control_id\":" + json(otherCallId) + COMMAND_ID
                 + json(commandId) + "}");
     }
 
     /** Answers an incoming call; Telnyx echoes {@code clientState} on its later events. */
     public HttpResponse<String> answer(String apiKey, String callId, String clientState, String commandId)
             throws IOException, InterruptedException {
-        return command(apiKey, callId, "answer", "{\"client_state\":" + json(clientState) + ",\"command_id\":"
+        return command(apiKey, callId, "answer", "{\"client_state\":" + json(clientState) + COMMAND_ID
                 + json(commandId) + "}");
     }
 
@@ -153,7 +156,7 @@ public class TelnyxClient {
     private HttpResponse<String> command(String apiKey, String callId, String action, String body)
             throws IOException, InterruptedException {
         return http.send(request(apiKey, "/v2/calls/" + segment(callId) + "/actions/" + action)
-                .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build());
+                .header(CONTENT_TYPE, "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build());
     }
 
     private static String json(String value) {

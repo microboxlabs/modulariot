@@ -180,6 +180,27 @@ describe("WhatsApp button", () => {
     expect(token).not.toHaveBeenCalled();
   });
 
+  it.each(["NO_CONNECTION", "INVALID_PHONE"])(
+    "lets Meta decide when permission is unknown: %s",
+    async (refusal) => {
+      request.mockResolvedValue({
+        ...permission("NO_PERMISSION"),
+        canRequest: false,
+        refusal,
+      });
+      const { dial } = renderStep(true);
+      const button = await screen.findByRole("button", {
+        name: t.call_wa_call,
+      });
+      await waitFor(() => expect(button).toBeEnabled());
+      fireEvent.click(button);
+      await waitFor(() => expect(dial).toHaveBeenCalled());
+      expect(request).toHaveBeenCalledWith(
+        expect.stringContaining("&managed=true")
+      );
+    }
+  );
+
   it("shows Meta's refusal (SIP 403) after the call ends", async () => {
     request.mockResolvedValue(permission("CAN_CALL"));
     const { dial, callOutcome, onConfirm, opts } = renderStep(true);

@@ -68,9 +68,17 @@ public class InMemoryWhatsAppCallStore implements WhatsAppCallStore {
     }
 
     @Override
-    public synchronized List<InboundWhatsAppCall> ringingBefore(Instant before) {
+    public synchronized List<InboundWhatsAppCall> unansweredBefore(Instant before) {
         return inbound.values().stream()
-                .filter(c -> InboundWhatsAppCall.RINGING.equals(c.status()) && c.createdAt().isBefore(before))
+                .filter(c -> (InboundWhatsAppCall.RINGING.equals(c.status()) && c.createdAt().isBefore(before))
+                        || (InboundWhatsAppCall.CLAIMED.equals(c.status()) && c.updatedAt().isBefore(before)))
                 .sorted(Comparator.comparing(InboundWhatsAppCall::createdAt)).toList();
+    }
+
+    @Override
+    public synchronized List<InboundWhatsAppCall> activeBefore(Instant before) {
+        return inbound.values().stream()
+                .filter(c -> (InboundWhatsAppCall.CLAIMED.equals(c.status()) || InboundWhatsAppCall.ANSWERED.equals(c.status()))
+                        && c.createdAt().isBefore(before)).toList();
     }
 }

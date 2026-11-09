@@ -156,7 +156,7 @@ As environment variables: `MIOT_INTEGRATIONS_WHATSAPP_CALLING_CONNECTION_ID`, an
 
 A SIP 403 ("No Approved Call Permission Found") is kept for the row. The app reads it with `GET /calls/{callRef}` (`{failure: "whatsapp_no_permission"}`) and shows "el conductor no ha aceptado las llamadas".
 
-The app checks the permission with `GET /api/v1/orgs/{organizationId}/conversations/whatsapp-call-permissions?phone=` before calling. Without permission the button is disabled and the permission row offers the request.
+The app checks the permission with `GET /api/v1/orgs/{organizationId}/conversations/whatsapp-call-permissions?phone=...&managed=true` before a SIP call. Its permission request uses `POST .../whatsapp-call-permissions/requests?managed=true`. Both use the platform's WhatsApp sender, even when the organization uses its own messaging account; the request stays in the organization's message pool and metering. The platform connection's `phone_number_id` must identify the configured SIP `business-number`. A permission for an organization's different sender is never used for the SIP call. Without permission the button is disabled; when the sender cannot be resolved, Meta decides with its SIP response.
 
 ### Contact calls the tower
 
@@ -164,7 +164,9 @@ The app checks the permission with `GET /api/v1/orgs/{organizationId}/conversati
 2. The caller's organization is the one organization whose contact book has an active contact with that phone or WhatsApp number (trip drivers are synced into the book). When no contact matches, use the organization of the latest managed call to that number in 24 hours. A match in several organizations is ambiguous: it goes to the platform notice and never falls back to the ledger. The case is the latest open treatment with a call to that contact.
 3. A known caller's call rings (it is not answered) and is listed in `GET /whatsapp-calls` for the organization's operators. The app shows it with "Contestar".
 4. "Contestar" asks `POST /whatsapp-calls/{id}/answer`, a login with a reservation. 409 `whatsapp_call_taken` when another operator took it or it ended. The browser dials; on admission the server answers the WhatsApp leg and bridges it to the operator's leg.
-5. An unknown caller, or a call nobody takes within `ring-timeout`, is answered, hears `unanswered-message`, and is hung up.
+5. An unknown caller, or a call nobody takes within `ring-timeout`, is answered, hears `unanswered-message`, and is hung up. A claim whose browser never dials expires after the same timeout, retires its reservation, and follows this unanswered-call flow. A late browser leg cannot consume that expired reservation.
+6. The server ends admitted inbound calls one minute before the two-hour reservation hold. An admitted inbound call still occupies a channel past the hold while teardown is retrying. Successful provider teardown frees capacity; only the WhatsApp leg's webhook confirms billable seconds. Transient counterpart-hangup failures propagate for webhook retry, and the scheduled deadline sweep retries overdue inbound teardown.
+7. When an inbound browser call ends, the call bar offers dismissal so the operator can take another call. Recording a case CALL action remains outside this inbound flow.
 
 | Endpoint (under `/control-tower/telephony`) | Permission | Result |
 | --- | --- | --- |

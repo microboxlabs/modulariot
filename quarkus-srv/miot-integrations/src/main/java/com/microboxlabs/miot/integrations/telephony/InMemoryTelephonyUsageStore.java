@@ -56,17 +56,22 @@ public class InMemoryTelephonyUsageStore implements TelephonyUsageStore {
     @Override
     public synchronized int busyChannels(String connectionId, Instant since) {
         return (int) rows.values().stream()
-                .filter(r -> Objects.equals(r.connectionId(), connectionId) && r.startedAt().isAfter(since)
+                .filter(r -> Objects.equals(r.connectionId(), connectionId) && (r.startedAt().isAfter(since) || liveInbound(r))
                         && r.endedAt() == null
                         && (UsageRow.STARTED.equals(r.status()) || UsageRow.ENDED.equals(r.status())))
                 .count();
+    }
+
+    private boolean liveInbound(UsageRow r) {
+        return UsageRow.WHATSAPP_CALL.equals(r.channel()) && UsageRow.WHATSAPP_INBOUND.equals(r.destinationType())
+                && r.endedAt() == null && admissions.containsKey(r.id());
     }
 
     @Override
     public synchronized int expireStarted(Instant before) {
         int n = 0;
         for (UsageRow r : List.copyOf(rows.values())) {
-            if ((UsageRow.STARTED.equals(r.status()) || UsageRow.ENDED.equals(r.status())) && r.startedAt().isBefore(before)) {
+            if ((UsageRow.STARTED.equals(r.status()) || UsageRow.ENDED.equals(r.status())) && r.startedAt().isBefore(before) && !liveInbound(r)) {
                 rows.put(r.id(), new UsageRow(r.id(), r.tenantCode(), r.channel(), r.managed(), r.connectionId(),
                         r.externalId(), r.caseRef(), r.calleeNumber(), r.destinationType(), UsageRow.EXPIRED,
                         r.answeredAt(), r.seconds(), r.billedMinutes(), r.providerCost(), r.providerCurrency(),

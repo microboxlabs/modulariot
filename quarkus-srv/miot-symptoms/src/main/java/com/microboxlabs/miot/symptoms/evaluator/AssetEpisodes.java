@@ -25,6 +25,7 @@ public class AssetEpisodes implements EpisodeStore {
     private final Set<UUID> saved = new HashSet<>();
     private final Set<UUID> deleted = new HashSet<>();
     private final Set<String> marked = new HashSet<>();
+    private TransitionLog log;
 
     public AssetEpisodes(String tenantCode, String assetId, Map<UUID, Episode> episodes,
             Map<String, Instant> watermarks) {
@@ -77,6 +78,7 @@ public class AssetEpisodes implements EpisodeStore {
      * the evaluator saves it only when it actually advances that case, preserving other producers' updates.
      */
     public void restoreCases(TransitionLog log, List<CompiledSymptom> symptoms) {
+        this.log = log;
         for (CompiledSymptom symptom : symptoms) {
             Episode e = loaded.get(symptom.definitionId());
             if (e != null && e.open() && e.tripId() == null && e.lastContext() == null) {
@@ -86,6 +88,13 @@ public class AssetEpisodes implements EpisodeStore {
                 episodes.put(e.definitionId(), restored);
             }
         }
+    }
+
+    /** Read from the log given to {@link #restoreCases}; empty before it. */
+    @Override
+    public Optional<OperatorClose> lastOperatorClose(String tenant, String asset, UUID definitionId) {
+        return log != null && mine(tenant, asset) ? log.lastOperatorClose(tenant, asset, definitionId)
+                : Optional.empty();
     }
 
     /** Keeps the latest applied context on each open case's own trip in the existing episode write. */

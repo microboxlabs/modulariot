@@ -11,6 +11,7 @@ import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.dto.TripPeople;
 import com.microboxlabs.miot.symptoms.dto.TripRoute;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
+import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
 import com.microboxlabs.miot.symptoms.lostsignal.SignalStateReader.Reported;
@@ -138,6 +139,11 @@ public class EngineCaseService {
             episode(tenantCode, assetId, definitionId);
         }
 
+        /** As {@link #closed(String, String, UUID, String)}, with how the operator closed the case. */
+        default void closed(String tenantCode, String assetId, UUID definitionId, OperatorClose close) {
+            closed(tenantCode, assetId, definitionId, close.tripId());
+        }
+
         default void staleEpisode(EngineCaseStore.StaleCase c) {
             episode(c.tenantCode(), c.assetId(), c.definitionId());
         }
@@ -171,6 +177,11 @@ public class EngineCaseService {
             @Override
             public void closed(String tenantCode, String assetId, UUID definitionId, String tripId) {
                 evaluator.forget(tenantCode, assetId, definitionId, tripId);
+            }
+
+            @Override
+            public void closed(String tenantCode, String assetId, UUID definitionId, OperatorClose close) {
+                evaluator.closedByOperator(tenantCode, assetId, definitionId, close);
             }
 
             @Override
@@ -1127,17 +1138,27 @@ public class EngineCaseService {
         return new SignalWindow(c.assetId(), from, to.isBefore(opened) ? opened : to);
     }
 
-    /**
-     * An operator closed the case's treatment: the case closes, and the next signal may open a new one. The
-     * episode goes first, so a failed drop leaves the case open and the call can be retried. Publishes
-     * {@code symptom.case.closed}.
-     */
+    /** As {@link #close(String, long, String, boolean)} for a case the operator handled. */
     public void close(String tenantCode, long symptomId, String actor) {
+        close(tenantCode, symptomId, actor, false);
+    }
+
+    /**
+     * An operator closed the case's treatment: the case closes. While the condition holds on the case's trip, the
+     * symptom opens no new case on the vehicle after an invalidation, and after a handled close only above the
+     * case's level ({@link OperatorClose}). The episode goes first, so a failed drop leaves the case open and the
+     * call can be retried. The CLOSED row records the close, so a restart keeps the block. Publishes
+     * {@code symptom.case.closed}.
+     *
+     * @param invalidated the operator invalidated the case
+     */
+    public void close(String tenantCode, long symptomId, String actor, boolean invalidated) {
         EngineCase c = find(tenantCode, symptomId);
         if (c.closedAt() == null) {
-            forget.closed(tenantCode, c.assetId(), c.definitionId(), c.tripId());
             Instant at = clock.instant();
-            if (store.close(tenantCode, c.id(), actor, at)) {
+            OperatorClose how = new OperatorClose(c.tripId(), at, c.level(), invalidated);
+            forget.closed(tenantCode, c.assetId(), c.definitionId(), how);
+            if (store.close(tenantCode, c.id(), actor, at, how)) {
                 events.closedByOperator(tenantCode, c, actor, at);
             }
         }

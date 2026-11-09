@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.store;
 import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
 
 import com.microboxlabs.miot.symptoms.evaluator.Episode;
+import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Lifecycle;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
@@ -29,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -112,6 +114,29 @@ public class PgTransitionLog implements TransitionLog {
 
     PgTransitionLog(Supplier<Pool> pool) {
         this.pool = pool;
+    }
+
+    /** The symptom's newest OPENED or CLOSED row on the vehicle. */
+    private static final String LAST_CASE_ROW = """
+            SELECT kind, trip_id, at, context FROM miot_symptoms.signal_transitions
+             WHERE tenant_code = $1 AND definition_id = $2 AND asset_id = $3 AND kind IN ('OPENED', 'CLOSED')
+             ORDER BY id DESC LIMIT 1
+            """;
+
+    @Override
+    public Optional<OperatorClose> lastOperatorClose(String tenantCode, String assetId, UUID definitionId) {
+        var rows = pool.get().preparedQuery(LAST_CASE_ROW).execute(Tuple.of(tenantCode, definitionId, assetId))
+                .await().atMost(QUERY_TIMEOUT).iterator();
+        if (!rows.hasNext()) {
+            return Optional.empty();
+        }
+        Row row = rows.next();
+        JsonObject context = row.getJsonObject("context");
+        if (!"CLOSED".equals(row.getString("kind")) || context == null) {
+            return Optional.empty();
+        }
+        return OperatorClose.fromContext(row.getString("trip_id"), row.getOffsetDateTime("at").toInstant(),
+                context.getMap());
     }
 
     @Override

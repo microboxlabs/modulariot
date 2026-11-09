@@ -35,6 +35,10 @@ import java.util.UUID;
  * {@code case.condition_s} counts from its first signal, {@code case.normal_s}
  * from the first signal after it stopped, and is -1 while it holds. The
  * lifecycle opens and closes the case.</li>
+ * <li>After an operator closes a case on a trip ({@link OperatorClose}), the symptom opens no new case on that
+ * vehicle and trip while the condition holds, unless the level rises above {@link Episode#reopenAbove()} (the
+ * closed case's level after a handled close, none after an invalidation). One signal where the condition does not
+ * hold ends the block. Without an episode, the block is read back from the log's last CLOSED row.</li>
  * <li>Per vehicle and source, a signal not newer than the last one applied is
  * ignored. A case's level only rises, unless the lifecycle lets it follow the
  * measure down while the condition holds. After a case closes, a condition that
@@ -361,6 +365,15 @@ public class SignalEvaluator {
         }
         Episode e = found.orElseGet(() -> Episode.start(s.definitionId(), s.version(), assetId));
         Reading r = read(s, e, root, at);
+        if (found.isEmpty() && r.active()) {
+            // No episode while the condition holds: after a restart, the operator's close is read back from the log.
+            Optional<Episode> marker = store.lastOperatorClose(tenantCode, assetId, s.definitionId())
+                    .map(c -> c.marker(s.definitionId(), assetId));
+            if (marker.isPresent()) {
+                e = marker.get();
+                r = read(s, e, root, at);
+            }
+        }
         boolean held = s.state() == SymptomState.ACTIVE
                 && holds.held(tenantCode, assetId, s.definitionId(), e.openedAt());
         Step next = e.open() ? whileOpen(s, e, at, r, held, root) : whileClosed(s, e, at, r, held, root);
@@ -443,13 +456,21 @@ public class SignalEvaluator {
         // An operator's close holds for the trip it was on; another trip, or none, clears it.
         String marker = e.closedOnTrip() != null && e.closedOnTrip().equals(tripId(root)) ? e.closedOnTrip() : null;
         Instant markedAt = marker == null ? null : e.closedOnTripAt();
+        // The block lasts while the condition holds on that trip; one normal signal ends it.
+        Integer reopenAbove = marker != null && r.active() ? e.reopenAbove() : null;
+        if (reopenAbove != null && r.level() <= reopenAbove) {
+            return new Step(new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
+                    r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0, null, marker, markedAt, null,
+                    null, null, false, reopenAbove), null);
+        }
         if (r.active()
                 && condition(s.open(), lifecycleVars(root,
                         caseFields(r.conditionSince(), r.normalSince(), null, r.level(), at, marker, markedAt)),
                         "lifecycle.open")) {
             if (held) {
                 Episode kept = new Episode(s.definitionId(), s.version(), e.assetId(), null, r.conditionSince(),
-                        r.normalSince(), Map.of(), at, null, r.level(), 0, marker, markedAt);
+                        r.normalSince(), Map.of(), at, null, r.level(), 0, null, marker, markedAt, null, null, null,
+                        false, reopenAbove);
                 Transition evidence = e.level() == 0
                         ? transition(Kind.HELD, s, e.assetId(), at, r.level(), 0, r.measure())
                         : null;
@@ -462,7 +483,8 @@ public class SignalEvaluator {
             return new Step(opened, transition(Kind.OPENED, s, e.assetId(), at, initial, 0, r.measure()));
         }
         return new Step(new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
-                r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0, marker, markedAt), null);
+                r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0, null, marker, markedAt, null,
+                null, null, false, reopenAbove), null);
     }
 
     /** The trip id the source carries ({@code signal.trip.id}, {@code check.trip.id}), or null. */

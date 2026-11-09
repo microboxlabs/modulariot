@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -28,6 +29,14 @@ public interface TransitionLog {
 
     /** The durable identity and evidence of a legacy case's opening. */
     record Opening(String tripId, Map<String, Object> context) {
+    }
+
+    /**
+     * The operator's close of the symptom's newest case on the vehicle, read from that case's CLOSED row; empty when
+     * the newest case is open, was closed by the engine, or there is none.
+     */
+    default Optional<OperatorClose> lastOperatorClose(String tenantCode, String assetId, UUID definitionId) {
+        return Optional.empty();
     }
 
     /** Called once per legacy open episode; stores without opening history keep the identity unknown. */

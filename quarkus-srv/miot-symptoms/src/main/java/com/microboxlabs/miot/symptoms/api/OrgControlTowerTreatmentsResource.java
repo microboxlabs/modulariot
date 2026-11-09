@@ -4,6 +4,8 @@ import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import com.microboxlabs.miot.symptoms.cases.HoldService;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
+import com.microboxlabs.miot.symptoms.domain.ActionKind;
+import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import io.quarkus.security.PermissionsAllowed;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
@@ -145,10 +147,16 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
                     ? current
                     : treatments.close(tenant, actor, treatmentId, body);
             if (engineCase) {
-                cases.close(tenant, closed.symptomId(), actor);
+                cases.close(tenant, closed.symptomId(), actor, invalidated(closed));
             }
             return Response.ok(closed).build();
         });
+    }
+
+    /** An invalidation blocks the symptom's next case while its condition holds; see {@link EngineCaseService}. */
+    private static boolean invalidated(TreatmentView t) {
+        return t.type() == TreatmentType.INVALIDATE_SYMPTOM
+                || (t.actions() != null && t.actions().stream().anyMatch(a -> a.kind() == ActionKind.INVALIDATE));
     }
 
     @POST

@@ -83,6 +83,12 @@ public interface EngineCaseStore {
      */
     boolean close(String tenantCode, long caseId, String actor, Instant at);
 
+    /** As {@link #close(String, long, String, Instant)}, and the CLOSED row keeps how the operator closed it. */
+    default boolean close(String tenantCode, long caseId, String actor, Instant at,
+            com.microboxlabs.miot.symptoms.evaluator.OperatorClose how) {
+        return close(tenantCode, caseId, actor, at);
+    }
+
     /**
      * Closes each open case whose state is no longer its symptom's state, as when the symptom moved between TEST
      * and ACTIVE or was turned off, and returns the cases it closed. Each gets a CLOSED transition in its own state

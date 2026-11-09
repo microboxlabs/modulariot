@@ -29,6 +29,7 @@ import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
 import com.microboxlabs.miot.symptoms.dto.CloseTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.OpenTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
+import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog.Place;
@@ -267,6 +268,31 @@ class PgCaseStateTest {
                 .await().atMost(WAIT).iterator().next();
         assertEquals("TEST", row.getString("state"));
         assertEquals("ops@example.com", row.getString("closed_by"));
+    }
+
+    @Test
+    void theOperatorsCloseIsReadBackUntilTheNextCaseOpens() {
+        setState(SymptomState.ACTIVE);
+        Place onTrip = new Place("T-1", -33.4, -70.6, 80.0, null);
+        long caseId = log.append(TENANT, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE,
+                TRUCK, T0, 4, 0, 5)), onTrip).get(0).caseId();
+        assertEquals(Optional.empty(), log.lastOperatorClose(TENANT, TRUCK, speeding), "the case is open");
+
+        caseService.close(TENANT, -caseId, "ops@example.com", true);
+
+        assertEquals(Optional.of(new OperatorClose("T-1", T0.plusSeconds(600), 4, true)),
+                log.lastOperatorClose(TENANT, TRUCK, speeding));
+        log.append(TENANT, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE, TRUCK,
+                T0.plusSeconds(900), 1, 0, 5)), onTrip);
+        assertEquals(Optional.empty(), log.lastOperatorClose(TENANT, TRUCK, speeding), "a newer case opened");
+    }
+
+    @Test
+    void aCaseTheEngineClosesIsNotAnOperatorsClose() {
+        setState(SymptomState.ACTIVE);
+        append(Kind.OPENED, SymptomState.ACTIVE, 0, 2);
+        append(Kind.CLOSED, SymptomState.ACTIVE, 60, 2);
+        assertEquals(Optional.empty(), log.lastOperatorClose(TENANT, TRUCK, speeding));
     }
 
     @Test

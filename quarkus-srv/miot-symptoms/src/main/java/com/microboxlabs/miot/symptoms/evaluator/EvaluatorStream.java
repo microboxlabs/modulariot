@@ -565,7 +565,7 @@ public class EvaluatorStream {
      * meets the condition opens a new case.
      */
     public void forget(String tenant, String assetId, java.util.UUID definitionId) {
-        forget(tenant, assetId, definitionId, null);
+        forget(tenant, assetId, definitionId, (Episode) null);
     }
 
     /**
@@ -573,7 +573,19 @@ public class EvaluatorStream {
      * reads {@code case.closed_on_trip} true while the vehicle stays on that trip.
      */
     public void forget(String tenant, String assetId, java.util.UUID definitionId, String tripId) {
-        Episode marker = tripId == null ? null : Episode.closedOnTrip(definitionId, assetId, tripId, clock.instant());
+        forget(tenant, assetId, definitionId, tripId == null ? null : Episode.closedOnTrip(definitionId, assetId,
+                tripId, clock.instant()));
+    }
+
+    /**
+     * As {@link #forget(String, String, java.util.UUID, String)}, and while the condition holds on the case's trip
+     * the symptom opens a new case only above the close's {@link OperatorClose#reopenAbove()}.
+     */
+    public void closedByOperator(String tenant, String assetId, java.util.UUID definitionId, OperatorClose close) {
+        forget(tenant, assetId, definitionId, close.marker(definitionId, assetId));
+    }
+
+    private void forget(String tenant, String assetId, java.util.UUID definitionId, Episode marker) {
         // Reset counters before exposing a closed episode, so an interleaved frame cannot reopen from old duty.
         if (dutySymptoms(tenant).stream().anyMatch(s -> s.definitionId().equals(definitionId)
                 && DutyChecks.readsDuty(s))) {

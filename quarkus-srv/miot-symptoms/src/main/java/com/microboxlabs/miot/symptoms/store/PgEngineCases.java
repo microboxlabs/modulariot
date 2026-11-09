@@ -363,9 +363,9 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String CLOSE = """
             INSERT INTO miot_symptoms.signal_transitions
                 (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure,
-                 trip_id, latitude, longitude, speed_kmh, closed_by)
+                 trip_id, latitude, longitude, speed_kmh, closed_by, context)
             SELECT o.tenant_code, o.definition_id, o.version, o.state, 'CLOSED', o.asset_id, $3, o.level, o.level,
-                   o.measure, o.trip_id, o.latitude, o.longitude, o.speed_kmh, $4
+                   o.measure, o.trip_id, o.latitude, o.longitude, o.speed_kmh, $4, $5::jsonb
               FROM miot_symptoms.signal_transitions o
              WHERE o.tenant_code = $1 AND o.id = $2 AND o.kind = 'OPENED'
                AND NOT EXISTS (
@@ -726,11 +726,19 @@ public class PgEngineCases implements EngineCaseStore {
      */
     @Override
     public boolean close(String tenantCode, long caseId, String actor, Instant at) {
+        return close(tenantCode, caseId, actor, at, null);
+    }
+
+    /** The row's context records how the operator closed the case, so a restart keeps the reopen block. */
+    @Override
+    public boolean close(String tenantCode, long caseId, String actor, Instant at,
+            com.microboxlabs.miot.symptoms.evaluator.OperatorClose how) {
+        JsonObject context = how == null ? null : new JsonObject(how.context());
         return pool.get().withTransaction(conn -> conn.preparedQuery(LOCK_DEFINITION)
                 .execute(Tuple.of(tenantCode, caseId))
                 .flatMap(locked -> conn.preparedQuery(LOCK).execute(Tuple.of(tenantCode, caseId)))
                 .flatMap(locked -> conn.preparedQuery(CLOSE)
-                        .execute(Tuple.of(tenantCode, caseId, at.atOffset(ZoneOffset.UTC), actor)))
+                        .execute(Tuple.of(tenantCode, caseId, at.atOffset(ZoneOffset.UTC), actor, context)))
                 .map(rows -> rows.iterator().hasNext()))
                 .await().atMost(QUERY_TIMEOUT);
     }

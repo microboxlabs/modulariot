@@ -170,6 +170,8 @@ When `trip_live.asset_id` changes on a trip that is still running, the trip's op
 
 The old vehicle's check leaves the trip out. The current vehicle's cases stay open. Case rows and the case header carry `trip_asset_id`, the trip's current plate, so the tower can show both plates.
 
+The transition log and truck-change close lock the trip and its live assignment before writing. A check taken before a truck change cannot open a case on the replaced vehicle. A close whose assignment snapshot is stale retries without writing, so a delayed notice cannot close the vehicle the trip moved back to.
+
 The close rule (`case.normal_s`, `case.off_trip_s`) cannot do this: the lost check runs only with the trip the newest frame carried, and a parked truck sends no frame.
 
 ### Platform template (V0.12.4)

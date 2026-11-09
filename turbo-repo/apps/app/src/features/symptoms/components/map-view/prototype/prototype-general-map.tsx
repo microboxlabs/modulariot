@@ -10,8 +10,7 @@ import MapVisualizationTrip, {
 } from "@/features/geographic-view/components/map-visualization-trip";
 import type { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
 import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
-import { chipText, plateChip } from "./header-chip";
-import { tripPlateNow } from "@/features/symptoms/model/plate-change";
+import { chipText, plateTag } from "./header-chip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../../hooks/use-treatments-general";
 import { useEffect, useMemo, useState } from "react";
@@ -299,18 +298,10 @@ export default function PrototypeGeneralMap({
                     ),
                   },
                   {
-                    text: plateChip(
-                      chipText(
-                        loading,
-                        treatmentData?.trip_info?.asset_id ?? assetId,
-                        symptomsDict.license_plate as string
-                      ),
-                      loading
-                        ? null
-                        : tripPlateNow(
-                            treatmentData?.trip_info?.asset_id ?? assetId,
-                            treatmentData?.trip_info?.trip_asset_id
-                          ),
+                    ...plateTag(
+                      loading,
+                      treatmentData?.trip_info?.asset_id ?? assetId,
+                      treatmentData?.trip_info?.trip_asset_id,
                       dict
                     ),
                     icon: <FaTruck className="text-gray-900 dark:text-white" />,

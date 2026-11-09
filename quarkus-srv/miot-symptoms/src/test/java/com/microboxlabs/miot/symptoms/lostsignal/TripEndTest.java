@@ -48,6 +48,7 @@ class TripEndTest {
         final Map<String, State> states = new HashMap<>();
         final Set<Integer> closed = new HashSet<>();
         int reads;
+        int closeFailures;
 
         @Override
         public Map<String, State> states(Map<String, String> tripByTenant) {
@@ -79,6 +80,10 @@ class TripEndTest {
         @Override
         public List<StaleCase> closeOthers(String tenant, String tripId, List<UUID> definitionIds, String keepAsset,
                 Instant at) {
+            if (closeFailures > 0) {
+                closeFailures--;
+                throw new IllegalStateException("Truck changed again; retry with a fresh trip state");
+            }
             List<StaleCase> out = new ArrayList<>();
             for (int i = 0; i < engine.recorded.size(); i++) {
                 Transition t = engine.recorded.get(i);
@@ -183,6 +188,44 @@ class TripEndTest {
         assertEquals(TripEnds.ASSET_CHANGED, ((SymptomCaseData) engine.fired.get(engine.fired.size() - 1).data())
                 .closedBy());
         assertEquals(1, tripsModule.closed.size());
+        assertNull(store.deadline("V1"));
+    }
+
+    @Test
+    void aTruckChangeBeforeTheFirstLossCheckOpensNothing() {
+        template();
+        frame("T-1", 0);
+        tripsModule.states.put("T-1", new TripEnds.State(false, false, "V2"));
+
+        tickUntil(5000);
+
+        assertTrue(engine.recorded.isEmpty());
+        assertTrue(engine.fired.isEmpty());
+        assertNull(store.deadline("V1"));
+    }
+
+    @Test
+    void aRejectedTruckChangeCloseKeepsTheCaseAndDeadlineForAFreshRetry() {
+        template();
+        frame("T-1", 0);
+        tickUntil(1830);
+        int recorded = engine.recorded.size();
+        tripsModule.states.put("T-1", new TripEnds.State(false, false, "V2"));
+        tripsModule.closeFailures = 1;
+
+        clock.set(T0.plusSeconds(1900));
+        detector.tick();
+
+        assertTrue(tripsModule.closed.isEmpty(), "a stale close writes nothing");
+        assertEquals(1, store.vehicle("V1").check().cases().size(), "the open case is still tracked");
+        assertTrue(store.deadline("V1").isBefore(clock.instant()), "the failed check remains due");
+
+        detector.tick();
+
+        assertEquals(1, tripsModule.closed.size());
+        assertEquals(recorded, engine.recorded.size(), "the retry neither escalates nor reopens the case");
+        assertEquals(TripEnds.ASSET_CHANGED,
+                ((SymptomCaseData) engine.fired.get(engine.fired.size() - 1).data()).closedBy());
         assertNull(store.deadline("V1"));
     }
 

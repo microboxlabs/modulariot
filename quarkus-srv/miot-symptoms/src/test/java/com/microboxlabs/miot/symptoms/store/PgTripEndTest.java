@@ -167,6 +167,49 @@ class PgTripEndTest {
     }
 
     @Test
+    void aCheckReadBeforeATruckChangeCannotOpenACaseAfterTheNotice() {
+        UUID id = trip("in_progress");
+        UUID definition = symptom("truck-opening-race");
+        PgIds.query(pool, "INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id) VALUES ($1, $2, 'OLD')",
+                Tuple.of(id, tenant));
+        assertEquals("OLD", ends.states(Map.of(tenant, id.toString())).get(tenant).assetId());
+        PgIds.query(pool, "UPDATE miot_trips.trip_live SET asset_id = 'NEW' WHERE trip_id = $1", Tuple.of(id));
+        assertTrue(ends.closeOthers(tenant, id.toString(), List.of(definition), "NEW", now).isEmpty());
+
+        Transition opening = new Transition(Kind.OPENED, definition, "1.0.0", SymptomState.ACTIVE,
+                "OLD", now, 1, 0, 30);
+        List<Transition> changes = List.of(opening);
+        TransitionLog.Place place = new TransitionLog.Place(id.toString(), null, null, null, null);
+        assertThrows(IllegalStateException.class, () -> log.appendTripCheck(tenant, changes, place, null));
+        assertTrue(cases.open(tenant).isEmpty(), "no phantom case on the replaced truck");
+
+        Transition current = new Transition(Kind.OPENED, definition, "1.0.0", SymptomState.ACTIVE,
+                "new", now, 1, 0, 30);
+        assertEquals(1, log.appendTripCheck(tenant, List.of(current), place, null).size(),
+                "the current truck can still open a case, regardless of plate casing");
+    }
+
+    @Test
+    void aDelayedTruckChangeCloseCannotCloseTheTripsCurrentTruck() {
+        UUID id = trip("in_progress");
+        UUID definition = symptom("truck-closing-race");
+        PgIds.query(pool, "INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id) VALUES ($1, $2, 'NEW')",
+                Tuple.of(id, tenant));
+        long old = open(definition, "OLD", id.toString(), 2);
+        long current = open(definition, "NEW", id.toString(), 1);
+        String snapshot = ends.states(Map.of(tenant, id.toString())).get(tenant).assetId();
+        PgIds.query(pool, "UPDATE miot_trips.trip_live SET asset_id = 'OLD' WHERE trip_id = $1", Tuple.of(id));
+
+        List<UUID> definitions = List.of(definition);
+        String tripId = id.toString();
+        assertThrows(IllegalStateException.class, () -> ends.closeOthers(tenant, tripId, definitions, snapshot, now));
+        assertNull(cases.find(tenant, old).orElseThrow().closedAt(), "the trip is back on the old truck");
+        assertNull(cases.find(tenant, current).orElseThrow().closedAt(), "a stale close writes nothing");
+        assertEquals(List.of(current), ends.closeOthers(tenant, tripId, definitions, "OLD", now).stream()
+                .map(StaleCase::id).toList(), "a fresh retry closes only the replaced truck");
+    }
+
+    @Test
     void aFailedCloseObserverLeavesDurableEffectsForANewReplica() {
         ends.retry(ignored -> { });
         UUID definition = symptom("observer-retry");
@@ -292,6 +335,7 @@ class PgTripEndTest {
 
     @Test
     void aTruckChangeClosesOnlyTheOldTrucksCases() {
+        ends.retry(ignored -> { });
         UUID lost = symptom("signal-loss");
         UUID tripId = trip("in_progress");
         PgIds.query(pool, "INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id) VALUES ($1, $2, 'KGXR80')",

@@ -13,9 +13,11 @@ import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgException;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -352,6 +354,9 @@ public class PgEngineCases implements EngineCaseStore {
             """;
     private static final String TRIP_STATE_LOCK = """
             SELECT id FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2 FOR SHARE
+            """;
+    private static final String TRIP_ASSET_LOCK = """
+            SELECT asset_id FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id = $2 FOR SHARE
             """;
 
     /**
@@ -722,6 +727,7 @@ public class PgEngineCases implements EngineCaseStore {
         }
         return pool.get().withTransaction(conn -> conn.preparedQuery(TRIP_STATE_LOCK)
                 .execute(Tuple.of(tenantCode, TripEnds.uuid(tripId)))
+                .flatMap(locked -> lockTripAsset(conn, tenantCode, tripId, keepAsset))
                 .flatMap(locked -> conn.preparedQuery(TRIP_DEFINITIONS).execute(Tuple.of(tenantCode, ids)))
                 .flatMap(locked -> conn.preparedQuery(LOCK_TRIP).execute(Tuple.of(tenantCode, tripId, ids, keepAsset)))
                 .emitOn(Infrastructure.getDefaultWorkerPool())
@@ -731,6 +737,20 @@ public class PgEngineCases implements EngineCaseStore {
                                 snapshots, keepAsset})))
                 .map(PgEngineCases::staleCases))
                 .await().atMost(QUERY_TIMEOUT);
+    }
+
+    /** A delayed truck-change notice must never close the truck the trip moved back to. */
+    private static Uni<Void> lockTripAsset(SqlConnection conn, String tenant, String tripId, String keepAsset) {
+        if (keepAsset == null) {
+            return Uni.createFrom().voidItem();
+        }
+        return conn.preparedQuery(TRIP_ASSET_LOCK).execute(Tuple.of(tenant, TripEnds.uuid(tripId)))
+                .invoke(rows -> {
+                    var iterator = rows.iterator();
+                    if (!iterator.hasNext() || !keepAsset.equalsIgnoreCase(iterator.next().getString("asset_id"))) {
+                        throw new IllegalStateException("Trip truck changed again; retry with a fresh trip state");
+                    }
+                }).replaceWithVoid();
     }
 
     private static JsonArray closingFrames(Iterable<Row> rows, Function<StaleCase, ClosingFrame> frames) {

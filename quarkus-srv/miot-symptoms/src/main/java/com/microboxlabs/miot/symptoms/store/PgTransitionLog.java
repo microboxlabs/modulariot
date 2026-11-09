@@ -43,6 +43,9 @@ public class PgTransitionLog implements TransitionLog {
     private static final String CHECK_TRIP = """
             SELECT status FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2 FOR SHARE
             """;
+    private static final String CHECK_TRIP_ASSET = """
+            SELECT asset_id FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id = $2 FOR SHARE
+            """;
 
     /** State changes and sweeps wait for in-flight writes; vehicles still evaluate concurrently. */
     private static final String LOCK_DEFINITION = """
@@ -152,7 +155,7 @@ public class PgTransitionLog implements TransitionLog {
         }
         JsonObject json = context == null ? null : new JsonObject(context);
         return pool.get().withTransaction(conn -> {
-            Uni<Void> locks = lockTrip(conn, tenantCode, place, checkTrip);
+            Uni<Void> locks = lockTrip(conn, tenantCode, place, checkTrip, transitions);
             // Stable lock order also covers batches spanning more than one definition or vehicle.
             for (Transition t : transitions.stream().sorted(Comparator
                     .comparing((Transition t) -> t.definitionId().toString()).thenComparing(Transition::assetId))
@@ -177,8 +180,9 @@ public class PgTransitionLog implements TransitionLog {
         }).await().atMost(QUERY_TIMEOUT);
     }
 
-    /** A lost-signal check must not open a case from a trip-state snapshot taken before completion. */
-    private static Uni<Void> lockTrip(SqlConnection conn, String tenant, Place place, boolean checkTrip) {
+    /** A lost-signal check must retry a snapshot taken before completion or a truck change. */
+    private static Uni<Void> lockTrip(SqlConnection conn, String tenant, Place place, boolean checkTrip,
+            List<Transition> transitions) {
         if (!checkTrip) {
             return Uni.createFrom().voidItem();
         }
@@ -191,6 +195,17 @@ public class PgTransitionLog implements TransitionLog {
                     String status = iterator.next().getString("status");
                     if ("completed".equals(status) || "cancelled".equals(status)) {
                         throw new IllegalStateException("Trip ended; retry the lost-signal check");
+                    }
+                })
+                // Read the projection after acquiring the trip lock, so a change we waited for is visible.
+                .flatMap(ignored -> conn.preparedQuery(CHECK_TRIP_ASSET)
+                        .execute(Tuple.of(tenant, TripEnds.uuid(place.tripId()))))
+                .invoke(rows -> {
+                    for (Row row : rows) {
+                        String asset = row.getString("asset_id");
+                        if (asset != null && transitions.stream().anyMatch(t -> !asset.equalsIgnoreCase(t.assetId()))) {
+                            throw new IllegalStateException("Trip truck changed; retry the lost-signal check");
+                        }
                     }
                 }).replaceWithVoid();
     }

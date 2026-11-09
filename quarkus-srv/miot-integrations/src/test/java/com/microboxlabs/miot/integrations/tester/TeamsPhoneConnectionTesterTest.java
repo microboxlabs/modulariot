@@ -85,6 +85,43 @@ class TeamsPhoneConnectionTesterTest {
     }
 
     @Test
+    void saysHowManyCallsEachReportReturned() {
+        http.reply("/v1.0/communications/callRecords/getPstnCalls", 200, "{\"value\":[]}")
+                .reply("/v1.0/communications/callRecords/getDirectRoutingCalls", 200,
+                        "{\"value\":[{\"id\":\"d1\"},{\"id\":\"d2\"}]}");
+
+        ConnectionTestResponse response = tester.test(connection(Map.of()), credential(ENTRA), null);
+
+        assertTrue(response.success(), response.message());
+        assertTrue(response.message().contains("PSTN: 0, Direct Routing: 2"), response.message());
+        assertEquals(2, http.seen().size());
+    }
+
+    @Test
+    void aReportWithMorePagesShowsAPlusAndNotYetPublishedCountsAsNone() {
+        http.reply("/v1.0/communications/callRecords/getPstnCalls", 404, "{}")
+                .reply("/v1.0/communications/callRecords/getDirectRoutingCalls", 200,
+                        "{\"value\":[{\"id\":\"d1\"}],\"@odata.nextLink\":\"https://graph.test/next\"}");
+
+        ConnectionTestResponse response = tester.test(connection(Map.of()), credential(ENTRA), null);
+
+        assertTrue(response.success(), response.message());
+        assertTrue(response.message().contains("PSTN: 0, Direct Routing: 1+"), response.message());
+    }
+
+    @Test
+    void aRefusedDirectRoutingReportFails() {
+        http.reply("/v1.0/communications/callRecords/getPstnCalls", 200, "{\"value\":[]}")
+                .reply("/v1.0/communications/callRecords/getDirectRoutingCalls", 403, "{}");
+
+        ConnectionTestResponse response = tester.test(connection(Map.of()), credential(ENTRA), null);
+
+        assertFalse(response.success());
+        assertTrue(response.message().contains("Direct Routing"), response.message());
+        assertTrue(response.message().contains("CallRecords.Read.All"), response.message());
+    }
+
+    @Test
     void aMissingPermissionSaysWhichOne() {
         http.reply("/v1.0/communications/callRecords/getPstnCalls", 403, "{\"error\":{}}");
 

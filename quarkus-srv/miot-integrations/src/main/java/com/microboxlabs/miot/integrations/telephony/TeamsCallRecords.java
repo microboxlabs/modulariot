@@ -3,6 +3,7 @@ package com.microboxlabs.miot.integrations.telephony;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.telephony.PstnCall;
+import com.microboxlabs.miot.core.telephony.PstnCall.Report;
 import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
 import com.microboxlabs.miot.integrations.auth.AuthResolutionException;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthRegistry;
@@ -23,6 +24,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.io.IOException;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -31,9 +33,11 @@ import java.util.Map;
 import java.util.function.BiFunction;
 
 /**
- * Reads PSTN call records through a TEAMS_PHONE connection: an app token from its Entra credential, then
- * {@code getPstnCalls} for the window, following at most {@link #MAX_PAGES} pages. A 404 means the records
- * are not there yet and answers an empty list.
+ * Reads PSTN call records through a TEAMS_PHONE connection: an app token from its Entra credential, then both
+ * Graph reports for the window, {@code getPstnCalls} (Calling Plans, Operator Connect) and
+ * {@code getDirectRoutingCalls} (the organization's own carrier), each following at most {@link #MAX_PAGES} pages.
+ * A 404 means the records are not there yet and counts as an empty report. Any other failure of either report
+ * fails the lookup, since a match needs the complete list.
  */
 @ApplicationScoped
 public class TeamsCallRecords {
@@ -97,37 +101,8 @@ public class TeamsCallRecords {
             throw new TelephonyUnavailableException("Microsoft Entra did not issue a token: " + e.getMessage());
         }
         try {
-            List<PstnCall> calls = new ArrayList<>();
-            HttpResponse<String> response = graph.pstnCalls(headers, from, to);
-            for (int page = 0; page < MAX_PAGES; page++) {
-                int status = response.statusCode();
-                if (status == 404) {
-                    return List.copyOf(calls);
-                }
-                if (status == 401 || status == 403) {
-                    throw new TelephonyUnavailableException(
-                            "Graph returned HTTP " + status + ": the app needs CallRecords.Read.All");
-                }
-                if (status < 200 || status >= 300) {
-                    throw new TelephonyUnavailableException("Graph returned HTTP " + status + " for the PSTN calls");
-                }
-                JsonNode body = read(response.body());
-                if (body == null || !body.path("value").isArray()) {
-                    throw new TelephonyUnavailableException("Graph returned an invalid PSTN call list");
-                }
-                for (JsonNode row : body.path("value")) {
-                    calls.add(call(row));
-                }
-                String next = body.path("@odata.nextLink").asText("");
-                if (next.isBlank()) {
-                    break;
-                }
-                if (page + 1 == MAX_PAGES) {
-                    throw new TelephonyUnavailableException("The Graph PSTN lookup exceeded its page limit;"
-                            + " reconciliation requires a complete call list");
-                }
-                response = graph.next(headers, next);
-            }
+            List<PstnCall> calls = new ArrayList<>(read(Report.PSTN, headers, from, to));
+            calls.addAll(read(Report.DIRECT_ROUTING, headers, from, to));
             return List.copyOf(calls);
         } catch (IOException e) {
             throw new TelephonyUnavailableException("Could not reach Microsoft Graph: " + e.getMessage());
@@ -137,10 +112,71 @@ public class TeamsCallRecords {
         }
     }
 
-    private static PstnCall call(JsonNode row) {
+    private List<PstnCall> read(Report report, Map<String, String> headers, Instant from, Instant to)
+            throws IOException, InterruptedException {
+        String name = report == Report.PSTN ? "PSTN" : "Direct Routing";
+        List<PstnCall> calls = new ArrayList<>();
+        HttpResponse<String> response = report == Report.PSTN ? graph.pstnCalls(headers, from, to)
+                : graph.directRoutingCalls(headers, from, to);
+        for (int page = 0; page < MAX_PAGES; page++) {
+            int status = response.statusCode();
+            if (status == 404) {
+                return calls;
+            }
+            if (status == 401 || status == 403) {
+                throw new TelephonyUnavailableException(
+                        "Graph returned HTTP " + status + ": the app needs CallRecords.Read.All");
+            }
+            if (status < 200 || status >= 300) {
+                throw new TelephonyUnavailableException("Graph returned HTTP " + status + " for the " + name
+                        + " calls");
+            }
+            JsonNode body = parse(response.body());
+            if (body == null || !body.path("value").isArray()) {
+                throw new TelephonyUnavailableException("Graph returned an invalid " + name + " call list");
+            }
+            for (JsonNode row : body.path("value")) {
+                calls.add(report == Report.PSTN ? pstnCall(row) : directRoutingCall(row));
+            }
+            String next = body.path("@odata.nextLink").asText("");
+            if (next.isBlank()) {
+                break;
+            }
+            if (page + 1 == MAX_PAGES) {
+                throw new TelephonyUnavailableException("The Graph " + name + " lookup exceeded its page limit;"
+                        + " reconciliation requires a complete call list");
+            }
+            response = graph.next(headers, next);
+        }
+        return calls;
+    }
+
+    private static PstnCall pstnCall(JsonNode row) {
         return new PstnCall(text(row, "id"), text(row, "callId"), text(row, "userPrincipalName"),
                 number(text(row, "callerNumber")), number(text(row, "calleeNumber")), time(row, "startDateTime"),
                 time(row, "endDateTime"), row.path("duration").asInt(0), text(row, "callType"));
+    }
+
+    /**
+     * A {@code directRoutingLogRow}. Its {@code duration} runs from the invite, ringing included, so the connected
+     * seconds are taken from {@code startDateTime} (the answer) to {@code endDateTime} of a successful call; a
+     * failed call connected 0 seconds and ended at {@code failureDateTime}.
+     */
+    static PstnCall directRoutingCall(JsonNode row) {
+        JsonNode success = row.path("successfulCall");
+        Boolean answered = success.isBoolean() ? success.asBoolean() : null;
+        Instant start = time(row, "startDateTime");
+        Instant end = time(row, "endDateTime");
+        int seconds = row.path("duration").asInt(0);
+        if (Boolean.FALSE.equals(answered)) {
+            seconds = 0;
+        } else if (Boolean.TRUE.equals(answered) && start != null && end != null && !end.isBefore(start)) {
+            seconds = (int) Duration.between(start, end).toSeconds();
+        }
+        return new PstnCall(text(row, "id"), text(row, "correlationId"), text(row, "userPrincipalName"),
+                number(text(row, "callerNumber")), number(text(row, "calleeNumber")), start,
+                end != null ? end : time(row, "failureDateTime"), seconds, text(row, "callType"), answered,
+                Report.DIRECT_ROUTING);
     }
 
     private static String number(String value) {
@@ -162,7 +198,7 @@ public class TeamsCallRecords {
         }
     }
 
-    private JsonNode read(String body) {
+    private JsonNode parse(String body) {
         try {
             return json.readTree(body == null ? "{}" : body);
         } catch (IOException e) {

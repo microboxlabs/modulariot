@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.telephony;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -42,6 +43,88 @@ class TeamsCallRecordsTest {
                 () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
     }
 
+    @Test
+    void readsBothReportsAndMapsDirectRoutingRows() {
+        http.reply(PATH, 200, "{\"value\":[" + row("p1", "+56911111111", 42) + "]}")
+                .reply(DR_PATH, 200, "{\"value\":[" + directRoutingRow("d1", "ByotOut", true,
+                        "\"endDateTime\":\"2026-11-04T10:02:05Z\"", 80) + ","
+                        + directRoutingRow("d2", "ByotIn", false, "\"failureDateTime\":\"2026-11-04T10:01:20Z\"", 15)
+                        + "]}");
+
+        List<PstnCall> calls = records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600));
+
+        assertEquals(List.of("p1", "d1", "d2"), calls.stream().map(PstnCall::id).toList());
+        PstnCall pstn = calls.get(0);
+        assertEquals(PstnCall.Report.PSTN, pstn.report());
+        assertTrue(pstn.outbound());
+        PstnCall answered = calls.get(1);
+        assertEquals(PstnCall.Report.DIRECT_ROUTING, answered.report());
+        assertEquals("corr-d1", answered.callId());
+        assertEquals("ana@example.com", answered.userPrincipalName());
+        assertEquals("+56900000000", answered.callerNumber());
+        assertEquals("+56911111111", answered.calleeNumber());
+        assertEquals(Instant.parse("2026-11-04T10:01:05Z"), answered.start());
+        assertEquals(Instant.parse("2026-11-04T10:02:05Z"), answered.end());
+        assertEquals(60, answered.durationSeconds(), "answer to end, not the ringing from the invite");
+        assertEquals(Boolean.TRUE, answered.answered());
+        assertTrue(answered.outbound());
+        PstnCall failed = calls.get(2);
+        assertEquals(0, failed.durationSeconds());
+        assertEquals(Boolean.FALSE, failed.answered());
+        assertEquals(Instant.parse("2026-11-04T10:01:20Z"), failed.end());
+        assertFalse(failed.outbound());
+        assertTrue(http.seen().get(1).request().uri().toString().contains(
+                "/getDirectRoutingCalls(fromDateTime=2026-11-04T10:00:00Z,toDateTime=2026-11-04T10:10:00Z)"));
+        assertEquals("Bearer app-token", http.seen().get(1).header("Authorization"));
+    }
+
+    @Test
+    void directRoutingPagesAreFollowed() {
+        http.reply(PATH, 404, "{}")
+                .reply("/dr-next", 200, "{\"value\":[" + directRoutingRow("d2", "ByotOut", true,
+                        "\"endDateTime\":\"2026-11-04T10:02:05Z\"", 80) + "]}")
+                .reply(DR_PATH, 200, "{\"value\":[" + directRoutingRow("d1", "ByotOut", true,
+                        "\"endDateTime\":\"2026-11-04T10:02:05Z\"", 80) + "],"
+                        + "\"@odata.nextLink\":\"https://graph.test/dr-next\"}");
+
+        assertEquals(List.of("d1", "d2"),
+                records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)).stream().map(PstnCall::id).toList());
+    }
+
+    @Test
+    void aRefusedDirectRoutingReportFailsTheLookup() {
+        http.reply(PATH, 200, "{\"value\":[" + row("p1", "+56911111111", 42) + "]}").reply(DR_PATH, 403, "{}");
+        TelephonyUnavailableException e = assertThrows(TelephonyUnavailableException.class,
+                () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+        assertTrue(e.getMessage().contains("CallRecords.Read.All"));
+    }
+
+    @Test
+    void directRoutingOutboundTypes() {
+        for (String type : List.of("ByotOut", "ByotOutUserForwarding", "ByotOutUserTransfer", "ByotOutUserConf",
+                "dr_out")) {
+            assertTrue(drType(type).outbound(), type);
+        }
+        for (String type : List.of("ByotIn", "dr_in", "dr_in_bot")) {
+            assertFalse(drType(type).outbound(), type);
+        }
+        assertFalse(drType(null).outbound());
+    }
+
+    private static PstnCall drType(String type) {
+        return new PstnCall("d", "c", "ana@example.com", null, null, FROM, FROM, 0, type, true,
+                PstnCall.Report.DIRECT_ROUTING);
+    }
+
+    private static String directRoutingRow(String id, String type, boolean success, String endField, int duration) {
+        return "{\"id\":\"" + id + "\",\"correlationId\":\"corr-" + id + "\","
+                + "\"userPrincipalName\":\"ana@example.com\",\"callerNumber\":\"+56900000000\","
+                + "\"calleeNumber\":\"+56 9 1111 1111\",\"inviteDateTime\":\"2026-11-04T10:00:45Z\","
+                + "\"startDateTime\":\"2026-11-04T10:01:05Z\"," + endField + ",\"duration\":" + duration
+                + ",\"successfulCall\":" + success + ",\"callType\":\"" + type + "\"}";
+    }
+
+    private static final String DR_PATH = "/v1.0/communications/callRecords/getDirectRoutingCalls";
     private static final URI GRAPH = URI.create("https://graph.test");
     private static final String PATH = "/v1.0/communications/callRecords/getPstnCalls";
     private static final Instant FROM = Instant.parse("2026-11-04T10:00:00Z");

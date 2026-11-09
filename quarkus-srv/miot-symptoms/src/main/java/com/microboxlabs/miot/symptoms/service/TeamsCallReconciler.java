@@ -24,12 +24,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Fills the duration and the result of the operator's Teams calls from the Microsoft Graph PSTN call
- * records. A record matches a CALL action only when all of these agree: the Microsoft user is the
+ * Fills the duration and the result of the operator's Teams calls from the Microsoft Graph call records,
+ * PSTN and Direct Routing alike. A record matches a CALL action only when all of these agree: the Microsoft user is the
  * operator, the callee is the number called, it started inside the call's window, and, when the line has
- * a default caller id, the caller is that number. No match, or more than one, leaves the action pending:
+ * a default caller id, the caller is that number; the record must also be an outbound call. No match, or more than one, leaves the action pending:
  * Graph publishes records late, and a record of another operator must never be taken by number and time
- * alone. After {@link #GIVE_UP} without a record the action is marked NOT_FOUND.
+ * alone. After {@link #GIVE_UP} without a record the action is marked NOT_FOUND. The operator's own request and
+ * {@link TeamsCallReconcileJob} both run it.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -109,7 +110,10 @@ public class TeamsCallReconciler {
                 t.put("recordId", key(r));
                 t.put("callId", r.callId());
                 t.put("durationSeconds", r.durationSeconds());
-                if (save(tenantCode, action, r.durationSeconds() > 0, r.durationSeconds(), t)) {
+                if (r.report() != null) {
+                    t.put("report", r.report().name());
+                }
+                if (save(tenantCode, action, r.connected(), r.durationSeconds(), t)) {
                     taken.add(key(r));
                     audit.log(tenantCode, operator, "treatment.call_recorded", "treatment", action.treatmentId(), null,
                             Map.of("actionId", action.id(), "durationSeconds", r.durationSeconds()));
@@ -137,7 +141,7 @@ public class TeamsCallReconciler {
         if (originalConnection != null && !connectionId.equals(originalConnection)) {
             return false;
         }
-        if (r.callType() == null || !r.callType().endsWith("_out")) {
+        if (!r.outbound()) {
             return false;
         }
         String callee = digits(telephony(action).get("calleeNumber"));

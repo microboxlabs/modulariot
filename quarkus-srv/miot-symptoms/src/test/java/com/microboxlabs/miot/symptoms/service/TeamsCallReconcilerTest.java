@@ -91,6 +91,62 @@ class TeamsCallReconcilerTest {
         assertEquals("old-line", TeamsCallReconciler.telephony(stored(call.id())).get("connectionId"));
     }
 
+    @Test
+    void aDirectRoutingRecordFillsDurationAndResult() {
+        TreatmentAction call = pendingCall("+56911111111");
+        records.add(directRouting("dr1", "+56911111111", "ByotOut", true, 61));
+
+        assertEquals(new TeamsCallReconciler.Result(1, 1, 0), reconciler().reconcile(TENANT, OPERATOR));
+        TreatmentAction saved = stored(call.id());
+        assertEquals(61, saved.durationSeconds());
+        assertEquals(Boolean.TRUE, saved.answered());
+        Map<?, ?> t = (Map<?, ?>) saved.details().get("telephony");
+        assertEquals("RECORDED", t.get("status"));
+        assertEquals("dr1", t.get("recordId"));
+        assertEquals("corr-dr1", t.get("callId"));
+        assertEquals("DIRECT_ROUTING", t.get("report"));
+    }
+
+    @Test
+    void aFailedDirectRoutingCallIsRecordedAsNotAnswered() {
+        TreatmentAction call = pendingCall("+56911111111");
+        records.add(directRouting("dr1", "+56911111111", "ByotOut", false, 0));
+
+        assertEquals(1, reconciler().reconcile(TENANT, OPERATOR).recorded());
+        assertEquals(Boolean.FALSE, stored(call.id()).answered());
+        assertEquals(0, stored(call.id()).durationSeconds());
+    }
+
+    @Test
+    void anInboundDirectRoutingCallIsIgnored() {
+        TreatmentAction call = pendingCall("+56911111111");
+        records.add(directRouting("dr1", "+56911111111", "ByotIn", true, 61));
+
+        assertEquals(0, reconciler().reconcile(TENANT, OPERATOR).recorded());
+        assertEquals("PENDING", TeamsCallReconciler.telephony(stored(call.id())).get("status"));
+    }
+
+    @Test
+    void bothReportsServeTheirOwnCalls() {
+        TreatmentAction pstn = pendingCall("+56911111111");
+        TreatmentAction direct = pendingCall("+56933333333");
+        records.add(record("p1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 42));
+        records.add(directRouting("dr1", "+56933333333", "ByotOutUserForwarding", true, 17));
+        records.add(directRouting("dr2", "+56911111111", "ByotIn", true, 99));
+
+        assertEquals(new TeamsCallReconciler.Result(2, 2, 0), reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals(42, stored(pstn.id()).durationSeconds());
+        assertEquals("p1", TeamsCallReconciler.telephony(stored(pstn.id())).get("recordId"));
+        assertEquals(17, stored(direct.id()).durationSeconds());
+        assertEquals("dr1", TeamsCallReconciler.telephony(stored(direct.id())).get("recordId"));
+    }
+
+    private static PstnCall directRouting(String id, String callee, String type, boolean success, int seconds) {
+        Instant start = CALL_START.plusSeconds(6);
+        return new PstnCall(id, "corr-" + id, OPERATOR, "+56900000000", callee, start, start.plusSeconds(seconds),
+                seconds, type, success, PstnCall.Report.DIRECT_ROUTING);
+    }
+
     private static final String TENANT = "acme";
     private static final String OPERATOR = "ana@example.com";
     private static final Instant CALL_START = Instant.parse("2026-11-04T10:00:00Z");

@@ -39,7 +39,8 @@ public interface Telephony {
     }
 
     /**
-     * The PSTN calls the TEAMS_PHONE connection's call records hold between {@code from} and {@code to}.
+     * The PSTN calls the TEAMS_PHONE connection's call records hold between {@code from} and {@code to}, from
+     * both Graph reports: Calling Plans / Operator Connect and Direct Routing.
      * Records arrive late: an empty list means "not yet", not "no call".
      *
      * @throws TelephonyUnavailableException when the connection is not a usable TEAMS_PHONE one, or Graph refuses

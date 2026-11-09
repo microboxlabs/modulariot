@@ -48,14 +48,28 @@ public class GraphClient {
     }
 
     /**
-     * {@code GET /v1.0/communications/callRecords/getPstnCalls(fromDateTime=..,toDateTime=..)}. Needs the
-     * application permission CallRecords.Read.All.
+     * {@code GET /v1.0/communications/callRecords/getPstnCalls(fromDateTime=..,toDateTime=..)}: Calling Plans and
+     * Operator Connect calls. Needs the application permission CallRecords.Read.All.
      *
      * @param auth the request headers of the app token, e.g. {@code Authorization}
      */
     public HttpResponse<String> pstnCalls(Map<String, String> auth, Instant from, Instant to)
             throws IOException, InterruptedException {
-        String path = "/v1.0/communications/callRecords/getPstnCalls(fromDateTime="
+        return callRecords("getPstnCalls", auth, from, to);
+    }
+
+    /**
+     * {@code GET /v1.0/communications/callRecords/getDirectRoutingCalls(fromDateTime=..,toDateTime=..)}: calls
+     * through the organization's own carrier. Same permission as {@link #pstnCalls}.
+     */
+    public HttpResponse<String> directRoutingCalls(Map<String, String> auth, Instant from, Instant to)
+            throws IOException, InterruptedException {
+        return callRecords("getDirectRoutingCalls", auth, from, to);
+    }
+
+    private HttpResponse<String> callRecords(String function, Map<String, String> auth, Instant from, Instant to)
+            throws IOException, InterruptedException {
+        String path = "/v1.0/communications/callRecords/" + function + "(fromDateTime="
                 + UTC.format(from.truncatedTo(ChronoUnit.SECONDS)) + ",toDateTime="
                 + UTC.format(to.truncatedTo(ChronoUnit.SECONDS)) + ")";
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(trim(baseUrl.toString()) + path))

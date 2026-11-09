@@ -116,9 +116,9 @@ public class EvaluatorStream {
         /** In Redis when its URL is set, also when not consuming: closing a case drops its episode there. */
         static Stores of(EvaluatorRedis redis, Duration ttl) {
             if (redis.api().isEmpty() || redis.client().isEmpty()) {
-                return new Stores(new InMemoryEpisodeRepository(), new InMemoryDutyStore());
+                return new Stores(redis.episodes(ttl), new InMemoryDutyStore());
             }
-            return new Stores(new RedisEpisodes(redis.api().get(), ttl), new RedisDutyStore(redis.api().get(), ttl),
+            return new Stores(redis.episodes(ttl), new RedisDutyStore(redis.api().get(), ttl),
                     VehicleReads.redis(redis.client().get()));
         }
     }

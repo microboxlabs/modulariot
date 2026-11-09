@@ -5,12 +5,9 @@ import com.microboxlabs.miot.core.gps.SignalStates;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.evaluator.Episode;
-import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorRedis;
 import com.microboxlabs.miot.symptoms.evaluator.Holds;
-import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeRepository;
-import com.microboxlabs.miot.symptoms.evaluator.RedisEpisodes;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.IngestHealth.Heartbeat;
@@ -121,8 +118,7 @@ public class LostSignalDetector implements SignalStates {
                 redis.client().<LossStore>map(c -> new RedisLossStore(c, profileTtl))
                         .orElseGet(InMemoryLossStore::new),
                 // The evaluator's episodes: an operator's close records the same decision for both consumers.
-                new TripChecks(catalog, redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, episodeTtl))
-                        .orElseGet(InMemoryEpisodeRepository::new), transitionLog, events, audit, meters, holds,
+                new TripChecks(catalog, redis.episodes(episodeTtl), transitionLog, events, audit, meters, holds,
                         new PgTripEnds(pool::get, cases)),
                 new ShadowMaps(new PgCoverageStore(pool::get), CoverageSettings.from(ConfigProvider.getConfig()),
                         Clock.systemUTC()),

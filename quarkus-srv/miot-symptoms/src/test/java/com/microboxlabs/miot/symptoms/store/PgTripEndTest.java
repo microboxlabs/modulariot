@@ -238,6 +238,31 @@ class PgTripEndTest {
         }
     }
 
+    @Test
+    void allDefinitionsAreDiscoveredAfterAcquiringTheTripLock() throws Exception {
+        UUID first = symptom("before-trip-lock");
+        String tripId = trip("in_progress").toString();
+        long firstCase = open(first, "vehicle-demo", tripId, 1);
+        var blocker = pool.getConnection().await().atMost(WAIT);
+        var transaction = blocker.begin().await().atMost(WAIT);
+        var workers = Executors.newSingleThreadExecutor();
+        try {
+            blocker.preparedQuery("SELECT id FROM miot_trips.trip WHERE id = $1 FOR UPDATE")
+                    .execute(Tuple.of(UUID.fromString(tripId))).await().atMost(WAIT);
+            Future<List<StaleCase>> end = workers.submit(() -> ends.close(tenant, tripId, null, now));
+            awaitWaitingLocks(1);
+            UUID added = symptom(tenant, "during-trip-lock", "gps_signal");
+            long addedCase = open(added, "vehicle-demo", tripId, 1);
+            transaction.commit().await().atMost(WAIT);
+
+            assertEquals(java.util.Set.of(firstCase, addedCase), end.get(15, TimeUnit.SECONDS).stream()
+                    .map(StaleCase::id).collect(java.util.stream.Collectors.toSet()));
+        } finally {
+            blocker.close().await().atMost(WAIT);
+            workers.shutdownNow();
+        }
+    }
+
     private static void awaitWaitingLocks(int count) {
         org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(5)).pollInterval(Duration.ofMillis(10)).until(() -> {
             Row row = pool.query("""
@@ -299,11 +324,16 @@ class PgTripEndTest {
         UUID lost = symptom("signal-loss");
         UUID speeding = symptom(tenant, "speeding", "gps_signal");
         UUID eta = symptom(tenant, "eta-deviation", "gps_signal");
+        UUID shadow = symptom(tenant, "demo-duty", "trip_check");
+        PgIds.query(pool, "UPDATE miot_symptoms.symptom_definition SET state = 'TEST' WHERE id = $1", Tuple.of(shadow));
         String tripId = trip("completed").toString();
         String nextTrip = trip("in_progress").toString();
         long lostCase = open(lost, "TRUCK1", tripId, 2);
         long speedCase = open(speeding, "TRUCK1", tripId, 3);
         long nextTripCase = open(eta, "TRUCK1", nextTrip, 1);
+        long shadowCase = log.append(tenant, List.of(new Transition(Kind.OPENED, shadow, "1.0.0", SymptomState.TEST,
+                "TRUCK1", now.minusSeconds(60), 2, 0, 30)),
+                new TransitionLog.Place(tripId, null, null, null, null)).get(0).caseId();
         String otherTenant = "other-" + tenant;
         UUID otherSpeeding = symptom(otherTenant, "speeding", "gps_signal");
         long otherTenantCase = log.append(otherTenant, List.of(new Transition(Kind.OPENED, otherSpeeding, "1.0.0",
@@ -312,7 +342,8 @@ class PgTripEndTest {
 
         List<StaleCase> closed = ends.close(tenant, tripId, null, now);
 
-        assertEquals(java.util.Set.of(lostCase, speedCase),
+        assertTrue(ends.close(tenant, tripId, List.of(), now).isEmpty(), "an explicit empty list closes nothing");
+        assertEquals(java.util.Set.of(lostCase, speedCase, shadowCase),
                 closed.stream().map(StaleCase::id).collect(java.util.stream.Collectors.toSet()));
         for (Row row : PgIds.query(pool, """
                 SELECT closed_by, context ->> 'reason' AS reason, trip_id FROM miot_symptoms.signal_transitions

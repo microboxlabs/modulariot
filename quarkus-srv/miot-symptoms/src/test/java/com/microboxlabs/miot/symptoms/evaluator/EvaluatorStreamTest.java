@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -34,11 +35,14 @@ import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -123,6 +127,28 @@ class EvaluatorStreamTest {
         assertEquals("T-1", repository.load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).orElseThrow().closedOnTrip());
         consumer.forget(DEMO, "DEMO01", id);
         assertTrue(repository.load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).isEmpty());
+    }
+
+    @Test
+    void withoutRedisATripCloseClearsTheEvaluatorsEpisodeAndInvalidatesAnInflightFrame() {
+        var redis = new EvaluatorRedis(Optional.empty(), 16, 256, null);
+        var stores = EvaluatorStream.Stores.of(redis, Duration.ofDays(7));
+        var detectorEpisodes = redis.episodes(Duration.ofDays(7));
+        assertSame(detectorEpisodes, stores.episodes());
+        var consumer = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()), Clock.systemUTC(), stores,
+                samples, LateFrames.NONE, LostSignalDetector.off(), Holds.NONE);
+        assertEquals(1, consumer.evaluate(signal("2026-01-01T00:00:00Z", true, DEMO)));
+        var id = evaluatorCatalog.forSource(DEMO, "gps_signal").symptoms().get(0).definitionId();
+        var inflight = stores.episodes().load(DEMO, "DEMO01");
+        Episode opened = inflight.find(DEMO, "DEMO01", id).orElseThrow();
+
+        detectorEpisodes.forgetStale(DEMO, "DEMO01", id, opened.state(), opened.openedAt());
+
+        assertTrue(stores.episodes().load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).isEmpty());
+        assertThrows(ConcurrentModificationException.class, () -> stores.episodes().save(inflight));
+        assertEquals(1, consumer.evaluate(signal("2026-01-01T00:01:00Z", true, DEMO)),
+                "the old episode cannot suppress the next case while the condition continues");
     }
 
     @Test

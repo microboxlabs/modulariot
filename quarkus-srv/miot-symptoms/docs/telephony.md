@@ -98,6 +98,12 @@ The scheduled run shares one complete Graph lookup per organization across its p
 is not retried for each operator. Each run considers at most 500 callers; Graph requests, including both reports
 and their pages, are serialized and paced at no more than four per second per replica. Each report has a five-page
 limit and an incomplete scan fails without assigning records. The advisory lock covers the entire scheduled run.
+Caller selection rotates after the last selected caller, including skipped organizations and failed lookups, so a
+full batch cannot indefinitely exclude later callers. This cursor is held by each scheduler replica and resets on restart.
+When a shared report exceeds the page limit, reconciliation bisects its time window, at most 16 lookups per
+organization. All subwindows must complete before matching, preserving ambiguity checks across split boundaries.
+Authentication failures and other provider errors are not split or retried. Missing Direct Routing answer timestamps
+fall back to `inviteDateTime` for matching; connected duration still uses the answer timestamp.
 
 | Field | PSTN row | Direct Routing row |
 | --- | --- | --- |

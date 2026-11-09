@@ -86,6 +86,11 @@ public interface TreatmentStore {
      * still pending, at most {@code limit}.
      */
     default List<Caller> pendingTeamsCallers(OffsetDateTime since, int limit) {
+        return pendingTeamsCallers(since, limit, null);
+    }
+
+    /** Starts after the previous batch's last caller, wrapping around in the same bounded query. */
+    default List<Caller> pendingTeamsCallers(OffsetDateTime since, int limit, Caller after) {
         throw new UnsupportedOperationException("pendingTeamsCallers");
     }
 

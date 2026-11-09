@@ -47,6 +47,7 @@ public class TeamsCallReconcileJob {
     private final TeamsCallReconciler reconciler;
     private final Function<Supplier<Run>, Optional<Run>> exclusively;
     private final Clock clock;
+    private Caller cursor;
 
     @Inject
     TeamsCallReconcileJob(
@@ -84,11 +85,17 @@ public class TeamsCallReconcileJob {
 
     Run run() {
         OffsetDateTime since = OffsetDateTime.now(clock).minus(TeamsCallReconciler.LOOKBACK);
-        List<Caller> callers = treatments.pendingTeamsCallers(since, MAX_CALLERS);
+        List<Caller> callers = treatments.pendingTeamsCallers(since, MAX_CALLERS, cursor);
         if (callers.isEmpty()) {
             return Run.NOTHING;
         }
-        Optional<Run> run = exclusively.apply(() -> reconcile(callers));
+        Optional<Run> run = exclusively.apply(() -> {
+            try {
+                return reconcile(callers);
+            } finally {
+                cursor = callers.getLast();
+            }
+        });
         if (run.isEmpty()) {
             LOG.debug("Teams call reconcile skipped: another replica is running it");
         }

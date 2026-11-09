@@ -41,6 +41,7 @@ class TeamsCallReconcileJobTest {
     private boolean lockHeld;
     private int locked;
     private boolean graphFails;
+    private String failingTenant;
 
     private final Telephony telephony = new Telephony() {
         @Override
@@ -52,7 +53,7 @@ class TeamsCallReconcileJobTest {
         @Override
         public List<PstnCall> pstnCalls(String tenantCode, String connectionId, Instant from, Instant to) {
             graphAsked.add(tenantCode);
-            if (graphFails) {
+            if (graphFails || tenantCode.equals(failingTenant)) {
                 throw new TelephonyUnavailableException("Graph returned HTTP 429");
             }
             return List.copyOf(records);
@@ -166,6 +167,37 @@ class TeamsCallReconcileJobTest {
 
         assertEquals(0, locked);
         assertTrue(graphAsked.isEmpty());
+    }
+
+    @Test
+    void theNextBatchAdvancesPastCallersWithoutReadyLines() {
+        seedCrowdedTenant("a-unready");
+        TeamsCallReconcileJob scheduled = job();
+
+        assertEquals(new TeamsCallReconcileJob.Run(0, 0, 0, 0), scheduled.run());
+        assertEquals(new TeamsCallReconcileJob.Run(1, 1, 1, 0), scheduled.run());
+        assertEquals(List.of("z-ready"), graphAsked);
+    }
+
+    @Test
+    void theNextBatchAdvancesPastCallersWhoseLookupsFail() {
+        seedCrowdedTenant("a-failing");
+        lines.put("a-failing", teamsLine());
+        failingTenant = "a-failing";
+        TeamsCallReconcileJob scheduled = job();
+
+        assertEquals(new TeamsCallReconcileJob.Run(1, 500, 0, 500), scheduled.run());
+        assertEquals(1, scheduled.run().recorded());
+        assertEquals(List.of("a-failing", "z-ready", "a-failing"), graphAsked);
+    }
+
+    private void seedCrowdedTenant(String tenant) {
+        for (int i = 0; i < TeamsCallReconcileJob.MAX_CALLERS; i++) {
+            pendingCall(tenant, "operator%04d@example.test".formatted(i), "+12025550101");
+        }
+        lines.put("z-ready", teamsLine());
+        pendingCall("z-ready", "operator1@example.test", "+12025550101");
+        records.add(callRecord("healthy", "operator1@example.test", "+12025550101", 12));
     }
 
     @Test

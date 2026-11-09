@@ -2,6 +2,7 @@ package com.microboxlabs.miot.integrations.telephony;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.core.telephony.CallRecordsPageLimitException;
 import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.PstnCall.Report;
 import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
@@ -131,7 +132,7 @@ public class TeamsCallRecords {
                 break;
             }
             if (page + 1 == MAX_PAGES) {
-                throw new TelephonyUnavailableException("The Graph " + name + " lookup exceeded its page limit;"
+                throw new CallRecordsPageLimitException("The Graph " + name + " lookup exceeded its page limit;"
                         + " reconciliation requires a complete call list");
             }
             response = graph.next(headers, next);
@@ -189,7 +190,8 @@ public class TeamsCallRecords {
             seconds = (int) Duration.between(start, end).toSeconds();
         }
         return new PstnCall(text(row, "id"), text(row, "correlationId"), text(row, "userPrincipalName"),
-                number(text(row, "callerNumber")), number(text(row, "calleeNumber")), start,
+                number(text(row, "callerNumber")), number(text(row, "calleeNumber")),
+                start != null ? start : time(row, "inviteDateTime"),
                 end != null ? end : time(row, "failureDateTime"), seconds, text(row, "callType"), answered,
                 Report.DIRECT_ROUTING);
     }

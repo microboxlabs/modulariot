@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.service;
 
+import com.microboxlabs.miot.core.telephony.CallRecordsPageLimitException;
 import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
@@ -16,6 +17,8 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,10 +42,13 @@ public class TeamsCallReconciler {
     static final Duration LOOKBACK = Duration.ofDays(7);
     static final Duration SLACK = Duration.ofMinutes(5);
     static final Duration GIVE_UP = Duration.ofHours(48);
+    static final int MAX_REPORT_LOOKUPS = 16;
 
     public static final String PENDING = "PENDING";
     public static final String RECORDED = "RECORDED";
     public static final String NOT_FOUND = "NOT_FOUND";
+    private static final String STATUS = "status";
+    private static final String REASON = "reason";
 
     /** {@code pending}: actions still waiting for their record after this run. */
     public record Result(int checked, int recorded, int pending) {
@@ -92,7 +98,7 @@ public class TeamsCallReconciler {
         if (to.isAfter(now)) {
             to = now;
         }
-        List<PstnCall> records = telephony.pstnCalls(tenantCode, line.connectionId(), from, to);
+        List<PstnCall> records = new ReportScan().read(tenantCode, line.connectionId(), from, to);
         Set<String> taken = new HashSet<>(treatments.recordedTelephonyRecordIds(tenantCode, line.connectionId()));
         Lookup lookup = new Lookup(line, records, pending, taken);
         int recorded = 0;
@@ -103,6 +109,30 @@ public class TeamsCallReconciler {
             stillPending += result.pending();
         }
         return new Result(pending.size(), recorded, stillPending);
+    }
+
+    /** Split only a page-limit failure; every subwindow must complete before any record is assigned. */
+    private final class ReportScan {
+        private int remaining = MAX_REPORT_LOOKUPS;
+
+        List<PstnCall> read(String tenantCode, String connectionId, Instant from, Instant to) {
+            remaining--;
+            try {
+                return telephony.pstnCalls(tenantCode, connectionId, from, to);
+            } catch (CallRecordsPageLimitException tooLarge) {
+                Instant middle = from.plus(Duration.between(from, to).dividedBy(2)).truncatedTo(ChronoUnit.SECONDS);
+                if (remaining < 2 || !middle.isAfter(from) || !middle.isBefore(to)) {
+                    throw tooLarge;
+                }
+                List<PstnCall> calls = new ArrayList<>(read(tenantCode, connectionId, from, middle));
+                // A left-hand split may have consumed the remaining budget.
+                if (remaining == 0) {
+                    throw tooLarge;
+                }
+                calls.addAll(read(tenantCode, connectionId, middle, to));
+                return List.copyOf(calls);
+            }
+        }
     }
 
     private record Lookup(TelephonyLine line, List<PstnCall> records, List<TreatmentAction> pending, Set<String> taken) {
@@ -124,14 +154,14 @@ public class TeamsCallReconciler {
             return recordCall(tenantCode, lookup, action, matches.get(0), t);
         }
         if (ambiguous) {
-            t.put("reason", "AMBIGUOUS");
+            t.put(REASON, "AMBIGUOUS");
         } else {
-            t.remove("reason");
+            t.remove(REASON);
         }
         if (Duration.between(endedAt(action), now).compareTo(GIVE_UP) > 0) {
-            t.put("status", NOT_FOUND);
+            t.put(STATUS, NOT_FOUND);
         }
-        boolean pending = save(tenantCode, action, null, null, t) && PENDING.equals(t.get("status"));
+        boolean pending = save(tenantCode, action, null, null, t) && PENDING.equals(t.get(STATUS));
         return new Result(1, 0, pending ? 1 : 0);
     }
 
@@ -144,8 +174,8 @@ public class TeamsCallReconciler {
 
     private Result recordCall(String tenantCode, Lookup lookup, TreatmentAction action, PstnCall call,
             Map<String, Object> t) {
-        t.put("status", RECORDED);
-        t.remove("reason");
+        t.put(STATUS, RECORDED);
+        t.remove(REASON);
         t.put("recordId", key(call));
         t.put("callId", call.callId());
         t.put("durationSeconds", call.durationSeconds());

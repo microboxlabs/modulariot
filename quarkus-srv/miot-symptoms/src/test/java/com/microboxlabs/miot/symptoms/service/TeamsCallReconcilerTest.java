@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.telephony.CallRecordsPageLimitException;
 import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
@@ -20,6 +21,7 @@ import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryTreatmentStore;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -158,6 +160,9 @@ class TeamsCallReconcilerTest {
     private TelephonyLine line = new TelephonyLine("m1", TelephonyProvider.TEAMS_PHONE, "Teams", null, true);
     private Instant now = CALL_END.plusSeconds(300);
     private String treatmentId;
+    private Duration maximumWindow;
+    private boolean everyLookupTooLarge;
+    private int refuseRequest;
 
     private final Telephony telephony = new Telephony() {
         @Override
@@ -168,6 +173,15 @@ class TeamsCallReconcilerTest {
         @Override
         public List<PstnCall> pstnCalls(String tenantCode, String connectionId, Instant from, Instant to) {
             asked.add(new Instant[] {from, to});
+            if (asked.size() == refuseRequest) {
+                throw new TelephonyUnavailableException("Graph returned HTTP 403");
+            }
+            if (everyLookupTooLarge || maximumWindow != null && Duration.between(from, to).compareTo(maximumWindow) > 0) {
+                throw new CallRecordsPageLimitException("Report page limit");
+            }
+            if (maximumWindow != null) {
+                return records.stream().filter(r -> !r.start().isBefore(from) && r.start().isBefore(to)).toList();
+            }
             return List.copyOf(records);
         }
     };
@@ -175,6 +189,62 @@ class TeamsCallReconcilerTest {
     private TeamsCallReconciler reconciler() {
         return new TeamsCallReconciler(store, telephony, new AuditService(new InMemoryAuditStore()),
                 Clock.fixed(now, ZoneOffset.UTC));
+    }
+
+    @Test
+    void anOversizedSharedWindowIsReadAsSmallerCompleteWindows() {
+        TreatmentAction first = pendingCall("+12025550101");
+        TreatmentAction second = pendingCall("+12025550102");
+        records.add(record("r1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 61));
+        records.add(record("r2", OPERATOR, "+12025550102", CALL_START.plusSeconds(50), 12));
+        maximumWindow = Duration.ofMinutes(6);
+
+        assertEquals(new TeamsCallReconciler.Result(2, 2, 0), reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals(3, asked.size());
+        assertEquals("r1", TeamsCallReconciler.telephony(stored(first.id())).get("recordId"));
+        assertEquals("r2", TeamsCallReconciler.telephony(stored(second.id())).get("recordId"));
+    }
+
+    @Test
+    void candidatesOnBothSidesOfASplitRemainAmbiguous() {
+        TreatmentAction action = pendingCall("+12025550101");
+        records.add(record("r1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 61));
+        records.add(record("r2", OPERATOR, "+12025550101", CALL_START.plusSeconds(50), 12));
+        maximumWindow = Duration.ofMinutes(6);
+
+        assertEquals(new TeamsCallReconciler.Result(1, 0, 1), reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals("AMBIGUOUS", TeamsCallReconciler.telephony(stored(action.id())).get("reason"));
+    }
+
+    @Test
+    void aFailedSubwindowCannotAssignRecordsFromTheCompletedHalf() {
+        TreatmentAction action = pendingCall("+12025550101");
+        records.add(record("r1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 61));
+        maximumWindow = Duration.ofMinutes(6);
+        refuseRequest = 3;
+
+        assertThrows(TelephonyUnavailableException.class, () -> reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals("PENDING", TeamsCallReconciler.telephony(stored(action.id())).get("status"));
+        assertEquals(3, asked.size());
+    }
+
+    @Test
+    void aPersistentlyOversizedReportHasABoundedRequestCount() {
+        TreatmentAction action = pendingCall("+12025550101");
+        everyLookupTooLarge = true;
+
+        assertThrows(CallRecordsPageLimitException.class, () -> reconciler().reconcile(TENANT, OPERATOR));
+        assertTrue(asked.size() <= TeamsCallReconciler.MAX_REPORT_LOOKUPS);
+        assertEquals("PENDING", TeamsCallReconciler.telephony(stored(action.id())).get("status"));
+    }
+
+    @Test
+    void authenticationErrorsAreNotRetriedAsSmallerWindows() {
+        pendingCall("+12025550101");
+        refuseRequest = 1;
+
+        assertThrows(TelephonyUnavailableException.class, () -> reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals(1, asked.size());
     }
 
     @BeforeEach

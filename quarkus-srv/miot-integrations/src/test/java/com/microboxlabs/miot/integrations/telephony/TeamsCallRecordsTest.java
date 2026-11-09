@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.core.telephony.CallRecordsPageLimitException;
 import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthContext;
@@ -31,7 +32,7 @@ class TeamsCallRecordsTest {
     void refusesAnIncompleteScanWithoutFetchingADiscardedPage() {
         String page = "{\"value\":[],\"@odata.nextLink\":\"https://graph.test/next\"}";
         http.reply(PATH, 200, page).reply("/next", 200, page);
-        assertThrows(TelephonyUnavailableException.class,
+        assertThrows(CallRecordsPageLimitException.class,
                 () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
         assertEquals(TeamsCallRecords.MAX_PAGES, http.seen().size());
     }
@@ -89,6 +90,24 @@ class TeamsCallRecordsTest {
 
         assertEquals(List.of("d1", "d2"),
                 records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)).stream().map(PstnCall::id).toList());
+    }
+
+    @Test
+    void aFailedCallWithoutAnAnswerTimestampUsesItsInviteForMatching() {
+        http.reply(PATH, 404, "{}").reply(DR_PATH, 200, """
+                {"value":[{"id":"failed","correlationId":"corr-failed","callType":"ByotOut",
+                  "userPrincipalName":"operator1@example.test","callerNumber":"+12025550100",
+                  "calleeNumber":"+12025550101","successfulCall":false,"duration":15,
+                  "inviteDateTime":"2026-11-04T10:00:45Z","failureDateTime":"2026-11-04T10:01:00Z"}]}
+                """);
+
+        PstnCall failed = records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)).getFirst();
+
+        assertEquals(Instant.parse("2026-11-04T10:00:45Z"), failed.start());
+        assertEquals(Instant.parse("2026-11-04T10:01:00Z"), failed.end());
+        assertEquals(0, failed.durationSeconds());
+        assertEquals(Boolean.FALSE, failed.answered());
+        assertFalse(failed.connected());
     }
 
     @Test

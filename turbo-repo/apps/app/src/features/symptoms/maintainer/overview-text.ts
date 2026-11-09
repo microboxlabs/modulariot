@@ -5,9 +5,11 @@ const MAX_CHARS = 4000;
 
 function responds(response: LevelResponse | null | undefined): string {
   if (!response?.operator) return "sin operador";
-  return response.slaMinutes == null
-    ? "operador"
-    : `operador ${response.slaMinutes} min`;
+  const who =
+    response.slaMinutes == null
+      ? "operador"
+      : `operador ${response.slaMinutes} min`;
+  return response.operatorWhen ? `${who} si ${response.operatorWhen}` : who;
 }
 
 /**

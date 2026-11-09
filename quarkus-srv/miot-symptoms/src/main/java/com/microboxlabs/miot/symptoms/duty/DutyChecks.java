@@ -57,12 +57,12 @@ public class DutyChecks {
 
     /** One of its rules reads a duty counter: it runs on each frame, not on the lost-signal checks. */
     public static boolean readsCounters(CompiledSymptom s) {
-        return TripCheck.KEY.equals(s.sourceKey()) && COUNTERS.stream().anyMatch(s::reads);
+        return TripCheck.KEY.equals(s.sourceKey()) && COUNTERS.stream().anyMatch(s::readsForRouting);
     }
 
     /** An operator's close of its case restarts the duty count, as when the legacy treatment expires. */
     public static boolean readsDuty(CompiledSymptom s) {
-        return TripCheck.KEY.equals(s.sourceKey()) && s.reads(DUTY);
+        return TripCheck.KEY.equals(s.sourceKey()) && s.readsForRouting(DUTY);
     }
 
     /**

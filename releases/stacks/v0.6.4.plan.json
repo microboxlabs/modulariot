@@ -1,0 +1,160 @@
+{
+  "stack_version": "0.6.4",
+  "stack_tag": "miot-stack@v0.6.4",
+  "milestone": "MIOT-0.6.4",
+  "pull_requests": [
+    {
+      "number": 2533,
+      "title": "feat(team): filters in Settings › Team",
+      "source_issues": [
+        {
+          "number": 2535,
+          "title": "feat(team): filters in Settings › Team"
+        }
+      ]
+    },
+    {
+      "number": 2534,
+      "title": "fix(symptoms): close lost-signal cases left on a replaced truck",
+      "source_issues": [
+        {
+          "number": 2538,
+          "title": "fix(symptoms): close lost-signal cases left on a replaced truck"
+        }
+      ]
+    },
+    {
+      "number": 2536,
+      "title": "fix(symptoms): keep the trip code and close cases when the trip ends",
+      "source_issues": [
+        {
+          "number": 2542,
+          "title": "fix(symptoms): keep the trip code and close cases when the trip ends"
+        }
+      ]
+    },
+    {
+      "number": 2540,
+      "title": "fix(symptoms): return to the symptom list after applying a treatment",
+      "source_issues": [
+        {
+          "number": 2541,
+          "title": "fix(symptoms): return to the symptom list after applying a treatment"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-symptoms/docs/evaluator.md",
+    "quarkus-srv/miot-symptoms/docs/lost-signal.md",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCase.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCaseService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCaseStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/domain/SymptomSpec.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/mcp/SymptomTools.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SpecDiff.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SpecValidator.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/CompiledSymptom.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorRedis.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorStream.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/SignalEvaluator.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/TransitionLog.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/events/SymptomCaseData.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/events/SymptomEvents.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/LostSignalDetector.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/MarkLost.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/PgTripEnds.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/TripChecks.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/TripEnds.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/DeviceEvents.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgEngineCases.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTransitionLog.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTripState.java",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.26__after_trip_end_policy.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/symptoms/rule-messages.properties",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/EngineCaseServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/mcp/SymptomToolsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SeedTemplates.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SpecRulesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/Specs.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/store/PgPlatformTemplatesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorLateEventsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorStreamTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/TripEndTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/PgHistoricalDeviceTripsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgSlaStoreTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgTripEndTest.java",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.29__feed_service_trip_code.sql",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/page.tsx",
+    "turbo-repo/apps/app/src/app/api/symptoms/icu/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/icu/route.type.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.types.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/general/route.type.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-filters.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-filters.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-invitations-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-keys-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-members-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-roles-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-teams-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-toolbar.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/header-chip.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/header-chip.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-call-driver.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-call-driver.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-general-map.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-general-map.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-ignore-condition.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-invalidate-symptom.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/symptoms-list/timed-symptoms.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/symptoms-list/timed-symptoms.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-item.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-item.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-item.type.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/tag-manager-overflow.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/tag-manager.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/tag-manager.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/close-section.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/close-section.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/maintainer-api.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/response-workspace.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/model/plate-change.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/plate-change.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.4",
+      "tag": "app@v0.6.4"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.6.3",
+      "version": "0.6.3",
+      "tag": "docs@v0.6.3"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.6.3",
+      "version": "0.6.3",
+      "tag": "web@v0.6.3"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.42",
+      "version": "0.5.43",
+      "tag": "modulith@v0.5.43"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

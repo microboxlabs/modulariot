@@ -5,7 +5,7 @@ import { HiOutlineMail, HiOutlineXCircle } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { labelOf } from "./team-model";
-import { formatDate } from "./team-members-tab";
+import { formatDate, NoMatches } from "./team-members-tab";
 import type { CatalogRole, Invitation } from "./team.types";
 
 const CELL = "px-4 py-3 align-middle";
@@ -87,7 +87,10 @@ function InvitationRow({
 }
 
 interface TeamInvitationsTabProps {
+  /** The invitations that pass the search. */
   readonly invitations: Invitation[];
+  /** All invitations, before the search. Defaults to the shown count. */
+  readonly total?: number;
   readonly roles: CatalogRole[];
   readonly canInvite: boolean;
   readonly lang: string;
@@ -97,7 +100,9 @@ interface TeamInvitationsTabProps {
 }
 
 export function TeamInvitationsTab(props: TeamInvitationsTabProps) {
-  const { invitations, d } = props;
+  const { invitations, total = invitations.length, ...rowProps } = props;
+  const { d } = props;
+  if (total > 0 && invitations.length === 0) return <NoMatches d={d} />;
   if (invitations.length === 0) {
     return (
       <p className="py-10 text-center text-sm text-gray-500">
@@ -122,7 +127,7 @@ export function TeamInvitationsTab(props: TeamInvitationsTabProps) {
           {invitations.map((invitation) => (
             <InvitationRow
               key={invitation.id}
-              {...props}
+              {...rowProps}
               invitation={invitation}
             />
           ))}

@@ -791,6 +791,24 @@ function newTarget(
   };
 }
 
+/** Read engine steps from the same published response as its case SLA; names serve legacy headers. */
+function useCallResponse(treatmentData: TreatmentsGeneralResponseItem | null) {
+  const symptom = treatmentData?.symptom_info;
+  const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
+  const caseLevel = treatmentData?.level_response;
+  const useCaseLevel = caseId !== null && caseLevel !== undefined;
+  const legacy = useLevelResponse(
+    useCaseLevel ? null : (symptom?.name ?? null),
+    useCaseLevel ? null : (symptom?.icu_code ?? null)
+  );
+  return {
+    ...legacy,
+    data: useCaseLevel ? caseLevel : legacy.data,
+    error: useCaseLevel ? undefined : legacy.error,
+    caseId,
+  };
+}
+
 export default function CallCenterMenu({
   dict,
   treatmentData,
@@ -808,19 +826,12 @@ export default function CallCenterMenu({
 }>) {
   const d = (dict.symptoms as I18nRecord)?.ladder as I18nRecord;
   const symptom = treatmentData?.symptom_info;
-  // Engine headers carry the same definition/version that supplied the case SLA.
-  const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
-  const caseLevel = treatmentData?.level_response;
-  const useCaseLevel = caseId !== null && caseLevel !== undefined;
   const {
-    data: legacyLevel,
+    data: level,
     error: levelError,
     mutate: refreshLevel,
-  } = useLevelResponse(
-    useCaseLevel ? null : (symptom?.name ?? null),
-    useCaseLevel ? null : (symptom?.icu_code ?? null)
-  );
-  const level = useCaseLevel ? caseLevel : legacyLevel;
+    caseId,
+  } = useCallResponse(treatmentData);
   const {
     targets,
     addContact,
@@ -830,8 +841,7 @@ export default function CallCenterMenu({
   } = useCallTargets();
   const { can } = useControlTowerAccess();
   const canEditContacts = can("controltower:contact.write");
-  const levelFailed =
-    !useCaseLevel && Boolean(levelError && levelError.status !== 404);
+  const levelFailed = Boolean(levelError && levelError.status !== 404);
   const { data: treatments, mutate: refreshTreatments } =
     useSymptomTreatments(caseId);
   const { data: caseContext } = useCaseContext(caseId);

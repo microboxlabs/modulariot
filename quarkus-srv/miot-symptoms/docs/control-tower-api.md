@@ -26,10 +26,10 @@ replaces the `store` package implementations without changing this contract.
 | Operation | Method and path | Notes |
 |---|---|---|
 | `listSymptomTreatments` | `GET /symptoms/{symptomId}/treatments` | Episodes oldest first, each with its actions |
-| `openTreatment` | `POST /symptoms/{symptomId}/treatments` | Body `{type, assetId, tripId, note}`. 201 new; 200 returns the episode the caller already has open on this symptom |
+| `openTreatment` | `POST /symptoms/{symptomId}/treatments` | Body `{type, assetId, tripId, note}`. 201 new; 200 returns the episode the caller already has open on this symptom. 409 on an engine case that is closed |
 | `getTreatment` | `GET /treatments/{treatmentId}` | |
 | `addTreatmentAction` | `POST /treatments/{treatmentId}/actions` | 201. Only while `OPEN` |
-| `closeTreatment` | `POST /treatments/{treatmentId}/close` | Body `{resolution, note}`, optional. Needs at least one action |
+| `closeTreatment` | `POST /treatments/{treatmentId}/close` | Body `{resolution, note}`, optional. Needs at least one action. On an engine case, an invalidation blocks the symptom's next case while its condition holds, a handled close blocks it up to the case's level ([evaluator.md](evaluator.md#reopening-after-an-operator-close)) |
 | `cancelTreatment` | `POST /treatments/{treatmentId}/cancel` | Body `{reason}`, optional. 409 on an engine case's hold |
 | `resumeTreatment` | `POST /treatments/{treatmentId}/resume` | "Reanudar": ends a hold early, as if its time ran out. 409 when the treatment is not an open hold |
 

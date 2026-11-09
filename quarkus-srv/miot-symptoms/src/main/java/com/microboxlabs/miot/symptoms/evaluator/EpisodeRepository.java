@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import io.smallrye.mutiny.Uni;
 import java.time.Instant;
 
 /** Loads one organization's episodes for one vehicle before a signal, and writes back what changed after it. */
@@ -21,6 +22,13 @@ public interface EpisodeRepository {
     }
 
     void save(AssetEpisodes changes);
+
+    /** Recheck under the database case locks, before any transition from this snapshot is written. */
+    default Uni<Void> validate(AssetEpisodes snapshot) {
+        return Uni.createFrom().voidItem().invoke(() ->
+                snapshot.requireRevision(load(snapshot.tenantCode(), snapshot.assetId()).closeRevision()));
+    }
+
 
     /** Drops one symptom's episode for the vehicle, as when an operator closes its case. */
     void forget(String tenantCode, String assetId, java.util.UUID definitionId);

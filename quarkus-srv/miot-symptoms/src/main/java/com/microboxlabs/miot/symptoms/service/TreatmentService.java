@@ -68,7 +68,8 @@ public class TreatmentService {
             throw new IllegalArgumentException("type is required (CALL, IGNORE_CONDITION, INVALIDATE_SYMPTOM)");
         }
         seeder.ensureHistory(tenantCode, symptomId);
-        Optional<Treatment> existing = treatments.findOpen(tenantCode, symptomId, actor);
+        // Engine cases must reach insert(), which validates their case under the database row lock even on resume.
+        Optional<Treatment> existing = symptomId < 0 ? Optional.empty() : treatments.findOpen(tenantCode, symptomId, actor);
         if (existing.isPresent()) {
             return new OpenResult(view(tenantCode, existing.get()), false);
         }

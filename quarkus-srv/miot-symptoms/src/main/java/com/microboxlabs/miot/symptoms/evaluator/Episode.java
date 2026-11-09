@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.time.Duration;
@@ -26,6 +27,8 @@ import java.util.UUID;
  * @param tripEnded      the latest applied frame is outside the case's trip; separate from rule off-trip timers
  * @param lastContext    the latest context on the case's trip; null before legacy metadata is recovered
  * @param tripId         the trip the case opened on, or null; legacy episodes recover it from the opening row
+ * @param reopenAbove    after an operator closed a case on {@code closedOnTrip}, the level a new case must exceed
+ *                       until the condition goes normal; null when nothing is blocked
  */
 @RegisterForReflection
 public record Episode(
@@ -46,10 +49,21 @@ public record Episode(
         Instant offTripSince,
         String tripId,
         Map<String, Object> lastContext,
-        boolean tripEnded) {
+        boolean tripEnded,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Integer reopenAbove) {
 
     public Episode {
         levelSince = levelSince == null ? Map.of() : Map.copyOf(levelSince);
+    }
+
+    @SuppressWarnings("java:S107")
+    public Episode(UUID definitionId, String version, String assetId, Instant candidateSince, Instant conditionSince,
+            Instant normalSince, Map<Integer, Instant> levelSince, Instant lastSignalAt, Instant openedAt, int level,
+            double maxMeasure, SymptomState state, String closedOnTrip, Instant closedOnTripAt,
+            Instant offTripSince, String tripId, Map<String, Object> lastContext, boolean tripEnded) {
+        this(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince, lastSignalAt,
+                openedAt, level, maxMeasure, state, closedOnTrip, closedOnTripAt, offTripSince, tripId, lastContext,
+                tripEnded, null);
     }
 
     @SuppressWarnings("java:S107")
@@ -75,7 +89,7 @@ public record Episode(
     public Episode withCaseFrame(String trip, Map<String, Object> context) {
         return new Episode(definitionId, version, assetId, candidateSince, conditionSince, normalSince, levelSince,
                 lastSignalAt, openedAt, level, maxMeasure, state, closedOnTrip, closedOnTripAt, offTripSince, trip,
-                context == null ? Map.of() : Map.copyOf(context), tripEnded);
+                context == null ? Map.of() : Map.copyOf(context), tripEnded, reopenAbove);
     }
 
     @SuppressWarnings("java:S107")
@@ -143,7 +157,30 @@ public record Episode(
 
     /** Nothing running, but an operator closed the symptom's case on this trip at {@code at}. */
     public static Episode closedOnTrip(UUID definitionId, String assetId, String tripId, Instant at) {
-        return new Episode(definitionId, "", assetId, null, null, null, Map.of(), null, null, 0, 0, tripId, at);
+        return closedOnTrip(definitionId, assetId, tripId, at, null);
+    }
+
+    /**
+     * As {@link #closedOnTrip(UUID, String, String, Instant)}, and while the condition holds a new case opens only
+     * above {@code reopenAbove}; null blocks nothing.
+     */
+    public static Episode closedOnTrip(UUID definitionId, String assetId, String tripId, Instant at,
+            Integer reopenAbove) {
+        return new Episode(definitionId, "", assetId, null, null, null, Map.of(), null, null, 0, 0, null, tripId, at,
+                null, null, null, false, reopenAbove);
+    }
+
+    /** Keep the condition's timers when an operator closes its case; closing is not a new run. */
+    Episode continuingCondition(Episode previous) {
+        if (previous == null || closedOnTrip == null
+                || !(closedOnTrip.equals(previous.tripId()) || closedOnTrip.equals(previous.closedOnTrip()))) {
+            return this;
+        }
+        boolean normal = previous.normalSince() != null && previous.levelSince().isEmpty();
+        return new Episode(definitionId, previous.version(), assetId, previous.candidateSince(),
+                previous.conditionSince(), previous.normalSince(), previous.levelSince(), previous.lastSignalAt(),
+                null, 0, 0, null, closedOnTrip, closedOnTripAt, null, null, null, false,
+                normal ? null : reopenAbove);
     }
 
     public static Episode start(UUID definitionId, String version, String assetId) {

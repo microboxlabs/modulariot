@@ -1,9 +1,12 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
+import io.smallrye.mutiny.Uni;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Where the evaluator records case changes. A CLOSED row's measure is the case's maximum
@@ -28,6 +31,14 @@ public interface TransitionLog {
 
     /** The durable identity and evidence of a legacy case's opening. */
     record Opening(String tripId, Map<String, Object> context) {
+    }
+
+    /**
+     * The operator's close of the symptom's newest case on the vehicle, read from that case's CLOSED row; empty when
+     * the newest case is open, was closed by the engine, or there is none.
+     */
+    default Optional<OperatorClose> lastOperatorClose(String tenantCode, String assetId, UUID definitionId) {
+        return Optional.empty();
     }
 
     /** Called once per legacy open episode; stores without opening history keep the identity unknown. */
@@ -58,6 +69,13 @@ public interface TransitionLog {
         return new Appended(append(tenantCode, transitions, place, context), Set.of());
     }
 
+    /** Persistent stores run validation while holding the same case locks as the operator close. */
+    default Appended appendEvaluated(String tenantCode, List<Transition> transitions, Place place,
+            Map<String, Object> context, Supplier<Uni<Void>> validation) {
+        validation.get().await().indefinitely();
+        return appendEvaluated(tenantCode, transitions, place, context);
+    }
+
     /** @return the changes it recorded now, without the ones it already held */
     default List<Recorded> append(String tenantCode, List<Transition> transitions, Place place) {
         return append(tenantCode, transitions, place, null);
@@ -73,5 +91,11 @@ public interface TransitionLog {
     default List<Recorded> appendTripCheck(String tenantCode, List<Transition> transitions, Place place,
             Map<String, Object> context) {
         return append(tenantCode, transitions, place, context);
+    }
+    /** As above, validating the episode snapshot under the case locks before writing. */
+    default List<Recorded> appendTripCheck(String tenantCode, List<Transition> transitions, Place place,
+            Map<String, Object> context, Supplier<Uni<Void>> validation) {
+        validation.get().await().indefinitely();
+        return appendTripCheck(tenantCode, transitions, place, context);
     }
 }

@@ -61,7 +61,7 @@ public class InMemoryEpisodeRepository implements EpisodeRepository {
             if (marker == null) {
                 episodes.remove(definitionId);
             } else {
-                episodes.put(definitionId, marker);
+                episodes.put(definitionId, marker.continuingCondition(episodes.get(definitionId)));
             }
             index(tenantCode, assetId, !episodes.isEmpty());
             return new Snapshot(episodes, old == null ? Map.of() : old.watermarks(),

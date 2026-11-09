@@ -158,6 +158,8 @@ A SIP 403 ("No Approved Call Permission Found") is kept for the row. The app rea
 
 The app checks the permission with `GET /api/v1/orgs/{organizationId}/conversations/whatsapp-call-permissions?phone=...&managed=true` before a SIP call. Its permission request uses `POST .../whatsapp-call-permissions/requests?managed=true`. Both use the platform's WhatsApp sender, even when the organization uses its own messaging account; the request stays in the organization's message pool and metering. The platform connection's `phone_number_id` must identify the configured SIP `business-number`. A permission for an organization's different sender is never used for the SIP call. A known denial, expired grant or pending request disables the button. When no permission has been recorded, or the sender cannot be resolved, Meta decides with its SIP response. Unsupported non-null call channels are rejected rather than falling back to a PSTN call.
 
+Both managed permission endpoints return 403 before accessing shared permission state or sending a template unless the organization has a ready managed Telnyx line and WhatsApp calling is configured. Normal sender mode does not require managed calling.
+
 ### Contact calls the tower
 
 1. `call.initiated`, direction incoming, on the WhatsApp application: the server reads the caller from `from`.
@@ -166,6 +168,8 @@ The app checks the permission with `GET /api/v1/orgs/{organizationId}/conversati
 4. "Contestar" asks `POST /whatsapp-calls/{id}/answer`, a login with a reservation. 409 `whatsapp_call_taken` when another operator took it or it ended. The browser dials; on admission the server answers the WhatsApp leg and bridges it to the operator's leg.
 5. An unknown caller, or a call nobody takes within `ring-timeout`, is answered, hears `unanswered-message`, and is hung up. A claim whose browser never dials expires after the same timeout, retires its reservation, and follows this unanswered-call flow. A late browser leg cannot consume that expired reservation.
 6. The server ends admitted inbound calls one minute before the two-hour reservation hold. An admitted inbound call still occupies a channel past the hold while teardown is retrying. Successful provider teardown frees capacity; only the WhatsApp leg's webhook confirms billable seconds. Transient counterpart-hangup failures propagate for webhook retry, and the scheduled deadline sweep retries overdue inbound teardown.
+
+The scheduled sweep isolates failures per call: a failed notice or teardown does not prevent later calls from expiring, and active-call cleanup still runs if ringing-call cleanup fails.
 7. When an inbound browser call ends, the call bar offers dismissal so the operator can take another call. Recording a case CALL action remains outside this inbound flow.
 
 | Endpoint (under `/control-tower/telephony`) | Permission | Result |

@@ -5,6 +5,7 @@ import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.core.telephony.Telephony;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -41,6 +42,7 @@ public class OrgWhatsAppCallPermissionsResource extends OrgResourceSupport {
     }
 
     private final CallPermissionService permissions;
+    private final Telephony telephony;
 
     @Inject
     public OrgWhatsAppCallPermissionsResource(
@@ -48,9 +50,11 @@ public class OrgWhatsAppCallPermissionsResource extends OrgResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            CallPermissionService permissions) {
+            CallPermissionService permissions,
+            Telephony telephony) {
         super(tenantContext, organizationContext, roleService, identity);
         this.permissions = permissions;
+        this.telephony = telephony;
     }
 
     @GET
@@ -60,8 +64,7 @@ public class OrgWhatsAppCallPermissionsResource extends OrgResourceSupport {
     public Uni<Response> get(@PathParam("organizationId") String organizationId, @QueryParam("phone") String phone,
             @QueryParam("managed") boolean managed) {
         String tenant = tenantCode(organizationId);
-        CallPermissionService scoped = managed ? permissions.forManagedCalls() : permissions;
-        return work(() -> Response.ok(scoped.view(tenant, phone)).build());
+        return work(() -> Response.ok(scoped(tenant, managed).view(tenant, phone)).build());
     }
 
     @POST
@@ -74,8 +77,14 @@ public class OrgWhatsAppCallPermissionsResource extends OrgResourceSupport {
             @QueryParam("managed") boolean managed, RequestBody body) {
         String tenant = tenantCode(organizationId);
         String who = actor();
-        CallPermissionService scoped = managed ? permissions.forManagedCalls() : permissions;
-        return work(() -> Response.ok(scoped.request(tenant, body == null ? null : body.phone(),
+        return work(() -> Response.ok(scoped(tenant, managed).request(tenant, body == null ? null : body.phone(),
                 body == null ? null : body.name(), who)).build());
+    }
+
+    private CallPermissionService scoped(String tenant, boolean managed) {
+        if (managed && !telephony.whatsAppCalling(tenant)) {
+            throw new SecurityException("Managed WhatsApp calling is not available for this organization");
+        }
+        return managed ? permissions.forManagedCalls() : permissions;
     }
 }

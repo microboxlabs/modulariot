@@ -244,18 +244,28 @@ public class WhatsAppCalls {
         if (!config.enabled()) return;
         try {
             expireRinging();
-            expireActive();
         } catch (RuntimeException e) {
             LOG.warnf("WhatsApp ringing check failed: %s", e.getMessage());
+        }
+        try {
+            expireActive();
+        } catch (RuntimeException e) {
+            LOG.warnf("WhatsApp active call check failed: %s", e.getMessage());
         }
     }
 
     public int expireRinging() {
         Instant now = clock.instant();
         int missed = 0;
+        RuntimeException failure = null;
         for (InboundWhatsAppCall c : store.unansweredBefore(now.minus(config.ringTimeout()))) {
-            if (Boolean.TRUE.equals(usage.locked(c.connectionId(), () -> expireUnanswered(c.id(), now)))) missed++;
+            try {
+                if (Boolean.TRUE.equals(usage.locked(c.connectionId(), () -> expireUnanswered(c.id(), now)))) missed++;
+            } catch (RuntimeException e) {
+                if (failure == null) failure = e;
+            }
         }
+        if (failure != null) throw failure;
         return missed;
     }
 
@@ -278,9 +288,15 @@ public class WhatsAppCalls {
     public int expireActive() {
         Instant now = clock.instant();
         int ended = 0;
+        RuntimeException failure = null;
         for (InboundWhatsAppCall call : store.activeBefore(now.minus(IntegrationsTelephony.HOLD).plusSeconds(60))) {
-            if (Boolean.TRUE.equals(usage.locked(call.connectionId(), () -> endOverdue(call.id(), now)))) ended++;
+            try {
+                if (Boolean.TRUE.equals(usage.locked(call.connectionId(), () -> endOverdue(call.id(), now)))) ended++;
+            } catch (RuntimeException e) {
+                if (failure == null) failure = e;
+            }
         }
+        if (failure != null) throw failure;
         return ended;
     }
 

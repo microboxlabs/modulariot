@@ -74,7 +74,11 @@ class WhatsAppCallsTest {
     }
 
     private WhatsAppCalls whatsApp() {
-        return new WhatsAppCalls(new WhatsAppCalls.SipGateway(config, client, id -> "KEY_test"), usage, calls, new InboundCallers() {
+        return whatsApp(client);
+    }
+
+    private WhatsAppCalls whatsApp(TelnyxClient gatewayClient) {
+        return new WhatsAppCalls(new WhatsAppCalls.SipGateway(config, gatewayClient, id -> "KEY_test"), usage, calls, new InboundCallers() {
             @Override
             public Optional<Caller> find(String e164) {
                 return Optional.ofNullable(book.get(e164));
@@ -412,6 +416,65 @@ class WhatsAppCallsTest {
         events.apply("p1", hangup);
         assertTrue(sent("/wa-leg-1/actions/hangup") != null);
         assertTrue(http.seen().stream().filter(s -> s.path().endsWith("/wa-leg-1/actions/hangup")).count() >= 2);
+    }
+
+    private WhatsAppCalls withOneUnavailableLeg() {
+        return whatsApp(new TelnyxClient(request -> {
+            if (request.uri().getPath().contains("/wa-unavailable/")) {
+                throw new java.io.IOException("Synthetic per-call provider failure");
+            }
+            return http.send(request);
+        }, API));
+    }
+
+    private void ringingCall(String id) {
+        calls.insertInbound(new InboundWhatsAppCall(id, "p1", id, "acme", DRIVER, "Test contact", null,
+                InboundWhatsAppCall.RINGING, null, NOW, NOW));
+    }
+
+    private String activeCall(String id) {
+        String ref = java.util.UUID.randomUUID().toString();
+        usage.insert(new UsageRow(ref, "acme", UsageRow.WHATSAPP_CALL, true, "p1", id, null, DRIVER,
+                UsageRow.WHATSAPP_INBOUND, UsageRow.STARTED, NOW, null, null, null, null, null, NOW, null, null));
+        usage.saveAdmission(new CallAdmission(ref, "sdk-" + id, java.util.UUID.randomUUID().toString()));
+        calls.insertInbound(new InboundWhatsAppCall(id, "p1", id, "acme", DRIVER, "Test contact", null,
+                InboundWhatsAppCall.ANSWERED, ref, NOW, NOW));
+        return ref;
+    }
+
+    @Test
+    void aFailedRingingCallDoesNotPreventLaterCallsFromHearingTheNotice() {
+        ringingCall("wa-unavailable");
+        ringingCall("wa-ringing-ok");
+        clock.at = NOW.plusSeconds(31);
+        assertThrows(IllegalStateException.class, withOneUnavailableLeg()::expireRinging);
+        assertEquals(InboundWhatsAppCall.MISSED, calls.inbound("wa-ringing-ok").orElseThrow().status());
+        assertTrue(sent("/wa-ringing-ok/actions/answer") != null);
+    }
+
+    @Test
+    void aFailedActiveCallKeepsItsCapacityWhileLaterCallsAreTornDown() {
+        String failed = activeCall("wa-unavailable");
+        String succeeded = activeCall("wa-active-ok");
+        clock.at = NOW.plus(IntegrationsTelephony.HOLD).plusSeconds(1);
+        WhatsAppCalls whatsApp = withOneUnavailableLeg();
+        assertThrows(IllegalStateException.class, whatsApp::expireActive);
+        assertEquals(InboundWhatsAppCall.ANSWERED, calls.inbound("wa-unavailable").orElseThrow().status());
+        assertNull(usage.find(failed).orElseThrow().endedAt());
+        assertEquals(UsageRow.ENDED, usage.find(succeeded).orElseThrow().status());
+        assertEquals(1, usage.busyChannels("p1", clock.instant().minus(IntegrationsTelephony.HOLD)));
+        assertTrue(sent("/sdk-wa-active-ok/actions/hangup") != null);
+        assertThrows(IllegalStateException.class, whatsApp::expireActive, "the failed call is retried next tick");
+    }
+
+    @Test
+    void scheduledActiveCleanupStillRunsWhenRingingCleanupFails() {
+        ringingCall("wa-unavailable");
+        String ref = activeCall("wa-scheduled-ok");
+        clock.at = NOW.plus(IntegrationsTelephony.HOLD).plusSeconds(1);
+        withOneUnavailableLeg().scheduledExpire();
+        assertEquals(UsageRow.ENDED, usage.find(ref).orElseThrow().status());
+        assertTrue(sent("/wa-scheduled-ok/actions/hangup") != null);
     }
 
     @Test

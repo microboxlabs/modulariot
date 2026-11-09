@@ -747,7 +747,7 @@ public class PgEngineCases implements EngineCaseStore {
         return conn.preparedQuery(TRIP_ASSET_LOCK).execute(Tuple.of(tenant, TripEnds.uuid(tripId)))
                 .invoke(rows -> {
                     var iterator = rows.iterator();
-                    if (!iterator.hasNext() || !keepAsset.equalsIgnoreCase(iterator.next().getString("asset_id"))) {
+                    if (!iterator.hasNext() || !keepAsset.equalsIgnoreCase(iterator.next().getString(ASSET_ID))) {
                         throw new IllegalStateException("Trip truck changed again; retry with a fresh trip state");
                     }
                 }).replaceWithVoid();

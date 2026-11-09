@@ -146,6 +146,9 @@ export function lugarDesdeForm(
     color: form.color || cat?.color || null,
     center: form.lat != null && form.lon != null ? [form.lat, form.lon] : null,
     polygon: polygon ? form.vertices : null,
+    ...(polygon && form.polygon_holes?.length
+      ? { polygon_holes: form.polygon_holes }
+      : {}),
     radius_m: polygon ? null : form.radius_m,
     metadata: metadataParaGuardar(form),
     icon: form.icon || null,

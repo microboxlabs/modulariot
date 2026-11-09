@@ -69,6 +69,8 @@ export function errorLugar(
   const incompleto = mensajePadreIncompleto(form, t);
   if (incompleto) return incompleto;
   if (faltaExternalId(form)) return t("validation.code_missing");
+  if (form.categorias.length && !form.categorias_lista?.trim())
+    return t("validation.category_list_missing");
   const forma = errorForma(form, t);
   if (forma) return forma;
   const vigencia = errorVigencia(form, t);

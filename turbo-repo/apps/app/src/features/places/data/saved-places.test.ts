@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  innerDesdeLugar,
+  lugarHijoDesdeInner,
+} from "../geofences/inner-geofences";
+import {
   CATEGORIAS_KEY,
   CATEGORIAS_LISTA_KEY,
   COLOR_KEY,
@@ -86,6 +90,78 @@ const vista = (id: string, body: PlaceRequest) =>
   });
 
 describe("saved places", () => {
+  it("rejects legacy category codes without a list instead of dropping them", () => {
+    const legacy = lugar({ metadata: { [CATEGORIAS_KEY]: '["legacy"]' } });
+    expect(() => requestDesdeLugar(legacy, null)).toThrow(RangeError);
+    expect(() =>
+      requestDesdeTrayecto({ ...trayecto, categorias_lista: null })
+    ).toThrow(RangeError);
+  });
+
+  it("preserves every polygon ring through a name-only edit", () => {
+    const coordinates = [
+      [
+        [0, 0],
+        [4, 0],
+        [4, 4],
+        [0, 4],
+        [0, 0],
+      ],
+      [
+        [1, 1],
+        [1, 2],
+        [2, 2],
+        [2, 1],
+        [1, 1],
+      ],
+    ];
+    const { lugares } = guardadosDesdePlaces([
+      placeViewSchema.parse({
+        ...vista("p-1", requestDesdeLugar(lugar(), null)),
+        geojson: {
+          type: "Feature",
+          geometry: { type: "Polygon", coordinates },
+          properties: {},
+        },
+      }),
+    ]);
+    const saved = lugares[0]!;
+    expect(
+      requestDesdeLugar({ ...saved, name: "Renamed" }, null).geojson.geometry
+    ).toEqual({ type: "Polygon", coordinates });
+    const inner = lugarHijoDesdeInner(innerDesdeLugar(saved), saved);
+    expect(requestDesdeLugar(inner, "parent").geojson.geometry).toEqual({
+      type: "Polygon",
+      coordinates,
+    });
+  });
+
+  it("retains hidden inner metadata when the parent editor rebuilds the inner", () => {
+    const parent = lugar({ place_id: "p-1", metadata: null });
+    const inner = lugarHijoDesdeInner(
+      innerDesdeLugar(lugar({ place_id: "i-1" })),
+      parent
+    );
+    const body = conMetadataGuardada(
+      "p-1",
+      requestDesdeGeocerca(parent, [{ lugar: inner, id: "i-1" }]),
+      {
+        "i-1": {
+          active: false,
+          count: 2,
+          details: { zone: "A" },
+          missing: null,
+        },
+      }
+    );
+    expect(body.inners?.[0]?.metadata).toEqual({
+      active: false,
+      count: 2,
+      details: { zone: "A" },
+      missing: null,
+    });
+  });
+
   it("sends no categories as null, with nothing to look up", () => {
     const body = requestDesdeLugar(lugar({ metadata: null }), null);
     expect(body.categories).toBeNull();

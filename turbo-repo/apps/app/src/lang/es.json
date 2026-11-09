@@ -9858,6 +9858,7 @@
     },
     "validation": {
       "code_missing": "Falta el External ID.",
+      "category_list_missing": "Elige una lista antes de guardar las categorías existentes.",
       "name_missing": "Falta el nombre.",
       "center_missing": "Fija el centro con clic en el mapa.",
       "polygon_vertices": "El polígono necesita al menos 3 vértices.",

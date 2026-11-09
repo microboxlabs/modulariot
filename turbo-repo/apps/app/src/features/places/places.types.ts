@@ -14,6 +14,7 @@ export type InnerGeofence = {
   lon: number | null;
   radius_m: number;
   vertices: LatLon[];
+  polygon_holes?: LatLon[][];
   cerrado: boolean;
   /** Hex de la geocerca en el mapa (por defecto el azul del sistema). */
   color: string;
@@ -35,6 +36,8 @@ export type Lugar = {
   color: string | null;
   center: [number, number] | null; // [lat, lon] (lab)
   polygon: [number, number][] | null;
+  /** Excluded rings, in [lat, lon], without the repeated closing point. */
+  polygon_holes?: LatLon[][];
   radius_m: number | null;
   metadata: Record<string, string> | null;
   external_id: string | null;
@@ -107,6 +110,7 @@ export const FORM_VACIO = {
   rect_w_m: 200,
   rect_h_m: 120,
   vertices: [] as LatLon[],
+  polygon_holes: [] as LatLon[][],
   /** Polígono terminado: los clics en el mapa ya no agregan vértices. */
   cerrado: false,
   /** Historial de edición del polígono: instantáneas de `vertices`. */

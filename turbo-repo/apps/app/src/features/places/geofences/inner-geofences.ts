@@ -66,7 +66,10 @@ export function puntoDentroDelPadre(form: FormLugar, p: LatLon): boolean {
     if (form.lat == null || form.lon == null) return false;
     return distanciaM([form.lat, form.lon], p) <= form.radius_m;
   }
-  return puntoEnPoligono(p, form.vertices);
+  return (
+    puntoEnPoligono(p, form.vertices) &&
+    !(form.polygon_holes ?? []).some((hole) => puntoEnPoligono(p, hole))
+  );
 }
 
 /** Ancho y alto (m) de la geocerca: el diámetro de su círculo o la caja de su polígono. */
@@ -172,6 +175,7 @@ export function innerComoForm(inner: InnerGeofence): FormLugar {
     lon: inner.lon,
     radius_m: inner.radius_m,
     vertices: inner.vertices,
+    polygon_holes: inner.polygon_holes ?? [],
     cerrado: inner.cerrado,
     polyBase: normalizarPolyBase(inner.polyBase),
     rectVinculado: esRectVinculado(inner),
@@ -192,6 +196,7 @@ export function formComoInner(
     lon: f.lon,
     radius_m: f.radius_m,
     vertices: f.vertices,
+    polygon_holes: f.geom === "polygon" ? f.polygon_holes : [],
     cerrado: f.cerrado,
     color: colorInner(inner),
     polyBase: f.polyBase,
@@ -350,6 +355,9 @@ export function innerDesdeLugar(l: Lugar): InnerGeofence {
     lon: l.center?.[1] ?? null,
     radius_m: l.radius_m ?? INNER_RADIO_DEFAULT,
     vertices: l.polygon ?? [],
+    ...(polygon && l.polygon_holes?.length
+      ? { polygon_holes: l.polygon_holes }
+      : {}),
     cerrado: polygon,
     color: l.metadata?.[COLOR_KEY] || l.color || INNER_COLOR_DEF,
   };
@@ -382,6 +390,9 @@ export function lugarHijoDesdeInner(
     center:
       inner.lat != null && inner.lon != null ? [inner.lat, inner.lon] : null,
     polygon: polygon ? inner.vertices : null,
+    ...(polygon && inner.polygon_holes?.length
+      ? { polygon_holes: inner.polygon_holes }
+      : {}),
     radius_m: polygon ? null : inner.radius_m,
     metadata: {
       [PARENT_KEY]: parent.place_id,

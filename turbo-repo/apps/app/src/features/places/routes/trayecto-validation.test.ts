@@ -17,6 +17,23 @@ const listo: FormTrayecto = {
 };
 
 describe("trayecto validation", () => {
+  it("requires a list before uploading legacy category codes", () => {
+    expect(
+      errorTrayecto({
+        ...listo,
+        categorias: ["legacy"],
+        categorias_lista: null,
+      })
+    ).toBe("Elige una lista antes de guardar las categorías existentes.");
+    expect(
+      errorTrayecto({
+        ...listo,
+        categorias: ["legacy"],
+        categorias_lista: "demo-list",
+      })
+    ).toBeNull();
+  });
+
   it("lets a complete route be saved", () => {
     expect(errorTrayecto(listo)).toBeNull();
   });

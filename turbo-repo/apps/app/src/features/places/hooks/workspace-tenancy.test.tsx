@@ -232,6 +232,77 @@ describe("Places versions", () => {
     });
   });
 
+  it("keeps polygon holes and hidden typed inner metadata in a name edit", async () => {
+    const hole: LatLon[] = [
+      [0.5, 0.5],
+      [0.5, 1],
+      [1, 1],
+      [1, 0.5],
+    ];
+    const savedParent = {
+      ...padre,
+      polygon: [
+        [0, 0],
+        [0, 4],
+        [4, 4],
+        [4, 0],
+      ] as LatLon[],
+      polygon_holes: [hole],
+    };
+    const savedInner = {
+      ...hijo,
+      geometry_type: "polygon",
+      polygon: savedParent.polygon,
+      polygon_holes: [hole],
+      radius_m: null,
+    };
+    state.swr.mockImplementation((key: readonly string[] | null) => ({
+      data:
+        key?.[0] === "/app/api/places/items"
+          ? {
+              lugares: [savedParent, savedInner],
+              trayectos: [],
+              metadatos: {
+                [hijo.place_id]: { count: 2, details: { zone: "A" } },
+              },
+            }
+          : undefined,
+      mutate: vi.fn(),
+    }));
+    const fetch = vi
+      .fn()
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ id: padre.place_id }),
+      });
+    vi.stubGlobal("fetch", fetch);
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    expect(result.current.fcPropios.features[0]?.geometry).toMatchObject({
+      type: "Polygon",
+      coordinates: expect.arrayContaining([
+        expect.any(Array),
+        expect.any(Array),
+      ]),
+    });
+    act(() => result.current.editarLugar(savedParent));
+    act(() => result.current.setForm((f) => ({ ...f, name: "Demo renamed" })));
+    await esperarCodigos(result);
+    await act(async () => {
+      await result.current.guardarLugar();
+    });
+    await act(async () => {
+      result.current.confirmarVersion("PATCH", "Renamed");
+    });
+    const body = JSON.parse(fetch.mock.calls[0]![1].body);
+    expect(body.geojson.geometry.coordinates).toHaveLength(2);
+    expect(body.inners[0].geojson.geometry.coordinates).toHaveLength(2);
+    expect(body.inners[0].metadata).toEqual({
+      count: 2,
+      details: { zone: "A" },
+    });
+  });
+
   it("saves nothing when an edit changes nothing", async () => {
     const fetch = conGuardados();
     const { toast } = await import("sonner");

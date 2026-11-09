@@ -23,6 +23,8 @@ export function errorTrayecto(
   if (tray.pts.length < 2) return t("validation.path_two_points");
   if (!tray.name.trim()) return t("workspace.route_name_missing");
   if (faltaExternalIdTrayecto(tray)) return t("validation.code_missing");
+  if (tray.categorias.length && !tray.categorias_lista?.trim())
+    return t("validation.category_list_missing");
   const ancho = tray.width_m;
   if (!Number.isFinite(ancho) || ancho < ANCHO_MIN || ancho > ANCHO_MAX)
     return t("validation.width_range", {

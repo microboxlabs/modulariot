@@ -356,7 +356,10 @@ function fcLugares(
         radius_m: radioLugarM(l),
         icon: iconoDeLugar(l) ?? "",
       },
-      geometry: { type: "Polygon", coordinates: [ring] } as Polygon,
+      geometry: {
+        type: "Polygon",
+        coordinates: [ring, ...(l.polygon_holes ?? []).map(anilloGeoJSON)],
+      } as Polygon,
     });
   }
   return { type: "FeatureCollection", features };
@@ -460,7 +463,7 @@ function sinUid(f: FilaImport): FilaImport {
 /** Forma que se está dibujando: la geocerca o una de sus interiores. */
 type FormaPrevia = Pick<
   InnerGeofence,
-  "geom" | "lat" | "lon" | "radius_m" | "vertices" | "cerrado"
+  "geom" | "lat" | "lon" | "radius_m" | "vertices" | "cerrado" | "polygon_holes"
 >;
 
 /**
@@ -491,6 +494,8 @@ function featurePrevia(
   }
   const geom = geometriaDibujo(forma.vertices, forma.cerrado);
   if (!geom) return null;
+  if (geom.type === "Polygon")
+    geom.coordinates.push(...(forma.polygon_holes ?? []).map(anilloGeoJSON));
   const center: LatLon | null =
     forma.lat != null && forma.lon != null ? [forma.lat, forma.lon] : null;
   return {
@@ -987,6 +992,7 @@ export function usePlacesWorkspace(
     form.lon,
     form.radius_m,
     form.vertices,
+    form.polygon_holes,
     form.cerrado,
     form.color,
     form.category_id,
@@ -1520,6 +1526,7 @@ export function usePlacesWorkspace(
       geom: esPoligono(destino) ? "polygon" : "circle",
       cerrado: esPoligono(destino),
       vertices: esPoligono(destino) ? (destino.polygon ?? []) : [],
+      polygon_holes: destino.polygon_holes ?? [],
       icon: iconoDeLugar(destino),
       color: destino.metadata?.[COLOR_KEY] ?? "",
       metadata: metadataAFilas(destino.metadata),
@@ -2152,6 +2159,8 @@ export function usePlacesWorkspace(
   ): Promise<DestinoImport> => {
     const id = idGuardado(trayectoId);
     const antes = id ? trayectos.find((t) => t.trayecto_id === id) : undefined;
+    if (antes?.categorias?.length && !antes.categorias_lista?.trim())
+      return "rechazada";
     // el archivo no trae ícono ni categorías: al reemplazar, quedan los guardados
     const body = requestDesdeTrayecto({
       ...trayectoDeFila(fila, id ?? ""),
@@ -2306,6 +2315,8 @@ export function usePlacesWorkspace(
     l: Lugar,
     nuevo: Lugar
   ): Promise<Escritura | null> => {
+    if (categoriasDeLugar(nuevo).length && !listaDeLugar(nuevo)?.trim())
+      return { ok: false, error: tx("validation.category_list_missing") };
     const id = idGuardado(l.place_id);
     const padreId = parentPlaceId(nuevo);
     if (padreId) return reemplazarInterior(padreId, id, nuevo, l);

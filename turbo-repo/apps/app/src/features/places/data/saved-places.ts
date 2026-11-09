@@ -154,7 +154,11 @@ const CLAVES_PROPIAS = new Set([
 const categoriasParaGuardar = (
   values: string[] | null | undefined,
   selectable: string | null | undefined
-) => (values?.length && selectable ? { selectable, values } : null);
+) => {
+  if (!values?.length) return null;
+  if (!selectable?.trim()) throw new RangeError("A category list is required");
+  return { selectable, values };
+};
 
 const aGeo = ([lat, lon]: LatLon): [number, number] => [lon, lat];
 const aApp = (p: number[]): LatLon => [p[1] ?? Number.NaN, p[0] ?? Number.NaN];
@@ -218,7 +222,10 @@ function geometriaDeLugar(l: Lugar): PlaceRequest["geojson"] {
       type: "Feature",
       geometry: {
         type: "Polygon",
-        coordinates: [anilloCerrado(l.polygon ?? [])],
+        coordinates: [
+          anilloCerrado(l.polygon ?? []),
+          ...(l.polygon_holes ?? []).map(anilloCerrado),
+        ],
       },
       properties,
     };
@@ -354,7 +361,10 @@ export function conMetadataGuardada(
     inners: body.inners?.map((inner) => ({
       ...inner,
       metadata: metadataConTipos(
-        inner.metadata,
+        {
+          ...(inner.id ? metadatos?.[inner.id] : undefined),
+          ...inner.metadata,
+        },
         inner.id ? metadatos?.[inner.id] : undefined
       ),
     })),
@@ -432,6 +442,9 @@ export function lugarDesdePlace(v: PlaceView): Lugar | null {
     geometry_type: "polygon",
     center: centroGuardado(v) ?? promedio(vertices),
     polygon: vertices,
+    ...(g.coordinates.length > 1
+      ? { polygon_holes: g.coordinates.slice(1).map(verticesDeAnillo) }
+      : {}),
     radius_m: null,
   };
 }

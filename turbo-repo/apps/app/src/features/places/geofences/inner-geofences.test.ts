@@ -35,6 +35,24 @@ const square: [number, number][] = [
 ];
 
 describe("inner geofence geometry", () => {
+  it("excludes holes when positioning an inner geofence", () => {
+    const form = {
+      ...FORM_VACIO,
+      geom: "polygon" as const,
+      vertices: square,
+      polygon_holes: [
+        [
+          [0.5, 0.5],
+          [0.5, 1.5],
+          [1.5, 1.5],
+          [1.5, 0.5],
+        ] as [number, number][],
+      ],
+    };
+    expect(puntoDentroDelPadre(form, [1, 1])).toBe(false);
+    expect(puntoDentroDelPadre(form, [0.25, 0.25])).toBe(true);
+  });
+
   it("detects a point inside a polygon", () => {
     expect(puntoEnPoligono([1, 1], square)).toBe(true);
     expect(puntoEnPoligono([3, 3], square)).toBe(false);

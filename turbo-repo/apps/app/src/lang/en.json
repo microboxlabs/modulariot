@@ -9858,6 +9858,7 @@
     },
     "validation": {
       "code_missing": "The External ID is missing.",
+      "category_list_missing": "Choose a category list before saving the existing categories.",
       "name_missing": "The name is missing.",
       "center_missing": "Set the center by clicking on the map.",
       "polygon_vertices": "The polygon needs at least 3 vertices.",

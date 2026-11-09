@@ -25,6 +25,19 @@ const poligono: FormLugar = {
 };
 
 describe("place validation", () => {
+  it("requires a list before uploading legacy category codes", () => {
+    expect(
+      errorLugar({ ...circulo, categorias: ["legacy"], categorias_lista: null })
+    ).toBe("Elige una lista antes de guardar las categorías existentes.");
+    expect(
+      errorLugar({
+        ...circulo,
+        categorias: ["legacy"],
+        categorias_lista: "demo-list",
+      })
+    ).toBeNull();
+  });
+
   it("lets a complete place be saved", () => {
     expect(errorLugar(circulo)).toBeNull();
     expect(errorLugar(poligono)).toBeNull();

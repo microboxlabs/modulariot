@@ -98,6 +98,7 @@ The scheduled run shares one complete Graph lookup per organization across its p
 is not retried for each operator. Each run considers at most 500 callers; Graph requests, including both reports
 and their pages, are serialized and paced at no more than four per second per replica. Each report has a five-page
 limit and an incomplete scan fails without assigning records. The advisory lock covers the entire scheduled run.
+Graph requests use a fair, interruptible queue so interactive requests cannot be starved by the background run.
 Caller selection rotates after the last selected caller, including skipped organizations and failed lookups, so a
 full batch cannot indefinitely exclude later callers. This cursor is held by each scheduler replica and resets on restart.
 When a shared report exceeds the page limit, reconciliation bisects its time window, at most 16 lookups per

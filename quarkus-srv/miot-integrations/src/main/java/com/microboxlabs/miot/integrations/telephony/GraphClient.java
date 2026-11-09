@@ -13,6 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -29,6 +30,7 @@ public class GraphClient {
     private final URI baseUrl;
     static final Duration REQUEST_INTERVAL = Duration.ofMillis(250);
     private long lastRequestAt;
+    private final ReentrantLock pacing = new ReentrantLock(true);
 
     @Inject
     public GraphClient(
@@ -103,15 +105,20 @@ public class GraphClient {
     }
 
     /** Bound aggregate Graph traffic across organizations, operators and report pages on this replica. */
-    private synchronized HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {
-        if (lastRequestAt != 0) {
-            long pause = REQUEST_INTERVAL.toNanos() - (System.nanoTime() - lastRequestAt);
-            if (pause > 0) {
-                TimeUnit.NANOSECONDS.sleep(pause);
+    private HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {
+        pacing.lockInterruptibly();
+        try {
+            if (lastRequestAt != 0) {
+                long pause = REQUEST_INTERVAL.toNanos() - (System.nanoTime() - lastRequestAt);
+                if (pause > 0) {
+                    TimeUnit.NANOSECONDS.sleep(pause);
+                }
             }
+            lastRequestAt = System.nanoTime();
+            return http.send(request);
+        } finally {
+            pacing.unlock();
         }
-        lastRequestAt = System.nanoTime();
-        return http.send(request);
     }
 
     private static String trim(String value) {

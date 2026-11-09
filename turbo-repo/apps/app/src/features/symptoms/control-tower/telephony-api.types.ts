@@ -16,6 +16,8 @@ const setupSchema = z.object({
   lines: z.array(lineSchema),
   /** The WhatsApp button calls from the browser; absent on older responses. */
   whatsAppCalling: z.boolean().optional(),
+  /** Incoming calls use the managed line even when outbound voice uses Teams. */
+  whatsAppIncoming: z.boolean().optional(),
 });
 
 const reconcileResultSchema = z.object({

@@ -50,6 +50,12 @@ class TelephonyChoiceServiceTest {
             issued.add("whatsapp " + connectionId + " " + callee);
             return new WebRtcToken("jwt", "+56900000000", Instant.EPOCH);
         }
+
+        @Override
+        public WebRtcToken answerWhatsAppCall(String tenantCode, String connectionId, String operator, String inboundId) {
+            issued.add("answer " + connectionId + " " + inboundId);
+            return new WebRtcToken("jwt", "+12025550100", Instant.EPOCH);
+        }
     };
     private boolean whatsApp;
     private final TelephonyChoiceService service = new TelephonyChoiceService(new InMemoryTowerSettingsStore(),
@@ -57,6 +63,31 @@ class TelephonyChoiceServiceTest {
 
     private static final TelephonyLine MANAGED = new TelephonyLine("p1", TelephonyProvider.TELNYX, "Plataforma",
             "+56900000000", true, true);
+
+    @Test
+    void incomingWhatsAppUsesTheManagedLineWhenOutboundVoiceUsesTeams() {
+        lines.addAll(List.of(MANAGED, TEAMS));
+        whatsApp = true;
+        service.save("acme", "operator", new TelephonyRequest("TEAMS_PHONE"));
+        assertEquals(false, service.get("acme").whatsAppCalling());
+        assertEquals(true, service.get("acme").whatsAppIncoming());
+        service.answerWhatsAppCall("acme", "operator", "incoming-1");
+        assertEquals(List.of("answer p1 incoming-1"), issued);
+        lines.clear();
+        lines.add(TELNYX);
+        assertThrows(TelephonyUnavailableException.class,
+                () -> service.answerWhatsAppCall("acme", "operator", "incoming-1"));
+    }
+
+    @Test
+    void unsupportedChannelsCannotSilentlyPlacePstnCalls() {
+        lines.add(MANAGED);
+        for (String channel : List.of("WHATSAPP ", "VOICE", "", "SMS")) {
+            var request = new TelephonyChoiceService.CallRequest("+12025550101", null, channel);
+            assertThrows(IllegalArgumentException.class, () -> service.webRtcToken("acme", "operator", request));
+        }
+        assertEquals(List.of(), issued);
+    }
 
     @Test
     void theWhatsAppButtonCallsOnlyOnTheManagedLineWhileWhatsAppCallingIsOn() {

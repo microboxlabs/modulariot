@@ -103,7 +103,9 @@ function snapshotFromCall(call: ActiveCall): CallSnapshot {
     contact: target,
     personName: call.contactName,
     role: call.contactRole,
-    phone: target ? phoneForMethod(target, call.method) : "",
+    phone: target
+      ? phoneForMethod(target, call.method)
+      : (call.calleeNumber ?? ""),
     allowedMethods: target?.methods,
     durationSeconds: call.result?.durationSeconds ?? null,
     methodUsed: call.result?.method ?? null,
@@ -185,6 +187,7 @@ export default function PrototypeCallCenterFlow({
     return sessionCall ? "dialing" : "contacts";
   });
   const [dialingStarted, setDialingStarted] = useState(false);
+  const [adoptedSessionKey, setAdoptedSessionKey] = useState(sessionCall?.key);
   const [activeContact, setActiveContact] = useState<CallTarget | null>(
     resume?.contact ?? null
   );
@@ -234,6 +237,7 @@ export default function PrototypeCallCenterFlow({
   // reload, or started before the panel finished loading) takes over the
   // contact list.
   const adopt = (call: ActiveCall) => {
+    setAdoptedSessionKey(call.key);
     const snap = snapshotFromCall(call);
     defaultMessage.current = snap.defaultMessage ?? defaultMessage.current;
     setActiveScript(snap.script ?? null);
@@ -269,6 +273,7 @@ export default function PrototypeCallCenterFlow({
   };
 
   const handleCall = (target: CallTarget, script?: CallScript) => {
+    setAdoptedSessionKey(undefined);
     if (!activeScript) defaultMessage.current = messageToCommunicate;
     // The step's script replaces the treatment's default message, so the
     // dialing step and the results form show what this step says.
@@ -378,7 +383,10 @@ export default function PrototypeCallCenterFlow({
           onCancel={handleCancelCall}
           onConfirm={handleConfirmCall}
           onStartedChange={setDialingStarted}
-          sessionKey={`${caseId ?? ""}:${activeContact?.id ?? activePersonName}`}
+          sessionKey={
+            adoptedSessionKey ??
+            `${caseId ?? ""}:${activeContact?.id ?? activePersonName}`
+          }
           callContext={callContext}
         />
       )}

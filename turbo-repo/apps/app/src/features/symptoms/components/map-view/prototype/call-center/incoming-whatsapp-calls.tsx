@@ -8,12 +8,13 @@
  */
 
 import { FaWhatsapp } from "react-icons/fa";
-import { mutate } from "swr";
+import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
   answerWhatsAppCall,
-  ringingWhatsAppCallsKey,
   useRingingWhatsAppCalls,
   useTelephony,
   type InboundWhatsAppCall,
@@ -29,12 +30,19 @@ export default function IncomingWhatsAppCalls({
   answer?: typeof answerWhatsAppCall;
 }>) {
   const session = useOptionalCallSession();
+  const { canAccess } = usePermissions();
+  const { isSwitching } = useOrgScopes();
+  const canAnswer = canAccess(ACCESS_RULES.controlTowerCaseTreat);
   const { data: setup } = useTelephony(Boolean(session));
-  const enabled = Boolean(setup?.whatsAppCalling);
-  const { data: calls } = useRingingWhatsAppCalls(enabled && !session?.busy);
-  if (!session || !enabled || session.busy || !calls?.length) return null;
+  const enabled = Boolean(setup?.whatsAppIncoming ?? setup?.whatsAppCalling);
+  const { data: calls, mutate } = useRingingWhatsAppCalls(
+    enabled && !session?.busy
+  );
+  if (!session || !enabled || isSwitching || session.busy || !calls?.length)
+    return null;
 
   const take = (c: InboundWhatsAppCall) => {
+    if (!canAnswer || isSwitching) return;
     const name = c.callerName ?? c.callerNumber;
     session.startTelnyx({
       key: `wa-in:${c.id}`,
@@ -47,7 +55,7 @@ export default function IncomingWhatsAppCalls({
       caseRef: c.caseRef,
       token: () => answer(c.id),
     });
-    void mutate(ringingWhatsAppCallsKey);
+    void mutate();
   };
 
   return (
@@ -76,13 +84,15 @@ export default function IncomingWhatsAppCalls({
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => take(c)}
-            className="rounded-lg bg-green-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-600"
-          >
-            {tr("symptoms.wa_incoming_answer", dict)}
-          </button>
+          {canAnswer && (
+            <button
+              type="button"
+              onClick={() => take(c)}
+              className="rounded-lg bg-green-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-600"
+            >
+              {tr("symptoms.wa_incoming_answer", dict)}
+            </button>
+          )}
         </div>
       ))}
     </section>

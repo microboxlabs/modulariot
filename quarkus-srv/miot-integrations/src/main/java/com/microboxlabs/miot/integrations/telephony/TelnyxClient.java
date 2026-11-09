@@ -98,6 +98,14 @@ public class TelnyxClient {
                 + segment("page[size]") + "=50&sort=-started_at"));
     }
 
+    /** Recover only the known WhatsApp leg, never its operator's SIP record. */
+    public HttpResponse<String> whatsAppDetailRecord(String apiKey, String callControlId)
+            throws IOException, InterruptedException {
+        return http.send(get(apiKey, "/v2/detail_records?" + segment("filter[record_type]") + "=call-control&"
+                + segment("filter[call_control_id]") + "=" + segment(callControlId) + "&"
+                + segment("filter[date_range]") + "=last_3_days&" + segment("page[size]") + "=50"));
+    }
+
     /** Only the server can turn a parked WebRTC leg into a PSTN call. */
     public HttpResponse<String> transfer(String apiKey, String callId, String to, String from,
             String targetState, String commandId, int timeLimitSeconds) throws IOException, InterruptedException {
@@ -181,7 +189,7 @@ public class TelnyxClient {
     HttpRequest.Builder request(String apiKey, String path) {
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(trim(baseUrl.toString()) + path))
                 .timeout(TelephonyHttp.TIMEOUT)
-                .header("Accept", "application/json");
+                .header("Accept", JSON);
         try {
             return request.header("Authorization", "Bearer " + apiKey);
         } catch (IllegalArgumentException ignored) {

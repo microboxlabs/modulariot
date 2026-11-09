@@ -13,9 +13,26 @@ import es from "@/lang/es.json";
 import CallDialingStep from "./call-dialing-step";
 import IncomingWhatsAppCalls from "./incoming-whatsapp-calls";
 import { CallSessionProvider } from "./call-session";
+import CallBar from "./call-bar";
+import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
 import type { StartCallOptions, TelephonyCallResult } from "./telnyx-call";
 
-const { request } = vi.hoisted(() => ({ request: vi.fn() }));
+const { request, access } = vi.hoisted(() => ({
+  request: vi.fn(),
+  access: { treat: true, switching: false },
+}));
+vi.mock("@/features/auth/hooks/use-permissions", () => ({
+  usePermissions: () => ({ canAccess: () => access.treat }),
+}));
+vi.mock(
+  "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
+  () => ({
+    useOrgScopes: () => ({
+      activeOrg: { slug: "tenant-a" },
+      isSwitching: access.switching,
+    }),
+  })
+);
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ lang: "es" }),
@@ -37,7 +54,7 @@ function permission(state: "CAN_CALL" | "NO_PERMISSION", enabled = true) {
   return {
     callingEnabled: enabled,
     state,
-    permission: state === "CAN_CALL" ? "PERMANENT" : "NONE",
+    permission: state === "CAN_CALL" ? "PERMANENT" : "DECLINED",
     canRequest: state !== "CAN_CALL",
     expiresAt: null,
     lastRequestAt: null,
@@ -112,6 +129,8 @@ function renderStep(whatsAppCalling: boolean) {
 beforeEach(() => {
   sessionStorage.clear();
   request.mockReset();
+  access.treat = true;
+  access.switching = false;
 });
 
 describe("WhatsApp button", () => {
@@ -201,6 +220,18 @@ describe("WhatsApp button", () => {
     }
   );
 
+  it("lets Meta decide when no local permission has ever been recorded", async () => {
+    request.mockResolvedValue({
+      ...permission("NO_PERMISSION"),
+      permission: "NONE",
+    });
+    const { dial } = renderStep(true);
+    const button = await screen.findByRole("button", { name: t.call_wa_call });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    await waitFor(() => expect(dial).toHaveBeenCalled());
+  });
+
   it("shows Meta's refusal (SIP 403) after the call ends", async () => {
     request.mockResolvedValue(permission("CAN_CALL"));
     const { dial, callOutcome, onConfirm, opts } = renderStep(true);
@@ -217,6 +248,68 @@ describe("WhatsApp button", () => {
 });
 
 describe("IncomingWhatsAppCalls", () => {
+  function mockIncoming() {
+    request.mockImplementation(async (url: string) =>
+      url.endsWith("/telephony")
+        ? {
+            preferred: "TEAMS_PHONE",
+            active: line,
+            lines: [line],
+            whatsAppCalling: false,
+            whatsAppIncoming: true,
+          }
+        : [
+            {
+              id: "in-1",
+              callerNumber: "+12025550101",
+              callerName: "Test caller",
+              caseRef: null,
+              since: "2026-11-09T10:00:00Z",
+            },
+          ]
+    );
+  }
+
+  it("keeps the notification visible to viewers without offering Answer", async () => {
+    mockIncoming();
+    access.treat = false;
+    renderInSession(<IncomingWhatsAppCalls dict={dict} />);
+    expect(await screen.findByText(/Test caller/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: t.wa_incoming_answer })
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows an answer refusal in the call bar", async () => {
+    mockIncoming();
+    const answer = vi
+      .fn()
+      .mockRejectedValue(
+        new ControlTowerError("taken", 409, "whatsapp_call_taken")
+      );
+    renderInSession(
+      <>
+        <IncomingWhatsAppCalls dict={dict} answer={answer} />
+        <CallBar dict={dict} />
+      </>
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: t.wa_incoming_answer })
+    );
+    expect(await screen.findByText(t.call_wa_taken)).toBeInTheDocument();
+  });
+
+  it("hides callers while switching organization", async () => {
+    mockIncoming();
+    const view = renderInSession(<IncomingWhatsAppCalls dict={dict} />);
+    expect(await screen.findByText(/Test caller/)).toBeInTheDocument();
+    access.switching = true;
+    view.rerender(<IncomingWhatsAppCalls dict={dict} />);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: t.wa_incoming_answer })
+    ).not.toBeInTheDocument();
+  });
   it("offers a ringing call and takes it with the operator's login", async () => {
     request.mockImplementation(async (url: string) => {
       if (url.endsWith("/telephony"))

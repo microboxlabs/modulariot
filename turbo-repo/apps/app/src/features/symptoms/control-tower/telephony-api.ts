@@ -7,6 +7,7 @@
  */
 
 import useSWR, { mutate } from "swr";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import {
   CONTROL_TOWER_BASE,
   controlTowerRequest as request,
@@ -33,21 +34,28 @@ export type {
 export const telephonyKey = `${CONTROL_TOWER_BASE}/telephony`;
 
 export function useTelephony(enabled = true) {
-  return useSWR<TelephonySetup>(
-    enabled ? telephonyKey : null,
-    async (path: string) => parseTelephonySetup(await request<unknown>(path)),
+  const { activeOrg, isSwitching } = useOrgScopes();
+  const orgSlug = activeOrg?.slug;
+  const result = useSWR<TelephonySetup>(
+    enabled && orgSlug && !isSwitching ? [telephonyKey, orgSlug] : null,
+    async ([path]: [string, string]) =>
+      parseTelephonySetup(await request<unknown>(path)),
     { revalidateOnFocus: false, shouldRetryOnError: false }
   );
+  return { ...result, orgSlug };
 }
 
-export async function saveTelephony(provider: TelephonyProvider | null) {
+export async function saveTelephony(
+  provider: TelephonyProvider | null,
+  orgSlug?: string
+) {
   const saved = parseTelephonySetup(
     await request<unknown>(telephonyKey, {
       method: "PUT",
       body: { provider },
     })
   );
-  await mutate(telephonyKey, saved, { revalidate: false });
+  await mutate([telephonyKey, orgSlug], saved, { revalidate: false });
   return saved;
 }
 
@@ -106,13 +114,18 @@ export const ringingWhatsAppCallsKey = `${telephonyKey}/whatsapp-calls`;
 
 /** WhatsApp calls from contacts ringing in the tower; polled only while WhatsApp calling is on. */
 export function useRingingWhatsAppCalls(enabled: boolean, intervalMs = 4000) {
+  const { activeOrg, isSwitching } = useOrgScopes();
   return useSWR<InboundWhatsAppCall[]>(
-    enabled ? ringingWhatsAppCallsKey : null,
-    async (path: string) => parseInboundCalls(await request<unknown>(path)),
+    enabled && activeOrg?.slug && !isSwitching
+      ? [ringingWhatsAppCallsKey, activeOrg.slug]
+      : null,
+    async ([path]: [string, string]) =>
+      parseInboundCalls(await request<unknown>(path)),
     {
       refreshInterval: intervalMs,
       revalidateOnFocus: true,
-      shouldRetryOnError: false,
+      shouldRetryOnError: true,
+      errorRetryInterval: intervalMs,
     }
   );
 }

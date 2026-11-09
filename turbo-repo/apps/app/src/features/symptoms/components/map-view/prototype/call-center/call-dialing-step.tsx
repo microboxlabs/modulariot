@@ -294,6 +294,8 @@ export default function CallDialingStep({
     waPermission?.callingEnabled === true &&
     waPermission.refusal !== "NO_CONNECTION" &&
     waPermission.refusal !== "INVALID_PHONE" &&
+    (waPermission.permission !== "NONE" ||
+      waPermission.lastRequestAt != null) &&
     waPermission.state !== "CAN_CALL";
   const teamsVia = (id: CallMethod): TelephonyLine | null => {
     if (destination === null || serviceNumber) return null;

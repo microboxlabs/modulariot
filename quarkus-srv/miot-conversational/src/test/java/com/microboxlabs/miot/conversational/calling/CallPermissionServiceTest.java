@@ -276,6 +276,21 @@ class CallPermissionServiceTest {
     }
 
     @Test
+    void absentSipPermissionStaysUnknownWhileExplicitDenialsAndPendingRequestsBlock() {
+        var service = service(true);
+        var adapter = new ConversationalWhatsAppCallPermissions(service);
+        assertEquals(Optional.empty(), adapter.allows(TENANT, PHONE));
+        service.forManagedCalls().request(TENANT, PHONE, "Test contact", "operator");
+        assertEquals(Optional.of(false), adapter.allows(TENANT, PHONE));
+        service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "denial", null, false, false, null,
+                "user_action", now.atOffset(ZoneOffset.UTC)));
+        assertEquals(Optional.of(false), adapter.allows(TENANT, PHONE));
+        service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "grant", null, true, true, null,
+                "user_action", now.plusSeconds(1).atOffset(ZoneOffset.UTC)));
+        assertEquals(Optional.of(true), adapter.allows(TENANT, PHONE));
+    }
+
+    @Test
     void aCallWithoutSourceTimeCannotEraseANewerMiss() {
         var service = service(true);
         service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "grant", null, true, true, null,

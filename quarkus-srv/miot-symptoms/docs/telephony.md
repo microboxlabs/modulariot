@@ -156,13 +156,13 @@ As environment variables: `MIOT_INTEGRATIONS_WHATSAPP_CALLING_CONNECTION_ID`, an
 
 A SIP 403 ("No Approved Call Permission Found") is kept for the row. The app reads it with `GET /calls/{callRef}` (`{failure: "whatsapp_no_permission"}`) and shows "el conductor no ha aceptado las llamadas".
 
-The app checks the permission with `GET /api/v1/orgs/{organizationId}/conversations/whatsapp-call-permissions?phone=...&managed=true` before a SIP call. Its permission request uses `POST .../whatsapp-call-permissions/requests?managed=true`. Both use the platform's WhatsApp sender, even when the organization uses its own messaging account; the request stays in the organization's message pool and metering. The platform connection's `phone_number_id` must identify the configured SIP `business-number`. A permission for an organization's different sender is never used for the SIP call. Without permission the button is disabled; when the sender cannot be resolved, Meta decides with its SIP response.
+The app checks the permission with `GET /api/v1/orgs/{organizationId}/conversations/whatsapp-call-permissions?phone=...&managed=true` before a SIP call. Its permission request uses `POST .../whatsapp-call-permissions/requests?managed=true`. Both use the platform's WhatsApp sender, even when the organization uses its own messaging account; the request stays in the organization's message pool and metering. The platform connection's `phone_number_id` must identify the configured SIP `business-number`. A permission for an organization's different sender is never used for the SIP call. A known denial, expired grant or pending request disables the button. When no permission has been recorded, or the sender cannot be resolved, Meta decides with its SIP response. Unsupported non-null call channels are rejected rather than falling back to a PSTN call.
 
 ### Contact calls the tower
 
 1. `call.initiated`, direction incoming, on the WhatsApp application: the server reads the caller from `from`.
 2. The caller's organization is the one organization whose contact book has an active contact with that phone or WhatsApp number (trip drivers are synced into the book). When no contact matches, use the organization of the latest managed call to that number in 24 hours. A match in several organizations is ambiguous: it goes to the platform notice and never falls back to the ledger. The case is the latest open treatment with a call to that contact.
-3. A known caller's call rings (it is not answered) and is listed in `GET /whatsapp-calls` for the organization's operators. The app shows it with "Contestar".
+3. A known caller's call rings (it is not answered) and is listed in `GET /whatsapp-calls` for the organization's operators. The app shows it with "Contestar" for operators with `controltower:case.treat`; viewers can see the notification. Poll failures retry, and cached callers and setup are scoped to the active organization. Answering is unavailable during an organization switch.
 4. "Contestar" asks `POST /whatsapp-calls/{id}/answer`, a login with a reservation. 409 `whatsapp_call_taken` when another operator took it or it ended. The browser dials; on admission the server answers the WhatsApp leg and bridges it to the operator's leg.
 5. An unknown caller, or a call nobody takes within `ring-timeout`, is answered, hears `unanswered-message`, and is hung up. A claim whose browser never dials expires after the same timeout, retires its reservation, and follows this unanswered-call flow. A late browser leg cannot consume that expired reservation.
 6. The server ends admitted inbound calls one minute before the two-hour reservation hold. An admitted inbound call still occupies a channel past the hold while teardown is retrying. Successful provider teardown frees capacity; only the WhatsApp leg's webhook confirms billable seconds. Transient counterpart-hangup failures propagate for webhook retry, and the scheduled deadline sweep retries overdue inbound teardown.
@@ -174,7 +174,7 @@ The app checks the permission with `GET /api/v1/orgs/{organizationId}/conversati
 | `GET /whatsapp-calls` | `controltower:view` | ringing calls: `id`, `callerNumber`, `callerName`, `caseRef`, `since` |
 | `POST /whatsapp-calls/{id}/answer` | `controltower:case.treat` | `{token, callerNumber, expiresAt, callRef}` |
 
-`GET /telephony` answers `whatsAppCalling: true` when the active line is the managed one and the configuration is complete.
+`GET /telephony` answers `whatsAppCalling: true` when the active line is the managed one and the configuration is complete. Its separate `whatsAppIncoming` flag allows inbound answering on the ready managed Telnyx line while outbound voice uses Teams. An organization's own Telnyx line cannot answer these managed WhatsApp calls. Answer requests forward the individual operator's session even when the app's proxy otherwise uses M2M authentication.
 
 ### Metering
 
@@ -185,6 +185,6 @@ WhatsApp calls are `WHATSAPP_CALL` rows in `telephony_usage`, confirmed by the W
 | `WHATSAPP_CALL` (operator calls) | the plan's WhatsApp call price per minute |
 | `WHATSAPP_INBOUND` (contact calls) | 0: free on Meta's side; minutes are shown |
 
-WhatsApp minutes do not count against the voice quota. The detail-record reconcile skips the operator's parked leg of a WhatsApp call.
+WhatsApp minutes do not count against the voice quota. The detail-record reconcile skips the operator's parked leg of a WhatsApp call. Before expiring stale reservations it attempts to recover missing WhatsApp hangup webhooks from the known WhatsApp leg's Call Control detail record in the three-day provider lookback. It verifies the saved leg and application and updates the same ledger row; retries and later webhooks cannot create another charge. Inbound recovered minutes retain their free destination type.
 
 Migration `V0.6.42` adds `telephony_whatsapp_legs` (the WhatsApp leg and Meta's refusal per row) and `whatsapp_inbound_calls`.

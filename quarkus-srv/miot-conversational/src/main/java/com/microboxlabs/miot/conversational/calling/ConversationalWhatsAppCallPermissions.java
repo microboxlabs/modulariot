@@ -26,7 +26,8 @@ public class ConversationalWhatsAppCallPermissions implements WhatsAppCallPermis
     public Optional<Boolean> allows(String tenantCode, String contactE164) {
         CallPermissionService.View view = permissions.forManagedCalls().view(tenantCode, contactE164);
         if (!view.callingEnabled() || view.refusal() == CallPermissionPolicy.Refusal.NO_CONNECTION
-                || view.refusal() == CallPermissionPolicy.Refusal.INVALID_PHONE) {
+                || view.refusal() == CallPermissionPolicy.Refusal.INVALID_PHONE
+                || (view.permission() == CallPermissionStatus.NONE && view.lastRequestAt() == null)) {
             return Optional.empty();
         }
         return Optional.of(view.state() == State.CAN_CALL);

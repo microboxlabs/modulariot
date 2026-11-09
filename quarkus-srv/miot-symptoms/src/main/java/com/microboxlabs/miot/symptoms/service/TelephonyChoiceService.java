@@ -30,7 +30,7 @@ public class TelephonyChoiceService {
      * @param whatsAppCalling whether the WhatsApp button calls from the browser; false opens the chat
      */
     public record TelephonySetup(TelephonyProvider preferred, TelephonyLine active, List<TelephonyLine> lines,
-            boolean whatsAppCalling) {
+            boolean whatsAppCalling, boolean whatsAppIncoming) {
     }
 
     /** {@code provider}: TELNYX, TEAMS_PHONE, or null to let the server pick. */
@@ -53,7 +53,8 @@ public class TelephonyChoiceService {
                 .orElse(null);
         List<TelephonyLine> lines = telephony.lines(tenantCode);
         TelephonyLine active = pick(preferred, lines).orElse(null);
-        return new TelephonySetup(preferred, active, lines, whatsAppCalling(tenantCode, active));
+        return new TelephonySetup(preferred, active, lines, whatsAppCalling(tenantCode, active),
+                telephony.whatsAppCalling(tenantCode));
     }
 
     /** The line calls use now, if any. */
@@ -75,6 +76,9 @@ public class TelephonyChoiceService {
      * WHATSAPP the server calls the number on WhatsApp once the operator's leg is admitted.
      */
     public WebRtcToken webRtcToken(String tenantCode, String operator, CallRequest req) {
+        if (req != null && req.channel() != null && !WHATSAPP.equalsIgnoreCase(req.channel())) {
+            throw new IllegalArgumentException("channel: WHATSAPP or null");
+        }
         TelephonyLine line = telnyxLine(tenantCode);
         if (req != null && WHATSAPP.equalsIgnoreCase(req.channel())) {
             return telephony.whatsAppCall(tenantCode, line.connectionId(), operator, req.calleeNumber(),
@@ -91,7 +95,10 @@ public class TelephonyChoiceService {
 
     /** A login to take a ringing WhatsApp call; the operator dials with it like any Telnyx call. */
     public WebRtcToken answerWhatsAppCall(String tenantCode, String operator, String inboundCallId) {
-        return telephony.answerWhatsAppCall(tenantCode, telnyxLine(tenantCode).connectionId(), operator,
+        TelephonyLine managed = telephony.lines(tenantCode).stream()
+                .filter(l -> l.provider() == TelephonyProvider.TELNYX && l.ready() && l.managed())
+                .findFirst().orElseThrow(() -> new TelephonyUnavailableException("The managed Telnyx line is unavailable"));
+        return telephony.answerWhatsAppCall(tenantCode, managed.connectionId(), operator,
                 inboundCallId);
     }
 
@@ -136,7 +143,8 @@ public class TelephonyChoiceService {
         TelephonyProvider provider = parse(req == null ? null : req.provider());
         List<TelephonyLine> lines = telephony.lines(tenantCode);
         TelephonyLine active = pick(provider, lines).orElse(null);
-        TelephonySetup saved = new TelephonySetup(provider, active, lines, whatsAppCalling(tenantCode, active));
+        TelephonySetup saved = new TelephonySetup(provider, active, lines, whatsAppCalling(tenantCode, active),
+                telephony.whatsAppCalling(tenantCode));
         store.saveTelephonyProvider(tenantCode, provider == null ? null : provider.name(), actor);
         audit.log(tenantCode, actor, "settings.telephony_saved", "settings", tenantCode, null,
                 Map.of("provider", provider == null ? "AUTO" : provider.name()));

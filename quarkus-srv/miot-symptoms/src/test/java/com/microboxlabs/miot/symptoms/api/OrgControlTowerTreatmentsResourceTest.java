@@ -22,7 +22,9 @@ import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentType;
+import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
+import com.microboxlabs.miot.symptoms.dto.CloseTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.OpenTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.service.AuditService;
@@ -37,6 +39,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,7 +98,19 @@ class OrgControlTowerTreatmentsResourceTest {
     }
 
     private final AuditService audit = new AuditService(new InMemoryAuditStore());
-    private final EngineCaseService caseService = new EngineCaseService(cases, (t, a, d) -> { }, t -> null, clock);
+    /** How the operator closed each engine case, as the evaluator receives it. */
+    private final List<OperatorClose> operatorCloses = new ArrayList<>();
+    private final EngineCaseService caseService = new EngineCaseService(cases, new EngineCaseService.Forget() {
+        @Override
+        public void episode(String tenantCode, String assetId, UUID definitionId) {
+            // Nothing is kept.
+        }
+
+        @Override
+        public void closed(String tenantCode, String assetId, UUID definitionId, OperatorClose close) {
+            operatorCloses.add(close);
+        }
+    }, t -> null, clock);
     private final HoldService holds = new HoldService(cases, caseService, holdStore, new HoldIndex(holdStore),
             treatments, audit, (tenant, c) -> null, clock);
     private final OrgControlTowerTreatmentsResource resource = resource();
@@ -177,5 +192,49 @@ class OrgControlTowerTreatmentsResourceTest {
         open.clear();
         assertEquals(409, call(resource.resume(ORG, t.id())).getStatus());
         assertEquals(404, call(resource.resume(ORG, UUID.randomUUID().toString())).getStatus());
+    }
+
+    private void addCase(long caseId, String tripId, Instant closedAt) {
+        cases.add(new EngineCase(caseId, SPEEDING, "1.0.0", "Exceso", "speed", "DEMO01", NOW.minusSeconds(600), 3,
+                tripId, null, null, null, closedAt, 0, null, null, null));
+    }
+
+    private TreatmentView open(long caseId, TreatmentType type) {
+        return (TreatmentView) call(resource.open(ORG, String.valueOf(-caseId),
+                new OpenTreatmentRequest(type, "DEMO01", "T-1", null))).getEntity();
+    }
+
+    @Test
+    void aTreatmentDoesNotOpenOnAClosedCase() {
+        addCase(20, "T-1", NOW.minusSeconds(120));
+
+        Response r = call(resource.open(ORG, "-20",
+                new OpenTreatmentRequest(TreatmentType.CALL, "DEMO01", "T-1", null)));
+
+        assertEquals(409, r.getStatus());
+        assertTrue(String.valueOf(r.getEntity()).contains("the case is closed"), String.valueOf(r.getEntity()));
+        assertTrue(treatments.listBySymptom(TENANT, -20).isEmpty(), "no treatment was stored");
+        assertEquals(404, call(resource.open(ORG, "-21",
+                new OpenTreatmentRequest(TreatmentType.CALL, "DEMO01", "T-1", null))).getStatus());
+    }
+
+    @Test
+    void anInvalidationTellsTheEngineAndACallDoesNot() {
+        addCase(30, "T-1", null);
+        TreatmentView invalidate = open(30, TreatmentType.INVALIDATE_SYMPTOM);
+        call(resource.addAction(ORG, invalidate.id(), new AddActionRequest(ActionKind.INVALIDATE, null, null, null,
+                null, null, "rule_miscalibrated", "Regla mal calibrada", null, null, null, null, null, null)));
+        assertEquals(200, call(resource.close(ORG, invalidate.id(), new CloseTreatmentRequest(null, null)))
+                .getStatus());
+
+        addCase(31, "T-1", null);
+        TreatmentView handled = open(31, TreatmentType.CALL);
+        call(resource.addAction(ORG, handled.id(), new AddActionRequest(ActionKind.CALL, null, "Conductor", null,
+                "+12025550100", CallMethod.PHONE, null, "Compromete corrección", true, 60, null, null, null, null)));
+        assertEquals(200, call(resource.close(ORG, handled.id(), new CloseTreatmentRequest(null, null)))
+                .getStatus());
+
+        assertEquals(List.of(new OperatorClose("T-1", NOW, 3, true), new OperatorClose("T-1", NOW, 3, false)),
+                operatorCloses);
     }
 }

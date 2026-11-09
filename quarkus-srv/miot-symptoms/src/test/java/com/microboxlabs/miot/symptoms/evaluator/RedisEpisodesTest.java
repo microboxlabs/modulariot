@@ -163,6 +163,33 @@ class RedisEpisodesTest {
     }
 
     @Test
+    void closingPreservesTheConditionTimersAndAnAlreadyNormalCondition() {
+        var first = new RedisEpisodes(redis, Duration.ofDays(7));
+        var second = new RedisEpisodes(redis, Duration.ofDays(7));
+        Instant at = Instant.parse("2026-10-22T03:00:00Z");
+        for (boolean normal : List.of(false, true)) {
+            UUID id = UUID.randomUUID();
+            Instant normalSince = normal ? at.plusSeconds(10) : null;
+            Episode open = new Episode(id, "1.0.0", CLOSE_ASSET, at, normal ? null : at, normalSince,
+                    normal ? Map.of() : Map.of(1, at), at.plusSeconds(20), at, 1, 10).withCaseFrame("trip-test", Map.of());
+            AssetEpisodes state = first.load("tenant-a", CLOSE_ASSET);
+            state.save("tenant-a", open);
+            first.save(state);
+            Episode marker = new OperatorClose("trip-test", at.plusSeconds(30), 1, true).marker(id, CLOSE_ASSET);
+            first.operatorClose("tenant-a", CLOSE_ASSET, id, marker);
+            second.operatorClose("tenant-a", CLOSE_ASSET, id, marker);
+            Episode kept = first.load("tenant-a", CLOSE_ASSET).find("tenant-a", CLOSE_ASSET, id).orElseThrow();
+            assertEquals(at, kept.candidateSince());
+            assertEquals(normal ? null : at, kept.conditionSince());
+            assertEquals(normalSince, kept.normalSince());
+            assertEquals(normal ? Map.of() : Map.of(1, at), kept.levelSince());
+            assertEquals("1.0.0", kept.version());
+            assertEquals(normal ? null : Integer.MAX_VALUE, kept.reopenAbove());
+            assertEquals(false, kept.open());
+        }
+    }
+
+    @Test
     void anOperatorMarkerRejectsStaleWritesAndDeletesAcrossRepositories() {
         EpisodeRepositoryConcurrencyTest.assertMarkerProtectsSnapshots(
                 new RedisEpisodes(redis, Duration.ofDays(7)), new RedisEpisodes(redis, Duration.ofDays(7)), CLOSE_ASSET);

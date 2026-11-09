@@ -347,7 +347,7 @@ public class TripChecks {
         TransitionLog.Place place = place(trip, last);
         if (!result.transitions().isEmpty()) {
             List<TransitionLog.Recorded> recorded = log.appendTripCheck(tenant, withCaseTrips(state,
-                    result.transitions(), activeTrip, context), place, context);
+                    result.transitions(), activeTrip, context), place, context, () -> episodes.validate(state));
             recorded.stream().filter(r -> r.transition().kind() == Transition.Kind.OPENED)
                     .forEach(r -> open.put(key(tenant, r.transition().definitionId()),
                             new OpenCase(r.caseId(), r.transition().version(), r.transition().state())));
@@ -414,7 +414,14 @@ public class TripChecks {
 
     /** Atomically closes the episode without exposing an empty state before the GPS consumer's marker. */
     public void forget(String tenant, String assetId, UUID definitionId, Episode marker) {
-        episodes.operatorClose(tenant, assetId, definitionId, marker);
+        forget(tenant, assetId, definitionId, marker, null);
+    }
+
+    /** Do not repeat the GPS consumer's write to the same repository. */
+    public void forget(String tenant, String assetId, UUID definitionId, Episode marker, EpisodeRepository alreadyClosed) {
+        if (episodes != alreadyClosed) {
+            episodes.operatorClose(tenant, assetId, definitionId, marker);
+        }
     }
 
     /** Preserves an episode opened after the case the sweep closed. */

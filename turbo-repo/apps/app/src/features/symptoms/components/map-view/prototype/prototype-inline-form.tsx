@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { HiChevronLeft } from "react-icons/hi";
+import { HiChevronLeft, HiOutlineClipboardCheck } from "react-icons/hi";
 import { ToggleSwitch } from "flowbite-react";
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -28,7 +28,6 @@ import PrototypeInvalidateSymptom from "./prototype-invalidate-symptom";
 import PrototypeRecordHandling from "./prototype-record-handling";
 import { TiDelete } from "react-icons/ti";
 import { MdBlock } from "react-icons/md";
-import { HiOutlineClipboardCheck } from "react-icons/hi";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
 import { useOptionalCallSession } from "./call-center/call-session";
 

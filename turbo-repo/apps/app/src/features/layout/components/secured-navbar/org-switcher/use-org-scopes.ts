@@ -66,6 +66,12 @@ const fetcher = async (url: string) => {
 };
 
 export function useOrgScopes() {
+  // Shared across consumers so actions cannot cross the session's organization switch.
+  const { data: isSwitching = false, mutate: setSwitching } = useSWR<boolean>(
+    "active-org-switch-pending",
+    null,
+    { fallbackData: false }
+  );
   const { data, error, isLoading, mutate } = useSWR<OrgScopesResponse>(
     "/app/api/user/scopes",
     fetcher,
@@ -84,6 +90,7 @@ export function useOrgScopes() {
    */
   const switchOrg = async (slug: string, href?: string): Promise<boolean> => {
     if (!confirmNavigation()) return false;
+    await setSwitching(true, { revalidate: false });
     let response: Response;
     try {
       response = await fetch("/app/api/user/active-org", {
@@ -92,6 +99,12 @@ export function useOrgScopes() {
         body: JSON.stringify({ slug }),
       });
     } catch (error) {
+      // The server may have switched before the response was lost. Confirm the scope
+      // before reopening actions; keep them paused if that read also fails.
+      await fetcher("/app/api/user/scopes")
+        .then((scopes) => mutate(scopes, { revalidate: false }))
+        .then(() => setSwitching(false, { revalidate: false }))
+        .catch(() => undefined);
       console.error("Failed to switch active organization", error);
       throw new Error(
         "No se pudo cambiar la organización. Revisa tu conexión."
@@ -99,6 +112,7 @@ export function useOrgScopes() {
     }
 
     if (!response.ok) {
+      await setSwitching(false, { revalidate: false });
       const message = await getErrorMessage(response);
       const error = new Error(
         message ?? `No se pudo cambiar la organización (${response.status})`
@@ -123,6 +137,7 @@ export function useOrgScopes() {
     activeOrg: data?.activeOrg ?? null,
     availableOrgs: data?.availableOrgs ?? [],
     isLoading,
+    isSwitching,
     error,
     switchOrg,
     /** Re-reads the scopes, e.g. after the caller gains an organization. */

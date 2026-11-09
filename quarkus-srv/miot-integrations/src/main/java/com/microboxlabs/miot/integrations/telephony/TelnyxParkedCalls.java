@@ -35,28 +35,40 @@ public class TelnyxParkedCalls {
     private final TelephonyPlanService plan;
     private final TelnyxClient client;
     private final Clock clock;
+    private final WhatsAppCalls whatsApp;
 
     @Inject
     public TelnyxParkedCalls(IntegrationConnectionRepository connections, IntegrationConnectionResolver resolver,
-            TelephonyUsageStore usage, TelephonyPlanService plan, TelnyxClient client) {
-        this(connections::findActiveTelnyxById, resolver::resolve, usage, plan, client, Clock.systemUTC());
+            TelephonyUsageStore usage, TelephonyPlanService plan, TelnyxClient client, WhatsAppCalls whatsApp) {
+        this(connections::findActiveTelnyxById, resolver::resolve, usage, plan, client, Clock.systemUTC(), whatsApp);
     }
 
     public TelnyxParkedCalls(Function<String, IntegrationConnection> connections,
             BiFunction<String, IntegrationConnection, ResolvedConnection> resolver, TelephonyUsageStore usage,
             TelephonyPlanService plan, TelnyxClient client, Clock clock) {
+        this(connections, resolver, usage, plan, client, clock, null);
+    }
+
+    /** {@code whatsApp} null: WhatsApp rows are refused like an unknown reservation. */
+    public TelnyxParkedCalls(Function<String, IntegrationConnection> connections,
+            BiFunction<String, IntegrationConnection, ResolvedConnection> resolver, TelephonyUsageStore usage,
+            TelephonyPlanService plan, TelnyxClient client, Clock clock, WhatsAppCalls whatsApp) {
         this.connections = connections;
         this.resolver = resolver;
         this.usage = usage;
         this.plan = plan;
         this.client = client;
         this.clock = clock;
+        this.whatsApp = whatsApp;
     }
 
     /** Called only after verification of the provider's webhook signature. */
     public Handling handle(String connectionId, String event, JsonNode payload) {
         String callId = payload.path("call_control_id").asText("");
         String state = TelnyxCallEvents.decode(payload.path("client_state").asText(null));
+        if (whatsApp != null && whatsApp.owns(payload, state)) {
+            return whatsApp.handle(connectionId, event, payload, state);
+        }
         if (state != null && state.startsWith(TARGET)) {
             return handleTarget(connectionId, event, callId, state);
         }
@@ -101,6 +113,7 @@ public class TelnyxParkedCalls {
                 if (current.externalId() == null) usage.update(current.retired());
                 return true;
             });
+            if (whatsApp != null && UsageRow.WHATSAPP_CALL.equals(row.channel())) whatsApp.parkedHungUp(connectionId, row);
         } else if ("call.initiated".equals(event) && UsageRow.STARTED.equals(row.status())) {
             transfer(connectionId, existing, row);
         }
@@ -109,14 +122,14 @@ public class TelnyxParkedCalls {
 
     private CallAdmission admit(String connectionId, String callId, String ref) {
         UsageRow row = ref == null ? null : usage.find(ref).orElse(null);
-        if (row == null || !connectionId.equals(row.connectionId()) || !UsageRow.VOICE.equals(row.channel())
+        if (row == null || !connectionId.equals(row.connectionId()) || !admissible(row.channel())
                 || !UsageRow.STARTED.equals(row.status()) || row.externalId() != null || row.endedAt() != null
                 || row.startedAt().isBefore(clock.instant().minus(ADMISSION_TTL))
                 || usage.admission(ref).isPresent()) {
             throw new TelephonyUnavailableException("No unused call reservation");
         }
         IntegrationConnection connection = requireConnection(connectionId);
-        if (row.managed()) plan.requireMinutes(row.tenantCode());
+        if (row.managed() && UsageRow.VOICE.equals(row.channel())) plan.requireMinutes(row.tenantCode());
         if (usage.busyChannels(connectionId, clock.instant().minus(IntegrationsTelephony.HOLD))
                 > IntegrationsTelephony.channelLimit(connection)) {
             throw new TelephonyUnavailableException("The line has no available channel");
@@ -124,6 +137,10 @@ public class TelnyxParkedCalls {
         CallAdmission admission = new CallAdmission(ref, callId, UUID.randomUUID().toString());
         usage.saveAdmission(admission);
         return admission;
+    }
+
+    private boolean admissible(String channel) {
+        return UsageRow.VOICE.equals(channel) || (whatsApp != null && UsageRow.WHATSAPP_CALL.equals(channel));
     }
 
     private IntegrationConnection requireConnection(String id) {
@@ -140,6 +157,10 @@ public class TelnyxParkedCalls {
     }
 
     private void transfer(String connectionId, CallAdmission admission, UsageRow row) {
+        if (UsageRow.WHATSAPP_CALL.equals(row.channel())) {
+            whatsApp.connect(connectionId, admission, row);
+            return;
+        }
         ResolvedConnection connection = resolve(connectionId);
         String targetState = Base64.getEncoder().encodeToString((TARGET + admission.targetState()).getBytes(StandardCharsets.UTF_8));
         try {

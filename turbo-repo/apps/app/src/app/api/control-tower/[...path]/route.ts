@@ -14,7 +14,9 @@ const proxy = orgApiProxy("control-tower", {
       "/telephony/webrtc-token",
       "/telephony/reconcile",
     ].some((suffix) => path.split("?")[0].endsWith(suffix)) ||
-    /\/telephony\/calls\/[^/]+\/ended$/.test(path.split("?")[0])
+    /\/telephony\/(calls\/[^/]+\/ended|whatsapp-calls\/[^/]+\/answer)$/.test(
+      path.split("?")[0]
+    )
       ? forwardToStreamhubModulith(path, { ...init, sessionOnly: true })
       : forwardToStreamhubModulith(path, init),
 });

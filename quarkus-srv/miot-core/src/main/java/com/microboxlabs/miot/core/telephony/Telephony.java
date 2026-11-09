@@ -31,6 +31,45 @@ public interface Telephony {
         throw new TelephonyUnavailableException("Telephony is not available in this build");
     }
 
+    /** Whether the organization's calls can reach WhatsApp: WhatsApp calling is configured and its line is the managed one. */
+    default boolean whatsAppCalling(String tenantCode) {
+        return false;
+    }
+
+    /**
+     * Like {@link #webRtcToken(String, String, String, String, String)} for a WhatsApp call: the server dials
+     * {@code calleeNumber} on WhatsApp when the operator's leg is admitted, and bridges the two.
+     *
+     * @throws TelephonyUnavailableException {@code WHATSAPP_NO_PERMISSION} when the contact has not allowed calls,
+     *         {@code WHATSAPP_UNAVAILABLE} when WhatsApp calling is off for the organization
+     */
+    default WebRtcToken whatsAppCall(String tenantCode, String connectionId, String operator, String calleeNumber,
+            String caseRef) {
+        throw new TelephonyUnavailableException(TelephonyUnavailableException.WHATSAPP_UNAVAILABLE,
+                "WhatsApp calling is not available in this build");
+    }
+
+    /** The WhatsApp calls ringing in the organization's tower, oldest first. */
+    default java.util.List<InboundCall> ringingWhatsAppCalls(String tenantCode) {
+        return java.util.List.of();
+    }
+
+    /**
+     * A login for the operator to take a ringing WhatsApp call: the operator's leg is bridged to it on admission.
+     *
+     * @throws TelephonyUnavailableException {@code WHATSAPP_CALL_TAKEN} when it is no longer ringing
+     */
+    default WebRtcToken answerWhatsAppCall(String tenantCode, String connectionId, String operator,
+            String inboundCallId) {
+        throw new TelephonyUnavailableException(TelephonyUnavailableException.WHATSAPP_UNAVAILABLE,
+                "WhatsApp calling is not available in this build");
+    }
+
+    /** Why the provider ended the call before it connected (a {@link TelephonyUnavailableException} code), if known. */
+    default java.util.Optional<String> callFailure(String tenantCode, String callRef) {
+        return java.util.Optional.empty();
+    }
+
     /**
      * The browser says a call ended. Frees its reservation; the untrusted providerCallId is ignored.
      * Provider identifiers and billing data must come from verified provider deliveries.

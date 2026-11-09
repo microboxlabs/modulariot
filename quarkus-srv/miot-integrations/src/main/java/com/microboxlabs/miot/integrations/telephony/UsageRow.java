@@ -15,6 +15,8 @@ public record UsageRow(String id, String tenantCode, String channel, boolean man
     public static final String VOICE = "VOICE";
     public static final String WHATSAPP_CALL = "WHATSAPP_CALL";
     public static final String WHATSAPP_TEMPLATE = "WHATSAPP_TEMPLATE";
+    /** Destination type of a WHATSAPP_CALL the contact placed: free on Meta's side. */
+    public static final String WHATSAPP_INBOUND = "WHATSAPP_INBOUND";
 
     public static final String STARTED = "STARTED";
     public static final String ENDED = "ENDED";
@@ -37,8 +39,15 @@ public record UsageRow(String id, String tenantCode, String channel, boolean man
 
     UsageRow providerData(String externalId, String callee, Instant started, Instant answered, String caseRef) {
         return new UsageRow(id, tenantCode, channel, managed, connectionId, externalId, caseRef, callee,
-                TelephonyPlanService.destinationType(callee), status, answered, seconds, billedMinutes,
+                VOICE.equals(channel) ? TelephonyPlanService.destinationType(callee) : destinationType, status, answered, seconds, billedMinutes,
                 providerCost, providerCurrency, source, started == null ? startedAt : started, endedAt, confirmedAt);
+    }
+
+    /** A successful provider teardown frees capacity while its billing webhook is still pending. */
+    UsageRow endedPending(Instant at) {
+        return new UsageRow(id, tenantCode, channel, managed, connectionId, externalId, caseRef, calleeNumber,
+                destinationType, ENDED, answeredAt, seconds, billedMinutes, providerCost, providerCurrency,
+                source, startedAt, at, confirmedAt);
     }
 
     UsageRow confirmed(int seconds, BigDecimal cost, String currency, String source, Instant endedAt, Instant now) {

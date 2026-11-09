@@ -57,6 +57,7 @@ export default function PrototypeRecordHandling({
   const [outcomeId, setOutcomeId] = useState("");
   const [note, setNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isClosingOnly, setIsClosingOnly] = useState(false);
   const submitting = useRef(false);
   const engineProgress = useRef<EngineTreatmentProgress>({});
 
@@ -64,17 +65,20 @@ export default function PrototypeRecordHandling({
   const outcomeIds = outcomeId.split(",").filter(Boolean);
   const selectedOutcomes = options.filter((o) => outcomeIds.includes(o.id));
   const outcomeLabel = selectedOutcomes.map((o) => o.name).join(", ");
-  const canSave =
+  const validDraft =
     selectedOutcomes.length > 0 &&
     selectedOutcomes.length === outcomeIds.length &&
     note.trim().length > 0;
+  const canSave = isClosingOnly || validDraft;
 
   const handleSave = async () => {
     if (!canSave || submitting.current) return;
     submitting.current = true;
     setIsSubmitting(true);
     try {
-      const description = handlingDescription(outcomeLabel, note);
+      const description =
+        engineProgress.current.pendingClose?.resolution ??
+        handlingDescription(outcomeLabel, note);
       const response = await guardedRequestTreatment(
         {
           ...treatmentRequest,
@@ -98,6 +102,7 @@ export default function PrototypeRecordHandling({
       router.push(`/${lang}/symptoms`);
       ShowNotification({ type: "success", message: t("treatment_saved") });
     } catch {
+      setIsClosingOnly(engineProgress.current.pendingClose !== undefined);
       ShowNotification({ type: "error", message: t("treatment_save_error") });
     } finally {
       submitting.current = false;
@@ -108,56 +113,64 @@ export default function PrototypeRecordHandling({
   return (
     <BentoGrid>
       <p className="shrink-0 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-light text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-        {t("proto_handling_semantics")}
+        {t(
+          isClosingOnly ? "handling_close_pending" : "proto_handling_semantics"
+        )}
       </p>
 
       <PlainSection title={t("proto_section_general")}>
         <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
       </PlainSection>
 
-      <FieldCard
-        title={t("proto_section_handling")}
-        action={
-          <SelectableFieldControl
-            fieldKey={HANDLING_OUTCOME_FIELD}
-            dict={dict}
-          />
-        }
-        grow
+      <fieldset
+        disabled={isSubmitting || isClosingOnly}
+        className="flex min-h-0 min-w-0 flex-1 flex-col"
       >
-        <div>
-          <span className={fieldLabel}>{t("handling_outcome")} *</span>
-          <SelectableDropdown
-            fieldKey={HANDLING_OUTCOME_FIELD}
-            dict={dict}
-            value={outcomeId}
-            onSelect={(o) => setOutcomeId(o.id)}
-            placeholder={t("handling_outcome_required")}
-          />
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="mb-1 flex items-baseline justify-between gap-2">
-            <label
-              htmlFor="handling-note"
-              className="text-xs font-medium text-gray-500 dark:text-gray-400"
-            >
-              {t("handling_note")} *
-            </label>
-            {note.trim().length === 0 && (
-              <span className="text-xs text-red-500">
-                {t("handling_note_required")}
-              </span>
-            )}
+        <legend className="sr-only">{t("proto_section_handling")}</legend>
+        <FieldCard
+          title={t("proto_section_handling")}
+          action={
+            <SelectableFieldControl
+              fieldKey={HANDLING_OUTCOME_FIELD}
+              dict={dict}
+            />
+          }
+          grow
+        >
+          <div>
+            <span className={fieldLabel}>{t("handling_outcome")} *</span>
+            <SelectableDropdown
+              fieldKey={HANDLING_OUTCOME_FIELD}
+              dict={dict}
+              value={outcomeId}
+              onSelect={(o) => setOutcomeId(o.id)}
+              placeholder={t("handling_outcome_required")}
+            />
           </div>
-          <Textarea
-            id="handling-note"
-            className={fillTextarea}
-            placeholder={t("handling_note_placeholder")}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
-      </FieldCard>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="mb-1 flex items-baseline justify-between gap-2">
+              <label
+                htmlFor="handling-note"
+                className="text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                {t("handling_note")} *
+              </label>
+              {note.trim().length === 0 && (
+                <span className="text-xs text-red-500">
+                  {t("handling_note_required")}
+                </span>
+              )}
+            </div>
+            <Textarea
+              id="handling-note"
+              className={fillTextarea}
+              placeholder={t("handling_note_placeholder")}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+        </FieldCard>
+      </fieldset>
 
       <StickyActions>
         <Button

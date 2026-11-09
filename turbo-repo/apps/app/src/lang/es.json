@@ -7794,6 +7794,7 @@
     "handling_note_required": "La nota es obligatoria",
     "handling_note_placeholder": "Qué hiciste y qué comprobaste",
     "save_and_close_handled": "Guardar y cerrar como gestionado",
+    "handling_close_pending": "La gestión ya está guardada. Reintenta para cerrar el caso.",
     "ignore_until_trip_end": "Hasta que termine el viaje",
     "ignored": "Ignorados",
     "ignored_badge": "Ignorado",

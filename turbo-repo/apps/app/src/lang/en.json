@@ -7794,6 +7794,7 @@
     "handling_note_required": "The note is required",
     "handling_note_placeholder": "What you did and what you checked",
     "save_and_close_handled": "Save and close as handled",
+    "handling_close_pending": "The handling record is saved. Retry to close the case.",
     "ignore_until_trip_end": "Until the trip ends",
     "ignored": "Ignored",
     "ignored_badge": "Ignored",

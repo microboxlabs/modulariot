@@ -239,19 +239,35 @@ describe("Registrar gestión", () => {
   it("retries a failed close without adding a duplicate handling record", async () => {
     api.closeTreatment.mockRejectedValueOnce(new Error("503"));
     const user = userEvent.setup();
-    const { closeMenu } = renderForm();
+    const { closeMenu, refreshOptions } = renderForm();
     await user.selectOptions(screen.getByLabelText("outcome"), [
       "handling_outcome_1",
     ]);
     await user.type(screen.getByLabelText("Nota *"), "Revisado");
     await user.click(saveButton());
     await waitFor(() => expect(saveButton()).toBeEnabled());
+    expect(screen.getByLabelText("Nota *")).toBeDisabled();
+    expect(screen.getByLabelText("outcome")).toBeDisabled();
+    expect(
+      screen.getByText(
+        "La gestión ya está guardada. Reintenta para cerrar el caso."
+      )
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Nota *"), "EdiciónPosterior");
+    expect(screen.getByLabelText("Nota *")).toHaveValue("Revisado");
+
+    selectableOptions = [];
+    refreshOptions();
+    expect(saveButton()).toBeEnabled();
     await user.click(saveButton());
 
     await waitFor(() => expect(closeMenu).toHaveBeenCalledWith(false));
     expect(api.openTreatment).toHaveBeenCalledTimes(1);
     expect(api.addTreatmentAction).toHaveBeenCalledTimes(1);
     expect(api.closeTreatment).toHaveBeenCalledTimes(2);
+    expect(api.closeTreatment).toHaveBeenLastCalledWith("t-1", {
+      resolution: "Gestión: Verificado por GPS · Nota: Revisado",
+    });
   });
 
   it("stores the labels when bound to a multiple-selection list", async () => {

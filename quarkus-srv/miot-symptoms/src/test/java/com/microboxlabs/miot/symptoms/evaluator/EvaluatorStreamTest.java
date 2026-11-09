@@ -146,7 +146,7 @@ class EvaluatorStreamTest {
         detectorEpisodes.forgetStale(DEMO, "DEMO01", id, opened.state(), opened.openedAt());
 
         assertTrue(stores.episodes().load(DEMO, "DEMO01").find(DEMO, "DEMO01", id).isEmpty());
-        assertThrows(ConcurrentModificationException.class, () -> stores.episodes().save(inflight));
+        assertThrows(ConcurrentModificationException.class, () -> detectorEpisodes.save(inflight));
         assertEquals(1, consumer.evaluate(signal("2026-01-01T00:01:00Z", true, DEMO)),
                 "the old episode cannot suppress the next case while the condition continues");
     }

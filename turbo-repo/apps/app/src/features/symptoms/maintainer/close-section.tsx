@@ -32,7 +32,9 @@ import { PillNumber, PillSelect } from "./ui/pill";
 import Select from "./ui/select";
 import type { SymptomSpec } from "./maintainer-api";
 
-type AfterTripEnd = NonNullable<SymptomSpec["lifecycle"]>["after_trip_end"];
+type AfterTripEnd = NonNullable<
+  NonNullable<SymptomSpec["lifecycle"]>["after_trip_end"]
+>;
 
 /**
  * The symptom's close and note rules, the same at every level: shown under

@@ -291,6 +291,30 @@ class PgTripEndTest {
     }
 
     @Test
+    void aTruckChangeClosesOnlyTheOldTrucksCases() {
+        UUID lost = symptom("signal-loss");
+        UUID tripId = trip("in_progress");
+        PgIds.query(pool, "INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id) VALUES ($1, $2, 'KGXR80')",
+                Tuple.of(tripId, tenant));
+        long old = open(lost, "KTKJ69", tripId.toString(), 4);
+        long current = open(lost, "KGXR80", tripId.toString(), 1);
+
+        assertEquals(new TripEnds.State(false, false, "KGXR80"),
+                ends.states(Map.of(tenant, tripId.toString())).get(tenant));
+        List<StaleCase> closed = ends.closeOthers(tenant, tripId.toString(), List.of(lost), "kgxr80", now);
+
+        assertEquals(List.of(old), closed.stream().map(StaleCase::id).toList());
+        assertEquals(TripEnds.ASSET_CHANGED, PgIds.query(pool, """
+                SELECT closed_by FROM miot_symptoms.signal_transitions
+                 WHERE tenant_code = $1 AND kind = 'CLOSED' AND asset_id = 'KTKJ69'
+                """, Tuple.of(tenant)).iterator().next().getString("closed_by"));
+        assertNull(cases.find(tenant, current).orElseThrow().closedAt(), "the current truck's case stays open");
+        assertTrue(ends.closeOthers(tenant, tripId.toString(), List.of(lost), "KGXR80", now).isEmpty(),
+                "closed once");
+        assertEquals(1, ends.retry(c -> assertEquals(TripEnds.ASSET_CHANGED, c.reason())), "queued with its reason");
+    }
+
+    @Test
     void tripEndUsesTheEpisodeMaximumAndContextEvenWithoutALevelChange() {
         UUID lost = symptom("signal-loss");
         String tripId = UUID.randomUUID().toString();

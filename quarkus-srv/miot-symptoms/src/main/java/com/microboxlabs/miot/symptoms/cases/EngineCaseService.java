@@ -57,6 +57,8 @@ public class EngineCaseService {
     private static final String PAGE = "p_page";
     private static final Set<String> PAGING = Set.of(PAGE, "p_page_size");
     private static final String POSITION_ASSET_ID = "asset_id";
+    /** The vehicle the case's trip is on now; differs from {@code asset_id} after a truck change. */
+    private static final String TRIP_ASSET_ID = "trip_asset_id";
     private static final String TRIP_ID = "p_trip_id";
     private static final String ASSET_ID = "p_asset_id";
     private static final String NAME = "p_symptom_name";
@@ -522,6 +524,7 @@ public class EngineCaseService {
         r.put(CARRIER_FIELD, trip == null ? null : trip.carrier());
         r.put(ORIGIN_FIELD, trip == null ? null : trip.origin());
         r.put(DESTINATION_FIELD, trip == null ? null : trip.destination());
+        r.put(TRIP_ASSET_ID, trip == null ? null : trip.assetId());
         putHold(r, c);
         return r;
     }
@@ -722,6 +725,7 @@ public class EngineCaseService {
         out.set("level_reason", levelReason(c));
         ObjectNode trip = out.putObject("trip_info");
         trip.put(POSITION_ASSET_ID, c.assetId());
+        trip.put(TRIP_ASSET_ID, c.trip() == null ? null : c.trip().assetId());
         trip.put("trip_id", c.tripId());
         trip.put("trip_code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);

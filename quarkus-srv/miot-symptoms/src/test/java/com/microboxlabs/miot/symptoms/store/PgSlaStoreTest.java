@@ -311,8 +311,8 @@ class PgSlaStoreTest {
         List<EngineCase> all = cases.list(tenant, EngineCaseStore.CaseFilter.OPEN);
         assertEquals(3, all.size(), "a case without a live trip still lists");
         EngineCase.TripDetails details = all.stream().filter(c -> c.id() == a).findFirst().orElseThrow().trip();
-        assertEquals(new EngineCase.TripDetails("Driver 12.345.678-9", "Carrier", "Planta Norte", "Puerto Sur"),
-                details);
+        assertEquals(new EngineCase.TripDetails("Driver 12.345.678-9", "Carrier", "Planta Norte", "Puerto Sur",
+                "DEMO01"), details);
         assertNull(all.get(0).trip(), "no live trip");
 
         PgIds.query(pool, """

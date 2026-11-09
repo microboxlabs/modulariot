@@ -157,6 +157,19 @@ The transition log validates the trip under a shared row lock before accepting a
 
 Migration `V0.12.24` adds `miot_symptoms.trip_end_effects`. Each trip-ended CLOSED row queues its episode cleanup and close event in the same transaction. Every detector tick retries pending effects, including vehicles without a deadline. Replicas use `FOR UPDATE SKIP LOCKED`; a queue entry is deleted only after conditional episode cleanup and all asynchronous event observers succeed. Redis snapshot conflicts retry against the latest episode; persistent contention or an unavailable observer leaves the entry for a later tick. Delivery is at least once: a crash after publication but before acknowledgement can repeat the same case's close event, with its original timestamp; the CLOSED timeline row is not repeated.
 
+### Truck change
+
+When `trip_live.asset_id` changes on a trip that is still running, the trip's open cases on any other vehicle close by the same two paths and the same queue:
+
+| Field | Value |
+|---|---|
+| `signal_transitions.closed_by` | `asset_changed` |
+| `context` | `{"reason": "asset_changed", "trip_id": …}` |
+| Event | `symptom.case.closed`, `closedBy: asset_changed` |
+| Counter | `miot.symptoms.lost_signal.asset_changed_closes` |
+
+The old vehicle's check leaves the trip out. The current vehicle's cases stay open. Case rows and the case header carry `trip_asset_id`, the trip's current plate, so the tower can show both plates.
+
 The close rule (`case.normal_s`, `case.off_trip_s`) cannot do this: the lost check runs only with the trip the newest frame carried, and a parked truck sends no frame.
 
 ### Platform template (V0.12.4)

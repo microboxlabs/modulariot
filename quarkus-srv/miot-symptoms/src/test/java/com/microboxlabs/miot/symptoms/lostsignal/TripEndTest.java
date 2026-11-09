@@ -75,6 +75,22 @@ class TripEndTest {
             }
             return out;
         }
+
+        @Override
+        public List<StaleCase> closeOthers(String tenant, String tripId, List<UUID> definitionIds, String keepAsset,
+                Instant at) {
+            List<StaleCase> out = new ArrayList<>();
+            for (int i = 0; i < engine.recorded.size(); i++) {
+                Transition t = engine.recorded.get(i);
+                if (t.kind() == Transition.Kind.OPENED && tripId.equals(engine.places.get(i).tripId())
+                        && definitionIds.contains(t.definitionId()) && !keepAsset.equalsIgnoreCase(t.assetId())
+                        && closed.add(i)) {
+                    out.add(new StaleCase(tenant, i + 1L, t.definitionId(), t.version(), false, t.assetId(),
+                            t.level(), tripId, null, null, null, t.at()));
+                }
+            }
+            return out;
+        }
     }
 
     private static Map<String, Object> signal(String trip) {
@@ -127,6 +143,47 @@ class TripEndTest {
         assertNull(store.deadline("V1"), "the vehicle is checked no more");
         assertTrue(store.vehicle("V1").check() == null || store.vehicle("V1").check().cases().isEmpty());
         assertEquals(0, detector.tripChanged(TENANT, "T-1"), "a repeated notice closes nothing");
+    }
+
+    @Test
+    void aTruckChangeClosesTheOldTrucksCaseOnTheTripNotice() {
+        // Mintral 1711312: the case stayed open on KTKJ69 after the trip moved to KGXR80.
+        template();
+        frame("T-1", 0);
+        tickUntil(1830);
+        int recorded = engine.recorded.size();
+
+        tripsModule.states.put("T-1", new TripEnds.State(false, false, "V1"));
+        assertEquals(0, detector.tripChanged(TENANT, "T-1"), "the trip is still on the case's vehicle");
+
+        tripsModule.states.put("T-1", new TripEnds.State(false, false, "V2"));
+        assertEquals(1, detector.tripChanged(TENANT, "T-1"), "the trip moved to another vehicle");
+        SymptomCaseData closed = (SymptomCaseData) engine.fired.get(engine.fired.size() - 1).data();
+        assertEquals(TripEnds.ASSET_CHANGED, closed.closedBy());
+        assertEquals("V1", closed.assetId());
+        assertEquals(1.0, meters.counter("miot.symptoms.lost_signal.asset_changed_closes").count());
+
+        tickUntil(20_000);
+        assertEquals(recorded, engine.recorded.size(), "the old vehicle opens and escalates nothing on the trip");
+        assertNull(store.deadline("V1"));
+        assertEquals(0, detector.tripChanged(TENANT, "T-1"), "a repeated notice closes nothing");
+    }
+
+    @Test
+    void aMissedTruckChangeIsFoundByTheNextCheck() {
+        template();
+        frame("T-1", 0);
+        tickUntil(1830);
+        int recorded = engine.recorded.size();
+
+        tripsModule.states.put("T-1", new TripEnds.State(false, false, "V2"));
+        tickUntil(1900);
+
+        assertEquals(recorded, engine.recorded.size(), "no transition after the change");
+        assertEquals(TripEnds.ASSET_CHANGED, ((SymptomCaseData) engine.fired.get(engine.fired.size() - 1).data())
+                .closedBy());
+        assertEquals(1, tripsModule.closed.size());
+        assertNull(store.deadline("V1"));
     }
 
     @Test

@@ -45,8 +45,15 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             String by) {
     }
 
-    /** Names from the case's live trip; each null when the trip does not have it. */
-    public record TripDetails(String driver, String carrier, String origin, String destination) {
+    /**
+     * Names from the case's live trip; each null when the trip does not have it.
+     *
+     * @param assetId the vehicle the trip is on now, which differs from the case's after a truck change
+     */
+    public record TripDetails(String driver, String carrier, String origin, String destination, String assetId) {
+        public TripDetails(String driver, String carrier, String origin, String destination) {
+            this(driver, carrier, origin, destination, null);
+        }
     }
 
     /**

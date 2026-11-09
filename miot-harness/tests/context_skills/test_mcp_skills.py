@@ -25,6 +25,7 @@ from miot_harness.context_skills.mcp_skills import (
     with_share_url,
 )
 from miot_harness.context_skills.registry import ContextSkillsBundle
+from miot_harness.context_skills.seed import PACKAGED_DEFAULTS
 from miot_harness.context_skills.skill_models import LoadedSkill, McpServer, PlaybookSkill
 from miot_harness.context_skills.source import ContextLoadResult, ContextSource
 from miot_harness.runtime.context import HarnessContext
@@ -169,6 +170,35 @@ async def test_a_read_only_tool_runs_in_the_runs_organization() -> None:
     assert out.source == "mcp:selectables"
     assert server.calls == [("selectables_get", {"key": "delay_reason", "organization": ORG})]
     assert server.opened[-1] == (URL, TOKEN)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("override", [False, True])
+async def test_all_symptom_tools_use_the_configured_server_and_current_callers_token(
+    monkeypatch: pytest.MonkeyPatch, override: bool
+) -> None:
+    local, remote = "https://modulith.example.com", "https://control-tower.example.com"
+    monkeypatch.setenv("MIOT_HARNESS_MODULITH_URL", local)
+    if override:
+        monkeypatch.setenv("MIOT_HARNESS_SYMPTOMS_URL", remote)
+    bundle = boot_context_skills(
+        build_default_registry(), HarnessSettings(), context_source=_NoContext(),
+        skill_source=FileSkillSource(PACKAGED_DEFAULTS / "skills"),
+    ).bundle
+    skill = bundle.find_mcp_skill("tenant-a", "control-tower-symptoms")
+    assert skill is not None
+    assert skill.mcp is not None
+    server = FakeServer()
+    server.tools = [McpTool(name=name, read_only=True) for name in skill.mcp.tools]
+    mcp = McpSkills(open_session=server.open)
+
+    await mcp.tools(skill.mcp, TOKEN)
+    for name in skill.mcp.tools:
+        await mcp.call(skill, _ctx(token="next-caller"), name, {"organization": "forged"})
+
+    url = f"{remote if override else local}/api/v1/mcp"
+    assert server.opened == [(url, TOKEN)] + [(url, "next-caller")] * len(skill.mcp.tools)
+    assert server.calls == [(name, {"organization": ORG}) for name in skill.mcp.tools]
 
 
 @pytest.mark.asyncio

@@ -15,6 +15,7 @@ import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
@@ -29,6 +30,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -61,6 +63,18 @@ public class PgTreatmentStore implements TreatmentStore {
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT (tenant_code, symptom_id, opened_by) WHERE status = 'OPEN' DO NOTHING
             RETURNING\s""" + TREATMENT_COLUMNS;
+
+    private static final String LOCK_ENGINE_CASE = """
+            SELECT id FROM miot_symptoms.signal_transitions
+             WHERE tenant_code = $1 AND id = $2 AND kind = 'OPENED' FOR UPDATE
+            """;
+    private static final String ENGINE_CASE_CLOSED = """
+            SELECT 1 FROM miot_symptoms.signal_transitions o
+              JOIN miot_symptoms.signal_transitions c
+                ON c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
+               AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id
+             WHERE o.tenant_code = $1 AND o.id = $2
+            """;
 
     private static final String TRANSITION = """
             UPDATE miot_symptoms.treatment
@@ -183,12 +197,37 @@ public class PgTreatmentStore implements TreatmentStore {
                 .addString(status.name()).addString(t.openedBy()).addOffsetDateTime(openedAt)
                 .addString(t.closedBy()).addOffsetDateTime(t.closedAt()).addString(t.resolution())
                 .addString(t.note()).addOffsetDateTime(t.updatedAt() == null ? openedAt : t.updatedAt());
+        if (t.symptomId() < 0) {
+            return insertOnEngineCase(t, params);
+        }
         List<Treatment> saved = treatments(query(pool.get(), INSERT_TREATMENT, params));
         if (!saved.isEmpty()) {
             return new Inserted(saved.get(0), true);
         }
         return new Inserted(findOpen(t.tenantCode(), t.symptomId(), t.openedBy())
                 .orElseThrow(() -> new IllegalStateException("could not open treatment")), false);
+    }
+
+    /** Check, insert and resume under the case's lock, so a close cannot slip between them. */
+    private Inserted insertOnEngineCase(Treatment t, Tuple params) {
+        Tuple key = Tuple.of(t.tenantCode(), -t.symptomId());
+        return pool.get().withTransaction(tx -> tx.preparedQuery(LOCK_ENGINE_CASE).execute(key)
+                .invoke(rows -> {
+                    if (!rows.iterator().hasNext()) throw new NoSuchElementException("case not found");
+                })
+                .flatMap(ignored -> tx.preparedQuery(ENGINE_CASE_CLOSED).execute(key))
+                .invoke(rows -> {
+                    if (rows.iterator().hasNext()) throw new IllegalStateException("the case is closed");
+                })
+                .flatMap(ignored -> tx.preparedQuery(INSERT_TREATMENT).execute(params))
+                .flatMap(rows -> {
+                    List<Treatment> saved = treatments(rows);
+                    if (!saved.isEmpty()) return Uni.createFrom().item(new Inserted(saved.get(0), true));
+                    return tx.preparedQuery(SELECT_TREATMENTS
+                            + " AND symptom_id = $2 AND opened_by = $3 AND status = 'OPEN'")
+                            .execute(Tuple.of(t.tenantCode(), t.symptomId(), t.openedBy()))
+                            .map(open -> new Inserted(treatments(open).get(0), false));
+                })).await().atMost(QUERY_TIMEOUT);
     }
 
     @Override

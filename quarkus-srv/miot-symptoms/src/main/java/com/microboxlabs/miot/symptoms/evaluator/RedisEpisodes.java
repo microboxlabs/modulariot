@@ -124,6 +124,13 @@ public class RedisEpisodes implements EpisodeRepository {
             return 1
             """;
 
+    @Override
+    public Uni<Void> validate(AssetEpisodes snapshot) {
+        return redis.hget(key(snapshot.tenantCode(), snapshot.assetId()), CLOSE_REVISION)
+                .invoke(value -> snapshot.requireRevision(value == null ? 0 : value.toLong()))
+                .replaceWithVoid();
+    }
+
     /** Writes what changed since {@link #load}, and resets the expiry. */
     @Override
     public void save(AssetEpisodes changes) {
@@ -166,7 +173,21 @@ public class RedisEpisodes implements EpisodeRepository {
             if ARGV[4] == '' then
                 redis.call('HDEL', KEYS[1], ARGV[3])
             else
-                redis.call('HSET', KEYS[1], ARGV[3], ARGV[4])
+                local marker = cjson.decode(ARGV[4])
+                local previous = redis.call('HGET', KEYS[1], ARGV[3])
+                if previous then
+                    local old = cjson.decode(previous)
+                    if old.tripId == marker.closedOnTrip or old.closedOnTrip == marker.closedOnTrip then
+                        for _, field in ipairs({'version', 'candidateSince', 'conditionSince', 'normalSince',
+                                                'levelSince', 'lastSignalAt'}) do
+                            marker[field] = old[field]
+                        end
+                        if old.normalSince and old.normalSince ~= cjson.null and next(old.levelSince) == nil then
+                            marker.reopenAbove = nil
+                        end
+                    end
+                end
+                redis.call('HSET', KEYS[1], ARGV[3], cjson.encode(marker))
             end
             redis.call('EXPIRE', KEYS[1], ARGV[1])
             local has_episodes = false

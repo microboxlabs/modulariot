@@ -5,6 +5,7 @@ import com.microboxlabs.miot.core.gps.SignalStates;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.evaluator.Episode;
+import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorRedis;
 import com.microboxlabs.miot.symptoms.evaluator.Holds;
@@ -380,8 +381,13 @@ public class LostSignalDetector implements SignalStates {
 
     /** Keeps the same trip-close marker as the GPS consumer, including when their repository is shared. */
     public void forget(String tenant, String assetId, UUID definitionId, Episode marker) {
+        forget(tenant, assetId, definitionId, marker, null);
+    }
+
+    /** The GPS consumer already installed the marker when both consumers share its repository. */
+    public void forget(String tenant, String assetId, UUID definitionId, Episode marker, EpisodeRepository alreadyClosed) {
         if (enabled) {
-            trips.forget(tenant, assetId, definitionId, marker);
+            trips.forget(tenant, assetId, definitionId, marker, alreadyClosed);
         }
     }
 

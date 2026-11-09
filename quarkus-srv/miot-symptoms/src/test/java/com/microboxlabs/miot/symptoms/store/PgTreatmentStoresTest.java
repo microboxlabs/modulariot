@@ -83,6 +83,7 @@ class PgTreatmentStoresTest {
         pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
         for (String file : List.of("V0.8.0__create_symptoms_catalog.sql",
                 "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql",
+                "V0.8.4__create_signal_transitions.sql",
                 "V0.8.3__create_tower_settings.sql", "V0.12.1__contact_company_rut.sql",
                 "V0.12.2__contact_company_tax_id_type.sql", "V0.12.3__contact_member_unique.sql",
                 "V0.12.16__tower_settings_telephony.sql")) {
@@ -553,9 +554,14 @@ class PgTreatmentStoresTest {
     @Test
     void aStepSkipIsReadBackWithWhoAndWhenAfterARestart() {
         String tenant = tenant();
+        long symptomId = -pool.preparedQuery("""
+                INSERT INTO miot_symptoms.signal_transitions
+                    (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure)
+                VALUES ($1, $2, '1', 'ACTIVE', 'OPENED', 'vehicle-test', now(), 1, 0, 1) RETURNING id
+                """).execute(Tuple.of(tenant, UUID.randomUUID())).await().atMost(WAIT).iterator().next().getLong("id");
         TreatmentService service = new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts,
                 treatments), new AuditService(audit));
-        String id = service.open(tenant, ACTOR, -7L, new OpenTreatmentRequest(TreatmentType.CALL, null, null, null))
+        String id = service.open(tenant, ACTOR, symptomId, new OpenTreatmentRequest(TreatmentType.CALL, null, null, null))
                 .treatment().id();
         Map<String, Object> details = Map.of(TreatmentService.SKIP_TO_STEP, 2, "level", 3, "version", "4",
                 "skipId", UUID.randomUUID().toString());
@@ -566,7 +572,7 @@ class PgTreatmentStoresTest {
 
         TreatmentService restarted = new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts,
                 treatments), new AuditService(audit));
-        TreatmentAction skip = restarted.listForSymptom(tenant, -7L).get(0).actions().get(0);
+        TreatmentAction skip = restarted.listForSymptom(tenant, symptomId).get(0).actions().get(0);
         assertEquals(skip, restarted.addAction(tenant, ACTOR, id, request), "a lost response can be retried");
         assertEquals(1, restarted.get(tenant, id).actions().size());
         assertEquals(2, audit.list(tenant, "treatment", id, null, null, 10).size());

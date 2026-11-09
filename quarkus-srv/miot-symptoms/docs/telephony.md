@@ -94,6 +94,11 @@ A record fills the action only when all of these match:
 
 A record is assigned to one action only.
 
+The scheduled run shares one complete Graph lookup per organization across its pending operators. A failed lookup
+is not retried for each operator. Each run considers at most 500 callers; Graph requests, including both reports
+and their pages, are serialized and paced at no more than four per second per replica. Each report has a five-page
+limit and an incomplete scan fails without assigning records. The advisory lock covers the entire scheduled run.
+
 | Field | PSTN row | Direct Routing row |
 | --- | --- | --- |
 | `recordId` | `id` | `id` |

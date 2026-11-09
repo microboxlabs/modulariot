@@ -45,7 +45,7 @@ class TeamsCallRecordsTest {
 
     @Test
     void readsBothReportsAndMapsDirectRoutingRows() {
-        http.reply(PATH, 200, "{\"value\":[" + row("p1", "+56911111111", 42) + "]}")
+        http.reply(PATH, 200, "{\"value\":[" + row("p1", "+12025550101", 42) + "]}")
                 .reply(DR_PATH, 200, "{\"value\":[" + directRoutingRow("d1", "ByotOut", true,
                         "\"endDateTime\":\"2026-11-04T10:02:05Z\"", 80) + ","
                         + directRoutingRow("d2", "ByotIn", false, "\"failureDateTime\":\"2026-11-04T10:01:20Z\"", 15)
@@ -60,9 +60,9 @@ class TeamsCallRecordsTest {
         PstnCall answered = calls.get(1);
         assertEquals(PstnCall.Report.DIRECT_ROUTING, answered.report());
         assertEquals("corr-d1", answered.callId());
-        assertEquals("ana@example.com", answered.userPrincipalName());
-        assertEquals("+56900000000", answered.callerNumber());
-        assertEquals("+56911111111", answered.calleeNumber());
+        assertEquals("operator1@example.test", answered.userPrincipalName());
+        assertEquals("+12025550100", answered.callerNumber());
+        assertEquals("+12025550101", answered.calleeNumber());
         assertEquals(Instant.parse("2026-11-04T10:01:05Z"), answered.start());
         assertEquals(Instant.parse("2026-11-04T10:02:05Z"), answered.end());
         assertEquals(60, answered.durationSeconds(), "answer to end, not the ringing from the invite");
@@ -92,8 +92,21 @@ class TeamsCallRecordsTest {
     }
 
     @Test
+    void aMissingLaterPageCannotMakeAPartialReportAuthoritative() {
+        http.reply(PATH, 404, "{}")
+                .reply(DR_PATH, 200, "{\"value\":[" + directRoutingRow("d1", "ByotOut", true,
+                        "\"endDateTime\":\"2026-11-04T10:02:05Z\"", 80) + "],"
+                        + "\"@odata.nextLink\":\"https://graph.test/missing\"}");
+
+        TelephonyUnavailableException failure = assertThrows(TelephonyUnavailableException.class,
+                () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+
+        assertTrue(failure.getMessage().contains("complete call list"));
+    }
+
+    @Test
     void aRefusedDirectRoutingReportFailsTheLookup() {
-        http.reply(PATH, 200, "{\"value\":[" + row("p1", "+56911111111", 42) + "]}").reply(DR_PATH, 403, "{}");
+        http.reply(PATH, 200, "{\"value\":[" + row("p1", "+12025550101", 42) + "]}").reply(DR_PATH, 403, "{}");
         TelephonyUnavailableException e = assertThrows(TelephonyUnavailableException.class,
                 () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
         assertTrue(e.getMessage().contains("CallRecords.Read.All"));
@@ -112,14 +125,14 @@ class TeamsCallRecordsTest {
     }
 
     private static PstnCall drType(String type) {
-        return new PstnCall("d", "c", "ana@example.com", null, null, FROM, FROM, 0, type, true,
+        return new PstnCall("d", "c", "operator1@example.test", null, null, FROM, FROM, 0, type, true,
                 PstnCall.Report.DIRECT_ROUTING);
     }
 
     private static String directRoutingRow(String id, String type, boolean success, String endField, int duration) {
         return "{\"id\":\"" + id + "\",\"correlationId\":\"corr-" + id + "\","
-                + "\"userPrincipalName\":\"ana@example.com\",\"callerNumber\":\"+56900000000\","
-                + "\"calleeNumber\":\"+56 9 1111 1111\",\"inviteDateTime\":\"2026-11-04T10:00:45Z\","
+                + "\"userPrincipalName\":\"operator1@example.test\",\"callerNumber\":\"+12025550100\","
+                + "\"calleeNumber\":\"+1 (202) 555-0101\",\"inviteDateTime\":\"2026-11-04T10:00:45Z\","
                 + "\"startDateTime\":\"2026-11-04T10:01:05Z\"," + endField + ",\"duration\":" + duration
                 + ",\"successfulCall\":" + success + ",\"callType\":\"" + type + "\"}";
     }
@@ -195,16 +208,16 @@ class TeamsCallRecordsTest {
 
     @Test
     void readsTheRowsOfEveryPage() {
-        http.reply("/next", 200, "{\"value\":[" + row("r2", "+56922222222", 0) + "]}")
-                .reply(PATH, 200, "{\"value\":[" + row("r1", "+56 9 1111 1111", 42) + "],"
+        http.reply("/next", 200, "{\"value\":[" + row("r2", "+12025550102", 0) + "]}")
+                .reply(PATH, 200, "{\"value\":[" + row("r1", "+1 (202) 555-0101", 42) + "],"
                         + "\"@odata.nextLink\":\"https://graph.test/next?page=2\"}");
 
         List<PstnCall> calls = records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600));
 
         assertEquals(2, calls.size());
         PstnCall first = calls.get(0);
-        assertEquals("ana@example.com", first.userPrincipalName());
-        assertEquals("+56911111111", first.calleeNumber());
+        assertEquals("operator1@example.test", first.userPrincipalName());
+        assertEquals("+12025550101", first.calleeNumber());
         assertEquals(42, first.durationSeconds());
         assertEquals(Instant.parse("2026-11-04T10:01:00Z"), first.start());
         assertEquals("Bearer app-token", http.last().header("Authorization"));
@@ -243,8 +256,8 @@ class TeamsCallRecordsTest {
     }
 
     private static String row(String id, String callee, int duration) {
-        return "{\"id\":\"" + id + "\",\"callId\":\"c-" + id + "\",\"userPrincipalName\":\"ana@example.com\","
-                + "\"callerNumber\":\"+56900000000\",\"calleeNumber\":\"" + callee + "\","
+        return "{\"id\":\"" + id + "\",\"callId\":\"c-" + id + "\",\"userPrincipalName\":\"operator1@example.test\","
+                + "\"callerNumber\":\"+12025550100\",\"calleeNumber\":\"" + callee + "\","
                 + "\"startDateTime\":\"2026-11-04T10:01:00Z\",\"endDateTime\":\"2026-11-04T10:01:42Z\","
                 + "\"duration\":" + duration + ",\"callType\":\"user_out\"}";
     }

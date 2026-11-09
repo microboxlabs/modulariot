@@ -6,11 +6,13 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -25,6 +27,8 @@ public class GraphClient {
 
     private final TelephonyHttp http;
     private final URI baseUrl;
+    static final Duration REQUEST_INTERVAL = Duration.ofMillis(250);
+    private long lastRequestAt;
 
     @Inject
     public GraphClient(
@@ -77,7 +81,7 @@ public class GraphClient {
                 .header("Accept", "application/json")
                 .GET();
         auth.forEach(request::header);
-        return http.send(request.build());
+        return send(request.build());
     }
 
     /**
@@ -95,7 +99,19 @@ public class GraphClient {
         HttpRequest.Builder request = HttpRequest.newBuilder(uri).timeout(TelephonyHttp.TIMEOUT)
                 .header("Accept", "application/json").GET();
         auth.forEach(request::header);
-        return http.send(request.build());
+        return send(request.build());
+    }
+
+    /** Bound aggregate Graph traffic across organizations, operators and report pages on this replica. */
+    private synchronized HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {
+        if (lastRequestAt != 0) {
+            long pause = REQUEST_INTERVAL.toNanos() - (System.nanoTime() - lastRequestAt);
+            if (pause > 0) {
+                TimeUnit.NANOSECONDS.sleep(pause);
+            }
+        }
+        lastRequestAt = System.nanoTime();
+        return http.send(request);
     }
 
     private static String trim(String value) {

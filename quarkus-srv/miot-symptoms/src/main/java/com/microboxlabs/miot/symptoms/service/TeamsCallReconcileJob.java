@@ -109,14 +109,13 @@ public class TeamsCallReconcileJob {
                 continue;
             }
             organizations++;
-            for (String operator : organization.getValue()) {
-                operators++;
-                try {
-                    recorded += reconciler.reconcile(tenant, operator).recorded();
-                } catch (RuntimeException e) {
-                    failed++;
-                    LOG.warnf("Teams call reconcile failed for an operator of %s: %s", tenant, e.getMessage());
-                }
+            int operatorCount = organization.getValue().size();
+            operators += operatorCount;
+            try {
+                recorded += reconciler.reconcileOperators(tenant, organization.getValue()).recorded();
+            } catch (RuntimeException e) {
+                failed += operatorCount;
+                LOG.warnf("Teams call reconcile failed for an organization: %s", e.getMessage());
             }
         }
         return new Run(organizations, operators, recorded, failed);

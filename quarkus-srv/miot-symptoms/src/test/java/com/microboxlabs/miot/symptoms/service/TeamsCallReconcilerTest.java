@@ -33,10 +33,10 @@ class TeamsCallReconcilerTest {
 
     @Test
     void aRecordAssignedOnAnEarlierRunCannotBeReused() {
-        TreatmentAction first = pendingCall("+56911111111");
-        records.add(record("r1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 61));
+        TreatmentAction first = pendingCall("+12025550101");
+        records.add(record("r1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 61));
         assertEquals(1, reconciler().reconcile(TENANT, OPERATOR).recorded());
-        TreatmentAction second = pendingCall("+56911111111");
+        TreatmentAction second = pendingCall("+12025550101");
         assertEquals(new TeamsCallReconciler.Result(1, 0, 1), reconciler().reconcile(TENANT, OPERATOR));
         assertEquals("RECORDED", TeamsCallReconciler.telephony(stored(first.id())).get("status"));
         assertEquals("PENDING", TeamsCallReconciler.telephony(stored(second.id())).get("status"));
@@ -44,9 +44,9 @@ class TeamsCallReconcilerTest {
 
     @Test
     void oneRecordMatchingTwoActionsIsAmbiguousAndEventuallyExpires() {
-        TreatmentAction first = pendingCall("+56911111111");
-        TreatmentAction second = pendingCall("+56911111111");
-        records.add(record("r1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 61));
+        TreatmentAction first = pendingCall("+12025550101");
+        TreatmentAction second = pendingCall("+12025550101");
+        records.add(record("r1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 61));
         assertEquals(new TeamsCallReconciler.Result(2, 0, 2), reconciler().reconcile(TENANT, OPERATOR));
         assertEquals("AMBIGUOUS", TeamsCallReconciler.telephony(stored(first.id())).get("reason"));
         now = CALL_END.plusSeconds(49 * 3600);
@@ -56,8 +56,8 @@ class TeamsCallReconcilerTest {
 
     @Test
     void aStalePendingUpdateCannotReplaceARecordedResult() {
-        TreatmentAction call = pendingCall("+56911111111");
-        records.add(record("r1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 61));
+        TreatmentAction call = pendingCall("+12025550101");
+        records.add(record("r1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 61));
         reconciler().reconcile(TENANT, OPERATOR);
         assertFalse(store.updateCallResult(TENANT, call.id(), null, null, call.details()).isPresent());
         assertEquals("r1", TeamsCallReconciler.telephony(stored(call.id())).get("recordId"));
@@ -66,35 +66,35 @@ class TeamsCallReconcilerTest {
 
     @Test
     void aConfiguredCallerIdCannotMatchAMissingCallerNumber() {
-        line = new TelephonyLine("m1", TelephonyProvider.TEAMS_PHONE, "Teams", "+56900000000", true);
-        TreatmentAction call = pendingCall("+56911111111");
-        records.add(new PstnCall("r1", "call-r1", OPERATOR, null, "+56911111111", CALL_START, CALL_END, 61, "user_out"));
+        line = new TelephonyLine("m1", TelephonyProvider.TEAMS_PHONE, "Teams", "+12025550100", true);
+        TreatmentAction call = pendingCall("+12025550101");
+        records.add(new PstnCall("r1", "call-r1", OPERATOR, null, "+12025550101", CALL_START, CALL_END, 61, "user_out"));
         assertEquals(0, reconciler().reconcile(TENANT, OPERATOR).recorded());
         assertEquals("PENDING", TeamsCallReconciler.telephony(stored(call.id())).get("status"));
     }
 
     @Test
     void inboundCallsCannotMatchAnOutboundAttempt() {
-        pendingCall("+56911111111");
-        records.add(new PstnCall("r1", "call-r1", OPERATOR, "+56900000000", "+56911111111", CALL_START, CALL_END, 61, "user_in"));
+        pendingCall("+12025550101");
+        records.add(new PstnCall("r1", "call-r1", OPERATOR, "+12025550100", "+12025550101", CALL_START, CALL_END, 61, "user_in"));
         assertEquals(0, reconciler().reconcile(TENANT, OPERATOR).recorded());
     }
 
     @Test
     void aChangedConnectionDoesNotReplaceTheOriginalCallConnection() {
-        TreatmentAction call = pendingCall("+56911111111");
+        TreatmentAction call = pendingCall("+12025550101");
         Map<String, Object> original = new java.util.LinkedHashMap<>(TeamsCallReconciler.telephony(call));
         original.put("connectionId", "old-line");
         store.updateCallResult(TENANT, call.id(), null, null, Map.of("telephony", original));
-        records.add(record("r1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 61));
+        records.add(record("r1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 61));
         assertEquals(0, reconciler().reconcile(TENANT, OPERATOR).recorded());
         assertEquals("old-line", TeamsCallReconciler.telephony(stored(call.id())).get("connectionId"));
     }
 
     @Test
     void aDirectRoutingRecordFillsDurationAndResult() {
-        TreatmentAction call = pendingCall("+56911111111");
-        records.add(directRouting("dr1", "+56911111111", "ByotOut", true, 61));
+        TreatmentAction call = pendingCall("+12025550101");
+        records.add(directRouting("dr1", "+12025550101", "ByotOut", true, 61));
 
         assertEquals(new TeamsCallReconciler.Result(1, 1, 0), reconciler().reconcile(TENANT, OPERATOR));
         TreatmentAction saved = stored(call.id());
@@ -109,8 +109,8 @@ class TeamsCallReconcilerTest {
 
     @Test
     void aFailedDirectRoutingCallIsRecordedAsNotAnswered() {
-        TreatmentAction call = pendingCall("+56911111111");
-        records.add(directRouting("dr1", "+56911111111", "ByotOut", false, 0));
+        TreatmentAction call = pendingCall("+12025550101");
+        records.add(directRouting("dr1", "+12025550101", "ByotOut", false, 0));
 
         assertEquals(1, reconciler().reconcile(TENANT, OPERATOR).recorded());
         assertEquals(Boolean.FALSE, stored(call.id()).answered());
@@ -119,8 +119,8 @@ class TeamsCallReconcilerTest {
 
     @Test
     void anInboundDirectRoutingCallIsIgnored() {
-        TreatmentAction call = pendingCall("+56911111111");
-        records.add(directRouting("dr1", "+56911111111", "ByotIn", true, 61));
+        TreatmentAction call = pendingCall("+12025550101");
+        records.add(directRouting("dr1", "+12025550101", "ByotIn", true, 61));
 
         assertEquals(0, reconciler().reconcile(TENANT, OPERATOR).recorded());
         assertEquals("PENDING", TeamsCallReconciler.telephony(stored(call.id())).get("status"));
@@ -128,11 +128,11 @@ class TeamsCallReconcilerTest {
 
     @Test
     void bothReportsServeTheirOwnCalls() {
-        TreatmentAction pstn = pendingCall("+56911111111");
-        TreatmentAction direct = pendingCall("+56933333333");
-        records.add(record("p1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 42));
-        records.add(directRouting("dr1", "+56933333333", "ByotOutUserForwarding", true, 17));
-        records.add(directRouting("dr2", "+56911111111", "ByotIn", true, 99));
+        TreatmentAction pstn = pendingCall("+12025550101");
+        TreatmentAction direct = pendingCall("+12025550103");
+        records.add(record("p1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 42));
+        records.add(directRouting("dr1", "+12025550103", "ByotOutUserForwarding", true, 17));
+        records.add(directRouting("dr2", "+12025550101", "ByotIn", true, 99));
 
         assertEquals(new TeamsCallReconciler.Result(2, 2, 0), reconciler().reconcile(TENANT, OPERATOR));
         assertEquals(42, stored(pstn.id()).durationSeconds());
@@ -143,12 +143,12 @@ class TeamsCallReconcilerTest {
 
     private static PstnCall directRouting(String id, String callee, String type, boolean success, int seconds) {
         Instant start = CALL_START.plusSeconds(6);
-        return new PstnCall(id, "corr-" + id, OPERATOR, "+56900000000", callee, start, start.plusSeconds(seconds),
+        return new PstnCall(id, "corr-" + id, OPERATOR, "+12025550100", callee, start, start.plusSeconds(seconds),
                 seconds, type, success, PstnCall.Report.DIRECT_ROUTING);
     }
 
     private static final String TENANT = "acme";
-    private static final String OPERATOR = "ana@example.com";
+    private static final String OPERATOR = "operator1@example.test";
     private static final Instant CALL_START = Instant.parse("2026-11-04T10:00:00Z");
     private static final Instant CALL_END = Instant.parse("2026-11-04T10:01:30Z");
 
@@ -194,7 +194,7 @@ class TeamsCallReconcilerTest {
     }
 
     private static PstnCall record(String id, String upn, String callee, Instant start, int seconds) {
-        return new PstnCall(id, "call-" + id, upn, "+56900000000", callee, start, start.plusSeconds(seconds),
+        return new PstnCall(id, "call-" + id, upn, "+12025550100", callee, start, start.plusSeconds(seconds),
                 seconds, "user_out");
     }
 
@@ -205,9 +205,9 @@ class TeamsCallReconcilerTest {
 
     @Test
     void theOperatorsRecordFillsDurationAndResult() {
-        TreatmentAction call = pendingCall("+56911111111");
-        records.add(record("other-op", "luis@example.com", "+56911111111", CALL_START.plusSeconds(5), 30));
-        records.add(record("r1", "Ana@Example.com", "+56 9 1111 1111", CALL_START.plusSeconds(4), 61));
+        TreatmentAction call = pendingCall("+12025550101");
+        records.add(record("other-op", "operator2@example.test", "+12025550101", CALL_START.plusSeconds(5), 30));
+        records.add(record("r1", "Operator1@Example.Test", "+1 (202) 555-0101", CALL_START.plusSeconds(4), 61));
 
         TeamsCallReconciler.Result result = reconciler().reconcile(TENANT, OPERATOR);
 
@@ -225,7 +225,7 @@ class TeamsCallReconcilerTest {
 
     @Test
     void noRecordYetStaysPending() {
-        TreatmentAction call = pendingCall("+56911111111");
+        TreatmentAction call = pendingCall("+12025550101");
 
         assertEquals(new TeamsCallReconciler.Result(1, 0, 1), reconciler().reconcile(TENANT, OPERATOR));
         TreatmentAction saved = stored(call.id());
@@ -238,9 +238,9 @@ class TeamsCallReconcilerTest {
 
     @Test
     void twoCandidatesStayPendingAsAmbiguous() {
-        TreatmentAction call = pendingCall("+56911111111");
-        records.add(record("r1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 61));
-        records.add(record("r2", OPERATOR, "+56911111111", CALL_START.plusSeconds(40), 20));
+        TreatmentAction call = pendingCall("+12025550101");
+        records.add(record("r1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 61));
+        records.add(record("r2", OPERATOR, "+12025550101", CALL_START.plusSeconds(40), 20));
 
         assertEquals(new TeamsCallReconciler.Result(1, 0, 1), reconciler().reconcile(TENANT, OPERATOR));
         Map<?, ?> t = (Map<?, ?>) stored(call.id()).details().get("telephony");
@@ -250,9 +250,9 @@ class TeamsCallReconcilerTest {
 
     @Test
     void aRecordWithoutTheOperatorIsNeverTaken() {
-        TreatmentAction call = pendingCall("+56911111111");
-        records.add(record("r1", null, "+56911111111", CALL_START.plusSeconds(4), 61));
-        records.add(record("r2", OPERATOR, "+56911111111", CALL_START.plusSeconds(3600), 61));
+        TreatmentAction call = pendingCall("+12025550101");
+        records.add(record("r1", null, "+12025550101", CALL_START.plusSeconds(4), 61));
+        records.add(record("r2", OPERATOR, "+12025550101", CALL_START.plusSeconds(3600), 61));
 
         reconciler().reconcile(TENANT, OPERATOR);
         assertEquals("PENDING", ((Map<?, ?>) stored(call.id()).details().get("telephony")).get("status"));
@@ -260,9 +260,9 @@ class TeamsCallReconcilerTest {
 
     @Test
     void theLinesCallerIdMustMatchWhenSet() {
-        line = new TelephonyLine("m1", TelephonyProvider.TEAMS_PHONE, "Teams", "+56922222222", true);
-        TreatmentAction call = pendingCall("+56911111111");
-        records.add(record("r1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 61));
+        line = new TelephonyLine("m1", TelephonyProvider.TEAMS_PHONE, "Teams", "+12025550102", true);
+        TreatmentAction call = pendingCall("+12025550101");
+        records.add(record("r1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 61));
 
         reconciler().reconcile(TENANT, OPERATOR);
         assertEquals("PENDING", ((Map<?, ?>) stored(call.id()).details().get("telephony")).get("status"));
@@ -270,7 +270,7 @@ class TeamsCallReconcilerTest {
 
     @Test
     void afterTwoDaysWithoutARecordItIsNotFound() {
-        TreatmentAction call = pendingCall("+56911111111");
+        TreatmentAction call = pendingCall("+12025550101");
         now = CALL_END.plusSeconds(49 * 3600);
 
         assertEquals(new TeamsCallReconciler.Result(1, 0, 0), reconciler().reconcile(TENANT, OPERATOR));
@@ -285,7 +285,7 @@ class TeamsCallReconcilerTest {
 
     @Test
     void withoutATeamsLineItIsRefused() {
-        pendingCall("+56911111111");
+        pendingCall("+12025550101");
         line = null;
         assertThrows(TelephonyUnavailableException.class, () -> reconciler().reconcile(TENANT, OPERATOR));
     }

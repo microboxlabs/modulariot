@@ -119,22 +119,10 @@ public class TeamsCallRecords {
         HttpResponse<String> response = report == Report.PSTN ? graph.pstnCalls(headers, from, to)
                 : graph.directRoutingCalls(headers, from, to);
         for (int page = 0; page < MAX_PAGES; page++) {
-            int status = response.statusCode();
-            if (status == 404) {
+            if (notPublished(response, page, name)) {
                 return calls;
             }
-            if (status == 401 || status == 403) {
-                throw new TelephonyUnavailableException(
-                        "Graph returned HTTP " + status + ": the app needs CallRecords.Read.All");
-            }
-            if (status < 200 || status >= 300) {
-                throw new TelephonyUnavailableException("Graph returned HTTP " + status + " for the " + name
-                        + " calls");
-            }
-            JsonNode body = parse(response.body());
-            if (body == null || !body.path("value").isArray()) {
-                throw new TelephonyUnavailableException("Graph returned an invalid " + name + " call list");
-            }
+            JsonNode body = callList(response, name);
             for (JsonNode row : body.path("value")) {
                 calls.add(report == Report.PSTN ? pstnCall(row) : directRoutingCall(row));
             }
@@ -149,6 +137,33 @@ public class TeamsCallRecords {
             response = graph.next(headers, next);
         }
         return calls;
+    }
+
+    private static boolean notPublished(HttpResponse<String> response, int page, String name) {
+        if (response.statusCode() != 404) {
+            return false;
+        }
+        if (page > 0) {
+            throw new TelephonyUnavailableException("Graph returned HTTP 404 for a later " + name
+                    + " page; reconciliation requires a complete call list");
+        }
+        return true;
+    }
+
+    private JsonNode callList(HttpResponse<String> response, String name) {
+        int status = response.statusCode();
+        if (status == 401 || status == 403) {
+            throw new TelephonyUnavailableException("Graph returned HTTP " + status + " for the " + name
+                    + " calls: the app needs CallRecords.Read.All");
+        }
+        if (status < 200 || status >= 300) {
+            throw new TelephonyUnavailableException("Graph returned HTTP " + status + " for the " + name + " calls");
+        }
+        JsonNode body = parse(response.body());
+        if (body == null || !body.path("value").isArray()) {
+            throw new TelephonyUnavailableException("Graph returned an invalid " + name + " call list");
+        }
+        return body;
     }
 
     private static PstnCall pstnCall(JsonNode row) {

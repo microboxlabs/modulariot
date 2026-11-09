@@ -13,10 +13,10 @@ import { engineOffLabel } from "@/features/geographic-view/utils/engine-state";
 export default function PinTooltip({
   object,
   dict,
-}: {
+}: Readonly<{
   object: MapPositionProperties | undefined;
   dict: I18nRecord;
-}) {
+}>) {
   if (!object) {
     return null;
   }
@@ -156,9 +156,19 @@ export default function PinTooltip({
         <div
           className={`text-sm text-gray-600 dark:text-gray-300 ${object?.properties.speed_limit ? "block" : "hidden"}`}
         >
-          {(dict.geographic_view as I18nRecord).speed_limit as string}:{" "}
+          {
+            (dict.geographic_view as I18nRecord)[
+              object.properties.speed_limit_source
+                ? "applied_speed_limit"
+                : "speed_limit"
+            ] as string
+          }
+          :{" "}
           <span className="text-green-500 dark:text-green-400">
             {object?.properties.speed_limit}Km/h
+            {object.properties.speed_limit_zone
+              ? ` · ${object.properties.speed_limit_zone}`
+              : ""}
           </span>
         </div>
       )}

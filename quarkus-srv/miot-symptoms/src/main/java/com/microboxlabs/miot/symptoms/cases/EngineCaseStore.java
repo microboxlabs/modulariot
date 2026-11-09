@@ -95,7 +95,26 @@ public interface EngineCaseStore {
         return List.of();
     }
 
-    /** A case {@link #closeStale} closed; {@code id} is its OPENED transition's. */
+    /**
+     * Closes the open cases of the trip among {@code definitionIds}, whatever their level, with {@code reason} as
+     * {@code closed_by} and in the context, and returns them. A case already closed is left alone.
+     */
+    default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason) {
+        return List.of();
+    }
+
+    /** The evaluator's maximum and latest context, including frames without a level change. */
+    record ClosingFrame(double maxMeasure, java.util.Map<String, Object> context) {
+    }
+
+    /** As {@link #closeTrip}, using matching episode evidence when it is still available. */
+    default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason, java.util.function.Function<StaleCase, ClosingFrame> frames) {
+        return closeTrip(tenantCode, tripId, definitionIds, at, reason);
+    }
+
+    /** A case {@link #closeStale} or {@link #closeTrip} closed; {@code id} is its OPENED transition's. */
     record StaleCase(String tenantCode, long id, UUID definitionId, String version, boolean test, String assetId,
             int level, String tripId, Double latitude, Double longitude, Double speedKmh, Instant openedAt) {
 
@@ -107,7 +126,10 @@ public interface EngineCaseStore {
     record OpenCount(int level, boolean underTreatment, long count) {
     }
 
-    record OpenLevel(String assetId, String name, int level) {
+    record OpenLevel(String assetId, String name, int level, EngineCase.LevelStep speedStep) {
+        public OpenLevel(String assetId, String name, int level) {
+            this(assetId, name, level, null);
+        }
     }
 
     /**

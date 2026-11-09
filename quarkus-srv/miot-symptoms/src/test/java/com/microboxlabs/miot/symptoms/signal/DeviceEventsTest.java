@@ -62,7 +62,7 @@ class DeviceEventsTest {
     private final Ids ids = new Ids();
     private final Channel channel = new Channel();
     private final List<ReferenceCache.Trip> trips = new ArrayList<>();
-    private final DeviceEvents events = new DeviceEvents(true, ids, (tenant, asset) -> trips.stream()
+    private final DeviceEvents events = new DeviceEvents(ids, (tenant, asset) -> trips.stream()
             .filter(t -> t.tenant().equals(tenant) && t.assetId().equals(asset)).toList(), channel,
             Clock.fixed(NOW, ZoneOffset.UTC), () -> null);
 
@@ -181,10 +181,12 @@ class DeviceEventsTest {
     }
 
     @Test
-    void offUnlessEnabled() {
-        DeviceEvents off = new DeviceEvents(false, ids, (t, a) -> List.of(), channel, Clock.systemUTC(), () -> null);
+    void aDisconnectedBrokerReportsUnavailableAndDoesNotKeepTheId() {
+        DeviceEvents disconnected = new DeviceEvents(ids, (t, a) -> List.of(), new DeviceSignalChannel(),
+                Clock.fixed(NOW, ZoneOffset.UTC), () -> null);
         Request emergency = request(event("app-1", "Emergencia", null));
         assertThrows(DeviceEvents.UnavailableException.class,
-                () -> off.accept(TENANT, emergency));
+                () -> disconnected.accept(TENANT, emergency));
+        assertTrue(ids.kept.isEmpty());
     }
 }

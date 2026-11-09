@@ -103,6 +103,27 @@ class SignalFieldsTest {
     }
 
     @Test
+    void theTripCheckListsTheFramesZoneFields() {
+        Map<String, SourceField> check = new java.util.HashMap<>();
+        SignalFields.fields(TripCheck.class, TripCheck.ROOT).forEach(f -> check.put(f.path(), f));
+
+        assertEquals("En zona autorizada", check.get("check.geo.authorized_zone").label());
+        assertEquals(FieldOrigin.ZONES, check.get("check.geo.outside_authorized").origin());
+        assertTrue(check.containsKey("check.geo.zone"));
+        assertTrue(check.containsKey("check.geo.risk_zone"));
+        for (String field : List.of("authorized_zone", "zone", "risk_zone", "outside_authorized",
+                "risk_scheduled", "in_risk_schedule")) {
+            String description = check.get("check.geo." + field).description();
+            assertNotNull(description, field);
+            assertTrue(description.contains("no viene en las revisiones"), field);
+            assertTrue(description.contains("la regla también debe leer"), field);
+            assertTrue(description.contains("check.?geo.?authorized_zone.orValue(false)"), field);
+        }
+        assertTrue(check.get("check.geo.authorized_zone").description()
+                .startsWith("Dentro de al menos una zona autorizada"), "keep each leaf's own description");
+    }
+
+    @Test
     void passesTheSchemaDescription() {
         Map<String, SourceField> fields = byPath();
 

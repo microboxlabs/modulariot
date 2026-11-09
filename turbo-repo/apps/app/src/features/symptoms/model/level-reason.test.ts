@@ -3,6 +3,7 @@ import {
   caseSpans,
   levelAt,
   pointLevel,
+  stepLimitAt,
   type LevelReason,
 } from "./level-reason";
 
@@ -94,5 +95,46 @@ describe("caseSpans and pointLevel", () => {
     expect(pointLevel("2026-01-01T03:00:00Z", spans)).toBeNull();
     expect(pointLevel(null, spans)).toBeNull();
     expect(caseSpans(null)).toEqual([]);
+  });
+});
+
+describe("stepLimitAt", () => {
+  const spans = [
+    {
+      start: "2026-01-01T00:00:00Z",
+      end: "2026-01-01T00:10:00Z",
+      level: 4,
+      steps: [
+        {
+          at: "2026-01-01T00:00:00Z",
+          icu_code: 2,
+          speed: 61,
+          speed_limit: 50,
+          speed_limit_zone: "Tramo norte",
+        },
+        { at: "2026-01-01T00:01:00Z", icu_code: 4, speed: 84, speed_limit: 60 },
+        { at: "2026-01-01T00:02:00Z", icu_code: 4 },
+      ],
+    },
+  ];
+
+  it("gives the speed and limit of the change at the frame's time", () => {
+    expect(stepLimitAt("2026-01-01T00:00:00.000Z", spans)).toEqual({
+      speed: 61,
+      limit: 50,
+      zone: "Tramo norte",
+    });
+    expect(stepLimitAt("2026-01-01T00:01:00Z", spans)).toEqual({
+      speed: 84,
+      limit: 60,
+      zone: null,
+    });
+  });
+
+  it("gives none between changes or for a change without a limit", () => {
+    expect(stepLimitAt("2026-01-01T00:00:30Z", spans)).toBeNull();
+    expect(stepLimitAt("2026-01-01T00:00:00.400Z", spans)).toBeNull();
+    expect(stepLimitAt("2026-01-01T00:02:00Z", spans)).toBeNull();
+    expect(stepLimitAt(null, spans)).toBeNull();
   });
 });

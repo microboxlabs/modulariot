@@ -11,11 +11,16 @@ import java.util.Optional;
  * Net driving, duty and current rest of one vehicle on one organization's trip, frame by frame, as the GPS
  * database's driving and resting trackers count them.
  *
- * <p>Frames: a frame without a position, with a device speed outside 0–150 km/h, not newer than the last one
- * applied, or more than 150 km/h away from it is not applied. Moving is more than 2.78 m/s between two applied
- * frames, distance over time. The time between two frames goes to the state they share: driving when the later
- * one moves or the earlier one moved, rest between two stopped frames. No trip, or a new trip, starts both counts
- * again.
+ * <p>Frames: a frame without a position, with a device speed outside 0–150 km/h, or not newer than the last one
+ * applied is not applied. Moving is more than 2.78 m/s between two applied frames, distance over time. The time
+ * between two frames goes to the state they share: driving when the later one moves or the earlier one moved, rest
+ * between two stopped frames. No trip, or a new trip, starts both counts again.
+ *
+ * <p>Unobserved time is never driving. A frame more than {@link Rules#maxGap} after the last one applied is
+ * applied as stopped, without the 150 km/h check, as the GPS database's gate does once its previous position
+ * expires: the gap is rest after a stop and neither driving nor rest after a movement. A frame more than 150 km/h
+ * away from the last one is not applied but kept; when the next frame is within 150 km/h of it and not of the last
+ * one, the kept frame becomes the last one, the time up to it unobserved, and the next frame counts from there.
  *
  * <p>Net driving: a stop of {@link Rules#payBackAfter} or longer pays back driving at {@link Rules#payBackRate}
  * times its length, never more than was driven before it. When all driving is paid back the count starts again.
@@ -33,9 +38,17 @@ public class DutyTracker {
      * @param payBackAfter a stop this long starts paying back driving
      * @param payBackRate  seconds of driving paid back per second of such a stop
      * @param longRest     a stop this long ends the duty
+     * @param maxGap       the time between two frames past which it is unobserved
      */
     public record Rules(double movingMps, double maxKmh, Duration payBackAfter, double payBackRate,
-            Duration longRest) {
+            Duration longRest, Duration maxGap) {
+
+        /** The GPS database's gate forgets the previous position an hour after it. */
+        public static final Duration MAX_GAP = Duration.ofHours(1);
+
+        public Rules(double movingMps, double maxKmh, Duration payBackAfter, double payBackRate, Duration longRest) {
+            this(movingMps, maxKmh, payBackAfter, payBackRate, longRest, MAX_GAP);
+        }
 
         public static final Rules DEFAULT = new Rules(2.78, 150, Duration.ofSeconds(1440), 3600.0 / 1440,
                 Duration.ofHours(8));
@@ -49,7 +62,12 @@ public class DutyTracker {
     public record Counters(double drivingMinutes, double restingMinutes, double dutyMinutes) {
     }
 
+    /** The state after a frame and what it publishes; {@code counters} is null when the frame is not applied. */
     public record Step(DutyState next, Counters counters, boolean moving) {
+
+        public boolean applied() {
+            return counters != null;
+        }
     }
 
     private static final double EARTH_M = 6_371_000;
@@ -64,36 +82,70 @@ public class DutyTracker {
         this.rules = rules;
     }
 
-    /** The state after the frame and what it publishes, or empty when the frame is not applied. */
+    /**
+     * The state after the frame and what it publishes; empty when the frame changes nothing. A frame kept for an
+     * implied jump gives a step without counters: the state changed, but the frame is not applied.
+     */
     public Optional<Step> step(DutyState prev, Frame f) {
         if (!usable(f)) {
             return Optional.empty();
         }
-        boolean moving = false;
-        double dt = 0;
-        if (prev != null) {
-            dt = (f.at().toEpochMilli() - prev.at().toEpochMilli()) / 1000.0;
-            if (dt <= 0) {
-                return Optional.empty();
-            }
-            double mps = metres(prev.lat(), prev.lon(), f.lat(), f.lon()) / dt;
-            if (mps > rules.maxKmh() / 3.6) {
-                return Optional.empty();
-            }
-            moving = mps > rules.movingMps();
+        if (prev == null) {
+            return Optional.of(advance(null, f, false, 0, false));
         }
+        double dt = seconds(prev.at(), f.at());
+        if (dt <= 0) {
+            return Optional.empty();
+        }
+        if (Duration.between(prev.at(), f.at()).compareTo(rules.maxGap()) > 0) {
+            return Optional.of(advance(prev, f, false, dt, true));
+        }
+        double mps = metres(prev.lat(), prev.lon(), f.lat(), f.lon()) / dt;
+        if (mps <= maxMps()) {
+            return Optional.of(advance(prev, f, mps > rules.movingMps(), dt, false));
+        }
+        DutyState.Fix kept = prev.skipped();
+        if (kept != null && kept.at().isBefore(f.at())) {
+            double keptDt = seconds(kept.at(), f.at());
+            double keptMps = metres(kept.lat(), kept.lon(), f.lat(), f.lon()) / keptDt;
+            if (keptMps <= maxMps()) {
+                // Two frames agree with each other and not with the last one: that one was the stale position.
+                Frame anchor = new Frame(kept.at(), kept.lat(), kept.lon(), null, kept.trip());
+                DutyState moved = advance(prev, anchor, false, seconds(prev.at(), kept.at()), true).next();
+                if (prev.rest() == null) {
+                    // A close or long-rest reset starts duty at the confirming frame, never at a rejected one.
+                    moved = restartDuty(moved, prev.restarts());
+                }
+                return Optional.of(advance(moved, f, keptMps > rules.movingMps(), keptDt, false));
+            }
+        }
+        DutyState.Fix skipped = new DutyState.Fix(f.at(), f.lat(), f.lon(), f.trip());
+        return Optional.of(new Step(new DutyState(prev.at(), prev.lat(), prev.lon(), prev.drive(), prev.rest(),
+                prev.restarts(), skipped), null, false));
+    }
+
+    /** The frame applied after {@code prev}; an unobserved interval is never driving. */
+    private Step advance(DutyState prev, Frame f, boolean moving, double dt, boolean unobserved) {
         Drive drive = prev == null ? null : prev.drive();
         Rest rest = prev == null ? null : prev.rest();
-        DriveStep d = drive(drive, f.trip(), moving, dt);
+        DriveStep d = drive(drive, f.trip(), moving, dt, unobserved);
         RestStep r = rest(rest, f.trip(), moving, dt, f.at());
         DutyState next = new DutyState(f.at(), f.lat(), f.lon(), d.drive(), r.rest(),
                 prev == null ? 0 : prev.restarts());
-        return Optional.of(new Step(next, new Counters(d.net() / 60, r.restingS() / 60, r.dutyS() / 60), moving));
+        return new Step(next, new Counters(d.net() / 60, r.restingS() / 60, r.dutyS() / 60), moving);
     }
 
     /** The state with the duty count ended, as after a long rest: the next frame starts it again. */
     public static DutyState restartDuty(DutyState s, long restarts) {
-        return new DutyState(s.at(), s.lat(), s.lon(), s.drive(), null, restarts);
+        return new DutyState(s.at(), s.lat(), s.lon(), s.drive(), null, restarts, s.skipped());
+    }
+
+    private double maxMps() {
+        return rules.maxKmh() / 3.6;
+    }
+
+    private static double seconds(Instant from, Instant to) {
+        return (to.toEpochMilli() - from.toEpochMilli()) / 1000.0;
     }
 
     private boolean usable(Frame f) {
@@ -108,7 +160,7 @@ public class DutyTracker {
     private record DriveStep(Drive drive, double net) {
     }
 
-    private DriveStep drive(Drive d, String trip, boolean moving, double dt) {
+    private DriveStep drive(Drive d, String trip, boolean moving, double dt, boolean unobserved) {
         if (trip == null) {
             return new DriveStep(null, 0);
         }
@@ -122,7 +174,10 @@ public class DutyTracker {
             return new DriveStep(again, 0);
         }
         Drive next;
-        if (moving && !d.moving()) {
+        if (unobserved && d.moving()) {
+            // The run ends at the last frame before the gap; the stop starts at this one.
+            next = new Drive(trip, false, d.driven() + d.run(), 0, d.paidBack(), d.stopPays(), 0);
+        } else if (moving && !d.moving()) {
             next = new Drive(trip, true, d.driven(), dt, d.paidBack() + d.stopPays(), 0, 0);
         } else if (moving) {
             next = new Drive(trip, true, d.driven(), d.run() + dt, d.paidBack(), d.stopPays(), d.stopped());

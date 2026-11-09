@@ -23,8 +23,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Runs the organization's {@code trip_check} versions on a lost vehicle's check, with the evaluator's episodes,
@@ -46,6 +48,7 @@ public class TripChecks {
     private final AuditService audit;
     private final MeterRegistry meters;
     private final Holds holds;
+    private final TripEnds ends;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
@@ -79,6 +82,13 @@ public class TripChecks {
     @SuppressWarnings("java:S107") // As above, with the holds the checks read.
     public TripChecks(EvaluatorCatalog catalog, EpisodeRepository episodes, TransitionLog log, SymptomEvents events,
             AuditService audit, MeterRegistry meters, Holds holds) {
+        this(catalog, episodes, log, events, audit, meters, holds, TripEnds.NONE);
+    }
+
+    @SuppressWarnings("java:S107") // As above, with which trips ended.
+    public TripChecks(EvaluatorCatalog catalog, EpisodeRepository episodes, TransitionLog log, SymptomEvents events,
+            AuditService audit, MeterRegistry meters, Holds holds, TripEnds ends) {
+        this.ends = ends.withEpisodes(episodes);
         this.holds = holds;
         this.catalog = catalog;
         this.episodes = episodes;
@@ -105,6 +115,106 @@ public class TripChecks {
             returned(assetId, v, open, back);
         }
         return open;
+    }
+
+    /** A vehicle's check without the trips that ended, and the organizations whose trip ended. */
+    public record Ended(LossStore.Vehicle vehicle, CheckState check, Set<String> tenants) {
+    }
+
+    /**
+     * Before a check: for every organization whose trip in the vehicle's watch ended, closes the trip's open cases
+     * ({@link #endTrip}) and leaves the trip and the organization's cases out of the check, so no rule opens or
+     * escalates a case on it. A trip whose arrival was confirmed since the newest frame reads
+     * {@code trip.destination.visited} true. Fails when the trips cannot be read.
+     */
+    public Ended endedTrips(LossStore.Vehicle v, CheckState c, Instant now) {
+        Map<String, String> ids = tripIds(v.watch());
+        Map<String, TripEnds.State> states = ids.isEmpty() ? Map.of() : ends.states(ids);
+        if (states.isEmpty()) {
+            return new Ended(v, c, Set.of());
+        }
+        Set<String> ended = new java.util.HashSet<>();
+        Map<String, Map<String, Object>> trips = new LinkedHashMap<>(v.watch().trips());
+        states.forEach((tenant, state) -> {
+            if (state.ended()) {
+                ended.add(tenant);
+            } else if (state.arrived() && trips.get(tenant) != null) {
+                trips.put(tenant, arrived(trips.get(tenant)));
+            }
+        });
+        for (String tenant : ended) {
+            endTrip(tenant, ids.get(tenant), now);
+        }
+        trips.keySet().removeAll(ended);
+        Map<String, OpenCase> cases = new HashMap<>(c.cases());
+        cases.keySet().removeIf(k -> ended.contains(k.substring(0, k.indexOf('/'))));
+        Watch watch = new Watch(trips, v.watch().expectedS(), v.watch().sender());
+        return new Ended(new LossStore.Vehicle(v.profile(), watch, v.check(), v.returnedAt(), v.backfill(),
+                v.deadline(), v.returnedFrameAt()),
+                ended.isEmpty() ? c : new CheckState(c.lostSince(), c.checkedAt(), cases, c.lostWith()), ended);
+    }
+
+    /** The trip with {@code destination.visited} true. */
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> arrived(Map<String, Object> trip) {
+        Map<String, Object> out = new LinkedHashMap<>(trip);
+        Map<String, Object> destination = trip.get("destination") instanceof Map<?, ?> d
+                ? new LinkedHashMap<>((Map<String, Object>) d) : new LinkedHashMap<>();
+        destination.put("visited", true);
+        out.put("destination", destination);
+        return out;
+    }
+
+    /**
+     * The trip ended: closes its open {@code trip_check} cases, whatever their level, with {@link TripEnds#REASON},
+     * drops their episodes and publishes {@code symptom.case.closed} for each. A case already closed is left alone,
+     * so a repeat closes nothing.
+     *
+     * @return how many cases it closed
+     */
+    public int endTrip(String tenant, String tripId, Instant now) {
+        if (tripId == null) {
+            return 0;
+        }
+        List<UUID> definitions = symptoms(tenant, now).stream().map(CompiledSymptom::definitionId).toList();
+        if (definitions.isEmpty()) {
+            return 0;
+        }
+        int closed = ends.end(tenant, tripId, definitions, now, this::closed);
+        if (closed > 0) {
+            meters.counter("miot.symptoms.lost_signal.trip_ended_closes").increment(closed);
+        }
+        return closed;
+    }
+
+    public int retryEnded() {
+        return ends.retry(this::closed);
+    }
+
+    private void closed(TripEnds.Closure closure) {
+        StaleCase c = closure.value();
+        forgetStale(c);
+        events.closedBySystem(c.tenantCode(), c, TripEnds.REASON, closure.at()).toCompletableFuture()
+                .orTimeout(5, TimeUnit.SECONDS).join();
+    }
+
+    /** One of the organization's trips changed: when it ended, ends it ({@link #endTrip}). */
+    public int tripChanged(String tenant, String tripId, Instant now) {
+        TripEnds.State state = ends.states(Map.of(tenant, tripId)).get(tenant);
+        return state != null && state.ended() ? endTrip(tenant, tripId, now) : 0;
+    }
+
+    /** Each organization's trip in the watch, by tenant; a trip without an id is left out. */
+    static Map<String, String> tripIds(Watch w) {
+        Map<String, String> out = new LinkedHashMap<>();
+        if (w != null) {
+            w.trips().forEach((tenant, trip) -> {
+                if (trip.get("id") instanceof String id && !id.isBlank()) {
+                    out.put(tenant, id);
+                }
+            });
+        }
+        return out;
     }
 
     /**
@@ -194,11 +304,16 @@ public class TripChecks {
             return;
         }
         AssetEpisodes state = episodes.load(tenant, assetId);
+        state.restoreCases(log, symptoms);
         SignalEvaluator.Result result = new SignalEvaluator(state, holds)
                 .evaluate(tenant, assetId, now, Map.of(TripCheck.ROOT, check), symptoms);
+        Map<String, Object> context = context(check);
+        String activeTrip = Boolean.TRUE.equals(trip.get("active")) && trip.get("id") instanceof String id ? id : null;
+        state.keepContext(activeTrip, context, now, symptoms);
         TransitionLog.Place place = place(trip, last);
         if (!result.transitions().isEmpty()) {
-            List<TransitionLog.Recorded> recorded = log.append(tenant, result.transitions(), place, context(check));
+            List<TransitionLog.Recorded> recorded = log.appendTripCheck(tenant, withCaseTrips(state,
+                    result.transitions(), activeTrip, context), place, context);
             recorded.stream().filter(r -> r.transition().kind() == Transition.Kind.OPENED)
                     .forEach(r -> open.put(key(tenant, r.transition().definitionId()),
                             new OpenCase(r.caseId(), r.transition().version(), r.transition().state())));
@@ -236,6 +351,14 @@ public class TripChecks {
         }
         meters.counter("miot.symptoms.lost_signal.returned_facts", BACKFILL, String.valueOf(back.backfill()))
                 .increment();
+    }
+
+    /** Each CLOSED change carries its own case's trip and the established trip-end reason. */
+    static List<Transition> withCaseTrips(AssetEpisodes state, List<Transition> transitions,
+            String activeTrip, Map<String, Object> context) {
+        return transitions.stream().map(t -> t.kind() == Transition.Kind.CLOSED
+                ? state.loaded(t.definitionId()).map(e -> t.closingOn(e.tripId(), activeTrip, context)).orElse(t)
+                : t).toList();
     }
 
     static String key(String tenant, UUID definitionId) {

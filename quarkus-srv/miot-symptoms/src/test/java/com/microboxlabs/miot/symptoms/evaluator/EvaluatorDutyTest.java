@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
@@ -24,12 +26,15 @@ import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -75,12 +80,16 @@ class EvaluatorDutyTest {
         return id;
     }
 
-    private static String frame(int seconds, double metres) {
+    /** Each organization's zones on the frames, as the signal builder publishes them; none when null. */
+    private String geos;
+
+    private String frame(int seconds, double metres) {
         return """
                 {"schema":"miot.gps.signal@1","asset_id":"%s","at":"%s","clients":["%s"],
-                 "trips":{"%s":{"id":"T-1","active":true,"double_driver":false}},
+                 "trips":{"%s":{"id":"T-1","active":true,"double_driver":false}},%s
                  "frame":{"asset_id":"%s","gps":{"speed":60.0,"latitude":%s,"longitude":-70.6},"sensors":{}}}
-                """.formatted(ASSET, T0.plusSeconds(seconds), DEMO, DEMO, ASSET, -60 + metres / METRES_PER_DEGREE);
+                """.formatted(ASSET, T0.plusSeconds(seconds), DEMO, DEMO,
+                geos == null ? "" : "\"geos\":" + geos + ",", ASSET, -60 + metres / METRES_PER_DEGREE);
     }
 
     private void drive(int minutes) {
@@ -123,6 +132,76 @@ class EvaluatorDutyTest {
     }
 
     @Test
+    void framesBufferedDuringAStopAndSentNewestFirstOpenNoDrivingCase() {
+        stream.evaluate(frame(0, 0));
+        drive(240);
+        int quiet = at;
+        double stop = metres + 10_000;
+        // Quiet for 4 h: 10 min to a stop, stopped 3 h, moving 30 min; then everything at once, newest first.
+        List<String> buffered = new ArrayList<>();
+        for (int m = 1; m <= 10; m++) {
+            buffered.add(frame(quiet + m * 60, metres + m * 1000));
+        }
+        for (int m = 11; m <= 190; m++) {
+            buffered.add(frame(quiet + m * 60, stop));
+        }
+        for (int m = 191; m <= 240; m++) {
+            buffered.add(frame(quiet + m * 60, stop + (m - 190) * 1000));
+        }
+        Collections.reverse(buffered);
+        buffered.forEach(stream::evaluate);
+        at = quiet + 240 * 60;
+        metres = stop + 50 * 1000;
+        drive(20);
+        assertEquals(List.of(), of(driving), "240 + 20 min of observed driving, under 270");
+    }
+
+    @Test
+    void aFarFrameIsKeptAndTheNextOneThatAgreesStartsFromIt() {
+        stream.evaluate(frame(0, 0));
+        stream.evaluate(frame(1200, 60_000));
+        DutyState kept = duty.load(DEMO, ASSET).state();
+        assertEquals(T0, kept.at(), "60 km in 20 min: not applied");
+        assertEquals(T0.plusSeconds(1200), kept.skipped().at(), "but kept");
+        at = 1200;
+        metres = 60_000;
+        drive(269);
+        assertEquals(List.of(), of(driving), "the 20 min before the far frame are not driving");
+        drive(1);
+        assertEquals(T0.plusSeconds(1200 + 270 * 60), of(driving).get(0).at());
+        assertNull(duty.load(DEMO, ASSET).state().skipped());
+    }
+
+    @Test
+    void rejectedAndConfirmingFramesUseOneDutyReadAndOneWriteEach() {
+        AtomicInteger loads = new AtomicInteger();
+        AtomicInteger saves = new AtomicInteger();
+        InMemoryDutyStore counting = new InMemoryDutyStore() {
+            @Override
+            public Loaded load(String tenant, String asset) {
+                loads.incrementAndGet();
+                return duty.load(tenant, asset);
+            }
+
+            @Override
+            public void save(String tenant, String asset, DutyState state) {
+                saves.incrementAndGet();
+                duty.save(tenant, asset, state);
+            }
+        };
+        stream = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()), Clock.systemUTC(), episodes,
+                SignalSamples.inMemory(), LateFrames.NONE, LostSignalDetector.off(), Holds.NONE, counting);
+        stream.evaluate(frame(0, 0));
+        stream.evaluate(frame(1200, 60_000));
+        assertEquals(T0, episodes.load(DEMO, ASSET).watermark(DEMO, ASSET, DutyChecks.WATERMARK).orElseThrow(),
+                "the rejected frame does not evaluate duty symptoms");
+        stream.evaluate(frame(1230, 60_500));
+        assertEquals(3, loads.get());
+        assertEquals(3, saves.get(), "promotion performs no extra store operations");
+    }
+
+    @Test
     void theCaseKeepsTheCountersItWasOpenedWith() {
         stream.evaluate(frame(0, 0));
         drive(270);
@@ -131,6 +210,50 @@ class EvaluatorDutyTest {
         Map<String, Object> check = (Map<String, Object>) log.contexts.get(opened).get("check");
         assertEquals(270.0, (Double) check.get("driving_minutes"), 0.01);
         assertFalse(check.containsKey("trip"), "the trip is the case's");
+    }
+
+    /** A continuous-driving rule that is quiet while the frame is in one of the organization's authorized zones. */
+    private UUID publishOutsideZones() throws Exception {
+        SymptomSpec spec = new ObjectMapper().readValue("""
+                {"source":"trip_check",
+                 "activation":"check.trip.active && check.driving_minutes >= 270 && !check.?geo.?authorized_zone.orValue(false)",
+                 "levels":[{"icu":1,"applies":true,"when":"true"}],
+                 "lifecycle":{"open":"case.condition_s >= 0","close":"case.normal_s >= 0","levelDown":true}}
+                """, SymptomSpec.class);
+        var id = catalog.create(DEMO, "owner@example.com", new CreateRequest("driving-outside-zones",
+                "driving-outside-zones", null, null, null, "trip_check", null, spec)).definition().id();
+        catalog.publish(DEMO, "owner@example.com", id, "Primera versión", null, SymptomState.TEST);
+        return id;
+    }
+
+    @Test
+    void aRuleOnTheFramesZoneOpensOutsideTheZoneAndNotInsideWhileTheTimeCounts() throws Exception {
+        UUID outsideZones = publishOutsideZones();
+        geos = """
+                {"%s":{"authorized_zone":true,"zone":"Base"},"tenant-other":{"authorized_zone":false}}"""
+                .formatted(DEMO);
+        stream.evaluate(frame(0, 0));
+        drive(280);
+        assertEquals(List.of(), of(outsideZones), "inside its authorized zone");
+        Transition opened = of(driving).get(0);
+        assertEquals(T0.plusSeconds(270 * 60), opened.at(), "the template counts the time inside the zone");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> check = (Map<String, Object>) log.contexts.get(log.recorded.indexOf(opened)).get("check");
+        assertEquals(Map.of("authorized_zone", true, "zone", "Base"), check.get("geo"));
+
+        geos = """
+                {"%s":{"authorized_zone":false},"tenant-other":{"authorized_zone":true}}""".formatted(DEMO);
+        drive(1);
+        assertEquals(Kind.OPENED, of(outsideZones).get(0).kind(), "out of its zone, another's does not count");
+        assertEquals(T0.plusSeconds(281 * 60), of(outsideZones).get(0).at());
+    }
+
+    @Test
+    void aRuleOnTheFramesZoneOpensOnFramesWithoutZones() throws Exception {
+        UUID outsideZones = publishOutsideZones();
+        stream.evaluate(frame(0, 0));
+        drive(270);
+        assertEquals(Kind.OPENED, of(outsideZones).get(0).kind());
     }
 
     @Test

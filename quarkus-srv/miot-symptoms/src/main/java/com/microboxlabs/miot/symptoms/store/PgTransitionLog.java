@@ -2,8 +2,10 @@ package com.microboxlabs.miot.symptoms.store;
 
 import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
 
+import com.microboxlabs.miot.symptoms.evaluator.Episode;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
+import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
@@ -11,6 +13,7 @@ import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.mutiny.sqlclient.SqlConnection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -36,6 +39,10 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class PgTransitionLog implements TransitionLog {
     private static final String EVENT_ID = "event_id";
+
+    private static final String CHECK_TRIP = """
+            SELECT status FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2 FOR SHARE
+            """;
 
     /** State changes and sweeps wait for in-flight writes; vehicles still evaluate concurrently. */
     private static final String LOCK_DEFINITION = """
@@ -94,6 +101,34 @@ public class PgTransitionLog implements TransitionLog {
         this.pool = pool;
     }
 
+    @Override
+    public Opening opening(String tenantCode, Episode episode) {
+        var rows = pool.get().preparedQuery("""
+                SELECT o.trip_id, COALESCE(e.context, o.context) AS context
+                  FROM miot_symptoms.signal_transitions o
+                  LEFT JOIN LATERAL (
+                      SELECT l.context FROM miot_symptoms.signal_transitions l
+                       WHERE l.tenant_code = o.tenant_code AND l.definition_id = o.definition_id
+                         AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED'
+                         AND l.id > o.id AND l.context IS NOT NULL
+                         AND NOT EXISTS (SELECT 1 FROM miot_symptoms.signal_transitions boundary
+                              WHERE boundary.tenant_code = o.tenant_code AND boundary.definition_id = o.definition_id
+                                AND boundary.asset_id = o.asset_id AND boundary.state = o.state
+                                AND boundary.kind IN ('OPENED', 'CLOSED') AND boundary.id > o.id AND boundary.id < l.id)
+                       ORDER BY l.id DESC LIMIT 1) e ON true
+                 WHERE o.tenant_code = $1 AND o.definition_id = $2 AND o.asset_id = $3 AND o.kind = 'OPENED' AND o.at = $4
+                 ORDER BY o.id DESC LIMIT 1
+                """).execute(Tuple.of(tenantCode, episode.definitionId(), episode.assetId(),
+                        episode.openedAt().atOffset(ZoneOffset.UTC))).await().atMost(QUERY_TIMEOUT);
+        var iterator = rows.iterator();
+        if (iterator.hasNext()) {
+            Row row = iterator.next();
+            JsonObject context = row.getJsonObject("context");
+            return new Opening(row.getString("trip_id"), context == null ? Map.of() : context.getMap());
+        }
+        return new Opening(null, Map.of());
+    }
+
     /**
      * Writes the changes in one transaction, so a failed insert leaves none of them and the replayed signal
      * records and publishes them all.
@@ -101,12 +136,23 @@ public class PgTransitionLog implements TransitionLog {
     @Override
     public List<Recorded> append(String tenantCode, List<Transition> transitions, Place place,
             Map<String, Object> context) {
+        return append(tenantCode, transitions, place, context, false);
+    }
+
+    @Override
+    public List<Recorded> appendTripCheck(String tenantCode, List<Transition> transitions, Place place,
+            Map<String, Object> context) {
+        return append(tenantCode, transitions, place, context, true);
+    }
+
+    private List<Recorded> append(String tenantCode, List<Transition> transitions, Place place,
+            Map<String, Object> context, boolean checkTrip) {
         if (transitions.isEmpty()) {
             return List.of();
         }
         JsonObject json = context == null ? null : new JsonObject(context);
         return pool.get().withTransaction(conn -> {
-            Uni<Void> locks = Uni.createFrom().voidItem();
+            Uni<Void> locks = lockTrip(conn, tenantCode, place, checkTrip);
             // Stable lock order also covers batches spanning more than one definition or vehicle.
             for (Transition t : transitions.stream().sorted(Comparator
                     .comparing((Transition t) -> t.definitionId().toString()).thenComparing(Transition::assetId))
@@ -129,6 +175,24 @@ public class PgTransitionLog implements TransitionLog {
             }
             return chain;
         }).await().atMost(QUERY_TIMEOUT);
+    }
+
+    /** A lost-signal check must not open a case from a trip-state snapshot taken before completion. */
+    private static Uni<Void> lockTrip(SqlConnection conn, String tenant, Place place, boolean checkTrip) {
+        if (!checkTrip) {
+            return Uni.createFrom().voidItem();
+        }
+        return conn.preparedQuery(CHECK_TRIP).execute(Tuple.of(tenant, TripEnds.uuid(place.tripId())))
+                .invoke(rows -> {
+                    var iterator = rows.iterator();
+                    if (!iterator.hasNext()) {
+                        throw new IllegalStateException("Trip ended; retry the lost-signal check");
+                    }
+                    String status = iterator.next().getString("status");
+                    if ("completed".equals(status) || "cancelled".equals(status)) {
+                        throw new IllegalStateException("Trip ended; retry the lost-signal check");
+                    }
+                }).replaceWithVoid();
     }
 
     /** A cached catalog must retry without saving a phantom episode; a replay duplicate still returns normally. */
@@ -157,7 +221,7 @@ public class PgTransitionLog implements TransitionLog {
         return Tuple.tuple().addValue(tenantCode).addValue(t.definitionId()).addValue(t.version())
                 .addValue(t.state().name()).addValue(t.kind().name()).addValue(t.assetId())
                 .addValue(t.at().atOffset(ZoneOffset.UTC)).addValue(t.level()).addValue(t.previousLevel())
-                .addValue(t.measure()).addValue(place.tripId()).addValue(place.latitude())
+                .addValue(t.measure()).addValue(place.of(t).tripId()).addValue(place.latitude())
                 .addValue(place.longitude()).addValue(place.speedKmh()).addValue(context);
     }
 }

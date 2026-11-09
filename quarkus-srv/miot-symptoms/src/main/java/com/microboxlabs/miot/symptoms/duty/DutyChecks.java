@@ -25,10 +25,20 @@ public class DutyChecks {
     private final DutyTracker tracker;
     private final DutyStore store;
 
-    /** The check of one frame and the state to save once it has been evaluated. */
+    /**
+     * The check of one frame and the state to save once it has been evaluated. The check is null when the frame is
+     * not applied but changes the state (a frame kept for an implied jump): save the state, evaluate nothing.
+     */
     public record Check(Map<String, Object> check, DutyState next) {
 
-        /** The check as a case change keeps it, without the trip: the trip is the case's, and holds the driver. */
+        public boolean applied() {
+            return check != null;
+        }
+
+        /**
+         * The check as a case change keeps it, without the trip: the trip is the case's, and holds the driver. It
+         * keeps the frame's {@code geo}.
+         */
         public Map<String, Object> context() {
             Map<String, Object> kept = new LinkedHashMap<>(check);
             kept.remove("trip");
@@ -57,10 +67,15 @@ public class DutyChecks {
 
     /**
      * Applies the frame of the organization's signal ({@code signal} as its rules read it, with its own trip).
-     * Empty when the frame is not applied: no position, a bad speed or jump, or not newer than the last one.
+     * Empty when the frame changes nothing: no position, a bad speed, or not newer than the last one.
      */
     public Optional<Check> apply(String tenantCode, String assetId, Instant at, Map<String, Object> signal) {
-        DutyStore.Loaded loaded = store.load(tenantCode, assetId);
+        return apply(tenantCode, at, signal, store.load(tenantCode, assetId));
+    }
+
+    /** As {@link #apply(String, String, Instant, Map)}, on the counters already read from the store. */
+    public Optional<Check> apply(String tenantCode, Instant at, Map<String, Object> signal,
+            DutyStore.Loaded loaded) {
         DutyState prev = loaded.state();
         if (prev != null && loaded.restarts() > prev.restarts()) {
             prev = DutyTracker.restartDuty(prev, loaded.restarts());
@@ -73,7 +88,11 @@ public class DutyChecks {
         return tracker.step(prev, frame).map(step -> {
             DutyState next = step.next();
             if (next.restarts() != restarts) {
-                next = new DutyState(next.at(), next.lat(), next.lon(), next.drive(), next.rest(), restarts);
+                next = new DutyState(next.at(), next.lat(), next.lon(), next.drive(), next.rest(), restarts,
+                        next.skipped());
+            }
+            if (!step.applied()) {
+                return new Check(null, next);
             }
             Map<String, Object> check = new LinkedHashMap<>();
             check.put("driving_minutes", step.counters().drivingMinutes());
@@ -81,6 +100,10 @@ public class DutyChecks {
             check.put("duty_minutes", step.counters().dutyMinutes());
             check.put("signal_lost_minutes", 0.0);
             check.put("trip", trip);
+            Object geo = geo(tenantCode, signal);
+            if (geo != null) {
+                check.put("geo", geo);
+            }
             return new Check(check, next);
         });
     }
@@ -100,6 +123,24 @@ public class DutyChecks {
 
     public void restartDuty(String tenantCode, String assetId) {
         store.restartDuty(tenantCode, assetId);
+    }
+
+    /** Where the counters are kept. */
+    public DutyStore store() {
+        return store;
+    }
+
+    /**
+     * The organization's zones at the frame. A signal that still carries every organization's zones ({@code geos})
+     * gives only {@code tenantCode}'s, never the shared {@code geo}; the organization's view has its own as
+     * {@code geo}.
+     */
+    static Object geo(String tenantCode, Map<String, Object> signal) {
+        if (signal.containsKey("geos")) {
+            return signal.get("geos") instanceof Map<?, ?> byClient && tenantCode != null
+                    ? byClient.get(tenantCode) : null;
+        }
+        return signal.get("geo") instanceof Map<?, ?> g ? g : null;
     }
 
     private static Double number(Map<String, Object> signal, String key) {

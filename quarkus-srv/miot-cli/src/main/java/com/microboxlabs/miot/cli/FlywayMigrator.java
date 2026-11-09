@@ -47,7 +47,15 @@ public class FlywayMigrator {
     @ConfigProperty(name = "quarkus.datasource.active", defaultValue = "true")
     boolean dataSourceActive;
 
+    /** Off on a pod that leaves migrations to another; several pods migrating at once are safe (advisory lock). */
+    @ConfigProperty(name = "miot.flyway.enabled", defaultValue = "true")
+    boolean enabled;
+
     void onStart(@Observes StartupEvent ev) {
+        if (!enabled) {
+            LOG.info("Flyway is off on this pod (miot.flyway.enabled=false)");
+            return;
+        }
         // Gateway and other stateless components have no DB schema.
         // Skip migration entirely when no DB-dependent component is active
         // to avoid connecting to (or validating against) a database that isn't needed.

@@ -7,6 +7,10 @@ export type TreatmentsLocationResponse = {
 export type DescriptionProps = {
   speed?: number;
   speed_limit?: number;
+  /** Engine cases: "road" or "custom", the limit the speed rule read. */
+  speed_limit_source?: string;
+  /** Engine cases: the organization's own zone the limit comes from. */
+  speed_limit_zone?: string;
   accumulated_drive_time?: string;
   accumulated_detention_time?: string;
   accumulated_time?: string;

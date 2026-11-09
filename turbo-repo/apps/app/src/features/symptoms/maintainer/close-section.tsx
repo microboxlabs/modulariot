@@ -527,14 +527,28 @@ function entryText(e: CaseTimelineEntry, d: I18nRecord): string {
         .filter(Boolean)
         .join(" · ");
     case "CLOSED":
-      return tr("timeline.CLOSED", d);
+      return closeReason(e) === TRIP_ENDED
+        ? tr("timeline.CLOSED_TRIP_ENDED", d)
+        : tr("timeline.CLOSED", d);
   }
+}
+
+/** The platform closed the case because its trip ended. */
+const TRIP_ENDED = "trip_ended";
+
+/** The reason a system close keeps in its context; null for a close rule's. */
+function closeReason(e: CaseTimelineEntry): string | null {
+  const ctx = e.context;
+  if (ctx == null || typeof ctx !== "object") return null;
+  const reason = (ctx as Record<string, unknown>).reason;
+  return typeof reason === "string" ? reason : null;
 }
 
 /** Which rule wrote an entry, when one did. */
 function ruleOf(e: CaseTimelineEntry, d: I18nRecord): string | null {
   if (e.kind === "NOTED") return tr("fromNoteRule", d);
-  if (e.kind === "CLOSED" && e.context != null) return tr("fromCloseRule", d);
+  if (e.kind === "CLOSED" && e.context != null && closeReason(e) !== TRIP_ENDED)
+    return tr("fromCloseRule", d);
   return null;
 }
 

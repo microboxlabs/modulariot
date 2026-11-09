@@ -12,6 +12,7 @@ import java.util.UUID;
 public class InMemoryFleet implements FleetResources {
 
     private final Set<UUID> known = new HashSet<>();
+    private final Set<UUID> current = new HashSet<>();
     private final Map<UUID, Vehicle> vehicles = new HashMap<>();
     private final Map<UUID, Driver> drivers = new HashMap<>();
     private final Map<UUID, Carrier> carriers = new HashMap<>();
@@ -20,6 +21,7 @@ public class InMemoryFleet implements FleetResources {
     /** A truck, trailer or driver found by its plate or document; an inactive one cannot be assigned. */
     public UUID add(String resourceType, String naturalKey, boolean active) {
         UUID id = UUID.randomUUID();
+        current.add(id);
         if (active) {
             known.add(id);
         }
@@ -46,6 +48,7 @@ public class InMemoryFleet implements FleetResources {
     public UUID add() {
         UUID id = UUID.randomUUID();
         known.add(id);
+        current.add(id);
         return id;
     }
 
@@ -68,6 +71,11 @@ public class InMemoryFleet implements FleetResources {
     @Override
     public boolean exists(String tenantCode, String resourceType, UUID id) {
         return known.contains(id);
+    }
+
+    @Override
+    public boolean known(String tenantCode, String resourceType, UUID id) {
+        return current.contains(id);
     }
 
     @Override

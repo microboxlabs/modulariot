@@ -25,11 +25,13 @@ export type TripCamera =
 /**
  * Where the trip map looks: the bounds of two or more positions (with the case
  * point, when there is one), a single position, else the case point; null
- * when there is nothing to show.
+ * when there is nothing to show. `focus`: the positions are a case's part of
+ * a longer track, framed close and from above like a case point.
  */
 export function tripCamera(
   positions: Point[] | null | undefined,
-  casePoint: Point | null | undefined
+  casePoint: Point | null | undefined,
+  focus = false
 ): TripCamera {
   const points = (positions ?? [])
     .map((p) => toLngLat(p.longitude, p.latitude))
@@ -41,15 +43,16 @@ export function tripCamera(
     const all = extra ? [...points, extra] : points;
     const lngs = all.map((p) => p[0]);
     const lats = all.map((p) => p[1]);
+    const close = !!casePoint || focus;
     return {
       kind: "bounds",
       bounds: [
         [Math.min(...lngs), Math.min(...lats)],
         [Math.max(...lngs), Math.max(...lats)],
       ],
-      maxZoom: casePoint ? CASE_MAX_ZOOM : TRIP_MAX_ZOOM,
-      pitch: casePoint ? 0 : 45,
-      bearing: casePoint ? 0 : 45,
+      maxZoom: close ? CASE_MAX_ZOOM : TRIP_MAX_ZOOM,
+      pitch: close ? 0 : 45,
+      bearing: close ? 0 : 45,
     };
   }
   const only =

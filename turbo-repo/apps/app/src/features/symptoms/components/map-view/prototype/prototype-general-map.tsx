@@ -10,7 +10,7 @@ import MapVisualizationTrip, {
 } from "@/features/geographic-view/components/map-visualization-trip";
 import type { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
 import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
-import { chipText } from "./header-chip";
+import { chipText, plateTag } from "./header-chip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../../hooks/use-treatments-general";
 import { useEffect, useMemo, useState } from "react";
@@ -127,10 +127,9 @@ export default function PrototypeGeneralMap({
   const [callFlowStep, setCallFlowStep] =
     useState<CallCenterReportedStep | null>(null);
 
-  useEffect(() => {
-    if (pastFormsEnabled) return;
+  const replaceMenuQuery = (open: boolean) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (isFormOpen) {
+    if (open) {
       params.set("open", "1");
       params.set("menu", selectedOption);
     } else {
@@ -141,8 +140,21 @@ export default function PrototypeGeneralMap({
     router.replace(query ? `${pathname}?${query}` : pathname, {
       scroll: false,
     });
+  };
+
+  useEffect(() => {
+    if (pastFormsEnabled || !isFormOpen) return;
+    replaceMenuQuery(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFormOpen, selectedOption]);
+
+  // Clears the query in the same call that closes the panel, before a form's
+  // save pushes the symptom list: the router keeps only the latest navigation,
+  // so a replace from an effect would discard that push.
+  const setPanelOpen = (open: boolean) => {
+    setIsFormOpen(open);
+    if (!open && !pastFormsEnabled) replaceMenuQuery(false);
+  };
 
   // The call bar asks to see its call: open the call panel when the call is this case's.
   const callSession = useOptionalCallSession();
@@ -298,10 +310,11 @@ export default function PrototypeGeneralMap({
                     ),
                   },
                   {
-                    text: chipText(
+                    ...plateTag(
                       loading,
                       treatmentData?.trip_info?.asset_id ?? assetId,
-                      symptomsDict.license_plate as string
+                      treatmentData?.trip_info?.trip_asset_id,
+                      dict
                     ),
                     icon: <FaTruck className="text-gray-900 dark:text-white" />,
                   },
@@ -374,7 +387,7 @@ export default function PrototypeGeneralMap({
             setSelectedTreatment={setSelectedTreatment}
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
             isFormOpen={isFormOpen}
-            setIsFormOpen={setIsFormOpen}
+            setIsFormOpen={setPanelOpen}
             selectedOption={selectedOption}
             setSelectedOption={setSelectedOption}
             onCallFlowStepChange={setCallFlowStep}

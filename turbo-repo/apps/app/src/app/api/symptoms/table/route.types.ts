@@ -26,6 +26,8 @@ export interface SymptomsTable {
   trip_id: string;
   trip_code?: string | null;
   asset_id: string;
+  /** The plate the case's trip runs on now; differs from asset_id after a truck change. */
+  trip_asset_id?: string | null;
   end_time: string;
   start_time: string;
   /** Seconds for the evaluator's cases, a Postgres interval for the GPS database's. */

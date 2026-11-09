@@ -12,7 +12,7 @@ import {
 } from "./prototype-api-guard";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
@@ -348,6 +348,7 @@ export default function PrototypeCallDriver({
   ]);
 
   const router = useRouter();
+  const { lang } = useParams<{ lang: string }>();
 
   // Shared by both "Finalizar Tratamiento" and "Guardar y hacer otra
   // llamada" — the only difference between them is what happens after the
@@ -414,7 +415,7 @@ export default function PrototypeCallDriver({
         ShowNotification({ type: "success", message: t("treatment_saved") });
       }
       setIsMenuOpen(false);
-      router.push("/symptoms");
+      router.push(`/${lang}/symptoms`);
     } catch {
       ShowNotification({ type: "error", message: t("treatment_save_error") });
     } finally {

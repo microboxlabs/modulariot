@@ -250,7 +250,17 @@ public class PgEngineCases implements EngineCaseStore {
                       FROM miot_symptoms.symptom_version v
                      WHERE v.definition_id = w.definition_id AND v.tenant_code = w.tenant_code
                        AND v.version = w.version
-                     LIMIT 1) AS level_rule
+                     LIMIT 1) AS level_rule,
+                   (SELECT jsonb_build_object('definitionId', w.definition_id, 'name', w.name,
+                           'version', w.level_version, 'state', w.state, 'level', response.level)::text
+                      FROM miot_symptoms.symptom_version v
+                      CROSS JOIN LATERAL jsonb_path_query(
+                           CASE jsonb_typeof(v.spec) WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END,
+                           'lax $.levels[*] ? (@.icu == $l && @.applies == true)',
+                           jsonb_build_object('l', w.current_level)) AS response(level)
+                     WHERE v.definition_id = w.definition_id AND v.tenant_code = w.tenant_code
+                       AND v.version = w.level_version AND v.status = 'PUBLISHED'
+                     LIMIT 1) AS level_response
               FROM (%s) w
             """.formatted(WITH_SLA.formatted(SELECT.formatted(TREATABLE_CASES + " AND o.id = $2")));
     private static final String LIVE_TRIP_COLUMNS = """
@@ -629,7 +639,8 @@ public class PgEngineCases implements EngineCaseStore {
         return Optional.of(engineCase(r).withLevel(json(r.getString("opening_context")),
                 json(r.getString("level_context")), r.getString("level_rule"),
                 steps(json(r.getString("level_steps"))))
-                .withClosing(json(r.getString("closing_context"))));
+                .withClosing(json(r.getString("closing_context")))
+                .withLevelResponse(json(r.getString("level_response"))));
     }
 
     @Override

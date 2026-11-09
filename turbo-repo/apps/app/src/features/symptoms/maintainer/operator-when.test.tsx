@@ -122,12 +122,12 @@ describe("Solo cuando… under Requiere operador", () => {
     expect(fourOf(0)?.slaMinutes).toBe(15);
   });
 
-  it("clears to none when emptied", () => {
+  it("preserves whitespace during editing; the server normalizes it on save", () => {
     const { fourOf } = renderIt(response({ operatorWhen: NOT_OTR_OTE }));
     fireEvent.change(screen.getByLabelText("Solo cuando…"), {
       target: { value: "  " },
     });
-    expect(fourOf(0)?.operatorWhen).toBeNull();
+    expect(fourOf(0)?.operatorWhen).toBe("  ");
   });
 
   it("drops the condition with the operator", () => {

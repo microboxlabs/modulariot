@@ -331,6 +331,63 @@ describe("CallCenterMenu", () => {
     expect(screen.queryByText(/SLA \d+:\d\d/)).toBeNull();
   });
 
+  it("uses the case definition and version's steps instead of a same-name current response", () => {
+    data.level = levelWith([
+      {
+        role: "Conductor",
+        channel: "call",
+        budgetMinutes: 1,
+        goal: "Wrong version goal",
+      },
+    ]);
+    renderMenu({
+      ...treatment,
+      symptom_info: {
+        ...treatment.symptom_info,
+        sla_since: new Date().toISOString(),
+        sla_minutes: 5,
+      },
+      level_response: {
+        definitionId: "demo-definition",
+        name: treatment.symptom_info.name,
+        version: "2.0.0",
+        state: "ACTIVE",
+        level: {
+          icu: 3,
+          applies: true,
+          when: "true",
+          response: {
+            operator: true,
+            slaMinutes: 5,
+            steps: [
+              {
+                role: "Conductor",
+                channel: "call",
+                budgetMinutes: 5,
+                goal: "Case version goal",
+                script: null,
+              },
+            ],
+            notices: [],
+            evidence: [],
+            ignorable: true,
+          },
+        },
+      },
+    });
+    expect(screen.getByText(/Case version goal/)).toBeTruthy();
+    expect(screen.queryByText(/Wrong version goal/)).toBeNull();
+    expect(screen.getByText("v2.0.0")).toBeTruthy();
+  });
+
+  it("does not fall back to a different definition when the case has no published response", () => {
+    data.level = levelWith([
+      { role: "Conductor", channel: "call", budgetMinutes: 1 },
+    ]);
+    renderMenu({ ...treatment, level_response: null });
+    expect(document.querySelector('[aria-current="step"]')).toBeNull();
+  });
+
   it("uses the case SLA even when the current level has no operator", () => {
     data.level = {
       version: 5,

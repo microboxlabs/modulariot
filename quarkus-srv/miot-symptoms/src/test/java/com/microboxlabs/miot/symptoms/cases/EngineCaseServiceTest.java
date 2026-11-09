@@ -535,6 +535,17 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void theHeaderCarriesTheCasesOwnPublishedResponse() throws Exception {
+        JsonNode response = new ObjectMapper().readTree("""
+                {"definitionId":"demo-definition","version":"2.0.0","level":{
+                  "icu":4,"response":{"operator":true,"steps":[{"role":"Demo role","budgetMinutes":2}]}}}
+                """);
+        store.add(panic(12, "DEMO01").withLevelResponse(response).withTest(true).withLevelAt(OPENED));
+
+        assertEquals(response, service.header(TENANT, -12).path("level_response"));
+    }
+
+    @Test
     void theHeaderAndTheSignalsDescribeTheCase() {
         store.add(panic(12, "DEMO01"));
 

@@ -724,6 +724,7 @@ public class EngineCaseService {
         symptom.put("duration_sec", Duration.between(started, ended).toSeconds());
         putHold(symptom, c);
         out.set("level_reason", levelReason(c));
+        out.set("level_response", c.levelResponse() == null ? JSON.nullNode() : c.levelResponse());
         ObjectNode trip = out.putObject("trip_info");
         trip.put(POSITION_ASSET_ID, c.assetId());
         trip.put(TRIP_ASSET_ID, c.trip() == null ? null : c.trip().assetId());

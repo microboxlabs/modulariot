@@ -808,11 +808,19 @@ export default function CallCenterMenu({
 }>) {
   const d = (dict.symptoms as I18nRecord)?.ladder as I18nRecord;
   const symptom = treatmentData?.symptom_info;
+  // Engine headers carry the same definition/version that supplied the case SLA.
+  const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
+  const caseLevel = treatmentData?.level_response;
+  const useCaseLevel = caseId !== null && caseLevel !== undefined;
   const {
-    data: level,
+    data: legacyLevel,
     error: levelError,
     mutate: refreshLevel,
-  } = useLevelResponse(symptom?.name ?? null, symptom?.icu_code ?? null);
+  } = useLevelResponse(
+    useCaseLevel ? null : (symptom?.name ?? null),
+    useCaseLevel ? null : (symptom?.icu_code ?? null)
+  );
+  const level = useCaseLevel ? caseLevel : legacyLevel;
   const {
     targets,
     addContact,
@@ -822,9 +830,8 @@ export default function CallCenterMenu({
   } = useCallTargets();
   const { can } = useControlTowerAccess();
   const canEditContacts = can("controltower:contact.write");
-  const levelFailed = Boolean(levelError && levelError.status !== 404);
-  // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
-  const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
+  const levelFailed =
+    !useCaseLevel && Boolean(levelError && levelError.status !== 404);
   const { data: treatments, mutate: refreshTreatments } =
     useSymptomTreatments(caseId);
   const { data: caseContext } = useCaseContext(caseId);

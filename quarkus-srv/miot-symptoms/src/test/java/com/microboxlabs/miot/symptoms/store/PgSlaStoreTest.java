@@ -695,7 +695,8 @@ class PgSlaStoreTest {
         UUID speeding = symptom(tenant);
         String next = """
                 {"levels":[{"icu":2,"applies":true,"when":"true",
-                  "response":{"operator":true,"slaMinutes":6,"operatorWhen":"true"}}]}
+                  "response":{"operator":true,"slaMinutes":6,"operatorWhen":"true",
+                    "steps":[{"role":"Case role","budgetMinutes":6}]}}]}
                 """;
         PgIds.query(pool, """
                 INSERT INTO miot_symptoms.symptom_version
@@ -712,6 +713,22 @@ class PgSlaStoreTest {
 
         assertEquals(List.of(caseId), ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator())));
         assertEquals(6, cases.find(tenant, caseId).orElseThrow().slaMinutes());
+        // A newer current version and a different definition with the same name cannot replace this response.
+        PgIds.query(pool, """
+                UPDATE miot_symptoms.symptom_definition SET symptom_key = 'original', current_version = '3.0.0'
+                 WHERE tenant_code = $1 AND id = $2
+                """, Tuple.of(tenant, speeding));
+        symptom(tenant);
+        PgIds.query(pool, """
+                INSERT INTO miot_symptoms.symptom_version
+                    (definition_id, tenant_code, version, status, spec, created_by)
+                VALUES ($1, $2, '3.0.0', 'PUBLISHED', $3::text::jsonb, 't')
+                """, Tuple.of(speeding, tenant, SPEC));
+        var response = cases.find(tenant, caseId).orElseThrow().levelResponse();
+        assertEquals(speeding.toString(), response.path("definitionId").asText());
+        assertEquals("2.0.0", response.path("version").asText());
+        assertEquals("Case role", response.path("level").path("response").path("steps").get(0).path("role").asText());
+
         assertTrue(due(t0.minusSeconds(1), t0.plusSeconds(6 * 60), tenant).isEmpty());
         List<SlaStore.Due> expired = due(t0.minusSeconds(1), t0.plusSeconds(8 * 60), tenant);
         assertEquals(List.of(caseId), expired.stream().map(d -> d.engineCase().id()).toList());

@@ -120,7 +120,7 @@ export function OperatorWhen({
         value={value ?? ""}
         fields={condition.fields}
         problems={condition.problems}
-        onChange={(next) => onChange(next.trim() ? next : null)}
+        onChange={onChange}
       />
       <Problems items={condition.problems} />
       <span className="text-xs text-gray-500 dark:text-gray-400">

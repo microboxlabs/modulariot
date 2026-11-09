@@ -4,6 +4,7 @@ import {
 } from "@/features/symptoms/types/timeline";
 import type { LevelReason } from "@/features/symptoms/model/level-reason";
 import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
+import type { MapWindow } from "@/features/symptoms/model/case-window";
 
 export type TreatmentsGeneralResponse = {
   data: TreatmentsGeneralResponseItem;
@@ -18,6 +19,8 @@ export type TreatmentsGeneralResponseItem = {
   symptom_info: TreatmentsSymptomInfoResponse;
   /** Engine cases only: why the case is at its level. */
   level_reason?: LevelReason | null;
+  /** Engine cases only: the range of the map's positions and the case's own time. */
+  map_window?: MapWindow | null;
 };
 
 export type TreatmentsTripInfoResponse = {

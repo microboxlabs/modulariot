@@ -412,6 +412,50 @@ describe("case map frames", () => {
     expect(container.querySelector(".tooltip")).toBeNull();
   });
 
+  it("rings an engine case's frames inside its window on the whole trip, and a clicked frame alone", () => {
+    const opening = {
+      type: "FeatureCollection",
+      description: {},
+      features: [positions[1]].map((frame) => ({
+        type: "Feature",
+        geometry: "Point",
+        longitude: frame.longitude,
+        latitude: frame.latitude,
+        properties: { speed: frame.speed, timestamp: frame.timestamp },
+        status: "demo",
+      })),
+    };
+    const caseWindow = {
+      from: "2026-01-01T10:00:00Z",
+      to: "2026-01-01T10:15:00Z",
+    };
+    render(
+      <MapVisualizationTrip
+        {...props}
+        filteredLocationData={opening}
+        caseWindow={caseWindow}
+      />
+    );
+    const layer = pulseLayer();
+    expect(layer.props.data.features).toHaveLength(3);
+    expect(layer.props.selectedPulse).toEqual([1, 2]);
+    const selected = layer
+      .renderLayers()
+      .find((item) => item.id === "pulse-selected-background-layer");
+    expect(selected?.props.data).toEqual(layer.props.data.features.slice(1));
+    expect(markerColor(selected, layer.props.data.features[1])).toEqual([
+      255, 255, 255, 255,
+    ]);
+
+    act(() => {
+      layer.props.onClick(
+        { object: layer.props.data.features[2] } as PickingInfo,
+        {}
+      );
+    });
+    expect(pulseLayer().props.selectedPulse).toEqual([2]);
+  });
+
   it("rings the selected symptom's frames and keeps late frames amber inside and outside the case", () => {
     const { rerender } = render(<MapVisualizationTrip {...props} />);
     rerender(

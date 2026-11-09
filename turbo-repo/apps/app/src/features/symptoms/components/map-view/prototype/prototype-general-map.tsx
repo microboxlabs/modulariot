@@ -10,6 +10,7 @@ import MapVisualizationTrip, {
 } from "@/features/geographic-view/components/map-visualization-trip";
 import type { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
 import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
+import { caseWindowOf } from "@/features/symptoms/model/case-window";
 import { chipText } from "./header-chip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../../hooks/use-treatments-general";
@@ -215,6 +216,11 @@ export default function PrototypeGeneralMap({
   );
   const casePoint = tripless ? firstPoint(caseLocation) : null;
   const caseSpans = useMemo(() => spansOf(treatmentData), [treatmentData]);
+  // The map draws the whole trip; the case's own pulses are highlighted.
+  const caseWindow = useMemo(
+    () => (isEngineCaseId(id) ? caseWindowOf(treatmentData) : null),
+    [id, treatmentData]
+  );
 
   useEffect(() => {
     if (errorTreatments) {
@@ -405,6 +411,7 @@ export default function PrototypeGeneralMap({
               casePoint={casePoint}
               caseSpans={caseSpans}
               lostSince={treatmentData?.level_reason?.lost_since ?? null}
+              caseWindow={caseWindow}
             />
           </div>
           {/* Keeps the symptom being called about visible without flipping

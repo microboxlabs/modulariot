@@ -78,6 +78,10 @@ import {
   stepLimitAt,
 } from "@/features/symptoms/model/level-reason";
 import {
+  type CaseWindow,
+  pulsesInWindow,
+} from "@/features/symptoms/model/case-window";
+import {
   dashSegments,
   frameDelay,
   hasFramePosition,
@@ -227,6 +231,11 @@ type MapVisualizationProps = {
   caseSpans?: CaseSpan[];
   /** A lost signal's last frame before the silence: the silence is drawn dashed. */
   lostSince?: string | null;
+  /**
+   * An engine case's own time inside a longer track: its pulses are selected
+   * (white border) and the map opens framed on them.
+   */
+  caseWindow?: CaseWindow | null;
 };
 
 export type CasePoint = { longitude: number; latitude: number };
@@ -390,6 +399,7 @@ export default function MapVisualizationTrip({
   casePoint = null,
   caseSpans = NO_SPANS,
   lostSince = null,
+  caseWindow = null,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -497,6 +507,12 @@ export default function MapVisualizationTrip({
   const caseLng = casePoint?.longitude;
   const caseLat = casePoint?.latitude;
   const [mapReady, setMapReady] = useState(false);
+  const casePulses = useMemo(
+    () => pulsesInWindow(positions, caseWindow),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [positions, caseWindow?.from, caseWindow?.to]
+  );
+  const casePulsesKey = casePulses.join(",");
 
   // Fits the track, or flies to its single position or to the case point.
   // Waits for the map, so data that arrives first is not lost.
@@ -506,7 +522,14 @@ export default function MapVisualizationTrip({
       caseLng != null && caseLat != null
         ? { longitude: caseLng, latitude: caseLat }
         : null;
-    const camera = tripCamera(positions, point);
+    // A case on a longer track opens on its own pulses; zooming out shows the rest.
+    const focus = casePulses.length > 0;
+    const framed = focus
+      ? casePulses
+          .map((i) => positions?.[i])
+          .filter((p): p is MapPosition => !!p)
+      : positions;
+    const camera = tripCamera(framed, point, focus);
     if (camera?.kind === "bounds") {
       mapRef.current.fitBounds(camera.bounds, {
         padding: BOUNDS_PADDING,
@@ -518,11 +541,13 @@ export default function MapVisualizationTrip({
     } else if (camera?.kind === "point") {
       flyTo(mapRef.current, camera.target, camera.zoom);
     }
-  }, [positions, isLoading, caseLng, caseLat, mapReady]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positions, isLoading, caseLng, caseLat, mapReady, casePulsesKey]);
 
   useEffect(() => {
-    // A case without a trip is framed by its point and its track instead.
-    if (caseLng != null) return;
+    // A case without a trip is framed by its point and its track instead, and
+    // a case window by its pulses.
+    if (caseLng != null || casePulsesKey) return;
     const first = filteredLocationData?.features[0];
     const coordinates = first
       ? toLngLat(first.longitude, first.latitude)
@@ -530,7 +555,7 @@ export default function MapVisualizationTrip({
     if (coordinates && mapRef.current) {
       flyTo(mapRef.current, coordinates, 6.5);
     }
-  }, [filteredLocationData, caseLng]);
+  }, [filteredLocationData, caseLng, casePulsesKey]);
 
   // The detector's state of the vehicle: its newest position turns gray and
   // carries "Sin señal · hace N min" while the signal does not arrive.
@@ -595,6 +620,9 @@ export default function MapVisualizationTrip({
 
   // A refreshed description must not reopen a dismissed popup or reset a selected frame.
   const matchingPulseKey = useMemo(() => {
+    // An engine case's signals are its pulses in its window, as the legacy
+    // symptoms' signals were.
+    if (casePulsesKey) return casePulsesKey;
     const matchingIndices = new Set<number>();
     if (filteredLocationData && positions) {
       filteredLocationData.features.forEach((filteredItem) => {
@@ -611,7 +639,7 @@ export default function MapVisualizationTrip({
     }
 
     return Array.from(matchingIndices).join(",");
-  }, [filteredLocationData, positions]);
+  }, [filteredLocationData, positions, casePulsesKey]);
 
   useEffect(() => {
     const indices = matchingPulseKey

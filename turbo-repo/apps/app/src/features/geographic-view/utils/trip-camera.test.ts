@@ -19,6 +19,19 @@ const shortTrack = [
 ];
 
 describe("tripCamera", () => {
+  it("frames a case's part of a trip close and from above", () => {
+    expect(tripCamera([a, b], null, true)).toMatchObject({
+      kind: "bounds",
+      maxZoom: CASE_MAX_ZOOM,
+      pitch: 0,
+      bearing: 0,
+    });
+    expect(tripCamera([a, b], null)).toMatchObject({
+      maxZoom: TRIP_MAX_ZOOM,
+      pitch: 45,
+    });
+  });
+
   it("opens on the case point without positions", () => {
     expect(tripCamera([], casePoint)).toEqual({
       kind: "point",

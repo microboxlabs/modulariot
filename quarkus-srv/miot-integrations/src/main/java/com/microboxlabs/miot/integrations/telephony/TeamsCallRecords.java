@@ -2,7 +2,6 @@ package com.microboxlabs.miot.integrations.telephony;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.microboxlabs.miot.core.telephony.CallRecordsPageLimitException;
 import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.PstnCall.Report;
 import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
@@ -132,7 +131,8 @@ public class TeamsCallRecords {
                 break;
             }
             if (page + 1 == MAX_PAGES) {
-                throw new CallRecordsPageLimitException("The Graph " + name + " lookup exceeded its page limit;"
+                throw new TelephonyUnavailableException(TelephonyUnavailableException.CALL_RECORDS_PAGE_LIMIT,
+                        "The Graph " + name + " lookup exceeded its page limit;"
                         + " reconciliation requires a complete call list");
             }
             response = graph.next(headers, next);

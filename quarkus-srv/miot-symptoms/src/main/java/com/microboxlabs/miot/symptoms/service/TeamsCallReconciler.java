@@ -1,6 +1,5 @@
 package com.microboxlabs.miot.symptoms.service;
 
-import com.microboxlabs.miot.core.telephony.CallRecordsPageLimitException;
 import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
@@ -119,7 +118,10 @@ public class TeamsCallReconciler {
             remaining--;
             try {
                 return telephony.pstnCalls(tenantCode, connectionId, from, to);
-            } catch (CallRecordsPageLimitException tooLarge) {
+            } catch (TelephonyUnavailableException tooLarge) {
+                if (!TelephonyUnavailableException.CALL_RECORDS_PAGE_LIMIT.equals(tooLarge.code())) {
+                    throw tooLarge;
+                }
                 Instant middle = from.plus(Duration.between(from, to).dividedBy(2)).truncatedTo(ChronoUnit.SECONDS);
                 if (remaining < 2 || !middle.isAfter(from) || !middle.isBefore(to)) {
                     throw tooLarge;

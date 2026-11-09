@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.microboxlabs.miot.core.telephony.CallRecordsPageLimitException;
 import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
@@ -177,7 +176,8 @@ class TeamsCallReconcilerTest {
                 throw new TelephonyUnavailableException("Graph returned HTTP 403");
             }
             if (everyLookupTooLarge || maximumWindow != null && Duration.between(from, to).compareTo(maximumWindow) > 0) {
-                throw new CallRecordsPageLimitException("Report page limit");
+                throw new TelephonyUnavailableException(TelephonyUnavailableException.CALL_RECORDS_PAGE_LIMIT,
+                        "Report page limit");
             }
             if (maximumWindow != null) {
                 return records.stream().filter(r -> !r.start().isBefore(from) && r.start().isBefore(to)).toList();
@@ -233,7 +233,9 @@ class TeamsCallReconcilerTest {
         TreatmentAction action = pendingCall("+12025550101");
         everyLookupTooLarge = true;
 
-        assertThrows(CallRecordsPageLimitException.class, () -> reconciler().reconcile(TENANT, OPERATOR));
+        TelephonyUnavailableException failure = assertThrows(TelephonyUnavailableException.class,
+                () -> reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals(TelephonyUnavailableException.CALL_RECORDS_PAGE_LIMIT, failure.code());
         assertTrue(asked.size() <= TeamsCallReconciler.MAX_REPORT_LOOKUPS);
         assertEquals("PENDING", TeamsCallReconciler.telephony(stored(action.id())).get("status"));
     }

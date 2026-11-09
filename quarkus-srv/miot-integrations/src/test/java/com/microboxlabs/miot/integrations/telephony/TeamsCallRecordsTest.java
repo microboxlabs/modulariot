@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.microboxlabs.miot.core.telephony.CallRecordsPageLimitException;
 import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthContext;
@@ -32,8 +31,9 @@ class TeamsCallRecordsTest {
     void refusesAnIncompleteScanWithoutFetchingADiscardedPage() {
         String page = "{\"value\":[],\"@odata.nextLink\":\"https://graph.test/next\"}";
         http.reply(PATH, 200, page).reply("/next", 200, page);
-        assertThrows(CallRecordsPageLimitException.class,
+        TelephonyUnavailableException failure = assertThrows(TelephonyUnavailableException.class,
                 () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+        assertEquals(TelephonyUnavailableException.CALL_RECORDS_PAGE_LIMIT, failure.code());
         assertEquals(TeamsCallRecords.MAX_PAGES, http.seen().size());
     }
 

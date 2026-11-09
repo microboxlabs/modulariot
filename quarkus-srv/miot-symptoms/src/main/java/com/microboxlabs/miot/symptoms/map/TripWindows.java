@@ -34,7 +34,7 @@ public class TripWindows {
                               WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip'
                                 AND s.subject_id = t.id AND s.stage_type IN ('transit', 'stop')
                                 AND s.version_of IS NULL AND s.is_active)) AS actual_start,
-                   t.actual_end
+                   t.actual_end, t.planned_start
               FROM miot_trips.trip t
              WHERE t.tenant_code = $1 AND t.id = $2 AND t.version_of IS NULL AND t.is_active
                AND EXISTS (SELECT 1 FROM miot_trips.trip_resource_assignment a
@@ -48,7 +48,10 @@ public class TripWindows {
     public record Window(Instant from, Instant to) {
     }
 
-    /** The trip's departure and end, or empty when the trip is not the tenant's or the truck was never on it. */
+    /**
+     * The trip's departure, end and planned start, or empty when the trip is not the tenant's or the truck was never
+     * on it.
+     */
     @FunctionalInterface
     public interface Trips {
         Optional<Instant[]> times(String tenantCode, UUID tripId, String assetId);
@@ -86,6 +89,24 @@ public class TripWindows {
         return trips.times(tenantCode, tripId, assetId.trim()).map(t -> window(t[0], t[1], clock.instant()));
     }
 
+    /**
+     * The trip's range for a symptom's map: as {@link #find}, but from the planned start while the trip has not
+     * departed. Empty also when neither is known.
+     */
+    public Optional<Window> track(String tenantCode, UUID tripId, String assetId) {
+        if (assetId == null || assetId.isBlank()) {
+            return Optional.empty();
+        }
+        Instant now = clock.instant();
+        return trips.times(tenantCode, tripId, assetId.trim())
+                .map(t -> window(t[0] != null ? t[0] : planned(t), t[1], now))
+                .filter(w -> w.from() != null);
+    }
+
+    private static Instant planned(Instant[] times) {
+        return times.length > 2 ? times[2] : null;
+    }
+
     static Window window(Instant departed, Instant ended, Instant now) {
         if (departed == null) {
             return new Window(null, null);
@@ -105,7 +126,7 @@ public class TripWindows {
         }
         Row r = rows.next();
         return Optional.of(new Instant[] {instant(r.getOffsetDateTime("actual_start")),
-                instant(r.getOffsetDateTime("actual_end"))});
+                instant(r.getOffsetDateTime("actual_end")), instant(r.getOffsetDateTime("planned_start"))});
     }
 
     private static Instant instant(OffsetDateTime t) {

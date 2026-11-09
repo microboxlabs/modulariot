@@ -17,9 +17,9 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>${quarkus.platform.group-id}</groupId>
+                <groupId>io.quarkiverse.googlecloudservices</groupId>
                 <artifactId>quarkus-google-cloud-services-bom</artifactId>
-                <version>${quarkus.platform.version}</version>
+                <version>${google-cloud-services.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

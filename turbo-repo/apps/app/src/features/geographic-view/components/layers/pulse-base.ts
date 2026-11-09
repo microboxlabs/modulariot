@@ -153,23 +153,22 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
   }
 
   protected filterSelectedVehicles() {
-    const selectedPulse = this.props.selectedPulse || [];
+    const selectedPulse = new Set(this.props.selectedPulse);
     return (
       this.props.data?.features?.filter(
         (d: any) =>
-          selectedPulse.includes(d.properties?.id) &&
-          this.isRenderableFeature(d)
+          selectedPulse.has(d.properties?.id) && this.isRenderableFeature(d)
       ) || []
     );
   }
 
   protected filterSelectedStoppedVehicles() {
-    const selectedPulse = this.props.selectedPulse || [];
+    const selectedPulse = new Set(this.props.selectedPulse);
     const showStops = this.props.showStops || false;
     return (
       this.props.data?.features?.filter(
         (d: any) =>
-          selectedPulse.includes(d.properties?.id) &&
+          selectedPulse.has(d.properties?.id) &&
           d.properties?.speed <= 0 &&
           showStops &&
           this.isRenderableFeature(d)

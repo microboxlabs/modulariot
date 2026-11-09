@@ -89,7 +89,7 @@ class EngineCaseMapWindowTest {
     }
 
     @Test
-    void theTrackStillCoversACaseThatOutlastsTheTrip() {
+    void tripAuthorizationStopsAtTheTripEndEvenWhenTheCaseOutlastsIt() {
         store.add(onTrip(TRIP));
         Instant ended = OPENED.plus(Duration.ofMinutes(10));
         EngineCaseService service = service(
@@ -98,6 +98,41 @@ class EngineCaseMapWindowTest {
         EngineCaseService.SignalWindow w = service.signalWindow(TENANT, -12);
 
         assertEquals(DEPARTED, w.from());
-        assertEquals(NOW, w.to(), "the open case runs past the trip's end");
+        assertEquals(ended, w.to(), "trip authorization never extends past the verified trip");
+        JsonNode header = service.header(TENANT, -12);
+        assertEquals(ended.toString(), header.path("map_window").path("track_to").asText());
+        assertEquals(NOW.toString(), header.path("map_window").path("case_to").asText());
+        assertEquals(NOW.toString(), header.path("timeline").get(0).path("end").asText());
     }
+
+    @Test
+    void aCaseNearTheStartOfALongTripCannotWidenTheSevenDayTrack() {
+        store.add(onTrip(TRIP));
+        Instant ended = DEPARTED.plus(Duration.ofDays(20));
+        Instant floor = ended.minus(Duration.ofDays(7));
+        EngineCaseService service = service(
+                (tenant, trip, asset) -> Optional.of(new TripWindows.Window(floor, ended)));
+
+        EngineCaseService.SignalWindow w = service.signalWindow(TENANT, -12);
+        JsonNode map = service.header(TENANT, -12).path("map_window");
+
+        assertEquals(floor, w.from());
+        assertEquals(ended, w.to());
+        assertEquals(Duration.ofDays(7), Duration.between(w.from(), w.to()));
+        assertEquals(floor.toString(), map.path("track_from").asText());
+        assertEquals(ended.toString(), map.path("track_to").asText());
+        assertEquals(OPENED.toString(), map.path("case_from").asText());
+    }
+
+    @Test
+    void tripAuthorizationCannotStartBeforeDepartureForAnEarlierCase() {
+        store.add(onTrip(TRIP));
+        Instant departed = OPENED.plus(Duration.ofMinutes(5));
+        EngineCaseService service = service(
+                (tenant, trip, asset) -> Optional.of(new TripWindows.Window(departed, NOW)));
+
+        assertEquals(departed, service.signalWindow(TENANT, -12).from());
+        assertEquals(OPENED.toString(), service.header(TENANT, -12).path("map_window").path("case_from").asText());
+    }
+
 }

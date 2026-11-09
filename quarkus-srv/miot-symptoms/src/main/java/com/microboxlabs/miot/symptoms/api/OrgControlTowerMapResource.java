@@ -328,7 +328,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             summary = "The vehicle's positions around one of the evaluator's cases",
             description = "From an hour before the case opened, or from the vehicle's previous case when nearer, until "
                     + "the case closed or now; a case on a trips-module trip reads the whole trip, as the trip's "
-                    + "positions do. Oldest first, at most 20000, sampled evenly. Only for the evaluator's cases "
+                    + "positions do (at most its last 7 days). Oldest first, at most 20000, sampled evenly. Only for the evaluator's cases "
                     + "(negative ids): a GPS database symptom with a trip reads the trip's positions. 404 when the case is not the "
                     + "organization's. Each position has received_at, when it reached the platform, and delay_s, "
                     + "the seconds after its GPS time (null without an arrival time).")

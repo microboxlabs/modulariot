@@ -567,6 +567,7 @@ export default function MapVisualizationTrip({
     [positions, caseWindow?.from, caseWindow?.to]
   );
   const casePulsesKey = casePulses.join(",");
+  const hasCaseWindow = caseWindow != null;
 
   // Fits the track, or flies to its single position or to the case point.
   // Waits for the map, so data that arrives first is not lost.
@@ -593,15 +594,28 @@ export default function MapVisualizationTrip({
         bearing: camera.bearing,
       });
     } else if (camera?.kind === "point") {
-      flyTo(mapRef.current, camera.target, camera.zoom);
+      mapRef.current.flyTo({
+        center: camera.target,
+        zoom: camera.zoom,
+        duration: 1000,
+        ...(focus ? { pitch: 0, bearing: 0 } : {}),
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [positions, isLoading, caseLng, caseLat, mapReady, casePulsesKey]);
+  }, [
+    positions,
+    isLoading,
+    caseLng,
+    caseLat,
+    mapReady,
+    casePulsesKey,
+    hasCaseWindow,
+  ]);
 
   useEffect(() => {
     // A case without a trip is framed by its point and its track instead, and
     // a case window by its pulses.
-    if (caseLng != null || casePulsesKey) return;
+    if (caseLng != null || hasCaseWindow) return;
     const first = filteredLocationData?.features[0];
     const coordinates = first
       ? toLngLat(first.longitude, first.latitude)
@@ -609,7 +623,7 @@ export default function MapVisualizationTrip({
     if (coordinates && mapRef.current) {
       flyTo(mapRef.current, coordinates, 6.5);
     }
-  }, [filteredLocationData, caseLng, casePulsesKey]);
+  }, [filteredLocationData, caseLng, hasCaseWindow]);
 
   // The detector's state of the vehicle: its newest position turns gray and
   // carries "Sin señal · hace N min" while the signal does not arrive.
@@ -678,7 +692,7 @@ export default function MapVisualizationTrip({
   const matchingPulseKey = useMemo(() => {
     // An engine case's signals are its pulses in its window, as the legacy
     // symptoms' signals were.
-    if (casePulsesKey) return casePulsesKey;
+    if (hasCaseWindow) return casePulsesKey;
     const matchingIndices = new Set<number>();
     if (filteredLocationData && positions) {
       filteredLocationData.features.forEach((filteredItem) => {
@@ -695,13 +709,22 @@ export default function MapVisualizationTrip({
     }
 
     return Array.from(matchingIndices).join(",");
-  }, [filteredLocationData, positions, casePulsesKey]);
+  }, [filteredLocationData, positions, casePulsesKey, hasCaseWindow]);
 
+  const previousTimelineId = useRef(selectedTreatmentIndex?.symptom_id);
   useEffect(() => {
     const indices = matchingPulseKey
       ? matchingPulseKey.split(",").map(Number)
       : [];
+    // Clearing the timeline after a pulse click must keep that pulse and popup.
+    // Selecting a timeline condition again restores the case's selection.
+    const timelineId = selectedTreatmentIndex?.symptom_id;
+    const clearedTimeline =
+      previousTimelineId.current != null && timelineId == null;
+    previousTimelineId.current = timelineId;
+    if (hasCaseWindow && clearedTimeline) return;
     setSelectedPulse(indices);
+    if (hasCaseWindow && indices.length === 0) setHoverInfo(undefined);
 
     // A case without a trip has one opening point, not a span of signals to
     // summarise, so its popup waits for the user to pick a pulse.
@@ -726,6 +749,7 @@ export default function MapVisualizationTrip({
   }, [
     matchingPulseKey,
     caseLng,
+    hasCaseWindow,
     selectedTreatmentIndex?.symptom_id,
     pinSelectionCardToCorner,
   ]);
@@ -832,9 +856,8 @@ export default function MapVisualizationTrip({
             applySelectionCardPosition(info, pinSelectionCardToCorner);
 
             setHoverInfo(info);
-            setSelectedPulse(
-              info.object?.properties.id ? [info.object?.properties.id] : []
-            );
+            const pulseId = info.object?.properties.id;
+            setSelectedPulse(pulseId == null ? [] : [pulseId]);
             const coordinates = info.object?.geometry?.coordinates;
             if (camera_movement && mapRef.current && coordinates) {
               const target = toLngLat(coordinates[0], coordinates[1]);

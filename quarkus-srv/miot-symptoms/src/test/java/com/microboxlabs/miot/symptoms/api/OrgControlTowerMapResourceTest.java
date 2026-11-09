@@ -216,6 +216,7 @@ class OrgControlTowerMapResourceTest {
         @Override
         public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit,
                 boolean onTrip) {
+            assertEquals(20000, limit, "case and trip positions share the same sampling limit");
             ranges.add(assetId + " " + from + " " + to + (onTrip ? " on trip" : ""));
             return Uni.createFrom().item(JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId)));
         }

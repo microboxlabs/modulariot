@@ -1136,17 +1136,17 @@ public class EngineCaseService {
     /**
      * From an hour before the case's condition began, or from the vehicle's previous case when that opened later,
      * until the case closed or now; at most {@link #SIGNALS_AT_MOST} after the start. A case on a trips-module trip
-     * widens it to the whole trip ({@link TripWindows#track}), and {@code onTrip} is true.
+     * uses the trip's bounded range ({@link TripWindows#track}), and {@code onTrip} is true. The case's own time
+     * remains in the header and timeline, even when it falls outside that range.
      */
     public SignalWindow signalWindow(String tenantCode, long symptomId) {
         return signalWindow(tenantCode, find(tenantCode, symptomId));
     }
 
     private SignalWindow signalWindow(String tenantCode, EngineCase c) {
-        SignalWindow around = caseSignalWindow(tenantCode, c);
-        return tripTrack(tenantCode, c).map(t -> new SignalWindow(c.assetId(),
-                t.from().isBefore(around.from()) ? t.from() : around.from(),
-                t.to().isAfter(around.to()) ? t.to() : around.to(), true)).orElse(around);
+        return tripTrack(tenantCode, c)
+                .map(t -> new SignalWindow(c.assetId(), t.from(), t.to(), true))
+                .orElseGet(() -> caseSignalWindow(tenantCode, c));
     }
 
     private Optional<TripWindows.Window> tripTrack(String tenantCode, EngineCase c) {

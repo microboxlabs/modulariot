@@ -249,6 +249,11 @@ public class WhatsAppMessagingService {
     }
 
     private Message sendInContext(String tenantCode, ContextMessage message, boolean simulate, SendingNumber expected) {
+        return sendInContext(tenantCode, message, simulate, expected, null);
+    }
+
+    private Message sendInContext(String tenantCode, ContextMessage message, boolean simulate, SendingNumber expected,
+            String sendingOverride) {
         if (!simulate) requirePermissionAdmission(message.templateName(), expected);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Conversation conversation = conversationRepository.findOrCreateForContext(tenantCode,
@@ -262,7 +267,8 @@ public class WhatsAppMessagingService {
             status = MessageStatus.SIMULATED;
         } else {
             try {
-                String sendingTenant = accounts.sendingTenant(tenantCode, ChannelAccountsService.WHATSAPP);
+                String sendingTenant = sendingOverride == null
+                        ? accounts.sendingTenant(tenantCode, ChannelAccountsService.WHATSAPP) : sendingOverride;
                 ResolvedConnection connection = sendingConnection(sendingTenant);
                 metadata = metadata(connection);
                 metadata.put(CONNECTION_TENANT, sendingTenant);
@@ -370,8 +376,20 @@ public class WhatsAppMessagingService {
     /** Uses the normal outbound message pool, including tenant, wamid and connection metadata for reply routing. */
     public String sendCallPermission(String tenantCode, SendingNumber expected, String to, String name,
             String language, Map<String, String> params) {
+        return sendPermission(tenantCode, expected, to, name, language, params, false);
+    }
+
+    /** SIP calls use the platform business number, even for organizations with their own messaging sender. */
+    public String sendManagedCallPermission(String tenantCode, SendingNumber expected, String to, String name,
+            String language, Map<String, String> params) {
+        return sendPermission(tenantCode, expected, to, name, language, params, true);
+    }
+
+    private String sendPermission(String tenantCode, SendingNumber expected, String to, String name,
+            String language, Map<String, String> params, boolean managed) {
         Message message = sendInContext(tenantCode, new ContextMessage(null, null, to, null, null, null,
-                name, language, params, null, WhatsAppTemplateRenderer.render(name, params), null, null), false, expected);
+                name, language, params, null, WhatsAppTemplateRenderer.render(name, params), null, null), false, expected,
+                managed ? PLATFORM_TENANT : null);
         if (message.status() != MessageStatus.SENT) {
             throw new WhatsAppSendException(message.errorMessage(), null, null);
         }

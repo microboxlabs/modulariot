@@ -71,7 +71,11 @@ export function OtherCallNotice({
 function statusText(call: ActiveCall, t: (k: string) => string): string | null {
   if (call.status === "ended") return t("call_ended_pending");
   if (call.status === "dropped") return t("call_dropped_on_reload");
-  if (call.status === "failed") return t("call_failed_short");
+  if (call.status === "failed") {
+    if (call.error?.refusal === "whatsapp_call_taken")
+      return t("call_wa_taken");
+    return call.error?.message || t("call_failed_short");
+  }
   if (call.notice) return t(call.notice);
   if (call.phase && call.phase !== "active")
     return t(`call_phase_${call.phase}`);
@@ -135,7 +139,9 @@ function OverActions({
 }: Readonly<{ call: ActiveCall; t: (k: string) => string }>) {
   const session = useCallSession();
   const goToCall = useGoToCall();
-  const canRecord = call.status === "ended" || call.status === "dropped";
+  const inbound = call.key.startsWith("wa-in:");
+  const canRecord =
+    !inbound && (call.status === "ended" || call.status === "dropped");
   return (
     <>
       {canRecord && (
@@ -150,7 +156,7 @@ function OverActions({
           {t("call_record_result")}
         </button>
       )}
-      {call.status !== "ended" && (
+      {(call.status !== "ended" || inbound) && (
         <button
           type="button"
           onClick={session.clear}

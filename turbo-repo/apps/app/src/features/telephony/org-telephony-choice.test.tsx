@@ -118,7 +118,7 @@ describe("OrgTelephonyChoice", () => {
     ).toBeInTheDocument();
     fireEvent.change(select(), { target: { value: "TEAMS_PHONE" } });
     await waitFor(() =>
-      expect(mocks.saveTelephony).toHaveBeenCalledWith("TEAMS_PHONE")
+      expect(mocks.saveTelephony).toHaveBeenCalledWith("TEAMS_PHONE", undefined)
     );
   });
 
@@ -154,7 +154,7 @@ describe("OrgTelephonyChoice", () => {
     expect(options[0]).not.toBeDisabled();
     fireEvent.change(select(), { target: { value: "TEAMS_PHONE" } });
     await waitFor(() =>
-      expect(mocks.saveTelephony).toHaveBeenCalledWith("TEAMS_PHONE")
+      expect(mocks.saveTelephony).toHaveBeenCalledWith("TEAMS_PHONE", undefined)
     );
   });
 
@@ -169,7 +169,7 @@ describe("OrgTelephonyChoice", () => {
     ).toBeInTheDocument();
     fireEvent.change(select(), { target: { value: "TELNYX" } });
     await waitFor(() =>
-      expect(mocks.saveTelephony).toHaveBeenCalledWith("TELNYX")
+      expect(mocks.saveTelephony).toHaveBeenCalledWith("TELNYX", undefined)
     );
   });
 
@@ -201,7 +201,7 @@ describe("OrgTelephonyChoice", () => {
     ).toBeInTheDocument();
     fireEvent.change(select(), { target: { value: "TELNYX" } });
     await waitFor(() =>
-      expect(mocks.saveTelephony).toHaveBeenCalledWith("TELNYX")
+      expect(mocks.saveTelephony).toHaveBeenCalledWith("TELNYX", undefined)
     );
   });
 

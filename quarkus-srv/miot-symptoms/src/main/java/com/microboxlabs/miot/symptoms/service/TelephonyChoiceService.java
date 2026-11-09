@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.service;
 
+import com.microboxlabs.miot.core.telephony.InboundCall;
 import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
 import com.microboxlabs.miot.core.telephony.TelephonyProvider;
@@ -26,8 +27,10 @@ public class TelephonyChoiceService {
      * @param preferred what the organization chose, or null
      * @param active    the line calls use now, or null when none is ready
      * @param lines     every telephony connection of the organization, ready or not
+     * @param whatsAppCalling whether the WhatsApp button calls from the browser; false opens the chat
      */
-    public record TelephonySetup(TelephonyProvider preferred, TelephonyLine active, List<TelephonyLine> lines) {
+    public record TelephonySetup(TelephonyProvider preferred, TelephonyLine active, List<TelephonyLine> lines,
+            boolean whatsAppCalling, boolean whatsAppIncoming) {
     }
 
     /** {@code provider}: TELNYX, TEAMS_PHONE, or null to let the server pick. */
@@ -49,7 +52,9 @@ public class TelephonyChoiceService {
         TelephonyProvider preferred = store.telephonyProvider(tenantCode).map(TelephonyProvider::valueOf)
                 .orElse(null);
         List<TelephonyLine> lines = telephony.lines(tenantCode);
-        return new TelephonySetup(preferred, pick(preferred, lines).orElse(null), lines);
+        TelephonyLine active = pick(preferred, lines).orElse(null);
+        return new TelephonySetup(preferred, active, lines, whatsAppCalling(tenantCode, active),
+                telephony.whatsAppCalling(tenantCode));
     }
 
     /** The line calls use now, if any. */
@@ -66,21 +71,69 @@ public class TelephonyChoiceService {
         return webRtcToken(tenantCode, operator, null);
     }
 
-    /** {@code req}: the number to call and the case, for the usage ledger; may be null. */
+    /**
+     * {@code req}: the number to call and the case, for the usage ledger; may be null. With {@code channel}
+     * WHATSAPP the server calls the number on WhatsApp once the operator's leg is admitted.
+     */
     public WebRtcToken webRtcToken(String tenantCode, String operator, CallRequest req) {
-        TelephonyLine line = active(tenantCode)
-                .filter(l -> l.provider() == TelephonyProvider.TELNYX)
-                .orElseThrow(() -> new TelephonyUnavailableException("The organization's calls do not use Telnyx"));
+        if (req != null && req.channel() != null && !WHATSAPP.equalsIgnoreCase(req.channel())) {
+            throw new IllegalArgumentException("channel: WHATSAPP or null");
+        }
+        TelephonyLine line = telnyxLine(tenantCode);
+        if (req != null && WHATSAPP.equalsIgnoreCase(req.channel())) {
+            return telephony.whatsAppCall(tenantCode, line.connectionId(), operator, req.calleeNumber(),
+                    req.caseRef());
+        }
         return telephony.webRtcToken(tenantCode, line.connectionId(), operator,
                 req == null ? null : req.calleeNumber(), req == null ? null : req.caseRef());
     }
+
+    /** The WhatsApp calls ringing in the tower. */
+    public List<InboundCall> ringingWhatsAppCalls(String tenantCode) {
+        return telephony.ringingWhatsAppCalls(tenantCode);
+    }
+
+    /** A login to take a ringing WhatsApp call; the operator dials with it like any Telnyx call. */
+    public WebRtcToken answerWhatsAppCall(String tenantCode, String operator, String inboundCallId) {
+        TelephonyLine managed = telephony.lines(tenantCode).stream()
+                .filter(l -> l.provider() == TelephonyProvider.TELNYX && l.ready() && l.managed())
+                .findFirst().orElseThrow(() -> new TelephonyUnavailableException("The managed Telnyx line is unavailable"));
+        return telephony.answerWhatsAppCall(tenantCode, managed.connectionId(), operator,
+                inboundCallId);
+    }
+
+    /** Why the provider ended the call before it connected, or null. */
+    public CallOutcome outcome(String tenantCode, String callRef) {
+        return new CallOutcome(telephony.callFailure(tenantCode, callRef).orElse(null));
+    }
+
+    public record CallOutcome(String failure) {
+    }
+
+    private TelephonyLine telnyxLine(String tenantCode) {
+        return active(tenantCode)
+                .filter(l -> l.provider() == TelephonyProvider.TELNYX)
+                .orElseThrow(() -> new TelephonyUnavailableException("The organization's calls do not use Telnyx"));
+    }
+
+    private boolean whatsAppCalling(String tenantCode, TelephonyLine active) {
+        return active != null && active.provider() == TelephonyProvider.TELNYX && active.managed()
+                && telephony.whatsAppCalling(tenantCode);
+    }
+
+    static final String WHATSAPP = "WHATSAPP";
 
     /** The browser says the call ended; the billed seconds still come from Telnyx. */
     public void callEnded(String tenantCode, String callRef, CallEnded req) {
         telephony.callEnded(tenantCode, callRef, req == null ? null : req.providerCallId());
     }
 
-    public record CallRequest(String calleeNumber, String caseRef) {
+    /** {@code channel}: WHATSAPP, or null for the phone network. */
+    public record CallRequest(String calleeNumber, String caseRef, String channel) {
+
+        public CallRequest(String calleeNumber, String caseRef) {
+            this(calleeNumber, caseRef, null);
+        }
     }
 
     public record CallEnded(String providerCallId) {
@@ -89,7 +142,9 @@ public class TelephonyChoiceService {
     public TelephonySetup save(String tenantCode, String actor, TelephonyRequest req) {
         TelephonyProvider provider = parse(req == null ? null : req.provider());
         List<TelephonyLine> lines = telephony.lines(tenantCode);
-        TelephonySetup saved = new TelephonySetup(provider, pick(provider, lines).orElse(null), lines);
+        TelephonyLine active = pick(provider, lines).orElse(null);
+        TelephonySetup saved = new TelephonySetup(provider, active, lines, whatsAppCalling(tenantCode, active),
+                telephony.whatsAppCalling(tenantCode));
         store.saveTelephonyProvider(tenantCode, provider == null ? null : provider.name(), actor);
         audit.log(tenantCode, actor, "settings.telephony_saved", "settings", tenantCode, null,
                 Map.of("provider", provider == null ? "AUTO" : provider.name()));

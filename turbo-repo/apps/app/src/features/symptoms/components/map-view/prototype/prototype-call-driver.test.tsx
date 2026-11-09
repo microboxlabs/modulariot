@@ -313,6 +313,26 @@ describe("engine call treatment form", () => {
     );
   });
 
+  it("keeps the form open and reports a refused treatment on a closed case", async () => {
+    const user = userEvent.setup();
+    api.openTreatment.mockRejectedValueOnce(new Error("the case is closed"));
+    const closeMenu = renderCall();
+    await user.click(
+      screen.getByRole("button", { name: es.symptoms.save_treatment })
+    );
+
+    await waitFor(() =>
+      expect(api.notify).toHaveBeenCalledWith({
+        type: "error",
+        message: es.symptoms.treatment_save_error,
+      })
+    );
+    expect(api.addTreatmentAction).not.toHaveBeenCalled();
+    expect(api.closeTreatment).not.toHaveBeenCalled();
+    expect(closeMenu).not.toHaveBeenCalled();
+    expect(api.push).not.toHaveBeenCalled();
+  });
+
   it("keeps the form open on close failure and retries without a duplicate call action", async () => {
     const user = userEvent.setup();
     api.closeTreatment.mockRejectedValueOnce(new Error("case close failed"));

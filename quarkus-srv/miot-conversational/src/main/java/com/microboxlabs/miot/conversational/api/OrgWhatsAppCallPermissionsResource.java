@@ -5,6 +5,7 @@ import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.core.telephony.Telephony;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -25,7 +26,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
  * Whether the organization's WhatsApp number may call a contact, and a request for that permission sent now. A
- * refused request answers 200 with {@code sent: false} and the reason.
+ * refused request answers 200 with {@code sent: false} and the reason. With {@code managed=true}, permission and
+ * requests use the platform's SIP caller number; messages and usage still belong to the organization.
  */
 @Path("/api/v1/orgs/{organizationId}/conversations/whatsapp-call-permissions")
 @Produces(MediaType.APPLICATION_JSON)
@@ -40,6 +42,7 @@ public class OrgWhatsAppCallPermissionsResource extends OrgResourceSupport {
     }
 
     private final CallPermissionService permissions;
+    private final Telephony telephony;
 
     @Inject
     public OrgWhatsAppCallPermissionsResource(
@@ -47,18 +50,21 @@ public class OrgWhatsAppCallPermissionsResource extends OrgResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            CallPermissionService permissions) {
+            CallPermissionService permissions,
+            Telephony telephony) {
         super(tenantContext, organizationContext, roleService, identity);
         this.permissions = permissions;
+        this.telephony = telephony;
     }
 
     @GET
     @Operation(operationId = "getWhatsAppCallPermission",
             summary = "The contact's call permission on the organization's WhatsApp number, and whether a request"
                     + " may be sent now")
-    public Uni<Response> get(@PathParam("organizationId") String organizationId, @QueryParam("phone") String phone) {
+    public Uni<Response> get(@PathParam("organizationId") String organizationId, @QueryParam("phone") String phone,
+            @QueryParam("managed") boolean managed) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(permissions.view(tenant, phone)).build());
+        return work(() -> Response.ok(scoped(tenant, managed).view(tenant, phone)).build());
     }
 
     @POST
@@ -67,10 +73,18 @@ public class OrgWhatsAppCallPermissionsResource extends OrgResourceSupport {
     @Operation(operationId = "requestWhatsAppCallPermission",
             summary = "Sends the call permission request now; refused when calling is off, the contact already"
                     + " allows calls, or Meta's limits (1 per day, 2 per week) are reached")
-    public Uni<Response> request(@PathParam("organizationId") String organizationId, RequestBody body) {
+    public Uni<Response> request(@PathParam("organizationId") String organizationId,
+            @QueryParam("managed") boolean managed, RequestBody body) {
         String tenant = tenantCode(organizationId);
         String who = actor();
-        return work(() -> Response.ok(permissions.request(tenant, body == null ? null : body.phone(),
+        return work(() -> Response.ok(scoped(tenant, managed).request(tenant, body == null ? null : body.phone(),
                 body == null ? null : body.name(), who)).build());
+    }
+
+    private CallPermissionService scoped(String tenant, boolean managed) {
+        if (managed && !telephony.whatsAppCalling(tenant)) {
+            throw new SecurityException("Managed WhatsApp calling is not available for this organization");
+        }
+        return managed ? permissions.forManagedCalls() : permissions;
     }
 }

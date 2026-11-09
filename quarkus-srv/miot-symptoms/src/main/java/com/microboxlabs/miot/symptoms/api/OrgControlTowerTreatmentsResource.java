@@ -1,22 +1,24 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import com.microboxlabs.miot.core.auth.OrganizationContext;
+import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.iam.OrgPermission;
+import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import com.microboxlabs.miot.symptoms.cases.HoldService;
-import com.microboxlabs.miot.symptoms.dto.TreatmentView;
+import com.microboxlabs.miot.symptoms.domain.ActionKind;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
-import io.quarkus.security.PermissionsAllowed;
-import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
-import com.microboxlabs.miot.core.iam.OrgPermission;
-import com.microboxlabs.miot.core.auth.OrganizationContext;
-import com.microboxlabs.miot.core.auth.TenantContext;
-import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
 import com.microboxlabs.miot.symptoms.dto.CloseTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.OpenTreatmentRequest;
+import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.service.TreatmentService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
+import io.quarkus.security.PermissionsAllowed;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
@@ -77,7 +79,8 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     @POST
     @Path("/symptoms/{symptomId}/treatments")
     @Operation(operationId = "openTreatment", summary = "Open a treatment on a symptom, or resume yours",
-            description = "201 with a new episode, or 200 with the episode the caller already has open on this symptom.")
+            description = "201 with a new episode, or 200 with the episode the caller already has open on this symptom. "
+                    + "409 on an engine case (negative symptom id) that is closed.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> open(
@@ -87,10 +90,13 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
         String tenant = tenantCode(organizationId);
         String actor = actor();
         return work(() -> {
-            TreatmentService.OpenResult result = treatments.open(tenant, actor, parseSymptomId(symptomId), body);
+            long id = parseSymptomId(symptomId);
+            if (EngineCase.caseId(id).isPresent()) {
+                cases.requireOpen(tenant, id);
+            }
+            TreatmentService.OpenResult result = treatments.open(tenant, actor, id, body);
             return Response.status(result.created() ? Response.Status.CREATED : Response.Status.OK)
-                    .entity(result.treatment())
-                    .build();
+                    .entity(result.treatment()).build();
         });
     }
 
@@ -145,10 +151,16 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
                     ? current
                     : treatments.close(tenant, actor, treatmentId, body);
             if (engineCase) {
-                cases.close(tenant, closed.symptomId(), actor);
+                cases.close(tenant, closed.symptomId(), actor, invalidated(closed));
             }
             return Response.ok(closed).build();
         });
+    }
+
+    /** An invalidation blocks the symptom's next case while its condition holds; see {@link EngineCaseService}. */
+    private static boolean invalidated(TreatmentView t) {
+        return t.type() == TreatmentType.INVALIDATE_SYMPTOM
+                || (t.actions() != null && t.actions().stream().anyMatch(a -> a.kind() == ActionKind.INVALIDATE));
     }
 
     @POST

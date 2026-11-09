@@ -26,25 +26,7 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 class PgTelephonyUsageStoreTest {
     @Test
     void templateWidthAndConcurrentProviderBrowserTransitions() throws Exception {
-        Vertx vertx = Vertx.vertx();
-        Pool pool = PgBuilder.pool().connectingTo(PgConnectOptions.fromUri(System.getProperty("miot.integrations.test.pg-url")))
-                .with(new PoolOptions().setMaxSize(4)).using(vertx).build();
-        String schema = "cert_voice_" + UUID.randomUUID().toString().replace("-", "");
-        try {
-            pool.query("CREATE SCHEMA " + schema).execute().await().indefinitely();
-            for (String migration : new String[]{"V0.6.39__telephony_usage.sql", "V0.6.40__telephony_destination_width.sql",
-                    "V0.6.41__telephony_admissions_and_reconcile_progress.sql"}) {
-                try (var resource = getClass().getResourceAsStream("/db/migration/integrations/" + migration)) {
-                    assertNotNull(resource);
-                    pool.query(new String(resource.readAllBytes(), StandardCharsets.UTF_8).replace("miot_integrations", schema))
-                            .execute().await().indefinitely();
-                }
-            }
-            PgTelephonyUsageStore store = new PgTelephonyUsageStore(() -> pool, TestManagedConnectionLock.forPool(pool)) {
-                @Override protected RowSet<Row> run(String sql, Tuple params) {
-                    return super.run(sql.replace("miot_integrations", schema), params);
-                }
-            };
+        withStore((store, pool, schema) -> {
             Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
             new ManagedUsageRecorder(store).whatsAppTemplate("acme", com.microboxlabs.miot.core.auth.PlatformScope.TENANT,
                     "wamid.cert", now);
@@ -93,6 +75,70 @@ class PgTelephonyUsageStoreTest {
             assertEquals(41, store.reconcileCursor("p1").orElseThrow().nextPage());
             store.clearReconcileCursor("p1");
             assertTrue(store.reconcileCursor("p1").isEmpty());
+
+        });
+    }
+
+    @Test
+    void inboundReservationsStayBusyUntilProviderTeardown() throws Exception {
+        withStore((store, pool, schema) -> {
+            Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+            String inboundRef = UUID.randomUUID().toString();
+            Instant old = now.minus(IntegrationsTelephony.HOLD).minusSeconds(1);
+            UsageRow liveInbound = new UsageRow(inboundRef, "acme", UsageRow.WHATSAPP_CALL, true, "p1", null, null,
+                    "+12025550101", UsageRow.WHATSAPP_INBOUND, UsageRow.STARTED, old, null, null, null, null,
+                    null, old, null, null);
+            store.insert(liveInbound);
+            store.saveAdmission(new CallAdmission(inboundRef, "sdk-inbound", UUID.randomUUID().toString()));
+            assertEquals(1, store.busyChannels("p1", now.minus(IntegrationsTelephony.HOLD)));
+            assertEquals(0, store.expireStarted(now.minus(IntegrationsTelephony.HOLD)));
+
+            var calls = new PgWhatsAppCallStore(() -> pool) {
+                @Override protected RowSet<Row> run(String sql, Tuple params) {
+                    return super.run(sql.replace("miot_integrations", schema), params);
+                }
+            };
+            var inbound = new InboundWhatsAppCall(UUID.randomUUID().toString(), "p1", "wa-inbound", "acme",
+                    "+12025550101", "Test contact", null, InboundWhatsAppCall.CLAIMED, inboundRef, old, old);
+            calls.insertInbound(inbound);
+            assertEquals(1, calls.unansweredBefore(now.minusSeconds(45)).size());
+            assertEquals(1, calls.activeBefore(now.minus(IntegrationsTelephony.HOLD).plusSeconds(60)).size());
+            calls.updateInbound(inbound.with(InboundWhatsAppCall.ANSWERED, inboundRef, now));
+            assertTrue(calls.unansweredBefore(now.minusSeconds(45)).isEmpty());
+            store.update(liveInbound.endedPending(now));
+            assertEquals(0, store.busyChannels("p1", now.minus(IntegrationsTelephony.HOLD)));
+            assertEquals(1, store.expireStarted(now.minus(IntegrationsTelephony.HOLD)));
+            calls.updateInbound(inbound.with(InboundWhatsAppCall.ENDED, inboundRef, now));
+            assertTrue(calls.activeBefore(now).isEmpty());
+        });
+    }
+
+    @FunctionalInterface
+    private interface StoreAssertions {
+        void run(PgTelephonyUsageStore store, Pool pool, String schema) throws Exception;
+    }
+
+    private void withStore(StoreAssertions assertions) throws Exception {
+        Vertx vertx = Vertx.vertx();
+        Pool pool = PgBuilder.pool().connectingTo(PgConnectOptions.fromUri(System.getProperty("miot.integrations.test.pg-url")))
+                .with(new PoolOptions().setMaxSize(4)).using(vertx).build();
+        String schema = "cert_voice_" + UUID.randomUUID().toString().replace("-", "");
+        try {
+            pool.query("CREATE SCHEMA " + schema).execute().await().indefinitely();
+            for (String migration : new String[]{"V0.6.39__telephony_usage.sql", "V0.6.40__telephony_destination_width.sql",
+                    "V0.6.41__telephony_admissions_and_reconcile_progress.sql", "V0.6.42__whatsapp_calls.sql"}) {
+                try (var resource = getClass().getResourceAsStream("/db/migration/integrations/" + migration)) {
+                    assertNotNull(resource);
+                    pool.query(new String(resource.readAllBytes(), StandardCharsets.UTF_8).replace("miot_integrations", schema))
+                            .execute().await().indefinitely();
+                }
+            }
+            PgTelephonyUsageStore store = new PgTelephonyUsageStore(() -> pool, TestManagedConnectionLock.forPool(pool)) {
+                @Override protected RowSet<Row> run(String sql, Tuple params) {
+                    return super.run(sql.replace("miot_integrations", schema), params);
+                }
+            };
+            assertions.run(store, pool, schema);
         } finally {
             pool.query("DROP SCHEMA " + schema + " CASCADE").execute().await().indefinitely();
             pool.closeAndAwait(); vertx.closeAndAwait();

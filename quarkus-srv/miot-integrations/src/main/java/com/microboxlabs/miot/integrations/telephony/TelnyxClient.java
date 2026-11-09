@@ -19,6 +19,10 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class TelnyxClient {
 
+    private static final String JSON = "application/json";
+    private static final String CONTENT_TYPE = "Content-Type";
+    private static final String COMMAND_ID = ",\"command_id\":";
+
     private final TelephonyHttp http;
     private final URI baseUrl;
 
@@ -65,7 +69,7 @@ public class TelnyxClient {
             throws IOException, InterruptedException {
         String body = "{\"connection_id\":" + json(connectionId) + ",\"name\":" + json(name) + "}";
         return http.send(request(apiKey, "/v2/telephony_credentials")
-                .header("Content-Type", "application/json")
+                .header(CONTENT_TYPE, JSON)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build());
     }
@@ -94,12 +98,64 @@ public class TelnyxClient {
                 + segment("page[size]") + "=50&sort=-started_at"));
     }
 
+    /** Recover only the known WhatsApp leg, never its operator's SIP record. */
+    public HttpResponse<String> whatsAppDetailRecord(String apiKey, String callControlId)
+            throws IOException, InterruptedException {
+        return http.send(get(apiKey, "/v2/detail_records?" + segment("filter[record_type]") + "=call-control&"
+                + segment("filter[call_control_id]") + "=" + segment(callControlId) + "&"
+                + segment("filter[date_range]") + "=last_3_days&" + segment("page[size]") + "=50"));
+    }
+
     /** Only the server can turn a parked WebRTC leg into a PSTN call. */
     public HttpResponse<String> transfer(String apiKey, String callId, String to, String from,
             String targetState, String commandId, int timeLimitSeconds) throws IOException, InterruptedException {
         return command(apiKey, callId, "transfer", "{\"to\":" + json(to) + ",\"from\":" + json(from)
-                + ",\"target_leg_client_state\":" + json(targetState) + ",\"command_id\":" + json(commandId)
+                + ",\"target_leg_client_state\":" + json(targetState) + COMMAND_ID + json(commandId)
                 + ",\"timeout_secs\":30,\"time_limit_secs\":" + timeLimitSeconds + "}");
+    }
+
+    /** A WhatsApp leg to dial on the WhatsApp Call Control application. */
+    public record WhatsAppDial(String connectionId, String to, String from, String sipUsername, String sipPassword,
+            String mediaEncryption, String clientState, String commandId, String linkTo, int timeLimitSeconds) {
+
+        @Override
+        public String toString() {
+            return "WhatsAppDial[connectionId=" + connectionId + ", to=" + to + ", sipPassword=<redacted>]";
+        }
+    }
+
+    /** {@code POST /v2/calls}: Telnyx's documented outbound call to WhatsApp over SIP (TLS, OPUS). */
+    public HttpResponse<String> dialWhatsApp(String apiKey, WhatsAppDial d) throws IOException, InterruptedException {
+        String body = "{\"connection_id\":" + json(d.connectionId()) + ",\"to\":" + json(d.to())
+                + ",\"from\":" + json(d.from()) + ",\"sip_auth_username\":" + json(d.sipUsername())
+                + ",\"sip_auth_password\":" + json(d.sipPassword())
+                + ",\"sip_transport_protocol\":\"TLS\",\"media_encryption\":" + json(d.mediaEncryption())
+                + ",\"preferred_codecs\":\"OPUS\",\"client_state\":" + json(d.clientState())
+                + COMMAND_ID + json(d.commandId()) + ",\"link_to\":" + json(d.linkTo())
+                + ",\"timeout_secs\":45,\"time_limit_secs\":" + d.timeLimitSeconds() + "}";
+        return http.send(request(apiKey, "/v2/calls")
+                .header(CONTENT_TYPE, JSON).POST(HttpRequest.BodyPublishers.ofString(body)).build());
+    }
+
+    /** Joins {@code callId} with {@code otherCallId}. */
+    public HttpResponse<String> bridge(String apiKey, String callId, String otherCallId, String commandId)
+            throws IOException, InterruptedException {
+        return command(apiKey, callId, "bridge", "{\"call_control_id\":" + json(otherCallId) + COMMAND_ID
+                + json(commandId) + "}");
+    }
+
+    /** Answers an incoming call; Telnyx echoes {@code clientState} on its later events. */
+    public HttpResponse<String> answer(String apiKey, String callId, String clientState, String commandId)
+            throws IOException, InterruptedException {
+        return command(apiKey, callId, "answer", "{\"client_state\":" + json(clientState) + COMMAND_ID
+                + json(commandId) + "}");
+    }
+
+    /** Text to speech on an answered call, in Spanish. */
+    public HttpResponse<String> speak(String apiKey, String callId, String text, String clientState)
+            throws IOException, InterruptedException {
+        return command(apiKey, callId, "speak", "{\"payload\":" + json(text)
+                + ",\"voice\":\"female\",\"language\":\"es-ES\",\"client_state\":" + json(clientState) + "}");
     }
 
     public HttpResponse<String> hangup(String apiKey, String callId) throws IOException, InterruptedException {
@@ -109,7 +165,7 @@ public class TelnyxClient {
     private HttpResponse<String> command(String apiKey, String callId, String action, String body)
             throws IOException, InterruptedException {
         return http.send(request(apiKey, "/v2/calls/" + segment(callId) + "/actions/" + action)
-                .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build());
+                .header(CONTENT_TYPE, JSON).POST(HttpRequest.BodyPublishers.ofString(body)).build());
     }
 
     private static String json(String value) {
@@ -133,7 +189,7 @@ public class TelnyxClient {
     HttpRequest.Builder request(String apiKey, String path) {
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(trim(baseUrl.toString()) + path))
                 .timeout(TelephonyHttp.TIMEOUT)
-                .header("Accept", "application/json");
+                .header("Accept", JSON);
         try {
             return request.header("Authorization", "Bearer " + apiKey);
         } catch (IllegalArgumentException ignored) {

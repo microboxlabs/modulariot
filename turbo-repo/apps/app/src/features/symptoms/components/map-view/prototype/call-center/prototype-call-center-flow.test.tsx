@@ -58,6 +58,7 @@ vi.mock("./call-dialing-step", () => ({
     onCancel,
     onConfirm,
     line,
+    sessionKey,
   }: {
     reason: string;
     channels?: { whatsapp?: string } | null;
@@ -65,12 +66,14 @@ vi.mock("./call-dialing-step", () => ({
     onCancel: () => void;
     onConfirm: (seconds: number, method: "phone" | "whatsapp") => void;
     line?: { provider: string } | null;
+    sessionKey?: string;
   }) => (
     <>
       <p>{reason}</p>
       <p>{channels?.whatsapp}</p>
       <p>{goal}</p>
       <span data-testid="phone-provider">{line?.provider ?? "manual"}</span>
+      <span data-testid="session-key">{sessionKey}</span>
       <button onClick={onCancel}>Cancel call</button>
       <button onClick={() => onConfirm(1, "phone")}>Confirm call</button>
       <button onClick={() => onConfirm(1, "whatsapp")}>Confirm WhatsApp</button>
@@ -78,8 +81,17 @@ vi.mock("./call-dialing-step", () => ({
   ),
 }));
 vi.mock("../prototype-call-driver", () => ({
-  default: ({ onMakeAnotherCall }: { onMakeAnotherCall: () => void }) => (
-    <button onClick={onMakeAnotherCall}>Another call</button>
+  default: ({
+    onMakeAnotherCall,
+    initialCallTargetPhone,
+  }: {
+    onMakeAnotherCall: () => void;
+    initialCallTargetPhone?: string;
+  }) => (
+    <>
+      <span data-testid="result-phone">{initialCallTargetPhone}</span>
+      <button onClick={onMakeAnotherCall}>Another call</button>
+    </>
   ),
 }));
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
@@ -229,6 +241,37 @@ describe("the call session", () => {
         method: "phone",
       });
     });
+
+  const startIncoming = () =>
+    act(() => {
+      session?.startManual({
+        key: "wa-in:incoming-1",
+        context: { caseId: null },
+        contactName: "Incoming contact",
+        contactRole: "",
+        method: "whatsapp",
+        calleeNumber: "+12025550103",
+      });
+    });
+
+  it("adopts an incoming session's key when opening its case", () => {
+    const view = render(<Host show={false} />);
+    startIncoming();
+    view.rerender(<Host show />);
+    expect(screen.getByTestId("session-key")).toHaveTextContent(
+      "wa-in:incoming-1"
+    );
+  });
+
+  it("preserves the incoming caller number when restoring a completed call", () => {
+    const view = render(<Host show={false} />);
+    startIncoming();
+    act(() => session?.confirm());
+    view.rerender(<Host show />);
+    expect(screen.getByTestId("result-phone")).toHaveTextContent(
+      "+12025550103"
+    );
+  });
 
   it("reopens the dialing step of the case's open call", () => {
     const view = render(<Host show={false} />);

@@ -269,13 +269,11 @@ describe("Places versions", () => {
           : undefined,
       mutate: vi.fn(),
     }));
-    const fetch = vi
-      .fn()
-      .mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({ id: padre.place_id }),
-      });
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ id: padre.place_id }),
+    });
     vi.stubGlobal("fetch", fetch);
     const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
     expect(result.current.fcPropios.features[0]?.geometry).toMatchObject({

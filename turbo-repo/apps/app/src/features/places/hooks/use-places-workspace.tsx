@@ -52,6 +52,7 @@ import { ajustarRutaAMaximo } from "../routes/simplify-route";
 import {
   COLOR_KEY,
   FORM_VACIO,
+  PARENT_KEY,
   TRAY_VACIO,
   type FormLugar,
   type FormTrayecto,
@@ -734,11 +735,25 @@ export function usePlacesWorkspace(
     () => ({ codigo: form.external_id, nombre: form.name }),
     [form.external_id, form.name]
   );
+  // las interiores guardadas que esta edición quita: se borran antes de guardar
+  // las nuevas, así que sus códigos quedan libres para ellas
+  const interioresQuitadas = useMemo(() => {
+    const padre = form.place_id;
+    if (!padre) return new Set<string>();
+    const quedan = new Set(form.inners.map((i) => i.id));
+    return new Set(
+      (guardados?.lugares ?? [])
+        .filter((l) => l.metadata?.[PARENT_KEY] === padre)
+        .map((l) => l.place_id)
+        .filter((id) => !quedan.has(id))
+    );
+  }, [guardados, form.place_id, form.inners]);
   const estadosCodigoInteriores = useCodigosInteriores({
     scope: storageScope,
     inners: form.inners,
     padre: padreDeInteriores,
     fija: codigoInteriorFijo,
+    quitadas: interioresQuitadas,
     activo: modo === "lugar",
   });
   /** Revisando o en uso: no se sigue; el campo ya dice por qué. */
@@ -2091,8 +2106,12 @@ export function usePlacesWorkspace(
   ): Promise<DestinoImport> => {
     const id = idGuardado(trayectoId);
     const antes = id ? trayectos.find((t) => t.trayecto_id === id) : undefined;
+    // el archivo no trae ícono ni categorías: al reemplazar, quedan los guardados
     const body = requestDesdeTrayecto({
       ...trayectoDeFila(fila, id ?? ""),
+      icon: antes?.icon ?? null,
+      categorias: antes?.categorias ?? null,
+      categorias_lista: antes?.categorias_lista ?? null,
       external_id: fila.external_id || antes?.external_id || null,
     });
     const res = await guardarPlace(id, {

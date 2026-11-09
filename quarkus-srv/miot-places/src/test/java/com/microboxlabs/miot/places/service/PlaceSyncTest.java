@@ -32,10 +32,17 @@ class PlaceSyncTest {
 
     private final List<String> heard = new ArrayList<>();
     private boolean failing;
+    /** Runs once, while a copy is in StreamHub's hands: another write landing meanwhile. */
+    private Runnable meanwhile;
     private final PlaceSync recorder = new PlaceSync() {
         @Override
         public void saved(String tenantCode, String externalCode, Place place) {
             heard.add("saved " + place.kind() + " " + tenantCode + "/" + externalCode);
+            if (meanwhile != null) {
+                Runnable other = meanwhile;
+                meanwhile = null;
+                other.run();
+            }
             if (failing) {
                 throw new IllegalStateException("StreamHub is down");
             }
@@ -77,6 +84,37 @@ class PlaceSyncTest {
 
     private static VersionRequest patch() {
         return new VersionRequest("PATCH", "Ajuste", List.of());
+    }
+
+    @Test
+    void aCopyOverwrittenByAnOlderOneStaysPending() {
+        Place planta = service.create(TENANT, geofence(null, null), ACTOR).place();
+        UUID id = planta.id();
+        // a newer edit lands, and is copied and marked, while the older one's copy is still being written
+        meanwhile = () -> service.update(TENANT, id, geofence(null, patch()), ACTOR);
+
+        service.update(TENANT, id, geofence(null, patch()), ACTOR);
+
+        assertEquals(List.of(id), store.pending(100).stream().map(p -> p.place().id()).toList(),
+                "StreamHub may hold the older version: the current one is copied again");
+        assertEquals(1, service.retryPending(100));
+        assertEquals(List.of(), store.pending(100));
+    }
+
+    @Test
+    void aDeleteStillReachesStreamHubWhenTheCodeComesBackInAnotherCase() {
+        service.create(TENANT, geofence(null, null), ACTOR);
+        failing = true;
+        service.delete(TENANT, "SCL", ACTOR);
+        failing = false;
+        service.create(TENANT, new PlaceRequest("geofence", null, "scl", "Planta", null, null, null, null, null,
+                json(SQUARE), null, null, null, null, null), ACTOR);
+        heard.clear();
+
+        service.retryPending(100);
+
+        assertTrue(heard.contains("deleted geofence acme-client/SCL"),
+                "StreamHub's key is case sensitive: 'scl' is another row, so 'SCL' is removed");
     }
 
     @Test

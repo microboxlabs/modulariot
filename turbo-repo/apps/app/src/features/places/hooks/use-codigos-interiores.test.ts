@@ -56,4 +56,22 @@ describe("estadosDeInteriores", () => {
       estadosDeInteriores(inners, padre, null, (id) => id === "b")
     ).toEqual({});
   });
+
+  it("lets a new inner take the code of a saved one this edit removes", () => {
+    const inners = [interior("nueva", "Andén nuevo", "SCL-2")];
+    const usos = {
+      "scl-2": {
+        inUse: true,
+        placeId: "vieja",
+        name: "Andén 2",
+        kind: "inner_geofence",
+      },
+    };
+    expect(
+      estadosDeInteriores(inners, padre, usos, nunca, new Set(["vieja"]))
+    ).toEqual({});
+    expect(estadosDeInteriores(inners, padre, usos, nunca)).toEqual({
+      nueva: { estado: "en-uso", aviso: "En uso por «Andén 2»" },
+    });
+  });
 });

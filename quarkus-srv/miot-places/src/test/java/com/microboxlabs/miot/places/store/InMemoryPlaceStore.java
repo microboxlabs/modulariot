@@ -22,10 +22,18 @@ public class InMemoryPlaceStore implements PlaceStore {
     private final Map<UUID, OffsetDateTime> synced = new LinkedHashMap<>();
     private final List<PlaceVersion> versions = new ArrayList<>();
     public final List<UUID> deleted = new ArrayList<>();
+    private OffsetDateTime last = OffsetDateTime.MIN;
+
+    /** The time of a write, later than any before it, as the database's clock_timestamp() is. */
+    private OffsetDateTime tick() {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        last = now.isAfter(last) ? now : last.plusNanos(1000);
+        return last;
+    }
 
     @Override
     public Place insert(Place p) {
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime now = tick();
         Place saved = new Place(UUID.randomUUID(), p.tenantCode(), p.kind(), p.parentId(), p.externalCode(), p.name(),
                 p.icon(), p.color(), p.address(), p.categoriesJson(), p.metadataJson(), p.geojson(), p.validFrom(),
                 p.validUntil(), p.currentVersion(), now, p.createdBy(), now,
@@ -43,7 +51,7 @@ public class InMemoryPlaceStore implements PlaceStore {
     public Optional<CodeOwner> findByCode(String tenantCode, String code) {
         return places.values().stream()
                 .filter(p -> p.tenantCode().equals(tenantCode) && code.equalsIgnoreCase(p.externalCode())).findFirst()
-                .map(p -> new CodeOwner(p.id(), p.name(), p.kind()));
+                .map(p -> new CodeOwner(p.id(), p.name(), p.kind(), p.externalCode()));
     }
 
     @Override
@@ -66,7 +74,7 @@ public class InMemoryPlaceStore implements PlaceStore {
             Place saved = new Place(old.id(), old.tenantCode(), old.kind(), p.parentId(), p.externalCode(), p.name(),
                     p.icon(), p.color(), p.address(), p.categoriesJson(), p.metadataJson(), p.geojson(), p.validFrom(),
                     p.validUntil(), p.currentVersion(),
-                    old.createdAt(), old.createdBy(), OffsetDateTime.now(ZoneOffset.UTC), p.updatedBy());
+                    old.createdAt(), old.createdBy(), tick(), p.updatedBy());
             places.put(saved.id(), saved);
             return saved;
         });
@@ -95,6 +103,11 @@ public class InMemoryPlaceStore implements PlaceStore {
         }
         synced.put(p.id(), p.updatedAt());
         return true;
+    }
+
+    @Override
+    public void markPending(Place p) {
+        synced.remove(p.id());
     }
 
     @Override

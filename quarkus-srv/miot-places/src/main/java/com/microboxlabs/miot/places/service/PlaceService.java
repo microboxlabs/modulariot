@@ -243,17 +243,31 @@ public class PlaceService {
             } else if (!takenOver(p)) {
                 sync.deleted(p.tenantCode(), p.externalCode(), p.kind());
             }
-            return PlaceStore.SYNCED_KINDS.contains(p.kind()) && store.markSynced(p, deleted);
+            if (!PlaceStore.SYNCED_KINDS.contains(p.kind())) {
+                return false;
+            }
+            boolean marked = store.markSynced(p, deleted);
+            if (!marked && !deleted) {
+                // edited since this copy was read: a newer copy may already have run and been overwritten by this
+                // older one, so the current version is copied again
+                store.markPending(p);
+            }
+            return marked;
         } catch (RuntimeException e) {
             LOG.warnf(e, "%s %s/%s is not synced; it stays pending", p.kind(), p.tenantCode(), p.externalCode());
             return false;
         }
     }
 
+    /**
+     * Whether a current geofence or inner geofence holds the deleted one's code exactly. StreamHub's key is case
+     * sensitive, so one holding it in another case is another row there, and the deleted one's is still removed.
+     */
     private boolean takenOver(Place deleted) {
         return PlaceStore.SYNCED_KINDS.contains(deleted.kind())
                 && store.findByCode(deleted.tenantCode(), deleted.externalCode())
-                        .filter(owner -> PlaceStore.SYNCED_KINDS.contains(owner.kind())).isPresent();
+                        .filter(owner -> PlaceStore.SYNCED_KINDS.contains(owner.kind()))
+                        .filter(owner -> deleted.externalCode().equals(owner.externalCode())).isPresent();
     }
 
     /** The versions of a geofence or route, oldest first. */
@@ -425,7 +439,7 @@ public class PlaceService {
 
     private static String bump(VersionRequest version) {
         if (version == null) {
-            throw new IllegalArgumentException("an edit needs its version: bump (MAJOR, MINOR or PATCH) and reason");
+            throw new IllegalArgumentException("an edit needs its version: bump (MAJOR, MINOR or PATCH), and optionally its reason");
         }
         String bump = text(version.bump(), "version.bump", 8);
         if (bump == null || !BUMPS.contains(bump)) {

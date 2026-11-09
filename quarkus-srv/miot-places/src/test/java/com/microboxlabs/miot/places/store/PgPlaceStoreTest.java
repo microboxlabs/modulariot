@@ -249,6 +249,18 @@ class PgPlaceStoreTest {
     }
 
     @Test
+    void aSyncedPlaceCanBeMadePendingAgainWithoutBeingEdited() {
+        Place anf = service.create(TENANT, request("geofence", "ANF", "Antofagasta", SQUARE), ACTOR).place();
+        assertTrue(store.markSynced(anf, false));
+        assertEquals(List.of(), store.pending(100));
+
+        store.markPending(anf);
+
+        assertEquals(List.of("ANF"), store.pending(100).stream().map(p -> p.place().externalCode()).toList());
+        assertEquals(anf.updatedAt(), service.get(TENANT, anf.id()).updatedAt(), "it is not an edit");
+    }
+
+    @Test
     void pendingAreTheGeofencesAndInnerGeofencesStreamHubLacksDeletionsFirst() {
         PlaceService.Saved planta = service.create(TENANT,
                 geofence("SCL", "Planta", List.of(inner(null, "Andén")), null), ACTOR);

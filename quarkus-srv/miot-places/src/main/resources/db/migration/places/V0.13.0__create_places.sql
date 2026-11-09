@@ -47,10 +47,12 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 
 CREATE SCHEMA IF NOT EXISTS miot_places;
 
+-- la hora de la escritura, no la del inicio de su transacción: una copia a StreamHub que se marcó mientras
+-- tanto (synced_at) queda antes, y la edición sigue pendiente
 CREATE OR REPLACE FUNCTION miot_places.set_updated_at() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
-    NEW.updated_at := now();
+    NEW.updated_at := clock_timestamp();
     RETURN NEW;
 END $$;
 

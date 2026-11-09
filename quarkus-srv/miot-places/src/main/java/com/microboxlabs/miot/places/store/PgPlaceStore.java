@@ -1,8 +1,5 @@
 package com.microboxlabs.miot.places.store;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.microboxlabs.miot.core.db.PgTx;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -21,25 +18,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
-import org.jboss.logging.Logger;
 
 /** {@link PlaceStore} on the modulith database, schema {@code miot_places}. */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.places.enabled", stringValue = "true")
 public class PgPlaceStore implements PlaceStore {
-
-    // TEMP debug: logs what each write receives, to copy as test values. Do not commit.
-    private static final Logger LOG = Logger.getLogger(PgPlaceStore.class);
-    private static final ObjectMapper DEBUG_MAPPER = new ObjectMapper().registerModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-    private static void debug(String action, Object value) {
-        try {
-            LOG.infof("[places-debug] %s %s", action, DEBUG_MAPPER.writeValueAsString(value));
-        } catch (Exception e) {
-            LOG.infof("[places-debug] %s %s", action, value);
-        }
-    }
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final String ACTIVE = " AND is_active";
@@ -81,7 +64,6 @@ public class PgPlaceStore implements PlaceStore {
 
     @Override
     public Place insert(Place p) {
-        debug("insert", p);
         return place(query("INSERT INTO " + table + """
                      (tenant_code, kind, parent_id, external_code, name, icon, color, address, categories,
                      metadata, geojson, valid_from, valid_until, current_version, created_by, updated_by)
@@ -105,14 +87,15 @@ public class PgPlaceStore implements PlaceStore {
 
     @Override
     public Optional<CodeOwner> findByCode(String tenantCode, String code) {
-        RowIterator<Row> it = query(SELECT + "id, name, kind" + FROM + table
+        RowIterator<Row> it = query(SELECT + "id, name, kind, external_code" + FROM + table
                 + " WHERE tenant_code = $1 AND lower(external_code) = lower($2)"
                 + ACTIVE, Tuple.of(tenantCode, code)).iterator();
         if (!it.hasNext()) {
             return Optional.empty();
         }
         Row r = it.next();
-        return Optional.of(new CodeOwner(r.getUUID("id"), r.getString("name"), r.getString("kind")));
+        return Optional.of(new CodeOwner(r.getUUID("id"), r.getString("name"), r.getString("kind"),
+                r.getString("external_code")));
     }
 
     @Override
@@ -149,7 +132,6 @@ public class PgPlaceStore implements PlaceStore {
 
     @Override
     public Optional<Place> update(Place p) {
-        debug("update", p);
         return first(query(UPDATE + table + """
                  SET parent_id = $3, external_code = $4, name = $5, icon = $6, color = $7, address = $8,
                     categories = $9::text::jsonb, metadata = $10::text::jsonb, geojson = $11::text::jsonb,
@@ -165,7 +147,6 @@ public class PgPlaceStore implements PlaceStore {
 
     @Override
     public boolean delete(String tenantCode, String externalCode, String actor) {
-        debug("delete", java.util.Map.of("tenantCode", tenantCode, "externalCode", externalCode, "actor", actor));
         // uq_place_code: at most one active place holds the code
         return query(UPDATE + table + " SET is_active = FALSE, updated_by = $3"
                 + " WHERE tenant_code = $1 AND lower(external_code) = lower($2)" + ACTIVE,
@@ -202,6 +183,13 @@ public class PgPlaceStore implements PlaceStore {
             params.addOffsetDateTime(p.updatedAt());
         }
         return query(sql, params).rowCount() > 0;
+    }
+
+    @Override
+    public void markPending(Place p) {
+        // only synced_at changes, so the trigger leaves updated_at alone
+        query(UPDATE + table + " SET synced_at = NULL WHERE tenant_code = $1 AND id = $2" + SYNCED_KINDS,
+                Tuple.of(p.tenantCode(), p.id()));
     }
 
     @Override

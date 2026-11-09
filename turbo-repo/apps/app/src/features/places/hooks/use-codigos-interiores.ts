@@ -25,16 +25,23 @@ const enUso = (nombre: string): EstadoCodigo => ({
   aviso: `En uso por «${nombre}»`,
 });
 
+/** Si el servidor dice que el código lo tiene una interior que se está quitando. */
+const deUnaQuitada = (uso: UsoCodigo, quitadas: ReadonlySet<string>) =>
+  !!uso.placeId && quitadas.has(uso.placeId);
+
 /**
  * El estado del código de cada interior (por id): repetido en el formulario ya
  * está en uso; si no, lo que respondió el servidor (`usos`, null mientras
- * revisa). Sin código o fija, no sale.
+ * revisa). Sin código o fija, no sale. El código de una interior guardada que
+ * esta edición quita (`quitadas`, por id) está libre: el servidor la borra
+ * antes de guardar las nuevas.
  */
 export function estadosDeInteriores(
   inners: readonly Interior[],
   padre: { codigo: string; nombre: string },
   usos: Readonly<Record<string, UsoCodigo>> | null,
-  fija: (id: string) => boolean
+  fija: (id: string) => boolean,
+  quitadas: ReadonlySet<string> = new Set()
 ): Record<string, EstadoCodigo> {
   const out: Record<string, EstadoCodigo> = {};
   const delPadre = padre.codigo.trim().toLowerCase();
@@ -57,7 +64,8 @@ export function estadosDeInteriores(
       return;
     }
     const uso = usos[codigo];
-    if (uso) out[inner.id] = estadoDeUso(inner.id, uso);
+    if (uso && !deUnaQuitada(uso, quitadas))
+      out[inner.id] = estadoDeUso(inner.id, uso);
   });
   return out;
 }
@@ -77,6 +85,7 @@ export function useCodigosInteriores({
   inners,
   padre,
   fija,
+  quitadas,
   activo = true,
 }: Readonly<{
   /** La organización activa: la respuesta de una no sirve para otra. */
@@ -85,6 +94,8 @@ export function useCodigosInteriores({
   padre: { codigo: string; nombre: string };
   /** Interior guardada con su código: ese no se revisa, no se puede cambiar. */
   fija: (id: string) => boolean;
+  /** Las interiores guardadas que esta edición quita (por id): su código queda libre. */
+  quitadas?: ReadonlySet<string>;
   activo?: boolean;
 }>): Record<string, EstadoCodigo> {
   const escritos = useMemo(
@@ -116,7 +127,7 @@ export function useCodigosInteriores({
     // sin respuesta (falló la consulta), no se dice nada: el guardado lo revisa
     const respondidos = error ? {} : (data ?? {});
     const usos = revisando ? null : respondidos;
-    return estadosDeInteriores(inners, padre, usos, fija);
+    return estadosDeInteriores(inners, padre, usos, fija, quitadas);
   }, [
     activo,
     scope,
@@ -128,5 +139,6 @@ export function useCodigosInteriores({
     inners,
     padre,
     fija,
+    quitadas,
   ]);
 }

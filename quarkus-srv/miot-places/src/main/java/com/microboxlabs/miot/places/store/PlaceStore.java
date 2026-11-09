@@ -42,7 +42,7 @@ public interface PlaceStore {
     }
 
     /** The place that holds a code. */
-    record CodeOwner(UUID id, String name, String kind) {
+    record CodeOwner(UUID id, String name, String kind, String externalCode) {
     }
 
     /** A geofence or inner geofence StreamHub does not have as it is: to copy, or, {@code deleted}, to remove. */
@@ -86,6 +86,12 @@ public interface PlaceStore {
      * when it changed since, or is not a kind StreamHub gets: it stays pending.
      */
     boolean markSynced(Place place, boolean deleted);
+
+    /**
+     * Makes the place pending again whatever StreamHub has: a copy that lost a race with a newer one may have written
+     * an older version over it, and the retry copies the current one.
+     */
+    void markPending(Place place);
 
     /**
      * Of every organization, the geofences and inner geofences StreamHub does not have as they are, the deleted ones

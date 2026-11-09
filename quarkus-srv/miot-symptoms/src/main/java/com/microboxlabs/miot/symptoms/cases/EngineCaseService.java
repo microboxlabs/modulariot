@@ -1000,8 +1000,8 @@ public class EngineCaseService {
     /**
      * The header with the case's treatments in its timeline, one entry per call, ignore or invalidate action,
      * in the shape of the GPS database's treatments. Each action goes in the level step whose time holds it; one
-     * before the first step goes in the first, one after the last in the last. Cancelled treatments and notes are
-     * left out.
+     * before the first step goes in the first, one after the last in the last. A handling record ("Registrar
+     * gestión") shows as {@code registrar gestion}. Cancelled treatments and other notes are left out.
      */
     public static JsonNode withTreatments(JsonNode header, List<TreatmentView> treatments) {
         ObjectNode out = header.deepCopy();
@@ -1020,7 +1020,7 @@ public class EngineCaseService {
                 continue;
             }
             String operator = t.closedBy() != null ? t.closedBy() : t.openedBy();
-            t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE).forEach(a -> {
+            t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE || a.recordsHandling()).forEach(a -> {
                 int step = stepOf(aggs, a.performedAt());
                 rows.get(step).add(timelineRow(a));
                 assignees.set(step, a.performedBy() != null ? a.performedBy() : t.openedBy());
@@ -1064,7 +1064,7 @@ public class EngineCaseService {
             description.put(MESSAGE, a.message() != null ? a.message() : "Llamado a: " + a.contactName());
             description.put(DRIVER_RESPONSE, joined(a.outcomeLabel(), a.note()));
         } else {
-            row.put(TREATMENT_TYPE, a.kind() == ActionKind.IGNORE ? "ignorar condicion" : "invalidar sintoma");
+            row.put(TREATMENT_TYPE, otherTreatmentType(a.kind()));
             description.put(MESSAGE, a.outcomeLabel());
             description.put(DRIVER_RESPONSE, a.note());
         }
@@ -1079,6 +1079,14 @@ public class EngineCaseService {
             row.put("scope", scope == null ? null : scope.toString());
         }
         return row;
+    }
+
+    private static String otherTreatmentType(ActionKind kind) {
+        return switch (kind) {
+            case IGNORE -> "ignorar condicion";
+            case NOTE -> "registrar gestion";
+            default -> "invalidar sintoma";
+        };
     }
 
     private static Map<String, Object> details(TreatmentAction a) {

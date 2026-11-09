@@ -108,6 +108,9 @@ public class TreatmentService {
                 && blankToNull(req.outcomeKey()) == null && blankToNull(req.outcomeLabel()) == null) {
             throw new IllegalArgumentException(req.kind() + " needs an outcomeKey or outcomeLabel (the reason)");
         }
+        if (recordsHandling(req) && blankToNull(req.note()) == null) {
+            throw new IllegalArgumentException("a NOTE with an outcome (a handling record) needs a note");
+        }
         if (isStepSkip(req)) {
             requireSkip(t, req);
             Optional<TreatmentAction> retried = retriedSkip(tenantCode, actor, t, req);
@@ -128,6 +131,11 @@ public class TreatmentService {
             holds.started(tenantCode, t);
         }
         return saved;
+    }
+
+    private static boolean recordsHandling(AddActionRequest req) {
+        return req.kind() == ActionKind.NOTE
+                && (blankToNull(req.outcomeKey()) != null || blankToNull(req.outcomeLabel()) != null);
     }
 
     private static boolean isStepSkip(AddActionRequest req) {
@@ -223,6 +231,12 @@ public class TreatmentService {
         if (saved.kind() == ActionKind.NOTE && saved.details() != null
                 && saved.details().get(SKIP_TO_STEP) != null) {
             auditSkipDetails(saved, details);
+        }
+        if (saved.recordsHandling()) {
+            details.put("note", saved.note());
+            if (saved.outcomeKey() != null) {
+                details.put("outcomeKey", saved.outcomeKey());
+            }
         }
         if (saved.kind() == ActionKind.IGNORE) {
             if (saved.note() != null) {

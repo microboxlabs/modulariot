@@ -414,7 +414,14 @@ public class TripChecks {
 
     /** Atomically closes the episode without exposing an empty state before the GPS consumer's marker. */
     public void forget(String tenant, String assetId, UUID definitionId, Episode marker) {
-        episodes.operatorClose(tenant, assetId, definitionId, marker);
+        forget(tenant, assetId, definitionId, marker, null);
+    }
+
+    /** Do not repeat the GPS consumer's write to the same repository. */
+    public void forget(String tenant, String assetId, UUID definitionId, Episode marker, EpisodeRepository alreadyClosed) {
+        if (episodes != alreadyClosed) {
+            episodes.operatorClose(tenant, assetId, definitionId, marker);
+        }
     }
 
     /** Preserves an episode opened after the case the sweep closed. */

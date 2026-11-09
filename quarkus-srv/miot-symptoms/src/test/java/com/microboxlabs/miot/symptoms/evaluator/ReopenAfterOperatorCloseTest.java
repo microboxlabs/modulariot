@@ -29,8 +29,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * A case an operator closes does not reopen while its condition holds on the same trip. The rule is production's
@@ -243,6 +246,61 @@ class ReopenAfterOperatorCloseTest {
         EvaluatorStream after = consumer();
         assertEquals(List.of(), drive(after, 20, 200));
         assertEquals(List.of("OPENED:1"), drive(after, 30, 280));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void aSharedRepositoryDoesNotReinstallSuppressionAfterAnInterleavedNormalFrame(boolean noTrip) {
+        assertInterleavedNormalFrame(noTrip, installed -> new InMemoryEpisodeRepository() {
+            @Override
+            public void operatorClose(String tenant, String asset, UUID definition, Episode marker) {
+                super.operatorClose(tenant, asset, definition, marker);
+                installed.run();
+            }
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    @EnabledIfSystemProperty(named = "miot.symptoms.test.redis-url", matches = ".+")
+    void sharedRedisDoesNotReinstallSuppressionAfterAnInterleavedNormalFrame(boolean noTrip) {
+        var vertx = Vertx.vertx();
+        var client = Redis.createClient(vertx, new RedisOptions()
+                .setConnectionString(System.getProperty("miot.symptoms.test.redis-url")));
+        var api = RedisAPI.api(client);
+        List<String> keys = List.of(RedisEpisodes.key(TENANT, ASSET), RedisEpisodes.tenantsKey(ASSET));
+        api.del(keys).await().indefinitely();
+        try {
+            assertInterleavedNormalFrame(noTrip, installed -> new RedisEpisodes(api, Duration.ofDays(7)) {
+                @Override
+                public void operatorClose(String tenant, String asset, UUID definition, Episode marker) {
+                    super.operatorClose(tenant, asset, definition, marker);
+                    installed.run();
+                }
+            });
+        } finally {
+            api.del(keys).await().indefinitely();
+            client.close();
+            vertx.close().await().indefinitely();
+        }
+    }
+
+    private void assertInterleavedNormalFrame(boolean noTrip, Function<Runnable, EpisodeRepository> repository) {
+        publish(LIFECYCLE);
+        EvaluatorStream[] active = {null};
+        int[] installs = {0};
+        EpisodeRepository shared = repository.apply(() -> {
+            if (++installs[0] == 1) {
+                String normal = signal(20, 200, "T-2");
+                if (noTrip) normal = normal.replace("\"id\":\"T-2\",\"active\":true", "\"active\":false");
+                active[0].evaluate(normal);
+            }
+        });
+        active[0] = consumer(shared);
+        drive(active[0], 0, 280);
+        operatorCloses(active[0], 10, 1, true);
+        assertEquals(List.of("OPENED:1"), drive(active[0], 30, 280));
+        assertEquals(1, installs[0], "both consumers share one marker write");
     }
 
     @Test

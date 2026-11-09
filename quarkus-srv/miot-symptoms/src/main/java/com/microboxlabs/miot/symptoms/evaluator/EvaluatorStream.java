@@ -607,9 +607,9 @@ public class EvaluatorStream {
         if (restart) {
             duty.restartDuty(tenant, assetId);
         }
-        // Both consumers may share Redis. Neither close may expose an empty episode before installing its marker.
-        lostSignal.forget(tenant, assetId, definitionId, marker);
+        // Install once per shared repository: a second write could undo an interleaved normal frame.
         episodes.operatorClose(tenant, assetId, definitionId, marker);
+        lostSignal.forget(tenant, assetId, definitionId, marker, episodes);
     }
 
     /** Drops only the case the sweep closed, preserving a newer episode opened on another replica. */

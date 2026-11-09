@@ -91,7 +91,7 @@ A level's `response.operator` sends its cases to the operators' tray, with the S
 
 The evaluator decides when the case opens or changes level, on that signal, and keeps the result in `signal_transitions.operator_required` (V0.12.26). The tray, the tower counts, the case's `sla_minutes`, the SLA timer, call-step budgets and the catalog stats read it. A case without an operator is listed in the Control Tower with no SLA and no escalation. Rows written before V0.12.26 have it null and use `response.operator` of their opening version. When a newer version changes a level and records its operator decision, the SLA comes from that transition's version too.
 
-A missing value, for example `signal.trip.type` on a signal without a trip, gives no operator without a rule error. Other evaluation failures give no operator and are reported as a `RuleError` (section `levels.<icu>.response.operatorWhen`). The validator checks the condition only on a level that applies and has `operator`; `operator` still needs `slaMinutes`.
+A missing value, for example `signal.trip.type` on a signal without a trip, gives no operator without a rule error. Other evaluation failures give no operator and are reported as a `RuleError` (section `levels.<icu>.response.operatorWhen`). The validator checks the condition only on a level that applies and has `operator`; `operator` still needs `slaMinutes`. Operator-only fields do not change which producer evaluates the symptom or which counters an operator close resets.
 
 Example: record speeding on every trip, but keep cases on trips of type `otr` and `ote` off the tray.
 

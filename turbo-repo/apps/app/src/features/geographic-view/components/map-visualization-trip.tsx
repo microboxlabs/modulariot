@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  type RefObject,
+} from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import {
   FlyToInterpolator,
@@ -430,43 +436,29 @@ export function capasDelMapa(
   return editando ? [...delViaje, ...nombres] : [...nombres, ...delViaje];
 }
 
-export default function MapVisualizationTrip({
-  tripId,
-  positions,
-  isLoading,
-  filteredLocationData,
-  reportedEngineStatus,
-  dict,
-  selectedTreatmentIndex,
-  setSelectedTreatment,
-  setSelectedTreatmentIndex,
-  minimized = false,
-  licensePlate,
-  showAppSignalDetailDefault = false,
-  onLugaresChange,
-  casePoint = null,
-  caseSpans = NO_SPANS,
-  lostSince = null,
-}: MapVisualizationProps) {
-  const pinSelectionCardToCorner = !minimized;
-  const [rotation, _] = useState(0);
-  const [mapStyle, setMapStyle] = useState("satellite");
-  const isDarkMap = isDarkMapStyle(mapStyle);
-  const [hoverInfo, setHoverInfo] =
-    useState<PickingInfo<PulseProps | PulseListType>>();
-  const { geofence_data } = useGeofences(tripId);
-  const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
-  const [camera_movement, setCameraMovement] = useState<boolean>(true);
-  const [displayPosition, setDisplayPosition] = useState<number>(0);
-  const [pictures_list, setPicturesList] = useState<string[]>([]);
-
-  const mapRef = useRef<MapRef>(null);
-
-  // Lugares (para probar): el mismo editor de la vista geográfica, con su
-  // botón; sin el permiso "Editor de lugares" es de solo lectura
+/**
+ * Lugares sobre el mapa de viaje: el mismo editor de la vista geográfica, con
+ * su botón. Sin el permiso "Editor de lugares" es de solo lectura; sin el de
+ * ver Lugares no hay botón ni geocercas de Lugares (las del viaje, origen y
+ * destino, siguen: son del viaje).
+ */
+function useLugaresDelViaje(
+  mapRef: RefObject<MapRef | null>,
+  {
+    dict,
+    mapStyle,
+    zoom,
+    geofencesMode,
+    onLugaresChange,
+  }: {
+    dict: I18nRecord;
+    mapStyle: string;
+    zoom: number;
+    geofencesMode: GeofencesMode;
+    onLugaresChange?: (abierto: boolean) => void;
+  }
+) {
   const puedeEditarLugares = usePermisoEditorLugares();
-  // sin permiso para ver Lugares no hay botón de Lugares ni geocercas de
-  // Lugares; las del viaje (origen, destino) siguen, son del viaje
   const verLugares = usePermisoVerLugares();
   const [lugaresAbierto, setLugaresAbierto] = useState(false);
   const editandoLugares = verLugares && lugaresAbierto;
@@ -474,20 +466,6 @@ export default function MapVisualizationTrip({
     setLugaresAbierto(abierto);
     onLugaresChange?.(abierto);
   };
-  const [zoom, setZoom] = useState(2);
-  const alCambioZoom = (z: number) => {
-    const next = Math.round((z || 2) * 10) / 10;
-    setZoom((prev) => (prev === next ? prev : next));
-  };
-  const [showStops, setShowStops] = useState(true);
-  // qué geocercas se ven (botón "geocercas" de la barra de herramientas):
-  // todas, solo las del viaje (por defecto) o ninguna
-  const [geofencesMode, setGeofencesMode] = useState<GeofencesMode>("trip");
-  const [showPulse, setShowPulse] = useState(true);
-  const [showAppSignalDetail, setShowAppSignalDetail] = useState(
-    showAppSignalDetailDefault
-  );
-  const showGeofences = geofencesMode !== "none";
   // las de Lugares, solo de lectura sobre el viaje, van con "todas"; con el
   // editor abierto se ven siempre (son lo que se edita)
   const verGeocercas =
@@ -525,6 +503,79 @@ export default function MapVisualizationTrip({
     if (!lugaresAbierto) cambiarLugares(true);
     else lugares.ws.pedirSalir(() => cambiarLugares(false));
   };
+  return {
+    verLugares,
+    lugaresAbierto,
+    editandoLugares,
+    verGeocercas,
+    // sin ver Lugares, el selector ofrece solo las del viaje o ninguna
+    modosGeocercas: verLugares ? GEOFENCES_MODES : GEOFENCES_MODES_DEL_VIAJE,
+    lugares,
+    alternarLugares,
+  };
+}
+
+export default function MapVisualizationTrip({
+  tripId,
+  positions,
+  isLoading,
+  filteredLocationData,
+  reportedEngineStatus,
+  dict,
+  selectedTreatmentIndex,
+  setSelectedTreatment,
+  setSelectedTreatmentIndex,
+  minimized = false,
+  licensePlate,
+  showAppSignalDetailDefault = false,
+  onLugaresChange,
+  casePoint = null,
+  caseSpans = NO_SPANS,
+  lostSince = null,
+}: MapVisualizationProps) {
+  const pinSelectionCardToCorner = !minimized;
+  const [rotation, _] = useState(0);
+  const [mapStyle, setMapStyle] = useState("satellite");
+  const isDarkMap = isDarkMapStyle(mapStyle);
+  const [hoverInfo, setHoverInfo] =
+    useState<PickingInfo<PulseProps | PulseListType>>();
+  const { geofence_data } = useGeofences(tripId);
+  const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
+  const [camera_movement, setCameraMovement] = useState<boolean>(true);
+  const [displayPosition, setDisplayPosition] = useState<number>(0);
+  const [pictures_list, setPicturesList] = useState<string[]>([]);
+
+  const mapRef = useRef<MapRef>(null);
+
+  const [zoom, setZoom] = useState(2);
+  const alCambioZoom = (z: number) => {
+    const next = Math.round((z || 2) * 10) / 10;
+    setZoom((prev) => (prev === next ? prev : next));
+  };
+  const [showStops, setShowStops] = useState(true);
+  // qué geocercas se ven (botón "geocercas" de la barra de herramientas):
+  // todas, solo las del viaje (por defecto) o ninguna
+  const [geofencesMode, setGeofencesMode] = useState<GeofencesMode>("trip");
+  const [showPulse, setShowPulse] = useState(true);
+  const [showAppSignalDetail, setShowAppSignalDetail] = useState(
+    showAppSignalDetailDefault
+  );
+  const showGeofences = geofencesMode !== "none";
+  const {
+    verLugares,
+    lugaresAbierto,
+    editandoLugares,
+    verGeocercas,
+    modosGeocercas,
+    lugares,
+    alternarLugares,
+  } = useLugaresDelViaje(mapRef, {
+    dict,
+    mapStyle,
+    zoom,
+    geofencesMode,
+    onLugaresChange,
+  });
 
   const { timelapse } = useTimelapse(
     licensePlate ?? null,
@@ -1023,7 +1074,7 @@ export default function MapVisualizationTrip({
               geofences_mode={{
                 geofencesMode,
                 setGeofencesMode,
-                modes: verLugares ? GEOFENCES_MODES : GEOFENCES_MODES_DEL_VIAJE,
+                modes: modosGeocercas,
               }}
               show_pulse={{
                 showPulse,

@@ -227,14 +227,13 @@ function mensajeBorrado(
   que: "lugar" | "trayecto",
   habiaCopiaLocal: boolean
 ): string {
+  if (res === null && !habiaCopiaLocal) return t("workspace.delete_no_server");
   if (res === null)
-    return habiaCopiaLocal
-      ? t(
-          que === "lugar"
-            ? "workspace.place_removed_locally"
-            : "workspace.route_removed_locally"
-        )
-      : t("workspace.delete_no_server");
+    return t(
+      que === "lugar"
+        ? "workspace.place_removed_locally"
+        : "workspace.route_removed_locally"
+    );
   if (res.ok === false)
     return t("workspace.not_deleted", {
       error: res.detalle ?? res.error ?? "",

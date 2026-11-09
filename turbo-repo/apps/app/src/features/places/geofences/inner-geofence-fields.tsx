@@ -148,7 +148,7 @@ function InnerEditor({
 
   const pista =
     kind === "circle"
-      ? pistaCirculo(t, ubicada)
+      ? t(ubicada ? "inners.hint_drag" : "inners.hint_place")
       : pistaPoligono(t, polyBase, inner.lat != null);
 
   return (
@@ -293,10 +293,6 @@ function InnerRow({
 
 const SIN_ESTADOS: Readonly<Record<string, EstadoCodigo>> = {};
 const sinCodigoFijo = () => false;
-
-function pistaCirculo(t: TextosLugares, ubicada: boolean): string {
-  return ubicada ? t("inners.hint_drag") : t("inners.hint_place");
-}
 
 export default function InnerGeofenceFields({
   form,

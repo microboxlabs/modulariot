@@ -130,15 +130,15 @@ class OrgPlacesResourceTest {
     }
 
     @Test
-    void savingNeedsThePlacesEditPermissionOnly() throws NoSuchMethodException {
-        String[] edit = {PlacesAccessCatalog.CONTROL_TOWER_PLACES_EDIT};
+    void savingNeedsTheLugaresEditPermissionOnly() throws NoSuchMethodException {
+        String[] edit = {PlacesAccessCatalog.WRITE};
         assertArrayEquals(edit, permissions(OrgPlacesResource.class.getMethod("create", String.class,
                 PlaceRequest.class)));
         assertArrayEquals(edit, permissions(OrgPlacesResource.class.getMethod("update", String.class, String.class,
                 PlaceRequest.class)));
         assertArrayEquals(edit, permissions(OrgPlacesResource.class.getMethod("delete", String.class,
                 String.class)));
-        assertEquals("controltower:places.edit", PlacesAccessCatalog.CONTROL_TOWER_PLACES_EDIT);
+        assertEquals("places:write", PlacesAccessCatalog.WRITE);
     }
 
     private static String[] permissions(Method method) {

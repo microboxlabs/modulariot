@@ -63,6 +63,10 @@ public class AccessRegistry {
                 throw new IllegalStateException("role " + r.key() + " names unknown permission " + p);
             }
         }
+        if (r.memberDefault() && roles.values().stream()
+                .anyMatch(other -> other.memberDefault() && other.module().equals(r.module()))) {
+            throw new IllegalStateException("module " + r.module() + " has two member-default roles");
+        }
         if (roles.putIfAbsent(r.key(), r) != null) {
             throw new IllegalStateException("role declared twice: " + r.key());
         }
@@ -106,6 +110,17 @@ public class AccessRegistry {
             }
         }
         return granted;
+    }
+
+    /** The member-default role of each module that has one, keyed by module. */
+    public Map<String, RoleDef> memberDefaults() {
+        Map<String, RoleDef> defaults = new LinkedHashMap<>();
+        for (RoleDef r : roles.values()) {
+            if (r.memberDefault()) {
+                defaults.put(r.module(), r);
+            }
+        }
+        return defaults;
     }
 
     /** The legacy-default role of each module that has one, keyed by module. */

@@ -372,6 +372,32 @@ export function textOf(
   return text[lang] ?? text.es ?? "";
 }
 
+/** The module's member-default role: what everyone without a role of it holds. */
+export function memberDefaultOf(
+  roles: readonly CatalogRole[]
+): CatalogRole | undefined {
+  return roles.find((r) => r.memberDefault);
+}
+
+/**
+ * The roles a member holds once the member defaults are added: each module
+ * with a member-default role that `roles` has none of adds it, as the
+ * backend does.
+ */
+export function withMemberDefaults(
+  roles: readonly string[],
+  catalog: readonly CatalogRole[]
+): string[] {
+  const held = new Set(
+    roles.map((key) => catalog.find((r) => r.key === key)?.module)
+  );
+  const out = [...roles];
+  for (const role of catalog) {
+    if (role.memberDefault && !held.has(role.module)) out.push(role.key);
+  }
+  return out;
+}
+
 /** The permissions a member ends up with from the base role and module roles. */
 export function effectivePermissions(
   base: BaseRole,
@@ -379,7 +405,9 @@ export function effectivePermissions(
   catalog: AccessCatalog
 ): Set<string> {
   const out = basePermissions(base, catalog.permissions);
-  rolePermissions(roles, catalog).forEach((p) => out.add(p));
+  rolePermissions(withMemberDefaults(roles, catalog.roles), catalog).forEach(
+    (p) => out.add(p)
+  );
   return out;
 }
 

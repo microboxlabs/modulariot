@@ -11,7 +11,7 @@ import { placeRequestSchema } from "@/features/places/data/saved-places";
  * A delete goes by External ID, on `/app/api/places/items?code=`.
  *
  * Proxies to miot-places `/api/v1/orgs/{org}/places/items/{id}`, which checks
- * `controltower:places.edit`.
+ * `places:write`.
  */
 interface RouteParams {
   params: Promise<{ id: string }>;

@@ -35,8 +35,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 /**
  * The organization's saved places ({@code miot_places}): geofences, inner geofences and routes. A geofence is saved
  * with its inner geofences, and every edit of a geofence or route is a version. Reading needs
- * {@value PlacesAccessCatalog#VIEW} or {@value PlacesAccessCatalog#CONTROL_TOWER_VIEW}; saving needs
- * {@value PlacesAccessCatalog#CONTROL_TOWER_PLACES_EDIT}.
+ * {@value PlacesAccessCatalog#VIEW} (every member); saving needs {@value PlacesAccessCatalog#WRITE} (Lugares ›
+ * Mantenedor, or an Admin or Owner).
  */
 @Path("/api/v1/orgs/{organizationId}/places/items")
 @Produces(MediaType.APPLICATION_JSON)
@@ -65,8 +65,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
 
     @GET
     @Operation(operationId = "listPlaces", summary = "The organization's places; filter by kind, parent and search")
-    @PermissionsAllowed(value = {PlacesAccessCatalog.VIEW, PlacesAccessCatalog.CONTROL_TOWER_VIEW},
-            permission = OrgPermission.class, params = ORG)
+    @PermissionsAllowed(value = PlacesAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
     public Uni<Response> list(@PathParam(ORG) String organizationId, @QueryParam("kind") String kind,
             @QueryParam("parentId") String parentId, @QueryParam("q") String q, @QueryParam("size") String size,
             @QueryParam("page") String page) {
@@ -80,8 +79,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @GET
     @Path("/code-usage")
     @Operation(operationId = "getPlaceCodeUsage", summary = "Whether an external code is taken in the organization")
-    @PermissionsAllowed(value = {PlacesAccessCatalog.VIEW, PlacesAccessCatalog.CONTROL_TOWER_VIEW},
-            permission = OrgPermission.class, params = ORG)
+    @PermissionsAllowed(value = PlacesAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
     public Uni<Response> codeUsage(@PathParam(ORG) String organizationId, @QueryParam("code") String code) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(CodeUsageView.of(places.codeOwner(tenant, code))).build());
@@ -90,8 +88,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @GET
     @Path("/{placeId}")
     @Operation(operationId = "getPlace", summary = "One place; a geofence with its inner geofences")
-    @PermissionsAllowed(value = {PlacesAccessCatalog.VIEW, PlacesAccessCatalog.CONTROL_TOWER_VIEW},
-            permission = OrgPermission.class, params = ORG)
+    @PermissionsAllowed(value = PlacesAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
     public Uni<Response> get(@PathParam(ORG) String organizationId, @PathParam(PLACE_ID) String placeId) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(view(places.getWithInners(tenant, uuid(placeId, PLACE_ID)))).build());
@@ -100,8 +97,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @GET
     @Path("/{placeId}/versions")
     @Operation(operationId = "listPlaceVersions", summary = "The versions of a geofence or route, oldest first")
-    @PermissionsAllowed(value = {PlacesAccessCatalog.VIEW, PlacesAccessCatalog.CONTROL_TOWER_VIEW},
-            permission = OrgPermission.class, params = ORG)
+    @PermissionsAllowed(value = PlacesAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
     public Uni<Response> versions(@PathParam(ORG) String organizationId, @PathParam(PLACE_ID) String placeId) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(places.versions(tenant, uuid(placeId, PLACE_ID)).stream()
@@ -111,8 +107,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @POST
     @Operation(operationId = "createPlace",
             summary = "Saves a new geofence, with its inner geofences, or route; it starts at 1.0.0")
-    @PermissionsAllowed(value = PlacesAccessCatalog.CONTROL_TOWER_PLACES_EDIT,
-            permission = OrgPermission.class, params = ORG)
+    @PermissionsAllowed(value = PlacesAccessCatalog.WRITE, permission = OrgPermission.class, params = ORG)
     public Uni<Response> create(@PathParam(ORG) String organizationId, PlaceRequest request) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
@@ -124,8 +119,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @Path("/{placeId}")
     @Operation(operationId = "updatePlace",
             summary = "Replaces a geofence, with its inner geofences, or route as its next version")
-    @PermissionsAllowed(value = PlacesAccessCatalog.CONTROL_TOWER_PLACES_EDIT,
-            permission = OrgPermission.class, params = ORG)
+    @PermissionsAllowed(value = PlacesAccessCatalog.WRITE, permission = OrgPermission.class, params = ORG)
     public Uni<Response> update(@PathParam(ORG) String organizationId, @PathParam(PLACE_ID) String placeId,
             PlaceRequest request) {
         String tenant = tenantCode(organizationId);
@@ -137,8 +131,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @DELETE
     @Operation(operationId = "deletePlace",
             summary = "Deletes the geofence, with its inner geofences, or route that holds an external code")
-    @PermissionsAllowed(value = PlacesAccessCatalog.CONTROL_TOWER_PLACES_EDIT,
-            permission = OrgPermission.class, params = ORG)
+    @PermissionsAllowed(value = PlacesAccessCatalog.WRITE, permission = OrgPermission.class, params = ORG)
     public Uni<Response> delete(@PathParam(ORG) String organizationId, @QueryParam("code") String code) {
         String tenant = tenantCode(organizationId);
         String actor = actor();

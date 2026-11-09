@@ -59,7 +59,7 @@ export async function GET() {
 /**
  * POST /app/api/places/items — saves a new geofence, with its inner
  * geofences, or route; it starts at version 1.0.0. The modulith checks
- * `controltower:places.edit` and the shape.
+ * `places:write` and the shape.
  */
 export async function POST(request: Request) {
   const scope = await resolveTenantScope();
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
 /**
  * DELETE /app/api/places/items?code=SCL — deletes the geofence, with its
  * inner geofences, or route that holds that External ID in the active
- * organization. The modulith checks `controltower:places.edit`.
+ * organization. The modulith checks `places:write`.
  */
 export async function DELETE(request: Request) {
   const scope = await resolveTenantScope();

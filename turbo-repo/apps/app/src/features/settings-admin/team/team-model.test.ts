@@ -20,6 +20,7 @@ import {
   labelOf,
   lastKeyUse,
   matrixColumns,
+  memberDefaultOf,
   NON_OWNER_ROLES,
   memberLabels,
   pickableMembers,
@@ -32,6 +33,7 @@ import {
   sourceKey,
   teamActions,
   textOf,
+  withMemberDefaults,
 } from "./team-model";
 import type {
   AccessCatalog,
@@ -527,5 +529,73 @@ describe("member access page", () => {
     expect(sourceKey("ALFRESCO")).toBe("sourceALFRESCO");
     expect(sourceKey("INVITE")).toBe("sourceINVITE");
     expect(sourceKey("NATIVE")).toBe("sourceNATIVE");
+  });
+});
+
+describe("member-default roles (Lugares › Lector)", () => {
+  const places: AccessCatalog = {
+    ...catalog,
+    permissions: [
+      ...catalog.permissions,
+      {
+        key: "places:view",
+        module: "places",
+        label: { es: "Ver lugares" },
+        explicitOnly: false,
+        ownerOnly: false,
+      },
+      {
+        key: "places:write",
+        module: "places",
+        label: { es: "Editar lugares" },
+        explicitOnly: false,
+        ownerOnly: false,
+      },
+    ],
+    roles: [
+      ...catalog.roles,
+      {
+        key: "PLACES_VIEWER",
+        module: "places",
+        label: { es: "Lector" },
+        permissions: ["places:view"],
+        memberDefault: true,
+      },
+      {
+        key: "PLACES_MAINTAINER",
+        module: "places",
+        label: { es: "Mantenedor" },
+        permissions: ["places:view", "places:write"],
+      },
+    ],
+  };
+
+  it("finds the module's member default", () => {
+    const placesRoles = places.roles.filter((r) => r.module === "places");
+    expect(memberDefaultOf(placesRoles)?.key).toBe("PLACES_VIEWER");
+    expect(memberDefaultOf(catalog.roles)).toBeUndefined();
+  });
+
+  it("adds the default only to a module the member holds no role of", () => {
+    expect(withMemberDefaults([], places.roles)).toEqual(["PLACES_VIEWER"]);
+    expect(withMemberDefaults(["PLACES_MAINTAINER"], places.roles)).toEqual([
+      "PLACES_MAINTAINER",
+    ]);
+    expect(withMemberDefaults(["CONTROL_TOWER_VIEWER"], places.roles)).toEqual([
+      "CONTROL_TOWER_VIEWER",
+      "PLACES_VIEWER",
+    ]);
+  });
+
+  it("lets every member view places, and only a maintainer edit them", () => {
+    const member = effectivePermissions("MEMBER", [], places);
+    expect(member.has("places:view")).toBe(true);
+    expect(member.has("places:write")).toBe(false);
+    const maintainer = effectivePermissions(
+      "MEMBER",
+      ["PLACES_MAINTAINER"],
+      places
+    );
+    expect(maintainer.has("places:write")).toBe(true);
   });
 });

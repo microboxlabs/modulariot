@@ -25,8 +25,8 @@ public record SymptomCaseData(
         @Schema(title = "Latitud") Double latitude,
         @Schema(title = "Longitud") Double longitude,
         @Schema(title = "Velocidad", description = "Speed in km/h") Double speedKmh,
-        @Schema(title = "Cerrado por", description = "The operator who closed the case, or `trip_ended` when its trip "
-                + "ended; null when the rules closed it")
+        @Schema(title = "Cerrado por", description = "The operator who closed the case, `trip_ended` when its trip "
+                + "ended, or `asset_changed` when its trip moved to another vehicle; null when the rules closed it")
         String closedBy,
         @Schema(title = "SLA (min)", description = "The level's SLA in minutes; on sla_expired only")
         Integer slaMinutes,

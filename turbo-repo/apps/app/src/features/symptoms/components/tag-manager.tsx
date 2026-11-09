@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 
 type Tag = {
   text: string | React.ReactNode;
+  measurementText?: string;
   icon?: React.ReactNode;
 };
 
@@ -46,7 +47,8 @@ export default function TagManager({
 
       for (const tag of tags) {
         tempDiv.textContent =
-          typeof tag.text === "string" ? tag.text : "placeholder";
+          tag.measurementText ??
+          (typeof tag.text === "string" ? tag.text : "placeholder");
         const tagWidth = tempDiv.offsetWidth + 16;
         const withGap = tagWidth + 15;
         totalGapWidth = visible.length * 15;

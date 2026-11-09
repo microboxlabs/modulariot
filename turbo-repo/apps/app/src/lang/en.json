@@ -7578,6 +7578,7 @@
     "CORREO ELECTRONICO": "Email",
     "today": "Today",
     "license_plate": "License plate",
+    "trip_plate_now": "Trip now on {plate}",
     "conditions_found": "Conditions found",
     "teams_call": "Call through ",
     "teams_call2": " Teams",

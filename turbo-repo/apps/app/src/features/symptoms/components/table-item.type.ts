@@ -27,6 +27,8 @@ export type TableItemType = {
   condition: string;
   icu_code: string;
   licensePlate: string;
+  // The plate the trip runs on now, when the truck was replaced after the case opened.
+  tripPlateNow?: string | null;
   time: string;
   trip: string;
   tripCode?: string | null;

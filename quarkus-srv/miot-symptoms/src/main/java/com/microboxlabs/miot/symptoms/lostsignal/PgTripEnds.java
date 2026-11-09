@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.Consumer;
 
@@ -44,9 +45,11 @@ public class PgTripEnds implements TripEnds {
             SELECT r.tenant, t.id IS NULL OR t.status IN ('completed', 'cancelled') AS ended,
                    EXISTS (SELECT 1 FROM miot_trips.trip_milestone m
                             WHERE m.tenant_code = t.tenant_code AND m.trip_id = t.id
-                              AND m.milestone = 'arrival' AND m.status = 'confirmed') AS arrived
+                              AND m.milestone = 'arrival' AND m.status = 'confirmed') AS arrived,
+                   l.asset_id
               FROM unnest($1::text[], $2::uuid[]) AS r(tenant, trip_id)
               LEFT JOIN miot_trips.trip t ON t.tenant_code = r.tenant AND t.id = r.trip_id
+              LEFT JOIN miot_trips.trip_live l ON l.tenant_code = t.tenant_code AND l.trip_id = t.id
             """;
 
     private final Supplier<Pool> pool;
@@ -83,7 +86,7 @@ public class PgTripEnds implements TripEnds {
             for (Row r : pool.get().preparedQuery(STATES).execute(Tuple.of(tenants, trips)).await()
                     .atMost(QUERY_TIMEOUT)) {
                 out.put(r.getString("tenant"), new State(Boolean.TRUE.equals(r.getBoolean("ended")),
-                        Boolean.TRUE.equals(r.getBoolean("arrived"))));
+                        Boolean.TRUE.equals(r.getBoolean("arrived")), r.getString("asset_id")));
             }
             return out;
         } catch (PgException e) {
@@ -96,8 +99,18 @@ public class PgTripEnds implements TripEnds {
 
     @Override
     public List<StaleCase> close(String tenant, String tripId, List<UUID> definitionIds, Instant at) {
+        return cases.closeTrip(tenant, tripId, definitionIds, at, REASON, null, frames(tenant));
+    }
+
+    @Override
+    public List<StaleCase> closeOthers(String tenant, String tripId, List<UUID> definitionIds, String keepAsset,
+            Instant at) {
+        return cases.closeTrip(tenant, tripId, definitionIds, at, ASSET_CHANGED, keepAsset, frames(tenant));
+    }
+
+    private Function<StaleCase, EngineCaseStore.ClosingFrame> frames(String tenant) {
         Map<String, AssetEpisodes> loaded = new HashMap<>();
-        return cases.closeTrip(tenant, tripId, definitionIds, at, REASON, c -> {
+        return c -> {
             if (episodes == null) {
                 return null;
             }
@@ -112,7 +125,7 @@ public class PgTripEnds implements TripEnds {
             Map<String, Object> context = e.lastContext();
             return new EngineCaseStore.ClosingFrame(e.maxMeasure(),
                     context == null || context.isEmpty() ? null : context);
-        });
+        };
     }
 
     @Override
@@ -122,13 +135,26 @@ public class PgTripEnds implements TripEnds {
         return closed.size();
     }
 
+    @Override
+    public int leave(String tenant, String tripId, List<UUID> definitions, String keepAsset, Instant at,
+            Consumer<Closure> effect) {
+        List<StaleCase> closed = closeOthers(tenant, tripId, definitions, keepAsset, at);
+        retry(effect);
+        return closed.size();
+    }
+
+    private static String reason(Row r) {
+        String closedBy = r.getString("closed_by");
+        return closedBy == null ? REASON : closedBy;
+    }
+
     /** Queue rows remain durable until cleanup and asynchronous observers both complete successfully. */
     @Override
     public int retry(Consumer<Closure> effect) {
         return pool.get().withTransaction(conn -> conn.query(PENDING).execute()
                 .emitOn(Infrastructure.getDefaultWorkerPool())
                 .invoke(rows -> rows.forEach(r -> effect.accept(new Closure(PgEngineCases.staleCase(r),
-                        r.getOffsetDateTime("at").toInstant()))))
+                        r.getOffsetDateTime("at").toInstant(), reason(r)))))
                 .flatMap(rows -> {
                     Long[] ids = java.util.stream.StreamSupport.stream(rows.spliterator(), false)
                             .map(r -> r.getLong("case_id")).toArray(Long[]::new);

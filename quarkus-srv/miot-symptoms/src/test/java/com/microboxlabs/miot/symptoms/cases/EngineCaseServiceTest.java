@@ -485,6 +485,19 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void aCaseOnAReplacedTruckNamesTheTripsCurrentPlate() {
+        store.add(new EngineCase(12, PANIC, "0.1.0", "Botón de pánico", "emergencies", "KTKJ69", OPENED, 4, "T-1",
+                null, null, null, null, 0, null, 0L, null).withTrip(new EngineCase.TripDetails("Driver", "Carrier",
+                        "Norte", "Sur", "KGXR80")));
+
+        JsonNode row = service.casesPage(TENANT, Map.of()).get("data").get(0);
+
+        assertEquals("KTKJ69", row.get("asset_id").asText());
+        assertEquals("KGXR80", row.get("trip_asset_id").asText());
+        assertEquals("KGXR80", service.header(TENANT, -12).path("trip_info").path("trip_asset_id").asText());
+    }
+
+    @Test
     void aTripsCasesOpenAndClosedComeWithADateRange() {
         store.add(engineCase(12, "DEMO01", 4, 0));
         store.add(new EngineCase(13, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01",

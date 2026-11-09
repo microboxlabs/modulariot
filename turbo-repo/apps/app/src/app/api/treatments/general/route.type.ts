@@ -22,6 +22,8 @@ export type TreatmentsGeneralResponseItem = {
 
 export type TreatmentsTripInfoResponse = {
   asset_id: string;
+  /** The plate the trip runs on now; differs from asset_id after a truck change. */
+  trip_asset_id?: string | null;
   carrier: string;
   destination: string;
   driver: string;

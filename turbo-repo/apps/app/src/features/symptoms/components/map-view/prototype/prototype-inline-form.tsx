@@ -19,10 +19,7 @@ import type { CallFormDraft } from "./prototype-call-driver";
 import { useFieldEditorMode } from "./call-center/field-editor-mode";
 import WhatsAppContact from "../../blurrable-stepped-menu/menus/whatsapp-contact/whatsapp-contact";
 import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
-import {
-  RECORD_HANDLING_TYPE,
-  startPendingTreatment,
-} from "./prototype-api-guard";
+import { startPendingTreatment } from "./prototype-api-guard";
 import PrototypeIgnoreCondition from "./prototype-ignore-condition";
 import PrototypeInvalidateSymptom from "./prototype-invalidate-symptom";
 import PrototypeRecordHandling from "./prototype-record-handling";
@@ -347,12 +344,8 @@ export default function PrototypeInlineForm({
     },
     record_handling: {
       title: (dict.symptoms as I18nRecord).record_handling,
-      preactions: () =>
-        startPendingTreatment(
-          treatmentRequest,
-          setTreatmentRequest,
-          RECORD_HANDLING_TYPE
-        ),
+      // Engine-only: the treatment opens at save, never as a pending GPS record.
+      preactions: undefined,
       component: (
         <PrototypeRecordHandling
           dict={dict}

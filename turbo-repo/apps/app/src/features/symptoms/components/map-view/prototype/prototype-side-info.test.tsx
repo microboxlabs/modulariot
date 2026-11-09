@@ -2,6 +2,7 @@ import type { PropsWithChildren } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import type { SelectedOption } from "../../../types/side-info";
 import es from "@/lang/es.json";
 import PrototypeSideInfo from "./prototype-side-info";
@@ -30,13 +31,40 @@ vi.mock("./prototype-inline-form", () => ({
   ),
 }));
 
-function renderPanel(selectedOption: SelectedOption, isFormOpen: boolean) {
+function renderPanel(
+  selectedOption: SelectedOption,
+  isFormOpen: boolean,
+  symptomId: number | null = -16
+) {
   const setSelectedOption = vi.fn();
   const setIsFormOpen = vi.fn();
+  const treatmentData: TreatmentsGeneralResponseItem | null =
+    symptomId === null
+      ? null
+      : {
+          conditions_agg: [],
+          symptom_info: {
+            id: symptomId,
+            name: "Test condition",
+            type: "test",
+            icu_code: 1,
+            icu_condition: "test",
+          },
+          trip_info: {
+            asset_id: "asset-test",
+            carrier: "",
+            destination: "",
+            driver: "",
+            trip_id: "",
+            origin: "",
+            type_load: "",
+            driver_contact: "",
+          },
+        };
   render(
     <PrototypeSideInfo
       dict={es as I18nRecord}
-      treatmentData={null}
+      treatmentData={treatmentData}
       loading={false}
       error={null}
       setSelectedTreatment={vi.fn()}
@@ -55,7 +83,7 @@ beforeEach(() => {
 });
 
 describe("the case panel's actions", () => {
-  it("offers 'Registrar gestión' next to 'Llamar' and opens its form", () => {
+  it("offers 'Registrar gestión' on an engine case and opens its form", () => {
     const { setSelectedOption, setIsFormOpen } = renderPanel(
       "call_driver",
       false
@@ -67,6 +95,20 @@ describe("the case panel's actions", () => {
     expect(setSelectedOption).toHaveBeenCalledWith("record_handling");
     expect(setIsFormOpen).toHaveBeenCalledWith(true);
   });
+
+  it.each([42, 0, null])(
+    "hides 'Registrar gestión' outside an engine case (%s)",
+    (symptomId) => {
+      renderPanel("call_driver", false, symptomId);
+
+      expect(
+        screen.queryByRole("button", { name: "Registrar gestión" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Llamar/ })
+      ).toBeInTheDocument();
+    }
+  );
 
   it("opens 'Registrar gestión' inline even with the past forms on", () => {
     config.pastForms = true;

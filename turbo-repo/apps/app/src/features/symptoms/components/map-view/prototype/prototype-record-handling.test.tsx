@@ -85,7 +85,7 @@ vi.mock("./prototype-form-kit", () => {
 
 const engineCase: TreatmentsRequest = {
   asset_id: "asset-test",
-  assigned_to: "operator@example.com",
+  assigned_to: "operator-test",
   client_id: null,
   status: "active",
   symptom_id: "-16",
@@ -177,9 +177,9 @@ describe("Registrar gestión", () => {
     );
   });
 
-  it("saves a case outside the engine as a 'registrar gestion' treatment", async () => {
+  it("refuses a legacy case even if the form is opened directly", async () => {
     const user = userEvent.setup();
-    renderForm({ ...engineCase, symptom_id: "42" });
+    const { closeMenu } = renderForm({ ...engineCase, symptom_id: "42" });
 
     await user.selectOptions(screen.getByLabelText("outcome"), [
       "handling_outcome_3",
@@ -187,17 +187,17 @@ describe("Registrar gestión", () => {
     await user.type(screen.getByLabelText("Nota *"), "Aviso por radio");
     await user.click(saveButton());
 
-    await waitFor(() => expect(api.requestTreatment).toHaveBeenCalled());
-    expect(api.requestTreatment).toHaveBeenCalledWith(
-      expect.objectContaining({
-        symptom_id: "42",
-        status: "active",
-        treatment_type: "registrar gestion",
-        description: "Gestión: Otro · Nota: Aviso por radio",
-        driver_response: "Aviso por radio",
-      })
+    await waitFor(() =>
+      expect(api.notify).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "error" })
+      )
     );
+    expect(api.requestTreatment).not.toHaveBeenCalled();
+    expect(api.openTreatment).not.toHaveBeenCalled();
     expect(api.addTreatmentAction).not.toHaveBeenCalled();
+    expect(api.closeTreatment).not.toHaveBeenCalled();
+    expect(closeMenu).not.toHaveBeenCalled();
+    expect(api.push).not.toHaveBeenCalled();
   });
 
   it("keeps the form open and says so when the save fails", async () => {

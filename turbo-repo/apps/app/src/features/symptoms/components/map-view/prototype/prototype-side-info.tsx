@@ -18,6 +18,7 @@ import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import PrototypeInlineForm from "./prototype-inline-form";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import SymptomForm from "../../blurrable-stepped-menu/symptom-form";
+import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
 
 /** Menus the previous full-screen modal still implements. */
 const PAST_FORM_OPTIONS = new Set<SelectedOption>([
@@ -84,6 +85,7 @@ export default function PrototypeSideInfo({
   }
 
   const formReady = !!treatments_templates && !loading;
+  const engineCase = isEngineCaseId(treatmentData?.symptom_info?.id);
   const showPastModal =
     pastFormsEnabled && PAST_FORM_OPTIONS.has(selectedOption);
 
@@ -184,23 +186,25 @@ export default function PrototypeSideInfo({
                     setIsFormOpen(true);
                   }}
                 />
-                <Button
-                  size="md"
-                  color="alternative"
-                  className="h-10 rounded-none whitespace-nowrap"
-                  aria-label={
-                    (dict.symptoms as I18nRecord).record_handling as string
-                  }
-                  onClick={() => {
-                    setSelectedOption("record_handling");
-                    setIsFormOpen(true);
-                  }}
-                >
-                  <HiOutlineClipboardCheck className="h-5 w-5 lg:mr-2" />
-                  <span className="lg:block hidden">
-                    {(dict.symptoms as I18nRecord).record_handling as string}
-                  </span>
-                </Button>
+                {engineCase && (
+                  <Button
+                    size="md"
+                    color="alternative"
+                    className="h-10 rounded-none whitespace-nowrap"
+                    aria-label={
+                      (dict.symptoms as I18nRecord).record_handling as string
+                    }
+                    onClick={() => {
+                      setSelectedOption("record_handling");
+                      setIsFormOpen(true);
+                    }}
+                  >
+                    <HiOutlineClipboardCheck className="h-5 w-5 lg:mr-2" />
+                    <span className="lg:block hidden">
+                      {(dict.symptoms as I18nRecord).record_handling as string}
+                    </span>
+                  </Button>
+                )}
                 <Button
                   size="md"
                   color="blue"

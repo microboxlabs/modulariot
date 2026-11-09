@@ -46,7 +46,8 @@ class PgSlaStoreTest {
     private static final List<String> MIGRATIONS = List.of("V0.8.0__create_symptoms_catalog.sql",
             "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql",
             "V0.8.3__create_tower_settings.sql", "V0.8.4__create_signal_transitions.sql", "V0.8.5__signal_cases.sql",
-            "V0.9.7__sla_expiry.sql", "V0.12.10__transition_context.sql");
+            "V0.9.7__sla_expiry.sql", "V0.12.10__transition_context.sql",
+            "V0.12.26__after_trip_end_policy.sql", "V0.12.27__transition_operator.sql");
     private static final String SPEC = """
             {"levels":[{"icu":1,"applies":true,"when":"true","response":{"operator":false}},
                        {"icu":3,"applies":true,"when":"true","response":{"operator":true,"slaMinutes":15}}]}
@@ -76,6 +77,20 @@ class PgSlaStoreTest {
                     ADD COLUMN IF NOT EXISTS second_driver_id text, ADD COLUMN IF NOT EXISTS carrier_id text,
                     ADD COLUMN IF NOT EXISTS carrier_name text, ADD COLUMN IF NOT EXISTS origin_geofence_label text,
                     ADD COLUMN IF NOT EXISTS destination_geofence_label text
+                """).execute().await().atMost(WAIT);
+        pool.query("""
+                CREATE TABLE IF NOT EXISTS miot_trips.mandate (
+                    id uuid PRIMARY KEY, tenant_code text NOT NULL, external_code text NOT NULL)
+                """).execute().await().atMost(WAIT);
+        pool.query("""
+                CREATE TABLE IF NOT EXISTS miot_trips.trip_mandate (
+                    trip_id uuid NOT NULL, mandate_id uuid NOT NULL, tenant_code text NOT NULL, seq int NOT NULL,
+                    version_of uuid, is_active boolean NOT NULL DEFAULT true)
+                """).execute().await().atMost(WAIT);
+        pool.query("""
+                CREATE TABLE IF NOT EXISTS miot_trips.feed_service (
+                    tenant_code text NOT NULL, feed_key text NOT NULL, external_code text NOT NULL, trip_id uuid,
+                    updated_at timestamptz NOT NULL DEFAULT now())
                 """).execute().await().atMost(WAIT);
         pool.query("CREATE SCHEMA IF NOT EXISTS miot_fleet").execute().await().atMost(WAIT);
         pool.query("""
@@ -214,6 +229,90 @@ class PgSlaStoreTest {
                 "the service code still belongs to the trip after its vehicle changes");
     }
 
+    private static void mandate(String tenant, UUID trip, int seq, String code, boolean current) {
+        UUID mandate = UUID.randomUUID();
+        PgIds.query(pool, "INSERT INTO miot_trips.mandate (id, tenant_code, external_code) VALUES ($1, $2, $3)",
+                Tuple.of(mandate, tenant, code));
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.trip_mandate (trip_id, mandate_id, tenant_code, seq, is_active)
+                VALUES ($1, $2, $3, $4, $5)
+                """, Tuple.of(trip, mandate, tenant, seq, current));
+    }
+
+    @Test
+    void anEndedTripKeepsItsServiceCodeFromItsMandateOrFeed() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        UUID ended = UUID.randomUUID();
+        UUID fed = UUID.randomUUID();
+        UUID blank = UUID.randomUUID();
+        UUID live = UUID.randomUUID();
+        UUID unknown = UUID.randomUUID();
+        Instant at = Instant.parse("2026-01-01T00:00:00Z");
+        java.util.Map<UUID, Long> ids = new java.util.LinkedHashMap<>();
+        int n = 0;
+        for (UUID trip : List.of(ended, fed, blank, live, unknown)) {
+            ids.put(trip, log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0",
+                    SymptomState.ACTIVE, "vehicle-" + n, at.plusSeconds(n++), 3, 0, 30)),
+                    new TransitionLog.Place(trip.toString(), null, null, null, null)).get(0).caseId());
+        }
+        mandate(tenant, ended, 2, "SERVICE-B", true);
+        mandate(tenant, ended, 1, "SERVICE-A", true);
+        mandate(tenant, ended, 0, "SERVICE-OLD", false);
+        mandate("other-" + tenant, fed, 1, "OTHER-TENANT", true);
+        mandate(tenant, blank, 1, "   ", true);
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.feed_service (tenant_code, feed_key, external_code, trip_id)
+                VALUES ($1, 'demo-feed', 'FEED-001', $2), ($1, 'demo-feed', 'FEED-BLANK', $3)
+                """, Tuple.of(tenant, fed, blank));
+        mandate(tenant, live, 1, "SERVICE-ENDED-NAME", true);
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id, mandate_codes)
+                VALUES ($1, $2, 'vehicle-3', '[{"code":"SERVICE-LIVE"}]')
+                """, Tuple.of(live, tenant));
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        List<String> expected = Arrays.asList(null, "SERVICE-LIVE", "FEED-BLANK", "FEED-001", "SERVICE-A");
+        assertEquals(expected, cases.list(tenant, EngineCaseStore.CaseFilter.OPEN).stream()
+                .map(EngineCase::tripCode).toList());
+        assertEquals(expected, cases.open(tenant).stream().map(EngineCase::tripCode).toList());
+        assertEquals("SERVICE-A", cases.find(tenant, ids.get(ended)).orElseThrow().tripCode());
+        assertEquals("FEED-001", cases.find(tenant, ids.get(fed)).orElseThrow().tripCode());
+        assertEquals("FEED-BLANK", cases.find(tenant, ids.get(blank)).orElseThrow().tripCode());
+        assertEquals("SERVICE-LIVE", cases.find(tenant, ids.get(live)).orElseThrow().tripCode());
+        assertNull(cases.find(tenant, ids.get(unknown)).orElseThrow().tripCode());
+        assertTrue(cases.close(tenant, ids.get(ended), "ops@example.com", at.plusSeconds(60)));
+        EngineCase closed = cases.find(tenant, ids.get(ended)).orElseThrow();
+        assertEquals(at.plusSeconds(60), closed.closedAt());
+        assertEquals("SERVICE-A", closed.tripCode(), "a closed case");
+    }
+
+    @Test
+    void missingFeedTablesKeepLiveTripCodesDetailsAndFilters() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID definition = symptom(tenant);
+        UUID trip = liveTrip(tenant, "demo-driver", null, null, "Demo origin", "Demo destination");
+        PgIds.query(pool, """
+                UPDATE miot_trips.trip_live SET mandate_codes = '[{"code":"SERVICE-LIVE"}]' WHERE trip_id = $1
+                """, Tuple.of(trip));
+        long id = log.append(tenant, List.of(t(Kind.OPENED, definition, Instant.parse("2026-01-01T00:00:00Z"), 3, 0)),
+                new TransitionLog.Place(trip.toString(), null, null, null, null)).get(0).caseId();
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+        pool.query("ALTER TABLE miot_trips.feed_service RENAME TO unavailable_feed_service").execute().await().atMost(WAIT);
+        try {
+            assertEquals("SERVICE-LIVE", cases.list(tenant, EngineCaseStore.CaseFilter.OPEN).get(0).tripCode());
+            assertEquals("SERVICE-LIVE", cases.open(tenant).get(0).tripCode());
+            EngineCase detail = cases.find(tenant, id).orElseThrow();
+            assertEquals("SERVICE-LIVE", detail.tripCode());
+            assertEquals("Demo origin", detail.trip().origin());
+            assertEquals(List.of(id), ids(cases.list(tenant, byTrip(null, null, "Demo origin", null))));
+            assertTrue(cases.list(tenant, byTrip(null, null, "Another origin", null)).isEmpty());
+        } finally {
+            pool.query("ALTER TABLE miot_trips.unavailable_feed_service RENAME TO feed_service")
+                    .execute().await().atMost(WAIT);
+        }
+    }
+
     @Test
     void malformedTripDataAndNonUuidIdsDoNotHideValidCodesOnThePage() {
         String tenant = "tenant-" + UUID.randomUUID();
@@ -255,7 +354,8 @@ class PgSlaStoreTest {
         log.append(tenant, List.of(t(Kind.OPENED, speeding, t0.plusSeconds(120), 1, 0)), place);
         log.append(tenant, List.of(t(Kind.LEVEL_CHANGED, speeding, t0.plusSeconds(180), 4, 1)), place);
 
-        assertEquals(List.of(new EngineCaseStore.OpenLevel("DEMO01", "Exceso de velocidad", 4)),
+        assertEquals(List.of(new EngineCaseStore.OpenLevel("DEMO01", "Exceso de velocidad", 4,
+                new EngineCase.LevelStep(t0.plusSeconds(180), 4))),
                 cases.openLevels(tenant));
         assertTrue(cases.openLevels("other-" + tenant).isEmpty());
     }
@@ -311,8 +411,8 @@ class PgSlaStoreTest {
         List<EngineCase> all = cases.list(tenant, EngineCaseStore.CaseFilter.OPEN);
         assertEquals(3, all.size(), "a case without a live trip still lists");
         EngineCase.TripDetails details = all.stream().filter(c -> c.id() == a).findFirst().orElseThrow().trip();
-        assertEquals(new EngineCase.TripDetails("Driver 12.345.678-9", "Carrier", "Planta Norte", "Puerto Sur"),
-                details);
+        assertEquals(new EngineCase.TripDetails("Driver 12.345.678-9", "Carrier", "Planta Norte", "Puerto Sur",
+                "DEMO01"), details);
         assertNull(all.get(0).trip(), "no live trip");
 
         PgIds.query(pool, """
@@ -540,6 +640,99 @@ class PgSlaStoreTest {
                 """, Tuple.of(tenant, -caseId, t0.minusSeconds(60).atOffset(ZoneOffset.UTC)));
 
         assertTrue(due(t0.minusSeconds(3600), t0.plusSeconds(3600), tenant).isEmpty());
+    }
+
+    @Test
+    void theDecisionKeptOnTheRowDecidesTheInboxTheSlaAndTheStats() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0, null);
+        long attended = log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0",
+                SymptomState.ACTIVE, "DEMO01", t0, 3, 0, 30, null, null, true)), place).get(0).caseId();
+        long recordedOnly = log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0",
+                SymptomState.ACTIVE, "DEMO02", t0, 3, 0, 30, null, null, false)), place).get(0).caseId();
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertEquals(List.of(attended, recordedOnly).stream().sorted().toList(),
+                ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN)).stream().sorted().toList(),
+                "both are recorded and listed");
+        assertEquals(List.of(attended), ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator())));
+        assertEquals(15, cases.find(tenant, attended).orElseThrow().slaMinutes());
+        assertNull(cases.find(tenant, recordedOnly).orElseThrow().slaMinutes(), "no SLA without an operator");
+        assertEquals(1, cases.towerCounts(tenant).active().stream().mapToLong(EngineCaseStore.OpenCount::count)
+                .sum());
+        EngineCaseStore.LevelCount opened = cases.openedCounts(tenant, t0.minusSeconds(1), t0.plusSeconds(1))
+                .get(0);
+        assertEquals(2, opened.count());
+        assertEquals(1, opened.withoutOperator());
+
+        List<SlaStore.Due> due = due(t0.minusSeconds(3600), t0.plusSeconds(3600), tenant);
+        assertEquals(List.of(attended), due.stream().map(d -> d.engineCase().id()).toList());
+    }
+
+    @Test
+    void aLevelChangeDecidesAgainForItsLevel() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0, null);
+        long caseId = log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0",
+                SymptomState.ACTIVE, "DEMO01", t0, 1, 0, 30, null, null, false)), place).get(0).caseId();
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, speeding, "1.0.0", SymptomState.ACTIVE,
+                "DEMO01", t0.plusSeconds(60), 3, 1, 30, null, null, true)), place);
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertEquals(List.of(caseId), ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator())));
+        assertEquals(15, cases.find(tenant, caseId).orElseThrow().slaMinutes());
+        assertEquals(List.of(caseId), due(t0.minusSeconds(3600), t0.plusSeconds(3600), tenant).stream()
+                .map(d -> d.engineCase().id()).toList());
+    }
+
+    @Test
+    void aNewVersionsLevelDecisionAlsoUsesThatVersionsSla() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        String next = """
+                {"levels":[{"icu":2,"applies":true,"when":"true",
+                  "response":{"operator":true,"slaMinutes":6,"operatorWhen":"true",
+                    "steps":[{"role":"Case role","budgetMinutes":6}]}}]}
+                """;
+        PgIds.query(pool, """
+                INSERT INTO miot_symptoms.symptom_version
+                    (definition_id, tenant_code, version, status, spec, created_by)
+                VALUES ($1, $2, '2.0.0', 'PUBLISHED', $3::text::jsonb, 't')
+                """, Tuple.of(speeding, tenant, next));
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place(null, null, null, null, null);
+        long caseId = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 1, 0).withOperator(false)), place)
+                .getFirst().caseId();
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, speeding, "2.0.0", SymptomState.ACTIVE,
+                "DEMO01", t0.plusSeconds(60), 2, 1, 30, null, null, true)), place);
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertEquals(List.of(caseId), ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator())));
+        assertEquals(6, cases.find(tenant, caseId).orElseThrow().slaMinutes());
+        // A newer current version and a different definition with the same name cannot replace this response.
+        PgIds.query(pool, """
+                UPDATE miot_symptoms.symptom_definition SET symptom_key = 'original', current_version = '3.0.0'
+                 WHERE tenant_code = $1 AND id = $2
+                """, Tuple.of(tenant, speeding));
+        symptom(tenant);
+        PgIds.query(pool, """
+                INSERT INTO miot_symptoms.symptom_version
+                    (definition_id, tenant_code, version, status, spec, created_by)
+                VALUES ($1, $2, '3.0.0', 'PUBLISHED', $3::text::jsonb, 't')
+                """, Tuple.of(speeding, tenant, SPEC));
+        var response = cases.find(tenant, caseId).orElseThrow().levelResponse();
+        assertEquals(speeding.toString(), response.path("definitionId").asText());
+        assertEquals("2.0.0", response.path("version").asText());
+        assertEquals("Case role", response.path("level").path("response").path("steps").get(0).path("role").asText());
+
+        assertTrue(due(t0.minusSeconds(1), t0.plusSeconds(6 * 60), tenant).isEmpty());
+        List<SlaStore.Due> expired = due(t0.minusSeconds(1), t0.plusSeconds(8 * 60), tenant);
+        assertEquals(List.of(caseId), expired.stream().map(d -> d.engineCase().id()).toList());
+        assertEquals(6, expired.getFirst().slaMinutes());
     }
 
     private List<SlaStore.Due> due(Instant openedAfter, Instant now, String tenant) {

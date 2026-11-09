@@ -142,7 +142,7 @@ A trip ends when `miot_trips.trip` has it `completed` or `cancelled`, or has no 
 | `miot_trips_live` notice | Every `trip_live` change, including the delete at the trip's end. Each replica with the detector on reads the trip's state |
 | Next check of the vehicle | Each check first reads the state of the trips in the watch, so a missed notice is caught. A failed read fails the check, which is retried on the next tick |
 
-On a trip end, every open case of the trip on a TEST or ACTIVE `trip_check` symptom evaluated by the lost-signal detector closes at its current level. Symptoms that read duty counters run on frames and keep their own lifecycle:
+On a trip end, every open TEST or ACTIVE case of the trip closes at its current level, whatever its symptom: lost signal, the evaluator's `gps_signal` symptoms (speed, ETA deviation) and the duty symptoms. Cases of the vehicle's other trips, and of other organizations, stay open. The detector must be on (`MIOT_SYMPTOMS_EVALUATOR_ENABLED`):
 
 | Field | Value |
 |---|---|
@@ -156,6 +156,21 @@ The closed case's episode is dropped, so a new trip of the vehicle opens a new c
 The transition log validates the trip under a shared row lock before accepting a lost-signal write. A check that read an active trip before completion cannot insert its first case afterward. Trip closure takes definition and case locks in the same order as the evaluator, and shared definition locks serialize it with state-change sweeps.
 
 Migration `V0.12.24` adds `miot_symptoms.trip_end_effects`. Each trip-ended CLOSED row queues its episode cleanup and close event in the same transaction. Every detector tick retries pending effects, including vehicles without a deadline. Replicas use `FOR UPDATE SKIP LOCKED`; a queue entry is deleted only after conditional episode cleanup and all asynchronous event observers succeed. Redis snapshot conflicts retry against the latest episode; persistent contention or an unavailable observer leaves the entry for a later tick. Delivery is at least once: a crash after publication but before acknowledgement can repeat the same case's close event, with its original timestamp; the CLOSED timeline row is not repeated.
+
+### Truck change
+
+When `trip_live.asset_id` changes on a trip that is still running, the trip's open cases on any other vehicle close by the same two paths and the same queue:
+
+| Field | Value |
+|---|---|
+| `signal_transitions.closed_by` | `asset_changed` |
+| `context` | `{"reason": "asset_changed", "trip_id": …}` |
+| Event | `symptom.case.closed`, `closedBy: asset_changed` |
+| Counter | `miot.symptoms.lost_signal.asset_changed_closes` |
+
+The old vehicle's check leaves the trip out. The current vehicle's cases stay open. Case rows and the case header carry `trip_asset_id`, the trip's current plate, so the tower can show both plates.
+
+The transition log and truck-change close lock the trip and its live assignment before writing. A check taken before a truck change cannot open a case on the replaced vehicle. A close whose assignment snapshot is stale retries without writing, so a delayed notice cannot close the vehicle the trip moved back to.
 
 The close rule (`case.normal_s`, `case.off_trip_s`) cannot do this: the lost check runs only with the trip the newest frame carried, and a parked truck sends no frame.
 

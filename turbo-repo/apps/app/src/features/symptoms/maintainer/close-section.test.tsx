@@ -113,6 +113,51 @@ function rules(patch: Partial<LifecycleRules> = {}): LifecycleRules {
 }
 
 describe("CloseRules", () => {
+  it.each(["form", "expr"] as const)(
+    "edits the after-trip policy in %s mode without changing the close rules",
+    (mode) => {
+      const onAfterTripEnd = vi.fn();
+      const r = rules({ afterTripEnd: "ignore", onAfterTripEnd });
+      const full = es.pages.userSettings.symptomCatalog;
+      render(
+        <CloseRules
+          rules={r}
+          mode={mode}
+          readOnly={false}
+          d={full}
+          onExpr={vi.fn()}
+        />
+      );
+      const policy = screen.getByLabelText<HTMLSelectElement>(
+        "Eventos que llegan después del fin del viaje"
+      );
+      expect(policy.value).toBe("ignore");
+      expect(within(policy).getAllByRole("option")).toHaveLength(3);
+      fireEvent.change(policy, { target: { value: "open_and_keep" } });
+      expect(onAfterTripEnd).toHaveBeenCalledWith("open_and_keep");
+      fireEvent.change(policy, { target: { value: "open_and_close" } });
+      expect(onAfterTripEnd).toHaveBeenCalledWith("open_and_close");
+      expect(r.onChange).not.toHaveBeenCalled();
+    }
+  );
+
+  it("shows the saved after-trip policy read-only", () => {
+    const r = rules({ afterTripEnd: "open_and_close" });
+    render(
+      <CloseRules
+        rules={r}
+        mode="form"
+        readOnly
+        d={es.pages.userSettings.symptomCatalog}
+        onExpr={vi.fn()}
+      />
+    );
+    const policy = screen.getByLabelText<HTMLSelectElement>(
+      "Eventos que llegan después del fin del viaje"
+    );
+    expect(policy.value).toBe("open_and_close");
+    expect(policy).toBeDisabled();
+  });
   it("preserves a positive sub-hour age when editing", () => {
     const r = rules({ close: "case.age_h >= 0.5" });
     render(

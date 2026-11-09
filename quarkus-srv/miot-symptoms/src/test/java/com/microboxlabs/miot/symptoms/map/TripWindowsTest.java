@@ -36,6 +36,26 @@ class TripWindowsTest {
     }
 
     @Test
+    void aSymptomsTrackStartsAtThePlannedStartUntilTheTripDeparts() {
+        Instant planned = Instant.parse("2026-10-20T07:00:00Z");
+        Instant now = Instant.parse("2026-10-20T12:00:00Z");
+        java.time.Clock clock = java.time.Clock.fixed(now, java.time.ZoneOffset.UTC);
+        UUID trip = UUID.randomUUID();
+
+        TripWindows waiting = new TripWindows((t, id, a) -> java.util.Optional.of(new Instant[] {null, null, planned}),
+                clock);
+        TripWindows departed = new TripWindows(
+                (t, id, a) -> java.util.Optional.of(new Instant[] {DEPARTED, null, planned}), clock);
+        TripWindows unknown = new TripWindows((t, id, a) -> java.util.Optional.of(new Instant[] {null, null, null}),
+                clock);
+
+        assertEquals(new TripWindows.Window(planned, now), waiting.track("tenant-demo", trip, "vehicle-demo").get());
+        assertEquals(new TripWindows.Window(DEPARTED, now), departed.track("tenant-demo", trip, "vehicle-demo").get());
+        assertTrue(unknown.track("tenant-demo", trip, "vehicle-demo").isEmpty());
+        assertNull(waiting.find("tenant-demo", trip, "vehicle-demo").get().from(), "the trip's own map waits");
+    }
+
+    @Test
     void onlyAUuidIsATripsModuleTrip() {
         UUID id = UUID.randomUUID();
         assertEquals(id, TripWindows.tripsModuleId(" " + id + " ").orElseThrow());

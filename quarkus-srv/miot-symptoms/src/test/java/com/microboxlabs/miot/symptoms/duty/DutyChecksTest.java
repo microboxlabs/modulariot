@@ -3,10 +3,23 @@ package com.microboxlabs.miot.symptoms.duty;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
+import com.microboxlabs.miot.symptoms.catalog.domain.SourceKind;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.evaluator.CompiledSymptom;
+import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeStore;
+import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator;
+import com.microboxlabs.miot.symptoms.evaluator.Transition;
+import com.microboxlabs.miot.symptoms.signal.SignalFields;
+import com.microboxlabs.miot.symptoms.signal.TripCheck;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 /** The frame's zones on the duty check. */
@@ -89,4 +102,39 @@ class DutyChecksTest {
         assertEquals(INSIDE, kept.get("geo"));
         assertFalse(kept.containsKey("trip"));
     }
+    private static CompiledSymptom conditionalOperator(String activation) {
+        DataSource source = new DataSource(UUID.randomUUID(), null, TripCheck.KEY, "Trip check", SourceKind.CHECK,
+                TripCheck.ROOT, "Periodic", SignalFields.fields(TripCheck.class, TripCheck.ROOT), List.of());
+        SymptomSpec.Response response = new SymptomSpec.Response(true, 5, List.of(), List.of(), List.of(), true);
+        SymptomSpec spec = new SymptomSpec(TripCheck.KEY, activation, null, List.of(
+                new SymptomSpec.Level(1, true, "true", response.withOperatorWhen("check.driving_minutes >= 60")),
+                new SymptomSpec.Level(2, false, null, null), new SymptomSpec.Level(3, false, null, null),
+                new SymptomSpec.Level(4, false, null, response.withOperatorWhen("check.duty_minutes > 0"))),
+                new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.normal_s >= 0"), null);
+        return CompiledSymptom.compile(UUID.randomUUID(), "1.0.0", SymptomState.ACTIVE, spec, source);
+    }
+
+    @Test
+    void operatorOnlyCountersDoNotDivertLostSignalChecksOrResetDuty() {
+        CompiledSymptom symptom = conditionalOperator("check.signal_lost_minutes >= 5");
+        assertTrue(symptom.reads(DutyChecks.DRIVING), "the condition can still request its signal data");
+        assertFalse(symptom.reads(DutyChecks.DUTY), "an inactive level reads nothing");
+        assertFalse(DutyChecks.readsCounters(symptom), "the detector must still evaluate this symptom");
+        assertFalse(DutyChecks.readsDuty(symptom), "an operator-only condition must not reset the duty tracker");
+        assertFalse(DutyChecks.readsCounters(symptom.withState(SymptomState.TEST)));
+
+        SignalEvaluator.Result result = new SignalEvaluator(new InMemoryEpisodeStore()).evaluate(TENANT, ASSET,
+                T0, Map.of(TripCheck.ROOT, Map.of("signal_lost_minutes", 6.0)), List.of(symptom));
+        assertEquals(Transition.Kind.OPENED, result.transitions().getFirst().kind());
+        assertEquals(Boolean.FALSE, result.transitions().getFirst().operator());
+        assertTrue(result.errors().isEmpty(), "missing operator-only data still records the case");
+    }
+
+    @Test
+    void ordinaryCounterRulesStillSelectAndResetTheDutyTracker() {
+        CompiledSymptom symptom = conditionalOperator("check.duty_minutes >= 60");
+        assertTrue(DutyChecks.readsCounters(symptom));
+        assertTrue(DutyChecks.readsDuty(symptom));
+    }
+
 }

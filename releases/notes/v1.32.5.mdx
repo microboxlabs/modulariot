@@ -1,0 +1,36 @@
+# 🔔 Release Notes v1.32.5 — ModularIoT
+
+### Fecha: 09/11/2026
+
+**Objetivo**: Incorporar al coordinador la mejora OSS del milestone MIOT-0.6.5 para definir cuándo un caso requiere operador según su nivel. La configuración permite evaluar el evento de apertura o cambio de nivel y ajustar su inclusión en la bandeja de atención.
+
+## 🚀 Evolutivos
+
+- **📍 Condición «Requiere operador» por nivel** — Integración OSS del milestone MIOT-0.6.5.
+  - **Punto clave**: Cada caso queda registrado; si la condición no se cumple o no está configurada, el caso no aparece en la bandeja de atención y no genera SLA, presupuesto de pasos ni escalamiento.
+  - **Detalle técnico**: `response.operatorWhen` permite aplicar una condición CEL al evento de apertura del caso o al cambio de nivel.
+
+## 📊 Beneficios
+
+- Permite adaptar por nivel qué casos requieren atención de un operador.
+- Mantiene registrados los casos aunque no deban aparecer en la bandeja de atención.
+- Evalúa la condición con el evento de apertura o de cambio de nivel.
+- Evita que los casos que no requieren operador generen SLA.
+- Evita asignar presupuestos de pasos o escalamientos a esos casos.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.5`
+- App: `app@v0.6.5` — con cambios.
+- Docs: `docs@v0.6.5` — con cambios.
+- Web: `web@v0.6.5` — con cambios.
+- Modulith: `modulith@v0.5.44` — con cambios.
+- Harness: `harness@v0.1.15` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build de la aplicación y en el recurso de publicación `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.32.5 integra en el coordinador la configuración condicional de «Requiere operador» por nivel, como parte del milestone OSS MIOT-0.6.5. Esto permite registrar todos los casos y distinguir cuáles deben entrar en el flujo de atención operativa.
+
+Al excluir de ese flujo los casos que no cumplen la condición, tampoco se les asignan SLA, presupuestos de pasos ni escalamientos.

@@ -57,7 +57,7 @@ public class MarkLost implements LossTicker.DueCheck {
         LossStore.Vehicle v = store.vehicle(assetId);
         CheckState c = v.check() == null ? CheckState.NONE : v.check();
         // A trip that ended is checked no more, even when no frame said so.
-        TripChecks.Ended ended = trips.endedTrips(v, c, now);
+        TripChecks.Ended ended = trips.endedTrips(assetId, v, c, now);
         v = ended.vehicle();
         c = ended.check();
         Instant seen = v.deadline();

@@ -1,0 +1,2109 @@
+{
+  "stack_version": "0.6.3",
+  "stack_tag": "miot-stack@v0.6.3",
+  "milestone": "MIOT-0.6.3",
+  "pull_requests": [
+    {
+      "number": 2258,
+      "title": "feat(symptoms): lost signal 1/6, count late GPS signals and hand them to a hook",
+      "source_issues": [
+        {
+          "number": 2313,
+          "title": "Lost signal 1/6: count late GPS signals and hand them to a hook"
+        }
+      ]
+    },
+    {
+      "number": 2259,
+      "title": "feat(symptoms): lost signal 2/6, arrival profiles per vehicle and sender",
+      "source_issues": [
+        {
+          "number": 2316,
+          "title": "feat(symptoms): lost signal 2/6, arrival profiles per vehicle and sender"
+        }
+      ]
+    },
+    {
+      "number": 2264,
+      "title": "feat(symptoms): lost signal 3/6, per-vehicle deadlines and a leased ticker",
+      "source_issues": [
+        {
+          "number": 2319,
+          "title": "feat(symptoms): lost signal 3/6, per-vehicle deadlines and a leased ticker"
+        }
+      ]
+    },
+    {
+      "number": 2265,
+      "title": "feat(symptoms): lost signal 4/6, trip_check checks and a signal-returned fact",
+      "source_issues": [
+        {
+          "number": 2321,
+          "title": "feat(symptoms): lost signal 4/6, trip_check checks and a signal-returned fact"
+        }
+      ]
+    },
+    {
+      "number": 2266,
+      "title": "feat(symptoms): lost signal 5/6, shadow map, group outage and nearby units",
+      "source_issues": [
+        {
+          "number": 2322,
+          "title": "feat(symptoms): lost signal 5/6, shadow map, group outage and nearby units"
+        }
+      ]
+    },
+    {
+      "number": 2267,
+      "title": "test(symptoms): lost signal 6/6, replay evals for the detector",
+      "source_issues": [
+        {
+          "number": 2323,
+          "title": "test(symptoms): lost signal 6/6, replay evals for the detector"
+        }
+      ]
+    },
+    {
+      "number": 2268,
+      "title": "feat(symptoms): lost signal 7, GPS sabotage template from device events",
+      "source_issues": [
+        {
+          "number": 2325,
+          "title": "feat(symptoms): lost signal 7, GPS sabotage template from device events"
+        }
+      ]
+    },
+    {
+      "number": 2276,
+      "title": "feat(trips): match internal addresses by street words, from the raw text",
+      "source_issues": [
+        {
+          "number": 2328,
+          "title": "feat(trips): match internal addresses by street words, from the raw text"
+        }
+      ]
+    },
+    {
+      "number": 2278,
+      "title": "feat(trips): resolve a feed cell written as an address or Plus Code",
+      "source_issues": [
+        {
+          "number": 2329,
+          "title": "feat(trips): resolve a feed cell written as an address or Plus Code"
+        }
+      ]
+    },
+    {
+      "number": 2293,
+      "title": "docs(geocoding): Origin/Destination cell as address or Plus Code",
+      "source_issues": [
+        {
+          "number": 2317,
+          "title": "docs(geocoding): Origin/Destination cell as address or Plus Code"
+        }
+      ]
+    },
+    {
+      "number": 2299,
+      "title": "feat(conversations): geocoding quota alerts through rules; HTML email templates",
+      "source_issues": [
+        {
+          "number": 2314,
+          "title": "Geocoding quota alerts through rules; HTML email templates"
+        }
+      ]
+    },
+    {
+      "number": 2301,
+      "title": "[geocoding] Clearer messages, translated review reasons and UI fixes",
+      "source_issues": [
+        {
+          "number": 2286,
+          "title": "Trips geocoding: UI and message polish found while documenting"
+        }
+      ]
+    },
+    {
+      "number": 2307,
+      "title": "fix(docs): sidebar footer and scroll layout",
+      "source_issues": [
+        {
+          "number": 2318,
+          "title": "fix(docs): sidebar footer and scroll layout"
+        }
+      ]
+    },
+    {
+      "number": 2312,
+      "title": "[app] Per-channel message template editor and Meta submission",
+      "source_issues": [
+        {
+          "number": 2315,
+          "title": "[app] Per-channel message template editor and Meta submission"
+        }
+      ]
+    },
+    {
+      "number": 2320,
+      "title": "fix(app): clear the template editor's SonarCloud issues",
+      "source_issues": [
+        {
+          "number": 2324,
+          "title": "fix(app): clear the template editor's SonarCloud issues"
+        }
+      ]
+    },
+    {
+      "number": 2326,
+      "title": "feat(symptoms): lost-signal detector on with the evaluator",
+      "source_issues": [
+        {
+          "number": 2327,
+          "title": "Lost-signal detector runs wherever the symptom evaluator runs"
+        }
+      ]
+    },
+    {
+      "number": 2330,
+      "title": "fix(trips): a departed feed service without a closure is running",
+      "source_issues": [
+        {
+          "number": 2331,
+          "title": "fix(trips): a departed feed service without a closure is running"
+        }
+      ]
+    },
+    {
+      "number": 2332,
+      "title": "feat(trips): a feed site can name the organization's geofence",
+      "source_issues": [
+        {
+          "number": 2333,
+          "title": "feat(trips): a feed site can name the organization's geofence"
+        }
+      ]
+    },
+    {
+      "number": 2334,
+      "title": "feat(trips): trip geofence signals are on with the trips component",
+      "source_issues": [
+        {
+          "number": 2340,
+          "title": "feat(trips): trip geofence signals are on with the trips component"
+        }
+      ]
+    },
+    {
+      "number": 2335,
+      "title": "feat(app): send an expired session to sign-in instead of showing Unauthorized",
+      "source_issues": [
+        {
+          "number": 2343,
+          "title": "feat(app): send an expired session to sign-in instead of showing Unauthorized"
+        }
+      ]
+    },
+    {
+      "number": 2337,
+      "title": "fix(symptoms): a long trip's map shows its latest seven days",
+      "source_issues": [
+        {
+          "number": 2341,
+          "title": "fix(symptoms): a long trip's map shows its latest seven days"
+        }
+      ]
+    },
+    {
+      "number": 2338,
+      "title": "fix(symptoms): a trip's map shows its truck without a client mapping",
+      "source_issues": [
+        {
+          "number": 2342,
+          "title": "fix(symptoms): a trip's map shows its truck without a client mapping"
+        }
+      ]
+    },
+    {
+      "number": 2339,
+      "title": "fix(symptoms): a vehicle's trip adds its organization to the signal",
+      "source_issues": [
+        {
+          "number": 2344,
+          "title": "fix(symptoms): a vehicle's trip adds its organization to the signal"
+        }
+      ]
+    },
+    {
+      "number": 2345,
+      "title": "fix(symptoms): publish platform templates under the platform tenant",
+      "source_issues": [
+        {
+          "number": 2349,
+          "title": "fix(symptoms): publish platform templates under the platform tenant"
+        }
+      ]
+    },
+    {
+      "number": 2346,
+      "title": "[symptoms] Show trip service codes in Control Tower",
+      "source_issues": [
+        {
+          "number": 2348,
+          "title": "[symptoms] Show trip service codes in Control Tower"
+        }
+      ]
+    },
+    {
+      "number": 2347,
+      "title": "fix(symptoms): time a frame's arrival at the gateway",
+      "source_issues": [
+        {
+          "number": 2350,
+          "title": "fix(symptoms): time a frame's arrival at the gateway"
+        }
+      ]
+    },
+    {
+      "number": 2351,
+      "title": "feat(symptoms): shadow map v2 tables and daily coverage job",
+      "source_issues": [
+        {
+          "number": 2359,
+          "title": "feat(symptoms): shadow map v2 tables and daily coverage job"
+        }
+      ]
+    },
+    {
+      "number": 2352,
+      "title": "fix(symptoms): time a case from its start until now, and say why it is at its level",
+      "source_issues": [
+        {
+          "number": 2356,
+          "title": "fix(symptoms): time a case from its start until now, and say why it is at its level"
+        }
+      ]
+    },
+    {
+      "number": 2353,
+      "title": "feat(app): explain the case's level on the map, and color its frames by level",
+      "source_issues": [
+        {
+          "number": 2357,
+          "title": "feat(app): explain the case's level on the map, and color its frames by level"
+        }
+      ]
+    },
+    {
+      "number": 2354,
+      "title": "feat: show late frames and the silence on the case map",
+      "source_issues": [
+        {
+          "number": 2358,
+          "title": "feat: show late frames and the silence on the case map"
+        }
+      ]
+    },
+    {
+      "number": 2355,
+      "title": "feat(symptoms): lost-signal detector reads the v2 shadow map",
+      "source_issues": [
+        {
+          "number": 2361,
+          "title": "feat(symptoms): lost-signal detector reads the v2 shadow map"
+        }
+      ]
+    },
+    {
+      "number": 2360,
+      "title": "feat(symptoms): signal-loss 2.2.0 closes a level-1 case when the signal returns",
+      "source_issues": [
+        {
+          "number": 2362,
+          "title": "feat(symptoms): signal-loss 2.2.0 closes a level-1 case when the signal returns"
+        }
+      ]
+    },
+    {
+      "number": 2363,
+      "title": "fix(app): keep the case map's frames blue; show the level in the popup only",
+      "source_issues": [
+        {
+          "number": 2370,
+          "title": "fix(app): keep the case map's frames blue; show the level in the popup only"
+        }
+      ]
+    },
+    {
+      "number": 2364,
+      "title": "feat(symptoms): vehicle signal state from the lost-signal detector's threshold",
+      "source_issues": [
+        {
+          "number": 2372,
+          "title": "feat(symptoms): vehicle signal state from the lost-signal detector's threshold"
+        }
+      ]
+    },
+    {
+      "number": 2365,
+      "title": "feat(app): gray pin and \"Sin señal\" on the maps from the engine's threshold",
+      "source_issues": [
+        {
+          "number": 2374,
+          "title": "feat(app): gray pin and \"Sin señal\" on the maps from the engine's threshold"
+        }
+      ]
+    },
+    {
+      "number": 2366,
+      "title": "feat(fleet): engine offline state beside the directory status",
+      "source_issues": [
+        {
+          "number": 2377,
+          "title": "feat(fleet): engine offline state beside the directory status"
+        }
+      ]
+    },
+    {
+      "number": 2367,
+      "title": "feat(symptoms): setting to show only the engine's symptoms in the Control Tower",
+      "source_issues": [
+        {
+          "number": 2375,
+          "title": "feat(symptoms): setting to show only the engine's symptoms in the Control Tower"
+        }
+      ]
+    },
+    {
+      "number": 2368,
+      "title": "feat(symptoms): legacy indicators in an engine case's map popup",
+      "source_issues": [
+        {
+          "number": 2378,
+          "title": "feat(symptoms): legacy indicators in an engine case's map popup"
+        }
+      ]
+    },
+    {
+      "number": 2369,
+      "title": "feat(symptoms): engine-only Control Tower filters by driver, carrier and places",
+      "source_issues": [
+        {
+          "number": 2376,
+          "title": "feat(symptoms): engine-only Control Tower filters by driver, carrier and places"
+        }
+      ]
+    },
+    {
+      "number": 2371,
+      "title": "fix(symptoms): check the coverage job every 10 minutes and count its runs",
+      "source_issues": [
+        {
+          "number": 2373,
+          "title": "fix(symptoms): check the coverage job every 10 minutes and count its runs"
+        }
+      ]
+    },
+    {
+      "number": 2379,
+      "title": "fix(symptoms): read interval predecessors in the same range scan",
+      "source_issues": [
+        {
+          "number": 2380,
+          "title": "Symptoms: read interval predecessors in the same range scan"
+        }
+      ]
+    },
+    {
+      "number": 2381,
+      "title": "fix(symptoms): keep the shadow map job's memory independent of frame counts",
+      "source_issues": [
+        {
+          "number": 2382,
+          "title": "fix(symptoms): keep the shadow map job's memory independent of frame counts"
+        }
+      ]
+    },
+    {
+      "number": 2383,
+      "title": "feat(symptoms): remove the \"why this level\" card from the case map",
+      "source_issues": [
+        {
+          "number": 2384,
+          "title": "feat(symptoms): remove the \"why this level\" card from the case map"
+        }
+      ]
+    },
+    {
+      "number": 2385,
+      "title": "feat(symptoms): sync trip drivers from fleet into the contact book",
+      "source_issues": [
+        {
+          "number": 2386,
+          "title": "Sync trip drivers from fleet into the contact book"
+        }
+      ]
+    },
+    {
+      "number": 2387,
+      "title": "fix(symptoms): gray late frames and offline pointer on the case map",
+      "source_issues": [
+        {
+          "number": 2389,
+          "title": "fix(symptoms): gray late frames and offline pointer on the case map"
+        }
+      ]
+    },
+    {
+      "number": 2388,
+      "title": "feat(symptoms): show an engine case's level steps in the treatment timeline",
+      "source_issues": [
+        {
+          "number": 2392,
+          "title": "feat(symptoms): show an engine case's level steps in the treatment timeline"
+        }
+      ]
+    },
+    {
+      "number": 2390,
+      "title": "fix(app): spell the ignore reason label correctly",
+      "source_issues": [
+        {
+          "number": 2391,
+          "title": "fix(app): spell the ignore reason label correctly"
+        }
+      ]
+    },
+    {
+      "number": 2393,
+      "title": "feat(symptoms): Ignorar condición puts an engine case on hold",
+      "source_issues": [
+        {
+          "number": 2396,
+          "title": "feat(symptoms): Ignorar condición puts an engine case on hold"
+        }
+      ]
+    },
+    {
+      "number": 2394,
+      "title": "feat(app): ignore form, Ignorados filter, Reanudar and timeline marks",
+      "source_issues": [
+        {
+          "number": 2397,
+          "title": "feat(app): ignore form, Ignorados filter, Reanudar and timeline marks"
+        }
+      ]
+    },
+    {
+      "number": 2395,
+      "title": "fix(symptoms): move the wrong-map reason out of ignore_reason",
+      "source_issues": [
+        {
+          "number": 2398,
+          "title": "fix(symptoms): move the wrong-map reason out of ignore_reason"
+        }
+      ]
+    },
+    {
+      "number": 2399,
+      "title": "fix(symptoms): show the operator only on the level steps they treated",
+      "source_issues": [
+        {
+          "number": 2400,
+          "title": "fix(symptoms): show the operator only on the level steps they treated"
+        }
+      ]
+    },
+    {
+      "number": 2402,
+      "title": "feat(symptoms): rules read the GPS frame's events; close and note a case on an event",
+      "source_issues": [
+        {
+          "number": 2403,
+          "title": "feat(symptoms): rules read the GPS frame's events; close and note a case on an event"
+        }
+      ]
+    },
+    {
+      "number": 2404,
+      "title": "feat(symptoms): call panel from the contact book and the contact's channels",
+      "source_issues": [
+        {
+          "number": 2416,
+          "title": "feat(symptoms): call panel from the contact book and the contact's channels"
+        }
+      ]
+    },
+    {
+      "number": 2405,
+      "title": "feat(symptoms): trip people by RUT, Respuesta with the rule sheet's components",
+      "source_issues": [
+        {
+          "number": 2417,
+          "title": "feat(symptoms): trip people by RUT, Respuesta with the rule sheet's components"
+        }
+      ]
+    },
+    {
+      "number": 2406,
+      "title": "feat(symptoms): operator steps name their people with a book condition",
+      "source_issues": [
+        {
+          "number": 2418,
+          "title": "feat(symptoms): operator steps name their people with a book condition"
+        }
+      ]
+    },
+    {
+      "number": 2407,
+      "title": "feat(symptoms): step script side panel with message, goal and expected answers",
+      "source_issues": [
+        {
+          "number": 2419,
+          "title": "feat(symptoms): step script side panel with message, goal and expected answers"
+        }
+      ]
+    },
+    {
+      "number": 2408,
+      "title": "feat(symptoms): Cierre with a form view and a real-case timeline preview",
+      "source_issues": [
+        {
+          "number": 2420,
+          "title": "feat(symptoms): Cierre with a form view and a real-case timeline preview"
+        }
+      ]
+    },
+    {
+      "number": 2409,
+      "title": "feat(connections): Telnyx and Teams Phone connections, and the telephony choice",
+      "source_issues": [
+        {
+          "number": 2422,
+          "title": "feat(connections): Telnyx and Teams Phone connections, and the telephony choice"
+        }
+      ]
+    },
+    {
+      "number": 2410,
+      "title": "feat(symptoms): Llamar a dials from the browser through Telnyx WebRTC",
+      "source_issues": [
+        {
+          "number": 2423,
+          "title": "feat(symptoms): Llamar a dials from the browser through Telnyx WebRTC"
+        }
+      ]
+    },
+    {
+      "number": 2411,
+      "title": "feat(symptoms): Teams Phone calls in Teams, with duration and result from Graph",
+      "source_issues": [
+        {
+          "number": 2424,
+          "title": "feat(symptoms): Teams Phone calls in Teams, with duration and result from Graph"
+        }
+      ]
+    },
+    {
+      "number": 2412,
+      "title": "feat(symptoms): WhatsApp calling design and skeleton behind a disabled flag",
+      "source_issues": [
+        {
+          "number": 2425,
+          "title": "feat(symptoms): WhatsApp calling design and skeleton behind a disabled flag"
+        }
+      ]
+    },
+    {
+      "number": 2413,
+      "title": "feat(conversational): WhatsApp call permission requested at trip departure",
+      "source_issues": [
+        {
+          "number": 2421,
+          "title": "feat(conversational): WhatsApp call permission requested at trip departure"
+        }
+      ]
+    },
+    {
+      "number": 2414,
+      "title": "feat(connections): managed Telnyx line metered from Telnyx, with plan, quota and Plataforma › Telefonía",
+      "source_issues": [
+        {
+          "number": 2426,
+          "title": "feat(connections): managed Telnyx line metered from Telnyx, with plan, quota and Plataforma › Telefonía"
+        }
+      ]
+    },
+    {
+      "number": 2415,
+      "title": "fix(connections): the webhook key help names ModularIoT",
+      "source_issues": [
+        {
+          "number": 2447,
+          "title": "fix(connections): the webhook key help names ModularIoT"
+        }
+      ]
+    },
+    {
+      "number": 2427,
+      "title": "feat(pr-certify): stop waiting for optional reviewers and full local test runs",
+      "source_issues": [
+        {
+          "number": 2429,
+          "title": "feat(pr-certify): stop waiting for optional reviewers and full local test runs"
+        }
+      ]
+    },
+    {
+      "number": 2430,
+      "title": "fix(symptoms): Llamar a — SLA survives reloads, scripts without trip data, hover, emergency numbers",
+      "source_issues": [
+        {
+          "number": 2439,
+          "title": "fix(symptoms): Llamar a — SLA survives reloads, scripts without trip data, hover, emergency numbers"
+        }
+      ]
+    },
+    {
+      "number": 2431,
+      "title": "feat(symptoms): the tower inbox lists only cases that need an operator",
+      "source_issues": [
+        {
+          "number": 2432,
+          "title": "feat(symptoms): the tower inbox lists only cases that need an operator"
+        }
+      ]
+    },
+    {
+      "number": 2433,
+      "title": "feat(symptoms): speeding templates 2.0.0 with the GPS database's escalation",
+      "source_issues": [
+        {
+          "number": 2456,
+          "title": "feat(symptoms): speeding templates 2.0.0 with the GPS database's escalation"
+        }
+      ]
+    },
+    {
+      "number": 2434,
+      "title": "feat(symptoms): zone and hour templates, signal.geo and case.closed_on_trip",
+      "source_issues": [
+        {
+          "number": 2459,
+          "title": "feat(symptoms): zone and hour templates, signal.geo and case.closed_on_trip"
+        }
+      ]
+    },
+    {
+      "number": 2435,
+      "title": "feat(symptoms): continuous driving 2.0.0 and continuous resting templates",
+      "source_issues": [
+        {
+          "number": 2462,
+          "title": "feat(symptoms): continuous driving 2.0.0 and continuous resting templates"
+        }
+      ]
+    },
+    {
+      "number": 2436,
+      "title": "feat(symptoms): event templates and the open_s level variable",
+      "source_issues": [
+        {
+          "number": 2455,
+          "title": "feat(symptoms): event templates and the open_s level variable"
+        }
+      ]
+    },
+    {
+      "number": 2437,
+      "title": "feat(symptoms): ETA deviation and double-driver rotation templates",
+      "source_issues": [
+        {
+          "number": 2463,
+          "title": "feat(symptoms): ETA deviation and double-driver rotation templates"
+        }
+      ]
+    },
+    {
+      "number": 2438,
+      "title": "fix(symptoms): the Llamar a panel scrolls to every contact",
+      "source_issues": [
+        {
+          "number": 2443,
+          "title": "fix(symptoms): the Llamar a panel scrolls to every contact"
+        }
+      ]
+    },
+    {
+      "number": 2440,
+      "title": "feat(connections): choose the organization's telephony in Conexiones",
+      "source_issues": [
+        {
+          "number": 2448,
+          "title": "feat(connections): choose the organization's telephony in Conexiones"
+        }
+      ]
+    },
+    {
+      "number": 2441,
+      "title": "feat(symptoms): use the trip's phone when the book contact has none",
+      "source_issues": [
+        {
+          "number": 2445,
+          "title": "feat(symptoms): use the trip's phone when the book contact has none"
+        }
+      ]
+    },
+    {
+      "number": 2442,
+      "title": "fix(settings): the platform settings menu scrolls",
+      "source_issues": [
+        {
+          "number": 2446,
+          "title": "fix(settings): the platform settings menu scrolls"
+        }
+      ]
+    },
+    {
+      "number": 2444,
+      "title": "refactor(settings): telephony usage and plan reuse the geocoding screens",
+      "source_issues": [
+        {
+          "number": 2450,
+          "title": "refactor(settings): telephony usage and plan reuse the geocoding screens"
+        }
+      ]
+    },
+    {
+      "number": 2449,
+      "title": "ci(quarkus): SonarCloud scan in its own job, without waiting for the tests",
+      "source_issues": [
+        {
+          "number": 2460,
+          "title": "ci(quarkus): SonarCloud scan in its own job, without waiting for the tests"
+        }
+      ]
+    },
+    {
+      "number": 2452,
+      "title": "fix(symptoms): skipped call steps survive a reload",
+      "source_issues": [
+        {
+          "number": 2464,
+          "title": "fix(symptoms): skipped call steps survive a reload"
+        }
+      ]
+    },
+    {
+      "number": 2453,
+      "title": "fix(symptoms): test cases can be closed, and a state change closes old cases",
+      "source_issues": [
+        {
+          "number": 2457,
+          "title": "fix(symptoms): test cases can be closed, and a state change closes old cases"
+        }
+      ]
+    },
+    {
+      "number": 2454,
+      "title": "fix(credentials): Mapbox only in the platform scope; unavailable types go last",
+      "source_issues": [
+        {
+          "number": 2458,
+          "title": "fix(credentials): Mapbox only in the platform scope; unavailable types go last"
+        }
+      ]
+    },
+    {
+      "number": 2461,
+      "title": "fix(pr-certify): hold a PR without a Sonar check only to the projects it touches",
+      "source_issues": [
+        {
+          "number": 2469,
+          "title": "fix(pr-certify): hold a PR without a Sonar check only to the projects it touches"
+        }
+      ]
+    },
+    {
+      "number": 2465,
+      "title": "feat(symptoms): Ajustes › Síntomas side menu with Equipo, Telefonía and Uso",
+      "source_issues": [
+        {
+          "number": 2481,
+          "title": "feat(symptoms): Ajustes › Síntomas side menu with Equipo, Telefonía and Uso"
+        }
+      ]
+    },
+    {
+      "number": 2466,
+      "title": "feat(symptoms): rename a symptom from its editor",
+      "source_issues": [
+        {
+          "number": 2471,
+          "title": "feat(symptoms): rename a symptom from its editor"
+        }
+      ]
+    },
+    {
+      "number": 2467,
+      "title": "feat(symptoms): the CEL autocomplete explains each field",
+      "source_issues": [
+        {
+          "number": 2472,
+          "title": "feat(symptoms): the CEL autocomplete explains each field"
+        }
+      ]
+    },
+    {
+      "number": 2468,
+      "title": "feat(symptoms): field descriptions and a filter in the signal fields panel",
+      "source_issues": [
+        {
+          "number": 2476,
+          "title": "feat(symptoms): field descriptions and a filter in the signal fields panel"
+        }
+      ]
+    },
+    {
+      "number": 2473,
+      "title": "fix(symptoms): readable step titles and an accurate empty state in A quién llamar",
+      "source_issues": [
+        {
+          "number": 2477,
+          "title": "fix(symptoms): readable step titles and an accurate empty state in A quién llamar"
+        }
+      ]
+    },
+    {
+      "number": 2474,
+      "title": "fix(symptoms): the case timeline refreshes after a treatment",
+      "source_issues": [
+        {
+          "number": 2486,
+          "title": "fix(symptoms): the case timeline refreshes after a treatment"
+        }
+      ]
+    },
+    {
+      "number": 2475,
+      "title": "feat(symptoms): call mode that survives navigation and reloads",
+      "source_issues": [
+        {
+          "number": 2478,
+          "title": "feat(symptoms): call mode that survives navigation and reloads"
+        }
+      ]
+    },
+    {
+      "number": 2479,
+      "title": "docs(docs): align asset-track reference with gps-model 1.6.1",
+      "source_issues": [
+        {
+          "number": 2523,
+          "title": "docs(docs): align asset-track reference with gps-model 1.6.1"
+        }
+      ]
+    },
+    {
+      "number": 2480,
+      "title": "feat(symptoms): device events reach the engine (SOS, assistance, fatigue, load securing, stake side)",
+      "source_issues": [
+        {
+          "number": 2484,
+          "title": "feat(symptoms): device events reach the engine (SOS, assistance, fatigue, load securing, stake side)"
+        }
+      ]
+    },
+    {
+      "number": 2482,
+      "title": "fix(symptoms): a contact counts as called only for calls in this case",
+      "source_issues": [
+        {
+          "number": 2491,
+          "title": "fix(symptoms): a contact counts as called only for calls in this case"
+        }
+      ]
+    },
+    {
+      "number": 2483,
+      "title": "feat(symptoms): road and organization speed limits in the signal",
+      "source_issues": [
+        {
+          "number": 2489,
+          "title": "feat(symptoms): road and organization speed limits in the signal"
+        }
+      ]
+    },
+    {
+      "number": 2487,
+      "title": "fix(symptoms): a trip's end closes its lost-signal case",
+      "source_issues": [
+        {
+          "number": 2503,
+          "title": "fix(symptoms): a trip's end closes its lost-signal case"
+        }
+      ]
+    },
+    {
+      "number": 2488,
+      "title": "feat(symptoms): step conditions read the trip's origin and destination",
+      "source_issues": [
+        {
+          "number": 2495,
+          "title": "feat(symptoms): step conditions read the trip's origin and destination"
+        }
+      ]
+    },
+    {
+      "number": 2490,
+      "title": "feat(symptoms): the side fields panel uses the signal fields tree",
+      "source_issues": [
+        {
+          "number": 2502,
+          "title": "feat(symptoms): the side fields panel uses the signal fields tree"
+        }
+      ]
+    },
+    {
+      "number": 2492,
+      "title": "feat(map): gray vehicle pin when the engine is reported off",
+      "source_issues": [
+        {
+          "number": 2497,
+          "title": "feat(map): gray vehicle pin when the engine is reported off"
+        }
+      ]
+    },
+    {
+      "number": 2493,
+      "title": "feat(symptoms): ETA deviation in the signal",
+      "source_issues": [
+        {
+          "number": 2498,
+          "title": "feat(symptoms): ETA deviation in the signal"
+        }
+      ]
+    },
+    {
+      "number": 2494,
+      "title": "feat(symptoms): device events are on wherever the signal builder runs",
+      "source_issues": [
+        {
+          "number": 2500,
+          "title": "feat(symptoms): device events are on wherever the signal builder runs"
+        }
+      ]
+    },
+    {
+      "number": 2496,
+      "title": "feat(symptoms): driving, rest and duty tracker in the signal",
+      "source_issues": [
+        {
+          "number": 2499,
+          "title": "feat(symptoms): driving, rest and duty tracker in the signal"
+        }
+      ]
+    },
+    {
+      "number": 2501,
+      "title": "feat(symptoms): read speed limits from the legacy speed database",
+      "source_issues": [
+        {
+          "number": 2505,
+          "title": "feat(symptoms): read speed limits from the legacy speed database"
+        }
+      ]
+    },
+    {
+      "number": 2504,
+      "title": "fix(symptoms): the SLA timer reads specs stored as JSON text",
+      "source_issues": [
+        {
+          "number": 2506,
+          "title": "fix(symptoms): the SLA timer reads specs stored as JSON text"
+        }
+      ]
+    },
+    {
+      "number": 2507,
+      "title": "feat(symptoms): run the symptom engine as its own scaled-out deployment",
+      "source_issues": [
+        {
+          "number": 2509,
+          "title": "feat(symptoms): run the symptom engine as its own scaled-out deployment"
+        }
+      ]
+    },
+    {
+      "number": 2508,
+      "title": "feat(symptoms): custom speed polygons read organization and rule from the table",
+      "source_issues": [
+        {
+          "number": 2512,
+          "title": "feat(symptoms): custom speed polygons read organization and rule from the table"
+        }
+      ]
+    },
+    {
+      "number": 2510,
+      "title": "perf(symptoms): reduce evaluator round trips and add opt-in vehicle concurrency",
+      "source_issues": [
+        {
+          "number": 2511,
+          "title": "perf(symptoms): reduce evaluator round trips and add opt-in vehicle concurrency"
+        }
+      ]
+    },
+    {
+      "number": 2513,
+      "title": "feat(symptoms): vehicles online gauges in the signal builder",
+      "source_issues": [
+        {
+          "number": 2514,
+          "title": "feat(symptoms): vehicles online gauges in the signal builder"
+        }
+      ]
+    },
+    {
+      "number": 2515,
+      "title": "fix(symptoms): do not count frame gaps as continuous driving",
+      "source_issues": [
+        {
+          "number": 2516,
+          "title": "fix(symptoms): do not count frame gaps as continuous driving"
+        }
+      ]
+    },
+    {
+      "number": 2517,
+      "title": "fix(symptoms): show the speed limit and excess in the map tooltip for engine cases",
+      "source_issues": [
+        {
+          "number": 2518,
+          "title": "fix(symptoms): show the speed limit and excess in the map tooltip for engine cases"
+        }
+      ]
+    },
+    {
+      "number": 2519,
+      "title": "feat(symptoms): duty checks carry the frame's zone",
+      "source_issues": [
+        {
+          "number": 2520,
+          "title": "feat(symptoms): duty checks carry the frame's zone"
+        }
+      ]
+    },
+    {
+      "number": 2521,
+      "title": "feat(symptoms): zones expose their risk schedule and name",
+      "source_issues": [
+        {
+          "number": 2522,
+          "title": "feat(symptoms): zones expose their risk schedule and name"
+        }
+      ]
+    },
+    {
+      "number": 2524,
+      "title": "fix(symptoms): trip-end closes retain the case trip, peak and final context",
+      "source_issues": [
+        {
+          "number": 2527,
+          "title": "fix(symptoms): trip-end closes retain the case trip, peak and final context"
+        }
+      ]
+    },
+    {
+      "number": 2525,
+      "title": "fix(trips): feeds keep services whose fleet resources are inactive",
+      "source_issues": [
+        {
+          "number": 2526,
+          "title": "fix(trips): feeds keep services whose fleet resources are inactive"
+        }
+      ]
+    },
+    {
+      "number": 2528,
+      "title": "feat(harness): symptom tools can use a different modulith",
+      "source_issues": [
+        {
+          "number": 2529,
+          "title": "feat(harness): symptom tools can use a different modulith"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".agents/skills/pr-certify/SKILL.md",
+    ".agents/skills/pr-certify/bin/prcert",
+    ".agents/skills/pr-certify/test_prcert_sonar.py",
+    ".github/workflows/quarkus.yml",
+    "miot-harness/.env.example",
+    "miot-harness/README.md",
+    "miot-harness/src/miot_harness/config.py",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/control-tower-symptoms/SKILL.md",
+    "miot-harness/src/miot_harness/context_skills/loader.py",
+    "miot-harness/src/miot_harness/context_skills/mcp_skills.py",
+    "miot-harness/tests/context_skills/test_control_tower_symptoms_skill.py",
+    "miot-harness/tests/context_skills/test_mcp_skills.py",
+    "miot-harness/tests/context_skills/test_symptoms_url.py",
+    "quarkus-srv/.env.sample",
+    "quarkus-srv/miot-cli/pom.xml",
+    "quarkus-srv/miot-cli/src/main/java/com/microboxlabs/miot/cli/FlywayMigrator.java",
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-cli/src/test/java/com/microboxlabs/miot/cli/DeviceEventsAvailabilityTest.java",
+    "quarkus-srv/miot-cli/src/test/java/com/microboxlabs/miot/cli/DeviceEventsDisabledTest.java",
+    "quarkus-srv/miot-cli/src/test/java/com/microboxlabs/miot/cli/EngineOnlyPodTest.java",
+    "quarkus-srv/miot-cli/src/test/java/com/microboxlabs/miot/cli/EngineSplitConfigTest.java",
+    "quarkus-srv/miot-conversational/docs/whatsapp-call-permissions.md",
+    "quarkus-srv/miot-conversational/docs/whatsapp-calling.md",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/OrgConversationsResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/OrgRulePresetsResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/OrgWhatsAppCallPermissionsResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/calling/CallPermission.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/calling/CallPermissionPolicy.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/calling/CallPermissionService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/calling/CallPermissionStatus.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/calling/CallPermissionStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/calling/CallRequestPolicy.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/calling/PermissionEvent.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/calling/PgCallPermissionStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/calling/WhatsAppCallEvents.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/calling/WhatsAppCallingRequests.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/calling/WhatsAppCallingSettings.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/EmailSendJob.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/SendJobsOnPark.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/SuppressedSend.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/WhatsAppCallEventJob.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/WhatsAppCallPermissionReplyJob.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/WhatsAppSendJob.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/WhatsAppWebhookJobs.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/Audiences.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/BookContactConditions.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/ConvTemplate.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/EventCatalog.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/EventCondition.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RulePresets.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleSpecValidator.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RulesEngine.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RulesService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/SendJobs.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/StepMessages.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/TemplateBump.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/TemplatesService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/PgRunStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/RunStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/CallEvent.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/CallPermissionReply.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/ContextMessage.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/EmailMessagingService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/MetaWebhookParser.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/ParsedWebhook.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/WhatsAppMessagingService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/WhatsAppTemplateRenderer.java",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.6__geocoding_quota_alert_template.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.7__geocoding_quota_templates.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.8__whatsapp_call_permissions.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.9__call_permission_journal.sql",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/api/OrgConversationsResourceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/calling/CallPermissionPolicyTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/calling/CallPermissionServiceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/calling/InMemoryCallPermissions.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/calling/PgCallPermissionStoreTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/calling/WhatsAppCallingTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/jobs/WhatsAppCallingWebhookTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/BookContactConditionsTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/HtmlConnectionMessagesTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/InMemoryRules.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/PlatformTemplatesTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RulePresetsTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RuleSendJobsTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RulesEngineTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RulesFixture.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/store/PgRuleStoresTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/EmailMessagingServiceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/MetaWebhookParserTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppRuleSendTest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/config/ApiSurface.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/event/ContactConditions.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/event/ContactDirectory.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/event/EventTypeCatalog.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/event/TextKey.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/fleet/FleetResources.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/gps/SignalStates.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/health/ComponentHealthCheck.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/NativeMembershipMigration.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/NativeMembershipReadiness.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/NotificationRecipients.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mail/MailTemplateEngine.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mail/NotificationMail.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/telephony/NoTelephony.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/telephony/PstnCall.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/telephony/Telephony.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/telephony/TelephonyLine.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/telephony/TelephonyProvider.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/telephony/TelephonyUnavailableException.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/telephony/WebRtcToken.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/trips/NoTripDrivers.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/trips/TripDrivers.java",
+    "quarkus-srv/miot-core/src/main/resources/mail-templates/notification.hbs",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/config/ApiSurfaceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/event/TextKeyTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/health/ComponentHealthCheckTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/NativeMembershipMigrationSwitchTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/NotificationRecipientsTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/mail/MailTemplateEngineTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/SelectableServiceTest.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/directory/FleetDirectoryProducer.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/directory/FleetDirectoryService.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/directory/Views.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/resources/service/FleetResourcesService.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/resources/store/PgResourceStore.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/resources/store/ResourceStore.java",
+    "quarkus-srv/miot-fleet/src/main/java/com/microboxlabs/miot/fleet/sharing/SharingProducer.java",
+    "quarkus-srv/miot-fleet/src/main/resources/db/migration/fleet/V0.9.11__current_driver_changes.sql",
+    "quarkus-srv/miot-fleet/src/test/java/com/microboxlabs/miot/fleet/directory/FleetDirectoryServiceTest.java",
+    "quarkus-srv/miot-fleet/src/test/java/com/microboxlabs/miot/fleet/resources/service/FleetResourcesServiceTest.java",
+    "quarkus-srv/miot-gps-model/src/main/java/cl/streamhub/gps/model/Gps.java",
+    "quarkus-srv/miot-gps-model/src/test/java/cl/streamhub/gps/model/GpsTest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgCredentialProfilesResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgTelephonyUsageResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/PlatformTelephonyPlanResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/TelnyxWebhookResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/ProviderType.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/Geocoder.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingEventCatalog.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingEvents.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingParticipants.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/GeocodingQuotaData.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/geocoding/ManagedGeocodingConnections.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/InternalJobTypes.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/CredentialProfileRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/GeocodingPlanRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/IntegrationConnectionRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/CredentialProfileService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/GeocodingPlanService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/PlatformOnlyCredentialException.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/QuotaGeocodingGate.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/CallAdmission.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/GraphClient.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/InMemoryTelephonyUsageStore.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/InboundRouter.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/IntegrationsTelephony.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/ManagedUsageRecorder.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/PgTelephonyUsageStore.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/PhoneNumbers.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TeamsAppToken.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TeamsCallRecords.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TelephonyHttp.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TelephonyKeys.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TelephonyPlanDtos.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TelephonyPlanService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TelephonyUsageStore.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TelnyxCallEvents.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TelnyxClient.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TelnyxParkedCalls.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TelnyxUsageReconciler.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TelnyxWebRtcTokens.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TelnyxWebhookVerifier.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/UsageRow.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/TeamsPhoneConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/TelnyxConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/TelnyxCredentialTester.java",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.37__geocoding_quota_notifications.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.38__add_telephony_provider_types.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.39__telephony_usage.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.40__telephony_destination_width.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.41__telephony_admissions_and_reconcile_progress.sql",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/OrgCredentialProfilesResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/PlatformOrgGeocodingConnectionResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/TelnyxWebhookResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/geocoding/GeocoderTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/geocoding/GeocodingConnectionTesterTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/geocoding/GeocodingParticipantsTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/CredentialProfileSqlIntegrityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/PgGeocodingBillingHistoryTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/PgGeocodingQuotaNotificationsTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/PgTelephonyReadinessTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/CredentialProfileServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/GeocodingPlanServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/TestManagedConnectionLock.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/IntegrationsTelephonyTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/ManagedUsageTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/PgTelephonyUsageStoreTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/PgTelnyxCredentialCreationTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/StubHttp.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/StubHttpTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/TeamsCallRecordsTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/TelnyxParkedCallsTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/TelnyxUsageReconcilerTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/TelnyxWebRtcTokensTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/tester/TeamsPhoneConnectionTesterTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/tester/TelnyxConnectionTesterTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/tester/TelnyxCredentialTesterTest.java",
+    "quarkus-srv/miot-symptoms/README.md",
+    "quarkus-srv/miot-symptoms/docs/control-tower-api.md",
+    "quarkus-srv/miot-symptoms/docs/deployment.md",
+    "quarkus-srv/miot-symptoms/docs/duty-tracker.md",
+    "quarkus-srv/miot-symptoms/docs/evaluator.md",
+    "quarkus-srv/miot-symptoms/docs/gps-signal.md",
+    "quarkus-srv/miot-symptoms/docs/lost-signal.md",
+    "quarkus-srv/miot-symptoms/docs/telephony.md",
+    "quarkus-srv/miot-symptoms/pom.xml",
+    "quarkus-srv/miot-symptoms/scripts/coverage-seed/export.sql",
+    "quarkus-srv/miot-symptoms/scripts/coverage-seed/seed.py",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/SymptomsComponent.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/access/ControlTowerAccessCatalog.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/ControlTowerResourceSupport.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerContactsResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerDeviceEventsResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerTelephonyResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerTreatmentsResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgDataSourcesResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCase.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCaseService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCaseStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/HoldIndex.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/HoldService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/HoldStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/HoldTimer.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/IgnoreHold.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/SlaStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/SlaTimer.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/StaleCaseSweep.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleLanguage.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleSchema.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleVariables.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/domain/SourceField.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/domain/SymptomSpec.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/mcp/SymptomTools.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/DataSourceService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/PreviewService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/RuleDescriptionService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SpecDiff.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SpecValidator.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SymptomCatalogService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/service/SymptomStateChanged.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/dto/TripContactsRequest.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/dto/TripContactsView.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/dto/TripPeople.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/dto/TripPlace.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/dto/TripRoute.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/duty/DutyChecks.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/duty/DutyState.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/duty/DutyStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/duty/DutyTracker.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/duty/InMemoryDutyStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/duty/RedisDutyStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/AssetEpisodes.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/CompiledSymptom.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/Episode.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/EpisodeRepository.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorRedis.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorStream.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/Holds.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/InMemoryEpisodeRepository.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/LateFrames.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/RedisEpisodes.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/SignalEvaluator.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/SpeedLimitContext.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/Transition.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/TransitionLog.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/VehicleReads.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/events/BookContacts.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/events/SymptomCaseData.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/events/SymptomEventCatalog.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/events/SymptomEvents.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/ArrivalProfiles.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/CheckState.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/Cohort.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/Coverage.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/CoverageDay.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/CoverageJob.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/CoverageMap.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/CoverageSettings.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/CoverageStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/Frame.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/GpsFrames.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/InMemoryLossStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/IngestHealth.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/LossSettings.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/LossStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/LossTicker.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/LostSignalDetector.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/MarkLost.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/Motion.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/PgCoverageStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/PgGpsFrames.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/PgTripEnds.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/RedisLossStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/SecondsHistogram.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/SenderProfile.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/ShadowMap.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/ShadowMaps.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/SignalStateReader.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/Sketch.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/TripChecks.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/TripEnds.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/VehicleProfile.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/Watch.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/ControlTowerMapService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/ControlTowerTreatmentService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/PgTreatmentReads.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/SignalStateFields.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/TreatmentReads.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/TripWindows.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/ContactService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/DriverContactSync.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/IgnoreHolds.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/TeamsCallReconciler.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/TelephonyChoiceService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/TreatmentService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/Bearings.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/CustomSpeedTracks.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/DeviceEvents.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/DeviceSignalChannel.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/EventTypes.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/GpsSignal.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/OnlineVehicles.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/ReferenceCache.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/RoadNetwork.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/RouteEtas.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/SignalBuilder.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/SignalFields.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/SignalSamples.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/SignalStream.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/SpeedDatabase.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/SpeedZones.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/TripCheck.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/signal/Zones.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/ContactStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/ContactSyncStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/HoldSql.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/InMemoryContactStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/InMemoryTowerSettingsStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/InMemoryTreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgContactStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgContactSyncStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgEngineCases.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgHoldStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgSlaStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTowerSettingsStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTransitionLog.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTripPlaces.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/TowerSettingsStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/TreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.10__transition_context.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.11__signal_loss_close_level_one.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.12__contact_sync.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.13__held_transitions.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.14__ignore_reasons_move_wrong_map.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.15__noted_transitions.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.16__tower_settings_telephony.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.17__event_symptom_templates.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.18__speed_templates_escalation.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.19__zone_and_hour_templates.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.20__driving_and_rest_templates.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.21__route_templates.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.22__device_events.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.23__speed_limit_zones.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.24__trip_end_effects.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.25__drop_speed_limit_zone.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.4__signal_loss_template_reads_detector.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.5__signal_loss_template_coverage_cohort.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.6__gps_sabotage_template.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.7__platform_templates_tenant.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.8__coverage_days.sql",
+    "quarkus-srv/miot-symptoms/src/main/resources/selectables/defaults/treatment-form.json",
+    "quarkus-srv/miot-symptoms/src/main/resources/symptoms/gps-signal-samples.json",
+    "quarkus-srv/miot-symptoms/src/main/resources/symptoms/platform-sources.json",
+    "quarkus-srv/miot-symptoms/src/main/resources/symptoms/rule-messages.properties",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/access/ControlTowerPermissionsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerContactsResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerTelephonyResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerTreatmentsResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgSymptomDefinitionsResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/EngineCaseDescriptionTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/EngineCaseHoldsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/EngineCaseServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/HoldIndexTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/HoldServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/InMemoryEngineCases.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/SpeedLimitTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleLanguageTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleVariablesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/DataSourceServiceFixtures.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SeedTemplates.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SourcesAndPreviewTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SpecFieldsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SpecRulesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/SymptomCatalogServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/service/TemplateServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/store/PgPlatformTemplatesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/duty/DutyChecksTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/duty/DutyTrackerTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/duty/RedisDutyStoreTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/DeviceEventSignalsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EpisodeRepositoryConcurrencyTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorArrivalTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorBehaviorTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorBenchmarkTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorCatalogTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorDutyTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorLateEventsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorStoresTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorStreamTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/FakeRedis.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/FrameEventsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/InMemoryEpisodeRepositoryTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/InMemoryTransitionLog.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/OperatorCloseInterleavingTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/RedisEpisodesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/SignalEvaluatorHoldTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/SignalEvaluatorTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/SignalLossCloseTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/SpeedLimitContextTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/SymptomStateChangeTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/TripEndCloseTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/ZoneScheduleRuleTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/ContinuousDrivingCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/ContinuousDrivingRuleCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/DutyParityEvalTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/DutyReplay.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/EventTemplatesRuleCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/GpsSabotageRuleCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/LostSignalCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/LostSignalReplay.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/LostSignalScenariosEvalTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/NightStopCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/OffHoursCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/PanicButtonRuleCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/RestingTemplateRuleCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/RouteTemplatesRuleCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/SpeedCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/SpeedCustomCatalogImpactTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/ZoneTemplatesParityTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/events/SymptomEventsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/ArrivalProfilesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/CoverageAndCohortTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/CoverageDayTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/CoverageJobTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/FrameSentTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/LossTickerTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/PgCoverageStoreTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/PgGpsFramesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/ShadowMapTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/ShadowMapsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/SignalStateReaderTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/TestClock.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/TestEngine.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/TripChecksCaseTripTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/TripChecksTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/TripEndTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/ControlTowerTreatmentServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/PgTreatmentReadsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/TripWindowsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/service/DriverContactSyncTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/service/TeamsCallReconcilerTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/service/TelephonyChoiceServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/service/TreatmentServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/service/TripContactsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/CustomSpeedTracksTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/DeviceEventsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/DeviceSignalChannelTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/EventTypesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/OnlineVehiclesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/PgDeviceEventsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/PgSpeedLimitZonesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/PgSpeedSourcesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/RoadNetworkBenchmarkTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/RoadNetworkTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/RouteEtasTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/SignalBuilderTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/SignalFieldsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/SignalSamplesAccess.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/SignalSamplesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/SignalStreamMetricsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/SpeedDatabaseTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/SpeedZonesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/ZonesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgCaseStateTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgContactSyncStoreTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgEngineCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgHoldsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgIgnoreReasonsMigrationTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgNotesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgSlaStoreTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgTowerSettingsStoreTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgTreatmentStoresTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgTripEndTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgTripPlacesQueriesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgTripPlacesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/README.md",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/duty/README.md",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/duty/known-gaps.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/duty/production-trips.json",
+    "quarkus-srv/miot-symptoms/src/test/resources/evals/lost-signal/README.md",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgFeedsResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgLocationsResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/FeedProfile.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/Location.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/FeedProfileRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/FeedProfileView.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/FeedResult.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/dto/FeedServiceRequest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/geo/Addresses.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/geo/AdminBoundaries.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/AssignmentService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/FeedProfileService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/FeedReconciler.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/FeedServiceJobHandler.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/FeedSites.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/LocationResolutionService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/LocationResolver.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/GpsOpenAddresses.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/InternalAddresses.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/LocationStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgFeedStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgLocationStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgMilestoneStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgTripDrivers.java",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.27__feed_country.sql",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.28__recent_driver_assignments.sql",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/geo/AddressesTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/geo/AdminBoundariesTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/FeedReconcilerTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/FeedSitesTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/LocationGeocodingTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/LocationResolverTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/FakeAddresses.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/InMemoryFleet.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/InMemoryTripsWorld.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgFeedReconcilerTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgTripDriversTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgTripsStoresTest.java",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/public/credential-logos/telnyx-dark.png",
+    "turbo-repo/apps/app/public/credential-logos/telnyx-light.png",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/layout.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/symptoms/page.tsx",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/telephony-usage/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/telephony-plan/organizations/[tenantCode]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/telephony-plan/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/telephony-plan/usage/route.ts",
+    "turbo-repo/apps/app/src/app/api/control-tower/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/control-tower/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/decide-harness-path.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/signal/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/signal/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/dashboard/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/dashboard/route.type.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/icu/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/icu/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.types.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/trip/route.ts",
+    "turbo-repo/apps/app/src/app/api/task/conditions/route.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/general/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/general/route.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/general/route.type.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/location/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/location/route.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/location/route.type.ts",
+    "turbo-repo/apps/app/src/app/api/utils/control-tower-map.ts",
+    "turbo-repo/apps/app/src/features/auth/session-expiry/session-expiry-guard.tsx",
+    "turbo-repo/apps/app/src/features/auth/session-expiry/session-expiry.test.ts",
+    "turbo-repo/apps/app/src/features/auth/session-expiry/session-expiry.ts",
+    "turbo-repo/apps/app/src/features/common/components/section-menu.test.tsx",
+    "turbo-repo/apps/app/src/features/common/components/section-menu.tsx",
+    "turbo-repo/apps/app/src/features/common/components/settings-drawer/settings-drawer-shell.tsx",
+    "turbo-repo/apps/app/src/features/common/providers/client-api.provider.ts",
+    "turbo-repo/apps/app/src/features/common/providers/treatments-location.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/channel-icon.tsx",
+    "turbo-repo/apps/app/src/features/conversations/communications-page.tsx",
+    "turbo-repo/apps/app/src/features/conversations/communications-sections.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/communications-sections.ts",
+    "turbo-repo/apps/app/src/features/conversations/contact-condition.ts",
+    "turbo-repo/apps/app/src/features/conversations/contact-samples.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/contact-samples.ts",
+    "turbo-repo/apps/app/src/features/conversations/contacts-audience-values.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/contacts-audience.tsx",
+    "turbo-repo/apps/app/src/features/conversations/conversations-api.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/conversations-api.ts",
+    "turbo-repo/apps/app/src/features/conversations/conversations-types.ts",
+    "turbo-repo/apps/app/src/features/conversations/meta-submit-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/meta-submit-panel.tsx",
+    "turbo-repo/apps/app/src/features/conversations/meta-template-model.ts",
+    "turbo-repo/apps/app/src/features/conversations/meta-template-status.tsx",
+    "turbo-repo/apps/app/src/features/conversations/meta-templates-section.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/meta-templates-section.tsx",
+    "turbo-repo/apps/app/src/features/conversations/new-rule-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/new-rule-modal.tsx",
+    "turbo-repo/apps/app/src/features/conversations/own-templates-panel.tsx",
+    "turbo-repo/apps/app/src/features/conversations/platform-template-page.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-editor.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-model.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-presets.types.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-presets.types.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-steps.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rules-tab.tsx",
+    "turbo-repo/apps/app/src/features/conversations/symptom-rules-card.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/symptom-rules-card.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-editor-parts.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-editor.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-editor.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-model.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/template-model.ts",
+    "turbo-repo/apps/app/src/features/conversations/template-picker.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-picker.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-previews.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-previews.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-text-field.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-text-field.tsx",
+    "turbo-repo/apps/app/src/features/conversations/variable-suggest.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/variable-suggest.ts",
+    "turbo-repo/apps/app/src/features/conversations/whatsapp-text.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/whatsapp-text.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/bearer-token-credential-modal.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credential-type-picker-modal.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credentials-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credentials-page-content.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/filter-search-field.tsx",
+    "turbo-repo/apps/app/src/features/credentials/credential.types.test.ts",
+    "turbo-repo/apps/app/src/features/credentials/credential.types.ts",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.ts",
+    "turbo-repo/apps/app/src/features/dashboard/components/widget-renderer/widget-renderer.test.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/catalog-load-order.test.ts",
+    "turbo-repo/apps/app/src/features/fleet/components/asset-page.tsx",
+    "turbo-repo/apps/app/src/features/fleet/components/fleet-page.tsx",
+    "turbo-repo/apps/app/src/features/fleet/components/fleet-ui.test.tsx",
+    "turbo-repo/apps/app/src/features/fleet/components/fleet-ui.tsx",
+    "turbo-repo/apps/app/src/features/fleet/fleet-api.ts",
+    "turbo-repo/apps/app/src/features/geocoding/geocoding-plan-view.test.ts",
+    "turbo-repo/apps/app/src/features/geocoding/geocoding-plan-view.ts",
+    "turbo-repo/apps/app/src/features/geocoding/geocoding-usage.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/place-location-modal.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/point-picker.test.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/point-picker.tsx",
+    "turbo-repo/apps/app/src/features/geocoding/review-note.test.ts",
+    "turbo-repo/apps/app/src/features/geocoding/review-note.ts",
+    "turbo-repo/apps/app/src/features/geocoding/review-queue.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pin_layer.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pin_layer.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pin_layer_clustered.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pin_layer_clustered.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pulse-base.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pulse-base.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pulse.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/prototype/svg-generation.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/prototype/svg-generation.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tooltips/pin-tooltip.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tooltips/pin-tooltip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tooltips/pulse-level.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tooltips/pulse-tooltip.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tooltips/pulse-tooltip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/hooks/use-asset-signal.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/hooks/use-asset-signal.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/hooks/use-map-positions.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/types/map.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/engine-state.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/engine-state.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/frame-delays.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/frame-delays.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/signal-state.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/signal-state.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/signal-tooltip.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/signal-tooltip.ts",
+    "turbo-repo/apps/app/src/features/integration-config/components/connection-form-modal.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/connections-list.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/integration-config-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/integration-config-page-content.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/managed-geocoding-provider-modal.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/org-telephony-choice.test.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/org-telephony-choice.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/telephony-connection-form.test.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/telephony-fields.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/template-picker-modal.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/connection-catalog.ts",
+    "turbo-repo/apps/app/src/features/integration-config/integration-config.types.test.ts",
+    "turbo-repo/apps/app/src/features/integration-config/integration-config.types.ts",
+    "turbo-repo/apps/app/src/features/integration-config/telephony-connection.test.ts",
+    "turbo-repo/apps/app/src/features/integration-config/telephony-connection.ts",
+    "turbo-repo/apps/app/src/features/integration-jobs/components/job-detail-panel.tsx",
+    "turbo-repo/apps/app/src/features/integration-jobs/integration-job.types.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-layout.test.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-layout.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/user-dropdown/user-dropdown.tsx",
+    "turbo-repo/apps/app/src/features/layout/context/sidebar-navigation-context.tsx",
+    "turbo-repo/apps/app/src/features/map-visualization/layers/build-layers.test.ts",
+    "turbo-repo/apps/app/src/features/map-visualization/layers/build-layers.ts",
+    "turbo-repo/apps/app/src/features/metered-usage/month-picker.tsx",
+    "turbo-repo/apps/app/src/features/metered-usage/quota-bar.tsx",
+    "turbo-repo/apps/app/src/features/metered-usage/usage-card.test.tsx",
+    "turbo-repo/apps/app/src/features/metered-usage/usage-card.tsx",
+    "turbo-repo/apps/app/src/features/metered-usage/usage-month-section.tsx",
+    "turbo-repo/apps/app/src/features/metered-usage/usage-notice.tsx",
+    "turbo-repo/apps/app/src/features/metered-usage/usage-view.test.ts",
+    "turbo-repo/apps/app/src/features/metered-usage/usage-view.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/components/contact-book-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/contact-book-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-badges-section.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-badges-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-form-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-form-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/taxonomy-store.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/taxonomy-store.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-plan-section.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-plan-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-quota-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-tenants-section.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-tenants-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-tenants-toolbar.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-tenants-view.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/geocoding-tenants-view.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/telephony-plan-section.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/telephony-plan-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/telephony-tenants-section.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/telephony-tenants-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/telephony-tenants-toolbar.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/telephony-tenants-view.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/telephony-tenants-view.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/usage-plan-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/usage-quota-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/usage-tenants-table.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/usage-tenants-toolbar.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/usage-tenants-view.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/usage-tenants-view.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-platform-geocoding.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-telephony-plan.ts",
+    "turbo-repo/apps/app/src/features/symptoms/cards.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/ignored-hold-cell.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/ignored-hold-cell.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/general-map.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-bar.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-bar.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-center-menu.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-center-menu.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-dialing-step.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-dialing-step.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-history-store.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-log.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-plan.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-plan.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-roles-store.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-session-store.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-session.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-session.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-stats-badges.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-targets.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-targets.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/channel-link.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/channel-link.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/contact-details.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/contact-row.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/emergency-numbers.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/escalation-ladder-card.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/escalation-ladder-card.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/group-treatments.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/mock-contact-data.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/new-number-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/new-number-panel.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/prototype-call-center-flow.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/prototype-call-center-flow.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/teams-call.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/telnyx-call.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/telnyx-call.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/whatsapp-call-permission.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/whatsapp-call-permission.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/whatsapp-call-permission.types.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/level-reason-card.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/level-reason-card.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-call-driver.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-call-driver.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-general-map.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-ignore-condition.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-inline-form.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-inline-form.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-side-info.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/treatment-session.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/treatment-session.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/timeline-group.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/treatments-timeline-box.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/treatments-timeline-box.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/trip-code.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-item.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-item.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-item.type.ts",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/contact-roles.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/contact-roles.ts",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/control-tower-api.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/control-tower-api.ts",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/revalidate-case.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/step-who.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/step-who.ts",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/telephony-api.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/telephony-api.ts",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/telephony-api.types.ts",
+    "turbo-repo/apps/app/src/features/symptoms/hooks/use-treatments-general.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/activation-form.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/catalog-stats.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/cel-completion-context.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/cel-completion-context.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/cel-editor.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/cel-editor.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/cel-field-drop.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/cel-field-drop.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/close-form.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/close-form.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/close-section.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/close-section.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/condition-form.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/condition-form.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/field-combobox.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/field-combobox.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/fields-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/fields-panel.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-response.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-steps.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/level-steps.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/levels-expression.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/lifecycle-expression.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/lifecycle-expression.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/maintainer-api.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/maintainer-api.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/response-workspace.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/response-workspace.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/role-picker.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/role-picker.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/rule-variables.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/sample-tree.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/sample-tree.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/script-fill.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/script-fill.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/script-modal.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/script-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/script-panel.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/script-text.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/sheet-header-component.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/sheet-header.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-catalog.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-catalog.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-detail.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-name.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-name.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-rule-sections.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-side-panels.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/team-settings-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/team-settings-modal.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/team-settings.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/team-settings.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/team-settings.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/telephony-section.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/telephony-section.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/pill.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/ui/response-block.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/model/icu_condition.json",
+    "turbo-repo/apps/app/src/features/symptoms/model/ignore-hold.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/ignore-hold.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/level-reason.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/level-reason.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/timeline-duration.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/timeline-duration.ts",
+    "turbo-repo/apps/app/src/features/symptoms/types/symptoms.ts",
+    "turbo-repo/apps/app/src/features/symptoms/types/timeline.ts",
+    "turbo-repo/apps/app/src/features/telephony/org-telephony-choice.test.tsx",
+    "turbo-repo/apps/app/src/features/telephony/org-telephony-choice.tsx",
+    "turbo-repo/apps/app/src/features/telephony/telephony-plan.test.ts",
+    "turbo-repo/apps/app/src/features/telephony/telephony-plan.ts",
+    "turbo-repo/apps/app/src/features/telephony/telephony-settings.ts",
+    "turbo-repo/apps/app/src/features/telephony/telephony-usage.test.tsx",
+    "turbo-repo/apps/app/src/features/telephony/telephony-usage.tsx",
+    "turbo-repo/apps/app/src/features/telephony/use-org-telephony-usage.ts",
+    "turbo-repo/apps/app/src/features/trips/feeds/feeds-api.ts",
+    "turbo-repo/apps/app/src/features/trips/feeds/feeds-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/feeds/feeds-panel.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/expression-field.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/monitors-helpers.test.ts",
+    "turbo-repo/apps/app/src/features/trips/monitors/rule-condition-sync.test.tsx",
+    "turbo-repo/apps/app/src/features/trips/monitors/rule-condition.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/docs/app/globals.css",
+    "turbo-repo/apps/docs/content/en/integration/api-reference/asset-track.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/concepts/provider-connection.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/how-to/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/geocoding/how-to/feed-cell.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/how-to/feed-sites.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/how-to/review-locations.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/how-to/set-up-provider.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/reference/data-and-metrics.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/reference/plan-api.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/reference/review-notes.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/tutorials/needs-review.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/tutorials/resolution-order.mdx",
+    "turbo-repo/apps/docs/content/es/integration/api-reference/asset-track.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/concepts/provider-connection.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/concepts/usage-and-cost.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/assign-quota.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/feed-cell.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/feed-sites.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/review-locations.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/set-up-provider.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/reference/data-and-metrics.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/reference/plan-api.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/reference/review-notes.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/tutorials/needs-review.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/tutorials/resolution-order.mdx",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.3",
+      "tag": "app@v0.6.3"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.6.1",
+      "version": "0.6.3",
+      "tag": "docs@v0.6.3"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.6.1",
+      "version": "0.6.3",
+      "tag": "web@v0.6.3"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.41",
+      "version": "0.5.42",
+      "tag": "modulith@v0.5.42"
+    },
+    "harness": {
+      "changed": true,
+      "changed_since": "harness@v0.1.14",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

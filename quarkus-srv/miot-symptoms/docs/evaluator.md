@@ -70,7 +70,8 @@ supplies the policy; the database supplies the trip state and occurrence interva
 An event outside the trip's interval, or whose interval cannot be established, opens no case associated
 with that ended trip, under any policy. Events received without a trip association continue to use their
 normal activation rules. Independent device events resolve the vehicle's trip and assignment at occurrence
-time, including completed trips whose live projection has disappeared.
+time, including completed trips whose live projection has disappeared. A current live projection is used
+only after validating the truck assignment at the event's time; its trip start alone does not prove membership.
 
 Openings and trip-end closure share a transaction advisory lock per organization/trip, followed by the trip
 row lock, ordered definition locks and case locks. A concurrent completion either waits for an opening

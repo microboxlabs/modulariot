@@ -339,8 +339,6 @@ public class DeviceEvents {
 
         @Override
         public List<ReferenceCache.Trip> at(String tenant, String assetId, Instant occurredAt) {
-            List<ReferenceCache.Trip> live = of(tenant, assetId);
-            if (live.stream().anyMatch(trip -> trip.inProgressAt(occurredAt))) return live;
             List<ReferenceCache.Trip> historical = pool.get().preparedQuery(HISTORICAL_TRIP)
                     .execute(Tuple.of(tenant, assetId, occurredAt.atOffset(java.time.ZoneOffset.UTC)))
                     .map(rows -> {
@@ -353,7 +351,13 @@ public class DeviceEvents {
                         return matches;
                     }).onFailure(SignalStream::undefinedTable).recoverWithItem(List.of())
                     .await().atMost(TIMEOUT);
-            return historical.isEmpty() ? live : historical;
+            if (historical.isEmpty()) return List.of();
+            // A live projection describes the current truck, not its assignment at the event's time.
+            // Reuse its metadata only after the historical membership query has accepted that trip.
+            List<ReferenceCache.Trip> live = of(tenant, assetId);
+            return historical.stream().map(match -> live.stream()
+                    .filter(trip -> trip.tripId().equals(match.tripId()) && trip.inProgressAt(occurredAt))
+                    .findFirst().orElse(match)).toList();
         }
     }
 }

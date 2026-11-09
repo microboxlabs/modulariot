@@ -16,7 +16,8 @@ vi.mock("next/navigation", () => {
   };
   return {
     useRouter: () => router,
-    usePathname: () => "/symptoms/map-view/-7",
+    useParams: () => ({ lang: "es" }),
+    usePathname: () => "/es/symptoms/map-view/-7",
     useSearchParams: () => new URLSearchParams("open=1&menu=ignore_condition"),
   };
 });
@@ -45,7 +46,7 @@ vi.mock("@/features/geographic-view/components/map-visualization-trip", () => ({
   default: () => null,
 }));
 vi.mock("./prototype-side-info", async () => {
-  const { useRouter } = await import("next/navigation");
+  const { useParams, useRouter } = await import("next/navigation");
   return {
     default: function SideInfo({
       isFormOpen,
@@ -55,12 +56,13 @@ vi.mock("./prototype-side-info", async () => {
       setIsFormOpen: (open: boolean) => void;
     }>) {
       const router = useRouter();
+      const { lang } = useParams<{ lang: string }>();
       if (!isFormOpen) return <p>Timeline</p>;
       // Same contract as the treatment forms' save.
       const apply = () => {
         if (!nav.save.ok) return;
         setIsFormOpen(false);
-        router.push("/symptoms");
+        router.push(`/${lang}/symptoms`);
       };
       return (
         <form aria-label="Treatment form">
@@ -92,8 +94,8 @@ describe("treatment panel navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
 
     expect(nav.calls).toEqual([
-      "replace /symptoms/map-view/-7",
-      "push /symptoms",
+      "replace /es/symptoms/map-view/-7",
+      "push /es/symptoms",
     ]);
   });
 
@@ -111,6 +113,6 @@ describe("treatment panel navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
     expect(screen.getByText("Timeline")).toBeVisible();
-    expect(nav.calls).toEqual(["replace /symptoms/map-view/-7"]);
+    expect(nav.calls).toEqual(["replace /es/symptoms/map-view/-7"]);
   });
 });

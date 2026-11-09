@@ -18,7 +18,7 @@
 
 - **🐛 Cierre de casos por pérdida de señal cuando cambia el camión** — Integración OSS del milestone MIOT-0.6.4.
   - **Impacto**: Los casos `trip_check` podían quedar abiertos en el vehículo reemplazado.
-  - **Solución**: Se cierran con `closed_by = asset_changed`. Las filas y el encabezado muestran la patente actual del viaje, y la aplicación indica “Viaje ahora en <patente>” cuando difiere de la patente del caso.
+  - **Solución**: Se cierran con `closed_by = asset_changed`. Las filas y el encabezado muestran la patente actual del viaje, y la aplicación indica “Viaje ahora en &lt;patente&gt;” cuando difiere de la patente del caso.
 
 - **🐛 Regreso a la lista de síntomas después de aplicar un tratamiento** — Integración OSS del milestone MIOT-0.6.4.
   - **Impacto**: Después de aplicar un tratamiento, el operador permanecía en la cronología del caso.

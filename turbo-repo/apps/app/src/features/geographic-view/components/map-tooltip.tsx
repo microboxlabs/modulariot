@@ -16,6 +16,7 @@ type MapTooltipProps = {
   isOpen?: boolean;
   onExitAction?: () => void;
   start_right?: boolean;
+  start_bottom?: boolean;
   canExit?: boolean;
   /**
    * Abre centrada en el alto del mapa (ignora `top` al abrir); se puede
@@ -32,6 +33,7 @@ export default function MapTooltip({
   isOpen = false,
   onExitAction,
   start_right,
+  start_bottom,
   canExit = true,
   centrarVertical = false,
 }: MapTooltipProps) {
@@ -51,7 +53,9 @@ export default function MapTooltip({
       x:
         e.clientX -
         (start_right ? window.innerWidth - position.left : position.left),
-      y: e.clientY - position.top,
+      y:
+        e.clientY -
+        (start_bottom ? window.innerHeight - position.top : position.top),
     });
   };
 
@@ -61,7 +65,9 @@ export default function MapTooltip({
         left: start_right
           ? window.innerWidth - (e.clientX - dragOffset.x)
           : e.clientX - dragOffset.x,
-        top: e.clientY - dragOffset.y,
+        top: start_bottom
+          ? window.innerHeight - (e.clientY - dragOffset.y)
+          : e.clientY - dragOffset.y,
       };
       setPosition(newPosition);
 
@@ -136,7 +142,8 @@ export default function MapTooltip({
         style={{
           left: start_right ? undefined : position.left,
           right: start_right ? position.left : undefined,
-          top: position.top,
+          top: start_bottom ? undefined : position.top,
+          bottom: start_bottom ? position.top : undefined,
           pointerEvents: "auto",
         }}
       >

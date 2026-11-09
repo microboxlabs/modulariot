@@ -38,6 +38,8 @@ describe("PulseTooltip with an engine case's description", () => {
         dict={dict}
         object={{
           elements: [0],
+          appCount: 0,
+          gpsCount: 0,
           description: {
             symptom_name: "Pérdida de señal",
             signal_lag: "04:06:31",
@@ -101,7 +103,12 @@ describe("PulseTooltip speed lines", () => {
     const { container } = render(
       <PulseTooltip
         dict={dict}
-        object={{ elements: [0], description: { speed: 68, speed_limit: 50 } }}
+        object={{
+          elements: [0],
+          description: { speed: 68, speed_limit: 50 },
+          appCount: 0,
+          gpsCount: 1,
+        }}
       />
     );
     const text = container.textContent ?? "";
@@ -123,6 +130,8 @@ describe("PulseTooltip speed lines", () => {
             speed_limit_source: "custom",
             speed_limit_zone: "Tramo norte",
           },
+          appCount: 0,
+          gpsCount: 1,
         }}
       />
     );

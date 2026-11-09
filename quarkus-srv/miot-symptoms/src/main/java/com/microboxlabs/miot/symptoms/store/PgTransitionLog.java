@@ -279,7 +279,7 @@ public class PgTransitionLog implements TransitionLog {
     private Uni<Void> writeOne(SqlConnection conn, String tenant, Transition t, Place place,
             Map<String, Object> context, List<Recorded> recorded) {
         Map<String, Object> values = t.detail() == null ? context : t.detail();
-        JsonObject own = values == null ? null : new JsonObject(values);
+        JsonObject own = values == null ? null : new JsonObject(new LinkedHashMap<>(values));
         if (context != null && context.containsKey(EVENT_ID) && own != null) own.put(EVENT_ID, context.get(EVENT_ID));
         return conn.preparedQuery(INSERT).execute(params(tenant, t, place, own))
                 .invoke(rows -> addRecorded(recorded, rows, t)).replaceWithVoid();

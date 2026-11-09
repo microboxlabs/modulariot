@@ -80,9 +80,11 @@ removal. Rejected and immediately closed openings discard their tentative episod
 
 Migration V0.12.26 sets the panic-button platform template to `open_and_keep` and gps-sabotage to
 `open_and_close`; the other platform templates use `ignore`. For existing organization versions without
-an explicit value, it sets `open_and_keep` when the spec reads `signal.frame.events`,
+an explicit value, it sets `open_and_keep` when activation, measure, open or an enabled level condition
+reads `signal.frame.events`,
 `signal.frame.sensors.panic_button`, `signal.derived.power_disconnected` or `signal.derived.jamming`
-(including optional selectors); other versions receive `ignore`. Explicit values and existing rules stay
+(including optional selectors); other versions receive `ignore`. Event reads only in close/note rules or
+disabled levels do not enable late openings. Explicit values and existing rules stay
 as authored. JSON-string-encoded specs are normalized to objects. Future omitted values default to
 `ignore`. The maintainer edits this field in **Respuesta > Cierre**.
 

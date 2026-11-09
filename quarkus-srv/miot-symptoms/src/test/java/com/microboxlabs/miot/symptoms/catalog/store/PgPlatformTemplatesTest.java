@@ -69,19 +69,30 @@ class PgPlatformTemplatesTest {
     }
 
     private static void seedLegacyPolicies() {
-        for (String key : List.of("legacy-panic", "legacy-device", "legacy-encoded", "ordinary", "explicit")) {
+        for (String key : List.of("legacy-panic", "legacy-device", "legacy-derived", "legacy-level", "legacy-encoded",
+                "ordinary", "explicit", "lifecycle-only", "unused-level")) {
             var id = java.util.UUID.randomUUID();
             pool.preparedQuery("""
                     INSERT INTO miot_symptoms.symptom_definition
                         (id, tenant_code, symptom_key, name, source_key, state, current_version, created_by, updated_by)
                     VALUES ($1, 'tenant-demo-policy', $2, $2, 'gps_signal', 'OFF', '1.0.0', 'test', 'test')
                     """).execute(io.vertx.mutiny.sqlclient.Tuple.of(id, key)).await().atMost(WAIT);
-            String activation = key.equals("ordinary") ? "signal.frame.gps.speed > 0"
-                    : key.equals("legacy-panic") ? "signal.frame.?sensors.?panic_button == TRUE"
-                    : "signal.frame.events.exists(e, e.event_type == 'DEMO')";
+            String event = "signal.frame.events.exists(e, e.event_type == 'DEMO')";
+            String activation = switch (key) {
+                case "ordinary", "lifecycle-only", "unused-level", "legacy-level" -> "signal.frame.gps.speed > 0";
+                case "legacy-panic" -> "signal.frame.?sensors.?panic_button == TRUE";
+                case "legacy-derived" -> "signal.derived.power_disconnected || signal.derived.jamming";
+                default -> event;
+            };
             var lifecycle = new io.vertx.core.json.JsonObject().put("open", "true").put("close", "false");
             if (key.equals("explicit")) lifecycle.put("after_trip_end", "ignore");
-            String spec = new io.vertx.core.json.JsonObject().put("activation", activation).put("lifecycle", lifecycle).encode();
+            if (key.equals("lifecycle-only")) lifecycle.put("close", event).put("note", event);
+            var document = new io.vertx.core.json.JsonObject().put("activation", activation).put("lifecycle", lifecycle);
+            if (key.equals("unused-level") || key.equals("legacy-level")) {
+                document.put("levels", new io.vertx.core.json.JsonArray().add(new io.vertx.core.json.JsonObject()
+                        .put("applies", key.equals("legacy-level")).put("when", event)));
+            }
+            String spec = document.encode();
             pool.preparedQuery("""
                     INSERT INTO miot_symptoms.symptom_version
                         (definition_id, tenant_code, version, status, spec, created_by)
@@ -92,9 +103,10 @@ class PgPlatformTemplatesTest {
     }
 
     @Test
-    void existingEventDrivenDefinitionsKeepTheirBehaviorAndExplicitValuesArePreserved() {
-        assertEquals(List.of("explicit:ignore", "legacy-device:open_and_keep", "legacy-encoded:open_and_keep",
-                "legacy-panic:open_and_keep", "ordinary:ignore"), rows("""
+    void existingEventOpeningDefinitionsKeepTheirBehaviorAndExplicitValuesArePreserved() {
+        assertEquals(List.of("explicit:ignore", "legacy-derived:open_and_keep", "legacy-device:open_and_keep",
+                "legacy-encoded:open_and_keep", "legacy-level:open_and_keep", "legacy-panic:open_and_keep",
+                "lifecycle-only:ignore", "ordinary:ignore", "unused-level:ignore"), rows("""
                 SELECT d.symptom_key || ':' || (v.spec #>> '{lifecycle,after_trip_end}')
                   FROM miot_symptoms.symptom_definition d JOIN miot_symptoms.symptom_version v
                     ON v.definition_id = d.id AND v.version = d.current_version

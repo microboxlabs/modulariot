@@ -19,14 +19,14 @@ WITH template_policy (symptom_key, policy) AS (VALUES
       JOIN miot_symptoms.symptom_definition d ON d.id = v.definition_id AND d.tenant_code = v.tenant_code
 ), policies AS (
     SELECT d.*, CASE WHEN d.tenant_code = '_platform' THEN COALESCE(t.policy, 'ignore')
-           -- Preserve existing organizations' event-driven rules, without hard-coding event types in Java.
+           -- Preserve existing organizations' event-driven openings, without hard-coding event types in Java.
            WHEN EXISTS (SELECT 1 FROM unnest(ARRAY['signal.frame.events', 'signal.frame.sensors.panic_button',
                 'signal.derived.power_disconnected', 'signal.derived.jamming']) AS p(path)
                 WHERE strpos(replace(concat_ws(' ', d.doc ->> 'activation', d.doc #>> '{measure,expression}',
-                    d.doc #>> '{lifecycle,open}', d.doc #>> '{lifecycle,close}', d.doc #>> '{lifecycle,note}',
+                    d.doc #>> '{lifecycle,open}',
                     (SELECT string_agg(level ->> 'when', ' ') FROM jsonb_array_elements(
                         CASE WHEN jsonb_typeof(d.doc -> 'levels') = 'array' THEN d.doc -> 'levels' ELSE '[]'::jsonb END
-                    ) AS level)), '.?', '.'), p.path) > 0) THEN 'open_and_keep'
+                    ) AS level WHERE level -> 'applies' = 'true'::jsonb)), '.?', '.'), p.path) > 0) THEN 'open_and_keep'
            ELSE 'ignore' END AS policy
       FROM documents d LEFT JOIN template_policy t ON t.symptom_key = d.symptom_key
      WHERE jsonb_typeof(d.doc -> 'lifecycle') = 'object' AND NOT (d.doc -> 'lifecycle' ? 'after_trip_end')

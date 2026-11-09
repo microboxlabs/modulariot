@@ -79,7 +79,8 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     @POST
     @Path("/symptoms/{symptomId}/treatments")
     @Operation(operationId = "openTreatment", summary = "Open a treatment on a symptom, or resume yours",
-            description = "201 with a new episode, or 200 with the episode the caller already has open on this symptom.")
+            description = "201 with a new episode, or 200 with the episode the caller already has open on this symptom. "
+                    + "409 on an engine case (negative symptom id) that is closed.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> open(
@@ -89,7 +90,11 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
         String tenant = tenantCode(organizationId);
         String actor = actor();
         return work(() -> {
-            TreatmentService.OpenResult result = treatments.open(tenant, actor, parseSymptomId(symptomId), body);
+            long id = parseSymptomId(symptomId);
+            if (EngineCase.caseId(id).isPresent()) {
+                cases.requireOpen(tenant, id);
+            }
+            TreatmentService.OpenResult result = treatments.open(tenant, actor, id, body);
             return Response.status(result.created() ? Response.Status.CREATED : Response.Status.OK)
                     .entity(result.treatment())
                     .build();

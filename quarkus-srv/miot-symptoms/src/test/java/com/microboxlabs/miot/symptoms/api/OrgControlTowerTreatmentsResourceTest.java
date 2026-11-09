@@ -205,6 +205,20 @@ class OrgControlTowerTreatmentsResourceTest {
     }
 
     @Test
+    void aTreatmentDoesNotOpenOnAClosedCase() {
+        addCase(20, "T-1", NOW.minusSeconds(120));
+
+        Response r = call(resource.open(ORG, "-20",
+                new OpenTreatmentRequest(TreatmentType.CALL, "DEMO01", "T-1", null)));
+
+        assertEquals(409, r.getStatus());
+        assertTrue(String.valueOf(r.getEntity()).contains("the case is closed"), String.valueOf(r.getEntity()));
+        assertTrue(treatments.listBySymptom(TENANT, -20).isEmpty(), "no treatment was stored");
+        assertEquals(404, call(resource.open(ORG, "-21",
+                new OpenTreatmentRequest(TreatmentType.CALL, "DEMO01", "T-1", null))).getStatus());
+    }
+
+    @Test
     void anInvalidationTellsTheEngineAndACallDoesNot() {
         addCase(30, "T-1", null);
         TreatmentView invalidate = open(30, TreatmentType.INVALIDATE_SYMPTOM);

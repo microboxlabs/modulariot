@@ -1138,6 +1138,18 @@ public class EngineCaseService {
         return new SignalWindow(c.assetId(), from, to.isBefore(opened) ? opened : to);
     }
 
+    /**
+     * A treatment opens only on an open case.
+     *
+     * @throws NoSuchElementException when there is no such case
+     * @throws IllegalStateException  when the case is closed
+     */
+    public void requireOpen(String tenantCode, long symptomId) {
+        if (find(tenantCode, symptomId).closedAt() != null) {
+            throw new IllegalStateException("the case is closed");
+        }
+    }
+
     /** As {@link #close(String, long, String, boolean)} for a case the operator handled. */
     public void close(String tenantCode, long symptomId, String actor) {
         close(tenantCode, symptomId, actor, false);

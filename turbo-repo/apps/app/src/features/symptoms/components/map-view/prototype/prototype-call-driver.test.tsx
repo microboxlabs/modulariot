@@ -29,7 +29,10 @@ vi.mock("@/features/symptoms/control-tower/telephony-api", () => ({
 vi.mock("@/features/runtime-config/runtime-config-context", () => ({
   getRuntimeConfig: () => ({}),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: api.push }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: api.push }),
+  useParams: () => ({ lang: "es" }),
+}));
 vi.mock("@/features/notifications/notification", () => ({
   ShowNotification: api.notify,
 }));
@@ -330,6 +333,7 @@ describe("engine call treatment form", () => {
     await user.click(finish);
 
     await waitFor(() => expect(closeMenu).toHaveBeenCalledWith(false));
+    expect(api.push).toHaveBeenCalledWith("/es/symptoms");
     expect(api.openTreatment).toHaveBeenCalledTimes(1);
     expect(api.addTreatmentAction).toHaveBeenCalledTimes(1);
     expect(api.closeTreatment).toHaveBeenCalledTimes(2);

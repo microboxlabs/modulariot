@@ -31,7 +31,7 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
 
-from miot_harness.config import get_settings
+from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.skill_models import McpServer, PlaybookSkill
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionResult
@@ -95,15 +95,20 @@ class McpCallOutput(BaseModel):
     refreshed_at: datetime | None = None
 
 
-def _env_value(name: str) -> str:
+def _env_value(name: str, settings: HarnessSettings | None = None) -> str:
+    if name == "MIOT_HARNESS_SYMPTOMS_URL" and settings is not None:
+        return (settings.symptoms_url or "").strip()
     value = os.environ.get(name, "").strip()
     if not value and name in _ENV_FALLBACKS:
         value = os.environ.get(_ENV_FALLBACKS[name], "").strip()
     return value
 
 
-def resolve_url(server: McpServer) -> str:
+def resolve_url(server: McpServer, settings: HarnessSettings | None = None) -> str:
     """The server URL with a leading ${ENV_VAR} filled in.
+
+    The symptoms placeholder uses boot settings when supplied, including
+    their modulith fallback. Other placeholders keep environment expansion.
 
     Raises ValueError when the variable is unset or the result is not an
     absolute http(s) URL, so the loader can skip the skill.
@@ -111,7 +116,7 @@ def resolve_url(server: McpServer) -> str:
     url = server.url
     match = _ENV_PREFIX_RE.match(url)
     if match is not None:
-        value = _env_value(match.group(1))
+        value = _env_value(match.group(1), settings)
         if not value:
             raise ValueError(f"MCP server url needs ${{{match.group(1)}}}, which is not set")
         url = value.rstrip("/") + url[match.end() :]

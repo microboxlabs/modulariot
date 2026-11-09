@@ -35,10 +35,10 @@ def local_only(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("MIOT_HARNESS_SYMPTOMS_URL", raising=False)
 
 
-def _boot(skills_dir: Path):
+def _boot(skills_dir: Path, settings: HarnessSettings | None = None):
     return boot_context_skills(
         build_default_registry(),
-        HarnessSettings(),
+        settings if settings is not None else HarnessSettings(),
         context_source=_NoContext(),
         skill_source=FileSkillSource(skills_dir),
     ).bundle
@@ -46,7 +46,8 @@ def _boot(skills_dir: Path):
 
 def _url(bundle, skill_id: str) -> str:
     skill = bundle.find_mcp_skill("tenant-a", skill_id)
-    assert skill is not None and skill.mcp is not None
+    assert skill is not None
+    assert skill.mcp is not None
     return skill.mcp.url
 
 
@@ -98,6 +99,29 @@ def test_without_the_override_the_packaged_symptoms_skill_stays_local(
     assert _url(bundle, "control-tower-symptoms") == f"{LOCAL}/api/v1/mcp"
 
 
+@pytest.mark.parametrize("env_url", [None, "https://other.example.com"])
+def test_explicit_boot_settings_override_the_environment(
+    local_only: None, monkeypatch: pytest.MonkeyPatch, env_url: str | None
+) -> None:
+    if env_url is not None:
+        monkeypatch.setenv("MIOT_HARNESS_SYMPTOMS_URL", env_url)
+    bundle = _boot(
+        PACKAGED_DEFAULTS / "skills", HarnessSettings(symptoms_url=REMOTE + "/")
+    )
+    assert _url(bundle, "control-tower-symptoms") == f"{REMOTE}/api/v1/mcp"
+    for skill_id in ("selectables", "storyteller", "system-builder"):
+        assert _url(bundle, skill_id) == f"{LOCAL}/api/v1/mcp"
+
+
+def test_symptoms_url_from_dotenv_is_used_without_exporting_it(
+    tmp_path: Path, local_only: None
+) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(f"MIOT_HARNESS_SYMPTOMS_URL={REMOTE}\n", encoding="utf-8")
+    bundle = _boot(PACKAGED_DEFAULTS / "skills", HarnessSettings(_env_file=env_file))
+    assert _url(bundle, "control-tower-symptoms") == f"{REMOTE}/api/v1/mcp"
+
+
 def _old_packaged(tmp_path: Path) -> Path:
     """The packaged skills as they were before the symptoms URL existed."""
     old = tmp_path / "old-packaged"
@@ -127,3 +151,18 @@ def test_a_workspace_with_the_old_unedited_skill_gets_the_new_url(
     assert NEW_URL in (workspace / SKILL).read_text(encoding="utf-8")
     monkeypatch.setenv("MIOT_HARNESS_SYMPTOMS_URL", REMOTE)
     assert _url(_boot(workspace), "control-tower-symptoms") == f"{REMOTE}/api/v1/mcp"
+
+
+def test_an_edited_old_symptoms_skill_is_preserved(tmp_path: Path) -> None:
+    old = _old_packaged(tmp_path)
+    workspace = tmp_path / "workspace" / "skills"
+    refresh_defaults(old, workspace)
+    path = workspace / SKILL
+    edited = path.read_text(encoding="utf-8") + "\nOperator guidance.\n"
+    path.write_text(edited, encoding="utf-8")
+
+    report = refresh_defaults(PACKAGED_DEFAULTS / "skills", workspace)
+
+    assert SKILL in report.kept_edited
+    assert SKILL not in report.replaced
+    assert path.read_text(encoding="utf-8") == edited

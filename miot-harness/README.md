@@ -58,6 +58,16 @@ refuse for it.
 | `MIOT_HARNESS_KNOWLEDGE_DISTILLER_MODEL` | _(unset)_ | Model for `POST /connections/{connection}/distill`. Unset: the endpoint answers 503. |
 | `MIOT_HARNESS_WEB_SEARCH_MODEL` | _(unset)_ | Model for the `web_search` tool: `llmgateway:<model>`, `anthropic:<model>` or `openai:<model>`. Unset, or its provider not configured: the tool answers with an error. |
 
+At boot, packaged skill refresh replaces an unedited workspace copy of
+`control-tower-symptoms/SKILL.md` and preserves edits recorded since the
+previous refresh. If you edited that copy, or disabled refresh with
+`MIOT_HARNESS_REFRESH_PACKAGED_DEFAULTS=false`, change its `mcp.url` from
+`${MIOT_HARNESS_MODULITH_URL}/api/v1/mcp` to
+`${MIOT_HARNESS_SYMPTOMS_URL}/api/v1/mcp` to use the override. On the first
+refresh of an unrecorded workspace (for example, seeded by `cp -Rn`), a
+differing copy is backed up under `.seed-state/backups/` next to the skills
+directory before replacement; reapply any customizations from that backup.
+
 A model is named `provider:model` (`deepseek:deepseek-chat`,
 `openrouter:anthropic/claude-sonnet-4`); bare `claude-*` and `gpt-*` names mean
 Anthropic and OpenAI. Known providers: `anthropic`, `openai`, `openrouter`,

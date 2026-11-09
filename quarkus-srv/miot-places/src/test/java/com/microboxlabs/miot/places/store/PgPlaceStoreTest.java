@@ -130,6 +130,17 @@ class PgPlaceStoreTest {
     }
 
     @Test
+    void acceptsTheSameTenantClientIdLengthAsCoreOrganizations() {
+        String tenant = "t".repeat(255);
+        PlaceService.Saved saved = service.create(tenant,
+                geofence("EXAMPLE", "Example yard", List.of(), null), ACTOR);
+
+        assertEquals(tenant, service.get(tenant, saved.place().id()).tenantCode());
+        assertEquals(1, service.versions(tenant, saved.place().id()).size());
+        assertTrue(service.list(TENANT, null, null, null, null, null).isEmpty());
+    }
+
+    @Test
     void savesReadsAndListsAGeofenceWithItsInnerGeofencesAndARoute() {
         PlaceService.Saved planta = service.create(TENANT,
                 geofence("SCL", "Planta", List.of(inner(null, "Andén")), null), ACTOR);

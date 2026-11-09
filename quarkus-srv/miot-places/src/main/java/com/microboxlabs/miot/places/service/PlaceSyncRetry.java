@@ -4,6 +4,7 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -19,15 +20,22 @@ public class PlaceSyncRetry {
     private static final Logger LOG = Logger.getLogger(PlaceSyncRetry.class);
 
     private final PlaceService places;
+    private final boolean enabled;
 
     @Inject
-    public PlaceSyncRetry(PlaceService places) {
+    public PlaceSyncRetry(PlaceService places,
+            @ConfigProperty(name = "miot.component.places.enabled", defaultValue = "false") boolean componentEnabled,
+            @ConfigProperty(name = "miot.places.sync.enabled", defaultValue = "false") boolean syncEnabled) {
         this.places = places;
+        this.enabled = componentEnabled && syncEnabled;
     }
 
     @Scheduled(every = "${miot.places.sync.retry.every:5m}", delayed = "1m",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void retry() {
+        if (!enabled) {
+            return;
+        }
         try {
             int synced = places.retryPending(BATCH);
             if (synced > 0) {

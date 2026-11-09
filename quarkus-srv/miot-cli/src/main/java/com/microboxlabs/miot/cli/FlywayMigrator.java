@@ -75,30 +75,7 @@ public class FlywayMigrator {
             return;
         }
 
-        List<String> locations = new ArrayList<>(baseLocations);
-
-        // trips reads miot_fleet's resources through FleetResources
-        if (fleetEnabled || tripsEnabled) {
-            locations.add("db/migration/fleet");
-        }
-        if (trackingEnabled) {
-            locations.add("db/migration/tracking");
-        }
-        if (integrationsEnabled) {
-            locations.add("db/migration/integrations");
-        }
-        if (conversationalEnabled) {
-            locations.add("db/migration/conversational");
-        }
-        if (symptomsEnabled) {
-            locations.add("db/migration/symptoms");
-        }
-        if (tripsEnabled) {
-            locations.add("db/migration/trips");
-        }
-        if (placesEnabled) {
-            locations.add("db/migration/places");
-        }
+        List<String> locations = migrationLocations();
 
         LOG.infof("Flyway locations: %s", locations);
 
@@ -126,5 +103,35 @@ public class FlywayMigrator {
                 .load();
 
         flyway.migrate();
+    }
+
+    /** All enabled components share miot_core.flyway_schema_history; disabled locations must be absent. */
+    List<String> migrationLocations() {
+        List<String> locations = new ArrayList<>(baseLocations);
+
+        // trips reads miot_fleet's resources through FleetResources
+        if (fleetEnabled || tripsEnabled) {
+            locations.add("db/migration/fleet");
+        }
+        if (trackingEnabled) {
+            locations.add("db/migration/tracking");
+        }
+        if (integrationsEnabled) {
+            locations.add("db/migration/integrations");
+        }
+        if (conversationalEnabled) {
+            locations.add("db/migration/conversational");
+        }
+        if (symptomsEnabled) {
+            locations.add("db/migration/symptoms");
+        }
+        if (tripsEnabled) {
+            locations.add("db/migration/trips");
+        }
+        if (placesEnabled) {
+            locations.add("db/migration/places");
+        }
+
+        return locations;
     }
 }

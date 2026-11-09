@@ -29,6 +29,16 @@ public class PlacesTestGpsDatabase extends GpsDatabase {
         return new PlacesTestGpsDatabase(null, null);
     }
 
+    /** Activation tests never resolve a pool. */
+    public static PlacesTestGpsDatabase configuredWithoutPool() {
+        return new PlacesTestGpsDatabase(null, null) {
+            @Override
+            public boolean configured() {
+                return true;
+            }
+        };
+    }
+
     @Override
     public boolean configured() {
         return reads != null;

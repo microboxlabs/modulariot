@@ -3,7 +3,7 @@
 --             Capa geoespacial única de la organización: geocercas,
 --             geocercas internas y trayectos, con versiones, vigencia
 --             y puente a las geocercas de StreamHub.
--- BD/Esquema: miot / miot_places  (pruebas: miot_dev local)
+-- Esquema:    miot_places  (pruebas: esquema aislado)
 -- Entorno:    db/migration/places (modulith)
 -- Requisito:  extensión postgis, instalada por un administrador
 -- Status:     draft
@@ -23,7 +23,7 @@
 --               properties.center [lon, lat] y properties.radius_m
 --   LineString  trayecto
 --
--- Correspondencia con StreamHub (prod_iot_gps.public.geofences):
+-- Correspondencia con StreamHub (public.geofences de su datasource GPS):
 --   tenant_code    ↔ client_id
 --   external_code  ↔ client_geofence_id   (la llave con StreamHub, junto a tenant_code)
 --   name           ↔ geofence_name
@@ -60,7 +60,7 @@ CREATE TABLE miot_places.place (
     -- Base Data
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     parent_id       UUID,
-    tenant_code     VARCHAR(128) NOT NULL,
+    tenant_code     VARCHAR(255) NOT NULL, -- same limit as miot_core.organizations.tenant_client_id
     external_code   VARCHAR(128) NOT NULL, -- Ex: SCL. Único por organización (uq_place_code)
     -- Place Data
     name            VARCHAR(255) NOT NULL,
@@ -151,7 +151,7 @@ CREATE TRIGGER trg_place_updated_at BEFORE UPDATE ON miot_places.place
 CREATE TABLE miot_places.place_version (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     place_id        UUID         NOT NULL,
-    tenant_code     VARCHAR(128) NOT NULL,
+    tenant_code     VARCHAR(255) NOT NULL,
     version         VARCHAR(32)  NOT NULL CHECK (version ~ '^[0-9]+\.[0-9]+\.[0-9]+$'),
     bump            VARCHAR(8)   CHECK (bump IN ('MAJOR','MINOR','PATCH')),  -- NULL: la creación
     reason          TEXT,                       -- la descripción que escribió quien editó

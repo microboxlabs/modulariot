@@ -242,6 +242,9 @@ public class PlaceService {
                 sync.saved(p.tenantCode(), p.externalCode(), p);
             } else if (!takenOver(p)) {
                 sync.deleted(p.tenantCode(), p.externalCode(), p.kind());
+                // A new owner may have been copied while the old owner's delete was in flight. That delete
+                // can remove the new copy, so leave its current owner pending for repair.
+                markCurrentOwnerPending(p);
             }
             if (!PlaceStore.SYNCED_KINDS.contains(p.kind())) {
                 return false;
@@ -251,12 +254,26 @@ public class PlaceService {
                 // edited since this copy was read: a newer copy may already have run and been overwritten by this
                 // older one, so the current version is copied again
                 store.markPending(p);
+                markCurrentOwnerPending(p);
             }
             return marked;
         } catch (RuntimeException e) {
             LOG.warnf(e, "%s %s/%s is not synced; it stays pending", p.kind(), p.tenantCode(), p.externalCode());
             return false;
         }
+    }
+
+    /** A stale copy can also overtake a different place that has reused this code. */
+    private void markCurrentOwnerPending(Place previous) {
+        if (!PlaceStore.SYNCED_KINDS.contains(previous.kind())) {
+            return;
+        }
+        store.findByCode(previous.tenantCode(), previous.externalCode())
+                .filter(owner -> !previous.id().equals(owner.id()))
+                .filter(owner -> PlaceStore.SYNCED_KINDS.contains(owner.kind()))
+                .filter(owner -> previous.externalCode().equals(owner.externalCode()))
+                .flatMap(owner -> store.find(previous.tenantCode(), owner.id()))
+                .ifPresent(store::markPending);
     }
 
     /**

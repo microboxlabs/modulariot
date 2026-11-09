@@ -125,8 +125,8 @@ final class PlaceShapes {
     }
 
     private static double radius(JsonNode radius) {
-        if (!radius.isNumber() || radius.asDouble() <= 0) {
-            throw new IllegalArgumentException("a circle needs properties.radius_m above zero");
+        if (!radius.isNumber() || !Double.isFinite(radius.asDouble()) || radius.asDouble() <= 0) {
+            throw new IllegalArgumentException("a circle needs finite properties.radius_m above zero");
         }
         return radius.asDouble();
     }
@@ -139,8 +139,13 @@ final class PlaceShapes {
     }
 
     private static void position(JsonNode p) {
-        if (!p.isArray() || p.size() < 2 || !p.get(0).isNumber() || !p.get(1).isNumber()) {
+        if (!p.isArray() || p.size() < 2) {
             throw new IllegalArgumentException("a position is [lon, lat] in numbers");
+        }
+        for (JsonNode ordinate : p) {
+            if (!ordinate.isNumber() || !Double.isFinite(ordinate.asDouble())) {
+                throw new IllegalArgumentException("a position contains only finite numbers");
+            }
         }
         double lon = p.get(0).asDouble();
         double lat = p.get(1).asDouble();

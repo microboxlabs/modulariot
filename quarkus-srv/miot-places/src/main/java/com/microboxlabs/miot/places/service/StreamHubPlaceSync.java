@@ -47,9 +47,14 @@ public class StreamHubPlaceSync implements PlaceSync {
 
     @Inject
     public StreamHubPlaceSync(GpsDatabase gps,
-            @ConfigProperty(name = "miot.places.sync.enabled", defaultValue = "true") boolean enabled) {
+            @ConfigProperty(name = "miot.places.sync.enabled", defaultValue = "false") boolean enabled,
+            @ConfigProperty(name = "miot.component.places.enabled", defaultValue = "false") boolean componentEnabled) {
         this.gps = gps;
-        this.enabled = enabled;
+        this.enabled = enabled && componentEnabled;
+    }
+
+    public StreamHubPlaceSync(GpsDatabase gps, boolean enabled) {
+        this(gps, enabled, true);
     }
 
     @Override

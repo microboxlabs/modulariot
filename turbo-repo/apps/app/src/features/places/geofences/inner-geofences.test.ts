@@ -56,21 +56,21 @@ describe("inner geofence geometry", () => {
 
   it("starts a new inner geofence at half its geofence's size", () => {
     // the default 20 m geofence: a 10 m circle, a 20 m square
-    const circulo = { ...FORM_VACIO, lat: -33.45, lon: -70.66 };
+    const circulo = { ...FORM_VACIO, lat: 0, lon: 0 };
     expect(nuevoInner(circulo)).toMatchObject({
       radius_m: 10,
       rect_w_m: 20,
       rect_h_m: 20,
     });
-    // a polygon about 200 m wide and 100 m tall
+    // synthetic polygon at the origin, about 200 m wide and 100 m tall
     const poligono = {
       ...FORM_VACIO,
       geom: "polygon" as const,
       vertices: [
-        [-33.45, -70.66],
-        [-33.45, -70.657855],
-        [-33.4491, -70.657855],
-        [-33.4491, -70.66],
+        [0, 0],
+        [0, 0.0018],
+        [0.0009, 0.0018],
+        [0.0009, 0],
       ] as [number, number][],
     };
     const inner = nuevoInner(poligono);

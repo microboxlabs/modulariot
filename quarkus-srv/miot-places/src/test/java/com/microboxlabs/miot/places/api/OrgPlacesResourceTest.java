@@ -16,6 +16,7 @@ import com.microboxlabs.miot.places.dto.PlaceRequest;
 import com.microboxlabs.miot.places.dto.PlaceVersionView;
 import com.microboxlabs.miot.places.dto.PlaceView;
 import com.microboxlabs.miot.places.service.PlaceService;
+import com.microboxlabs.miot.places.service.GeofenceOrganizationScope;
 import com.microboxlabs.miot.places.store.InMemoryPlaceStore;
 import io.quarkus.security.PermissionsAllowed;
 import io.smallrye.mutiny.Uni;
@@ -37,6 +38,7 @@ class OrgPlacesResourceTest {
             {"type":"Feature","geometry":{"type":"Point","coordinates":[-70,-33]},"properties":{"radius_m":20}}""";
 
     private final InMemoryPlaceStore store = new InMemoryPlaceStore();
+    private boolean hasOwnSource = true;
     private final OrgPlacesResource resource = resource();
 
     private OrgPlacesResource resource() {
@@ -46,7 +48,13 @@ class OrgPlacesResourceTest {
         TenantContext tenant = new TenantContext();
         tenant.setClientId("acme-client");
         tenant.setTenantCode("acme-client");
-        return new OrgPlacesResource(tenant, org, null, null, new PlaceService(store, Transactions.none()));
+        GeofenceOrganizationScope scope = new GeofenceOrganizationScope() {
+            @Override
+            public Uni<Boolean> allows(String organizationId) {
+                return Uni.createFrom().item(hasOwnSource);
+            }
+        };
+        return new OrgPlacesResource(tenant, org, null, null, new PlaceService(store, Transactions.none()), scope);
     }
 
     private static Response call(Uni<Response> uni) {
@@ -127,6 +135,25 @@ class OrgPlacesResourceTest {
         var circle = circle("Ajena");
         WebApplicationException e = assertThrows(WebApplicationException.class, () -> resource.create("other", circle));
         assertEquals(403, e.getResponse().getStatus());
+    }
+
+    @Test
+    void aSharedClientSubAccountCannotReadOrChangeItsParentsPlaces() throws Exception {
+        PlaceRequest request = circle("Example yard");
+        PlaceView parent = (PlaceView) call(resource.create(ORG, request)).getEntity();
+        hasOwnSource = false;
+
+        assertEquals(403, call(resource.list(ORG, null, null, null, null, null)).getStatus());
+        assertEquals(403, call(resource.codeUsage(ORG, "ROT")).getStatus());
+        assertEquals(403, call(resource.get(ORG, parent.id())).getStatus());
+        assertEquals(403, call(resource.versions(ORG, parent.id())).getStatus());
+        assertEquals(403, call(resource.create(ORG, request)).getStatus());
+        assertEquals(403, call(resource.update(ORG, parent.id(), request)).getStatus());
+        assertEquals(403, call(resource.delete(ORG, "ROT")).getStatus());
+
+        hasOwnSource = true;
+        assertEquals(200, call(resource.get(ORG, parent.id())).getStatus());
+        assertEquals(1, store.versions("acme-client", java.util.UUID.fromString(parent.id())).size());
     }
 
     @Test

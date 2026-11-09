@@ -10,6 +10,7 @@ import com.microboxlabs.miot.places.dto.CodeUsageView;
 import com.microboxlabs.miot.places.dto.PlaceRequest;
 import com.microboxlabs.miot.places.dto.PlaceVersionView;
 import com.microboxlabs.miot.places.dto.PlaceView;
+import com.microboxlabs.miot.places.service.GeofenceOrganizationScope;
 import com.microboxlabs.miot.places.service.PlaceService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -28,6 +29,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.function.Supplier;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -51,6 +53,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
     private static final String PLACE_ID = "placeId";
 
     private final PlaceService places;
+    private final GeofenceOrganizationScope sourceScope;
 
     @Inject
     public OrgPlacesResource(
@@ -58,9 +61,11 @@ public class OrgPlacesResource extends OrgResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            PlaceService places) {
+            PlaceService places,
+            GeofenceOrganizationScope sourceScope) {
         super(tenantContext, organizationContext, roleService, identity);
         this.places = places;
+        this.sourceScope = sourceScope;
     }
 
     @GET
@@ -70,7 +75,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
             @QueryParam("parentId") String parentId, @QueryParam("q") String q, @QueryParam("size") String size,
             @QueryParam("page") String page) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(places.list(tenant, kind,
+        return scoped(organizationId, () -> Response.ok(places.list(tenant, kind,
                         parentId == null || parentId.isBlank() ? null : uuid(parentId, "parentId"), q,
                         integer(size, "size"), integer(page, "page"))
                 .stream().map(PlaceView::of).toList()).build());
@@ -82,7 +87,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @PermissionsAllowed(value = PlacesAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
     public Uni<Response> codeUsage(@PathParam(ORG) String organizationId, @QueryParam("code") String code) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(CodeUsageView.of(places.codeOwner(tenant, code))).build());
+        return scoped(organizationId, () -> Response.ok(CodeUsageView.of(places.codeOwner(tenant, code))).build());
     }
 
     @GET
@@ -91,7 +96,8 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @PermissionsAllowed(value = PlacesAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
     public Uni<Response> get(@PathParam(ORG) String organizationId, @PathParam(PLACE_ID) String placeId) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(view(places.getWithInners(tenant, uuid(placeId, PLACE_ID)))).build());
+        return scoped(organizationId,
+                () -> Response.ok(view(places.getWithInners(tenant, uuid(placeId, PLACE_ID)))).build());
     }
 
     @GET
@@ -100,7 +106,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
     @PermissionsAllowed(value = PlacesAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
     public Uni<Response> versions(@PathParam(ORG) String organizationId, @PathParam(PLACE_ID) String placeId) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(places.versions(tenant, uuid(placeId, PLACE_ID)).stream()
+        return scoped(organizationId, () -> Response.ok(places.versions(tenant, uuid(placeId, PLACE_ID)).stream()
                 .map(PlaceVersionView::of).toList()).build());
     }
 
@@ -111,7 +117,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
     public Uni<Response> create(@PathParam(ORG) String organizationId, PlaceRequest request) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.status(Response.Status.CREATED)
+        return scoped(organizationId, () -> Response.status(Response.Status.CREATED)
                 .entity(view(places.create(tenant, request, actor))).build());
     }
 
@@ -124,8 +130,8 @@ public class OrgPlacesResource extends OrgResourceSupport {
             PlaceRequest request) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(view(places.update(tenant, uuid(placeId, PLACE_ID), request, actor)))
-                .build());
+        return scoped(organizationId,
+                () -> Response.ok(view(places.update(tenant, uuid(placeId, PLACE_ID), request, actor))).build());
     }
 
     @DELETE
@@ -135,7 +141,7 @@ public class OrgPlacesResource extends OrgResourceSupport {
     public Uni<Response> delete(@PathParam(ORG) String organizationId, @QueryParam("code") String code) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> {
+        return scoped(organizationId, () -> {
             places.delete(tenant, code, actor);
             return Response.noContent().build();
         });
@@ -143,5 +149,16 @@ public class OrgPlacesResource extends OrgResourceSupport {
 
     private static PlaceView view(PlaceService.Saved saved) {
         return PlaceView.of(saved.place(), saved.inners());
+    }
+
+    /** The store is keyed by tenant client id; a shared-client sub-account must never enter its parent's data. */
+    private Uni<Response> scoped(String organizationId, Supplier<Response> action) {
+        return sourceScope.allows(organizationId).flatMap(allowed -> {
+            if (!Boolean.TRUE.equals(allowed)) {
+                return Uni.createFrom().item(error(Response.Status.FORBIDDEN,
+                        "The sub-account has no organization-specific places source"));
+            }
+            return work(action);
+        });
     }
 }

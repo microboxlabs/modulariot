@@ -87,6 +87,28 @@ class PlaceServiceTest {
     }
 
     @Test
+    void validatesEveryOrdinateAndKeepsNumericAltitude() {
+        for (String position : List.of("[0,0,\"invalid\"]", "[0,0,null]", "[0,0,1e999]")) {
+            var invalid = request("route", "Example route", """
+                    {"type":"Feature","geometry":{"type":"LineString","coordinates":[%s,[1,1,0]]}}
+                    """.formatted(position));
+            assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, invalid, ACTOR));
+        }
+        var invalidRadius = request("geofence", "Example circle", """
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[0,0]},
+                 "properties":{"radius_m":1e999}}
+                """);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, invalidRadius, ACTOR));
+        assertTrue(service.list(TENANT, null, null, null, null, null).isEmpty());
+
+        var valid = request("route", "Example route", """
+                {"type":"Feature","geometry":{"type":"LineString","coordinates":[[0,0,5],[1,1,10]]}}
+                """);
+        Place saved = service.create(TENANT, valid, ACTOR).place();
+        assertEquals(5, json(saved.geojson()).path("geometry").path("coordinates").get(0).get(2).asInt());
+    }
+
+    @Test
     void savesAGeofenceWithItsFeatureActorAndFirstVersion() {
         Place saved = service.create(TENANT, new PlaceRequest("geofence", null, " SCL ", " Planta Santiago ",
                 "hi2-building", "#3b82f6", null,
@@ -383,9 +405,9 @@ class PlaceServiceTest {
     void anUpdateKeepsTheKind() {
         Place planta = geofence("Planta");
         Place renamed = service.update(TENANT, planta.id(), edit(request(null, "Planta Norte", CIRCLE), "MAJOR"),
-                "luis@x.cl").place();
+                "editor@example.com").place();
         assertEquals("Planta Norte", renamed.name());
-        assertEquals("luis@x.cl", renamed.updatedBy());
+        assertEquals("editor@example.com", renamed.updatedBy());
         assertEquals("circle", json(renamed.geojson()).path("properties").path("shape").asText());
 
         var plantaId = planta.id();

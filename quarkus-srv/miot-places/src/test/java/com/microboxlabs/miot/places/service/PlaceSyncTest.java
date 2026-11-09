@@ -51,6 +51,11 @@ class PlaceSyncTest {
         @Override
         public void deleted(String tenantCode, String externalCode, String kind) {
             heard.add("deleted " + kind + " " + tenantCode + "/" + externalCode);
+            if (meanwhile != null) {
+                Runnable other = meanwhile;
+                meanwhile = null;
+                other.run();
+            }
             if (failing) {
                 throw new IllegalStateException("StreamHub is down");
             }
@@ -97,6 +102,36 @@ class PlaceSyncTest {
 
         assertEquals(List.of(id), store.pending(100).stream().map(p -> p.place().id()).toList(),
                 "StreamHub may hold the older version: the current one is copied again");
+        assertEquals(1, service.retryPending(100));
+        assertEquals(List.of(), store.pending(100));
+    }
+
+    @Test
+    void anOldSaveThatOvertakesANewOwnersCopyLeavesTheNewOwnerPending() {
+        Place previous = service.create(TENANT, geofence(null, null), ACTOR).place();
+        meanwhile = () -> {
+            service.delete(TENANT, "SCL", ACTOR);
+            service.create(TENANT, geofence(null, null), ACTOR);
+        };
+
+        service.update(TENANT, previous.id(), geofence(null, patch()), ACTOR);
+
+        UUID newOwner = store.findByCode(TENANT, "SCL").orElseThrow().id();
+        assertTrue(store.pending(100).stream().anyMatch(p -> p.place().id().equals(newOwner)),
+                "the stale save may have replaced the new owner's copy");
+        service.retryPending(100);
+        assertEquals(List.of(), store.pending(100));
+    }
+
+    @Test
+    void anOldDeleteThatOvertakesANewOwnersCopyLeavesTheNewOwnerPending() {
+        service.create(TENANT, geofence(null, null), ACTOR);
+        meanwhile = () -> service.create(TENANT, geofence(null, null), ACTOR);
+
+        service.delete(TENANT, "SCL", ACTOR);
+
+        UUID newOwner = store.findByCode(TENANT, "SCL").orElseThrow().id();
+        assertEquals(List.of(newOwner), store.pending(100).stream().map(p -> p.place().id()).toList());
         assertEquals(1, service.retryPending(100));
         assertEquals(List.of(), store.pending(100));
     }

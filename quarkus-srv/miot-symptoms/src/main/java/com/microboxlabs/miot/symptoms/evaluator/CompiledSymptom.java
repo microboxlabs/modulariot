@@ -66,7 +66,7 @@ public record CompiledSymptom(
     }
 
     public boolean allowsAfterTripEnd() {
-        return SymptomSpec.Lifecycle.KEEP.equals(afterTripEnd) || SymptomSpec.Lifecycle.CLOSE.equals(afterTripEnd);
+        return SymptomSpec.Lifecycle.KEEP.equals(afterTripEnd) || SymptomSpec.Lifecycle.OPEN_AND_CLOSE.equals(afterTripEnd);
     }
 
     /**

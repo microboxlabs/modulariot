@@ -277,8 +277,8 @@ public record SymptomSpec(
 
         public static final String IGNORE = "ignore";
         public static final String KEEP = "open_and_keep";
-        public static final String CLOSE = "open_and_close";
-        public static final List<String> AFTER_TRIP_END_VALUES = List.of(IGNORE, KEEP, CLOSE);
+        public static final String OPEN_AND_CLOSE = "open_and_close";
+        public static final List<String> AFTER_TRIP_END_VALUES = List.of(IGNORE, KEEP, OPEN_AND_CLOSE);
 
         /** A blank note rule is none. */
         public Lifecycle {

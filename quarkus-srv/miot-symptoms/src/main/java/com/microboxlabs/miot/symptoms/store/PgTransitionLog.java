@@ -46,6 +46,7 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class PgTransitionLog implements TransitionLog {
     private static final String EVENT_ID = "event_id";
+    private static final String REASON_KEY = "reason";
     private static final String CHECK_TRIP_ASSET = """
             SELECT asset_id FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id = $2 FOR SHARE
             """;
@@ -176,12 +177,13 @@ public class PgTransitionLog implements TransitionLog {
             Uni<PgTripState.Window> trip = checkTrip || (evaluated && opening)
                     ? PgTripState.lock(conn, tenantCode, place.tripId())
                     : Uni.createFrom().item(new PgTripState.Window(false, false, null, null));
+            Uni<Void> assetCheck = checkTrip ? lockTripAsset(conn, tenantCode, place, transitions)
+                    : Uni.createFrom().voidItem();
             return trip.invoke(window -> {
                 if (checkTrip && (!window.managed() || window.ended())) {
                     throw new IllegalStateException("Trip ended; retry the lost-signal check");
                 }
-            }).flatMap(window -> (checkTrip ? lockTripAsset(conn, tenantCode, place, transitions)
-                    : Uni.createFrom().voidItem()).replaceWith(window))
+            }).flatMap(assetCheck::replaceWith)
                     .flatMap(window -> write(conn, tenantCode, transitions, place, context, window, evaluated));
         }).await().atMost(QUERY_TIMEOUT);
     }
@@ -235,7 +237,7 @@ public class PgTransitionLog implements TransitionLog {
         if (!evaluated || !trip.ended() || t.kind() != Transition.Kind.OPENED) {
             return writeOne(conn, tenant, t, place, context, recorded);
         }
-        if (!trip.contains(t.at()) || !(Lifecycle.KEEP.equals(policy) || Lifecycle.CLOSE.equals(policy))) {
+        if (!trip.contains(t.at()) || !(Lifecycle.KEEP.equals(policy) || Lifecycle.OPEN_AND_CLOSE.equals(policy))) {
             discarded.add(t.definitionId());
             return Uni.createFrom().voidItem();
         }
@@ -247,9 +249,9 @@ public class PgTransitionLog implements TransitionLog {
         evidence.put("processed_at", Instant.now().toString());
         Transition opening = t.withDetail(evidence);
         int before = recorded.size();
-        if (Lifecycle.CLOSE.equals(policy)) discarded.add(t.definitionId());
+        if (Lifecycle.OPEN_AND_CLOSE.equals(policy)) discarded.add(t.definitionId());
         return writeOne(conn, tenant, opening, place, null, recorded).flatMap(ignored -> {
-            if (!Lifecycle.CLOSE.equals(policy) || recorded.size() == before) return Uni.createFrom().voidItem();
+            if (!Lifecycle.OPEN_AND_CLOSE.equals(policy) || recorded.size() == before) return Uni.createFrom().voidItem();
             return closeLate(conn, tenant, opening, place, recorded);
         });
     }
@@ -266,7 +268,7 @@ public class PgTransitionLog implements TransitionLog {
                 opening.measure(), noted, opening.tripId());
         Map<String, Object> closed = new LinkedHashMap<>(opening.detail());
         closed.remove(EVENT_ID);
-        closed.put("reason", TripEnds.REASON);
+        closed.put(REASON_KEY, TripEnds.REASON);
         Instant at = Instant.now();
         if (!at.isAfter(opening.at().plusNanos(1000))) at = opening.at().plusNanos(1000);
         Transition close = new Transition(Transition.Kind.CLOSED, opening.definitionId(), opening.version(),
@@ -288,7 +290,7 @@ public class PgTransitionLog implements TransitionLog {
     /** A cached catalog must retry without saving a phantom episode; a replay duplicate still returns normally. */
     private static void checkCatalogState(Transition t, RowSet<Row> definitions) {
         boolean stateChangeClose = t.kind() == Transition.Kind.CLOSED && t.detail() != null
-                && Transition.STATE_CHANGE_REASON.equals(t.detail().get("reason"));
+                && Transition.STATE_CHANGE_REASON.equals(t.detail().get(REASON_KEY));
         for (Row d : definitions) {
             boolean currentState = t.state().name().equals(d.getString("state"));
             if ((t.kind() == Transition.Kind.OPENED && !currentState) || (stateChangeClose && currentState)) {
@@ -314,6 +316,6 @@ public class PgTransitionLog implements TransitionLog {
                 .addValue(t.measure()).addValue(place.of(t).tripId()).addValue(place.latitude())
                 .addValue(place.longitude()).addValue(place.speedKmh()).addValue(context)
                 .addValue(t.kind() == Transition.Kind.CLOSED && t.detail() != null
-                        && TripEnds.REASON.equals(t.detail().get("reason")) ? TripEnds.REASON : null);
+                        && TripEnds.REASON.equals(t.detail().get(REASON_KEY)) ? TripEnds.REASON : null);
     }
 }

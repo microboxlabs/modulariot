@@ -382,7 +382,7 @@ public class EvaluatorStream {
         if (!o.symptoms().isEmpty()) {
             Instant newest = state.watermark(tenant, assetId, SOURCE).orElse(null);
             late = newest != null && at.isBefore(newest);
-            boolean afterTripEnd = late && lateTripEnded(o);
+            boolean afterTripEnd = lateTripEnded(o, late);
             // A late frame runs only the event-driven symptoms, without moving the watermark (a buffered panic or
             // sabotage event still opens its case); the others keep skipping it.
             if (!late || lateRuns(tenant, assetId, at, newest, o.signal(), o.symptoms(), afterTripEnd)) {
@@ -432,8 +432,8 @@ public class EvaluatorStream {
     }
 
     /** Ordinary buffered frames only need a preflight trip read when their spec opts in. */
-    private boolean lateTripEnded(Organization organization) {
-        return organization.symptoms().stream().anyMatch(s -> !s.opensOnEvents() && s.allowsAfterTripEnd())
+    private boolean lateTripEnded(Organization organization, boolean late) {
+        return late && organization.symptoms().stream().anyMatch(s -> !s.opensOnEvents() && s.allowsAfterTripEnd())
                 && transitionLog.tripEnded(organization.tenant(), place(organization.signal()).tripId());
     }
 

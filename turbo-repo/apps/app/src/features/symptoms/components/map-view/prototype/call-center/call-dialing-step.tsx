@@ -40,6 +40,8 @@ import { FaPhoneAlt } from "react-icons/fa";
 import { HiX } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { telephonySettingsHref } from "@/features/telephony/telephony-settings";
+import { useControlTowerAccess } from "@/features/symptoms/maintainer/maintainer-api";
 import { BentoGrid, fieldLabel } from "../prototype-form-kit";
 import {
   ALL_CALL_METHODS,
@@ -58,6 +60,7 @@ import {
 import type { FilledPart } from "@/features/symptoms/maintainer/script-fill";
 import ScriptText from "@/features/symptoms/maintainer/script-text";
 import ContactRow from "./contact-row";
+import { callStatsTitle } from "./call-stats-badges";
 import { startTelnyxCall, type TelephonyCallResult } from "./telnyx-call";
 import {
   CHANNELS_BUSY,
@@ -78,20 +81,42 @@ import {
 } from "./call-session";
 import { OtherCallNotice, formatDuration } from "./call-bar";
 
+function TelephonySetupLink({
+  href,
+  label,
+}: Readonly<{ href: string; label: string }>) {
+  const { can } = useControlTowerAccess();
+  if (!can("controltower:settings.update")) return null;
+  return (
+    <Link
+      href={href}
+      className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+    >
+      {label}
+    </Link>
+  );
+}
+
 function CallTimer({
   notice,
+  setup,
   showTimer,
   seconds,
 }: Readonly<{
   notice: string | null;
+  /** Where the organization chooses its telephony, shown with the notice. */
+  setup?: { href: string; label: string } | null;
   showTimer: boolean;
   seconds: number;
 }>) {
   if (notice) {
     return (
-      <output className="text-sm font-medium text-amber-700 dark:text-amber-400">
-        {notice}
-      </output>
+      <div className="flex flex-col items-center gap-1">
+        <output className="text-sm font-medium text-amber-700 dark:text-amber-400">
+          {notice}
+        </output>
+        {setup && <TelephonySetupLink {...setup} />}
+      </div>
     );
   }
   return (
@@ -108,6 +133,7 @@ function CallTimer({
 export default function CallDialingStep({
   dict,
   stats,
+  history,
   contactName,
   contactRole,
   contactPhone,
@@ -136,8 +162,10 @@ export default function CallDialingStep({
   callContext,
 }: Readonly<{
   dict: I18nRecord;
-  /** The contact's call counts from the book; absent for the driver or a new number. */
+  /** The contact's call counts in this case; absent for a new number. */
   stats?: CallStats | null;
+  /** The contact's call counts in all cases, for the counters' tooltip. */
+  history?: CallStats | null;
   contactName: string;
   contactRole: string;
   contactPhone?: string;
@@ -203,7 +231,7 @@ export default function CallDialingStep({
   const phase = browserAttempt ? (own?.phase ?? null) : null;
   const failure = own?.status === "failed" ? own.error : null;
   const refusal = failure?.refusal ?? null;
-  const teamsNotice = started && own?.notice ? t(own.notice) : null;
+  const teamsNotice = started ? (own?.notice ?? null) : null;
   const now = useNow(started);
   const shownSeconds = own ? callSeconds(own, now) : 0;
   const [showCancel, setShowCancel] = useState(false);
@@ -385,6 +413,7 @@ export default function CallDialingStep({
               method
             )}
             stats={stats}
+            statsTitle={callStatsTitle(stats, history, dict)}
             pulsing={started}
             bgClassName="bg-white dark:bg-gray-800/40"
           />
@@ -407,7 +436,15 @@ export default function CallDialingStep({
           >
             <div className="overflow-hidden">
               <CallTimer
-                notice={teamsNotice}
+                notice={teamsNotice && t(teamsNotice)}
+                setup={
+                  teamsNotice === "call_teams_no_connection"
+                    ? {
+                        href: telephonySettingsHref(lang),
+                        label: t("call_teams_setup"),
+                      }
+                    : null
+                }
                 showTimer={showTimer}
                 seconds={shownSeconds}
               />

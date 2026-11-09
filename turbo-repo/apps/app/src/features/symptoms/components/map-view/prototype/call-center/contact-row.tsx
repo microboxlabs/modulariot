@@ -19,6 +19,7 @@ export default function ContactRow({
   roleLabel,
   phone,
   stats,
+  statsTitle,
   onClick,
   title,
   ariaLabel,
@@ -39,7 +40,10 @@ export default function ContactRow({
   personName: string;
   roleLabel?: string;
   phone?: string;
+  /** The contact's calls in the current case. */
   stats?: CallStats | null;
+  /** Tooltip of the counters; says which calls they count. */
+  statsTitle?: string;
   /** Only the clickable "a quién llamar" list variant passes this. */
   onClick?: () => void;
   title?: string;
@@ -47,9 +51,8 @@ export default function ContactRow({
   /** Live-call indicator ring, sized to the avatar itself (not guessed from
    *  the outside) — see `call-dialing-step.tsx`. */
   pulsing?: boolean;
-  /** True when `stats.lastCallAt` is a real call made this session (as
-   *  opposed to the usual stable mock history) — highlights that time in
-   *  green instead of the usual muted gray. */
+  /** True when the contact was called in this case — highlights the
+   *  last call time in green instead of the usual muted gray. */
   recentlyCalled?: boolean;
   /** Shown instead of the relative time (which would otherwise read a flat
    *  "0 min") for the first minute after a real call — e.g. "Recién
@@ -140,7 +143,11 @@ export default function ContactRow({
               />
             )
           )}
-          <CallStatsBadges accepted={stats.accepted} denied={stats.denied} />
+          <CallStatsBadges
+            accepted={stats.accepted}
+            denied={stats.denied}
+            title={statsTitle}
+          />
         </div>
       )}
     </>

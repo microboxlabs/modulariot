@@ -38,7 +38,9 @@ import {
   CALL_METHOD_LABEL_KEYS,
   type CallMethod,
 } from "./call-center/call-method";
-import CallStatsBadges from "./call-center/call-stats-badges";
+import CallStatsBadges, {
+  callStatsTitle,
+} from "./call-center/call-stats-badges";
 import {
   telephonyDetails,
   type TelephonyCallResult,
@@ -230,7 +232,7 @@ export default function PrototypeCallDriver({
   initialCallTargetPhone?: string;
   /** The contact book id of the person called; absent for the driver or an unsaved number. */
   initialCallTargetContactId?: string;
-  /** The called contact's counts from the book. */
+  /** The called contact's counts in the current case. */
   initialCallTargetStats?: CallStats | null;
   /** Debug call-center flow: which channel the call went through. */
   callMethodUsed?: CallMethod;
@@ -491,6 +493,7 @@ export default function PrototypeCallDriver({
           <CallStatsBadges
             accepted={calledStats.accepted}
             denied={calledStats.denied}
+            title={callStatsTitle(calledStats, null, dict)}
           />
         )}
         {callMethodUsed && CalledMethodIcon && (

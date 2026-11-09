@@ -25,6 +25,7 @@ import {
   type Tooltip,
 } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
+import { dropField } from "./cel-field-drop";
 import {
   completionContext,
   isCodePosition,
@@ -401,6 +402,7 @@ export default function CelEditor({
       editable.current.of(EditorView.editable.of(!readOnly)),
       EditorView.contentAttributes.of({ "aria-label": ariaLabel ?? "CEL" }),
       EditorView.domEventHandlers({
+        drop: dropField,
         focus: (_event, v) => {
           lastFocused = v;
         },

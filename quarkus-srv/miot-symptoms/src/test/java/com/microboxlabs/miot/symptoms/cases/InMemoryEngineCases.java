@@ -145,7 +145,8 @@ public class InMemoryEngineCases implements EngineCaseStore {
             throw new IllegalStateException("database down");
         }
         return cases.stream().filter(c -> c.closedAt() == null)
-                .map(c -> new OpenLevel(c.assetId(), c.name(), c.level())).toList();
+                .map(c -> new OpenLevel(c.assetId(), c.name(), c.level(),
+                        c.levels().isEmpty() ? null : c.levels().get(c.levels().size() - 1))).toList();
     }
 
     @Override

@@ -9,7 +9,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.CaseFilter;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
+import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -27,6 +31,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.function.Function;
 import org.jboss.logging.Logger;
 
 /**
@@ -42,6 +47,8 @@ public class PgEngineCases implements EngineCaseStore {
     private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final String FROM_SUBQUERY = " FROM (";
     private static final String ASSET_ID = "asset_id";
+    private static final String MEASURE = "measure";
+    private static final String SPEED_KMH = "speed_kmh";
 
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.state, o.asset_id, o.at, o.level, o.trip_id,
@@ -185,9 +192,21 @@ public class PgEngineCases implements EngineCaseStore {
             + " WHERE y.closed_id IS NULL AND " + needsOperator("y") + " GROUP BY y.current_level, y.treatments > 0, y.hold_id IS NOT NULL";
     private static final String IGNORED = "SELECT count(*) AS n FROM (" + CASES + ") x"
             + " WHERE x.closed_id IS NULL AND x.hold_id IS NOT NULL";
-    private static final String LEVELS = "SELECT y.asset_id, y.name, y.current_level"
-            + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL AND x.hold_id IS NULL) y"
-            + " ORDER BY y.asset_id, y.at DESC";
+    private static final String LEVELS = """
+            SELECT y.asset_id, y.name, y.current_level, l.at AS speed_at, l.speed_kmh, l.measure,
+                   (l.context -> 'speed_limit')::text AS speed_context,
+                   CASE jsonb_typeof(v.spec) WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END
+                       #>> '{measure,expression}' AS measure_expression
+              FROM (%s WHERE x.closed_id IS NULL AND x.hold_id IS NULL) y
+              JOIN LATERAL (SELECT t.* FROM miot_symptoms.signal_transitions t
+                     WHERE t.tenant_code = y.tenant_code AND t.definition_id = y.definition_id
+                       AND t.asset_id = y.asset_id AND t.state = y.state
+                       AND (t.id = y.id OR (t.kind = 'LEVEL_CHANGED' AND t.id > y.id))
+                     ORDER BY t.id DESC LIMIT 1) l ON true
+              LEFT JOIN miot_symptoms.symptom_version v ON v.definition_id = l.definition_id
+                   AND v.tenant_code = l.tenant_code AND v.version = l.version
+             ORDER BY y.asset_id, y.at DESC
+            """.formatted(SELECT.formatted(CASES));
     /**
      * One case with why it is at its level: the context of the row that set the level (its latest level change
      * before it closed, else its opening), that level's rule in the version that opened it, and the level of each
@@ -205,8 +224,14 @@ public class PgEngineCases implements EngineCaseStore {
                        AND (l.id = w.id OR (l.kind = 'LEVEL_CHANGED' AND l.id > w.id
                             AND (w.closed_id IS NULL OR l.id < w.closed_id)))
                      ORDER BY l.id DESC LIMIT 1) AS level_context,
-                   (SELECT json_agg(json_build_object('at', l.at, 'level', l.level) ORDER BY l.id)::text
+                   (SELECT json_agg(json_build_object('at', l.at, 'level', l.level, 'speed_kmh', l.speed_kmh,
+                           'measure', l.measure, 'speed_limit', l.context -> 'speed_limit',
+                           'measure_expression', CASE jsonb_typeof(v.spec)
+                               WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END
+                               #>> '{measure,expression}') ORDER BY l.id)::text
                       FROM miot_symptoms.signal_transitions l
+                      LEFT JOIN miot_symptoms.symptom_version v ON v.definition_id = l.definition_id
+                           AND v.tenant_code = l.tenant_code AND v.version = l.version
                      WHERE l.tenant_code = w.tenant_code AND l.definition_id = w.definition_id
                        AND l.asset_id = w.asset_id AND l.state = w.state
                        AND (l.id = w.id OR (l.kind = 'LEVEL_CHANGED' AND l.id > w.id
@@ -320,6 +345,15 @@ public class PgEngineCases implements EngineCaseStore {
              ORDER BY id FOR UPDATE
             """;
 
+    private static final String TRIP_DEFINITIONS = """
+            SELECT id FROM miot_symptoms.symptom_definition
+             WHERE tenant_code = $1 AND id = ANY($2::uuid[])
+             ORDER BY id FOR SHARE
+            """;
+    private static final String TRIP_STATE_LOCK = """
+            SELECT id FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2 FOR SHARE
+            """;
+
     /**
      * Closes every open case whose state is no longer its symptom's ($1 tenant and $2 symptom, each null for any;
      * $3 the time, $4 the reason). OFF differs from both states, so turning a symptom off closes all its cases.
@@ -360,6 +394,70 @@ public class PgEngineCases implements EngineCaseStore {
                           AND o.asset_id = signal_transitions.asset_id
                           AND o.state = signal_transitions.state AND o.kind = 'OPENED'
                         ORDER BY o.id DESC LIMIT 1) AS opened_at
+            """;
+
+    /** Locks the trip's OPENED rows, so an operator's close of one of them and this close run one after the other. */
+    private static final String LOCK_TRIP = """
+            SELECT o.*, o.id AS case_id, o.at AS opened_at FROM miot_symptoms.signal_transitions o
+             WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED' AND o.definition_id = ANY($3::uuid[])
+               AND NOT EXISTS (SELECT 1 FROM miot_symptoms.signal_transitions c
+                    WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
+                      AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id)
+             ORDER BY o.definition_id, o.asset_id, o.id FOR UPDATE
+            """;
+
+    /**
+     * Closes each open case of the trip ($1 tenant, $2 trip) of the symptoms $3, at its current level, with
+     * {@code closed_by} and the context's {@code reason} $5, at $4. The row keeps the
+     * case's trip, its maximum and latest context from episode snapshots $6, falling back to recorded evidence.
+     */
+    private static final String CLOSE_TRIP = """
+            WITH closed AS (
+            INSERT INTO miot_symptoms.signal_transitions
+                (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure,
+                 trip_id, latitude, longitude, speed_kmh, closed_by, context)
+            SELECT DISTINCT ON (o.definition_id, o.asset_id, o.state)
+                   o.tenant_code, o.definition_id, o.version, o.state, 'CLOSED', o.asset_id, $4,
+                   COALESCE(lv.level, o.level), COALESCE(lv.level, o.level),
+                   GREATEST(o.measure, lv.measure, snapshot.measure), o.trip_id, o.latitude, o.longitude, o.speed_kmh, $5::text,
+                   COALESCE(snapshot.context, lv.context, o.context, '{}'::jsonb)
+                       || jsonb_build_object('reason', $5::text, 'trip_id', o.trip_id)
+              FROM miot_symptoms.signal_transitions o
+              LEFT JOIN jsonb_to_recordset($6::jsonb)
+                   AS snapshot(case_id bigint, measure double precision, context jsonb) ON snapshot.case_id = o.id
+              LEFT JOIN LATERAL (
+                  SELECT (array_agg(l.level ORDER BY l.id DESC))[1] AS level, max(l.measure) AS measure,
+                         (array_agg(l.context ORDER BY l.id DESC)
+                             FILTER (WHERE l.context IS NOT NULL))[1] AS context
+                    FROM miot_symptoms.signal_transitions l
+                   WHERE l.tenant_code = o.tenant_code AND l.definition_id = o.definition_id
+                     AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED' AND l.id > o.id
+                   ) lv ON true
+             WHERE o.tenant_code = $1 AND o.trip_id = $2 AND o.kind = 'OPENED' AND o.state IN ('ACTIVE', 'TEST')
+               AND o.definition_id = ANY($3::uuid[])
+               AND NOT EXISTS (
+                   SELECT 1 FROM miot_symptoms.signal_transitions c
+                    WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
+                      AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id)
+             ORDER BY o.definition_id, o.asset_id, o.state, o.id DESC
+            RETURNING id, tenant_code, definition_id, version, state, asset_id, level, trip_id, latitude, longitude,
+                      speed_kmh, (SELECT max(o.id) FROM miot_symptoms.signal_transitions o
+                                   WHERE o.tenant_code = signal_transitions.tenant_code
+                                     AND o.definition_id = signal_transitions.definition_id
+                                     AND o.asset_id = signal_transitions.asset_id
+                                     AND o.state = signal_transitions.state AND o.kind = 'OPENED') AS case_id,
+                      (SELECT o.at FROM miot_symptoms.signal_transitions o
+                        WHERE o.tenant_code = signal_transitions.tenant_code
+                          AND o.definition_id = signal_transitions.definition_id
+                          AND o.asset_id = signal_transitions.asset_id
+                          AND o.state = signal_transitions.state AND o.kind = 'OPENED'
+                        ORDER BY o.id DESC LIMIT 1) AS opened_at
+            ), queued AS (
+                INSERT INTO miot_symptoms.trip_end_effects (opened_id, closed_id)
+                SELECT case_id, id FROM closed
+                RETURNING opened_id
+            )
+            SELECT closed.* FROM closed JOIN queued ON queued.opened_id = closed.case_id
             """;
 
     private final Supplier<Pool> pool;
@@ -470,7 +568,10 @@ public class PgEngineCases implements EngineCaseStore {
     public List<OpenLevel> openLevels(String tenantCode) {
         List<OpenLevel> out = new ArrayList<>();
         PgIds.query(pool.get(), LEVELS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenLevel(
-                r.getString(ASSET_ID), r.getString("name"), r.getInteger("current_level"))));
+                r.getString(ASSET_ID), r.getString("name"), r.getInteger("current_level"),
+                speedStep(instant(r.getOffsetDateTime("speed_at")), r.getInteger("current_level"),
+                        r.getString("measure_expression"), r.getDouble(SPEED_KMH),
+                        json(r.getString("speed_context")), r.getDouble(MEASURE)))));
         return out;
     }
 
@@ -483,7 +584,8 @@ public class PgEngineCases implements EngineCaseStore {
         Row r = rows.next();
         return Optional.of(engineCase(r).withLevel(json(r.getString("opening_context")),
                 json(r.getString("level_context")), r.getString("level_rule"),
-                steps(json(r.getString("level_steps")))).withClosing(json(r.getString("closing_context"))));
+                steps(json(r.getString("level_steps"))))
+                .withClosing(json(r.getString("closing_context"))));
     }
 
     @Override
@@ -583,16 +685,59 @@ public class PgEngineCases implements EngineCaseStore {
                 .flatMap(locked -> conn.preparedQuery(SWEEP_DEFINITIONS).execute(Tuple.of(tenantCode, definitionId)))
                 .flatMap(locked -> conn.preparedQuery(CLOSE_STALE)
                         .execute(Tuple.of(tenantCode, definitionId, at.atOffset(ZoneOffset.UTC), reason)))
-                .map(rows -> {
-                    List<StaleCase> out = new ArrayList<>();
-                    rows.forEach(r -> out.add(new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
-                            r.getUUID("definition_id"), r.getString("version"),
-                            "TEST".equals(r.getString("state")), r.getString(ASSET_ID), r.getInteger("level"),
-                            r.getString("trip_id"), r.getDouble("latitude"), r.getDouble("longitude"),
-                            r.getDouble("speed_kmh"), r.getOffsetDateTime("opened_at").toInstant())));
-                    return out;
-                }))
+                .map(PgEngineCases::staleCases))
                 .await().atMost(tenantCode == null ? SWEEP_TIMEOUT : QUERY_TIMEOUT);
+    }
+
+    @Override
+    public List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason) {
+        return closeTrip(tenantCode, tripId, definitionIds, at, reason, c -> null);
+    }
+
+    @Override
+    public List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason, Function<StaleCase, ClosingFrame> frames) {
+        if (definitionIds.isEmpty()) {
+            return List.of();
+        }
+        UUID[] ids = definitionIds.toArray(UUID[]::new);
+        return pool.get().withTransaction(conn -> conn.preparedQuery(TRIP_STATE_LOCK)
+                .execute(Tuple.of(tenantCode, TripEnds.uuid(tripId)))
+                .flatMap(locked -> conn.preparedQuery(TRIP_DEFINITIONS).execute(Tuple.of(tenantCode, ids)))
+                .flatMap(locked -> conn.preparedQuery(LOCK_TRIP).execute(Tuple.of(tenantCode, tripId, ids)))
+                .emitOn(Infrastructure.getDefaultWorkerPool())
+                .map(locked -> closingFrames(locked, frames))
+                .flatMap(snapshots -> conn.preparedQuery(CLOSE_TRIP)
+                        .execute(Tuple.of(tenantCode, tripId, ids, at.atOffset(ZoneOffset.UTC), reason, snapshots)))
+                .map(PgEngineCases::staleCases))
+                .await().atMost(QUERY_TIMEOUT);
+    }
+
+    private static JsonArray closingFrames(Iterable<Row> rows, Function<StaleCase, ClosingFrame> frames) {
+        JsonArray snapshots = new JsonArray();
+        for (Row row : rows) {
+            ClosingFrame frame = frames.apply(staleCase(row));
+            if (frame != null) {
+                snapshots.add(new JsonObject().put("case_id", row.getLong("id"))
+                        .put(MEASURE, frame.maxMeasure()).put("context", frame.context()));
+            }
+        }
+        return snapshots;
+    }
+
+    private static List<StaleCase> staleCases(Iterable<Row> rows) {
+        List<StaleCase> out = new ArrayList<>();
+        rows.forEach(r -> out.add(staleCase(r)));
+        return out;
+    }
+
+    /** The case identity shared by closure queries and the durable trip-end effects queue. */
+    public static StaleCase staleCase(Row r) {
+        return new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
+                r.getUUID("definition_id"), r.getString("version"), "TEST".equals(r.getString("state")),
+                r.getString(ASSET_ID), r.getInteger("level"), r.getString("trip_id"), r.getDouble("latitude"),
+                r.getDouble("longitude"), r.getDouble(SPEED_KMH), r.getOffsetDateTime("opened_at").toInstant());
     }
 
     private static EngineCase engineCase(Row r) {
@@ -600,7 +745,7 @@ public class PgEngineCases implements EngineCaseStore {
         return new EngineCase(r.getLong("id"), r.getUUID("definition_id"), r.getString("version"),
                 r.getString("name"), r.getString("family"), r.getString(ASSET_ID),
                 r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
-                r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
+                r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble(SPEED_KMH),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
                 r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"))).withTrip(trip(r))
                 .withHold(hold(r), instant(r.getOffsetDateTime("returned_at")))
@@ -629,6 +774,10 @@ public class PgEngineCases implements EngineCaseStore {
         return t.driver() == null && t.carrier() == null && t.origin() == null && t.destination() == null ? null : t;
     }
 
+    /**
+     * Each step uses its transition version's measure. Without a recognized speed measure it carries no speed
+     * evidence, even when another step of the same case used a speed template.
+     */
     static List<EngineCase.LevelStep> steps(JsonNode steps) {
         List<EngineCase.LevelStep> out = new ArrayList<>();
         if (steps == null || !steps.isArray()) {
@@ -636,13 +785,32 @@ public class PgEngineCases implements EngineCaseStore {
         }
         for (JsonNode step : steps) {
             try {
-                out.add(new EngineCase.LevelStep(OffsetDateTime.parse(step.path("at").asText()).toInstant(),
-                        step.path("level").asInt()));
+                Instant at = OffsetDateTime.parse(step.path("at").asText()).toInstant();
+                int level = step.path("level").asInt();
+                String expression = step.path("measure_expression").asText(null);
+                Double speed = number(step.path(SPEED_KMH));
+                out.add(speedStep(at, level, expression, speed, step.get("speed_limit"),
+                        number(step.path(MEASURE))));
             } catch (java.time.format.DateTimeParseException e) {
                 LOG.debug("Engine case level step without a valid time", e);
             }
         }
         return out;
+    }
+
+    private static Double number(JsonNode n) {
+        return n != null && n.isNumber() ? n.asDouble() : null;
+    }
+
+    private static EngineCase.LevelStep speedStep(Instant at, int level, String expression, Double speed,
+            JsonNode kept, Double measure) {
+        String source = EngineCase.SpeedLimit.source(expression);
+        if (source == null || speed == null) {
+            return new EngineCase.LevelStep(at, level);
+        }
+        double ruleSpeed = EngineCase.SpeedLimit.ruleSpeed(expression, speed);
+        return new EngineCase.LevelStep(at, level, ruleSpeed,
+                EngineCase.SpeedLimit.of(source, kept, ruleSpeed, measure));
     }
 
     private static JsonNode json(String text) {

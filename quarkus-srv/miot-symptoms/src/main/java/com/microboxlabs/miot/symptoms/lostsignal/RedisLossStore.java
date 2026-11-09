@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.microboxlabs.miot.symptoms.lostsignal.IngestHealth.Heartbeat;
+import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.redis.client.Command;
 import io.vertx.mutiny.redis.client.Redis;
 import io.vertx.mutiny.redis.client.Request;
@@ -24,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.jboss.logging.Logger;
 
 /**
@@ -177,9 +179,16 @@ public class RedisLossStore implements LossStore {
     @Override
     public void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
             Schedule schedule, Mark mark, Reporting at) {
+        send(assetId, vehicle, sender, senderProfile, schedule, mark, at).run();
+    }
+
+    @Override
+    public Runnable send(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
+            Schedule schedule, Mark mark, Reporting at) {
         List<Request> writes = saveRequests(assetId, vehicle, sender, senderProfile, schedule, mark, ttl);
         writes.addAll(reportingRequests(assetId, at, vehicle.arrival()));
-        batch(writes);
+        CompletableFuture<List<Response>> sent = redis.batch(writes).subscribeAsCompletionStage();
+        return () -> Uni.createFrom().completionStage(sent).await().atMost(TIMEOUT);
     }
 
     static List<Request> reportingRequests(String assetId, Reporting at, Instant now) {

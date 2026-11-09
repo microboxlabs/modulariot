@@ -12,6 +12,7 @@ import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.Set;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -26,10 +27,18 @@ public class SendJobsOnPark {
     private static final Set<String> TYPES = Set.of(InternalJobTypes.WHATSAPP_SEND, InternalJobTypes.EMAIL_SEND);
 
     private final RunStore runs;
+    private final boolean reconcile;
+
+    public SendJobsOnPark(RunStore runs) {
+        this(runs, true);
+    }
 
     @Inject
-    public SendJobsOnPark(RunStore runs) {
+    public SendJobsOnPark(RunStore runs,
+            @ConfigProperty(name = "miot.conversational.send-jobs.reconcile.enabled", defaultValue = "true")
+            boolean reconcile) {
         this.runs = runs;
+        this.reconcile = reconcile;
     }
 
     void onParked(@Observes JobParkedEvent event) {
@@ -52,6 +61,9 @@ public class SendJobsOnPark {
     @Scheduled(every = "${miot.conversational.send-jobs.reconcile-every:1m}", delayed = "1m",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void reconcile() {
+        if (!reconcile) {
+            return;
+        }
         try {
             int repaired = runs.reconcileFailedSends(100, Instant.now());
             if (repaired > 0) {

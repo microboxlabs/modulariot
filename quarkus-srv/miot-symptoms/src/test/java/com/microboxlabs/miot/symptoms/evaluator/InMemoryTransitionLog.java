@@ -12,8 +12,21 @@ class InMemoryTransitionLog implements TransitionLog {
 
     final List<Transition> recorded = new ArrayList<>();
     final List<Map<String, Object>> contexts = new ArrayList<>();
+    final List<Place> places = new ArrayList<>();
     private final Set<String> held = new HashSet<>();
     private final Map<String, Long> openedIds = new HashMap<>();
+
+    @Override
+    public Opening opening(String tenantCode, Episode episode) {
+        for (int i = 0; i < recorded.size(); i++) {
+            Transition t = recorded.get(i);
+            if (t.kind() == Transition.Kind.OPENED && t.definitionId().equals(episode.definitionId())
+                    && t.assetId().equals(episode.assetId()) && t.at().equals(episode.openedAt())) {
+                return new Opening(places.get(i).tripId(), contexts.get(i));
+            }
+        }
+        return new Opening(null, Map.of());
+    }
 
     @Override
     public List<Recorded> append(String tenantCode, List<Transition> transitions, Place place,
@@ -21,11 +34,14 @@ class InMemoryTransitionLog implements TransitionLog {
         List<Recorded> out = new ArrayList<>();
         for (Transition t : transitions) {
             boolean note = t.kind() == Transition.Kind.NOTED;
-            if (!held.add(tenantCode + "/" + t.definitionId() + "/" + t.assetId() + "/" + t.at() + "/" + note)) {
+            Object identity = context != null && context.containsKey("event_id")
+                    ? "event:" + context.get("event_id") : "frame:" + t.at();
+            if (!held.add(tenantCode + "/" + t.definitionId() + "/" + t.assetId() + "/" + identity + "/" + note)) {
                 continue;
             }
             recorded.add(t);
             contexts.add(t.detail() != null ? t.detail() : context);
+            places.add(place.of(t));
             long id = recorded.size();
             String caseKey = tenantCode + "/" + t.definitionId() + "/" + t.assetId() + "/" + t.state();
             if (t.kind() == Transition.Kind.OPENED) {

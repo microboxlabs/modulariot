@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -41,6 +42,9 @@ public class FleetDirectoryProducer {
     private final Clock clock = Clock.systemUTC();
     private Wiring wiring;
 
+    @ConfigProperty(name = "miot.component.fleet.enabled", defaultValue = "false")
+    boolean componentEnabled;
+
     FleetDirectoryProducer(Instance<Pool> modulithPool, GpsDatabase gps, VehicleImages images, FleetConfig config,
             Instance<SignalStates> signals) {
         this.modulithPool = modulithPool;
@@ -64,6 +68,9 @@ public class FleetDirectoryProducer {
     @Scheduled(every = "${miot.fleet.activity.every:15m}", delayed = "${miot.fleet.activity.delay:30s}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void rollUpActivity() {
+        if (!componentEnabled) {
+            return;
+        }
         ActivityRollup rollup = wiring().rollup();
         if (rollup == null) {
             return;

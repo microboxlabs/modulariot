@@ -9,6 +9,7 @@ import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.dto.TripPeople;
+import com.microboxlabs.miot.symptoms.dto.TripRoute;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
@@ -70,6 +71,8 @@ public class EngineCaseService {
     private static final String DRIVER_FIELD = "driver";
     private static final String CARRIER_FIELD = "carrier";
     private static final String ORIGIN_FIELD = "origin";
+    private static final String ORIGIN_LABEL = "origin_geofence_label";
+    private static final String DESTINATION_LABEL = "destination_geofence_label";
     private static final String DESTINATION_FIELD = "destination";
     private static final String DRIVER_ID = "driver_id";
     private static final String SECOND_DRIVER_ID = "second_driver_id";
@@ -95,6 +98,7 @@ public class EngineCaseService {
     private static final Map<Integer, String> COUNTED = Map.of(1, "Under Observation", 2, "Compromised condition",
             3, "Critical condition", 4, "Code Black");
     private static final String DESCRIPTION = "description";
+    private static final String SPEED_LIMIT = "speed_limit";
     private static final String TREATMENT_TYPE = "treatment_type";
     private static final String MESSAGE = "message";
     private static final String TREATMENTS = "treatments";
@@ -110,7 +114,8 @@ public class EngineCaseService {
     private static final String TRIP = """
             SELECT tl.trip_id, tl.asset_id, tl.carrier_name, c.rut AS carrier_tax_id, tl.origin_geofence_label,
                    tl.destination_geofence_label, tl.driver_name, tl.second_driver_name, tl.type_load,
-                   tl.driver_contact_phone, tl.driver_id, tl.second_driver_id
+                   tl.driver_contact_phone, tl.driver_id, tl.second_driver_id, tl.origin_geofence_id,
+                   tl.destination_geofence_id
               FROM miot_trips.trip_live tl
               LEFT JOIN miot_fleet.carrier c ON c.tenant_code = tl.tenant_code AND c.id::text = tl.carrier_id
              WHERE tl.tenant_code = $1 AND tl.trip_id::text = $2 AND tl.asset_id = $3
@@ -416,6 +421,7 @@ public class EngineCaseService {
      * The positions with each vehicle's level from its open cases: {@code symptoms_condition} is the highest level
      * among them, 0 without one, and {@code associate_symptoms} lists them. The GPS database's own symptom fields
      * are dropped; {@code speed_limit_condition} stays, as null, so the map's speed filter keeps the vehicle.
+     * A speed case's limit is added only when its transition is the live position's frame.
      */
     public JsonNode withCaseLevels(String tenantCode, JsonNode positions) {
         Map<String, List<EngineCaseStore.OpenLevel>> byAsset = new HashMap<>();
@@ -433,15 +439,29 @@ public class EngineCaseService {
             String asset = position.hasNonNull(POSITION_ASSET_ID) ? position.get(POSITION_ASSET_ID).asText()
                     : position.path("assetid").asText(null);
             List<EngineCaseStore.OpenLevel> open = asset == null ? List.of() : byAsset.getOrDefault(asset, List.of());
-            position.remove(List.of("speed_limit", "lost_signal", "symptoms", "symptom_condition"));
+            position.remove(List.of(SPEED_LIMIT, "speed_limit_source", "speed_limit_zone", "lost_signal",
+                    "symptoms", "symptom_condition"));
             position.putNull("speed_limit_condition");
             position.put("symptoms_condition", open.stream().mapToInt(EngineCaseStore.OpenLevel::level).max()
                     .orElse(0));
             ArrayNode symptoms = position.putArray("associate_symptoms");
             open.forEach(l -> symptoms.addObject().put(SYMPTOM_NAME, l.name()).put(ICU_CONDITION, l.level()));
+            // A case change's limit is evidence for that frame only, never for a newer live position.
+            open.stream().map(EngineCaseStore.OpenLevel::speedStep).filter(java.util.Objects::nonNull)
+                    .filter(s -> s.speedLimit() != null
+                            && sameFrame(s.at(), position.path("timestamp").asText()))
+                    .findFirst().ifPresent(s -> speed(position, s));
             out.add(position);
         }
         return out;
+    }
+
+    private static boolean sameFrame(Instant at, String timestamp) {
+        try {
+            return at.equals(Instant.parse(timestamp));
+        } catch (DateTimeParseException e) {
+            return false;
+        }
     }
 
     /**
@@ -526,15 +546,16 @@ public class EngineCaseService {
         }
     }
 
-    /** The RUTs of the case's live trip: drivers and carrier. Empty without a live trip. */
+    /** The RUTs of the case's live trip (drivers and carrier) and its origin and destination. Empty without one. */
     public TripPeople tripPeople(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
         Row t = c.tripId() == null ? null : trips.apply(Tuple.of(tenantCode, c.tripId(), c.assetId()));
         if (t == null) {
             return TripPeople.NONE;
         }
-        return TripPeople.of(t.getString(DRIVER_ID), t.getString(SECOND_DRIVER_ID),
-                t.getString(CARRIER_TAX_ID));
+        return TripPeople.of(t.getString(DRIVER_ID), t.getString(SECOND_DRIVER_ID), t.getString(CARRIER_TAX_ID))
+                .withRoute(TripRoute.of(t.getString(ORIGIN_LABEL), t.getInteger("origin_geofence_id"),
+                        t.getString(DESTINATION_LABEL), t.getInteger("destination_geofence_id")));
     }
 
     /** The most recent cases {@link #scriptSamples} offers. */
@@ -596,8 +617,8 @@ public class EngineCaseService {
         trip.put("code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
-            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
-            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put(ORIGIN_FIELD, t.getString(ORIGIN_LABEL));
+            trip.put(DESTINATION_FIELD, t.getString(DESTINATION_LABEL));
             trip.put("load", t.getString(TYPE_LOAD));
             trip.putObject(DRIVER_FIELD)
                     .put("name", t.getString("driver_name"))
@@ -709,8 +730,8 @@ public class EngineCaseService {
             trip.put(CARRIER_TAX_ID, t.getString(CARRIER_TAX_ID));
             trip.put("driver_rut", t.getString(DRIVER_ID));
             trip.put("second_driver_rut", t.getString(SECOND_DRIVER_ID));
-            trip.put(ORIGIN_FIELD, t.getString("origin_geofence_label"));
-            trip.put(DESTINATION_FIELD, t.getString("destination_geofence_label"));
+            trip.put(ORIGIN_FIELD, t.getString(ORIGIN_LABEL));
+            trip.put(DESTINATION_FIELD, t.getString(DESTINATION_LABEL));
             trip.put(DRIVER_FIELD, t.getString("driver_name"));
             trip.put("driver2", t.getString("second_driver_name"));
             trip.put(TYPE_LOAD, t.getString(TYPE_LOAD));
@@ -833,7 +854,8 @@ public class EngineCaseService {
             reason.put("lost_since", lost.toString());
         }
         ArrayNode levels = reason.putArray("levels");
-        c.levels().forEach(step -> levels.addObject().put("at", step.at().toString()).put(ICU_CODE, step.level()));
+        c.levels().forEach(step -> speed(levels.addObject().put("at", step.at().toString())
+                .put(ICU_CODE, step.level()), step));
         return reason;
     }
 
@@ -852,6 +874,9 @@ public class EngineCaseService {
             props.put("speed", c.speedKmh() == null ? 0 : c.speedKmh());
             props.put("timestamp", start(c).toString());
             props.put(ICU_CODE, c.level());
+            if (!c.levels().isEmpty()) {
+                speed(props, c.levels().get(0));
+            }
         }
         out.set(DESCRIPTION, description(c, end(c), reported(c), clock.instant()));
         return out;
@@ -884,6 +909,9 @@ public class EngineCaseService {
         if (c.speedKmh() != null) {
             d.put("last_reported_speed", c.speedKmh());
         }
+        if (!c.levels().isEmpty()) {
+            speed(d, c.levels().get(c.levels().size() - 1));
+        }
         boolean lost = c.openingContext() != null && c.openingContext().path(CHECK).path("loss").isObject();
         Long lag = lost ? signalLag(c, reported, now) : null;
         if (lag != null) {
@@ -898,6 +926,34 @@ public class EngineCaseService {
             d.put("last_reported_engine_status", engine);
         }
         return d;
+    }
+
+    /**
+     * A speed case's change as the map's speed lines read it, with the GPS database's names: {@code speed} and
+     * {@code speed_limit} in km/h, so the excess is their difference, plus {@code speed_limit_source} ({@code road}
+     * or {@code custom}) and the own limit's zone name as {@code speed_limit_zone}. Nothing for other symptoms.
+     */
+    static void speed(ObjectNode out, EngineCase.LevelStep step) {
+        if (step.speedKmh() == null) {
+            return;
+        }
+        kmh(out, "speed", step.speedKmh());
+        EngineCase.SpeedLimit limit = step.speedLimit();
+        if (limit != null) {
+            kmh(out, SPEED_LIMIT, limit.kmh());
+            out.put("speed_limit_source", limit.source());
+            if (limit.zone() != null) {
+                out.put("speed_limit_zone", limit.zone());
+            }
+        }
+    }
+
+    private static void kmh(ObjectNode out, String field, double kmh) {
+        if (kmh == Math.rint(kmh)) {
+            out.put(field, (long) kmh);
+        } else {
+            out.put(field, kmh);
+        }
     }
 
     private static Long signalLag(EngineCase c, Optional<Reported> reported, Instant now) {

@@ -72,16 +72,17 @@ public class InMemoryEpisodeRepository implements EpisodeRepository {
     @Override
     public void forgetStale(String tenantCode, String assetId, UUID definitionId,
             SymptomState state, Instant openedAt) {
-        data.computeIfPresent(new Key(tenantCode, assetId), (k, old) -> {
-            Episode e = old.episodes().get(definitionId);
-            if (e == null || e.closedOnTrip() != null || (e.state() != null && e.state() != state)
-                    || (e.openedAt() != null && e.openedAt().isAfter(openedAt))) {
+        data.compute(new Key(tenantCode, assetId), (k, old) -> {
+            Episode e = old == null ? null : old.episodes().get(definitionId);
+            if (e != null && (e.closedOnTrip() != null || (e.state() != null && e.state() != state)
+                    || (e.openedAt() != null && e.openedAt().isAfter(openedAt)))) {
                 return old;
             }
-            Map<UUID, Episode> episodes = new HashMap<>(old.episodes());
+            Map<UUID, Episode> episodes = new HashMap<>(old == null ? Map.of() : old.episodes());
             episodes.remove(definitionId);
             index(tenantCode, assetId, !episodes.isEmpty());
-            return new Snapshot(episodes, old.watermarks(), Math.addExact(old.closeRevision(), 1));
+            return new Snapshot(episodes, old == null ? Map.of() : old.watermarks(),
+                    old == null ? 1 : Math.addExact(old.closeRevision(), 1));
         });
     }
 

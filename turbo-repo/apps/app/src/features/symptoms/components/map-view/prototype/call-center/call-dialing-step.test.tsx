@@ -16,7 +16,15 @@ import type { ReactElement } from "react";
 
 const render = (ui: ReactElement) =>
   rtlRender(ui, { wrapper: CallSessionProvider });
-beforeEach(() => sessionStorage.clear());
+beforeEach(() => {
+  sessionStorage.clear();
+  access.canSettings = true;
+});
+
+const access = vi.hoisted(() => ({ canSettings: true }));
+vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
+  useControlTowerAccess: () => ({ can: () => access.canSettings }),
+}));
 
 const { request } = vi.hoisted(() => ({
   request: vi.fn().mockResolvedValue({
@@ -507,10 +515,27 @@ describe("CallDialingStep", () => {
         es.symptoms.call_teams_no_connection
       );
       expect(screen.queryByText("00:00")).toBeNull();
+      expect(
+        screen.getByRole("link", { name: es.symptoms.call_teams_setup })
+      ).toHaveAttribute(
+        "href",
+        "/es/users/settings/symptoms?section=telephony"
+      );
       fireEvent.click(
         screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
       );
       expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "teams");
+    });
+
+    it("keeps the missing-connection notice without offering settings to an operator", () => {
+      access.canSettings = false;
+      renderTeams(null);
+      expect(screen.getByRole("status")).toHaveTextContent(
+        es.symptoms.call_teams_no_connection
+      );
+      expect(
+        screen.queryByRole("link", { name: es.symptoms.call_teams_setup })
+      ).toBeNull();
     });
 
     it.each([undefined, "133", "driver@example.com"])(
@@ -542,6 +567,9 @@ describe("CallDialingStep", () => {
         );
         expect(
           screen.queryByText(es.symptoms.call_teams_no_connection)
+        ).toBeNull();
+        expect(
+          screen.queryByRole("link", { name: es.symptoms.call_teams_setup })
         ).toBeNull();
         expect(screen.queryByText("00:00")).toBeNull();
       }

@@ -48,7 +48,7 @@ class PgPlatformTemplatesTest {
             "V0.12.15__noted_transitions.sql", "V0.12.16__tower_settings_telephony.sql",
             "V0.12.17__event_symptom_templates.sql", "V0.12.18__speed_templates_escalation.sql",
             "V0.12.19__zone_and_hour_templates.sql", "V0.12.20__driving_and_rest_templates.sql",
-            "V0.12.21__route_templates.sql");
+            "V0.12.21__route_templates.sql", "V0.12.22__device_events.sql");
 
     private static Vertx vertx;
     private static Pool pool;
@@ -117,7 +117,7 @@ class PgPlatformTemplatesTest {
 
     @Test
     void theEventTemplatesAreSeededAndPanicIsAtItsLatestVersion() {
-        assertEquals(List.of("driver-fatigue:1.0.0", "driver-fatigue-sensor:1.0.0", "load-securing-absence:1.0.0",
+        assertEquals(List.of("driver-fatigue:1.1.0", "driver-fatigue-sensor:1.0.0", "load-securing-absence:1.0.0",
                 "panic-button:2.0.0", "road-assistance:1.0.0", "stake-side-usage:1.0.0"),
                 rows("SELECT symptom_key || ':' || current_version FROM miot_symptoms.symptom_definition"
                         + " WHERE tenant_code = '_platform' AND symptom_key IN ('driver-fatigue', 'driver-fatigue-sensor',"

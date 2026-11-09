@@ -11,6 +11,15 @@ vi.mock("@/features/notifications/notification", () => ({
   ShowNotification: vi.fn(),
 }));
 
+// The trip places' request would reach the network; the badges section's own test covers them.
+vi.mock(
+  "@/features/symptoms/control-tower/control-tower-api",
+  async (original) => ({
+    ...(await original<object>()),
+    useTripPlaces: () => [],
+  })
+);
+
 vi.mock(
   "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
   () => ({

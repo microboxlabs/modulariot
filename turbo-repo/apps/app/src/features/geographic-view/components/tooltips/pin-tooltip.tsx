@@ -8,14 +8,15 @@ import {
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import VehicleDescription from "./vehicle-description";
 import { offlineLabel } from "@/features/geographic-view/utils/signal-state";
+import { engineOffLabel } from "@/features/geographic-view/utils/engine-state";
 
 export default function PinTooltip({
   object,
   dict,
-}: {
+}: Readonly<{
   object: MapPositionProperties | undefined;
   dict: I18nRecord;
-}) {
+}>) {
   if (!object) {
     return null;
   }
@@ -25,6 +26,11 @@ export default function PinTooltip({
   }
 
   const offline = offlineLabel(object.properties.signal, dict);
+  const engineOff = engineOffLabel(
+    object.properties.engine_off === true,
+    !!offline,
+    dict
+  );
 
   return (
     <div className="bg-white dark:bg-gray-800 px-3 pb-3 rounded-lg">
@@ -69,6 +75,16 @@ export default function PinTooltip({
             </span>{" "}
             <span className="font-medium text-gray-700 dark:text-gray-200">
               {offline}
+            </span>
+          </div>
+          <hr className="my-2 border-gray-200 dark:border-gray-700" />
+        </div>
+      )}
+      {engineOff && (
+        <div data-engine-off>
+          <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg font-light text-sm">
+            <span className="font-medium text-gray-700 dark:text-gray-200">
+              {engineOff}
             </span>
           </div>
           <hr className="my-2 border-gray-200 dark:border-gray-700" />
@@ -140,9 +156,19 @@ export default function PinTooltip({
         <div
           className={`text-sm text-gray-600 dark:text-gray-300 ${object?.properties.speed_limit ? "block" : "hidden"}`}
         >
-          {(dict.geographic_view as I18nRecord).speed_limit as string}:{" "}
+          {
+            (dict.geographic_view as I18nRecord)[
+              object.properties.speed_limit_source
+                ? "applied_speed_limit"
+                : "speed_limit"
+            ] as string
+          }
+          :{" "}
           <span className="text-green-500 dark:text-green-400">
             {object?.properties.speed_limit}Km/h
+            {object.properties.speed_limit_zone
+              ? ` · ${object.properties.speed_limit_zone}`
+              : ""}
           </span>
         </div>
       )}

@@ -44,6 +44,7 @@ refuse for it.
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODELS` | `[]` | Other models a run may name (JSON list). |
 | `MIOT_HARNESS_MODEL_PROVIDERS` | _(unset)_ | More providers: JSON list of `{provider, api_key_env, models, base_url?}`. Their models are offered to runs. |
 | `MIOT_HARNESS_MODULITH_URL` | _(unset)_ | The modulith. MCP skills call it with the user's token. |
+| `MIOT_HARNESS_SYMPTOMS_URL` | `MIOT_HARNESS_MODULITH_URL` | The modulith that serves the symptom (Control Tower) tools of the `control-tower-symptoms` skill. Set it when the app reads the Control Tower from another cluster's modulith. The other MCP skills stay on `MIOT_HARNESS_MODULITH_URL`. The user's token is sent the same way. |
 | `MIOT_HARNESS_APP_PUBLIC_URL` | _(unset)_ | The web app's public URL with its base path (`https://host/app`). Share links the agent gives are absolute with it, else `/app/share/<token>`. |
 | `MIOT_HARNESS_PROVIDER_KEY` | _(unset)_ | Shared key for the modulith's `/internal` endpoints. With the URL set, the providers the platform owner configured load at boot, and each run's tokens are reported for charging. |
 | `MIOT_HARNESS_MODEL_PROVIDERS_REFRESH_SECONDS` | `60` | How often those providers are read again. |
@@ -56,6 +57,16 @@ refuse for it.
 | `MIOT_HARNESS_AGENTS_SUMMARIZER_MODEL` | _(unset)_ | Conversation compaction and thread titles. Unset: both are off and `POST /titles` answers 503. |
 | `MIOT_HARNESS_KNOWLEDGE_DISTILLER_MODEL` | _(unset)_ | Model for `POST /connections/{connection}/distill`. Unset: the endpoint answers 503. |
 | `MIOT_HARNESS_WEB_SEARCH_MODEL` | _(unset)_ | Model for the `web_search` tool: `llmgateway:<model>`, `anthropic:<model>` or `openai:<model>`. Unset, or its provider not configured: the tool answers with an error. |
+
+At boot, packaged skill refresh replaces an unedited workspace copy of
+`control-tower-symptoms/SKILL.md` and preserves edits recorded since the
+previous refresh. If you edited that copy, or disabled refresh with
+`MIOT_HARNESS_REFRESH_PACKAGED_DEFAULTS=false`, change its `mcp.url` from
+`${MIOT_HARNESS_MODULITH_URL}/api/v1/mcp` to
+`${MIOT_HARNESS_SYMPTOMS_URL}/api/v1/mcp` to use the override. On the first
+refresh of an unrecorded workspace (for example, seeded by `cp -Rn`), a
+differing copy is backed up under `.seed-state/backups/` next to the skills
+directory before replacement; reapply any customizations from that backup.
 
 A model is named `provider:model` (`deepseek:deepseek-chat`,
 `openrouter:anthropic/claude-sonnet-4`); bare `claude-*` and `gpt-*` names mean

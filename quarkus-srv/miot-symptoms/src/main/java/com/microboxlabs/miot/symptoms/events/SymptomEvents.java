@@ -84,9 +84,10 @@ public class SymptomEvents {
                 continue;
             }
             Name n = name(tenantCode, t.definitionId());
+            Place at = place.of(t);
             SymptomCaseData data = new SymptomCaseData(-r.caseId(), t.definitionId(), t.version(), n.key(),
-                    n.name(), t.level(), t.previousLevel(), t.assetId(), place.tripId(), place.driverId(),
-                    t.measure(), place.latitude(), place.longitude(), place.speedKmh(), null, null, null, null, null);
+                    n.name(), t.level(), t.previousLevel(), t.assetId(), at.tripId(), at.driverId(),
+                    t.measure(), at.latitude(), at.longitude(), at.speedKmh(), null, null, null, null, null);
             publish(type(t.kind()), tenantCode, t.at(), data, t.state() != SymptomState.ACTIVE);
         }
     }
@@ -105,6 +106,19 @@ public class SymptomEvents {
         publish(SymptomEventCatalog.CLOSED, tenantCode, at, new SymptomCaseData(c.symptomId(), c.definitionId(),
                 c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(), null, null,
                 c.latitude(), c.longitude(), c.speedKmh(), null, null, null, null, null), c.test());
+    }
+
+    /**
+     * The platform closed the case. Returns observer completion so the durable producer acknowledges only success.
+     */
+    public CompletionStage<Void> closedBySystem(String tenantCode, EngineCaseStore.StaleCase c, String reason, Instant at) {
+        Name n = name(tenantCode, c.definitionId());
+        SymptomCaseData data = new SymptomCaseData(c.symptomId(), c.definitionId(),
+                c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(), null, null,
+                c.latitude(), c.longitude(), c.speedKmh(), reason, null, null, null, null);
+        return fire.apply(new OperationalEvent(SymptomEventCatalog.CLOSED, SymptomEventCatalog.EVENT_SOURCE,
+                tenantCode, at, new EventContext(SymptomEventCatalog.CONTEXT_KIND, String.valueOf(c.symptomId())),
+                data, c.test())).thenApply(ignored -> null);
     }
 
     /** Cancellation signal for pending notification rules on each case covered by an ignore hold. */

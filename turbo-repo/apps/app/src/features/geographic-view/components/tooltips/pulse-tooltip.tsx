@@ -27,6 +27,54 @@ export function symptomTitle(name: string, dict: I18nRecord): string {
   return typeof translated === "string" && translated ? translated : name;
 }
 
+/**
+ * "Límite de velocidad: 50 km/h · Tramo norte". The GPS database's cases keep
+ * their label ("Exceso de límite de velocidad"); the engine's, which send the
+ * limit's source, are labeled for what the number is.
+ */
+export function SpeedLimitLine({
+  limit,
+  zone,
+  engine,
+  dict,
+}: Readonly<{
+  limit: number;
+  zone?: string | null;
+  engine: boolean;
+  dict: I18nRecord;
+}>) {
+  const labels = dict.geographic_view as I18nRecord;
+  return (
+    <div className="text-sm text-gray-600 dark:text-gray-300" data-speed-limit>
+      {(engine ? labels.applied_speed_limit : labels.speed_limit) as string}:{" "}
+      <span className="font-light">
+        {limit} km/h
+        {zone ? ` · ${zone}` : ""}
+      </span>
+    </div>
+  );
+}
+
+/** " - 34km/h por encima del límite" when the speed is over the limit. */
+function OverLimit({
+  speed,
+  limit,
+  dict,
+}: Readonly<{
+  speed: number;
+  limit: number | null | undefined;
+  dict: I18nRecord;
+}>) {
+  if (!limit || speed <= limit) return null;
+  return (
+    <span className="text-red-500 dark:text-red-400">
+      {" - "}
+      {speed - limit}
+      km/h {(dict.geographic_view as I18nRecord).over_limit as string}
+    </span>
+  );
+}
+
 export type PulseListType = {
   elements: number[];
   description: DescriptionProps;
@@ -49,6 +97,12 @@ export type PulseType = {
     delay_s?: number | null;
     /** "Sin señal · hace N min" when this is the newest frame of an offline vehicle. */
     signal_label?: string | null;
+    /** "Motor apagado" when this is the newest frame and it reports the engine off. */
+    engine_label?: string | null;
+    /** The limit a speed case's change at this frame compared the speed with, in km/h. */
+    speed_limit?: number | null;
+    /** The organization's own zone that limit comes from, when named. */
+    speed_limit_zone?: string | null;
   };
 };
 
@@ -204,24 +258,20 @@ export default function PulseTooltip({
           <div className="text-sm text-gray-600 dark:text-gray-300">
             {(dict.geographic_view as I18nRecord).speed as string}:{" "}
             <span className="font-light">{object.description.speed} km/h</span>
-            {object.description.speed_limit &&
-              object.description.speed > object.description.speed_limit && (
-                <span className="text-red-500 dark:text-red-400">
-                  {" - "}
-                  {object.description.speed - object.description.speed_limit}
-                  km/h{" "}
-                  {(dict.geographic_view as I18nRecord).over_limit as string}
-                </span>
-              )}
+            <OverLimit
+              speed={object.description.speed}
+              limit={object.description.speed_limit}
+              dict={dict}
+            />
           </div>
         )}
         {object.description.speed_limit != undefined && (
-          <div className="text-sm text-gray-600 dark:text-gray-300">
-            {(dict.geographic_view as I18nRecord).speed_limit as string}:{" "}
-            <span className="font-light">
-              {object.description.speed_limit} km/h
-            </span>
-          </div>
+          <SpeedLimitLine
+            limit={object.description.speed_limit}
+            zone={object.description.speed_limit_zone}
+            engine={object.description.speed_limit_source != undefined}
+            dict={dict}
+          />
         )}
         {object.description.last_reported_speed != undefined && (
           <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -280,6 +330,16 @@ export default function PulseTooltip({
               </span>
               <span className="font-medium text-gray-700 dark:text-gray-200">
                 {object.properties.signal_label}
+              </span>
+            </div>
+            <hr className="my-2 border-gray-200 dark:border-gray-700" />
+          </div>
+        )}
+        {!object.properties.signal_label && object.properties.engine_label && (
+          <div data-engine-off>
+            <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg text-sm">
+              <span className="font-medium text-gray-700 dark:text-gray-200">
+                {object.properties.engine_label}
               </span>
             </div>
             <hr className="my-2 border-gray-200 dark:border-gray-700" />
@@ -346,7 +406,20 @@ export default function PulseTooltip({
         <div className="text-sm text-gray-600 dark:text-gray-300">
           {(dict.geographic_view as I18nRecord).speed as string}:{" "}
           <span className="font-light">{object?.properties.speed} km/h</span>
+          <OverLimit
+            speed={object.properties.speed}
+            limit={object.properties.speed_limit}
+            dict={dict}
+          />
         </div>
+        {object.properties.speed_limit != undefined && (
+          <SpeedLimitLine
+            limit={object.properties.speed_limit}
+            zone={object.properties.speed_limit_zone}
+            engine
+            dict={dict}
+          />
+        )}
         <div className="text-sm text-gray-600 dark:text-gray-300">
           {(dict.geographic_view as I18nRecord).latitude as string}:{" "}
           <span className="font-light">{object?.properties.latitude}</span>

@@ -134,6 +134,18 @@ class EvaluatorStreamTest {
     }
 
     @Test
+    void eachTenantReadsItsOwnRoadLimits() {
+        Map<String, Object> mine = Map.of("maxspeed_osm", 60.0, "maxspeed_custom", 40.0);
+        Map<String, Object> signal = Map.of("roads", Map.of(OTHER, mine));
+        assertEquals(mine, EvaluatorStream.forTenant(signal, OTHER).get("road"));
+        assertFalse(EvaluatorStream.forTenant(signal, DEMO).containsKey("road"));
+        assertFalse(EvaluatorStream.forTenant(signal, DEMO).containsKey("roads"));
+        Map<String, Object> road = Map.of("maxspeed_osm", 90.0);
+        assertEquals(road, EvaluatorStream.forTenant(Map.of("road", road), DEMO).get("road"),
+                "a signal without roads keeps its road");
+    }
+
+    @Test
     void aStateRejectedOpeningSavesNeitherEpisodeNorWatermark() {
         InMemoryEpisodeRepository episodes = new InMemoryEpisodeRepository();
         TransitionLog rejected = (tenant, transitions, place, context) -> {
@@ -158,6 +170,55 @@ class EvaluatorStreamTest {
                  "frame":{"asset_id":"DEMO01","gps":{"speed":0.0},"sensors":%s}}
                 """.formatted(at, String.join(",", List.of(clients).stream().map(c -> "\"" + c + "\"").toList()),
                 sensors);
+    }
+
+    private static String speeding(String at, double speed, String clients) {
+        return """
+                {"schema":"miot.gps.signal@1","asset_id":"DEMO01","at":"%s","clients":["%s"],
+                 "trips":{"%s":{"active":true,"double_driver":false}},
+                 "local_hour":9,"derived":{"moving":true},
+                 "roads":{"%s":{"maxspeed_osm":80.0,"maxspeed_custom":50.0,"osm_way_id":7,"road_class":"primary",
+                   "custom_zone_id":3,"custom_zone_name":"Tramo de prueba"}},
+                 "frame":{"asset_id":"DEMO01","gps":{"speed":%s},"sensors":{"panic_button":true}}}
+                """.formatted(at, clients, clients, clients, speed);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aSpeedCaseKeepsTheLimitItComparedWithAndOtherSymptomsDoNot() {
+        var id = catalog.create(OTHER, "owner@example.com", new CreateRequest("speeding-custom-limit",
+                "Exceso sobre el límite propio", null, null, null, "gps_signal", null,
+                SeedTemplates.get("speeding-custom-limit").spec())).definition().id();
+        catalog.publish(OTHER, "owner@example.com", id, "Primera versión", null, SymptomState.TEST);
+        publishPanic(OTHER, SymptomState.TEST);
+        EvaluatorStream s = stream();
+
+        s.evaluate(speeding("2026-10-22T03:00:00Z", 60.2, OTHER)
+                .replace("\"panic_button\":true", "\"panic_button\":false"));
+        s.evaluate(speeding("2026-10-22T03:00:10Z", 61.0, OTHER));
+
+        int speed = -1;
+        int panic = -1;
+        for (int i = 0; i < recorded.size(); i++) {
+            if (recorded.get(i).definitionId().equals(id)) {
+                speed = i;
+            } else {
+                panic = i;
+            }
+        }
+        assertEquals(Kind.OPENED, recorded.get(speed).kind());
+        assertEquals(recorded.get(speed).at(), recorded.get(panic).at(), "both changes belong to the same frame");
+        assertEquals(11.0, recorded.get(speed).measure());
+        Map<String, Object> limit = (Map<String, Object>) log.contexts.get(speed).get("speed_limit");
+        assertEquals(50.0, limit.get("kmh"));
+        assertEquals("custom", limit.get("source"));
+        assertEquals(80.0, limit.get("road_kmh"));
+        assertEquals(50.0, limit.get("custom_kmh"));
+        assertEquals(3, limit.get("zone_id"));
+        assertEquals("Tramo de prueba", limit.get("zone_name"));
+        var panicContext = log.contexts.get(panic);
+        assertTrue(panicContext == null || !panicContext.containsKey("speed_limit"),
+                "a symptom that reads no road limit keeps none: " + panicContext);
     }
 
     @Test
@@ -401,7 +462,7 @@ class EvaluatorStreamTest {
         assertEquals(id, recorded.get(2).definitionId(), "the operator-only panic case stays open");
         SymptomCaseData closed = (SymptomCaseData) fired.get(2).data();
         assertNull(closed.speedKmh(), "reconciliation carries no GPS data");
-        assertNull(closed.tripId());
+        assertEquals("T-1", closed.tripId(), "the case's trip");
         assertEquals(1, samples.recent(DEMO, 20).size());
     }
 

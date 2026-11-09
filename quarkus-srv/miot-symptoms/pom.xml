@@ -29,6 +29,12 @@
             <artifactId>miot-gps-model</artifactId>
         </dependency>
         <dependency>
+            <!-- The S2 cell of a position, the key of the GPS database's route history (signal.trip.eta_deviation_min). -->
+            <groupId>com.google.geometry</groupId>
+            <artifactId>s2-geometry</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
             <!-- The evaluator's episodes. The plain Vert.x client, so a modulith without Redis needs no Redis config. -->
             <groupId>io.smallrye.reactive</groupId>
             <artifactId>smallrye-mutiny-vertx-redis-client</artifactId>
@@ -80,6 +86,17 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- Match the Prometheus registry used by the gateway in the deployed modulith. -->
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus-simpleclient</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

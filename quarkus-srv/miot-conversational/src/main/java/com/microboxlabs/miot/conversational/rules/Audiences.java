@@ -4,6 +4,7 @@ import com.microboxlabs.miot.conversational.rules.RuleSpec.Audience;
 import com.microboxlabs.miot.core.event.ContactDirectory;
 import com.microboxlabs.miot.core.event.Participant;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
+import com.microboxlabs.miot.core.event.TextKey;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -114,14 +115,19 @@ public final class Audiences {
         return out;
     }
 
-    /** The contact as {@code contact} in a condition; a missing text is empty and missing tags an empty list. */
+    /**
+     * The contact as {@code contact} in a condition; a missing text is empty and missing tags an empty list.
+     * {@code tagKeys} are the tags as {@link TextKey}: lower case, without accents and with single spaces.
+     */
     static Map<String, Object> contactVars(ContactDirectory.Entry c) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", text(c.id()));
         m.put("name", text(c.name()));
         m.put("role", text(c.role()));
         m.put("roleKey", text(c.role()).trim().toLowerCase(java.util.Locale.ROOT));
-        m.put("tags", c.tags() == null ? List.of() : c.tags());
+        List<String> tags = c.tags() == null ? List.of() : c.tags();
+        m.put("tags", tags);
+        m.put("tagKeys", tags.stream().map(TextKey::of).filter(k -> !k.isEmpty()).distinct().toList());
         m.put("company", text(c.company()));
         m.put("companyRut", text(c.companyRut()));
         m.put("position", text(c.position()));

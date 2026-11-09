@@ -18,9 +18,14 @@ export interface ContactBadge {
 const BADGES_KEY = "miot.prototype.contact-badges.v1";
 const SYNC_EVENT = "miot:contact-badges-changed";
 
-/** Case- and accent-insensitive key for matching names. */
+/** Matches the backend's TextKey: ignore case, accents and repeated spaces. */
 export function normalizeLabel(value: string): string {
-  return value.trim().normalize("NFD").replaceAll(/[̀-ͯ]/g, "").toLowerCase();
+  return value
+    .normalize("NFD")
+    .replaceAll(/\p{M}+/gu, "")
+    .toLowerCase()
+    .replaceAll(/[\p{White_Space}\uFEFF]+/gu, " ")
+    .trim();
 }
 
 /** The badges saved in this browser, read now rather than from React state. */

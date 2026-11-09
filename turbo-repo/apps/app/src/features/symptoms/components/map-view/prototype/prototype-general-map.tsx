@@ -205,12 +205,12 @@ export default function PrototypeGeneralMap({
     selectedTreatmentIndex?.symptom_id?.toString() ?? ""
   );
 
-  // A case without a trip keeps its opening point on the map, whichever
+  // The case's engine report and opening point stay available whichever
   // timeline entry or pulse is selected.
   const tripless = !tripId && isEngineCaseId(id);
   const { data: caseLocation } = useTreatmentsLocation(
-    "",
-    tripless ? titleCase(treatmentData?.symptom_info?.name) : "",
+    treatmentData?.trip_info?.trip_id ?? tripId ?? "",
+    titleCase(treatmentData?.symptom_info?.name),
     id
   );
   const casePoint = tripless ? firstPoint(caseLocation) : null;
@@ -393,6 +393,9 @@ export default function PrototypeGeneralMap({
               isLoading={isLoading}
               tripId={tripId ?? ""}
               filteredLocationData={filteredLocationData ?? null}
+              reportedEngineStatus={
+                caseLocation?.description?.last_reported_engine_status
+              }
               dict={dict}
               selectedTreatmentIndex={selectedTreatmentIndex ?? null}
               setSelectedTreatment={setSelectedTreatment}

@@ -52,6 +52,19 @@ class SignalSamplesTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void samplePredictionsDoNotArriveBeforeTheFrameTime() {
+        for (Map<String, Object> sample : SignalSamples.fallback()) {
+            Map<String, Object> signal = (Map<String, Object>) sample.get(SignalFields.ROOT);
+            Map<String, Object> trip = (Map<String, Object>) signal.get("trip");
+            if (trip != null && trip.get("eta_deviation_min") instanceof Number deviation) {
+                assertTrue(deviation.doubleValue() >= ((Number) trip.get("late_min")).doubleValue(),
+                        "remaining travel time must be nonnegative: " + signal.get("asset_id"));
+            }
+        }
+    }
+
+    @Test
     void keepsOneSignalPerOrganizationEveryFifteenSeconds() {
         MutableClock clock = new MutableClock();
         SignalSamples samples = new SignalSamples(null, clock);
@@ -87,14 +100,14 @@ class SignalSamplesTest {
     void keepsOnlyThePathsOfTheEditorFields() {
         Map<String, Object> frame = new LinkedHashMap<>();
         frame.put("timestamp", "2026-10-22T03:00:00Z");
-        frame.put("events", List.of(Map.of("event_type", "gps_jamming", "code", 1)));
+        frame.put("events", List.of(Map.of("event_type", "gps_jamming", "code", 1, "vendor_ref", "x")));
         frame.put("gps", Map.of("latitude", -33.4, "longitude", -70.6));
         frame.put("unknown_part", Map.of("x", 1));
         Map<String, Object> trimmed = SignalSamples.trim(Map.of("asset_id", "A", "local_hour", 3, "frame", frame));
 
         assertEquals(Map.of("asset_id", "A", "local_hour", 3,
                 "frame", Map.of("gps", Map.of("latitude", -33.4, "longitude", -70.6), "events",
-                        List.of(Map.of("event_type", "gps_jamming", "severity", "", "description", "",
+                        List.of(Map.of("event_type", "gps_jamming", "severity", "", "description", "", "code", "1",
                                 "timestamp", "")))), trimmed, "an event keeps only the fields rules read");
         Set<String> fields = SignalFields.fields().stream().map(SourceField::path).collect(Collectors.toSet());
         List<String> leaves = new ArrayList<>();

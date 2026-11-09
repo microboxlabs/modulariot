@@ -11,7 +11,7 @@ when_to_use: >
   raise or lower a threshold, change a response, roll back or turn a
   symptom on or off.
 mcp:
-  url: ${MIOT_HARNESS_MODULITH_URL}/api/v1/mcp
+  url: ${MIOT_HARNESS_SYMPTOMS_URL}/api/v1/mcp
   tools:
     - symptoms_list
     - symptoms_get

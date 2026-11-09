@@ -15,8 +15,12 @@ import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
+import com.microboxlabs.miot.symptoms.dto.TripPeople;
+import com.microboxlabs.miot.symptoms.dto.TripRoute;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
+import io.vertx.mutiny.sqlclient.Row;
+import java.lang.reflect.Proxy;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -588,6 +592,69 @@ class EngineCaseServiceTest {
         assertEquals(1, reason.path("levels").get(0).path("icu_code").asInt());
     }
 
+    private static EngineCase speeding(long id) {
+        return new EngineCase(id, PANIC, "2.0.0", "Exceso de velocidad", "driving_safety", "DEMO01", OPENED, 4,
+                "T-1", 0.0, 0.0, 61.2, null, 0, null, 0L, null, null, null, "measure > 21.0",
+                List.of(new EngineCase.LevelStep(OPENED, 2, 61.0, new EngineCase.SpeedLimit(50, "custom", "Tramo A")),
+                        new EngineCase.LevelStep(OPENED.plusSeconds(60), 4, 84.0,
+                                new EngineCase.SpeedLimit(60, "road", null))));
+    }
+
+    @Test
+    void aSpeedCaseGivesTheMapEachChangesSpeedAndLimit() {
+        store.add(speeding(12));
+
+        JsonNode signals = service.signals(TENANT, -12);
+        JsonNode d = signals.path("description");
+        assertEquals(84, d.path("speed").asInt(), "the change that set the level");
+        assertTrue(d.path("speed").isIntegralNumber());
+        assertEquals(60, d.path("speed_limit").asInt());
+        assertEquals("road", d.path("speed_limit_source").asText());
+        assertFalse(d.has("speed_limit_zone"));
+        assertEquals(61.2, d.path("last_reported_speed").asDouble());
+        assertEquals(50, signals.path("features").get(0).path("properties").path("speed_limit").asInt(),
+                "the opening point has the opening's limit");
+        JsonNode point = signals.path("features").get(0).path("properties");
+        assertEquals(61, point.path("speed").asInt());
+        assertEquals("custom", point.path("speed_limit_source").asText());
+        assertEquals("Tramo A", point.path("speed_limit_zone").asText());
+
+        JsonNode levels = service.header(TENANT, -12).path("level_reason").path("levels");
+        assertEquals(61, levels.get(0).path("speed").asInt());
+        assertEquals(50, levels.get(0).path("speed_limit").asInt());
+        assertEquals("custom", levels.get(0).path("speed_limit_source").asText());
+        assertEquals("Tramo A", levels.get(0).path("speed_limit_zone").asText());
+        assertEquals(84, levels.get(1).path("speed").asInt());
+        assertEquals(60, levels.get(1).path("speed_limit").asInt());
+    }
+
+    @Test
+    void anotherSymptomHasNoSpeedLines() {
+        store.add(panic(12, "DEMO01"));
+
+        JsonNode d = service.signals(TENANT, -12).path("description");
+        assertFalse(d.has("speed"));
+        assertFalse(d.has("speed_limit"));
+        assertFalse(service.header(TENANT, -12).path("level_reason").path("levels").path(0).has("speed"));
+    }
+
+    @Test
+    void aLivePinUsesOnlyTheLimitRecordedForItsOwnFrame() throws Exception {
+        store.add(speeding(12));
+        var positions = new ObjectMapper().readTree("""
+                [{"asset_id":"DEMO01","timestamp":"2026-10-22T03:01:00+00:00","speed":83.6},
+                 {"asset_id":"DEMO01","timestamp":"2026-10-22T03:02:00Z","speed":90},
+                 {"asset_id":"DEMO01","timestamp":"bad","speed":90}]
+                """);
+        JsonNode result = service.withCaseLevels(TENANT, positions);
+        assertEquals(84, result.get(0).path("speed").asInt());
+        assertEquals(60, result.get(0).path("speed_limit").asInt());
+        assertEquals("road", result.get(0).path("speed_limit_source").asText());
+        assertFalse(result.get(1).has("speed_limit"), "a newer frame cannot inherit an old location's limit");
+        assertEquals(90, result.get(1).path("speed").asInt());
+        assertFalse(result.get(2).has("speed_limit"));
+    }
+
     @Test
     void aCaseWithoutAKeptContextStillAnswersItsLevel() {
         store.add(panic(12, "DEMO01"));
@@ -941,6 +1008,28 @@ class EngineCaseServiceTest {
 
         assertEquals(List.of("DEMO01/" + PANIC), forgotten);
         assertTrue(store.open(TENANT).isEmpty());
+    }
+
+    @Test
+    void tripPeopleReadsTheRouteOfTheCasesTripAndAssetInItsTenant() {
+        store.add(panic(12, "DEMO01"));
+        Map<String, Object> columns = Map.of("driver_id", "1-9", "carrier_tax_id", "76",
+                "origin_geofence_label", "  Planta Peñón ", "origin_geofence_id", 12,
+                "destination_geofence_label", "Bodega Sur", "destination_geofence_id", 34);
+        Row row = Row.newInstance((io.vertx.sqlclient.Row) Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class<?>[] {io.vertx.sqlclient.Row.class},
+                (proxy, method, args) -> columns.get(args[0])));
+        var subject = new EngineCaseService(store, (tenant, asset, definition) -> {
+        }, key -> {
+            assertEquals(TENANT, key.getString(0));
+            assertEquals("T-1", key.getString(1));
+            assertEquals("DEMO01", key.getString(2));
+            return row;
+        }, Clock.fixed(OPENED, ZoneOffset.UTC));
+
+        assertEquals(TripPeople.of("1-9", null, "76")
+                .withRoute(TripRoute.of("Planta Peñón", 12, "Bodega Sur", 34)),
+                subject.tripPeople(TENANT, -12));
     }
 
     @Test

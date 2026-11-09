@@ -40,6 +40,7 @@ import ImageSelector from "./image-viewer/image-selector";
 import { useTimelapse } from "../hooks/use-timelapse";
 import { useAssetSignal } from "../hooks/use-asset-signal";
 import { isNewestFrame, isOffline, offlineLabel } from "../utils/signal-state";
+import { engineOffLabel, newestEngineOff } from "../utils/engine-state";
 import { pulseWithSignal } from "../utils/signal-tooltip";
 import { logger } from "@/lib/logger";
 import { tr } from "@/features/i18n/tr.service";
@@ -74,6 +75,7 @@ import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
 import {
   type CaseSpan,
   pointLevel,
+  stepLimitAt,
 } from "@/features/symptoms/model/level-reason";
 import {
   dashSegments,
@@ -204,6 +206,8 @@ type MapVisualizationProps = {
   isLoading: boolean;
   error: Error | null;
   filteredLocationData: TreatmentsLocationResponseItem | null;
+  /** The case's engine report, independent of the selected timeline entry. */
+  reportedEngineStatus?: boolean | null;
   dict: I18nRecord;
   selectedTreatmentIndex: ConditionsAgg | null;
   setSelectedTreatment?: (
@@ -375,6 +379,7 @@ export default function MapVisualizationTrip({
   positions,
   isLoading,
   filteredLocationData,
+  reportedEngineStatus,
   dict,
   selectedTreatmentIndex,
   setSelectedTreatment,
@@ -536,6 +541,18 @@ export default function MapVisualizationTrip({
     !!newest && isOffline(signal) && isNewestFrame(newest.timestamp, signal);
   const offlineText = offline ? offlineLabel(signal, dict) : null;
   const pinOffline = offline && displayPosition === newestIndex;
+  // Engine off on the newest frame turns the pin gray with its normal face and
+  // labels it "Motor apagado". Lost signal wins.
+  const engineOff = newestEngineOff(newest, reportedEngineStatus);
+  const engineText = engineOffLabel(engineOff, offline, dict);
+  const pinEngineOff = !!engineText && displayPosition === newestIndex;
+  const engineLabel = useMemo(
+    () =>
+      newest && engineText
+        ? { timestamp: newest.timestamp, label: engineText }
+        : null,
+    [newest, engineText]
+  );
 
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
@@ -544,6 +561,7 @@ export default function MapVisualizationTrip({
       features:
         positions?.map((item: MapPosition, index: number) => {
           const symptom = pointLevel(item.timestamp, caseSpans);
+          const limit = stepLimitAt(item.timestamp, caseSpans);
           return {
             type: "Feature",
             geometry: {
@@ -560,9 +578,11 @@ export default function MapVisualizationTrip({
               rotation: item.heading * (180 / Math.PI),
               latitude: item.latitude,
               longitude: item.longitude,
-              speed: item.speed,
+              speed: limit?.speed ?? item.speed,
               timestamp: item.timestamp,
               delay_s: frameDelay(item),
+              speed_limit: limit?.limit ?? null,
+              speed_limit_zone: limit?.zone ?? null,
               offline: offline && index === newestIndex,
               signal_label:
                 offline && index === newestIndex ? offlineText : null,
@@ -779,6 +799,7 @@ export default function MapVisualizationTrip({
               info.y = info.viewport.height / 2;
             }
 
+            const pinLimit = stepLimitAt(info.object?.timestamp, caseSpans);
             // Create a properly typed formatted info object
             const formattedInfo: PickingInfo<PulseType> = {
               ...info,
@@ -789,10 +810,13 @@ export default function MapVisualizationTrip({
                   rotation: info.object?.heading * (180 / Math.PI),
                   latitude: info.object?.latitude,
                   longitude: info.object?.longitude,
-                  speed: info.object?.speed,
+                  speed: pinLimit?.speed ?? info.object?.speed,
                   timestamp: info.object?.timestamp,
                   delay_s: frameDelay(info.object),
+                  speed_limit: pinLimit?.limit ?? null,
+                  speed_limit_zone: pinLimit?.zone ?? null,
                   signal_label: pinOffline ? offlineText : null,
+                  engine_label: pinEngineOff ? engineText : null,
                 },
               },
             };
@@ -808,7 +832,8 @@ export default function MapVisualizationTrip({
             }
           },
           offline: pinOffline,
-          label: pinOffline ? offlineText : null,
+          engineOff: pinEngineOff,
+          label: offlineText ?? engineText,
           updateTriggers: {
             data: positions,
           },
@@ -856,6 +881,9 @@ export default function MapVisualizationTrip({
     showPulse,
     pinOffline,
     offlineText,
+    pinEngineOff,
+    engineText,
+    caseSpans,
   ]);
 
   /** Al cerrar la tarjeta de pulsos: soltar lo seleccionado. */
@@ -963,7 +991,8 @@ export default function MapVisualizationTrip({
                 newest?.assetid,
                 signal,
                 dict,
-                filteredLocationData?.description
+                filteredLocationData?.description,
+                engineLabel
               )}
               dict={dict}
             />

@@ -9,14 +9,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.CaseFilter;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
+import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import com.microboxlabs.miot.symptoms.lostsignal.TripEnds;
 import io.quarkus.arc.properties.IfBuildProperty;
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgException;
@@ -32,8 +34,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Supplier;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.jboss.logging.Logger;
 
 /**
@@ -49,6 +52,8 @@ public class PgEngineCases implements EngineCaseStore {
     private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final String FROM_SUBQUERY = " FROM (";
     private static final String ASSET_ID = "asset_id";
+    private static final String TRIP_ID = "trip_id";
+    private static final String LEVEL = "level";
     private static final String DEFINITION_ID = "definition_id";
     private static final String MEASURE = "measure";
     private static final String SPEED_KMH = "speed_kmh";
@@ -359,13 +364,26 @@ public class PgEngineCases implements EngineCaseStore {
                FOR SHARE OF d
             """;
 
+    private static final String CLOSE_LEVEL = """
+            SELECT o.trip_id, COALESCE((
+                SELECT l.level FROM miot_symptoms.signal_transitions l
+                 WHERE l.tenant_code = o.tenant_code AND l.definition_id = o.definition_id
+                   AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED' AND l.id > o.id
+                 ORDER BY l.id DESC LIMIT 1), o.level) AS level
+              FROM miot_symptoms.signal_transitions o
+             WHERE o.tenant_code = $1 AND o.id = $2 AND o.kind = 'OPENED'
+               AND NOT EXISTS (SELECT 1 FROM miot_symptoms.signal_transitions c
+                    WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
+                      AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id)
+            """;
+
     /** Closes the case unless a CLOSED row already follows its OPENED row; returns the row it wrote. */
     private static final String CLOSE = """
             INSERT INTO miot_symptoms.signal_transitions
                 (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure,
-                 trip_id, latitude, longitude, speed_kmh, closed_by)
+                 trip_id, latitude, longitude, speed_kmh, closed_by, context)
             SELECT o.tenant_code, o.definition_id, o.version, o.state, 'CLOSED', o.asset_id, $3, o.level, o.level,
-                   o.measure, o.trip_id, o.latitude, o.longitude, o.speed_kmh, $4
+                   o.measure, o.trip_id, o.latitude, o.longitude, o.speed_kmh, $4, $5::jsonb
               FROM miot_symptoms.signal_transitions o
              WHERE o.tenant_code = $1 AND o.id = $2 AND o.kind = 'OPENED'
                AND NOT EXISTS (
@@ -726,13 +744,48 @@ public class PgEngineCases implements EngineCaseStore {
      */
     @Override
     public boolean close(String tenantCode, long caseId, String actor, Instant at) {
+        return close(tenantCode, caseId, actor, at, null);
+    }
+
+    /** The row's context records how the operator closed the case, so a restart keeps the reopen block. */
+    @Override
+    public boolean close(String tenantCode, long caseId, String actor, Instant at,
+            OperatorClose how) {
+        return close(tenantCode, caseId, actor, at, how, ignored -> { });
+    }
+
+    @Override
+    public boolean close(String tenantCode, long caseId, String actor, Instant at,
+            OperatorClose how,
+            Consumer<OperatorClose> beforeClose) {
         return pool.get().withTransaction(conn -> conn.preparedQuery(LOCK_DEFINITION)
                 .execute(Tuple.of(tenantCode, caseId))
                 .flatMap(locked -> conn.preparedQuery(LOCK).execute(Tuple.of(tenantCode, caseId)))
-                .flatMap(locked -> conn.preparedQuery(CLOSE)
-                        .execute(Tuple.of(tenantCode, caseId, at.atOffset(ZoneOffset.UTC), actor)))
-                .map(rows -> rows.iterator().hasNext()))
+                .flatMap(locked -> conn.preparedQuery(CLOSE_LEVEL).execute(Tuple.of(tenantCode, caseId)))
+                .flatMap(rows -> closeLocked(conn, tenantCode, caseId, actor, at, how, beforeClose, rows)))
                 .await().atMost(QUERY_TIMEOUT);
+    }
+
+    @SuppressWarnings("java:S107") // Close inputs and the already-locked case snapshot.
+    private static Uni<Boolean> closeLocked(SqlConnection conn,
+            String tenant, long caseId, String actor, Instant at,
+            OperatorClose how,
+            Consumer<OperatorClose> beforeClose,
+            RowSet<Row> rows) {
+        var iterator = rows.iterator();
+        if (!iterator.hasNext()) return Uni.createFrom().item(false);
+        Row row = iterator.next();
+        var current = how == null ? null : new OperatorClose(
+                row.getString(TRIP_ID), at, row.getInteger(LEVEL), how.invalidated());
+        JsonObject context = current == null ? null : new JsonObject(current.context());
+        // The Redis and duty collaborators block; keep their work off the SQL connection's event loop.
+        return Uni.createFrom().item(() -> {
+            beforeClose.accept(current);
+            return true;
+        }).runSubscriptionOn(Infrastructure.getDefaultExecutor())
+                .flatMap(ignored -> conn.preparedQuery(CLOSE)
+                        .execute(Tuple.of(tenant, caseId, at.atOffset(ZoneOffset.UTC), actor, context)))
+                .map(written -> written.iterator().hasNext());
     }
 
     @Override
@@ -773,7 +826,7 @@ public class PgEngineCases implements EngineCaseStore {
         return pool.get().withTransaction(conn -> PgTripState.lock(conn, tenantCode, tripId)
                 .flatMap(window -> TripEnds.REASON.equals(reason)
                         ? PgTripState.remember(conn, tenantCode, tripId, at, window)
-                        : io.smallrye.mutiny.Uni.createFrom().voidItem())
+                        : Uni.createFrom().voidItem())
                 .flatMap(locked -> lockTripAsset(conn, tenantCode, tripId, keepAsset))
                 .flatMap(locked -> conn.preparedQuery(TRIP_DEFINITIONS).execute(Tuple.of(tenantCode, ids)))
                 .flatMap(locked -> conn.preparedQuery(LOCK_TRIP).execute(Tuple.of(tenantCode, tripId, ids, keepAsset)))
@@ -822,7 +875,7 @@ public class PgEngineCases implements EngineCaseStore {
     public static StaleCase staleCase(Row r) {
         return new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
                 r.getUUID(DEFINITION_ID), r.getString("version"), "TEST".equals(r.getString("state")),
-                r.getString(ASSET_ID), r.getInteger("level"), r.getString("trip_id"), r.getDouble("latitude"),
+                r.getString(ASSET_ID), r.getInteger(LEVEL), r.getString(TRIP_ID), r.getDouble("latitude"),
                 r.getDouble("longitude"), r.getDouble(SPEED_KMH), r.getOffsetDateTime("opened_at").toInstant());
     }
 
@@ -830,7 +883,7 @@ public class PgEngineCases implements EngineCaseStore {
         OffsetDateTime closed = r.getOffsetDateTime("closed_at");
         return new EngineCase(r.getLong("id"), r.getUUID(DEFINITION_ID), r.getString("version"),
                 r.getString("name"), r.getString("family"), r.getString(ASSET_ID),
-                r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
+                r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString(TRIP_ID),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble(SPEED_KMH),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
                 r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"), r.getString("trip_code_fallback"))).withTrip(trip(r))
@@ -873,7 +926,7 @@ public class PgEngineCases implements EngineCaseStore {
         for (JsonNode step : steps) {
             try {
                 Instant at = OffsetDateTime.parse(step.path("at").asText()).toInstant();
-                int level = step.path("level").asInt();
+                int level = step.path(LEVEL).asInt();
                 String expression = step.path("measure_expression").asText(null);
                 Double speed = number(step.path(SPEED_KMH));
                 out.add(speedStep(at, level, expression, speed, step.get("speed_limit"),

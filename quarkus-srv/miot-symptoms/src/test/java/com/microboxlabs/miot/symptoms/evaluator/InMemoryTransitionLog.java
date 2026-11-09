@@ -5,7 +5,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /** {@link TransitionLog} as {@code PgTransitionLog} behaves: ids from 1, replays skipped, cases by OPENED row. */
 class InMemoryTransitionLog implements TransitionLog {
@@ -26,6 +28,23 @@ class InMemoryTransitionLog implements TransitionLog {
             }
         }
         return new Opening(null, Map.of());
+    }
+
+    @Override
+    public Optional<OperatorClose> lastOperatorClose(String tenantCode, String assetId, UUID definitionId) {
+        for (int i = recorded.size() - 1; i >= 0; i--) {
+            Transition t = recorded.get(i);
+            if (!t.definitionId().equals(definitionId) || !t.assetId().equals(assetId)) {
+                continue;
+            }
+            if (t.kind() == Transition.Kind.OPENED) {
+                return Optional.empty();
+            }
+            if (t.kind() == Transition.Kind.CLOSED) {
+                return OperatorClose.fromContext(places.get(i).tripId(), t.at(), contexts.get(i));
+            }
+        }
+        return Optional.empty();
     }
 
     @Override

@@ -86,13 +86,15 @@ public class PgEngineCases implements EngineCaseStore {
     /**
      * The case's level is its latest level change before it closed, else the opening one; {@code level_at} is when
      * it reached that level, {@code level_operator} what that row decided about operators (null on older rows).
+     * A recorded decision uses that transition's version; older rows retain their opening-version fallback.
      */
     private static final String SELECT = """
             SELECT x.*,
                    COALESCE(lv.level, x.level) AS current_level, COALESCE(lv.at, x.at) AS level_at,
-                   CASE WHEN lv.level IS NULL THEN x.operator_required ELSE lv.operator_required END AS level_operator
+                   CASE WHEN lv.level IS NULL THEN x.operator_required ELSE lv.operator_required END AS level_operator,
+                   CASE WHEN lv.operator_required IS NULL THEN x.version ELSE lv.version END AS level_version
               FROM (%s) x
-              LEFT JOIN LATERAL (SELECT l.level, l.at, l.operator_required FROM miot_symptoms.signal_transitions l
+              LEFT JOIN LATERAL (SELECT l.level, l.at, l.version, l.operator_required FROM miot_symptoms.signal_transitions l
                      WHERE l.tenant_code = x.tenant_code AND l.definition_id = x.definition_id
                        AND l.asset_id = x.asset_id AND l.state = x.state AND l.kind = 'LEVEL_CHANGED' AND l.id > x.id
                        AND (x.closed_id IS NULL OR l.id < x.closed_id)
@@ -100,8 +102,8 @@ public class PgEngineCases implements EngineCaseStore {
             """;
 
     /**
-     * The SLA of the case's level in the version that opened it; none when the case at that level does not go to
-     * the operators. A spec may be stored as a JSON string holding the document.
+     * The SLA from the version that decided the operator requirement at this level; none without an operator.
+     * Older rows retain their opening-version fallback. A spec may be a JSON string holding the document.
      */
     private static final String WITH_SLA = """
             SELECT y.*, CASE WHEN y.level_operator IS FALSE THEN NULL ELSE (SELECT jsonb_path_query_first(
@@ -111,7 +113,7 @@ public class PgEngineCases implements EngineCaseStore {
                            jsonb_build_object('l', y.current_level))::numeric::int
                       FROM miot_symptoms.symptom_version v
                      WHERE v.definition_id = y.definition_id AND v.tenant_code = y.tenant_code
-                       AND v.version = y.version AND v.status = 'PUBLISHED') END AS sla_minutes,
+                       AND v.version = y.level_version AND v.status = 'PUBLISHED') END AS sla_minutes,
                    %s AS needs_operator
               FROM (%s) y
             """.formatted(needsOperator("y"), "%s");
@@ -129,7 +131,7 @@ public class PgEngineCases implements EngineCaseStore {
                            jsonb_build_object('l', %1$s.current_level))
                       FROM miot_symptoms.symptom_version v
                      WHERE v.definition_id = %1$s.definition_id AND v.tenant_code = %1$s.tenant_code
-                       AND v.version = %1$s.version AND v.status = 'PUBLISHED'), false)""".formatted(alias);
+                       AND v.version = %1$s.level_version AND v.status = 'PUBLISHED'), false)""".formatted(alias);
     }
 
     private static final String OPEN = WITH_SLA.formatted(SELECT.formatted(CASES)

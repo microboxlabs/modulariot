@@ -590,6 +590,35 @@ class PgSlaStoreTest {
                 .map(d -> d.engineCase().id()).toList());
     }
 
+    @Test
+    void aNewVersionsLevelDecisionAlsoUsesThatVersionsSla() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        String next = """
+                {"levels":[{"icu":2,"applies":true,"when":"true",
+                  "response":{"operator":true,"slaMinutes":6,"operatorWhen":"true"}}]}
+                """;
+        PgIds.query(pool, """
+                INSERT INTO miot_symptoms.symptom_version
+                    (definition_id, tenant_code, version, status, spec, created_by)
+                VALUES ($1, $2, '2.0.0', 'PUBLISHED', $3::text::jsonb, 't')
+                """, Tuple.of(speeding, tenant, next));
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place(null, null, null, null, null);
+        long caseId = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 1, 0).withOperator(false)), place)
+                .getFirst().caseId();
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, speeding, "2.0.0", SymptomState.ACTIVE,
+                "DEMO01", t0.plusSeconds(60), 2, 1, 30, null, null, true)), place);
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertEquals(List.of(caseId), ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator())));
+        assertEquals(6, cases.find(tenant, caseId).orElseThrow().slaMinutes());
+        assertTrue(due(t0.minusSeconds(1), t0.plusSeconds(6 * 60), tenant).isEmpty());
+        List<SlaStore.Due> expired = due(t0.minusSeconds(1), t0.plusSeconds(8 * 60), tenant);
+        assertEquals(List.of(caseId), expired.stream().map(d -> d.engineCase().id()).toList());
+        assertEquals(6, expired.getFirst().slaMinutes());
+    }
+
     private List<SlaStore.Due> due(Instant openedAfter, Instant now, String tenant) {
         return sla.due(openedAfter, now, 100).stream().filter(d -> d.tenantCode().equals(tenant)).toList();
     }

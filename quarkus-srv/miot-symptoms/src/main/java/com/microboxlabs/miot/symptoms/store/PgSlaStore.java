@@ -29,7 +29,9 @@ public class PgSlaStore implements SlaStore {
 
     private static final String DUE = """
             WITH open_case AS (
-                SELECT o.id, o.tenant_code, o.definition_id, o.version, o.asset_id, o.at, o.trip_id,
+                SELECT o.id, o.tenant_code, o.definition_id,
+                       CASE WHEN l.operator_required IS NULL THEN o.version ELSE l.version END AS version,
+                       o.asset_id, o.at, o.trip_id,
                        o.latitude, o.longitude, o.speed_kmh,
                        COALESCE(l.level, o.level) AS current_level,
                        CASE WHEN l.level IS NULL THEN o.operator_required ELSE l.operator_required END
@@ -37,7 +39,7 @@ public class PgSlaStore implements SlaStore {
                        GREATEST(COALESCE(l.at, o.at), ret.returned_at) AS level_since
                   FROM miot_symptoms.signal_transitions o
                   LEFT JOIN LATERAL (
-                      SELECT c.level, c.at, c.operator_required FROM miot_symptoms.signal_transitions c
+                      SELECT c.level, c.at, c.version, c.operator_required FROM miot_symptoms.signal_transitions c
                        WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
                          AND c.asset_id = o.asset_id AND c.state = 'ACTIVE' AND c.kind = 'LEVEL_CHANGED'
                          AND c.id > o.id

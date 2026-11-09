@@ -71,10 +71,11 @@ public class PgTransitionLog implements TransitionLog {
     private static final String INSERT = """
             INSERT INTO miot_symptoms.signal_transitions
                 (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure,
-                 trip_id, latitude, longitude, speed_kmh, context, closed_by)
+                 trip_id, latitude, longitude, speed_kmh, context, operator_required, closed_by)
             SELECT $1::varchar, $2::uuid, $3::varchar, $4::varchar, $5::varchar, $6::varchar, $7::timestamptz,
                    $8::integer, $9::integer, $10::double precision,
-                   $11::varchar, $12::double precision, $13::double precision, $14::double precision, $15::jsonb, $16::varchar
+                   $11::varchar, $12::double precision, $13::double precision, $14::double precision, $15::jsonb,
+                   $16::boolean, $17::varchar
             WHERE NOT EXISTS (
                 SELECT 1 FROM miot_symptoms.signal_transitions
                 WHERE definition_id = $2::uuid AND asset_id = $6::varchar
@@ -314,7 +315,7 @@ public class PgTransitionLog implements TransitionLog {
                 .addValue(t.state().name()).addValue(t.kind().name()).addValue(t.assetId())
                 .addValue(t.at().atOffset(ZoneOffset.UTC)).addValue(t.level()).addValue(t.previousLevel())
                 .addValue(t.measure()).addValue(place.of(t).tripId()).addValue(place.latitude())
-                .addValue(place.longitude()).addValue(place.speedKmh()).addValue(context)
+                .addValue(place.longitude()).addValue(place.speedKmh()).addValue(context).addValue(t.operator())
                 .addValue(t.kind() == Transition.Kind.CLOSED && t.detail() != null
                         && TripEnds.REASON.equals(t.detail().get(REASON_KEY)) ? TripEnds.REASON : null);
     }

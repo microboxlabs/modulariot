@@ -131,6 +131,9 @@ public record SymptomSpec(
      * @param escalateScope where {@code escalateTo} is looked up, one of {@link Step#SCOPES}; null in older specs
      * @param escalateWho   who is told when the SLA runs out, as a contact condition like {@link Step#who()};
      *                      null in older specs, which use {@code escalateTo} and {@code escalateScope}
+     * @param operatorWhen  with {@code operator}, the case goes to the operators only when this condition holds on
+     *                      the signal that opened it or moved it to the level. CEL over the source object, as the
+     *                      activation. Null or blank: always
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Response(
@@ -143,18 +146,34 @@ public record SymptomSpec(
             String escalateTo,
             boolean consequence,
             String escalateScope,
-            String escalateWho) {
+            String escalateWho,
+            @JsonInclude(JsonInclude.Include.NON_NULL) String operatorWhen) {
+
+        /** A blank condition is none: the operator flag alone decides. */
+        public Response {
+            operatorWhen = operatorWhen == null || operatorWhen.isBlank() ? null : operatorWhen;
+        }
+
+        /** A response whose operator flag holds for every case at the level. */
+        @SuppressWarnings("java:S107")
+        public Response(boolean operator, Integer slaMinutes, List<Step> steps, List<Notice> notices,
+                List<String> evidence, boolean ignorable, String escalateTo, boolean consequence,
+                String escalateScope, String escalateWho) {
+            this(operator, slaMinutes, steps, notices, evidence, ignorable, escalateTo, consequence, escalateScope,
+                    escalateWho, null);
+        }
 
         /** A response without escalation, outside consequence management. */
         public Response(boolean operator, Integer slaMinutes, List<Step> steps, List<Notice> notices,
                 List<String> evidence, boolean ignorable) {
-            this(operator, slaMinutes, steps, notices, evidence, ignorable, null, false, null, null);
+            this(operator, slaMinutes, steps, notices, evidence, ignorable, null, false, null, null, null);
         }
 
         /** A response whose escalation target has no scope. */
         public Response(boolean operator, Integer slaMinutes, List<Step> steps, List<Notice> notices,
                 List<String> evidence, boolean ignorable, String escalateTo, boolean consequence) {
-            this(operator, slaMinutes, steps, notices, evidence, ignorable, escalateTo, consequence, null, null);
+            this(operator, slaMinutes, steps, notices, evidence, ignorable, escalateTo, consequence, null, null,
+                    null);
         }
 
         /** A response whose escalation target is a scope and a role. */
@@ -162,7 +181,13 @@ public record SymptomSpec(
                 List<String> evidence, boolean ignorable, String escalateTo, boolean consequence,
                 String escalateScope) {
             this(operator, slaMinutes, steps, notices, evidence, ignorable, escalateTo, consequence, escalateScope,
-                    null);
+                    null, null);
+        }
+
+        /** The same response with another operator condition. */
+        public Response withOperatorWhen(String condition) {
+            return new Response(operator, slaMinutes, steps, notices, evidence, ignorable, escalateTo, consequence,
+                    escalateScope, escalateWho, condition);
         }
     }
 

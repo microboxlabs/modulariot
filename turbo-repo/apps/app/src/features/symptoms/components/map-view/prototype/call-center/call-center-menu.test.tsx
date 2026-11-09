@@ -314,6 +314,104 @@ describe("CallCenterMenu", () => {
     );
   });
 
+  it("shows no step budget or SLA when the case does not require an operator", () => {
+    data.level = levelWith([
+      { role: "Conductor", channel: "call", budgetMinutes: 2 },
+    ]);
+    renderMenu({
+      ...treatment,
+      symptom_info: {
+        ...treatment.symptom_info,
+        sla_since: new Date().toISOString(),
+        sla_minutes: null,
+      },
+    });
+
+    expect(document.querySelector('[aria-current="step"]')).toBeNull();
+    expect(screen.queryByText(/SLA \d+:\d\d/)).toBeNull();
+  });
+
+  it("uses the case definition and version's steps instead of a same-name current response", () => {
+    data.level = levelWith([
+      {
+        role: "Conductor",
+        channel: "call",
+        budgetMinutes: 1,
+        goal: "Wrong version goal",
+      },
+    ]);
+    renderMenu({
+      ...treatment,
+      symptom_info: {
+        ...treatment.symptom_info,
+        sla_since: new Date().toISOString(),
+        sla_minutes: 5,
+      },
+      level_response: {
+        definitionId: "demo-definition",
+        name: treatment.symptom_info.name,
+        version: "2.0.0",
+        state: "ACTIVE",
+        level: {
+          icu: 3,
+          applies: true,
+          when: "true",
+          response: {
+            operator: true,
+            slaMinutes: 5,
+            steps: [
+              {
+                role: "Conductor",
+                channel: "call",
+                budgetMinutes: 5,
+                goal: "Case version goal",
+                script: null,
+              },
+            ],
+            notices: [],
+            evidence: [],
+            ignorable: true,
+          },
+        },
+      },
+    });
+    expect(screen.getByText(/Case version goal/)).toBeTruthy();
+    expect(screen.queryByText(/Wrong version goal/)).toBeNull();
+    expect(screen.getByText("v2.0.0")).toBeTruthy();
+  });
+
+  it("does not fall back to a different definition when the case has no published response", () => {
+    data.level = levelWith([
+      { role: "Conductor", channel: "call", budgetMinutes: 1 },
+    ]);
+    renderMenu({ ...treatment, level_response: null });
+    expect(document.querySelector('[aria-current="step"]')).toBeNull();
+  });
+
+  it("uses the case SLA even when the current level has no operator", () => {
+    data.level = {
+      version: 5,
+      level: {
+        response: {
+          operator: false,
+          slaMinutes: null,
+          steps: [{ role: "Conductor", channel: "call", budgetMinutes: 2 }],
+        },
+      },
+    };
+    renderMenu({
+      ...treatment,
+      symptom_info: {
+        ...treatment.symptom_info,
+        sla_since: new Date().toISOString(),
+        sla_minutes: 5,
+      },
+    });
+
+    expect(document.querySelector('[aria-current="step"]')).toBeTruthy();
+    expect(screen.getByText(/SLA [45]:/)).toBeTruthy();
+  });
+
   it("lists each step with the book contacts its condition matches", async () => {
     data.level = levelWith([
       {

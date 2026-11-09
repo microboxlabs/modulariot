@@ -83,6 +83,12 @@ export interface LevelResponse {
   escalateWho?: string | null;
   /** The case counts in consequence management. */
   consequence?: boolean;
+  /**
+   * With `operator`, the case reaches the operators only when this condition
+   * holds on the signal that opens it or moves it to the level; absent or
+   * empty means always.
+   */
+  operatorWhen?: string | null;
 }
 
 export interface Level {

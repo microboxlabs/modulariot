@@ -2,6 +2,7 @@ import {
   ConditionsAgg,
   TimelineElement,
 } from "@/features/symptoms/types/timeline";
+import type { LevelResponseView } from "@/features/symptoms/maintainer/maintainer-api";
 import type { LevelReason } from "@/features/symptoms/model/level-reason";
 import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
 
@@ -18,6 +19,8 @@ export type TreatmentsGeneralResponseItem = {
   symptom_info: TreatmentsSymptomInfoResponse;
   /** Engine cases only: why the case is at its level. */
   level_reason?: LevelReason | null;
+  /** Engine cases: response from the case definition and deciding level version. */
+  level_response?: LevelResponseView | null;
 };
 
 export type TreatmentsTripInfoResponse = {
@@ -45,6 +48,8 @@ export type TreatmentsSymptomInfoResponse = {
   opened_at?: string;
   /** The server's current-level SLA start, including returns from holds. */
   sla_since?: string | null;
+  /** Engine cases: resolved SLA; null means this case requires no operator. */
+  sla_minutes?: number | null;
   started_at?: string;
   duration_sec?: number;
   /** Engine cases on an "Ignorar condición" hold. */

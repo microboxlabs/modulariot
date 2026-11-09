@@ -59,6 +59,7 @@ public class SignalEvaluator {
     private static final String SIGNAL = "signal";
     private static final String OPEN_S = "open_s";
     private static final String LIFECYCLE_CLOSE = "lifecycle.close";
+    private static final String LEVEL_SECTION = "levels.";
 
     private final EpisodeStore store;
     private final Holds holds;
@@ -190,7 +191,7 @@ public class SignalEvaluator {
         }
         for (CompiledSymptom s : group) {
             try {
-                transitions.addAll(step(tenantCode, assetId, at, root, s));
+                transitions.addAll(withOperator(s, step(tenantCode, assetId, at, root, s), root, errors));
             } catch (RuleFailure f) {
                 errors.add(new RuleError(s.definitionId(), s.version(), f.section, f.getMessage()));
             }
@@ -217,12 +218,17 @@ public class SignalEvaluator {
                 continue;
             }
             try {
-                if (before.filter(Episode::open).isPresent()) {
-                    if (!at.isBefore(before.get().openedAt())) {
-                        lateWhileOpen(tenantCode, at, root, s, before.get(), transitions);
+                List<Transition> changes = new ArrayList<>();
+                try {
+                    if (before.filter(Episode::open).isPresent()) {
+                        if (!at.isBefore(before.get().openedAt())) {
+                            lateWhileOpen(tenantCode, at, root, s, before.get(), changes);
+                        }
+                    } else {
+                        changes.addAll(lateOpening(tenantCode, assetId, at, root, s, before));
                     }
-                } else {
-                    transitions.addAll(lateOpening(tenantCode, assetId, at, root, s, before));
+                } finally {
+                    transitions.addAll(withOperator(s, changes, root, errors));
                 }
             } catch (RuleFailure f) {
                 errors.add(new RuleError(s.definitionId(), s.version(), f.section, f.getMessage()));
@@ -296,6 +302,45 @@ public class SignalEvaluator {
         return Optional.ofNullable(note(s, e.assetId(), at, e.level(), vars));
     }
 
+    /** Each opening and level change with whether its case goes to the operators at its new level. */
+    private static List<Transition> withOperator(CompiledSymptom s, List<Transition> changes, Map<String, Object> root,
+            List<RuleError> errors) {
+        if (changes.isEmpty() || s.operators().isEmpty()) {
+            return changes;
+        }
+        List<Transition> out = new ArrayList<>(changes.size());
+        for (Transition t : changes) {
+            boolean moves = t.kind() == Kind.OPENED || t.kind() == Kind.LEVEL_CHANGED;
+            out.add(moves ? t.withOperator(operator(s, t.level(), root, errors)) : t);
+        }
+        return out;
+    }
+
+    /**
+     * The level's {@code operator}, and when it has one its {@code operatorWhen} on this signal. A condition that
+     * cannot run, as when it reads a value the signal lacks (no trip), sends no operator and is reported.
+     */
+    static boolean operator(CompiledSymptom s, int level, Map<String, Object> root, List<RuleError> errors) {
+        CompiledSymptom.Operator rule = s.operators().getOrDefault(level, CompiledSymptom.Operator.NONE);
+        if (!rule.required()) {
+            return false;
+        }
+        if (rule.when() == null) {
+            return true;
+        }
+        String section = LEVEL_SECTION + level + ".response.operatorWhen";
+        RuleResult r = rule.when().run(root);
+        if (!r.ok()) {
+            errors.add(new RuleError(s.definitionId(), s.version(), section, r.error()));
+            return false;
+        }
+        if (!(r.value() instanceof Boolean b)) {
+            errors.add(new RuleError(s.definitionId(), s.version(), section, "La condición debe dar sí o no."));
+            return false;
+        }
+        return b;
+    }
+
     /** What one signal says about one symptom, before the lifecycle runs. */
     private record Reading(boolean active, double measure, int level, Instant candidateSince,
             Map<Integer, Instant> levelSince, Instant conditionSince, Instant normalSince) {
@@ -356,7 +401,7 @@ public class SignalEvaluator {
         int floor = 0;
         int below = 0;
         for (Map.Entry<Integer, PreparedRule> l : s.levels().entrySet()) {
-            String section = "levels." + l.getKey();
+            String section = LEVEL_SECTION + l.getKey();
             vars.put("held_s", FOREVER);
             boolean holdQualified = condition(l.getValue(), vars, section);
             Instant start = candidateSince;

@@ -46,7 +46,8 @@ class PgSlaStoreTest {
     private static final List<String> MIGRATIONS = List.of("V0.8.0__create_symptoms_catalog.sql",
             "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql",
             "V0.8.3__create_tower_settings.sql", "V0.8.4__create_signal_transitions.sql", "V0.8.5__signal_cases.sql",
-            "V0.9.7__sla_expiry.sql", "V0.12.10__transition_context.sql");
+            "V0.9.7__sla_expiry.sql", "V0.12.10__transition_context.sql",
+            "V0.12.26__transition_operator.sql");
     private static final String SPEC = """
             {"levels":[{"icu":1,"applies":true,"when":"true","response":{"operator":false}},
                        {"icu":3,"applies":true,"when":"true","response":{"operator":true,"slaMinutes":15}}]}
@@ -540,6 +541,53 @@ class PgSlaStoreTest {
                 """, Tuple.of(tenant, -caseId, t0.minusSeconds(60).atOffset(ZoneOffset.UTC)));
 
         assertTrue(due(t0.minusSeconds(3600), t0.plusSeconds(3600), tenant).isEmpty());
+    }
+
+    @Test
+    void theDecisionKeptOnTheRowDecidesTheInboxTheSlaAndTheStats() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0, null);
+        long attended = log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0",
+                SymptomState.ACTIVE, "DEMO01", t0, 3, 0, 30, null, null, true)), place).get(0).caseId();
+        long recordedOnly = log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0",
+                SymptomState.ACTIVE, "DEMO02", t0, 3, 0, 30, null, null, false)), place).get(0).caseId();
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertEquals(List.of(attended, recordedOnly).stream().sorted().toList(),
+                ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN)).stream().sorted().toList(),
+                "both are recorded and listed");
+        assertEquals(List.of(attended), ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator())));
+        assertEquals(15, cases.find(tenant, attended).orElseThrow().slaMinutes());
+        assertNull(cases.find(tenant, recordedOnly).orElseThrow().slaMinutes(), "no SLA without an operator");
+        assertEquals(1, cases.towerCounts(tenant).active().stream().mapToLong(EngineCaseStore.OpenCount::count)
+                .sum());
+        EngineCaseStore.LevelCount opened = cases.openedCounts(tenant, t0.minusSeconds(1), t0.plusSeconds(1))
+                .get(0);
+        assertEquals(2, opened.count());
+        assertEquals(1, opened.withoutOperator());
+
+        List<SlaStore.Due> due = due(t0.minusSeconds(3600), t0.plusSeconds(3600), tenant);
+        assertEquals(List.of(attended), due.stream().map(d -> d.engineCase().id()).toList());
+    }
+
+    @Test
+    void aLevelChangeDecidesAgainForItsLevel() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0, null);
+        long caseId = log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0",
+                SymptomState.ACTIVE, "DEMO01", t0, 1, 0, 30, null, null, false)), place).get(0).caseId();
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, speeding, "1.0.0", SymptomState.ACTIVE,
+                "DEMO01", t0.plusSeconds(60), 3, 1, 30, null, null, true)), place);
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertEquals(List.of(caseId), ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator())));
+        assertEquals(15, cases.find(tenant, caseId).orElseThrow().slaMinutes());
+        assertEquals(List.of(caseId), due(t0.minusSeconds(3600), t0.plusSeconds(3600), tenant).stream()
+                .map(d -> d.engineCase().id()).toList());
     }
 
     private List<SlaStore.Due> due(Instant openedAfter, Instant now, String tenant) {

@@ -143,9 +143,10 @@ public interface EngineCaseStore {
      * is the RUT of either driver, {@code carrierId} the carrier's RUT or id; both ignore dots, dashes, spaces and
      * case. {@code origin} and {@code destination} are the whole place name, ignoring case and outer spaces.
      *
-     * <p>{@code operatorOnly} keeps the cases whose current level has {@code response.operator: true} in the
-     * published version the case runs on: the tower inbox. A level with {@code operator: false} or no response is
-     * left out.
+     * <p>{@code operatorOnly} keeps the cases whose current level goes to the operators: the tower inbox. The
+     * evaluator decides it when the case opens or changes level ({@code response.operator} and
+     * {@code operatorWhen}); for a case recorded before that, {@code response.operator: true} in the published
+     * version the case runs on. A level with {@code operator: false} or no response is left out.
      */
     record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to,
             String driverId, String carrierId, String origin, String destination, boolean underTreatmentOnly,
@@ -191,7 +192,15 @@ public interface EngineCaseStore {
         }
     }
 
-    record LevelCount(UUID definitionId, int level, long count) {
+    /**
+     * Cases opened at a level. {@code withoutOperator} counts those the evaluator decided keep off the operators at
+     * that level, although its response has {@code operator} ({@code operatorWhen} did not hold).
+     */
+    record LevelCount(UUID definitionId, int level, long count, long withoutOperator) {
+
+        public LevelCount(UUID definitionId, int level, long count) {
+            this(definitionId, level, count, 0);
+        }
     }
 
     /**

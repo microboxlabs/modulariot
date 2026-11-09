@@ -52,7 +52,7 @@ public class PgEngineCases implements EngineCaseStore {
 
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.state, o.asset_id, o.at, o.level, o.trip_id,
-                   o.latitude, o.longitude, o.speed_kmh, d.name, d.family,
+                   o.latitude, o.longitude, o.speed_kmh, o.operator_required, d.name, d.family,
                    closed.id AS closed_id, closed.at AS closed_at,
                    (SELECT count(*) FROM miot_symptoms.treatment t
                      WHERE t.tenant_code = o.tenant_code AND t.symptom_id = -o.id AND t.status = 'OPEN') AS treatments,
@@ -82,13 +82,14 @@ public class PgEngineCases implements EngineCaseStore {
 
     /**
      * The case's level is its latest level change before it closed, else the opening one; {@code level_at} is when
-     * it reached that level.
+     * it reached that level, {@code level_operator} what that row decided about operators (null on older rows).
      */
     private static final String SELECT = """
             SELECT x.*,
-                   COALESCE(lv.level, x.level) AS current_level, COALESCE(lv.at, x.at) AS level_at
+                   COALESCE(lv.level, x.level) AS current_level, COALESCE(lv.at, x.at) AS level_at,
+                   CASE WHEN lv.level IS NULL THEN x.operator_required ELSE lv.operator_required END AS level_operator
               FROM (%s) x
-              LEFT JOIN LATERAL (SELECT l.level, l.at FROM miot_symptoms.signal_transitions l
+              LEFT JOIN LATERAL (SELECT l.level, l.at, l.operator_required FROM miot_symptoms.signal_transitions l
                      WHERE l.tenant_code = x.tenant_code AND l.definition_id = x.definition_id
                        AND l.asset_id = x.asset_id AND l.state = x.state AND l.kind = 'LEVEL_CHANGED' AND l.id > x.id
                        AND (x.closed_id IS NULL OR l.id < x.closed_id)
@@ -96,29 +97,30 @@ public class PgEngineCases implements EngineCaseStore {
             """;
 
     /**
-     * The SLA of the case's level in the version that opened it. A spec may be stored as a JSON string holding
-     * the document.
+     * The SLA of the case's level in the version that opened it; none when the case at that level does not go to
+     * the operators. A spec may be stored as a JSON string holding the document.
      */
     private static final String WITH_SLA = """
-            SELECT y.*, (SELECT jsonb_path_query_first(
+            SELECT y.*, CASE WHEN y.level_operator IS FALSE THEN NULL ELSE (SELECT jsonb_path_query_first(
                            CASE jsonb_typeof(v.spec) WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END,
                            'lax $.levels[*] ? (@.icu == $l && @.applies == true && @.response.operator == true)'
                              '.response.slaMinutes ? (@ > 0)',
                            jsonb_build_object('l', y.current_level))::numeric::int
                       FROM miot_symptoms.symptom_version v
                      WHERE v.definition_id = y.definition_id AND v.tenant_code = y.tenant_code
-                       AND v.version = y.version AND v.status = 'PUBLISHED') AS sla_minutes,
+                       AND v.version = y.version AND v.status = 'PUBLISHED') END AS sla_minutes,
                    %s AS needs_operator
               FROM (%s) y
             """.formatted(needsOperator("y"), "%s");
 
     /**
-     * Whether the case's current level asks for an operator: {@code response.operator} is true for that level in
-     * the published version the case runs on. False without that version or level, or without a response.
+     * Whether the case's current level asks for an operator: what the row that set the level decided
+     * ({@code level_operator}); for an older row, {@code response.operator} for that level in the published version
+     * the case runs on. False without that version or level, or without a response.
      */
     private static String needsOperator(String alias) {
         return """
-                COALESCE((SELECT jsonb_path_exists(
+                COALESCE(%1$s.level_operator, (SELECT jsonb_path_exists(
                            CASE jsonb_typeof(v.spec) WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END,
                            'lax $.levels[*] ? (@.icu == $l && @.response.operator == true)',
                            jsonb_build_object('l', %1$s.current_level))
@@ -258,7 +260,8 @@ public class PgEngineCases implements EngineCaseStore {
             + " NULL::text AS trip_driver, NULL::text AS trip_carrier, NULL::text AS trip_origin,"
             + " NULL::text AS trip_destination FROM (%s) c ORDER BY c.at DESC";
     private static final String OPENED = CASES + " AND o.at >= $2 AND o.at < $3";
-    private static final String OPENED_COUNTS = "SELECT y.definition_id, y.current_level, count(*) AS n"
+    private static final String OPENED_COUNTS = "SELECT y.definition_id, y.current_level, count(*) AS n,"
+            + " count(*) FILTER (WHERE y.level_operator IS FALSE) AS without_operator"
             + FROM_SUBQUERY + SELECT.formatted(OPENED) + ") y GROUP BY 1, 2";
     /** When the case reached its current level: its latest level change before it closed, else its opening. */
     private static final String LEVEL_SINCE = """
@@ -592,7 +595,8 @@ public class PgEngineCases implements EngineCaseStore {
     public List<LevelCount> openedCounts(String tenantCode, Instant from, Instant to) {
         List<LevelCount> out = new ArrayList<>();
         PgIds.query(pool.get(), OPENED_COUNTS, Tuple.of(tenantCode, utc(from), utc(to))).forEach(r -> out.add(
-                new LevelCount(r.getUUID("definition_id"), r.getInteger("current_level"), r.getLong("n"))));
+                new LevelCount(r.getUUID("definition_id"), r.getInteger("current_level"), r.getLong("n"),
+                        r.getLong("without_operator"))));
         return out;
     }
 

@@ -61,7 +61,10 @@ public class SymptomStatsService {
             Operators operators, Changes changes) {
     }
 
-    /** One definition's weekly averages; {@code operatorWeek} counts levels that need an operator. */
+    /**
+     * One definition's weekly averages; {@code operatorWeek} counts the cases at levels that need an operator,
+     * less those its {@code operatorWhen} kept off the operators.
+     */
     public record PerSymptom(UUID definitionId, List<Long> weekByLevel, long week, long operatorWeek) {
     }
 
@@ -120,12 +123,15 @@ public class SymptomStatsService {
 
         long[] totalRaw = new long[LEVELS];
         Map<UUID, long[]> raw = new HashMap<>();
+        Map<UUID, long[]> withoutOperator = new HashMap<>();
         for (LevelCount c : counts) {
             if (c.level() < 1 || c.level() > LEVELS) {
                 continue;
             }
             totalRaw[c.level() - 1] += c.count();
             raw.computeIfAbsent(c.definitionId(), id -> new long[LEVELS])[c.level() - 1] += c.count();
+            withoutOperator.computeIfAbsent(c.definitionId(), id -> new long[LEVELS])[c.level() - 1]
+                    += c.withoutOperator();
         }
 
         List<PerSymptom> perSymptom = new ArrayList<>();
@@ -136,7 +142,14 @@ public class SymptomStatsService {
                 continue;
             }
             List<Long> week = weekly(levels, days);
-            long operatorWeek = operatorLevels(s.current()).stream().mapToLong(icu -> week.get(icu - 1)).sum();
+            long[] attended = levels.clone();
+            long[] off = withoutOperator.get(s.definition().id());
+            for (int i = 0; i < LEVELS; i++) {
+                attended[i] = Math.max(0, attended[i] - off[i]);
+            }
+            List<Long> operatorByLevel = weekly(attended, days);
+            long operatorWeek = operatorLevels(s.current()).stream().mapToLong(icu -> operatorByLevel.get(icu - 1))
+                    .sum();
             if (s.definition().state() == SymptomState.ACTIVE) {
                 operatorWeekActive += operatorWeek;
             }

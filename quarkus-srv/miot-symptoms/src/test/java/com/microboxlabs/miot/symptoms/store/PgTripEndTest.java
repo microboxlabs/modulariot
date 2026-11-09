@@ -52,7 +52,7 @@ class PgTripEndTest {
             "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql",
             "V0.8.3__create_tower_settings.sql", "V0.8.4__create_signal_transitions.sql", "V0.8.5__signal_cases.sql",
             "V0.9.7__sla_expiry.sql", "V0.12.10__transition_context.sql", "V0.12.13__held_transitions.sql",
-            "V0.12.24__trip_end_effects.sql");
+            "V0.12.24__trip_end_effects.sql", "V0.12.26__transition_operator.sql");
 
     private static Vertx vertx;
     private static Pool pool;

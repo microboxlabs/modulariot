@@ -146,9 +146,10 @@ function InnerEditor({
 
   const cambiarRadio = (radius_m: number) => onChange({ ...inner, radius_m });
 
+  const pistaDelCirculo = ubicada ? "inners.hint_drag" : "inners.hint_place";
   const pista =
     kind === "circle"
-      ? t(ubicada ? "inners.hint_drag" : "inners.hint_place")
+      ? t(pistaDelCirculo)
       : pistaPoligono(t, polyBase, inner.lat != null);
 
   return (

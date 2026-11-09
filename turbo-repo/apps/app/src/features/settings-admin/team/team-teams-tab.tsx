@@ -10,7 +10,9 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { deleteTeam, useTeams } from "./team-api";
 import { TeamFormModal } from "./team-form-modal";
+import { filterTeams } from "./team-filters";
 import { labelOf, memberLabels } from "./team-model";
+import { NoMatches } from "./team-members-tab";
 import type { CatalogRole, Team, TeamMember } from "./team.types";
 
 const CELL = "px-4 py-3 align-middle";
@@ -127,6 +129,8 @@ function TeamRow({
 
 interface TeamTeamsTabProps {
   readonly members: TeamMember[];
+  /** Search over the team name and description. */
+  readonly query?: string;
   readonly roles: CatalogRole[];
   readonly allowed: TeamsPermissions;
   readonly lang: string;
@@ -136,6 +140,7 @@ interface TeamTeamsTabProps {
 /** The organization's teams, their members and the roles they hold. */
 export function TeamTeamsTab({
   members,
+  query = "",
   roles,
   allowed,
   lang,
@@ -168,7 +173,8 @@ export function TeamTeamsTab({
     }
   };
 
-  const list = teams.data ?? [];
+  const all = teams.data ?? [];
+  const list = filterTeams(all, query);
 
   return (
     <div className="flex flex-col gap-3">
@@ -187,7 +193,8 @@ export function TeamTeamsTab({
       )}
       {teams.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
       {teams.isLoading && <Spinner className="mx-auto" />}
-      {teams.data && list.length === 0 && (
+      {all.length > 0 && list.length === 0 && <NoMatches d={d} />}
+      {teams.data && all.length === 0 && (
         <p className="py-10 text-center text-sm text-gray-500">
           {tr("noTeams", d)}
         </p>

@@ -55,7 +55,7 @@ export function OrgTelephonyChoice({
   /** `pages.userSettings.telephony.choice`. */
   dict: I18nRecord;
 }>) {
-  const { data: setup, error, isLoading } = useTelephony();
+  const { data: setup, error, isLoading, orgSlug } = useTelephony();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
 
@@ -85,7 +85,7 @@ export function OrgTelephonyChoice({
     setBusy(true);
     setFailed(null);
     try {
-      await saveTelephony(value as TelephonyProvider);
+      await saveTelephony(value as TelephonyProvider, orgSlug);
     } catch (e) {
       setFailed(
         e instanceof ControlTowerError && e.status === 403

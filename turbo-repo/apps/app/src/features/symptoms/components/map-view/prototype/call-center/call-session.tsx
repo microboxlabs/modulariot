@@ -22,8 +22,8 @@ import {
   type PropsWithChildren,
 } from "react";
 import {
-  CHANNELS_BUSY,
-  QUOTA_EXHAUSTED,
+  KNOWN_REFUSALS,
+  fetchCallOutcome,
   fetchWebRtcToken,
   reportCallEnded,
 } from "@/features/symptoms/control-tower/telephony-api";
@@ -59,9 +59,13 @@ export interface StartCall {
 export interface StartTelnyx extends StartCall {
   destination: string;
   caseRef?: string | null;
+  /** WHATSAPP: the server calls the number on WhatsApp and bridges it to this browser leg. */
+  channel?: "WHATSAPP";
   dial?: typeof startTelnyxCall;
   token?: typeof fetchWebRtcToken;
   endCall?: typeof reportCallEnded;
+  /** Why the provider ended a WhatsApp call that never connected. */
+  outcome?: typeof fetchCallOutcome;
 }
 
 export interface CallSession {
@@ -137,6 +141,21 @@ interface Engine {
   abort: AbortController | null;
   release: (() => void) | null;
   cancelled: boolean;
+}
+
+/**
+ * The server records Meta's refusal while it hangs up the operator's leg, so
+ * the browser can see the hangup first: ask once more a moment later.
+ */
+export async function whatsAppFailure(
+  outcome: typeof fetchCallOutcome,
+  callRef: string,
+  retryMs = 1500
+): Promise<string | null> {
+  const first = await outcome(callRef);
+  if (first.failure) return first.failure;
+  await new Promise((resolve) => setTimeout(resolve, retryMs));
+  return (await outcome(callRef)).failure;
 }
 
 let counter = 0;
@@ -301,9 +320,11 @@ export function CallSessionProvider({
     const {
       destination,
       caseRef,
+      channel,
       dial = startTelnyxCall,
       token = fetchWebRtcToken,
       endCall = reportCallEnded,
+      outcome = fetchCallOutcome,
     } = input;
     const started = begin(input, "telnyx", {
       phase: "connecting",
@@ -332,6 +353,7 @@ export function CallSessionProvider({
         const login = await token({
           calleeNumber: destination,
           caseRef: caseRef ?? undefined,
+          ...(channel ? { channel } : {}),
         });
         acquiredRef = login.callRef ?? null;
         if (eng.cancelled) {
@@ -363,17 +385,36 @@ export function CallSessionProvider({
               });
               return;
             }
-            patch(id, {
-              status: "ended",
-              phase: "ended",
-              dialReady: false,
-              providerCallId: result.callId,
-              result: {
-                durationSeconds: result.durationSeconds,
-                method: "phone",
-                telephony: result,
-              },
-            });
+            const finish = () =>
+              patch(id, {
+                status: "ended",
+                phase: "ended",
+                dialReady: false,
+                providerCallId: result.callId,
+                result: {
+                  durationSeconds: result.durationSeconds,
+                  method: input.method,
+                  telephony: result,
+                },
+              });
+            // A WhatsApp call that never connected may have been refused by
+            // Meta (no call permission): the server kept why.
+            if (channel !== "WHATSAPP" || result.answered || !acquiredRef) {
+              finish();
+              return;
+            }
+            void whatsAppFailure(outcome, acquiredRef)
+              .then((failure) => {
+                if (!failure) return finish();
+                patch(id, {
+                  status: "failed",
+                  phase: null,
+                  dialReady: false,
+                  providerCallId: result.callId,
+                  error: { refusal: failure, message: null },
+                });
+              })
+              .catch(finish);
           },
         });
         if (!ended) eng.live = live;
@@ -393,8 +434,7 @@ export function CallSessionProvider({
           phase: null,
           dialReady: false,
           error: {
-            refusal:
-              code === QUOTA_EXHAUSTED || code === CHANNELS_BUSY ? code : null,
+            refusal: code && KNOWN_REFUSALS.includes(code) ? code : null,
             message: cause instanceof Error ? cause.message : String(cause),
           },
         });

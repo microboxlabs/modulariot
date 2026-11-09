@@ -251,6 +251,46 @@ class CallPermissionServiceTest {
     }
 
     @Test
+    void managedSipPermissionsAndRequestsUseThePlatformSenderWhileKeepingTheOrganizationLedger() {
+        List<SendingNumber> used = new ArrayList<>();
+        String platform = com.microboxlabs.miot.core.auth.PlatformScope.TENANT;
+        var service = new CallPermissionService(store, key -> template,
+                (tenant, to) -> new SendingNumber(tenant, URI.create("https://graph.example.test"),
+                        platform.equals(tenant) ? "platform-number" : "own-number", "test-token"),
+                (tenant, number, to, name, language, params) -> {
+                    assertEquals(TENANT, tenant, "the request is still attributed to the organization");
+                    used.add(number);
+                    return "wamid.managed";
+                }, true, Clock.fixed(now, ZoneOffset.UTC));
+        service.applyReply(new CallPermissionReply("platform-number", CONTACT, "platform-grant", null, true, true,
+                null, "user_action", now.minusSeconds(1).atOffset(ZoneOffset.UTC)));
+        assertEquals(State.NO_PERMISSION, service.view(TENANT, PHONE).state());
+        assertEquals(State.CAN_CALL, service.forManagedCalls().view(TENANT, PHONE).state());
+        assertEquals(Optional.of(true), new ConversationalWhatsAppCallPermissions(service).allows(TENANT, PHONE));
+        var requested = service.forManagedCalls().request(TENANT, "+12025550102", "Test contact", "operator");
+        assertTrue(requested.sent());
+        assertEquals(platform, used.getFirst().tenantCode());
+        assertEquals("platform-number", used.getFirst().phoneNumberId());
+        assertEquals(State.PENDING, requested.view().state());
+        assertEquals(State.NO_PERMISSION, service.view(TENANT, "+12025550102").state());
+    }
+
+    @Test
+    void absentSipPermissionStaysUnknownWhileExplicitDenialsAndPendingRequestsBlock() {
+        var service = service(true);
+        var adapter = new ConversationalWhatsAppCallPermissions(service);
+        assertEquals(Optional.empty(), adapter.allows(TENANT, PHONE));
+        service.forManagedCalls().request(TENANT, PHONE, "Test contact", "operator");
+        assertEquals(Optional.of(false), adapter.allows(TENANT, PHONE));
+        service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "denial", null, false, false, null,
+                "user_action", now.atOffset(ZoneOffset.UTC)));
+        assertEquals(Optional.of(false), adapter.allows(TENANT, PHONE));
+        service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "grant", null, true, true, null,
+                "user_action", now.plusSeconds(1).atOffset(ZoneOffset.UTC)));
+        assertEquals(Optional.of(true), adapter.allows(TENANT, PHONE));
+    }
+
+    @Test
     void aCallWithoutSourceTimeCannotEraseANewerMiss() {
         var service = service(true);
         service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "grant", null, true, true, null,

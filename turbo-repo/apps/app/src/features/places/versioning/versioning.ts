@@ -334,9 +334,7 @@ export function cambiosTrayecto(
         codigos: categoriasDePuntos(despues),
         lista: despues.categorias_puntos_lista,
       }
-    )
-  );
-  out.push(
+    ),
     ...cambioTexto("Nombre", antes.name, despues.name, "PATCH"),
     ...cambioTexto(
       "ID externo",

@@ -78,6 +78,31 @@ While an "Ignorar condición" hold covers an ACTIVE symptom on the vehicle (`cas
 
 A case's symptom id is the OPENED row's id negated, so it never meets a GPS database symptom id in `treatment` and `audit_event`. The row keeps the signal's trip, position and speed (V0.8.5). A trip check's OPENED and LEVEL_CHANGED rows also keep, in `context` (V0.12.10), the check the rules read without its trip: `{"check": {"signal_lost_minutes", "loss": {...}}}`. The case's level context is that of the row that set its level. A GPS signal's speed-template transitions each keep the limits it compared the frame with: `{"speed_limit": {"kmh", "source", "road_kmh", "custom_kmh", "osm_way_id", "road_class", "zone_id", "zone_name"}}`; `kmh` and `source` identify the limit that transition's measure reads (`custom` or `road`), even when both limits are present. Unrelated transitions in the same batch keep no speed-limit evidence. The live map pin gets this limit only when its position timestamp matches the transition; later frames have no stored limit of their own.
 
+## Operator per case
+
+A level's `response.operator` sends its cases to the operators' tray, with the SLA, steps and escalation. `response.operatorWhen` limits that to some cases. It is a condition over the source object, like the activation: `signal.*` for `gps_signal`, `check.*` for `trip_check`.
+
+| `operator` | `operatorWhen` | The case at that level |
+|---|---|---|
+| false | any | Recorded, no operator |
+| true | empty or absent | Goes to the tray, as before |
+| true | true on the signal | Goes to the tray |
+| true | false, or a value is missing | Recorded, no operator |
+
+The evaluator decides when the case opens or changes level, on that signal, and keeps the result in `signal_transitions.operator_required` (V0.12.26). The tray, the tower counts, the case's `sla_minutes`, the SLA timer and the catalog stats read it. A case without an operator is listed in the Control Tower with no SLA and no escalation. Rows written before V0.12.26 have it null and use `response.operator` of their version.
+
+A condition that cannot run, for example `signal.trip.type` on a signal without a trip, gives no operator and is reported as a `RuleError` (section `levels.<icu>.response.operatorWhen`). The validator checks the condition only on a level that applies and has `operator`; `operator` still needs `slaMinutes`.
+
+Example: record speeding on every trip, but keep cases on trips of type `otr` and `ote` off the tray.
+
+```json
+{"icu": 3, "applies": true, "when": "measure >= 11 && measure < 21",
+ "response": {"operator": true, "slaMinutes": 15,
+              "operatorWhen": "signal.trip.type != \"otr\" && signal.trip.type != \"ote\""}}
+```
+
+For a `trip_check` symptom the field is `check.trip.type`.
+
 ## Case events
 
 Each new transition, and an operator's close, is published in-process as an `OperationalEvent` (`miot-core`, `core.event`) with `Event.fireAsync` (`events/SymptomEvents`). A replayed signal publishes nothing again: the log returns only the rows it inserted.
@@ -92,4 +117,4 @@ Each new transition, and an operator's close, is published in-process as an `Ope
 
 `source` is `miot-symptoms`, `context` is `{kind: "symptom_case", key: "<symptom id>"}` (the negated OPENED id), `data` is `SymptomCaseData`. TEST symptoms publish with `test: true`. `SymptomEventCatalog` lists the types and the payload class.
 
-The SLA timer (`cases/SlaTimer`, every 60 s, `miot.symptoms.sla.enabled`, on with the evaluator) reads the ACTIVE cases opened in the last 7 days whose current level has `operator` and `slaMinutes`, reached that level more than `slaMinutes` ago, and have no treatment that is open or was opened since the case reached the level. It writes `miot_symptoms.sla_expiry (tenant_code, case_id, level)` (V0.9.7) and publishes only when the row is new, so each case and level expires once across replicas.
+The SLA timer (`cases/SlaTimer`, every 60 s, `miot.symptoms.sla.enabled`, on with the evaluator) reads the ACTIVE cases opened in the last 7 days whose current level has `operator` and `slaMinutes` and needs an operator ([Operator per case](#operator-per-case)), reached that level more than `slaMinutes` ago, and have no treatment that is open or was opened since the case reached the level. It writes `miot_symptoms.sla_expiry (tenant_code, case_id, level)` (V0.9.7) and publishes only when the row is new, so each case and level expires once across replicas.

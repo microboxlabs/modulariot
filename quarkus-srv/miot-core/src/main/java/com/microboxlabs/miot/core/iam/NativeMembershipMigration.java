@@ -172,13 +172,14 @@ public class NativeMembershipMigration {
         return added;
     }
 
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    /**
+     * Persists in one call. A persist with an assigned id completes at once, so chaining one Uni per binding nests
+     * the stack on the event loop until it overflows, and the overflow is lost with the Uni left pending.
+     */
     private static Uni<Integer> persistAll(List<IamRoleBinding> bindings) {
-        Uni<Void> chain = Uni.createFrom().voidItem();
-        for (IamRoleBinding b : bindings) {
-            chain = chain.flatMap(i -> b.persist().replaceWithVoid());
-        }
-        return chain.replaceWith(bindings.size());
+        return Panache.getSession()
+                .flatMap(session -> session.persistAll(bindings.toArray()))
+                .replaceWith(bindings.size());
     }
 
     /** The modules each user holds a role of, through their own bindings or their teams'. */
@@ -187,13 +188,14 @@ public class NativeMembershipMigration {
         Map<UUID, Set<String>> byTeam = new HashMap<>();
         for (IamRoleBinding b : bindings) {
             String module = registry.role(b.roleKey).map(RoleDef::module).orElse(null);
-            if (module == null) {
+            UUID principal = uuidOrNull(b.principalId);
+            if (module == null || principal == null) {
                 continue;
             }
             if (IamRoleBinding.USER.equals(b.principalKind)) {
-                held.computeIfAbsent(UUID.fromString(b.principalId), k -> new HashSet<>()).add(module);
+                held.computeIfAbsent(principal, k -> new HashSet<>()).add(module);
             } else if (IamRoleBinding.TEAM.equals(b.principalKind)) {
-                byTeam.computeIfAbsent(UUID.fromString(b.principalId), k -> new HashSet<>()).add(module);
+                byTeam.computeIfAbsent(principal, k -> new HashSet<>()).add(module);
             }
         }
         if (byTeam.isEmpty()) {
@@ -204,6 +206,15 @@ public class NativeMembershipMigration {
                     .addAll(byTeam.get(m.id.teamId)));
             return held;
         });
+    }
+
+    /** A user or team id; null for one that is not a UUID, which no member has. */
+    private static UUID uuidOrNull(String id) {
+        try {
+            return id == null ? null : UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.

@@ -139,14 +139,9 @@ public class AlfrescoBridge {
             return IamUser.findByIds(fromAlfresco.stream().map(m -> m.userId).toList()).flatMap(users -> {
                 Set<UUID> gone = new HashSet<>();
                 users.stream().filter(u -> !inGroup.contains(IamUser.normalize(u.email))).forEach(u -> gone.add(u.id));
-                Uni<Void> chain = Uni.createFrom().voidItem();
-                for (IamMembership m : fromAlfresco) {
-                    if (gone.contains(m.userId)) {
-                        m.status = "SUSPENDED";
-                        chain = chain.flatMap(i -> m.persist().replaceWithVoid());
-                    }
-                }
-                return chain.replaceWith(gone.size());
+                // Managed rows: the change is flushed on commit. One Uni per row would nest the stack.
+                fromAlfresco.stream().filter(m -> gone.contains(m.userId)).forEach(m -> m.status = "SUSPENDED");
+                return Uni.createFrom().item(gone.size());
             });
         });
     }

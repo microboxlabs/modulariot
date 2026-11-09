@@ -127,10 +127,9 @@ export default function PrototypeGeneralMap({
   const [callFlowStep, setCallFlowStep] =
     useState<CallCenterReportedStep | null>(null);
 
-  useEffect(() => {
-    if (pastFormsEnabled) return;
+  const replaceMenuQuery = (open: boolean) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (isFormOpen) {
+    if (open) {
       params.set("open", "1");
       params.set("menu", selectedOption);
     } else {
@@ -141,8 +140,21 @@ export default function PrototypeGeneralMap({
     router.replace(query ? `${pathname}?${query}` : pathname, {
       scroll: false,
     });
+  };
+
+  useEffect(() => {
+    if (pastFormsEnabled || !isFormOpen) return;
+    replaceMenuQuery(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFormOpen, selectedOption]);
+
+  // Clears the query in the same call that closes the panel, before a form's
+  // save pushes the symptom list: the router keeps only the latest navigation,
+  // so a replace from an effect would discard that push.
+  const setPanelOpen = (open: boolean) => {
+    setIsFormOpen(open);
+    if (!open && !pastFormsEnabled) replaceMenuQuery(false);
+  };
 
   // The call bar asks to see its call: open the call panel when the call is this case's.
   const callSession = useOptionalCallSession();
@@ -375,7 +387,7 @@ export default function PrototypeGeneralMap({
             setSelectedTreatment={setSelectedTreatment}
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
             isFormOpen={isFormOpen}
-            setIsFormOpen={setIsFormOpen}
+            setIsFormOpen={setPanelOpen}
             selectedOption={selectedOption}
             setSelectedOption={setSelectedOption}
             onCallFlowStepChange={setCallFlowStep}

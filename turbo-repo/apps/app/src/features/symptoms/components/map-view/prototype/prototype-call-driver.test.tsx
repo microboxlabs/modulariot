@@ -330,6 +330,7 @@ describe("engine call treatment form", () => {
     await user.click(finish);
 
     await waitFor(() => expect(closeMenu).toHaveBeenCalledWith(false));
+    expect(api.push).toHaveBeenCalledWith("/symptoms");
     expect(api.openTreatment).toHaveBeenCalledTimes(1);
     expect(api.addTreatmentAction).toHaveBeenCalledTimes(1);
     expect(api.closeTreatment).toHaveBeenCalledTimes(2);

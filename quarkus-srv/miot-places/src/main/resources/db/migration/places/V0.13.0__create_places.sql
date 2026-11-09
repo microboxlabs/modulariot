@@ -130,12 +130,19 @@ CREATE INDEX idx_place_parent ON miot_places.place (parent_id)
 -- punto dentro de geocerca / cercanía
 CREATE INDEX idx_place_geom ON miot_places.place USING gist (geom)
     WHERE is_active;
--- geocercas pendientes de copiar a StreamHub: nunca copiadas o editadas después
+-- geocercas e internas pendientes de llevar a StreamHub (cada interna es una
+-- geocerca propia allá, por su código): crear, editar y también eliminar.
+-- El borrado lógico sube updated_at (trigger), así que la borrada pende igual
+-- que la editada: el sync la elimina en StreamHub (borrado físico) y recién
+-- ahí marca synced_at. Los trayectos no van a StreamHub.
 CREATE INDEX idx_place_sync_pending ON miot_places.place (tenant_code)
-    WHERE kind = 'geofence' AND is_active AND (synced_at IS NULL OR synced_at < updated_at);
+    WHERE kind IN ('geofence', 'inner_geofence') AND (synced_at IS NULL OR synced_at < updated_at);
 
+-- marcar synced_at no es una edición: no sube updated_at, que sigue diciendo
+-- cuándo se editó el lugar
 CREATE TRIGGER trg_place_updated_at BEFORE UPDATE ON miot_places.place
-    FOR EACH ROW EXECUTE FUNCTION miot_places.set_updated_at();
+    FOR EACH ROW WHEN (NEW.synced_at IS NOT DISTINCT FROM OLD.synced_at)
+    EXECUTE FUNCTION miot_places.set_updated_at();
 
 -- Las versiones de una geocerca (con sus internas) o de un trayecto. Nunca se
 -- editan: cada edición agrega una.

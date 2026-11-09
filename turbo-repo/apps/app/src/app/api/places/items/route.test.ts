@@ -154,9 +154,10 @@ describe("/api/places/items/[id]", () => {
     });
   });
 
-  it("replaces and deletes the place in the active organization", async () => {
+  it("replaces by id and deletes by External ID in the active organization", async () => {
     forwardToQuarkusMock.mockResolvedValue(NextResponse.json(place()));
-    const { PUT, DELETE } = await import("./[id]/route");
+    const { PUT } = await import("./[id]/route");
+    const { DELETE } = await import("./route");
     await PUT(
       new Request("http://localhost", {
         method: "PUT",
@@ -164,7 +165,9 @@ describe("/api/places/items/[id]", () => {
       }),
       { params }
     );
-    await DELETE(new Request("http://localhost"), { params });
+    await DELETE(
+      new Request("http://localhost/app/api/places/items?code=PL%2F01")
+    );
     expect(forwardToQuarkusMock).toHaveBeenNthCalledWith(
       1,
       "/api/v1/orgs/acme/places/items/p%201",
@@ -172,9 +175,18 @@ describe("/api/places/items/[id]", () => {
     );
     expect(forwardToQuarkusMock).toHaveBeenNthCalledWith(
       2,
-      "/api/v1/orgs/acme/places/items/p%201",
+      "/api/v1/orgs/acme/places/items?code=PL%2F01",
       { method: "DELETE" }
     );
+  });
+
+  it("does not delete without a code", async () => {
+    const { DELETE } = await import("./route");
+    const res = await DELETE(
+      new Request("http://localhost/app/api/places/items?code=%20")
+    );
+    expect(res.status).toBe(400);
+    expect(forwardToQuarkusMock).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid replacement", async () => {

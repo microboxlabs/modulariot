@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jboss.logging.Logger;
 
 /**
  * The organization's saved places: geofences, the inner geofences inside them, and routes. A geofence is saved with
@@ -55,17 +56,30 @@ public class PlaceService {
     private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
+    private static final Logger LOG = Logger.getLogger(PlaceService.class);
+
     private final PlaceStore store;
     private final Transactions tx;
+    private final PlaceSync sync;
 
     @Inject
-    public PlaceService(PlaceStore store, Transactions tx) {
+    public PlaceService(PlaceStore store, Transactions tx, PlaceSync sync) {
         this.store = store;
         this.tx = tx;
+        this.sync = sync;
+    }
+
+    /** Without StreamHub: nothing hears the writes. */
+    public PlaceService(PlaceStore store, Transactions tx) {
+        this(store, tx, PlaceSync.none());
     }
 
     /** A saved geofence or route with its inner geofences (none for a route). */
     public record Saved(Place place, List<Place> inners) {
+    }
+
+    /** A place a write saved, or deleted (as it was before), for {@link PlaceSync} once the write commits. */
+    private record Written(Place place, boolean deleted) {
     }
 
     /** By name or code; {@code kind} and {@code parentId} filter. Zero-based {@code page}. */
@@ -110,13 +124,17 @@ public class PlaceService {
         if (request.version() != null) {
             throw new IllegalArgumentException("a new place starts at " + FIRST_VERSION + "; it takes no version");
         }
-        return tx.inTransaction(() -> {
+        List<Written> written = new ArrayList<>();
+        Saved result = tx.inTransaction(() -> {
             Place created = store.insert(place(tenantCode, null, kind, request, actor, FIRST_VERSION));
-            List<Place> inners = saveInners(tenantCode, created, request.inners(), actor);
+            written.add(new Written(created, false));
+            List<Place> inners = saveInners(tenantCode, created, request.inners(), actor, written);
             Saved saved = new Saved(created, inners);
             recordVersion(saved, null, null, List.of(), actor);
             return saved;
         });
+        publish(written);
+        return result;
     }
 
     /**
@@ -128,7 +146,8 @@ public class PlaceService {
         String bump = bump(version);
         String reason = text(version.reason(), "version.reason", 2000);
         List<String> changes = changes(version.changes());
-        return tx.inTransaction(() -> {
+        List<Written> written = new ArrayList<>();
+        Saved result = tx.inTransaction(() -> {
             Place current = get(tenantCode, id);
             topLevel(current.kind());
             String kind = text(request.kind(), "kind", 16);
@@ -141,27 +160,100 @@ public class PlaceService {
                 sameCode(current, edited.externalCode());
             }
             Place changed = store.update(edited).orElseThrow(() -> notFound(id));
+            // a route whose code changed no longer holds the old one
+            if (!current.externalCode().equalsIgnoreCase(changed.externalCode())) {
+                written.add(new Written(current, true));
+            }
+            written.add(new Written(changed, false));
             List<Place> inners = request.inners() == null && PlaceStore.GEOFENCE.equals(changed.kind())
                     ? store.children(tenantCode, id)
-                    : saveInners(tenantCode, changed, request.inners(), actor);
+                    : saveInners(tenantCode, changed, request.inners(), actor, written);
             Saved saved = new Saved(changed, inners);
             recordVersion(saved, bump, reason, changes, actor);
             return saved;
         });
+        publish(written);
+        return result;
     }
 
-    /** Deletes a geofence, with its inner geofences, or a route. */
-    public void delete(String tenantCode, UUID id, String actor) {
+    /**
+     * Deletes the geofence, with its inner geofences, or the route that holds {@code externalCode} in the
+     * organization, whatever its case; only active places hold a code.
+     */
+    public void delete(String tenantCode, String externalCode, String actor) {
+        List<Written> written = new ArrayList<>();
         tx.inTransaction(() -> {
+            UUID id = codeOwner(tenantCode, externalCode).map(PlaceStore.CodeOwner::id)
+                    .orElseThrow(() -> new NoSuchElementException("no place holds the code " + externalCode.trim()));
+            // locks the row, so a concurrent edit waits for the delete
             Place current = get(tenantCode, id);
             topLevel(current.kind());
             if (PlaceStore.GEOFENCE.equals(current.kind())) {
-                store.deleteChildren(tenantCode, id, actor);
+                // each inner geofence by its own code, as it is a geofence of its own in StreamHub
+                for (Place inner : store.children(tenantCode, id)) {
+                    store.delete(tenantCode, inner.externalCode(), actor);
+                    written.add(new Written(inner, true));
+                }
             }
-            if (!store.delete(tenantCode, id, actor)) {
+            if (!store.delete(tenantCode, current.externalCode(), actor)) {
                 throw notFound(id);
             }
+            written.add(new Written(current, true));
         });
+        publish(written);
+    }
+
+    /**
+     * Copies again up to {@code limit} geofences and inner geofences StreamHub does not have as they are, the
+     * deleted ones first; how many it synced. Nothing while {@link PlaceSync} does not really copy.
+     */
+    public int retryPending(int limit) {
+        if (!sync.copies()) {
+            return 0;
+        }
+        int synced = 0;
+        for (PlaceStore.Pending p : store.pending(limit)) {
+            if (copy(p.place(), p.deleted())) {
+                synced++;
+            }
+        }
+        return synced;
+    }
+
+    /** Tells {@link PlaceSync} what a committed write saved and deleted; a failure leaves it pending. */
+    private void publish(List<Written> written) {
+        for (Written w : written) {
+            copy(w.place(), w.deleted());
+        }
+    }
+
+    /**
+     * Copies one place and marks it synced; false when it stays pending, as everything does while {@link PlaceSync}
+     * does not really copy. A deleted one whose code a current geofence
+     * or inner geofence holds now is not removed from StreamHub: they share the key there, and that one's copy
+     * replaces it.
+     */
+    private boolean copy(Place p, boolean deleted) {
+        if (!sync.copies()) {
+            return false;
+        }
+        try {
+            if (!deleted) {
+                sync.saved(p.tenantCode(), p.externalCode(), p);
+            } else if (!takenOver(p)) {
+                sync.deleted(p.tenantCode(), p.externalCode(), p.kind());
+            }
+            return PlaceStore.SYNCED_KINDS.contains(p.kind()) && store.markSynced(p, deleted);
+        } catch (RuntimeException e) {
+            LOG.warnf(e, "%s %s/%s is not synced; it stays pending", p.kind(), p.tenantCode(), p.externalCode());
+            return false;
+        }
+    }
+
+    private boolean takenOver(Place deleted) {
+        return PlaceStore.SYNCED_KINDS.contains(deleted.kind())
+                && store.findByCode(deleted.tenantCode(), deleted.externalCode())
+                        .filter(owner -> PlaceStore.SYNCED_KINDS.contains(owner.kind())).isPresent();
     }
 
     /** The versions of a geofence or route, oldest first. */
@@ -187,7 +279,8 @@ public class PlaceService {
      * The geofence's inner geofences become {@code requested}: one with the id of a current inner geofence replaces
      * it, one without an id is new, and a current one left out is deleted. A route has none.
      */
-    private List<Place> saveInners(String tenantCode, Place parent, List<PlaceRequest> requested, String actor) {
+    private List<Place> saveInners(String tenantCode, Place parent, List<PlaceRequest> requested, String actor,
+            List<Written> written) {
         if (!PlaceStore.GEOFENCE.equals(parent.kind())) {
             if (requested != null && !requested.isEmpty()) {
                 throw new IllegalArgumentException("only a geofence has inner geofences");
@@ -203,17 +296,20 @@ public class PlaceService {
         Map<UUID, Place> current = store.children(tenantCode, parent.id()).stream()
                 .collect(Collectors.toMap(Place::id, Function.identity()));
         List<UUID> ids = innerIds(requested, current, parent.id());
-        for (UUID gone : current.keySet()) {
+        for (Place gone : current.values()) {
             // the ones left out go first, so a new one can take a code they freed
-            if (!ids.contains(gone)) {
-                store.delete(tenantCode, gone, actor);
+            if (!ids.contains(gone.id())) {
+                store.delete(tenantCode, gone.externalCode(), actor);
+                written.add(new Written(gone, true));
             }
         }
         List<Place> saved = new ArrayList<>();
         for (int i = 0; i < requested.size(); i++) {
             UUID innerId = ids.get(i);
             Place p = innerPlace(tenantCode, innerId, parent.id(), requested.get(i), actor);
-            saved.add(innerId == null ? store.insert(p) : store.update(p).orElseThrow(() -> notFound(innerId)));
+            Place inner = innerId == null ? store.insert(p) : store.update(p).orElseThrow(() -> notFound(innerId));
+            written.add(new Written(inner, false));
+            saved.add(inner);
         }
         return saved;
     }

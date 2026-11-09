@@ -16,6 +16,8 @@ public interface PlaceStore {
     String INNER_GEOFENCE = "inner_geofence";
     String ROUTE = "route";
     List<String> KINDS = List.of(GEOFENCE, INNER_GEOFENCE, ROUTE);
+    /** The kinds copied to StreamHub, each by its code; a route is not. */
+    List<String> SYNCED_KINDS = List.of(GEOFENCE, INNER_GEOFENCE);
 
     /**
      * {@code metadataJson} and {@code geojson} are JSON text; {@code geojson} a GeoJSON Feature.
@@ -43,6 +45,10 @@ public interface PlaceStore {
     record CodeOwner(UUID id, String name, String kind) {
     }
 
+    /** A geofence or inner geofence StreamHub does not have as it is: to copy, or, {@code deleted}, to remove. */
+    record Pending(Place place, boolean deleted) {
+    }
+
     /** {@code createdBy} is the actor; id and timestamps come from the database. */
     Place insert(Place place);
 
@@ -63,15 +69,27 @@ public interface PlaceStore {
      */
     Optional<Place> update(Place place);
 
-    /** Deactivates the place; false when there is no such place. */
-    boolean delete(String tenantCode, UUID id, String actor);
-
-    /** Deactivates the geofence's inner geofences; how many. */
-    int deleteChildren(String tenantCode, UUID parentId, String actor);
+    /**
+     * Deactivates the active place that holds the code in the organization, whatever its case; false when none
+     * does. Deleting frees the code.
+     */
+    boolean delete(String tenantCode, String externalCode, String actor);
 
     /** {@code createdBy} is the actor; id and time come from the database. */
     PlaceVersion insertVersion(PlaceVersion version);
 
     /** The place's versions, oldest first. */
     List<PlaceVersion> versions(String tenantCode, UUID placeId);
+
+    /**
+     * Records that StreamHub has the place as {@code place} was saved or, {@code deleted}, no longer has it. False
+     * when it changed since, or is not a kind StreamHub gets: it stays pending.
+     */
+    boolean markSynced(Place place, boolean deleted);
+
+    /**
+     * Of every organization, the geofences and inner geofences StreamHub does not have as they are, the deleted ones
+     * first: a code a deleted place freed may be another's now.
+     */
+    List<Pending> pending(int limit);
 }

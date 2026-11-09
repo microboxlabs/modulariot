@@ -77,3 +77,23 @@ export async function POST(request: Request) {
     body: body.data,
   });
 }
+
+/**
+ * DELETE /app/api/places/items?code=SCL — deletes the geofence, with its
+ * inner geofences, or route that holds that External ID in the active
+ * organization. The modulith checks `controltower:places.edit`.
+ */
+export async function DELETE(request: Request) {
+  const scope = await resolveTenantScope();
+  if (!scope.resolved) return scope.response;
+
+  const code = new URL(request.url).searchParams.get("code")?.trim();
+  if (!code) {
+    return NextResponse.json({ error: "Missing code" }, { status: 400 });
+  }
+  const org = encodeURIComponent(scope.scope.activeOrg.slug);
+  return forwardToQuarkus(
+    `/api/v1/orgs/${org}/places/items?code=${encodeURIComponent(code)}`,
+    { method: "DELETE" }
+  );
+}

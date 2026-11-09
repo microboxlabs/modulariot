@@ -115,7 +115,7 @@ describe("Places workspace identity", () => {
 });
 
 describe("Places deletion", () => {
-  it("deletes a saved route in miot-places", async () => {
+  it("deletes a saved route in miot-places by its External ID", async () => {
     const route: Trayecto = {
       trayecto_id: "22222222-2222-2222-2222-222222222222",
       name: "Demo route",
@@ -128,7 +128,7 @@ describe("Places deletion", () => {
       waypoints: null,
       parent_name: null,
       ajustado: false,
-      external_id: null,
+      external_id: "RUTA 1",
     };
     state.swr.mockImplementation((key: readonly string[] | null) => ({
       data:
@@ -144,10 +144,9 @@ describe("Places deletion", () => {
     await act(async () => {
       result.current.confirmacion?.accion();
     });
-    expect(fetch).toHaveBeenCalledWith(
-      `/app/api/places/items/${route.trayecto_id}`,
-      { method: "DELETE" }
-    );
+    expect(fetch).toHaveBeenCalledWith("/app/api/places/items?code=RUTA%201", {
+      method: "DELETE",
+    });
   });
 });
 

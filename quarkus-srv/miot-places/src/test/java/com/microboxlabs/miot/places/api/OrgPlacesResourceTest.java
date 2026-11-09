@@ -115,7 +115,8 @@ class OrgPlacesResourceTest {
         assertEquals(400, call(resource.create(ORG, noKind)).getStatus());
         assertEquals(404, call(resource.get(ORG, "00000000-0000-0000-0000-000000000001")).getStatus());
         assertEquals(400, call(resource.get(ORG, "not-a-uuid")).getStatus());
-        assertEquals(404, call(resource.delete(ORG, "00000000-0000-0000-0000-000000000001")).getStatus());
+        assertEquals(404, call(resource.delete(ORG, "NO-EXISTE")).getStatus());
+        assertEquals(400, call(resource.delete(ORG, " ")).getStatus());
         @SuppressWarnings("unchecked")
         Map<String, String> body = (Map<String, String>) call(resource.create(ORG, noKind)).getEntity();
         assertEquals("kind must be one of [geofence, inner_geofence, route]", body.get("error"));

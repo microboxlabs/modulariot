@@ -10,10 +10,16 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/** {@link PlaceStore} in memory: active places only; a delete removes the place. */
+/**
+ * {@link PlaceStore} in memory: active places only; a delete removes the place, and keeps it only until StreamHub
+ * no longer has it.
+ */
 public class InMemoryPlaceStore implements PlaceStore {
 
     private final Map<UUID, Place> places = new LinkedHashMap<>();
+    private final Map<UUID, Place> removed = new LinkedHashMap<>();
+    /** Each synced place, as it was when marked. */
+    private final Map<UUID, OffsetDateTime> synced = new LinkedHashMap<>();
     private final List<PlaceVersion> versions = new ArrayList<>();
     public final List<UUID> deleted = new ArrayList<>();
 
@@ -67,20 +73,39 @@ public class InMemoryPlaceStore implements PlaceStore {
     }
 
     @Override
-    public boolean delete(String tenantCode, UUID id, String actor) {
-        if (find(tenantCode, id).isEmpty()) {
+    public boolean delete(String tenantCode, String externalCode, String actor) {
+        Optional<UUID> id = findByCode(tenantCode, externalCode).map(CodeOwner::id);
+        id.ifPresent(i -> removed.put(i, places.remove(i)));
+        id.ifPresent(synced::remove);
+        id.ifPresent(deleted::add);
+        return id.isPresent();
+    }
+
+    @Override
+    public boolean markSynced(Place p, boolean deleted) {
+        if (!SYNCED_KINDS.contains(p.kind())) {
             return false;
         }
-        places.remove(id);
-        deleted.add(id);
+        if (deleted) {
+            return removed.remove(p.id()) != null;
+        }
+        Place current = places.get(p.id());
+        if (current == null || !current.updatedAt().equals(p.updatedAt())) {
+            return false;
+        }
+        synced.put(p.id(), p.updatedAt());
         return true;
     }
 
     @Override
-    public int deleteChildren(String tenantCode, UUID parentId, String actor) {
-        List<UUID> children = children(tenantCode, parentId).stream().map(Place::id).toList();
-        children.forEach(id -> delete(tenantCode, id, actor));
-        return children.size();
+    public List<Pending> pending(int limit) {
+        List<Pending> out = new ArrayList<>();
+        removed.values().stream().filter(p -> SYNCED_KINDS.contains(p.kind()))
+                .forEach(p -> out.add(new Pending(p, true)));
+        places.values().stream().filter(p -> SYNCED_KINDS.contains(p.kind()))
+                .filter(p -> !p.updatedAt().equals(synced.get(p.id())))
+                .forEach(p -> out.add(new Pending(p, false)));
+        return out.stream().limit(limit).toList();
     }
 
     @Override

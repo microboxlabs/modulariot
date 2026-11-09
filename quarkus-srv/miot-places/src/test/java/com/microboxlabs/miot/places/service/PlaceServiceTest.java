@@ -196,8 +196,8 @@ class PlaceServiceTest {
         var andenId = anden.id();
         var edit = edit(request(null, "Andén", CIRCLE), "PATCH");
         assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, andenId, edit, ACTOR));
-        var andenId2 = anden.id();
-        assertThrows(IllegalArgumentException.class, () -> service.delete(TENANT, andenId2, ACTOR));
+        var andenCode = anden.externalCode();
+        assertThrows(IllegalArgumentException.class, () -> service.delete(TENANT, andenCode, ACTOR));
         var andenId3 = anden.id();
         assertThrows(IllegalArgumentException.class, () -> service.versions(TENANT, andenId3));
         // another geofence's inner geofence, or the same one twice
@@ -310,8 +310,11 @@ class PlaceServiceTest {
         assertTrue(service.codeOwner("other-client", CODE).isEmpty(), "a code is per organization");
         assertThrows(IllegalArgumentException.class, () -> service.codeOwner(TENANT, "  "));
 
-        service.delete(TENANT, planta.id(), ACTOR);
+        service.delete(TENANT, " scl ", ACTOR);
         assertTrue(service.codeOwner(TENANT, CODE).isEmpty(), "deleting frees the code");
+        assertTrue(store.deleted.contains(planta.id()), "the code finds the place, whatever its case");
+        assertThrows(IllegalArgumentException.class, () -> service.delete(TENANT, "  ", ACTOR));
+        assertThrows(NoSuchElementException.class, () -> service.delete("other-client", CODE, ACTOR));
     }
 
     @Test
@@ -400,16 +403,18 @@ class PlaceServiceTest {
     void deletingAGeofenceDeletesItsInnerGeofences() {
         PlaceService.Saved planta = service.create(TENANT,
                 geofenceWith("Planta", List.of(inner(null, "Andén")), null), ACTOR);
-        PlaceService.Saved puerto = service.create(TENANT,
-                geofenceWith("Puerto", List.of(inner(null, "Muelle")), null), ACTOR);
+        PlaceRequest conMuelle = geofenceWith("Puerto", List.of(inner(null, "Muelle")), null);
+        PlaceService.Saved puerto = service.create(TENANT, new PlaceRequest(conMuelle.kind(), null, "VAP",
+                conMuelle.name(), null, null, null, null, null, conMuelle.geojson(), null, null, null,
+                conMuelle.inners(), null), ACTOR);
 
-        service.delete(TENANT, planta.place().id(), ACTOR);
+        service.delete(TENANT, planta.place().externalCode(), ACTOR);
 
         assertEquals(List.of(planta.inners().get(0).id(), planta.place().id()), store.deleted);
         assertEquals(Set.of(puerto.place().id(), puerto.inners().get(0).id()),
                 Set.copyOf(store.list(TENANT, null, null, null, 10, 0).stream().map(Place::id).toList()));
-        var plantaId = planta.place().id();
-        assertThrows(NoSuchElementException.class, () -> service.delete(TENANT, plantaId, ACTOR));
+        var plantaCode = planta.place().externalCode();
+        assertThrows(NoSuchElementException.class, () -> service.delete(TENANT, plantaCode, ACTOR));
     }
 
     @Test

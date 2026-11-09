@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.places.store;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.microboxlabs.miot.core.db.PgTx;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -18,14 +21,32 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.jboss.logging.Logger;
 
 /** {@link PlaceStore} on the modulith database, schema {@code miot_places}. */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.places.enabled", stringValue = "true")
 public class PgPlaceStore implements PlaceStore {
 
+    // TEMP debug: logs what each write receives, to copy as test values. Do not commit.
+    private static final Logger LOG = Logger.getLogger(PgPlaceStore.class);
+    private static final ObjectMapper DEBUG_MAPPER = new ObjectMapper().registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+    private static void debug(String action, Object value) {
+        try {
+            LOG.infof("[places-debug] %s %s", action, DEBUG_MAPPER.writeValueAsString(value));
+        } catch (Exception e) {
+            LOG.infof("[places-debug] %s %s", action, value);
+        }
+    }
+
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final String ACTIVE = " AND is_active";
+    // as idx_place_sync_pending says it, so the pending read uses the index
+    private static final String SYNCED_KINDS = " AND kind IN ('geofence', 'inner_geofence')";
+    private static final String PENDING = " WHERE kind IN ('geofence', 'inner_geofence')"
+            + " AND (synced_at IS NULL OR synced_at < updated_at)";
     private static final String SELECT = "SELECT ";
     private static final String FROM = " FROM ";
     private static final String UPDATE = "UPDATE ";
@@ -52,7 +73,7 @@ public class PgPlaceStore implements PlaceStore {
     }
 
     /** On {@code schema} instead of {@code miot_places}: tests use a scratch schema. */
-    PgPlaceStore(Supplier<Pool> pool, String schema) {
+    public PgPlaceStore(Supplier<Pool> pool, String schema) {
         this.pool = pool;
         this.table = schema + ".place";
         this.versionTable = schema + ".place_version";
@@ -60,6 +81,7 @@ public class PgPlaceStore implements PlaceStore {
 
     @Override
     public Place insert(Place p) {
+        debug("insert", p);
         return place(query("INSERT INTO " + table + """
                      (tenant_code, kind, parent_id, external_code, name, icon, color, address, categories,
                      metadata, geojson, valid_from, valid_until, current_version, created_by, updated_by)
@@ -127,6 +149,7 @@ public class PgPlaceStore implements PlaceStore {
 
     @Override
     public Optional<Place> update(Place p) {
+        debug("update", p);
         return first(query(UPDATE + table + """
                  SET parent_id = $3, external_code = $4, name = $5, icon = $6, color = $7, address = $8,
                     categories = $9::text::jsonb, metadata = $10::text::jsonb, geojson = $11::text::jsonb,
@@ -141,16 +164,12 @@ public class PgPlaceStore implements PlaceStore {
     }
 
     @Override
-    public boolean delete(String tenantCode, UUID id, String actor) {
+    public boolean delete(String tenantCode, String externalCode, String actor) {
+        debug("delete", java.util.Map.of("tenantCode", tenantCode, "externalCode", externalCode, "actor", actor));
+        // uq_place_code: at most one active place holds the code
         return query(UPDATE + table + " SET is_active = FALSE, updated_by = $3"
-                + " WHERE tenant_code = $1 AND id = $2" + ACTIVE, Tuple.of(tenantCode, id, actor)).rowCount() > 0;
-    }
-
-    @Override
-    public int deleteChildren(String tenantCode, UUID parentId, String actor) {
-        return query(UPDATE + table + " SET is_active = FALSE, updated_by = $3"
-                + " WHERE tenant_code = $1 AND parent_id = $2" + ACTIVE, Tuple.of(tenantCode, parentId, actor))
-                .rowCount();
+                + " WHERE tenant_code = $1 AND lower(external_code) = lower($2)" + ACTIVE,
+                Tuple.of(tenantCode, externalCode, actor)).rowCount() > 0;
     }
 
     @Override
@@ -170,6 +189,26 @@ public class PgPlaceStore implements PlaceStore {
         return query(SELECT + VERSION_COLUMNS + FROM + versionTable
                 + " WHERE tenant_code = $1 AND place_id = $2 ORDER BY created_at, id", Tuple.of(tenantCode, placeId))
                 .stream().map(PgPlaceStore::version).toList();
+    }
+
+    @Override
+    public boolean markSynced(Place p, boolean deleted) {
+        // a saved place only as it was saved: an edit since keeps it pending. now() is never before updated_at,
+        // so the place leaves the pending ones, and the trigger leaves updated_at alone
+        String sql = UPDATE + table + " SET synced_at = now() WHERE tenant_code = $1 AND id = $2" + SYNCED_KINDS
+                + (deleted ? " AND NOT is_active" : ACTIVE + " AND updated_at = $3");
+        Tuple params = Tuple.of(p.tenantCode(), p.id());
+        if (!deleted) {
+            params.addOffsetDateTime(p.updatedAt());
+        }
+        return query(sql, params).rowCount() > 0;
+    }
+
+    @Override
+    public List<Pending> pending(int limit) {
+        return query(SELECT + COLUMNS + ", is_active" + FROM + table + PENDING
+                + " ORDER BY is_active, updated_at, id LIMIT $1", Tuple.of(limit))
+                .stream().map(r -> new Pending(place(r), !r.getBoolean("is_active"))).toList();
     }
 
     /** Runs on the open transaction ({@link PgTx}) when there is one; constraint violations become 400/409. */

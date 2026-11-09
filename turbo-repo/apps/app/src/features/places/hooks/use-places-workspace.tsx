@@ -1496,6 +1496,15 @@ export function usePlacesWorkspace(
   const idGuardado = (id: string | null | undefined) =>
     id && idsGuardados.has(id) ? id : null;
 
+  /**
+   * El External ID con que miot-places tiene guardado un lugar o trayecto: se
+   * borra por él. El del servidor, no el de una edición local sin guardar.
+   */
+  const codigoGuardado = (id: string): string | null =>
+    guardados?.lugares.find((l) => l.place_id === id)?.external_id ??
+    guardados?.trayectos.find((t) => t.trayecto_id === id)?.external_id ??
+    null;
+
   const guardarLugar = async () => {
     // algo mal (forma, medidas, vigencia, interiores): no se guarda
     const error = errorLugar(form);
@@ -1665,7 +1674,7 @@ export function usePlacesWorkspace(
     const padreId = parentPlaceId(l);
     const res = padreId
       ? await quitarInteriores(padreId, [l.place_id])
-      : await borrarPlace(l.place_id);
+      : await borrarPlace(codigoGuardado(l.place_id));
     setMsg(null);
     if (silencioso) return borradoOk(res);
     avisarBorrado(res, "Lugar", habiaCopiaLocal);
@@ -1942,7 +1951,7 @@ export function usePlacesWorkspace(
       if (!silencioso) toast.success("Trayecto local eliminado.");
       return true;
     }
-    const res = await borrarPlace(t.trayecto_id);
+    const res = await borrarPlace(codigoGuardado(t.trayecto_id));
     setMsg(null);
     if (silencioso) return borradoOk(res);
     avisarBorrado(res, "Trayecto", habiaCopiaLocal);
@@ -2301,7 +2310,7 @@ export function usePlacesWorkspace(
     const padreId = parentPlaceId(l);
     const res = padreId
       ? await quitarInteriores(padreId, [l.place_id])
-      : await borrarPlace(l.place_id);
+      : await borrarPlace(codigoGuardado(l.place_id));
     return escrituraOk(res);
   };
 

@@ -46,13 +46,20 @@ export async function guardarPlace(
   return id ? { ok: true, id } : null;
 }
 
-/** Elimina un lugar guardado (una geocerca se lleva sus interiores). */
-export async function borrarPlace(id: string): Promise<Escritura | null> {
-  const r = await enviar(`${URL_LUGARES_GUARDADOS}/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+/**
+ * Elimina el lugar guardado con ese External ID (una geocerca se lleva sus
+ * interiores). Sin código no hay a quién borrar en el servidor.
+ */
+export async function borrarPlace(
+  codigo: string | null
+): Promise<Escritura | null> {
+  if (!codigo) return { ok: false, error: "Sin External ID guardado" };
+  const r = await enviar(
+    `${URL_LUGARES_GUARDADOS}?code=${encodeURIComponent(codigo)}`,
+    { method: "DELETE" }
+  );
   if (!r) return null;
   // ya no estaba (p. ej. borrada junto a su geocerca): el fin es el mismo
-  if (r.ok || r.status === 404) return { ok: true, id };
+  if (r.ok || r.status === 404) return { ok: true, id: codigo };
   return { ok: false, error: await errorDe(r) };
 }

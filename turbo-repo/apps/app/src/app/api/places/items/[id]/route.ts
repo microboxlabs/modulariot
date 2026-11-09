@@ -7,8 +7,8 @@ import { placeRequestSchema } from "@/features/places/data/saved-places";
  * PUT    /app/api/places/items/[id] — replaces a geofence (with all its
  *        inner geofences) or route as its next version: the body carries the
  *        edit's `version` (MAJOR, MINOR or PATCH and a description)
- * DELETE /app/api/places/items/[id] — deletes a geofence, with its inner
- *        geofences, or a route
+ *
+ * A delete goes by External ID, on `/app/api/places/items?code=`.
  *
  * Proxies to miot-places `/api/v1/orgs/{org}/places/items/{id}`, which checks
  * `controltower:places.edit`.
@@ -35,10 +35,4 @@ export async function PUT(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid place" }, { status: 400 });
   }
   return forwardToQuarkus(path, { method: "PUT", body: body.data });
-}
-
-export async function DELETE(_request: Request, { params }: RouteParams) {
-  const path = await itemPath(params);
-  if (path instanceof NextResponse) return path;
-  return forwardToQuarkus(path, { method: "DELETE" });
 }

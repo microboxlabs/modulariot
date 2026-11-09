@@ -135,15 +135,15 @@ public class OrgPlacesResource extends OrgResourceSupport {
     }
 
     @DELETE
-    @Path("/{placeId}")
-    @Operation(operationId = "deletePlace", summary = "Deletes a geofence, with its inner geofences, or route")
+    @Operation(operationId = "deletePlace",
+            summary = "Deletes the geofence, with its inner geofences, or route that holds an external code")
     @PermissionsAllowed(value = PlacesAccessCatalog.CONTROL_TOWER_PLACES_EDIT,
             permission = OrgPermission.class, params = ORG)
-    public Uni<Response> delete(@PathParam(ORG) String organizationId, @PathParam(PLACE_ID) String placeId) {
+    public Uni<Response> delete(@PathParam(ORG) String organizationId, @QueryParam("code") String code) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
         return work(() -> {
-            places.delete(tenant, uuid(placeId, PLACE_ID), actor);
+            places.delete(tenant, code, actor);
             return Response.noContent().build();
         });
     }

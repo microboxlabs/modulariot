@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.places.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -26,7 +27,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -179,7 +182,7 @@ class PgPlaceStoreTest {
         PlaceService.Saved planta = service.create(TENANT,
                 geofence("SCL", "Planta", List.of(inner(null, "Andén")), null), ACTOR);
 
-        service.delete(TENANT, planta.place().id(), ACTOR);
+        service.delete(TENANT, "scl", ACTOR);
 
         assertTrue(service.list(TENANT, null, null, null, null, null).isEmpty());
         assertEquals(2, rows("id = ANY($1) AND NOT is_active",
@@ -243,5 +246,34 @@ class PgPlaceStoreTest {
         assertThrows(IllegalArgumentException.class,
                 () -> insertRaw("geofence", null, " SCL2", "Con espacio", SQUARE));
         assertThrows(IllegalArgumentException.class, () -> insertRaw("geofence", null, "   ", SQUARE));
+    }
+
+    @Test
+    void pendingAreTheGeofencesAndInnerGeofencesStreamHubLacksDeletionsFirst() {
+        PlaceService.Saved planta = service.create(TENANT,
+                geofence("SCL", "Planta", List.of(inner(null, "Andén")), null), ACTOR);
+        service.create(TENANT, request("route", "R68", "Ruta 68", LINE), ACTOR);
+        Place anf = service.create(TENANT, request("geofence", "ANF", "Antofagasta", SQUARE), ACTOR).place();
+        service.delete(TENANT, "ANF", ACTOR);
+
+        List<PlaceStore.Pending> pending = store.pending(100);
+        assertEquals(3, pending.size(), "a route is never pending");
+        assertEquals("ANF", pending.get(0).place().externalCode());
+        assertTrue(pending.get(0).deleted());
+        assertEquals(Set.of("SCL", "IN-Andén"),
+                pending.subList(1, 3).stream().map(p -> p.place().externalCode()).collect(Collectors.toSet()));
+
+        Place scl = planta.place();
+        assertTrue(store.markSynced(scl, false));
+        assertTrue(store.markSynced(anf, true));
+        assertEquals(scl.updatedAt(), service.get(TENANT, scl.id()).updatedAt(), "marking is not an edit");
+        assertEquals(List.of("IN-Andén"), store.pending(100).stream().map(p -> p.place().externalCode()).toList());
+
+        Place anden = planta.inners().get(0);
+        service.update(TENANT, scl.id(), geofence("SCL", "Planta Norte", List.of(inner(anden.id(), "Andén")),
+                version("PATCH")), ACTOR);
+        assertFalse(store.markSynced(anden, false), "edited since it was read: it stays pending");
+        assertEquals(Set.of("SCL", "IN-Andén"),
+                store.pending(100).stream().map(p -> p.place().externalCode()).collect(Collectors.toSet()));
     }
 }

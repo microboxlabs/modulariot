@@ -171,8 +171,11 @@ export function humanize(
       /milestones\.(\w+)\.status\s*(==|!=)\s*["'](\w+)["']/g,
       (_, m: string, op: string, s: string) => {
         const name = trOr(`milestones.${m}`, d, m);
+        if (op === "!=" && s === "confirmed") {
+          return `${name} ${trOr("diagram.unconfirmed", d, "not confirmed")}`;
+        }
         const status = trOr(`milestoneStatus.${s}`, d, s).toLowerCase();
-        return op === "==" ? `${name} ${status}` : `${name} ${trOr("diagram.not", d, "no")} ${status}`;
+        return op === "==" ? `${name}: ${status}` : `${name}: ${trOr("diagram.not", d, "no")} ${status}`;
       }
     )
     .replace(/\s*&&\s*/g, ` ${trOr("diagram.and", d, "y")} `)

@@ -67,36 +67,41 @@ function Section({
 }
 
 /**
- * The monitor's name and description, edited in place above its flow (as a
- * workflow tool titles its canvas).
+ * The page title: the monitor's name and description, edited in place (as a
+ * workflow tool titles its canvas), with the key and version badges between.
  */
 function FlowHeader({
   name,
   description,
+  fallbackName,
   readOnly,
   d,
   onName,
   onDescription,
+  children,
 }: Readonly<{
   name: string;
   description: string | null;
+  fallbackName: string;
   readOnly: boolean;
   d: I18nRecord;
   onName: (name: string) => void;
   onDescription: (description: string | null) => void;
+  children: React.ReactNode;
 }>) {
   const inPlace =
     "w-full rounded-md border border-transparent bg-transparent px-2 py-1 hover:border-gray-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 disabled:hover:border-transparent dark:hover:border-gray-600";
   return (
-    <div className="-mx-2 flex flex-col gap-0.5">
+    <div className="-mx-2 flex min-w-0 flex-1 flex-col gap-1">
       <input
         value={name}
         disabled={readOnly}
         aria-label={tr("name", d)}
-        placeholder={tr("namePlaceholder", d)}
+        placeholder={fallbackName}
         onChange={(e) => onName(e.target.value)}
-        className={`${inPlace} text-lg font-semibold text-gray-900 dark:text-white`}
+        className={`${inPlace} text-2xl font-semibold text-gray-900 dark:text-white`}
       />
+      {children}
       <textarea
         rows={2}
         value={description ?? ""}
@@ -238,11 +243,16 @@ export default function MonitorEditor({
         {detail && body && (
           <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  {body.name || monitorKey}
-                </h1>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <FlowHeader
+                name={body.name}
+                description={body.description}
+                fallbackName={monitorKey}
+                readOnly={readOnly}
+                d={d}
+                onName={(name) => change({ name })}
+                onDescription={(description) => change({ description })}
+              >
+                <div className="flex flex-wrap items-center gap-2 px-2 text-sm text-gray-500 dark:text-gray-400">
                   <span className="font-mono">{monitorKey}</span>
                   {detail.published && (
                     <Badge color="success">
@@ -260,7 +270,7 @@ export default function MonitorEditor({
                   )}
                   {dirty && <Badge color="gray">{tr("unsaved", d)}</Badge>}
                 </div>
-              </div>
+              </FlowHeader>
               {canEdit && (
                 <div className="flex shrink-0 items-center gap-2">
                   {detail.draft && (
@@ -303,21 +313,7 @@ export default function MonitorEditor({
                 {message}
               </p>
             )}
-            {!detail.draft && canEdit && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {tr("editingPublished", d)}
-              </p>
-            )}
-
             <section className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
-              <FlowHeader
-                name={body.name}
-                description={body.description}
-                readOnly={readOnly}
-                d={d}
-                onName={(name) => change({ name })}
-                onDescription={(description) => change({ description })}
-              />
               <MonitorDiagram
                 body={body}
                 d={d}

@@ -3713,7 +3713,8 @@
           "plannedStart": "Planned start",
           "not": "not",
           "and": "and",
-          "or": "or"
+          "or": "or",
+          "unconfirmed": "not confirmed"
         }
       },
       "geocoding": {

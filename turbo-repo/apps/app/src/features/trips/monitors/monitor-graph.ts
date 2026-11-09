@@ -48,7 +48,7 @@ export interface MonitorGraph {
   edges: GraphEdge[];
 }
 
-const COL = 300;
+const COL = 340;
 const ROW_MAIN = 220;
 const ROW_ALERTS = 40;
 const ROW_MILESTONES = 430;
@@ -131,7 +131,7 @@ export function buildGraph(body: MonitorBody): MonitorGraph {
     } else if (guards.length > 0) {
       sources = guards.map(stageNode);
     } else {
-      sources = [add({ id: "any", kind: "any", value: null, x: 0, y: ROW_MILESTONES }).id];
+      sources = [add({ id: "any", kind: "any", value: null, x: 0, y: ROW_MILESTONES + 170 }).id];
     }
 
     const notes = rule.then

@@ -13,6 +13,10 @@ import { MapPosition } from "./route.type";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { mapLogger } from "@/lib/logger";
 import {
+  mapCsvPulseRecord,
+  normalizeCsvColumnName,
+} from "@/features/geographic-view/utils/pulse-source";
+import {
   forwardControlTowerMap,
   positionsAsEvents,
   SSE_HEADERS,
@@ -109,8 +113,7 @@ async function streamPositions(
 
     const csvStream = Readable.from([responseText]);
     const parser = parse({
-      columns: (headers: string[]) =>
-        headers.map((h: string) => h.toLowerCase()),
+      columns: (headers: string[]) => headers.map(normalizeCsvColumnName),
       delimiter: ";",
       trim: true,
     });
@@ -120,11 +123,11 @@ async function streamPositions(
         (record as MapPosition).location
       );
 
-      const newRecord: MapPosition = {
-        ...record,
+      const newRecord = mapCsvPulseRecord(
+        record as Record<string, unknown>,
         longitude,
-        latitude,
-      } as MapPosition;
+        latitude
+      ) as MapPosition;
 
       // Format data according to SSE protocol
       await writer.write(`data: ${JSON.stringify(newRecord)}\n\n`);

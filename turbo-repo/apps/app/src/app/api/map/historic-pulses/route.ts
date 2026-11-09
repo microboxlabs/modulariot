@@ -7,6 +7,10 @@ import { getSharedAuthToken } from "../../utils/streamhub-api-client";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { HistoricSignal } from "@/features/signal-history/types/historic-signal.type";
 import {
+  mapCsvPulseRecord,
+  normalizeCsvColumnName,
+} from "@/features/geographic-view/utils/pulse-source";
+import {
   forwardControlTowerMap,
   isoDate,
   positionsAsEvents,
@@ -147,8 +151,7 @@ async function streamPositions(
     );
 
     const parser = parse({
-      columns: (headers: string[]) =>
-        headers.map((h: string) => h.toLowerCase()),
+      columns: (headers: string[]) => headers.map(normalizeCsvColumnName),
       delimiter: ";",
       trim: true,
     });
@@ -158,11 +161,11 @@ async function streamPositions(
         (record as HistoricSignal).location
       );
 
-      const newRecord: HistoricSignal = {
-        ...record,
+      const newRecord = mapCsvPulseRecord(
+        record as Record<string, unknown>,
         longitude,
-        latitude,
-      } as HistoricSignal;
+        latitude
+      ) as HistoricSignal;
 
       // Format data according to SSE protocol
       await writer.write(`data: ${JSON.stringify(newRecord)}\n\n`);

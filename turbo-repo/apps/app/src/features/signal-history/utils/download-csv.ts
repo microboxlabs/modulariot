@@ -21,12 +21,21 @@ export function signalsCsv(
       heading: 0,
       latitude: signal.latitude,
       longitude: signal.longitude,
+      signal_description: signal.signal_description ?? "",
     };
   });
 
   return convertJSONToCSV(
     fixed_data,
-    ["timestamp", "tripid", "speed", "distance", "location", "assetid"],
+    [
+      "timestamp",
+      "tripid",
+      "speed",
+      "distance",
+      "location",
+      "assetid",
+      "signal_description",
+    ],
     [
       tr("signal_historic.timestamp", dict),
       tr("signal_historic.tripid", dict),
@@ -34,6 +43,7 @@ export function signalsCsv(
       tr("signal_historic.distance_between_signals", dict),
       tr("signal_historic.location", dict),
       tr("signal_historic.assetid", dict),
+      tr("signal_historic.signal_description", dict),
     ]
   );
 }

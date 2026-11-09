@@ -9,8 +9,12 @@ import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
+import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
+import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
+import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
+import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.signal.TripCheck;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
@@ -57,6 +61,42 @@ class TripChecksTest {
 
     private UUID template(SymptomState state) {
         return engine.publish(TENANT, "signal-loss", SeedTemplates.get("signal-loss").spec(), state);
+    }
+
+    @Test
+    void aStateRejectedOpeningDoesNotSaveATripCheckEpisode() {
+        template(SymptomState.ACTIVE);
+        var episodes = new InMemoryEpisodeRepository();
+        TransitionLog rejected = (tenant, transitions, place, context) -> {
+            throw new IllegalStateException("Symptom state changed; retry with a fresh catalog");
+        };
+        var trips = new TripChecks(new EvaluatorCatalog(
+                engine.catalog, engine.sources), episodes, rejected, engine.events,
+                new AuditService(engine.audits), meters);
+        var rejecting = new LostSignalDetector(true, store, LossSettings.defaults(),
+                new LostSignalDetector.TickerSettings(Duration.ofMinutes(1), Duration.ofDays(1), Duration.ofSeconds(15),
+                        500, new IngestHealth(Duration.ZERO, Duration.ZERO), Duration.ofMinutes(1)),
+                trips, meters, clock);
+        rejecting.frame("V1", T0, T0.plusSeconds(5), signal());
+        clock.set(T0.plusSeconds(190));
+
+        assertEquals(0, rejecting.tick());
+        assertEquals(1.0, meters.counter("miot.symptoms.lost_signal.check_failed").count());
+        assertTrue(episodes.tenantsWithEpisodes("V1").isEmpty());
+        assertTrue(episodes.load(TENANT, "V1").watermark(TENANT, "V1", TripCheck.KEY).isEmpty());
+    }
+
+    @Test
+    void theSymptomsThatReadTheDutyCountersDoNotRunOnTheLostSignalChecks() {
+        UUID loss = template(SymptomState.ACTIVE);
+        engine.publish(TENANT, "continuous-driving", SeedTemplates.get("continuous-driving").spec(),
+                SymptomState.ACTIVE);
+        frame(0, 5);
+
+        tickUntil(190);
+        assertEquals(List.of(loss), engine.recorded.stream().map(Transition::definitionId).toList());
+        assertEquals(0.0, meters.counter("miot.symptoms.evaluator.rule_errors").count(),
+                "a check without the counters would fail its rules");
     }
 
     @Test
@@ -275,8 +315,10 @@ class TripChecksTest {
             assertTrue(paths.contains(path), path);
         }
         assertFalse(paths.contains("check.loss.last.at"));
-        assertFalse(source.fields().stream().filter(f -> f.path().equals("check.driving_minutes")).findFirst()
-                .orElseThrow().engineSupported(), "nothing computes it yet");
+        for (String counter : List.of("check.driving_minutes", "check.resting_minutes", "check.duty_minutes")) {
+            assertTrue(source.fields().stream().filter(f -> f.path().equals(counter)).findFirst().orElseThrow()
+                    .engineSupported(), "the duty tracker computes " + counter);
+        }
         assertEquals(2, source.samples().size());
     }
 }

@@ -52,7 +52,19 @@ Action body:
 | `message` | string | What the operator told the contact |
 | `note` | string | What came back, or the operator's note |
 | `tags` | string[] | Option ids from `call_tags` |
-| `details` | object | Anything else. On an engine case's `IGNORE`: `scope` and `until_trip_end` (below) |
+| `details` | object | Anything else. On an engine case's `IGNORE`: `scope` and `until_trip_end` (below). On a `NOTE`: `skipToStep` (below) |
+
+A `NOTE` with `details.skipToStep` records that the operator skipped the
+level's call script to that step (1-based, at least 2). It needs an engine
+case and the reason in `note`. `performedBy` and `performedAt` say who and
+when. The call panel reads the furthest skip made since the case's
+`sla_since` from `listSymptomTreatments`, so a new level or the end of a hold
+starts the script over. The app also sends `level` and `version`, and a UUID
+`skipId` that it reuses on retries. Under the case's vehicle lock, a repeated
+`skipId` in the operator's treatment returns the saved NOTE without another
+action or audit event.
+It also sends the panel's `slaSince`: the reader excludes a skip from a
+different level or SLA interval even when a delayed save lands after the reset.
 
 ### Ignorar condición (engine cases)
 
@@ -119,7 +131,8 @@ Each level of a symptom version may set `ignore`:
 |---|---|---|
 | `listContacts` | `GET /contacts?active` | `controltower:view` |
 | `getContact` | `GET /contacts/{contactId}` | `controltower:view` |
-| `matchTripContacts` | `POST /contacts/trip` | `controltower:view`. The book's people for each step condition, with the case trip's RUTs |
+| `matchTripContacts` | `POST /contacts/trip` | `controltower:view`. The book's people for each step condition, with the case trip's RUTs, origin and destination |
+| `contactTripPlaces` | `GET /contacts/trip-places` | `controltower:view`. The live trips' origins and destinations, offered as contact tags |
 | `createContact` | `POST /contacts` | `controltower:contact.write`. Operators add contacts from the call panel |
 | `importContacts` | `POST /contacts/import` | `controltower:contact.write`. Body `{contacts: [...]}`, up to 1000 |
 | `updateContact` | `PATCH /contacts/{contactId}` | `controltower:contact.write` |
@@ -159,12 +172,32 @@ communication rule's "contacts from the book" audience. It answers
 
 | Field | Meaning |
 |---|---|
-| `data` | `event.data` the conditions read: the case trip's `driverRut`, `secondDriverRut` and `carrierRut`, normalized, when the trip has them |
+| `data` | `event.data` the conditions read, each field only when the trip has it (table below) |
 | `matches` | For each condition, in order, the ids of the active contacts that meet it |
 | `problems` | For each condition, its compile problem, or null |
 
-`contact` has `role`, `tags`, `company`, `companyRut`, `nationalId`,
-`position`, `member`, `email` and `whatsapp`; a missing text is `''`. Only
+`event.data`:
+
+| Field | Meaning |
+|---|---|
+| `driverRut`, `secondDriverRut`, `carrierRut` | The trip's RUTs, without dots or dashes, upper case, with `driverIdType`, `secondDriverIdType` and `carrierIdType` |
+| `origin`, `destination` | The trip's origin and destination, as the trip writes them |
+| `originKey`, `destinationKey` | The same in lower case, without accents and with single spaces |
+| `originId`, `destinationId` | The geofence ids |
+
+`contact` has `role`, `roleKey`, `tags`, `tagKeys`, `company`, `companyRut`,
+`nationalId`, `position`, `member`, `email` and `whatsapp`; a missing text is
+`''`. `tagKeys` are the tags written as `originKey`, so
+`contact.role == 'CAT' && event.data.originKey in contact.tagKeys` finds the
+CAT whose tags include the trip's origin, whatever the case, accents or
+spacing. `event.data.origin in contact.tags` matches only a tag written
+exactly as the trip writes the place.
+
+`contactTripPlaces` returns `[{label, origins, destinations}]`: each place of
+the live trips once, ignoring case, accents and spacing, as most trips write
+it, with how many trips start and end there; the busiest first, at most 300.
+
+Only
 engine cases (negative ids) have a trip; for other cases `data` is empty, so a
 condition that reads it meets nobody. At most 20 conditions per request. 503
 when the communication rules component is off.
@@ -200,6 +233,10 @@ applies to every organization of the deployment. The app reads the same env name
 | `GET /map/positions` | GPS database positions with its symptom fields | GPS database positions. `symptoms_condition` is the vehicle's highest open case level (0 with none), `associate_symptoms` lists its open cases, `speed_limit_condition` is null, `speed_limit` and `lost_signal` are left out |
 | `GET /map/summary` | GPS database | Same shape. Symptom items count the open cases by level; the services and fleet items and `stable_condition` have no case equivalent and are 0 |
 | `GET /map/symptoms/{id}`, `/signals`, `/positions` with a positive id | GPS database symptom | 404 |
+
+**The inbox lists only cases that need an operator.** Without `from` and `to`, `GET /map/symptoms` and `GET /map/conditions` keep the open cases whose current level has `response.operator: true` in the published version the case runs on. A level with `operator: false`, or without a response, stays out; the case enters when it escalates to a level with `operator: true` and leaves when it goes back down. The history (with `from` and `to`), the map positions and a case's own endpoints keep every case.
+
+**Inbox order.** The inbox comes ordered by criticality: highest level first (código negro, then 3, 2, 1). Within a level, the SLA that runs out soonest goes first, so overdue cases are at the top; a level without SLA goes last. Then the oldest arrival at the level, then the case id. The SLA runs from when the case reached its level, or from its return from a hold if later; each row carries that start as `sla_since`. The treatment header exposes the same value in `symptom_info.sla_since` for the call panel and its step deadlines. Paging follows this order, and the 200-case limit keeps the most critical. The history keeps its own order (newest first).
 
 In engine-only mode, `p_icu_code=6` selects cases with an open treatment, independently of their severity.
 The store applies this predicate before its 200-case limit.
@@ -245,6 +282,31 @@ Templates are the symptoms of the reserved tenant `platform`. They have drafts, 
 
 Organizations see a template once a platform owner publishes it.
 
+## Device events
+
+`POST /device-events` (`controltower:event.send`) takes device events that do not travel in the GPS frames and hands each new one to the symptom engine ([gps-signal.md](gps-signal.md#device-events-outside-the-frames)). Use a service account (`miot_sk_` key) with the role `CONTROL_TOWER_EVENT_SENDER`.
+
+```json
+{"events": [{"eventId": "app-1001", "assetId": "ABCD12", "type": "Emergencia",
+             "occurredAt": "2026-10-01T12:00:00-03:00", "code": "109", "severity": "high",
+             "description": "Texto libre"}]}
+```
+
+| Field | Rule |
+|---|---|
+| `events` | 1 to 100, checked before any is sent |
+| `eventId` | Optional, up to 128 characters. A repeat with the same id is not sent again. Without one, the id is derived from `assetId`, `type`, `occurredAt` and `code` |
+| `assetId` | Required, up to 64 characters: the vehicle id of the GPS frames |
+| `type` | Required, up to 64 characters: what rules read as `event_type` |
+| `occurredAt` | Required, ISO 8601 with offset, at most 5 minutes ahead of the server |
+| `code` | Optional, up to 64 characters: the producer's code (`e.code`) |
+| `severity` | Optional: `low`, `medium` or `high` |
+| `description` | Optional, up to 500 characters |
+
+Answers `202 {"accepted": n, "duplicates": m}`. Device ingestion has no feature switch and stays on when the CDC dispatcher and signal builder are off. 503 when the signals topic did not take an event; the events after it were not sent, and the failed one can be sent again. Event ids are kept 30 days in `miot_symptoms.device_event`, without the payload.
+
+The receipt commits after broker acknowledgement. Concurrent retries wait for that outcome; a failed send or a process stopping before acknowledgement rolls the receipt back. An acknowledgement lost after delivery may cause a broker redelivery, so the evaluator also deduplicates device transitions by event id. Distinct event ids at the same timestamp remain independent. A pending publication is not released by a local request timeout.
+
 ## Roles and permissions
 
 Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerAccessCatalog` lists them and the roles that grant them. Owners and Admins hold every permission.
@@ -258,12 +320,14 @@ Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerA
 | `controltower:symptom.edit` | Symptoms: create, from template, import, identity, draft, fork |
 | `controltower:symptom.publish` | Symptoms: publish, roll back, change state |
 | `controltower:settings.update` | Tower settings |
+| `controltower:event.send` | Device events |
 
 | Role | Permissions |
 |---|---|
 | `CONTROL_TOWER_VIEWER` | view |
 | `CONTROL_TOWER_OPERATOR` | view, case.treat, contact.write |
 | `CONTROL_TOWER_MAINTAINER` | all of the above plus contact.delete, symptom.edit, symptom.publish, settings.update |
+| `CONTROL_TOWER_EVENT_SENDER` | event.send, for an event producer's service account |
 
 `controltower:places.edit` (the app's places editor) is disabled for now: it is not declared, so no one holds it, Owners and Admins included, and the app hides the editor. `ControlTowerAccessCatalog.PLACES_EDIT` lists the steps to turn it back on.
 
@@ -279,7 +343,7 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 | 403 | Not a member, org path mismatch, or a missing control tower permission |
 | 404 | Treatment or contact not found |
 | 409 | Treatment not `OPEN`, closing one with no actions, or a contact's national id already used |
-| 503 | Map data cannot be read: `miot.symptoms.gps.rpc-url` unset, the organization has no Auth0 application, or the GPS database failed |
+| 503 | Device events are not published, or map data cannot be read: `miot.symptoms.gps.rpc-url` unset, the organization has no Auth0 application, or the GPS database failed |
 
 ## Treatment screen flow
 
@@ -288,6 +352,7 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 | Panel opens on a form | `openTreatment` with the form's type |
 | Contact list | `listContacts`, plus the driver from the trip |
 | Add contact | `createContact` |
+| "Saltar paso" | `openTreatment {type: CALL}` then `addTreatmentAction {kind: NOTE, note, details.skipToStep}`; the treatment stays open |
 | "Guardar y hacer otra llamada" | `addTreatmentAction {kind: CALL}` |
 | "Finalizar tratamiento" | `addTreatmentAction {kind: CALL}` then `closeTreatment` |
 | Ignore, from the menu or mid-call | `addTreatmentAction {kind: IGNORE, outcomeKey, durationSeconds, details.scope}`; the treatment stays open while the hold lasts |
@@ -311,6 +376,8 @@ organization server-side and forward the user's session token.
 | `miot.symptoms.cdc.enabled` | `MIOT_SYMPTOMS_CDC_ENABLED` | same as the component | Pulsar dispatcher. Set `false` on a modulith that only serves the API |
 | `miot.symptoms.gps.rpc-url` | `MIOT_SYMPTOMS_GPS_RPC_URL` | none | PostgREST in front of the GPS database, for the map endpoints |
 | `miot.symptoms.control-tower.demo-seed` | `MIOT_SYMPTOMS_CONTROL_TOWER_DEMO_SEED` | `false` (`true` in `quarkus:dev`) | Seed demo contacts and history. Leave off anywhere real symptoms are shown |
+| `miot.speed.db.*` | `MIOT_SPEED_DB_HOST`, `_PORT`, `_NAME`, `_USERNAME`, `_PASSWORD` | none | Legacy speed database for `signal.road` limits ([gps-signal.md](gps-signal.md#speed-database)). Unset: OSM limits from the GPS database, no custom limits |
+| `miot.symptoms.speed.custom-tracks.table` | `MIOT_SYMPTOMS_SPEED_CUSTOM_TRACKS_TABLE` | none | Table of the custom speed polygons; each row names its organization and direction rule |
 
 ## Not in this API yet
 

@@ -12,6 +12,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.FieldOrigin;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -59,7 +60,10 @@ class SignalFieldsTest {
         Map<String, SourceField> fields = byPath();
         for (SourceField declared : JSON.readValue(DECLARED, new TypeReference<List<SourceField>>() {
         })) {
-            assertEquals(declared, fields.get(declared.path()), declared.path());
+            SourceField f = fields.get(declared.path());
+            assertNotNull(f, declared.path());
+            assertEquals(declared, new SourceField(f.path(), f.label(), f.type(), f.unit(), f.origin(),
+                    f.engineSupported(), f.values()), declared.path());
         }
     }
 
@@ -88,6 +92,76 @@ class SignalFieldsTest {
     }
 
     @Test
+    void everyFieldOfBothSourcesHasATitle() {
+        List<SourceField> all = new ArrayList<>(SignalFields.fields());
+        all.addAll(SignalFields.fields(TripCheck.class, TripCheck.ROOT));
+        List<String> untitled = all.stream()
+                .filter(f -> f.label() == null || f.label().equals(f.path().substring(f.path().lastIndexOf('.') + 1)))
+                .map(SourceField::path).toList();
+
+        assertEquals(List.of(), untitled, "give these fields a @Schema title");
+    }
+
+    @Test
+    void theTripCheckListsTheFramesZoneFields() {
+        Map<String, SourceField> check = new java.util.HashMap<>();
+        SignalFields.fields(TripCheck.class, TripCheck.ROOT).forEach(f -> check.put(f.path(), f));
+
+        assertEquals("En zona autorizada", check.get("check.geo.authorized_zone").label());
+        assertEquals(FieldOrigin.ZONES, check.get("check.geo.outside_authorized").origin());
+        assertTrue(check.containsKey("check.geo.zone"));
+        assertTrue(check.containsKey("check.geo.risk_zone"));
+        for (String field : List.of("authorized_zone", "zone", "risk_zone", "outside_authorized",
+                "risk_scheduled", "in_risk_schedule")) {
+            String description = check.get("check.geo." + field).description();
+            assertNotNull(description, field);
+            assertTrue(description.contains("no viene en las revisiones"), field);
+            assertTrue(description.contains("la regla también debe leer"), field);
+            assertTrue(description.contains("check.?geo.?authorized_zone.orValue(false)"), field);
+        }
+        assertTrue(check.get("check.geo.authorized_zone").description()
+                .startsWith("Dentro de al menos una zona autorizada"), "keep each leaf's own description");
+    }
+
+    @Test
+    void passesTheSchemaDescription() {
+        Map<String, SourceField> fields = byPath();
+
+        assertEquals("Dentro de al menos una zona autorizada",
+                fields.get("signal.geo.authorized_zone").description());
+        assertEquals("Los eventos del equipo que trae la trama", fields.get("signal.frame.events").description());
+        assertEquals(null, fields.get("signal.trip.age_min").description());
+        assertEquals("min", fields.get("signal.trip.age_min").unit());
+        assertEquals(FieldOrigin.TRIP, fields.get("signal.trip.age_min").origin());
+    }
+
+    @Test
+    void etaDeviationIsAvailableToRulesInMinutesFromTheTrip() {
+        SourceField field = byPath().get("signal.trip.eta_deviation_min");
+
+        assertNotNull(field);
+        assertEquals("number", field.type());
+        assertEquals("min", field.unit());
+        assertEquals(FieldOrigin.TRIP, field.origin());
+        assertTrue(field.engineSupported());
+        assertNotNull(field.description());
+    }
+
+    @Test
+    void roadProvenanceHasLabelsDescriptionsAndOriginsWhileTenantMapsAreHidden() {
+        Map<String, SourceField> fields = byPath();
+        for (String name : List.of("osm_way_id", "road_class", "custom_zone_id")) {
+            SourceField field = fields.get("signal.road." + name);
+            assertNotNull(field);
+            assertNotNull(field.description());
+            assertTrue(field.engineSupported());
+            assertEquals(name.equals("custom_zone_id") ? FieldOrigin.TENANT_SETTINGS : FieldOrigin.ROAD_NETWORK,
+                    field.origin());
+        }
+        assertTrue(fields.keySet().stream().noneMatch(p -> p.startsWith("signal.roads")));
+    }
+
+    @Test
     void leavesOutDriverDataListsAndHiddenParts() {
         Map<String, SourceField> fields = byPath();
 
@@ -98,7 +172,7 @@ class SignalFieldsTest {
     }
 
     @Test
-    void leavesOutOptionalReadingsThatCannotBeMissing() {
+    void leavesOutOptionalReadingsOutsideTheRuleSchema() {
         Map<String, SourceField> fields = byPath();
 
         assertTrue(fields.containsKey("signal.frame.gps.latitude"), "required primitives stay");
@@ -112,13 +186,14 @@ class SignalFieldsTest {
     @Test
     void everyFieldIsAPathOfTheSerializedSignal() throws Exception {
         AssetTrackingData frame = JSON.readValue(FRAME, AssetTrackingData.class);
-        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, null, List.of("client-1"), "client-1", null,
+        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, null, List.of("client-1"), "client-1", null, null,
                 new GpsSignal.Trip(true, false, "T-1", "SVC-1", "v", "in_transit", 30.0, -5.0, new GpsSignal.Origin(32, "ANF", true, true),
                         new GpsSignal.Destination(17, "SPC", false), 4, new GpsSignal.Carrier("1-9", "Transportes"),
                         "rampla", "AB1234", new GpsSignal.Driver("d-1", true, GpsSignal.DriverStatus.ACTIVE, false)),
                 new GpsSignal.Vehicle(GpsSignal.WeightCategory.HEAVY, 30000.0),
-                new GpsSignal.Road(90.0, 80.0),
-                new GpsSignal.Geo(false, "Z-1"), 14, new GpsSignal.Derived(true, 40.0, false, false), frame);
+                new GpsSignal.Road(90.0, 80.0, 1L, "primary", 3), null,
+                new GpsSignal.Geo(false, "Z-1", true, true), null, 14, 870.5,
+                new GpsSignal.Derived(true, 40.0, false, false), frame);
         Map<String, Object> root = Map.of(SignalFields.ROOT, JSON.convertValue(signal, new TypeReference<>() {
         }));
 
@@ -126,7 +201,8 @@ class SignalFieldsTest {
                 "signal.trip.late_min", "signal.trip.origin.label",
                 "signal.trip.destination.visited", "signal.trip.carrier.name", "signal.trip.driver.status",
                 "signal.trip.driver.license_expired", "signal.vehicle.weight_category", "signal.frame.gps.speed",
-                "signal.road.maxspeed_osm", "signal.geo.zone", "signal.local_hour", "signal.derived.moving",
+                "signal.road.maxspeed_osm", "signal.geo.zone", "signal.geo.risk_zone",
+                "signal.geo.outside_authorized", "signal.local_hour", "signal.local_minutes", "signal.derived.moving",
                 "signal.derived.speed_avg_5m", "signal.frame.sensors.engine_status",
                 "signal.frame.gps.latitude", "signal.frame.sensors.panic_button")) {
             assertTrue(byPath().containsKey(path), path);
@@ -161,7 +237,7 @@ class SignalFieldsTest {
         Map<String, Object> read = GpsSignal.FrameEvent.withEvents(signal);
 
         assertEquals(List.of(Map.of("event_type", "device_tamper", "severity", "", "description", "",
-                "timestamp", "2026-01-01T12:00:00Z")), ((Map<?, ?>) read.get("frame")).get("events"));
+                "timestamp", "2026-01-01T12:00:00Z", "code", "")), ((Map<?, ?>) read.get("frame")).get("events"));
         assertEquals(List.of(), ((Map<?, ?>) GpsSignal.FrameEvent.withEvents(Map.of("frame", Map.of()))
                 .get("frame")).get("events"), "a frame without events reads an empty list");
     }

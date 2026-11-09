@@ -61,6 +61,13 @@ public class FleetResourcesService implements FleetResources {
     }
 
     @Override
+    public boolean known(String tenantCode, String resourceType, UUID id) {
+        String type = Check.oneOf(resourceType, RESOURCE_TYPE, TRUCK, TRAILER, DRIVER);
+        return DRIVER.equals(type) ? store.driverSummary(tenantCode, id).isPresent()
+                : store.vehicle(tenantCode, type, id).isPresent();
+    }
+
+    @Override
     public Optional<Vehicle> vehicle(String tenantCode, String resourceType, UUID id) {
         return store.vehicle(tenantCode, Check.oneOf(resourceType, RESOURCE_TYPE, TRUCK, TRAILER), id);
     }

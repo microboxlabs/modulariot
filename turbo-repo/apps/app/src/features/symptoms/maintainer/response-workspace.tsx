@@ -15,7 +15,8 @@ import type {
   SymptomSpec,
 } from "./maintainer-api";
 import { problemsFor } from "./rule-problems";
-import { caseFields } from "./symptom-rule-sections";
+import { celFieldInfos } from "./sample-tree";
+import { useRuleVariableFields } from "./symptom-rule-sections";
 import { ICU_LEVELS } from "./symptom-labels";
 import { CHANGED_DOT } from "./ui/changed";
 import { LevelIcon } from "./ui/level-icon";
@@ -193,6 +194,7 @@ export default function ResponseWorkspace({
   onChange: (spec: SymptomSpec) => void;
 }>) {
   const level = levelOf(spec, icu);
+  const caseVariables = useRuleVariableFields().case;
   const response = level.response ?? EMPTY_RESPONSE;
   const name = trDynamic(`levelName${icu}`, d);
   const setResponse = (next: LevelResponse) =>
@@ -204,16 +206,18 @@ export default function ResponseWorkspace({
   const [shownPreview, setShownPreview] = useState(preview);
   if (preview?.cases !== undefined && preview !== shownPreview)
     setShownPreview(preview);
+  const rulesFields = [...caseVariables, ...sourceFields];
   const rules: LifecycleRules = {
     close: lifecycle.close ?? "",
     note: lifecycle.note ?? "",
-    fields: [...caseFields(d), ...sourceFields],
+    fields: rulesFields,
     closeProblems: problemsFor(findings, "lifecycle.close", d),
     noteProblems: problemsFor(findings, "lifecycle.note", d),
     samples: (shownPreview?.cases ?? []).map((c) => ({
       sample: c.sample,
       label: trDynamic(`caseScenario_${c.scenario}`, d),
     })),
+    sampleFields: celFieldInfos(rulesFields),
     onChange: ({ close, note }) =>
       onChange({ ...spec, lifecycle: { ...lifecycle, close, note } }),
   };

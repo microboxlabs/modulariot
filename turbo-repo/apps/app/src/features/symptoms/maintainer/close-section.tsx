@@ -27,7 +27,7 @@ import {
 } from "./close-form";
 import { moveRow } from "./condition-form";
 import { Problems } from "./rule-problems";
-import SampleTree from "./sample-tree";
+import SampleTree, { type FieldInfos } from "./sample-tree";
 import { PillNumber, PillSelect } from "./ui/pill";
 import Select from "./ui/select";
 
@@ -44,6 +44,8 @@ export interface LifecycleRules {
   noteProblems: CelProblem[];
   /** The rule's sample case moments, for the { } mode's tree. */
   samples?: { sample: Record<string, unknown>; label: string }[];
+  /** What the tree says about each field of the case moments. */
+  sampleFields?: FieldInfos;
   onChange: (rules: { close: string; note: string | null }) => void;
 }
 
@@ -416,6 +418,7 @@ export function CloseRules({
             samples={samples.map((s) => s.sample)}
             labels={samples.map((s) => s.label)}
             index={Math.min(index, samples.length - 1)}
+            fields={rules.sampleFields}
             readOnly={readOnly}
             d={d}
             onIndex={setIndex}
@@ -524,14 +527,28 @@ function entryText(e: CaseTimelineEntry, d: I18nRecord): string {
         .filter(Boolean)
         .join(" · ");
     case "CLOSED":
-      return tr("timeline.CLOSED", d);
+      return closeReason(e) === TRIP_ENDED
+        ? tr("timeline.CLOSED_TRIP_ENDED", d)
+        : tr("timeline.CLOSED", d);
   }
+}
+
+/** The platform closed the case because its trip ended. */
+const TRIP_ENDED = "trip_ended";
+
+/** The reason a system close keeps in its context; null for a close rule's. */
+function closeReason(e: CaseTimelineEntry): string | null {
+  const ctx = e.context;
+  if (ctx == null || typeof ctx !== "object") return null;
+  const reason = (ctx as Record<string, unknown>).reason;
+  return typeof reason === "string" ? reason : null;
 }
 
 /** Which rule wrote an entry, when one did. */
 function ruleOf(e: CaseTimelineEntry, d: I18nRecord): string | null {
   if (e.kind === "NOTED") return tr("fromNoteRule", d);
-  if (e.kind === "CLOSED" && e.context != null) return tr("fromCloseRule", d);
+  if (e.kind === "CLOSED" && e.context != null && closeReason(e) !== TRIP_ENDED)
+    return tr("fromCloseRule", d);
   return null;
 }
 

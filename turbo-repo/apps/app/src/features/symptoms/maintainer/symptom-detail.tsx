@@ -27,6 +27,7 @@ import {
   useDataSource,
   useEventTypes,
   usePublishPlan,
+  useRuleVariables,
   useSymptomFamilies,
   useControlTowerAccess,
   familiesListMissing,
@@ -44,13 +45,13 @@ import SaveAsTemplateModal from "./save-as-template-modal";
 import SheetHeader from "./sheet-header";
 import SheetTop from "./ui/sheet-top";
 import ResponseWorkspace, { firstResponseLevel } from "./response-workspace";
-import SymptomRuleSections, { changedLevels } from "./symptom-rule-sections";
-import {
-  FieldsPanel,
-  PreviewPanel,
-  ReviewPanel,
-  originLabel,
-} from "./symptom-side-panels";
+import SymptomRuleSections, {
+  celField,
+  changedLevels,
+  RuleVariablesProvider,
+} from "./symptom-rule-sections";
+import { FieldsPanel } from "./fields-panel";
+import { PreviewPanel, ReviewPanel } from "./symptom-side-panels";
 import { pendingError } from "./pending-error";
 import {
   isTemplateScope,
@@ -200,14 +201,16 @@ export default function SymptomDetail({
   }, [viewing]);
 
   const fields: CelField[] = useMemo(
-    () =>
-      (source?.fields ?? []).map((f) => ({
-        path: f.path,
-        detail: [f.type, f.unit, originLabel(f.origin, d)]
-          .filter(Boolean)
-          .join(" · "),
-      })),
+    () => (source?.fields ?? []).map((f) => celField(f, d)),
     [source, d]
+  );
+  const { data: ruleVariables } = useRuleVariables(lang);
+  const variableFields = useMemo(
+    () => ({
+      case: (ruleVariables?.case ?? []).map((f) => celField(f, d)),
+      level: (ruleVariables?.level ?? []).map((f) => celField(f, d)),
+    }),
+    [ruleVariables, d]
   );
 
   const eventTypes = useEventTypes(canWrite);
@@ -566,7 +569,13 @@ export default function SymptomDetail({
       />
     </div>
   );
-  return <CelValuesProvider value={eventValues}>{page}</CelValuesProvider>;
+  return (
+    <CelValuesProvider value={eventValues}>
+      <RuleVariablesProvider value={variableFields}>
+        {page}
+      </RuleVariablesProvider>
+    </CelValuesProvider>
+  );
 }
 
 /** Asks for a copy's name, or a rollback's reason, before either runs. */

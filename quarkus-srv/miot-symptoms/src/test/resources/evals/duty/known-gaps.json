@@ -1,0 +1,8 @@
+{
+  "t05/continuous-driving": "Production's GPS gate kept other frames of a device that alternates a stale and a live position with long gaps; the tracker opens 3 h earlier and its level sequence differs",
+  "t11/continuous-resting": "Legacy defect: past 16 h 15 min the legacy rest keeps counting while driving, so its level falls to 1 on the road; the tracker's rest is 0 while moving, so the case goes back to level 4",
+  "t14/continuous-resting": "Legacy defect, as t11",
+  "t26/continuous-resting": "Legacy defect, as t11",
+  "t31/continuous-driving": "Production ran this vehicle's frames out of order (level changes go back in time) and flapped 1-2-3-4 dozens of times",
+  "t31/continuous-resting": "Same vehicle: duplicate frames; the tracker opens 3 min earlier"
+}

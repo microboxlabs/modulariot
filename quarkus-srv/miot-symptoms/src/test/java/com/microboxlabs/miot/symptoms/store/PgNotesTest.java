@@ -47,7 +47,7 @@ class PgNotesTest {
                 .using(vertx).build();
         pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
         pool.query("CREATE SCHEMA miot_symptoms").execute().await().atMost(WAIT);
-        for (String file : List.of("V0.8.4__create_signal_transitions.sql", "V0.8.5__signal_cases.sql",
+        for (String file : List.of("V0.8.0__create_symptoms_catalog.sql", "V0.8.4__create_signal_transitions.sql", "V0.8.5__signal_cases.sql",
                 "V0.12.10__transition_context.sql", "V0.12.15__noted_transitions.sql")) {
             try (InputStream in = PgNotesTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);

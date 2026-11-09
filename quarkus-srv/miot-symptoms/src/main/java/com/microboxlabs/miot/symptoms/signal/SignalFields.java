@@ -36,10 +36,12 @@ public final class SignalFields {
 
     /**
      * Frame parts rules do not read: the vehicle id is {@code signal.asset_id}, driver data comes from the
-     * trip, and peripherals and metrics are lists rules do not read. Events are read through {@link #LISTS}.
+     * trip, and peripherals and metrics are lists rules do not read. The nullable heading is reserved for
+     * custom limit matching. Events are read through {@link #LISTS}.
      */
     static final Set<String> SKIPPED = Set.of("signal.frame.asset_id", "signal.frame.driver_info",
-            "signal.frame.co_driver_info", "signal.frame.peripherals", "signal.frame.metrics");
+            "signal.frame.co_driver_info", "signal.frame.peripherals", "signal.frame.metrics",
+            "signal.frame.gps.heading");
 
     /**
      * Lists rules read as lists of objects ({@value RuleLanguage#OBJECTS}), with the type whose fields their
@@ -115,13 +117,16 @@ public final class SignalFields {
         if (kind == null && LISTS.containsKey(path)) {
             Class<?> element = LISTS.get(path);
             Schema list = element.getAnnotation(Schema.class);
-            out.add(new SourceField(path, list.title(), RuleLanguage.OBJECTS, null, fieldOrigin, true));
+            out.add(new SourceField(path, list.title(), RuleLanguage.OBJECTS, null, fieldOrigin, true, null,
+                    description(list)));
             walk(JSON.constructType(element), path, fieldOrigin, labels, out, depth + 1);
             return;
         }
         if (kind == null) {
             if (!t.isContainerType() && !Temporal.class.isAssignableFrom(t.getRawClass())) {
+                int first = out.size();
                 walk(t, path, fieldOrigin, labels, out, depth + 1);
+                describeChildren(out, first, description(schema));
             }
             return;
         }
@@ -132,7 +137,32 @@ public final class SignalFields {
         }
         boolean engine = !"false".equals(extension(schema, "x-engine"));
         out.add(new SourceField(path, label(p, schema, entry[0]), kind, unit, fieldOrigin, engine,
-                t.isEnumType() ? values(t.getRawClass()) : null));
+                t.isEnumType() ? values(t.getRawClass()) : null, description(schema)));
+    }
+
+    /** Object fields are not listed themselves, so their guidance belongs on the leaves the editor shows. */
+    private static void describeChildren(List<SourceField> out, int first, String description) {
+        if (description == null) {
+            return;
+        }
+        for (int i = first; i < out.size(); i++) {
+            SourceField field = out.get(i);
+            String combined = field.description() == null ? description : field.description() + ". " + description;
+            out.set(i, new SourceField(field.path(), field.label(), field.type(), field.unit(), field.origin(),
+                    field.engineSupported(), field.values(), combined));
+        }
+    }
+
+    /**
+     * The {@code @Schema} description when it says more than the title; null otherwise. Without a title the
+     * annotation is gps-model's, whose descriptions are English API docs, not text for the editor.
+     */
+    private static String description(Schema schema) {
+        if (schema == null || schema.title().isBlank() || schema.description().isBlank()
+                || schema.description().equals(schema.title())) {
+            return null;
+        }
+        return schema.description();
     }
 
     /** The {@code @Schema} title, else the labels file entry, else the description, else the property name. */

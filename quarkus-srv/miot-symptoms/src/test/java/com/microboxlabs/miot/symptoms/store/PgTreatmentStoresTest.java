@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.store;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -545,6 +546,36 @@ class PgTreatmentStoresTest {
         assertEquals(1, closed.actions().size());
         assertEquals(List.of("treatment.closed", "treatment.action_added", "treatment.opened"),
                 audit.list(tenant, "treatment", id, null, null, 10).stream().map(AuditEvent::action).toList());
+    }
+
+    @Test
+    void aStepSkipIsReadBackWithWhoAndWhenAfterARestart() {
+        String tenant = tenant();
+        TreatmentService service = new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts,
+                treatments), new AuditService(audit));
+        String id = service.open(tenant, ACTOR, -7L, new OpenTreatmentRequest(TreatmentType.CALL, null, null, null))
+                .treatment().id();
+        Map<String, Object> details = Map.of(TreatmentService.SKIP_TO_STEP, 2, "level", 3, "version", "4",
+                "skipId", UUID.randomUUID().toString());
+        var request = new AddActionRequest(ActionKind.NOTE, null, null, null, null, null,
+                null, null, null, null, null, "No contesta", List.of(),
+                details);
+        service.addAction(tenant, ACTOR, id, request);
+
+        TreatmentService restarted = new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts,
+                treatments), new AuditService(audit));
+        TreatmentAction skip = restarted.listForSymptom(tenant, -7L).get(0).actions().get(0);
+        assertEquals(skip, restarted.addAction(tenant, ACTOR, id, request), "a lost response can be retried");
+        assertEquals(1, restarted.get(tenant, id).actions().size());
+        assertEquals(2, audit.list(tenant, "treatment", id, null, null, 10).size());
+
+        assertEquals(ActionKind.NOTE, skip.kind());
+        assertEquals(details, skip.details());
+        assertEquals("No contesta", skip.note());
+        assertEquals(ACTOR, skip.performedBy());
+        assertNotNull(skip.performedAt());
+        assertEquals(2, audit.list(tenant, "treatment", id, null, null, 1).get(0).details()
+                .get(TreatmentService.SKIP_TO_STEP));
     }
 
     private static String tenant() {

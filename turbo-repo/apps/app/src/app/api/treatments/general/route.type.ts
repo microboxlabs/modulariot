@@ -22,6 +22,8 @@ export type TreatmentsGeneralResponseItem = {
 
 export type TreatmentsTripInfoResponse = {
   asset_id: string;
+  /** The plate the trip runs on now; differs from asset_id after a truck change. */
+  trip_asset_id?: string | null;
   carrier: string;
   destination: string;
   driver: string;
@@ -41,6 +43,8 @@ export type TreatmentsSymptomInfoResponse = {
   icu_condition: string;
   /** Engine cases only: when the case opened, and when its condition began. */
   opened_at?: string;
+  /** The server's current-level SLA start, including returns from holds. */
+  sla_since?: string | null;
   started_at?: string;
   duration_sec?: number;
   /** Engine cases on an "Ignorar condición" hold. */

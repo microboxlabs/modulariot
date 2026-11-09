@@ -27,6 +27,8 @@ export type TableItemType = {
   condition: string;
   icu_code: string;
   licensePlate: string;
+  // The plate the trip runs on now, when the truck was replaced after the case opened.
+  tripPlateNow?: string | null;
   time: string;
   trip: string;
   tripCode?: string | null;
@@ -45,6 +47,8 @@ export type TableItemType = {
   ignored?: IgnoredInfo | null;
   // When the case came back to the tower from its latest hold.
   returnedAfterIgnoreAt?: string | null;
+  // When the SLA of the current level started: the case reached the level, or came back from a hold.
+  slaSince?: string | null;
 };
 
 export type Condition = {

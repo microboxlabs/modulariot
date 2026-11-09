@@ -55,6 +55,21 @@ export interface OrgTelephonyPlan {
   usage: TelephonyUsage;
 }
 
+/**
+ * Share of the minutes at which the bars turn amber. The telephony plan has no
+ * alert setting of its own; this is geocoding's default.
+ */
+export const TELEPHONY_ALERT_PCT = 80;
+
+/** The usage lines in the order the plan lists their prices. */
+export const DESTINATIONS = [
+  "CL_MOBILE",
+  "CL_LANDLINE",
+  "OTHER",
+  "WHATSAPP_CALL",
+  "WHATSAPP_TEMPLATE",
+] as const;
+
 /** The form's fields, as typed. */
 export type TelephonyPlanDraft = Record<
   | "minutesPerMonth"

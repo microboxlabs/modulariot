@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.41</version>
+        <version>0.5.42</version>
     </parent>
 
     <artifactId>miot-symptoms</artifactId>
@@ -27,6 +27,12 @@
             <!-- The GPS frame the signal builder reads and the gps_signal source's frame fields. -->
             <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-gps-model</artifactId>
+        </dependency>
+        <dependency>
+            <!-- The S2 cell of a position, the key of the GPS database's route history (signal.trip.eta_deviation_min). -->
+            <groupId>com.google.geometry</groupId>
+            <artifactId>s2-geometry</artifactId>
+            <version>2.0.0</version>
         </dependency>
         <dependency>
             <!-- The evaluator's episodes. The plain Vert.x client, so a modulith without Redis needs no Redis config. -->
@@ -80,6 +86,17 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- Match the Prometheus registry used by the gateway in the deployed modulith. -->
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus-simpleclient</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -41,6 +42,30 @@ public class InMemoryEngineCases implements EngineCaseStore {
         cases.add(c);
     }
 
+    /**
+     * The levels whose response asks for an operator, by symptom, as the published version says. A symptom
+     * without an entry asks for one at every level.
+     */
+    public final Map<UUID, Set<Integer>> operatorLevels = new HashMap<>();
+
+    private boolean needsOperator(EngineCase c) {
+        Set<Integer> levels = operatorLevels.get(c.definitionId());
+        return levels == null || levels.contains(c.level());
+    }
+
+    /** The case moves to {@code level}, as the evaluator's level change does. */
+    public void changeLevel(long caseId, int level) {
+        changeLevel(caseId, level, null);
+    }
+
+    /** The case moves to {@code level} at {@code at}. */
+    public void changeLevel(long caseId, int level, Instant at) {
+        cases.replaceAll(c -> c.id() == caseId ? new EngineCase(c.id(), c.definitionId(), c.version(), c.name(),
+                c.family(), c.assetId(), c.openedAt(), level, c.tripId(), c.latitude(), c.longitude(),
+                c.speedKmh(), c.closedAt(), c.treatments(), c.slaMinutes(), c.recurrence(), c.tripCode())
+                .withLevelAt(at) : c);
+    }
+
     /** Capped like the database store's page of open cases. */
     @Override
     public List<EngineCase> open(String tenantCode) {
@@ -59,6 +84,7 @@ public class InMemoryEngineCases implements EngineCaseStore {
                 .filter(c -> f.symptomName() == null || f.symptomName().equalsIgnoreCase(c.name()))
                 .filter(c -> f.level() == null || f.level() == c.level())
                 .filter(c -> !f.underTreatmentOnly() || c.treatments() > 0)
+                .filter(c -> !f.operatorOnly() || needsOperator(c))
                 .filter(c -> !f.byTrip() || matchesTrip(trips.get(c.tripId()), f))
                 .sorted(Comparator.comparing(EngineCase::openedAt).reversed())
                 .limit(PAGE).toList();
@@ -101,12 +127,26 @@ public class InMemoryEngineCases implements EngineCaseStore {
     }
 
     @Override
+    public TowerCounts towerCounts(String tenantCode) {
+        if (down) {
+            throw new IllegalStateException("database down");
+        }
+        List<OpenCount> active = cases.stream().filter(c -> c.closedAt() == null && needsOperator(c))
+                .collect(Collectors.groupingBy(c -> List.of(c.level(), c.treatments() > 0), Collectors.counting()))
+                .entrySet().stream()
+                .map(e -> new OpenCount((Integer) e.getKey().get(0), (Boolean) e.getKey().get(1), e.getValue()))
+                .toList();
+        return new TowerCounts(active, ignoredCount(tenantCode));
+    }
+
+    @Override
     public List<OpenLevel> openLevels(String tenantCode) {
         if (down) {
             throw new IllegalStateException("database down");
         }
         return cases.stream().filter(c -> c.closedAt() == null)
-                .map(c -> new OpenLevel(c.assetId(), c.name(), c.level())).toList();
+                .map(c -> new OpenLevel(c.assetId(), c.name(), c.level(),
+                        c.levels().isEmpty() ? null : c.levels().get(c.levels().size() - 1))).toList();
     }
 
     @Override

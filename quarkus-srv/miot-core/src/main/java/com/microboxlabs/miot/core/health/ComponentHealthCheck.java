@@ -23,6 +23,8 @@ public class ComponentHealthCheck implements HealthCheck {
         for (var component : registry.active()) {
             var check = component.healthCheck().call();
             builder.withData(component.name(), check.getStatus().name());
+            check.getData().ifPresent(data -> data.forEach((key, value) ->
+                    builder.withData(component.name() + "." + key, String.valueOf(value))));
             if (check.getStatus() == HealthCheckResponse.Status.DOWN) {
                 builder.down();
             }

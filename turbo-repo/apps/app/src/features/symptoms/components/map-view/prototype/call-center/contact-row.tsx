@@ -19,13 +19,14 @@ export default function ContactRow({
   roleLabel,
   phone,
   stats,
+  statsTitle,
   onClick,
   title,
   ariaLabel,
   pulsing,
   recentlyCalled,
   justCalledLabel,
-  bgClassName = "bg-gray-50 dark:bg-gray-800/40",
+  bgClassName = "bg-white dark:bg-gray-800",
   methods,
   methodLabels,
   unavailableNote,
@@ -39,7 +40,10 @@ export default function ContactRow({
   personName: string;
   roleLabel?: string;
   phone?: string;
+  /** The contact's calls in the current case. */
   stats?: CallStats | null;
+  /** Tooltip of the counters; says which calls they count. */
+  statsTitle?: string;
   /** Only the clickable "a quién llamar" list variant passes this. */
   onClick?: () => void;
   title?: string;
@@ -47,9 +51,8 @@ export default function ContactRow({
   /** Live-call indicator ring, sized to the avatar itself (not guessed from
    *  the outside) — see `call-dialing-step.tsx`. */
   pulsing?: boolean;
-  /** True when `stats.lastCallAt` is a real call made this session (as
-   *  opposed to the usual stable mock history) — highlights that time in
-   *  green instead of the usual muted gray. */
+  /** True when the contact was called in this case — highlights the
+   *  last call time in green instead of the usual muted gray. */
   recentlyCalled?: boolean;
   /** Shown instead of the relative time (which would otherwise read a flat
    *  "0 min") for the first minute after a real call — e.g. "Recién
@@ -71,7 +74,7 @@ export default function ContactRow({
 
   const className = `flex w-full items-center justify-between gap-3 border-b border-gray-200 px-3 py-2.5 text-left dark:border-gray-700 ${bgClassName} ${
     interactive
-      ? "cursor-pointer transition-colors hover:bg-white dark:hover:bg-gray-700"
+      ? "cursor-pointer transition-colors hover:bg-gray-50 focus:outline-none focus-visible:bg-gray-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 dark:hover:bg-gray-700 dark:focus-visible:bg-gray-700"
       : ""
   }`;
 
@@ -140,7 +143,11 @@ export default function ContactRow({
               />
             )
           )}
-          <CallStatsBadges accepted={stats.accepted} denied={stats.denied} />
+          <CallStatsBadges
+            accepted={stats.accepted}
+            denied={stats.denied}
+            title={statsTitle}
+          />
         </div>
       )}
     </>

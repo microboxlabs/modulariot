@@ -71,7 +71,7 @@ public class CredentialProfileRepository {
     // the NULL binds keep their type in the prepared statement). The secret is rotated
     // only when a new ciphertext is supplied — a blank secret on the form means "keep the
     // stored one", so secret_version must not move either.
-    private static final String UPDATE_PROFILE = """
+    private static final String UPDATE_PROFILE_FIELDS = """
             UPDATE miot_integrations.credential_profiles
             SET display_name = COALESCE($3::text, display_name),
                 environment = COALESCE($4::text, environment),
@@ -81,7 +81,16 @@ public class CredentialProfileRepository {
                 secret_version = CASE WHEN $6::text IS NULL THEN secret_version ELSE secret_version + 1 END,
                 updated_by = COALESCE($8::text, updated_by),
                 updated_at = now()
+            """;
+
+    private static final String UPDATE_PROFILE = UPDATE_PROFILE_FIELDS + """
             WHERE tenant_code = $1 AND id = $2 AND active
+            RETURNING
+            """ + COLUMNS;
+
+    private static final String UPDATE_PROFILE_IF_PROVIDER = UPDATE_PROFILE_FIELDS + """
+            WHERE tenant_code = $1 AND id = $2 AND active
+                AND public_config ->> 'provider' = $9 AND secret_version = $10
             RETURNING
             """ + COLUMNS;
 
@@ -188,6 +197,17 @@ public class CredentialProfileRepository {
         }
         return first(client().preparedQuery(UPDATE_PROFILE_IF_VERSION)
                 .execute(updateTuple(params).addInteger(expectedVersion)).await().indefinitely());
+    }
+
+    /** Keep the provider used to authorize a legacy credential edit atomic with its write. */
+    public CredentialProfile updateIfProvider(
+            UpdateCredentialProfileParams params, String expectedProvider, int expectedVersion) {
+        if (toUuid(params.id()) == null) {
+            return null;
+        }
+        return first(client().preparedQuery(UPDATE_PROFILE_IF_PROVIDER)
+                .execute(updateTuple(params).addString(expectedProvider).addInteger(expectedVersion))
+                .await().indefinitely());
     }
 
     private static Tuple updateTuple(UpdateCredentialProfileParams params) {

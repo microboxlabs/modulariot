@@ -11,6 +11,24 @@ import { FormattedDate } from "@/features/common/components/formatted-date";
 import icu_condition from "@/features/symptoms/model/icu_condition.json";
 import { FaChevronRight } from "react-icons/fa6";
 import IgnoredHoldCell from "./ignored-hold-cell";
+import { tr } from "@/features/i18n/tr.service";
+
+/** Cell content that opens the case's treatment, as the "Tratar" button does. */
+const ROW_LINK =
+  "-m-1 flex w-fit items-center gap-2 rounded-md p-1 cursor-pointer hover:bg-black/5 hover:underline dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
+
+/** The trip's current plate under the case's, when the truck was replaced after the case opened. */
+function TripPlateNow({
+  data,
+  dict,
+}: Readonly<{ data: TableItemType; dict: I18nRecord }>) {
+  if (!data.tripPlateNow) return null;
+  return (
+    <span className="block text-[11px] font-normal text-amber-700 dark:text-amber-400">
+      {tr("symptoms.trip_plate_now", dict, { plate: data.tripPlateNow })}
+    </span>
+  );
+}
 
 function slaBadge(data: TableItemType, dict: I18nRecord) {
   const slaMin = data.sla_minutes;
@@ -18,11 +36,13 @@ function slaBadge(data: TableItemType, dict: I18nRecord) {
   // condition (`Conditions[...].bgColor` below), and a saturated row color —
   // red especially — could wash out same-colored text with no background of
   // its own to stand on.
-  let slaCell: { texto: string; color: "warning" | "success" | "failure" } | null =
-    null;
+  let slaCell: {
+    texto: string;
+    color: "warning" | "success" | "failure";
+  } | null = null;
   if (slaMin != null) {
-    // A case back from an "Ignorar condición" hold has a new SLA from then.
-    const slaStart = data.returnedAfterIgnoreAt ?? data.date;
+    // The server's SLA start: the case reached its level, or came back from a hold.
+    const slaStart = data.slaSince ?? data.returnedAfterIgnoreAt ?? data.date;
     const transc = (Date.now() - new Date(slaStart).getTime()) / 60000;
     const resto = slaMin - transc;
     const fmt = (m: number) =>
@@ -56,6 +76,10 @@ export default function TableItem({
   // Occurrence number of this event on the trip: earlier events plus this one.
   const occurrence = (data.recurrence_events ?? 0) + 1;
   const slaCell = slaBadge(data, dict);
+  const href = treatmentHref(data.id, data.trip, data.licensePlate);
+  const openLabel = tr("symptoms.open_treatment", dict, {
+    plate: data.licensePlate,
+  });
 
   if (!compact) {
     return (
@@ -64,7 +88,7 @@ export default function TableItem({
         ${Conditions[data.condition as keyof typeof Conditions]?.bgColor}`}
       >
         <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
-          <div className="flex items-center gap-2">
+          <Link href={href} title={openLabel} className={ROW_LINK}>
             {searchParams.get("icu_code") === "6" && (
               <>
                 <ConditionIcon
@@ -83,21 +107,24 @@ export default function TableItem({
               size="h-7 w-7"
               dict={dict}
             />
-            <p
+            <span
               className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
             >
               {data.licensePlate}
-            </p>
-          </div>
+              <TripPlateNow data={data} dict={dict} />
+            </span>
+          </Link>
         </TableCell>
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
-          {(() => {
-            const symptomsDict = dict.symptoms as I18nRecord;
-            const types = symptomsDict.types as Record<string, string>;
-            return types[data.alertType] || data.alertType;
-          })()}
+          <Link href={href} title={openLabel} className={ROW_LINK}>
+            {(() => {
+              const symptomsDict = dict.symptoms as I18nRecord;
+              const types = symptomsDict.types as Record<string, string>;
+              return types[data.alertType] || data.alertType;
+            })()}
+          </Link>
         </TableCell>
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
@@ -118,7 +145,10 @@ export default function TableItem({
               )}
               {data.returnedAfterIgnoreAt && (
                 <Badge color="warning" className="w-fit">
-                  {(dict.symptoms as I18nRecord).returned_after_ignore as string}
+                  {
+                    (dict.symptoms as I18nRecord)
+                      .returned_after_ignore as string
+                  }
                 </Badge>
               )}
             </div>
@@ -126,7 +156,9 @@ export default function TableItem({
         </TableCell>
         <TableCell className="text-xs text-nowrap">
           {occurrence > 1 ? (
-            <Badge color="purple" className="w-fit">×{occurrence}</Badge>
+            <Badge color="purple" className="w-fit">
+              ×{occurrence}
+            </Badge>
           ) : (
             <span className="text-gray-400">—</span>
           )}
@@ -157,7 +189,7 @@ export default function TableItem({
         >
           <div className="flex items-center gap-2">
             {data.last_assigned_to ? (
-              <Link href={treatmentHref(data.id, data.trip, data.licensePlate)}>
+              <Link href={href}>
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
                   color="light"
@@ -173,7 +205,7 @@ export default function TableItem({
                 </Button>
               </Link>
             ) : (
-              <Link href={treatmentHref(data.id, data.trip, data.licensePlate)}>
+              <Link href={href}>
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
                   color="blue"
@@ -209,6 +241,7 @@ export default function TableItem({
             <Link href={treatmentHref(data.id, data.trip, data.licensePlate)}>
               {data.licensePlate}
             </Link>
+            <TripPlateNow data={data} dict={dict} />
           </p>
         </div>
       </TableCell>

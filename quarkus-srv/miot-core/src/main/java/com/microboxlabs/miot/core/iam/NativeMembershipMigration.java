@@ -42,6 +42,8 @@ public class NativeMembershipMigration {
     static final String ALFRESCO_AUTH_PROPERTY = "miot.alfresco.auth";
     /** Imports from the stub Alfresco clients anyway; for tests. */
     static final String IMPORT_STUB_PROPERTY = "miot.iam.native-migration.import-stub";
+    /** Off on a pod that does not serve the API: without the Alfresco settings it would skip the import. */
+    static final String ENABLED_PROPERTY = "miot.iam.native-migration.enabled";
     private static final Logger LOG = Logger.getLogger(NativeMembershipMigration.class);
 
     /** One organization: how many people the import added and suspended, how many default roles were bound. */
@@ -63,23 +65,28 @@ public class NativeMembershipMigration {
             @ConfigProperty(name = LEGACY_PROPERTY, defaultValue = "alfresco") String legacyMembership,
             @ConfigProperty(name = ALFRESCO_AUTH_PROPERTY, defaultValue = "stub") String alfrescoAuth,
             @ConfigProperty(name = IMPORT_STUB_PROPERTY, defaultValue = "false") boolean importStub,
-            @ConfigProperty(name = "miot.iam.native-migration.every", defaultValue = "1m") String every) {
+            @ConfigProperty(name = "miot.iam.native-migration.every", defaultValue = "1m") String every,
+            @ConfigProperty(name = ENABLED_PROPERTY, defaultValue = "true") boolean enabled) {
         this.bridge = bridge;
         this.registry = registry;
         this.alreadyNative = "native".equalsIgnoreCase(legacyMembership.trim())
                 || ("stub".equalsIgnoreCase(alfrescoAuth.trim()) && !importStub);
-        this.scheduled = !"off".equalsIgnoreCase(every.trim());
+        this.scheduled = enabled && !"off".equalsIgnoreCase(every.trim());
     }
 
     @Scheduled(every = "${miot.iam.native-migration.every:1m}", delayed = "1s",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     Uni<Void> scheduled() {
+        if (!scheduled) {
+            return Uni.createFrom().voidItem();
+        }
         return migrateAll().replaceWithVoid();
     }
 
-    /** Whether a run has left no organization behind, or the schedule is off. */
-    public boolean settled() {
-        return done.get() || !scheduled;
+    /** Whether no organization is left behind, including when another pod owns the migration. */
+    public Uni<Boolean> settled() {
+        return scheduled ? Uni.createFrom().item(done.get())
+                : Panache.withSession(() -> Organization.listAlfrescoMembership().map(List::isEmpty));
     }
 
     /** Moves every organization still on Alfresco membership; failures are reported and left for the next run. */

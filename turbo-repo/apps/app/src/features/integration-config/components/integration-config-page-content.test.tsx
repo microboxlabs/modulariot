@@ -14,9 +14,14 @@ const state = vi.hoisted(() => ({
   connect: vi.fn(),
   success: vi.fn(),
   failure: vi.fn(),
+  useTelephony: vi.fn(),
   params: new URLSearchParams(
     "section=bigquery&source=demo-old&query=demo-plan"
   ),
+}));
+vi.mock("@/features/symptoms/control-tower/telephony-api", () => ({
+  useTelephony: state.useTelephony,
+  saveTelephony: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: state.replace }),
@@ -290,4 +295,25 @@ describe("managed geocoding deletion scope", () => {
       }
     }
   );
+});
+
+describe("telephony lives in Ajustes › Síntomas", () => {
+  it("the connections section has no telephony selector nor usage", () => {
+    state.params = new URLSearchParams("section=connections");
+    render(
+      <IntegrationConfigPageContent
+        dict={en.pages.integrationConnections}
+        breadcrumbDict={{}}
+        rootDict={en}
+        lang="en"
+      />
+    );
+    const t = en.pages.userSettings.telephony;
+    expect(screen.queryByText(t.choice.title)).toBeNull();
+    expect(screen.queryByText(t.usage.title)).toBeNull();
+    expect(state.useTelephony).not.toHaveBeenCalled();
+    expect(en.pages.integrationConnections).not.toHaveProperty(
+      "telephonyChoice"
+    );
+  });
 });

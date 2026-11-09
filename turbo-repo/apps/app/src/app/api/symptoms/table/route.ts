@@ -11,6 +11,7 @@ import {
 import { SymptomsTableResponse } from "./route.types";
 import { SymptomTableResponse } from "@/features/symptoms/types/symptoms";
 import { formatActiveDuration } from "@/features/symptoms/model/active-duration";
+import { tripPlateNow } from "@/features/symptoms/model/plate-change";
 
 // Parameter mapping configuration
 const PARAM_MAPPING = {
@@ -60,6 +61,7 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       condition: item?.icu_condition?.toLowerCase(),
       icu_code: item?.icu_code,
       licensePlate: item?.asset_id,
+      tripPlateNow: tripPlateNow(item?.asset_id, item?.trip_asset_id),
       time: formatActiveDuration(item?.duration_sec) ?? "",
       trip: item?.trip_id,
       tripCode: item?.trip_code,
@@ -74,6 +76,7 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       recurrence_events: item?.recurrence_events ?? null,
       ignored: item?.ignored ?? null,
       returnedAfterIgnoreAt: item?.returned_after_ignore_at ?? null,
+      slaSince: item?.sla_since ?? null,
     })),
     pagination: {
       total_rows: data.total_rows,

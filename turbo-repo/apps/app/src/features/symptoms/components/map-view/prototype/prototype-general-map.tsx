@@ -10,7 +10,7 @@ import MapVisualizationTrip, {
 } from "@/features/geographic-view/components/map-visualization-trip";
 import type { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
 import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
-import { chipText } from "./header-chip";
+import { chipText, plateTag } from "./header-chip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../../hooks/use-treatments-general";
 import { useEffect, useMemo, useState } from "react";
@@ -27,6 +27,7 @@ import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import { lugaresLayout } from "../lugares-layout";
 import { caseSpans as spansOf } from "@/features/symptoms/model/level-reason";
+import { useOptionalCallSession } from "./call-center/call-session";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -143,6 +144,22 @@ export default function PrototypeGeneralMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFormOpen, selectedOption]);
 
+  // The call bar asks to see its call: open the call panel when the call is this case's.
+  const callSession = useOptionalCallSession();
+  const focusTick = callSession?.focusTick ?? 0;
+  const callCaseId = callSession?.call?.context.caseId ?? null;
+  const thisCaseId =
+    treatmentData?.symptom_info?.id == null
+      ? null
+      : String(treatmentData.symptom_info.id);
+  useEffect(() => {
+    if (focusTick === 0 || pastFormsEnabled) return;
+    if (callCaseId === null || callCaseId !== thisCaseId) return;
+    setSelectedOption("call_driver");
+    setIsFormOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTick, thisCaseId]);
+
   // The call flow stays narrow (1/3) through contacts/dialing/whatsapp — the
   // map is the more useful half of the screen until there's an actual form
   // to fill in — then widens to 1/2 for the final treatment form. `null`
@@ -188,12 +205,12 @@ export default function PrototypeGeneralMap({
     selectedTreatmentIndex?.symptom_id?.toString() ?? ""
   );
 
-  // A case without a trip keeps its opening point on the map, whichever
+  // The case's engine report and opening point stay available whichever
   // timeline entry or pulse is selected.
   const tripless = !tripId && isEngineCaseId(id);
   const { data: caseLocation } = useTreatmentsLocation(
-    "",
-    tripless ? titleCase(treatmentData?.symptom_info?.name) : "",
+    treatmentData?.trip_info?.trip_id ?? tripId ?? "",
+    titleCase(treatmentData?.symptom_info?.name),
     id
   );
   const casePoint = tripless ? firstPoint(caseLocation) : null;
@@ -281,10 +298,11 @@ export default function PrototypeGeneralMap({
                     ),
                   },
                   {
-                    text: chipText(
+                    ...plateTag(
                       loading,
                       treatmentData?.trip_info?.asset_id ?? assetId,
-                      symptomsDict.license_plate as string
+                      treatmentData?.trip_info?.trip_asset_id,
+                      dict
                     ),
                     icon: <FaTruck className="text-gray-900 dark:text-white" />,
                   },
@@ -376,6 +394,9 @@ export default function PrototypeGeneralMap({
               isLoading={isLoading}
               tripId={tripId ?? ""}
               filteredLocationData={filteredLocationData ?? null}
+              reportedEngineStatus={
+                caseLocation?.description?.last_reported_engine_status
+              }
               dict={dict}
               selectedTreatmentIndex={selectedTreatmentIndex ?? null}
               setSelectedTreatment={setSelectedTreatment}

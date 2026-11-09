@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** The evaluator's cases: open ones, one by id, and the operator's close. */
+/** The evaluator's cases: open ones, one by id, the operator's close, and the close after a state change. */
 public interface EngineCaseStore {
 
     /** The most recent open cases, at most a page of them. */
@@ -24,7 +24,10 @@ public interface EngineCaseStore {
 
     record TowerCounts(List<OpenCount> active, long ignored) { }
 
-    /** Counts read from one snapshot by persistent stores. */
+    /**
+     * The tower inbox's counts, read from one snapshot by persistent stores: the open cases whose current level
+     * asks for an operator ({@link CaseFilter#operatorOnly}).
+     */
     default TowerCounts towerCounts(String tenantCode) {
         return new TowerCounts(openCounts(tenantCode), ignoredCount(tenantCode));
     }
@@ -80,10 +83,59 @@ public interface EngineCaseStore {
      */
     boolean close(String tenantCode, long caseId, String actor, Instant at);
 
+    /**
+     * Closes each open case whose state is no longer its symptom's state, as when the symptom moved between TEST
+     * and ACTIVE or was turned off, and returns the cases it closed. Each gets a CLOSED transition in its own state
+     * with {@code reason}. A case already closed is left alone, so running it again closes nothing.
+     *
+     * @param tenantCode   null for every organization
+     * @param definitionId null for every symptom
+     */
+    default List<StaleCase> closeStale(String tenantCode, UUID definitionId, Instant at, String reason) {
+        return List.of();
+    }
+
+    /**
+     * Closes the open cases of the trip among {@code definitionIds}, whatever their level, with {@code reason} as
+     * {@code closed_by} and in the context, and returns them. A case already closed is left alone.
+     */
+    default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason) {
+        return List.of();
+    }
+
+    /** The evaluator's maximum and latest context, including frames without a level change. */
+    record ClosingFrame(double maxMeasure, java.util.Map<String, Object> context) {
+    }
+
+    /** As {@link #closeTrip}, using matching episode evidence when it is still available. */
+    default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason, java.util.function.Function<StaleCase, ClosingFrame> frames) {
+        return closeTrip(tenantCode, tripId, definitionIds, at, reason);
+    }
+
+    /** As above, leaving open the cases of {@code keepAsset} (null closes every vehicle's). */
+    default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason, String keepAsset, java.util.function.Function<StaleCase, ClosingFrame> frames) {
+        return keepAsset == null ? closeTrip(tenantCode, tripId, definitionIds, at, reason, frames) : List.of();
+    }
+
+    /** A case {@link #closeStale} or {@link #closeTrip} closed; {@code id} is its OPENED transition's. */
+    record StaleCase(String tenantCode, long id, UUID definitionId, String version, boolean test, String assetId,
+            int level, String tripId, Double latitude, Double longitude, Double speedKmh, Instant openedAt) {
+
+        public long symptomId() {
+            return -id;
+        }
+    }
+
     record OpenCount(int level, boolean underTreatment, long count) {
     }
 
-    record OpenLevel(String assetId, String name, int level) {
+    record OpenLevel(String assetId, String name, int level, EngineCase.LevelStep speedStep) {
+        public OpenLevel(String assetId, String name, int level) {
+            this(assetId, name, level, null);
+        }
     }
 
     /**
@@ -96,33 +148,43 @@ public interface EngineCaseStore {
      * <p>The trip filters match the case's live trip, so a case without one matches none of them. {@code driverId}
      * is the RUT of either driver, {@code carrierId} the carrier's RUT or id; both ignore dots, dashes, spaces and
      * case. {@code origin} and {@code destination} are the whole place name, ignoring case and outer spaces.
+     *
+     * <p>{@code operatorOnly} keeps the cases whose current level has {@code response.operator: true} in the
+     * published version the case runs on: the tower inbox. A level with {@code operator: false} or no response is
+     * left out.
      */
     record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to,
             String driverId, String carrierId, String origin, String destination, boolean underTreatmentOnly,
-            boolean ignoredOnly) {
+            boolean ignoredOnly, boolean operatorOnly) {
 
         public static final CaseFilter OPEN = new CaseFilter(null, null, null, null, null, null);
 
         public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
                 Instant to) {
-            this(tripId, assetId, symptomName, level, from, to, null, null, null, null, false, false);
+            this(tripId, assetId, symptomName, level, from, to, null, null, null, null, false, false, false);
         }
 
         @SuppressWarnings("java:S107")
         public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
                 Instant to, String driverId, String carrierId, String origin, String destination) {
             this(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin, destination, false,
-                    false);
+                    false, false);
         }
 
         public CaseFilter withOpenTreatment() {
             return new CaseFilter(tripId, assetId, symptomName, null, from, to, driverId, carrierId, origin,
-                    destination, true, ignoredOnly);
+                    destination, true, ignoredOnly, operatorOnly);
         }
 
         public CaseFilter withIgnored() {
             return new CaseFilter(tripId, assetId, symptomName, null, from, to, driverId, carrierId, origin,
-                    destination, underTreatmentOnly, true);
+                    destination, underTreatmentOnly, true, operatorOnly);
+        }
+
+        /** Only the cases whose current level asks for an operator: the tower inbox. */
+        public CaseFilter forOperator() {
+            return new CaseFilter(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin,
+                    destination, underTreatmentOnly, ignoredOnly, true);
         }
 
         /** Whether it filters by a field of the case's trip. */

@@ -10,14 +10,18 @@ import { signOut, useSession } from "next-auth/react";
 import { useParams } from "next/navigation";
 import { UserDropdownProps } from "./user-dropdown.types";
 import { getAuth0LogoutUrl } from "@/features/auth/services/auth.service";
+import { clearSavedCalls } from "@/features/symptoms/components/map-view/prototype/call-center/call-session-store";
+import { useOptionalCallSession } from "@/features/symptoms/components/map-view/prototype/call-center/call-session";
 
-async function handleSignOut(lang: string) {
+async function handleSignOut(lang: string, cancelCall?: () => void) {
   // Land back on the current-language sign-in page after federated logout.
   const signInUrl = `${globalThis.location.origin}/app/${lang}/sign-in`;
 
   // Get Auth0 logout URL before signing out of NextAuth
   const auth0LogoutUrl = await getAuth0LogoutUrl(signInUrl);
 
+  cancelCall?.();
+  clearSavedCalls();
   // Sign out of NextAuth first
   await signOut({ redirect: false });
 
@@ -32,6 +36,7 @@ async function handleSignOut(lang: string) {
 
 export default function UserDropdown({ messages }: UserDropdownProps) {
   const { lang } = useParams<{ lang: string }>();
+  const callSession = useOptionalCallSession();
   const { data: session, status } = useSession({
     required: true,
     onUnauthenticated() {
@@ -79,7 +84,7 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
       <Dropdown.Item>Settings</Dropdown.Item>
       <Dropdown.Item>Earnings</Dropdown.Item> */}
       {/* <Dropdown.Divider /> */}
-      <DropdownItem onClick={() => handleSignOut(lang)}>
+      <DropdownItem onClick={() => handleSignOut(lang, callSession?.cancel)}>
         {messages.signOutLabel}
       </DropdownItem>
     </Dropdown>

@@ -55,7 +55,8 @@ Every `tick-every`, the replica holding the lease takes the vehicles whose deadl
 
 | Found | Then |
 |---|---|
-| No watch (trip ended or keys expired) | Dropped from the deadlines |
+| No watch (off every trip or keys expired) | Dropped from the deadlines |
+| A trip in the watch ended (see [Trip end](#trip-end)) | Its cases close; the trip is left out of the check, and with no trip left the vehicle is dropped from the deadlines |
 | Deadline not passed (a frame moved it meanwhile) | Moved to the new deadline |
 | Silent | Lost since its newest frame; its `trip_check` check runs, then again every `recheck-every` |
 | A frame newer than the loss | Returned (see below): lost cleared, deadline back to arrival + expected silence. A frame from a lost vehicle sets its deadline to now, so the return is checked on the next tick |
@@ -113,7 +114,7 @@ Each check runs the organization's TEST and ACTIVE `trip_check` versions with th
 
 | Field | Meaning |
 |---|---|
-| `check.trip.*` | The trip as the vehicle's newest signal carried it, same fields as `signal.trip.*` (driver included) |
+| `check.trip.*` | The trip as the vehicle's newest signal carried it, same fields as `signal.trip.*` (driver included). `check.trip.destination.visited` is also true once the trip's `arrival` milestone is confirmed, read at the check |
 | `check.signal_lost_minutes` | `silence_s / 60` |
 | `check.loss.silence_s` | Now minus the newest frame's time |
 | `check.loss.expected_s` | Expected gap + delivery delay when the newest frame arrived |
@@ -121,7 +122,8 @@ Each check runs the organization's TEST and ACTIVE `trip_check` versions with th
 | `check.loss.last.lat`, `.lon`, `.speed`, `.engine` | The newest frame |
 | `check.loss.sender` | The client that sends the frames |
 | `check.loss.returned`, `check.loss.backfill` | Only on the return check |
-| `check.driving_minutes`, `check.resting_minutes` | Declared for the continuous-driving rules, not computed (`x-engine: false`, TEST only) |
+| `check.driving_minutes`, `check.resting_minutes`, `check.duty_minutes` | Not on these checks. The duty tracker writes them on each frame, and the symptoms that read a counter run there instead ([duty-tracker.md](duty-tracker.md)) |
+| `check.geo` | Only on duty checks, when the evaluating organization has zones at the frame. Reading geo alone does not select duty checks; a rule must also read a duty counter. On detector checks it is absent; use `check.?geo.?authorized_zone.orValue(false)` |
 
 The case's trip, driver and position are the trip's and the newest frame's.
 
@@ -129,7 +131,48 @@ The case's trip, driver and position are the trip's and the newest frame's.
 
 The return marker keeps both the first arrival and its GPS time in the existing `r` value; legacy arrival-only markers still read. The case map refreshes its description every 60 s while open and stops on closure or unmount.
 
-A frame from inside the silence (taken after the newest frame before it) tells about the return: the first one on time is the return (`r` in the vehicle's hash, kept once set), and one that arrives late, or delayed by more than 2 min and the sender's usual delay, is backfill (`b`). A return without backfill waits `return-grace` (1 min) for late frames. Then one check runs with `returned: true`, and every open case the checks opened for the vehicle gets `symptom.case.signal_returned` with the return time and whether backfill came; an ACTIVE case also gets the audit entry `case.signal_returned`. The detector never closes a case; the template's close rule can close one on that check (2.2.0, below), and a case closed there gets `symptom.case.closed` instead of `signal_returned`.
+A frame from inside the silence (taken after the newest frame before it) tells about the return: the first one on time is the return (`r` in the vehicle's hash, kept once set), and one that arrives late, or delayed by more than 2 min and the sender's usual delay, is backfill (`b`). A return without backfill waits `return-grace` (1 min) for late frames. Then one check runs with `returned: true`, and every open case the checks opened for the vehicle gets `symptom.case.signal_returned` with the return time and whether backfill came; an ACTIVE case also gets the audit entry `case.signal_returned`. The detector closes a case only when its trip ends (above); the template's close rule can close one on that check (2.2.0, below), and a case closed there gets `symptom.case.closed` instead of `signal_returned`.
+
+### Trip end
+
+A trip ends when `miot_trips.trip` has it `completed` or `cancelled`, or has no such trip. Two paths close its cases:
+
+| Path | When |
+|---|---|
+| `miot_trips_live` notice | Every `trip_live` change, including the delete at the trip's end. Each replica with the detector on reads the trip's state |
+| Next check of the vehicle | Each check first reads the state of the trips in the watch, so a missed notice is caught. A failed read fails the check, which is retried on the next tick |
+
+On a trip end, every open case of the trip on a TEST or ACTIVE `trip_check` symptom evaluated by the lost-signal detector closes at its current level. Symptoms that read duty counters run on frames and keep their own lifecycle:
+
+| Field | Value |
+|---|---|
+| `signal_transitions.closed_by` | `trip_ended` |
+| `context` | `{"reason": "trip_ended", "trip_id": …}` |
+| Event | `symptom.case.closed`, `closedBy: trip_ended` |
+| Counter | `miot.symptoms.lost_signal.trip_ended_closes` |
+
+The closed case's episode is dropped, so a new trip of the vehicle opens a new case. Delayed cleanup preserves an episode opened for a newer case and an operator's close marker. The check leaves the ended trip and its organization's cases out, so no rule opens or escalates a case on it. A case already closed is left alone. The case timeline shows "Se cierra · Viaje finalizado".
+
+The transition log validates the trip under a shared row lock before accepting a lost-signal write. A check that read an active trip before completion cannot insert its first case afterward. Trip closure takes definition and case locks in the same order as the evaluator, and shared definition locks serialize it with state-change sweeps.
+
+Migration `V0.12.24` adds `miot_symptoms.trip_end_effects`. Each trip-ended CLOSED row queues its episode cleanup and close event in the same transaction. Every detector tick retries pending effects, including vehicles without a deadline. Replicas use `FOR UPDATE SKIP LOCKED`; a queue entry is deleted only after conditional episode cleanup and all asynchronous event observers succeed. Redis snapshot conflicts retry against the latest episode; persistent contention or an unavailable observer leaves the entry for a later tick. Delivery is at least once: a crash after publication but before acknowledgement can repeat the same case's close event, with its original timestamp; the CLOSED timeline row is not repeated.
+
+### Truck change
+
+When `trip_live.asset_id` changes on a trip that is still running, the trip's open cases on any other vehicle close by the same two paths and the same queue:
+
+| Field | Value |
+|---|---|
+| `signal_transitions.closed_by` | `asset_changed` |
+| `context` | `{"reason": "asset_changed", "trip_id": …}` |
+| Event | `symptom.case.closed`, `closedBy: asset_changed` |
+| Counter | `miot.symptoms.lost_signal.asset_changed_closes` |
+
+The old vehicle's check leaves the trip out. The current vehicle's cases stay open. Case rows and the case header carry `trip_asset_id`, the trip's current plate, so the tower can show both plates.
+
+The transition log and truck-change close lock the trip and its live assignment before writing. A check taken before a truck change cannot open a case on the replaced vehicle. A close whose assignment snapshot is stale retries without writing, so a delayed notice cannot close the vehicle the trip moved back to.
+
+The close rule (`case.normal_s`, `case.off_trip_s`) cannot do this: the lost check runs only with the trip the newest frame carried, and a parked truck sends no frame.
 
 ### Platform template (V0.12.4)
 

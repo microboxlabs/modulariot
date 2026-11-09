@@ -81,6 +81,15 @@ export default function GeneralMap({
     selectedTreatmentIndex?.symptom_id?.toString() ?? ""
   );
 
+  // Keep the case's engine report when selecting a pulse clears the timeline selection.
+  const { data: caseLocation } = useTreatmentsLocation(
+    treatmentData?.trip_info?.trip_id ?? tripId ?? "",
+    treatmentData?.symptom_info?.name
+      ?.toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase()) ?? "",
+    id
+  );
+
   useEffect(() => {
     if (errorTreatments) {
       router.push("/not-found");
@@ -260,6 +269,9 @@ export default function GeneralMap({
             isLoading={isLoading}
             tripId={tripId ?? ""}
             filteredLocationData={filteredLocationData ?? null}
+            reportedEngineStatus={
+              caseLocation?.description?.last_reported_engine_status
+            }
             dict={dict}
             selectedTreatmentIndex={selectedTreatmentIndex ?? null}
             setSelectedTreatment={setSelectedTreatment}

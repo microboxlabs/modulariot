@@ -1,7 +1,7 @@
 import {
   act,
   fireEvent,
-  render,
+  render as rtlRender,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -11,6 +11,20 @@ import es from "@/lang/es.json";
 import CallDialingStep from "./call-dialing-step";
 import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
 import type { StartCallOptions, TelephonyCallResult } from "./telnyx-call";
+import { CallSessionProvider } from "./call-session";
+import type { ReactElement } from "react";
+
+const render = (ui: ReactElement) =>
+  rtlRender(ui, { wrapper: CallSessionProvider });
+beforeEach(() => {
+  sessionStorage.clear();
+  access.canSettings = true;
+});
+
+const access = vi.hoisted(() => ({ canSettings: true }));
+vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
+  useControlTowerAccess: () => ({ can: () => access.canSettings }),
+}));
 
 const { request } = vi.hoisted(() => ({
   request: vi.fn().mockResolvedValue({
@@ -25,7 +39,11 @@ const { request } = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
+vi.mock("next/navigation", () => ({
+  useParams: () => ({ lang: "es" }),
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/es/symptoms",
+}));
 // WhatsApp calling off: the permission row stays hidden.
 vi.mock(
   "@/features/symptoms/control-tower/control-tower-api",
@@ -56,6 +74,46 @@ function renderStep(
 }
 
 describe("CallDialingStep", () => {
+  it.each(["TELNYX", "TEAMS_PHONE"] as const)(
+    "keeps emergency calls recordable while %s is configured",
+    (provider) => {
+      const onConfirm = vi.fn();
+      const openTeams = vi.fn();
+      const token = vi.fn();
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Carabineros"
+          contactRole="Emergencias – Carabineros"
+          contactPhone="133"
+          allowedMethods={["phone"]}
+          reason=""
+          line={{
+            connectionId: "test",
+            provider,
+            name: "Central",
+            callerNumber: "+56900000000",
+            ready: true,
+          }}
+          telephonyFailed
+          openTeams={openTeams}
+          token={token}
+          onCancel={vi.fn()}
+          onConfirm={onConfirm}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada telefónica" })
+      );
+      expect(openTeams).not.toHaveBeenCalled();
+      expect(token).not.toHaveBeenCalled();
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+      );
+      expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "phone");
+    }
+  );
+
   it("opens the channel-specific WhatsApp recipient", () => {
     const open = vi.spyOn(window, "open").mockReturnValue(null);
     render(
@@ -233,7 +291,7 @@ describe("CallDialingStep", () => {
       startedAt: "2026-11-04T10:00:00.000Z",
     };
 
-    function renderTelnyx() {
+    function renderTelnyx(contactPhone = "+56 9 1111 1111") {
       let options: StartCallOptions | null = null;
       const hangup = vi.fn(() => options?.onEnd(result));
       const dial = vi.fn(async (o: StartCallOptions) => {
@@ -251,7 +309,7 @@ describe("CallDialingStep", () => {
           dict={dict}
           contactName="Luis"
           contactRole="Transportista"
-          contactPhone="+56 9 1111 1111"
+          contactPhone={contactPhone}
           allowedMethods={["phone"]}
           reason=""
           line={line}
@@ -276,6 +334,22 @@ describe("CallDialingStep", () => {
       act(() => opts()?.onEnd(result));
       expect(onConfirm).toHaveBeenCalledWith(42, "phone", result);
     });
+
+    it.each(["133", "131", "132", "134"])(
+      "times a native emergency call to %s with a Telnyx line",
+      (number) => {
+        const { dial, token, onConfirm } = renderTelnyx(number);
+        fireEvent.click(
+          screen.getByRole("button", { name: "Llamada telefónica" })
+        );
+        expect(token).not.toHaveBeenCalled();
+        expect(dial).not.toHaveBeenCalled();
+        fireEvent.click(
+          screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+        );
+        expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "phone");
+      }
+    );
 
     it("the red button hangs up instead of timing by hand", async () => {
       const { dial, hangup, onConfirm } = renderTelnyx();
@@ -361,6 +435,210 @@ describe("CallDialingStep", () => {
         calleeNumber: "+56922222222",
         connectionId: "m1",
       })
+    );
+  });
+
+  describe("the Teams button with Telnyx as the main line", () => {
+    const telnyx = {
+      connectionId: "p1",
+      provider: "TELNYX" as const,
+      name: "Plataforma",
+      callerNumber: "+56200000000",
+      ready: true,
+      managed: true,
+    };
+    const teamsLine = {
+      connectionId: "m1",
+      provider: "TEAMS_PHONE" as const,
+      name: "Teams",
+      callerNumber: null,
+      ready: true,
+    };
+
+    function renderTeams(teams: typeof teamsLine | null) {
+      const openTeams = vi.fn();
+      const onConfirm = vi.fn();
+      const dial = vi.fn();
+      const token = vi.fn();
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Luis"
+          contactRole="Transportista"
+          channels={{ phone: "+56 9 2222 2222" }}
+          allowedMethods={["phone", "teams"]}
+          reason=""
+          line={telnyx}
+          teamsLine={teams}
+          openTeams={openTeams}
+          dial={dial}
+          token={token}
+          onCancel={vi.fn()}
+          onConfirm={onConfirm}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada por Microsoft Teams" })
+      );
+      return { openTeams, onConfirm, dial, token };
+    }
+
+    it("opens Teams and saves the call on the Teams Phone connection", () => {
+      const { openTeams, onConfirm, token } = renderTeams(teamsLine);
+      expect(openTeams).toHaveBeenCalledWith({
+        app: "msteams:/l/call/0/0?users=4:+56922222222",
+        web: "https://teams.microsoft.com/l/call/0/0?users=4:+56922222222",
+      });
+      expect(token).not.toHaveBeenCalled();
+      expect(
+        screen.queryByText(es.symptoms.call_teams_no_connection)
+      ).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+      );
+      expect(onConfirm).toHaveBeenCalledWith(
+        expect.any(Number),
+        "teams",
+        expect.objectContaining({
+          provider: "TEAMS_PHONE",
+          status: "PENDING",
+          connectionId: "m1",
+        })
+      );
+    });
+
+    it("without a Teams Phone connection opens nothing and says so instead of a timer", () => {
+      const { openTeams, onConfirm, token } = renderTeams(null);
+      expect(openTeams).not.toHaveBeenCalled();
+      expect(token).not.toHaveBeenCalled();
+      expect(screen.getByRole("status")).toHaveTextContent(
+        es.symptoms.call_teams_no_connection
+      );
+      expect(screen.queryByText("00:00")).toBeNull();
+      expect(
+        screen.getByRole("link", { name: es.symptoms.call_teams_setup })
+      ).toHaveAttribute(
+        "href",
+        "/es/users/settings/symptoms?section=telephony"
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+      );
+      expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "teams");
+    });
+
+    it("keeps the missing-connection notice without offering settings to an operator", () => {
+      access.canSettings = false;
+      renderTeams(null);
+      expect(screen.getByRole("status")).toHaveTextContent(
+        es.symptoms.call_teams_no_connection
+      );
+      expect(
+        screen.queryByRole("link", { name: es.symptoms.call_teams_setup })
+      ).toBeNull();
+    });
+
+    it.each([undefined, "133", "driver@example.com"])(
+      "explains the number problem when a tested Teams connection exists (%s)",
+      (phone) => {
+        const openTeams = vi.fn();
+        render(
+          <CallDialingStep
+            dict={dict}
+            contactName="Luis"
+            contactRole="Transportista"
+            contactPhone={phone}
+            channels={{ teams: "driver@example.com" }}
+            allowedMethods={["teams"]}
+            reason=""
+            line={telnyx}
+            teamsLine={teamsLine}
+            openTeams={openTeams}
+            onCancel={vi.fn()}
+            onConfirm={vi.fn()}
+          />
+        );
+        fireEvent.click(
+          screen.getByRole("button", { name: "Llamada por Microsoft Teams" })
+        );
+        expect(openTeams).not.toHaveBeenCalled();
+        expect(screen.getByRole("status")).toHaveTextContent(
+          es.symptoms.call_teams_no_number
+        );
+        expect(
+          screen.queryByText(es.symptoms.call_teams_no_connection)
+        ).toBeNull();
+        expect(
+          screen.queryByRole("link", { name: es.symptoms.call_teams_setup })
+        ).toBeNull();
+        expect(screen.queryByText("00:00")).toBeNull();
+      }
+    );
+
+    it("does not call through an untested Teams connection", () => {
+      const { openTeams } = renderTeams({ ...teamsLine, ready: false });
+      expect(openTeams).not.toHaveBeenCalled();
+      expect(screen.getByRole("status")).toHaveTextContent(
+        es.symptoms.call_teams_no_connection
+      );
+    });
+
+    it("keeps the phone button on Telnyx", async () => {
+      const openTeams = vi.fn();
+      const token = vi.fn().mockRejectedValue(new Error("Synthetic stop"));
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Luis"
+          contactRole="Transportista"
+          channels={{ phone: "+56 9 2222 2222" }}
+          allowedMethods={["phone", "teams"]}
+          reason=""
+          line={telnyx}
+          teamsLine={teamsLine}
+          openTeams={openTeams}
+          token={token}
+          onCancel={vi.fn()}
+          onConfirm={vi.fn()}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: es.symptoms.call_center_method_phone,
+        })
+      );
+      await waitFor(() => expect(token).toHaveBeenCalled());
+      expect(openTeams).not.toHaveBeenCalled();
+    });
+
+    it.each(["telephonyPending", "telephonyFailed"])(
+      "waits for a trustworthy telephony setup before enabling Teams (%s)",
+      (state) => {
+        const openTeams = vi.fn();
+        render(
+          <CallDialingStep
+            dict={dict}
+            contactName="Luis"
+            contactRole="Transportista"
+            contactPhone="+56922222222"
+            allowedMethods={["teams"]}
+            reason=""
+            {...{ [state]: true }}
+            openTeams={openTeams}
+            onCancel={vi.fn()}
+            onConfirm={vi.fn()}
+          />
+        );
+        const button = screen.getByRole("button", {
+          name: "Llamada por Microsoft Teams",
+        });
+        expect(button).toBeDisabled();
+        fireEvent.click(button);
+        expect(openTeams).not.toHaveBeenCalled();
+        expect(
+          screen.queryByText(es.symptoms.call_teams_no_connection)
+        ).toBeNull();
+      }
     );
   });
 
@@ -489,6 +767,12 @@ describe("CallDialingStep", () => {
     );
 
     it("says the minutes are used and offers the phone", async () => {
+      const onConfirm = vi.fn();
+      const token = vi
+        .fn()
+        .mockRejectedValue(
+          new ControlTowerError("used", 409, "telephony_quota_exhausted")
+        );
       render(
         <CallDialingStep
           dict={dict}
@@ -499,13 +783,9 @@ describe("CallDialingStep", () => {
           reason=""
           line={line}
           dial={vi.fn()}
-          token={vi
-            .fn()
-            .mockRejectedValue(
-              new ControlTowerError("used", 409, "telephony_quota_exhausted")
-            )}
+          token={token}
           onCancel={vi.fn()}
-          onConfirm={vi.fn()}
+          onConfirm={onConfirm}
         />
       );
       fireEvent.click(
@@ -517,6 +797,89 @@ describe("CallDialingStep", () => {
       expect(
         screen.getByRole("link", { name: es.symptoms.call_use_phone })
       ).toHaveAttribute("href", "tel:+56911111111");
+      fireEvent.click(
+        screen.getByRole("link", { name: es.symptoms.call_use_phone })
+      );
+      expect(screen.queryByRole("alert")).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+      );
+      expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "phone");
+      expect(token).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe("script blanks", () => {
+  it("shows the fields the case lacks in amber in the message and the goal", () => {
+    render(
+      <CallDialingStep
+        dict={dict}
+        contactName="Luis"
+        contactRole="Driver"
+        allowedMethods={["phone"]}
+        reason="Hola [nombre del conductor]"
+        reasonParts={[{ text: "Hola " }, { blank: "[nombre del conductor]" }]}
+        goal="Confirmar [patente]"
+        goalParts={[{ text: "Confirmar " }, { blank: "[patente]" }]}
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+    expect(screen.getByText("[nombre del conductor]").className).toContain(
+      "text-amber-700"
+    );
+    expect(screen.getByText("[patente]").className).toContain("text-amber-700");
+  });
+});
+
+describe("the call outside the step", () => {
+  function Host({
+    show,
+    name = "Luis",
+    onConfirm = vi.fn(),
+  }: Readonly<{
+    show: boolean;
+    name?: string;
+    onConfirm?: () => void;
+  }>) {
+    return show ? (
+      <CallDialingStep
+        dict={dict}
+        contactName={name}
+        contactRole="Transportista"
+        contactPhone="+12025550101"
+        allowedMethods={["phone"]}
+        reason=""
+        caseRef="case-1"
+        onCancel={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    ) : null;
+  }
+
+  it("keeps a call going when the step unmounts and shows it again", () => {
+    const onConfirm = vi.fn();
+    const view = render(<Host show onConfirm={onConfirm} />);
+    fireEvent.click(screen.getByRole("button", { name: "Llamada telefónica" }));
+    view.rerender(<Host show={false} onConfirm={onConfirm} />);
+    view.rerender(<Host show onConfirm={onConfirm} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+    );
+    expect(onConfirm).toHaveBeenCalledWith(expect.any(Number), "phone");
+  });
+
+  it("asks to finish the open call before starting another", () => {
+    const view = render(<Host show />);
+    fireEvent.click(screen.getByRole("button", { name: "Llamada telefónica" }));
+    view.rerender(<Host show name="Ana" />);
+    expect(
+      screen.queryByRole("button", { name: "Llamada telefónica" })
+    ).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("Luis");
+    expect(
+      screen.getByRole("button", { name: es.symptoms.call_go_to_active })
+    ).toBeTruthy();
   });
 });

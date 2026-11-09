@@ -1,0 +1,127 @@
+# 🔔 Release Notes v0.6.3 — ModularIoT
+
+### Fecha: 09/11/2026
+
+**Objetivo**: Esta versión, limitada al milestone OSS `MIOT-0.6.3`, amplía el motor de síntomas y las herramientas de atención, con mejoras en telefonía, viajes, mapas y observabilidad. No incluye cambios de clientes.
+
+## 🚀 Evolutivos
+
+- **📍 Motor de síntomas: reglas y datos de contexto** (#2522, #2520, #2499, #2498, #2495, #2459, #2463)
+  - **Nuevas capacidades**: las reglas reciben la zona y su horario de riesgo, duración de conducción, descanso y jornada, desviación de ETA, origen y destino del viaje, y contexto geográfico y horario.
+  - **Plantillas**: se incorporan reglas para zonas y horarios, ETA temprana o tardía, rotación de doble conductor y conducción continua y descanso.
+
+- **📍 Límites de velocidad y conducción** (#2505, #2512, #2489, #2456)
+  - **Nuevas capacidades**: el motor obtiene límites viales y organizacionales desde las bases existentes, incluidas las zonas personalizadas por organización.
+  - **Escalamiento**: las plantillas de exceso de velocidad usan niveles y tiempos de apertura y cierre definidos por el exceso sobre el límite.
+
+- **📍 Eventos de dispositivos y pérdida de señal** (#2484, #2455, #2325, #2362)
+  - **Nuevos eventos**: SOS, asistencia en ruta, fatiga, sujeción de carga, uso de estacas y sabotaje GPS pueden alimentar reglas y plantillas del motor.
+  - **Pérdida de señal**: la plantilla cierra automáticamente casos de nivel 1 cuando vuelve la señal; los casos de niveles superiores permanecen abiertos para atención.
+
+- **📍 Detección y estado de señal de vehículos** (#2313, #2316, #2319, #2321, #2322, #2323, #2359, #2361, #2372, #2375)
+  - **Nuevas capacidades**: el detector considera señales tardías, perfiles de llegada por vehículo y emisor, plazos individuales y cobertura de la zona para determinar estados en línea, fuera de línea o desconocidos.
+  - **Control**: se puede configurar la visualización exclusiva de casos del motor en la Torre de control; el detector sigue la configuración del evaluador.
+
+- **📍 Telefonía y atención de casos** (#2422, #2426, #2424, #2423, #2421, #2425, #2448, #2445)
+  - **Proveedores y llamadas**: se añaden conexiones Telnyx y Teams Phone, selección de telefonía por organización y medición de una línea Telnyx administrada. Las llamadas pueden realizarse desde Teams o el navegador con Telnyx WebRTC.
+  - **Flujo de atención**: se puede usar el teléfono del viaje cuando el contacto no tiene uno. La solicitud de permiso para llamadas de WhatsApp y su esqueleto de integración permanecen detrás de flags desactivados por defecto.
+
+- **📍 Configuración, reglas y editor de síntomas** (#2502, #2476, #2472, #2471, #2419, #2418, #2417, #2416, #2420, #2481)
+  - **Edición**: el árbol de campos incorpora búsqueda y descripciones; el autocompletado CEL explica tipo, unidad y significado. Se puede renombrar un síntoma desde su editor.
+  - **Atención**: se amplían los pasos de operador, contactos, canales, guiones y vista previa del cierre; las opciones de telefonía y uso cuentan con navegación propia en Ajustes.
+
+- **📍 Bandeja y seguimiento de casos** (#2432, #2392, #2397, #2396, #2386, #2376, #2377, #2348)
+  - **Operación**: la bandeja prioriza los casos que requieren operador; el historial separa los pasos por nivel. Los casos se pueden poner en espera con motivo y duración, reanudar y consultar en la línea de tiempo.
+  - **Contexto de viaje**: filtros y filas muestran conductor, transportista, origen, destino y código de servicio. Una tarea sincroniza conductores de viajes con la agenda de contactos.
+
+- **📍 Viajes, geocercas y resolución de ubicaciones** (#2340, #2333, #2329, #2328)
+  - **Integración**: las señales de geocerca siguen la configuración del componente de viajes; los sitios de feeds pueden referenciar geocercas organizacionales.
+  - **Ubicaciones**: los feeds pueden resolver direcciones y Plus Codes; la búsqueda interna de direcciones compara palabras de calle y comuna.
+
+- **📍 Mapas y paneles** (#2358, #2357, #2374, #2378, #2384, #2497)
+  - **Visualización**: los mapas distinguen señales tardías y vehículos sin señal, y muestran indicadores del motor y el nivel del caso. Los pines indican cuando el motor está apagado.
+  - **Interfaz**: se retira la tarjeta técnica «Por qué este nivel» del mapa de casos.
+
+- **📍 Rendimiento y documentación** (#2511, #2523, #2317, #2286)
+  - **Rendimiento**: se reducen consultas del evaluador y se añade concurrencia por vehículo de forma opcional.
+  - **Documentación**: la referencia Asset Track se alinea con `gps-model` 1.6.1; se documenta la resolución de direcciones y Plus Codes en feeds, junto con ajustes de interfaz detectados durante la revisión de geocodificación.
+
+- **📍 Herramientas de harness** (#2529, #2429)
+  - **Configuración**: la skill de síntomas puede usar un modulith distinto mediante `MIOT_HARNESS_SYMPTOMS_URL`, con alternativa a la configuración común.
+  - **Certificación**: `prcert` deja de esperar revisores opcionales cuando no son obligatorios y ajusta las pruebas al alcance de los módulos modificados.
+
+## 🔧 Integraciones
+
+- **🔌 Despliegue del motor de síntomas** (#2509)
+  - **Alcance**: el motor puede ejecutarse como un despliegue escalable e independiente junto al modulith de API, usando la misma imagen con configuración de ejecución distinta.
+
+- **🔌 Integración con bases de velocidad y señales GPS** (#2505, #2361)
+  - **Alcance**: se leen límites desde la base de velocidad existente y la cobertura para pérdida de señal desde las tablas del mapa de cobertura, sin copias ni tareas de sincronización de límites.
+
+- **🔌 CI de Quarkus** (#2460)
+  - **Alcance**: el análisis de SonarCloud se ejecuta en un trabajo paralelo propio, sin esperar a que finalice toda la suite de pruebas.
+
+## 🐛 Correcciones
+
+- **🐛 Cierre y contexto de casos al terminar un viaje** (#2527, #2503)
+  - **Impacto**: los casos de pérdida de señal podían quedar abiertos o perder el contexto del viaje al terminar este.
+  - **Solución**: el cierre conserva el viaje original y el último contexto, registra `trip_ended` y mantiene la medida máxima del caso.
+
+- **🐛 Aplicación de servicios de feeds con recursos inactivos** (#2526, #2331)
+  - **Impacto**: los feeds podían omitir servicios con recursos existentes inactivos o viajes iniciados sin cierre recibido.
+  - **Solución**: se aplican los servicios con advertencias sin cambiar el estado de los recursos; las asignaciones manuales siguen rechazando recursos inactivos. Un servicio con salida confirmada y sin cierre queda en curso.
+
+- **🐛 Reglas de síntomas y casos** (#2516, #2518, #2506, #2491, #2457, #2400, #2398)
+  - **Impacto**: intervalos sin señales podían contarse como conducción continua; además, había inconsistencias en límites de velocidad, SLA, contactos llamados, cierres de casos de prueba y motivos de ignorado.
+  - **Solución**: los intervalos largos se consideran detenidos, se conserva el límite aplicado, se leen correctamente especificaciones JSON y se cuentan llamadas por caso. También se corrigen los cierres de prueba, los operadores por nivel y la clasificación de motivos.
+
+- **🐛 Interfaz de llamadas y tratamiento** (#2486, #2477, #2464, #2443, #2439, #2391)
+  - **Impacto**: la línea de tiempo podía quedar desactualizada; listas extensas y pasos de llamada tenían estados, etiquetas o información incompletos.
+  - **Solución**: la vista se actualiza tras guardar un tratamiento, los pasos omitidos sobreviven a recargas y se mejora la navegación, los títulos, los mensajes vacíos, la etiqueta del motivo y la información de SLA y números de emergencia.
+
+- **🐛 Mapas, señal y cobertura** (#2389, #2382, #2380, #2373, #2370, #2356, #2350)
+  - **Impacto**: lecturas de mapas podían agotar memoria o tiempo, el estado sin señal era incorrecto y la hora de recepción podía confundirse con retrasos del procesamiento.
+  - **Solución**: se acota el uso de memoria, se optimiza la consulta de intervalos y se ajusta la frecuencia de cobertura. También se corrigen la representación de señales tardías, el cálculo de duración y la hora de recepción de GPS.
+
+- **🐛 Publicación y contexto de síntomas** (#2349, #2344)
+  - **Impacto**: algunas plantillas no se publicaban en el tenant de plataforma y los viajes en curso no siempre asociaban la organización al contexto de señal.
+  - **Solución**: se corrige el tenant de publicación y se incluyen las organizaciones con viajes activos para evaluar sus síntomas y pérdida de señal.
+
+- **🐛 Mapas y lecturas de viajes** (#2342, #2341)
+  - **Impacto**: el mapa podía omitir vehículos asignados sin mapeo de cliente y mostrar un periodo incompleto en viajes largos.
+  - **Solución**: se conserva la lectura del vehículo asignado al viaje y se muestran los últimos siete días del recorrido.
+
+- **🐛 Credenciales, conexiones y ajustes** (#2458, #2447, #2446)
+  - **Impacto**: el selector de ajustes podía ocultar opciones y algunos textos o permisos de credenciales no eran correctos.
+  - **Solución**: el menú ahora permite desplazamiento; Mapbox y Google Maps quedan limitados al ámbito de plataforma, y la ayuda del webhook identifica ModularIoT.
+
+- **🐛 App, documentación y certificación** (#2469, #2324, #2318)
+  - **Impacto**: la certificación podía considerar proyectos SonarCloud ajenos a un PR, y había problemas visuales en la documentación y el editor de plantillas.
+  - **Solución**: la selección de proyectos se limita a los archivos modificados cuando la lista está disponible; se corrigen los problemas de interfaz reportados.
+
+## 📊 Beneficios
+
+- 🚦 **Mejor detección**: el motor incorpora contexto de viajes, zonas, horarios y calidad de señal para evaluar síntomas.
+- 🧭 **Más visibilidad operativa**: mapas, filtros y bandejas muestran estado de señal, datos del viaje y prioridad de atención.
+- ☎️ **Atención conectada**: los equipos pueden gestionar llamadas con Telnyx o Teams Phone y consultar su contexto en los casos.
+- 🛠️ **Reglas más fáciles de mantener**: el editor ofrece búsqueda, descripciones y ayuda contextual para campos y expresiones.
+- 📉 **Operación más eficiente**: se reducen consultas del evaluador y se controlan mejor memoria, concurrencia y cobertura.
+- 🔌 **Integraciones más coherentes**: feeds, geocercas y fuentes existentes proporcionan datos sin duplicar configuraciones innecesariamente.
+- 🧩 **Despliegue flexible**: el motor de síntomas puede escalar de forma independiente al modulith de API.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.6.3` — versión `0.6.3`.
+- **App**: `app@v0.6.3` — actualizada.
+- **Docs**: `docs@v0.6.3` — actualizada.
+- **Web**: `web@v0.6.3` — actualizada.
+- **Modulith**: `modulith@v0.5.42` — actualizado.
+- **Harness**: `harness@v0.1.15` — actualizado.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 0.6.3 amplía las capacidades del motor de síntomas y mejora el recorrido desde la detección hasta la atención del caso, con mayor contexto en reglas, mapas y herramientas de operación. También fortalece las integraciones con telefonía, viajes y datos GPS.
+
+Las mejoras de rendimiento y despliegue permiten operar el evaluador con mayor flexibilidad, mientras que los ajustes de interfaz y documentación hacen más accesibles sus capacidades. Esta entrega corresponde exclusivamente a la plataforma OSS del milestone `MIOT-0.6.3`.

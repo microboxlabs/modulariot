@@ -25,6 +25,7 @@ import PrototypeInvalidateSymptom from "./prototype-invalidate-symptom";
 import { TiDelete } from "react-icons/ti";
 import { MdBlock } from "react-icons/md";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
+import { useOptionalCallSession } from "./call-center/call-session";
 
 /** Panel header title per call-center debug-flow step — overrides the menu's
  *  static title while that flow is on screen. */
@@ -44,7 +45,7 @@ const CALL_FLOW_TITLE_KEYS: Record<CallCenterReportedStep, string> = {
  * the panel grows and swaps its content in place rather than opening a dialog.
  */
 export default function PrototypeInlineForm({
-  setIsMenuOpen,
+  setIsMenuOpen: setPanelOpen,
   isMenuOpen,
   dict,
   selectedOption,
@@ -68,6 +69,18 @@ export default function PrototypeInlineForm({
 }>) {
   const { data: session } = useSession();
   const userEmail = session?.user?.email ?? "";
+
+  // Closing the panel (a treatment saved, or the operator left) ends the
+  // case's call in the call session once it is over; a live call stays.
+  const callSession = useOptionalCallSession();
+  const caseId =
+    treatmentData?.symptom_info?.id == null
+      ? null
+      : String(treatmentData.symptom_info.id);
+  const setIsMenuOpen = (open: boolean) => {
+    if (!open) callSession?.clearIfOver(caseId);
+    setPanelOpen(open);
+  };
 
   const [fieldEditorMode, setFieldEditorMode] = useFieldEditorMode();
 
@@ -108,8 +121,12 @@ export default function PrototypeInlineForm({
   // Lets the back button send them straight back to that completed call
   // instead of the contact list or closing the panel entirely.
   const [callSnapshot, setCallSnapshot] = useState<CallSnapshot | null>(null);
-  const [callStartedAt, setCallStartedAt] = useState(() => Date.now());
-  const [callSkippedTo, setCallSkippedTo] = useState<number | null>(null);
+  const skipScope = `${treatmentData?.symptom_info?.id}:${treatmentData?.symptom_info?.icu_code}:${treatmentData?.symptom_info?.sla_since}`;
+  const [callSkip, setCallSkip] = useState<{
+    scope: string;
+    step: number;
+  } | null>(null);
+  const callSkippedTo = callSkip?.scope === skipScope ? callSkip.step : null;
   // True from the moment the operator clicks "Guardar y hacer otra llamada"
   // onward — drives the "Llamar → Llamar de nuevo" header title on "who to
   // call"/dialing for this second (or later) round, instead of the plain
@@ -127,9 +144,7 @@ export default function PrototypeInlineForm({
     if (!isMenuOpen) {
       setCallSnapshot(null);
       setCallFormDraft(null);
-      setCallSkippedTo(null);
-    } else {
-      setCallStartedAt(Date.now());
+      setCallSkip(null);
     }
   }, [isMenuOpen]);
 
@@ -145,15 +160,18 @@ export default function PrototypeInlineForm({
   }, [selectedOption]);
 
   // The native "leave site?" prompt covers what in-app back-button locking
-  // can't: a reload (F5), closing the tab, or typing a new URL.
+  // can't: a reload (F5), closing the tab, or typing a new URL. A live call
+  // survives a reload in the call session (a browser call warns there), so
+  // only the unsaved results form warns here.
+  const warnOnLeave = isCallDriverDebugFlow && callFlowStep === "form";
   useEffect(() => {
-    if (!backLocked) return;
+    if (!warnOnLeave) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [backLocked]);
+  }, [warnOnLeave]);
 
   const handleCallFlowStepChange = (step: CallCenterReportedStep) => {
     setCallFlowStep(step);
@@ -240,7 +258,7 @@ export default function PrototypeInlineForm({
           "llamar al conductor"
         ),
       component: (
-        <div className="w-full h-full flex flex-row items-start justify-center">
+        <div className="flex h-full min-h-0 w-full flex-col">
           <PrototypeCallCenterFlow
             key={callCenterResetKey}
             dict={dict as I18nRecord}
@@ -257,9 +275,8 @@ export default function PrototypeInlineForm({
             onRepeatCallChange={setIsRepeatCall}
             formDraft={callFormDraft}
             onFormDraftChange={setCallFormDraft}
-            startedAt={callStartedAt}
             skippedTo={callSkippedTo}
-            onSkip={setCallSkippedTo}
+            onSkip={(step) => setCallSkip({ scope: skipScope, step })}
           />
         </div>
       ),

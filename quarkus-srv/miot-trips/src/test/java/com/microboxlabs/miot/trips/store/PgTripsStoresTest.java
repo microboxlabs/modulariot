@@ -622,7 +622,7 @@ class PgTripsStoresTest {
                 null, ACTOR, null, ACTOR));
         UUID tripId = UUID.fromString(trip.id());
         List<String> notices = new java.util.concurrent.CopyOnWriteArrayList<>();
-        var received = new java.util.concurrent.CountDownLatch(4);
+        var received = new java.util.concurrent.CountDownLatch(5);
         io.vertx.mutiny.sqlclient.SqlConnection listener = pool.getConnection().await().atMost(WAIT);
         try {
             io.vertx.mutiny.pgclient.PgConnection.cast(listener)
@@ -640,13 +640,16 @@ class PgTripsStoresTest {
             new PgMilestoneStore(() -> pool).save(new com.microboxlabs.miot.trips.domain.TripMilestone(
                     tenant, trip.id(), "departure", "confirmed", null, null, Map.of(),
                     OffsetDateTime.now(ZoneOffset.UTC), ACTOR, "ui", null, null, ACTOR));
+            new PgMilestoneStore(() -> pool).save(new com.microboxlabs.miot.trips.domain.TripMilestone(
+                    tenant, trip.id(), "arrival", "confirmed", null, null, Map.of(),
+                    OffsetDateTime.now(ZoneOffset.UTC), ACTOR, "feed", null, null, ACTOR));
             live.delete(tenant, tripId);
             assertTrue(received.await(WAIT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS),
-                    "all four notices should arrive");
+                    "all five notices should arrive");
         } finally {
             listener.closeAndForget();
         }
-        assertEquals(4, notices.size(), "upsert, motor state, departure and delete");
+        assertEquals(5, notices.size(), "upsert, motor state, departure, arrival and delete");
         assertTrue(notices.stream().allMatch(n -> n.contains(tripId.toString()) && n.contains(tenant)), notices
                 .toString());
     }

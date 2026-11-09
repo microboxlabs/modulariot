@@ -18,6 +18,7 @@ const api = vi.hoisted(() => ({
   push: vi.fn(),
   notify: vi.fn(),
   scheduleTeamsReconcile: vi.fn(),
+  revalidateCase: vi.fn(),
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => api);
@@ -80,7 +81,8 @@ const draft: CallFormDraft = {
 function renderCall(
   saved = false,
   resultadoId = draft.resultadoId,
-  callTelephony: TelephonyCallResult | null = null
+  callTelephony: TelephonyCallResult | null = null,
+  person = { name: "Test contact", phone: "+12025550100", role: "Dispatcher" }
 ) {
   const closeMenu = vi.fn();
   render(
@@ -92,9 +94,10 @@ function renderCall(
       treatmentRequest={request}
       setTreatmentRequest={vi.fn()}
       setIsMenuOpen={closeMenu}
-      initialCallTargetName="Test contact"
-      initialCallTargetPhone="+12025550100"
-      initialCallTargetRole="Dispatcher"
+      initialCallTargetName={person.name}
+      initialCallTargetPhone={person.phone}
+      initialCallTargetRole={person.role}
+      initialCallTargetStats={{ lastCallAt: null, accepted: 1, denied: 2 }}
       initialDraft={{ ...draft, saved, resultadoId }}
       callDurationSeconds={30}
       callTelephony={callTelephony}
@@ -113,6 +116,46 @@ beforeEach(() => {
 });
 
 describe("engine call treatment form", () => {
+  it("labels the results form's call counts as belonging to this case", () => {
+    renderCall();
+    expect(
+      screen.getByTitle("En este caso: contestadas 1, sin respuesta 2")
+        .textContent
+    ).toBe("12");
+  });
+
+  it.each([
+    ["Carabineros", "133"],
+    ["Ambulancia (SAMU)", "131"],
+    ["Bomberos", "132"],
+    ["PDI", "134"],
+  ])(
+    "records the emergency call to %s as a CALL action",
+    async (name, phone) => {
+      const user = userEvent.setup();
+      renderCall(false, draft.resultadoId, null, {
+        name,
+        phone,
+        role: `Emergencias – ${name}`,
+      });
+      await user.click(
+        screen.getByRole("button", { name: es.symptoms.save_treatment })
+      );
+      await waitFor(() =>
+        expect(api.addTreatmentAction).toHaveBeenCalledWith(
+          "t-1",
+          expect.objectContaining({
+            kind: "CALL",
+            contactName: name,
+            contactPhone: phone,
+            contactRole: `Emergencias – ${name}`,
+            durationSeconds: 30,
+          })
+        )
+      );
+    }
+  );
+
   it.each([
     {
       answered: false,

@@ -14,6 +14,7 @@ interface FilterSearchFieldProps {
   readonly placeholder: string;
   /** Accessible name; falls back to the placeholder. */
   readonly label?: string;
+  readonly clearLabel?: string;
   readonly className?: string;
 }
 
@@ -31,6 +32,7 @@ export function FilterSearchField({
   onChange,
   placeholder,
   label,
+  clearLabel,
   className = "w-72 max-w-full",
 }: FilterSearchFieldProps) {
   const hasValue = value !== "";
@@ -56,7 +58,7 @@ export function FilterSearchField({
         <button
           type="button"
           onClick={() => onChange("")}
-          aria-label={`${label ?? placeholder}: clear`}
+          aria-label={clearLabel ?? `${label ?? placeholder}: clear`}
           className="shrink-0 cursor-pointer rounded-full p-0.5 text-blue-700 hover:bg-blue-200 dark:text-blue-300 dark:hover:bg-blue-800"
         >
           <HiXMark className="h-3 w-3" />

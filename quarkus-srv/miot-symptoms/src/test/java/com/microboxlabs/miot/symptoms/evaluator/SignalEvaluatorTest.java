@@ -227,12 +227,13 @@ class SignalEvaluatorTest {
     @Test
     void aNewVersionTakesOverTheOpenCase() {
         at(0, 100);
-        symptoms = List.of(CompiledSymptom.compile(SPEEDING, "1.1.0", SymptomState.ACTIVE, Specs.speeding(),
+        // Same state: a version published in another state closes the case first (SymptomStateChangeTest).
+        symptoms = List.of(CompiledSymptom.compile(SPEEDING, "1.1.0", SymptomState.TEST, Specs.speeding(),
                 Specs.gpsSignal()));
         Result r = at(5, 102);
         assertEquals(List.of("LEVEL_CHANGED:3"), kinds(r));
         assertEquals("1.1.0", r.transitions().get(0).version());
-        assertEquals(SymptomState.ACTIVE, r.transitions().get(0).state());
+        assertEquals(SymptomState.TEST, r.transitions().get(0).state());
         assertEquals(2, r.transitions().get(0).previousLevel());
     }
 
@@ -278,9 +279,9 @@ class SignalEvaluatorTest {
         List<CompiledSymptom> one = List.of(CompiledSymptom.compile(stop, "0.1.0", SymptomState.TEST, night,
                 platform));
         Map<String, Object> stopped = Map.of("signal", Map.of(
-                "trip", Map.of("active", true),
+                "trip", Map.of("active", true, "double_driver", false),
                 "derived", Map.of("moving", false),
-                "geo", Map.of("authorized_zone", false),
+                "geo", Map.of("authorized_zone", false, "outside_authorized", true),
                 "local_hour", 23.0));
         List<String> seen = new ArrayList<>();
         for (int sec : new int[] {0, 300, 600, 900, 1200, 1800, 1900}) {

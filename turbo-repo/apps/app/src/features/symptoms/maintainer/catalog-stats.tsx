@@ -227,12 +227,10 @@ function LoadCard({
   stats,
   d,
   onFilter,
-  onEditTeam,
 }: Readonly<{
   stats: SymptomStats | undefined;
   d: I18nRecord;
   onFilter: Filter;
-  onEditTeam?: () => void;
 }>) {
   const totals = stats?.engineAvailable ? stats.totals : undefined;
   const op = stats?.operators;
@@ -274,14 +272,6 @@ function LoadCard({
         {op?.operators == null
           ? tr("teamNotSet", d)
           : tr("operatorsCapacity", d, { n: String(op.operators) })}
-        {onEditTeam && (
-          <>
-            {" · "}
-            <button type="button" onClick={onEditTeam} className={LINK}>
-              {tr("teamEdit", d)}
-            </button>
-          </>
-        )}
       </CardFooter>
     </Card>
   );
@@ -357,7 +347,6 @@ export default function CatalogStats({
   d,
   onFilter,
   onOpen,
-  onEditTeam,
 }: Readonly<{
   loading: boolean;
   all: SymptomSummary[];
@@ -366,20 +355,13 @@ export default function CatalogStats({
   d: I18nRecord;
   onFilter: Filter;
   onOpen: (id: string) => void;
-  /** Owners only: opens the operator team editor. */
-  onEditTeam?: () => void;
 }>) {
   if (loading) return <LoadingStats />;
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
       <SymptomsCard all={all} d={d} onFilter={onFilter} />
       <WeekCard all={all} stats={stats} lang={lang} d={d} onFilter={onFilter} />
-      <LoadCard
-        stats={stats}
-        d={d}
-        onFilter={onFilter}
-        onEditTeam={onEditTeam}
-      />
+      <LoadCard stats={stats} d={d} onFilter={onFilter} />
       <ChangesCard
         all={all}
         stats={stats}

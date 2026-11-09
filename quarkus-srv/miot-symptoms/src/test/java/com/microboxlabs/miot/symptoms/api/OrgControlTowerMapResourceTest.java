@@ -137,14 +137,18 @@ class OrgControlTowerMapResourceTest {
             return Uni.createFrom().item(new IssuedToken("t", Instant.now().plusSeconds(3600)));
         }, url, () -> rpc);
         tenant.setEffectiveClientIds(List.of("client-a", "client-child"));
+        TripWindows tripWindows = new TripWindows((tenantCode, trip, asset) -> moduleTrips.getOrDefault(
+                trip + "/" + asset, Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC));
         return new OrgControlTowerMapResource(tenant, org, new Roles(permissions), null,
                 new OrgControlTowerMapResource.MapServices(map,
                 new ControlTowerTreatmentService(treatmentReads), new EngineCaseService(engineCases,
-                        (t, a, d) -> { }, t -> null, java.time.Clock.systemUTC()),
+                        (t, a, d) -> { }, t -> null, java.time.Clock.systemUTC(),
+                        com.microboxlabs.miot.symptoms.events.SymptomEvents.NONE, EngineCaseService.Vehicles.NONE,
+                        (tenantCode, trip, asset) -> TripWindows.tripsModuleId(trip)
+                                .flatMap(id -> tripWindows.track(tenantCode, id, asset))),
                 new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments),
                         new AuditService(new InMemoryAuditStore())),
-                new TripWindows((tenantCode, trip, asset) -> moduleTrips.getOrDefault(trip + "/" + asset,
-                        Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)),
+                tripWindows,
                 geofences(tripGeofences), instance(signals)), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC), legacy);
     }
 
@@ -529,6 +533,19 @@ class OrgControlTowerMapResourceTest {
         assertEquals("DEMO03", ((JsonNode) positions.getEntity()).get(0).path("assetid").asText());
         assertEquals(404, call(resource.symptomPositions(ORG, "-9")).getStatus());
         assertEquals(400, call(resource.symptomPositions(ORG, "7")).getStatus());
+    }
+
+    @Test
+    void aCaseOnATripsModuleTripReadsTheWholeTripAsTheTripsMapDoes() {
+        engineCases.add(new EngineCase(4, UUID.randomUUID(), "0.1.0", "Descanso", "driving", "AB12",
+                Instant.parse("2026-10-26T10:00:00Z"), 2, DEPARTED.toString(), null, null, null,
+                Instant.parse("2026-10-26T11:30:00Z"), 0, 2, null));
+
+        assertEquals(200, call(resource.symptomPositions(ORG, "-4")).getStatus());
+        assertEquals(200, call(resource.tripPositions(ORG, DEPARTED.toString(), "AB12")).getStatus());
+
+        assertEquals(List.of("AB12 2026-10-26T09:00:00Z 2026-10-26T12:00:00Z on trip",
+                "AB12 2026-10-26T09:00:00Z 2026-10-26T12:00:00Z on trip"), ranges);
     }
 
     @Test

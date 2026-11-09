@@ -173,7 +173,7 @@ public class LostSignalDetector implements SignalStates {
 
     /**
      * One of the organization's trips changed. When it ended (completed, cancelled or gone), its open
-     * {@code trip_check} cases close with {@link TripEnds#REASON}; the vehicle's next check leaves the trip out.
+     * cases of every symptom close with {@link TripEnds#REASON}; the vehicle's next check leaves the trip out.
      *
      * @return how many cases it closed
      */

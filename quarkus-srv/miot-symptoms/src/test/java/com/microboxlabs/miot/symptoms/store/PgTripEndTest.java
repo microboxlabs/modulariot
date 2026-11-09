@@ -109,12 +109,16 @@ class PgTripEndTest {
     }
 
     private UUID symptom(String key) {
+        return symptom(tenant, key, "trip_check");
+    }
+
+    private static UUID symptom(String tenant, String key, String source) {
         UUID id = UUID.randomUUID();
         PgIds.query(pool, """
                 INSERT INTO miot_symptoms.symptom_definition
                     (id, tenant_code, symptom_key, name, source_key, state, current_version, created_by, updated_by)
-                VALUES ($1, $2, $3, $3, 'trip_check', 'ACTIVE', '1.0.0', 't', 't')
-                """, Tuple.of(id, tenant, key));
+                VALUES ($1, $2, $3, $3, $4, 'ACTIVE', '1.0.0', 't', 't')
+                """, Tuple.of(id, tenant, key, source));
         return id;
     }
 
@@ -288,6 +292,41 @@ class PgTripEndTest {
         assertNull(cases.find(tenant, kept).orElseThrow().closedAt(), "another symptom stays open");
         assertNull(cases.find(tenant, otherTrip).orElseThrow().closedAt(), "another trip stays open");
         assertTrue(ends.close(tenant, tripId, List.of(lost), now).isEmpty(), "closed once");
+    }
+
+    @Test
+    void withoutASymptomListTheTripEndClosesTheCasesOfEverySymptomOnThatTripOnly() {
+        UUID lost = symptom("signal-loss");
+        UUID speeding = symptom(tenant, "speeding", "gps_signal");
+        UUID eta = symptom(tenant, "eta-deviation", "gps_signal");
+        String tripId = trip("completed").toString();
+        String nextTrip = trip("in_progress").toString();
+        long lostCase = open(lost, "TRUCK1", tripId, 2);
+        long speedCase = open(speeding, "TRUCK1", tripId, 3);
+        long nextTripCase = open(eta, "TRUCK1", nextTrip, 1);
+        String otherTenant = "other-" + tenant;
+        UUID otherSpeeding = symptom(otherTenant, "speeding", "gps_signal");
+        long otherTenantCase = log.append(otherTenant, List.of(new Transition(Kind.OPENED, otherSpeeding, "1.0.0",
+                SymptomState.ACTIVE, "TRUCK1", now.minusSeconds(60), 1, 0, 30)),
+                new TransitionLog.Place(tripId, null, null, null, null)).get(0).caseId();
+
+        List<StaleCase> closed = ends.close(tenant, tripId, null, now);
+
+        assertEquals(java.util.Set.of(lostCase, speedCase),
+                closed.stream().map(StaleCase::id).collect(java.util.stream.Collectors.toSet()));
+        for (Row row : PgIds.query(pool, """
+                SELECT closed_by, context ->> 'reason' AS reason, trip_id FROM miot_symptoms.signal_transitions
+                 WHERE tenant_code = $1 AND kind = 'CLOSED'
+                """, Tuple.of(tenant))) {
+            assertEquals(TripEnds.REASON, row.getString("closed_by"));
+            assertEquals(TripEnds.REASON, row.getString("reason"));
+            assertEquals(tripId, row.getString("trip_id"));
+        }
+        assertEquals(3, cases.find(tenant, speedCase).orElseThrow().level());
+        assertNotNull(cases.find(tenant, speedCase).orElseThrow().closedAt());
+        assertNull(cases.find(tenant, nextTripCase).orElseThrow().closedAt(), "the vehicle's next trip");
+        assertNull(cases.find(otherTenant, otherTenantCase).orElseThrow().closedAt(), "another organization");
+        assertTrue(ends.close(tenant, tripId, null, now).isEmpty(), "closed once");
     }
 
     @Test

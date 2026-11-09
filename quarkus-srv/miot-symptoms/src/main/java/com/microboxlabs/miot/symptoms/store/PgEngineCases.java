@@ -365,6 +365,9 @@ public class PgEngineCases implements EngineCaseStore {
              WHERE tenant_code = $1 AND id = ANY($2::uuid[])
              ORDER BY id FOR SHARE
             """;
+    private static final String TENANT_DEFINITIONS = """
+            SELECT id FROM miot_symptoms.symptom_definition WHERE tenant_code = $1
+            """;
     private static final String TRIP_STATE_LOCK = """
             SELECT id FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2 FOR SHARE
             """;
@@ -713,6 +716,9 @@ public class PgEngineCases implements EngineCaseStore {
     @Override
     public List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
             String reason, Function<StaleCase, ClosingFrame> frames) {
+        if (definitionIds == null) {
+            definitionIds = tenantDefinitions(tenantCode);
+        }
         if (definitionIds.isEmpty()) {
             return List.of();
         }
@@ -727,6 +733,12 @@ public class PgEngineCases implements EngineCaseStore {
                         .execute(Tuple.of(tenantCode, tripId, ids, at.atOffset(ZoneOffset.UTC), reason, snapshots)))
                 .map(PgEngineCases::staleCases))
                 .await().atMost(QUERY_TIMEOUT);
+    }
+
+    private List<UUID> tenantDefinitions(String tenantCode) {
+        List<UUID> out = new ArrayList<>();
+        PgIds.query(pool.get(), TENANT_DEFINITIONS, Tuple.of(tenantCode)).forEach(r -> out.add(r.getUUID("id")));
+        return out;
     }
 
     private static JsonArray closingFrames(Iterable<Row> rows, Function<StaleCase, ClosingFrame> frames) {

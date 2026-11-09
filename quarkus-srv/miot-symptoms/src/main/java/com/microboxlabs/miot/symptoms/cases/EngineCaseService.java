@@ -1059,7 +1059,7 @@ public class EngineCaseService {
                 continue;
             }
             String operator = t.closedBy() != null ? t.closedBy() : t.openedBy();
-            t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE || a.recordsHandling()).forEach(a -> {
+            t.actions().stream().filter(EngineCaseService::includedInHistory).forEach(a -> {
                 int step = stepOf(aggs, a.performedAt());
                 rows.get(step).add(timelineRow(a));
                 assignees.set(step, a.performedBy() != null ? a.performedBy() : t.openedBy());
@@ -1077,6 +1077,10 @@ public class EngineCaseService {
             aggs.get(i).put("assigned_to", assignees.get(i));
         }
         return out;
+    }
+
+    private static boolean includedInHistory(TreatmentAction action) {
+        return action.kind() != ActionKind.NOTE || action.recordsHandling();
     }
 
     /** The index of the last agg that starts at or before {@code when}; the first when none does. */

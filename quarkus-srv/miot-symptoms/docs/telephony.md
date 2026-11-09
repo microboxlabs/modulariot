@@ -61,12 +61,25 @@ The browser gets a token and dials with `@telnyx/webrtc`. Each operator has one 
 
 ## Teams calls
 
-The button opens `msteams:/l/call/0/0?users=4:+<E164>`. When no app opens, it opens the same path on `https://teams.microsoft.com`. The CALL action is saved with the timed duration and `details.telephony.status: PENDING`. The app calls `POST /reconcile` 2 and 10 minutes later.
+The button opens `msteams:/l/call/0/0?users=4:+<E164>`. When no app opens, it opens the same path on `https://teams.microsoft.com`. The CALL action is saved with the timed duration and `details.telephony.status: PENDING`.
 
-The reconcile reads Graph `getPstnCalls` for the window of the operator's pending calls from the last 7 days. A record fills the action only when all of these match:
+The reconcile runs:
+
+- when the app calls `POST /reconcile`, 2 and 10 minutes after the call is saved;
+- every 5 minutes on the server, for each operator with pending Teams calls in an organization with a ready Teams Phone line.
+
+It reads both Graph call reports for the window of the operator's pending calls from the last 7 days:
+
+| Report | Graph function | Outbound call types |
+| --- | --- | --- |
+| PSTN (Calling Plans, Operator Connect) | `getPstnCalls` | ending in `_out`, e.g. `user_out` |
+| Direct Routing | `getDirectRoutingCalls` | starting with `ByotOut` (`ByotOut`, `ByotOutUserForwarding`, ...) or `dr_out` |
+
+A record fills the action only when all of these match:
 
 | Check | Rule |
 | --- | --- |
+| Direction | an outbound call type of its report |
 | Operator | the record's `userPrincipalName` equals the operator's sign-in email, ignoring case |
 | Callee | same digits as the number called |
 | Time | the record started between 5 minutes before the call started and 5 minutes after it ended |
@@ -74,12 +87,28 @@ The reconcile reads Graph `getPstnCalls` for the window of the operator's pendin
 
 | Result | Action |
 | --- | --- |
-| One match | `durationSeconds` and `answered` (duration > 0) from the record; `status: RECORDED` |
+| One match | `durationSeconds` and `answered` from the record; `status: RECORDED`, `report: PSTN` or `DIRECT_ROUTING` |
 | No match | stays `PENDING`; Graph publishes records late |
 | More than one match | stays `PENDING` with `reason: AMBIGUOUS` |
 | No match 48 hours after the call | `status: NOT_FOUND` |
 
-A 404 or an empty list from Graph is treated as pending.
+A record is assigned to one action only.
+
+| Field | PSTN row | Direct Routing row |
+| --- | --- | --- |
+| `recordId` | `id` | `id` |
+| `callId` | `callId` | `correlationId` |
+| `durationSeconds` | `duration` | `endDateTime` − `startDateTime` when `successfulCall`; 0 when not. Its `duration` counts from the invite, ringing included. |
+| `answered` | `duration` > 0 | `successfulCall` |
+
+A 404 or an empty list from Graph is treated as pending. Any other error from either report fails the reconcile, and the actions stay pending.
+
+The connection test reads both reports for the last hour and says how many calls each returned, e.g. `PSTN: 0, Direct Routing: 3`. A count with `+` has more pages.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MIOT_SYMPTOMS_TEAMS_RECONCILE_ENABLED` | the symptoms component switch | Turns the server reconcile on or off. |
+| `MIOT_SYMPTOMS_TEAMS_RECONCILE_EVERY` | `5m` | How often it runs. One replica runs it at a time. |
 
 ## Managed line: usage and billing
 

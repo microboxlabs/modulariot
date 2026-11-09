@@ -3692,6 +3692,28 @@
           "assigned": "Equipo asignado",
           "save": "Guardar equipos",
           "saved": "Equipos guardados"
+        },
+        "diagram": {
+          "title": "Flujo del monitor",
+          "hint": "Las etapas del viaje, los hitos que se piden confirmar y las alertas, dibujados desde las reglas. Haz clic en una flecha para ver su regla.",
+          "stage": "Etapa",
+          "start": "Viaje creado",
+          "end": "Viaje terminado",
+          "cancelled": "Viaje anulado",
+          "any": "Cualquier etapa",
+          "confirmed": "confirmada",
+          "rejected": "rechazada",
+          "planCreated": "Plan creado",
+          "goToRule": "Ir a la regla",
+          "legendStage": "Caja: etapa",
+          "legendMilestone": "Rombo: hito por confirmar",
+          "legendAlert": "Etiqueta roja: alerta",
+          "legendInactive": "regla inactiva",
+          "plannedEnd": "Fin planificado",
+          "plannedStart": "Inicio planificado",
+          "not": "no",
+          "and": "y",
+          "or": "o"
         }
       },
       "geocoding": {

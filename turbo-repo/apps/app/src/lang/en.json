@@ -3692,6 +3692,28 @@
           "assigned": "Assigned team",
           "save": "Save teams",
           "saved": "Teams saved"
+        },
+        "diagram": {
+          "title": "Monitor flow",
+          "hint": "The trip's stages, the milestones it asks to confirm and its alerts, drawn from the rules. Click an arrow to see its rule.",
+          "stage": "Stage",
+          "start": "Trip created",
+          "end": "Trip finished",
+          "cancelled": "Trip cancelled",
+          "any": "Any stage",
+          "confirmed": "confirmed",
+          "rejected": "rejected",
+          "planCreated": "Plan created",
+          "goToRule": "Go to rule",
+          "legendStage": "Box: stage",
+          "legendMilestone": "Diamond: milestone to confirm",
+          "legendAlert": "Red tag: alert",
+          "legendInactive": "inactive rule",
+          "plannedEnd": "Planned end",
+          "plannedStart": "Planned start",
+          "not": "not",
+          "and": "and",
+          "or": "or"
         }
       },
       "geocoding": {

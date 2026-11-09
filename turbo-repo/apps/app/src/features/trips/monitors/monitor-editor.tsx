@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Select, Textarea, TextInput } from "flowbite-react";
+import { Badge, Button, Select } from "flowbite-react";
 import { HiArrowLeft, HiPlus } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
@@ -26,6 +26,7 @@ import {
 } from "./monitors-api";
 import { ParamsEditor, PlanEditor } from "./plan-params";
 import RuleCard from "./rule-card";
+import MonitorDiagram from "./monitor-diagram";
 import { ConfirmersPanel } from "./confirmers-panel";
 import ScopeEditor from "./scope-section";
 
@@ -66,6 +67,50 @@ function Section({
 }
 
 /**
+ * The monitor's name and description, edited in place above its flow (as a
+ * workflow tool titles its canvas).
+ */
+function FlowHeader({
+  name,
+  description,
+  readOnly,
+  d,
+  onName,
+  onDescription,
+}: Readonly<{
+  name: string;
+  description: string | null;
+  readOnly: boolean;
+  d: I18nRecord;
+  onName: (name: string) => void;
+  onDescription: (description: string | null) => void;
+}>) {
+  const inPlace =
+    "w-full rounded-md border border-transparent bg-transparent px-2 py-1 hover:border-gray-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 disabled:hover:border-transparent dark:hover:border-gray-600";
+  return (
+    <div className="-mx-2 flex flex-col gap-0.5">
+      <input
+        value={name}
+        disabled={readOnly}
+        aria-label={tr("name", d)}
+        placeholder={tr("namePlaceholder", d)}
+        onChange={(e) => onName(e.target.value)}
+        className={`${inPlace} text-lg font-semibold text-gray-900 dark:text-white`}
+      />
+      <textarea
+        rows={2}
+        value={description ?? ""}
+        disabled={readOnly}
+        aria-label={tr("descriptionLabel", d)}
+        placeholder={tr("descriptionLabel", d)}
+        onChange={(e) => onDescription(e.target.value || null)}
+        className={`${inPlace} resize-none text-sm text-gray-600 dark:text-gray-300`}
+      />
+    </div>
+  );
+}
+
+/**
  * Settings › Viajes › one monitor: its draft, edited here and published as a
  * new version. Without the monitor permission it is read-only.
  */
@@ -89,6 +134,10 @@ export default function MonitorEditor({
   const [message, setMessage] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [newTrigger, setNewTrigger] = useState<Trigger>("signal");
+  const [selectedRule, selectRule] = useState<string | null>(null);
+  const selectedIndex =
+    body?.rules.findIndex((r) => r.key === selectedRule) ?? -1;
+  const selected = selectedIndex >= 0 ? body!.rules[selectedIndex] : null;
 
   useEffect(() => {
     if (base && !dirty) {
@@ -260,36 +309,55 @@ export default function MonitorEditor({
               </p>
             )}
 
-            <Section title={tr("general", d)}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                    {tr("name", d)}
-                  </span>
-                  <TextInput
-                    sizing="sm"
-                    value={body.name}
-                    disabled={readOnly}
-                    aria-label={tr("name", d)}
-                    onChange={(e) => change({ name: e.target.value })}
-                  />
-                </div>
-                <div className="flex flex-col gap-1 sm:col-span-2">
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                    {tr("descriptionLabel", d)}
-                  </span>
-                  <Textarea
-                    rows={2}
-                    value={body.description ?? ""}
-                    disabled={readOnly}
-                    aria-label={tr("descriptionLabel", d)}
-                    onChange={(e) =>
-                      change({ description: e.target.value || null })
+            <section className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+              <FlowHeader
+                name={body.name}
+                description={body.description}
+                readOnly={readOnly}
+                d={d}
+                onName={(name) => change({ name })}
+                onDescription={(description) => change({ description })}
+              />
+              <MonitorDiagram
+                body={body}
+                d={d}
+                selectedRule={selectedRule}
+                onSelectRule={selectRule}
+              />
+              {selected && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 text-sm dark:border-primary-800 dark:bg-gray-900">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {selected.name || selected.key}
+                    </span>
+                    <span className="font-mono text-xs text-gray-600 dark:text-gray-300">
+                      {tr(`triggers.${selected.on}`, d)}
+                      {selected.at ? ` · ${selected.at}` : ""}
+                      {selected.when ? ` · ${selected.when}` : ""}
+                    </span>
+                    <span className="text-xs text-gray-600 dark:text-gray-300">
+                      {selected.then
+                        .map(
+                          (a) =>
+                            `${tr(`actions.${a.type}`, d)}${a.value ? ` ${a.value}` : ""}`
+                        )
+                        .join(" · ")}
+                    </span>
+                  </div>
+                  <Button
+                    size="xs"
+                    color="light"
+                    onClick={() =>
+                      document
+                        .getElementById(`rule-card-${selectedIndex}`)
+                        ?.scrollIntoView({ behavior: "smooth", block: "center" })
                     }
-                  />
+                  >
+                    {tr("diagram.goToRule", d)}
+                  </Button>
                 </div>
-              </div>
-            </Section>
+              )}
+            </section>
 
             <Section title={tr("scope.title", d)} hint={tr("scope.hint", d)}>
               <ScopeEditor
@@ -371,8 +439,16 @@ export default function MonitorEditor({
                 </p>
               )}
               {body.rules.map((r, i) => (
-                <RuleCard
+                <div
                   key={ids[i]}
+                  id={`rule-card-${i}`}
+                  className={
+                    r.key === selectedRule
+                      ? "rounded-lg ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-gray-900"
+                      : undefined
+                  }
+                >
+                <RuleCard
                   number={i + 1}
                   rule={r}
                   params={body.params}
@@ -385,6 +461,7 @@ export default function MonitorEditor({
                   onChange={(next) => setRule(i, next)}
                   onRemove={() => removeRule(i)}
                 />
+                </div>
               ))}
             </div>
 

@@ -22,6 +22,7 @@ import { getRuntimeConfig } from "@/features/runtime-config/runtime-config-conte
 import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
 import {
   addTreatmentAction,
   closeTreatment,
@@ -46,8 +47,11 @@ export const isMockDataEnabled = isPrototypeApiDisabled;
  * Control Tower treatments API knows it. The GPS database RPC rejects it.
  */
 export function isEngineCase(payload: TreatmentsRequest): boolean {
-  return Number(payload.symptom_id) < 0;
+  return isEngineCaseId(payload.symptom_id);
 }
+
+/** "Registrar gestión": handled without a call, stored as a NOTE with an outcome. */
+export const RECORD_HANDLING_TYPE = "registrar gestion";
 
 const TOWER_TREATMENT_TYPES: Record<string, TowerTreatmentType> = {
   "llamar al conductor": "CALL",
@@ -98,12 +102,13 @@ function engineAction(
 ): AddActionBody {
   const type = towerType(payload);
   const reason = payload.description ?? undefined;
+  const handling = payload.treatment_type === RECORD_HANDLING_TYPE;
   return {
-    kind: TOWER_ACTION_KINDS[type],
+    kind: handling ? "NOTE" : TOWER_ACTION_KINDS[type],
     outcomeLabel: reason,
     message: payload.message ?? undefined,
     note: payload.driver_response ?? undefined,
-    contactName: type === "CALL" ? "Conductor" : undefined,
+    contactName: type === "CALL" && !handling ? "Conductor" : undefined,
     ...extra,
   };
 }
@@ -208,6 +213,9 @@ export async function guardedRequestTreatment(
   payload: TreatmentsRequest,
   engine: EngineTreatmentOptions = {}
 ): Promise<TreatmentsRequest> {
+  if (payload.treatment_type === RECORD_HANDLING_TYPE && !isEngineCase(payload)) {
+    throw new TypeError("Handling records require an engine case");
+  }
   if (isPrototypeApiDisabled()) return payload;
   try {
     return isEngineCase(payload)

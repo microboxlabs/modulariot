@@ -755,6 +755,43 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void aHandlingRecordShowsInTheHeaderLikeAHandledClose() {
+        store.add(new EngineCase(12, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01", OPENED, 4, "T-1",
+                null, null, null, OPENED.plusSeconds(600), 0, null, 0L));
+        List<TreatmentView> treatments = List.of(treatment(TreatmentStatus.CLOSED,
+                action(ActionKind.NOTE, null, null, "salto de paso"),
+                action(ActionKind.NOTE, null, "Verificado por GPS", "Detenido en el área de descanso")));
+
+        JsonNode agg = EngineCaseService.withTreatments(service.header(TENANT, -12), treatments)
+                .path("timeline").get(0).path("conditions_agg").get(0);
+
+        JsonNode rows = agg.path("treatments");
+        assertEquals(1, rows.size(), "a note without an outcome stays out");
+        assertEquals("registrar gestion", rows.get(0).path("treatment_type").asText());
+        assertEquals("Verificado por GPS", rows.get(0).path("description").path("message").asText());
+        assertEquals("Detenido en el área de descanso",
+                rows.get(0).path("description").path("driver_response").asText());
+        assertEquals("operator@example.com", rows.get(0).path("by").asText());
+        assertEquals("operator@example.com", agg.path("assigned_to").asText());
+    }
+
+    @Test
+    void aHandlingOutcomeKeyIsVisibleWhenNoLabelWasSent() {
+        store.add(panic(12, "DEMO01"));
+        TreatmentAction handling = new TreatmentAction("a", "t", TENANT, 1, ActionKind.NOTE, null, null,
+                null, null, null, "handling_outcome_1", null, null, null, null, "Verificado", List.of(),
+                Map.of(), "operator@example.com", OPENED.atOffset(ZoneOffset.UTC));
+
+        JsonNode row = EngineCaseService.withTreatments(service.header(TENANT, -12),
+                List.of(treatment(TreatmentStatus.CLOSED, handling)))
+                .path("timeline").get(0).path("conditions_agg").get(0).path("treatments").get(0);
+
+        assertEquals("registrar gestion", row.path("treatment_type").asText());
+        assertEquals("handling_outcome_1", row.path("description").path("message").asText());
+        assertEquals("Verificado", row.path("description").path("driver_response").asText());
+    }
+
+    @Test
     void gpsEventNotesLandInTheStepOfTheirFrameBeforeTheTreatments() throws Exception {
         store.add(escalated(OPENED.plusSeconds(10_000)));
         store.notes.put(12L, List.of(

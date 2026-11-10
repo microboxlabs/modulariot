@@ -89,8 +89,7 @@ jobs:
           echo "Version: $VERSION"
 
       - name: Build & Test
-        # Places needs its own build opt-in; standard images must not add its beans or endpoints.
-        run: ./mvnw clean verify -Dmiot.component.fleet.enabled=true -Dmiot.component.tracking.enabled=true -Dmiot.component.gateway.enabled=true -Dmiot.component.integrations.enabled=true -Dmiot.component.conversational.enabled=true -Dmiot.component.symptoms.enabled=true -Dmiot.component.trips.enabled=true
+        run: ./mvnw clean verify -Dmiot.component.fleet.enabled=true -Dmiot.component.tracking.enabled=true -Dmiot.component.gateway.enabled=true -Dmiot.component.integrations.enabled=true -Dmiot.component.conversational.enabled=true -Dmiot.component.symptoms.enabled=true -Dmiot.component.trips.enabled=true -Dmiot.component.places.enabled=true
         working-directory: quarkus-srv
 
       - name: Upload JVM artifacts
@@ -136,8 +135,7 @@ jobs:
           cache-dependency-path: quarkus-srv/pom.xml
 
       - name: Compile
-        # Keep analysis configured like the standard image (Places disabled).
-        run: ./mvnw -B compile -DskipTests -Dmiot.component.fleet.enabled=true -Dmiot.component.tracking.enabled=true -Dmiot.component.gateway.enabled=true -Dmiot.component.integrations.enabled=true -Dmiot.component.conversational.enabled=true -Dmiot.component.symptoms.enabled=true -Dmiot.component.trips.enabled=true
+        run: ./mvnw -B compile -DskipTests -Dmiot.component.fleet.enabled=true -Dmiot.component.tracking.enabled=true -Dmiot.component.gateway.enabled=true -Dmiot.component.integrations.enabled=true -Dmiot.component.conversational.enabled=true -Dmiot.component.symptoms.enabled=true -Dmiot.component.trips.enabled=true -Dmiot.component.places.enabled=true
         working-directory: quarkus-srv
 
       - name: SonarCloud Scan

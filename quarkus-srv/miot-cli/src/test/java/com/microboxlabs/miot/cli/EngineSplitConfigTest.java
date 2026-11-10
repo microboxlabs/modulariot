@@ -88,7 +88,7 @@ class EngineSplitConfigTest {
 
     @Test
     void placesSyncRequiresExplicitOptInEvenOnTheAllComponentsApiPod() throws IOException {
-        off(config(API_POD), "miot.component.places.enabled", "miot.places.sync.enabled");
+        off(config(API_POD), "miot.places.sync.enabled");
         on(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true", "MIOT_PLACES_SYNC_ENABLED", "true")),
                 "miot.component.places.enabled", "miot.places.sync.enabled");
     }

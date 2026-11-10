@@ -80,14 +80,6 @@ MIOT_COMPONENT_INTEGRATIONS_ENABLED=true
 
 Only the schemas for enabled DB-backed components are created by Flyway. Starting with `./start.sh integrations` creates `miot_core` and `miot_integrations`. The gateway component requires no database.
 
-Places requires a separate opt-in and stays off even when `miot.component.all.enabled=true`.
-Its beans and endpoints use `@IfBuildProperty`, so a Places-enabled artifact must be built with
-`-Dmiot.component.places.enabled=true`; changing a runtime flag cannot add excluded beans.
-Standard CI images leave Places disabled. Set `MIOT_COMPONENT_PLACES_ENABLED=true` when running
-an explicitly enabled artifact so `FlywayMigrator` includes `db/migration/places`.
-Synchronization to the GPS database additionally requires `MIOT_PLACES_SYNC_ENABLED=true` and
-a configured GPS datasource; it stays off by default.
-
 ## Database
 
 Each component owns its schema. Migrations run via Flyway at startup, filtered by active components:

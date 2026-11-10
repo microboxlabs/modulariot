@@ -80,7 +80,8 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     @Path("/symptoms/{symptomId}/treatments")
     @Operation(operationId = "openTreatment", summary = "Open a treatment on a symptom, or resume yours",
             description = "201 with a new episode, or 200 with the episode the caller already has open on this symptom. "
-                    + "409 on an engine case (negative symptom id) that is closed.")
+                    + "409 on an engine case (negative symptom id) that is closed, unless the caller already has an "
+                    + "episode open on it: that one is resumed, so its actions and close still land.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> open(
@@ -91,7 +92,7 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
         String actor = actor();
         return work(() -> {
             long id = parseSymptomId(symptomId);
-            if (EngineCase.caseId(id).isPresent()) {
+            if (EngineCase.caseId(id).isPresent() && !treatments.hasOpen(tenant, actor, id)) {
                 cases.requireOpen(tenant, id);
             }
             TreatmentService.OpenResult result = treatments.open(tenant, actor, id, body);

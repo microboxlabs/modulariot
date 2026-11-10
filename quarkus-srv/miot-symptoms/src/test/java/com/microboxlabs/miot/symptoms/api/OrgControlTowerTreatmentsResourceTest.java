@@ -220,6 +220,34 @@ class OrgControlTowerTreatmentsResourceTest {
     }
 
     @Test
+    void aTreatmentOpenedBeforeTheEngineClosedTheCaseStillFinishes() {
+        addCase(22, "T-1", null);
+        TreatmentView mine = open(22, TreatmentType.CALL);
+        call(resource.addAction(ORG, mine.id(), new AddActionRequest(ActionKind.CALL, null, "Conductor", null,
+                "+12025550100", CallMethod.PHONE, null, "Sin respuesta", false, 30, null, null, null, null)));
+        cases.close(TENANT, 22, "engine", NOW);
+
+        Response resumed = call(resource.open(ORG, "-22",
+                new OpenTreatmentRequest(TreatmentType.CALL, "DEMO01", "T-1", null)));
+        assertEquals(200, resumed.getStatus(), String.valueOf(resumed.getEntity()));
+        assertEquals(mine.id(), ((TreatmentView) resumed.getEntity()).id());
+
+        assertEquals(201, call(resource.addAction(ORG, mine.id(), new AddActionRequest(ActionKind.CALL, null,
+                "Conductor", null, "+12025550100", CallMethod.PHONE, null, "Compromete corrección", true, 60, null,
+                null, null, null))).getStatus());
+        Response closed = call(resource.close(ORG, mine.id(), new CloseTreatmentRequest("resolved", null)));
+        assertEquals(200, closed.getStatus(), String.valueOf(closed.getEntity()));
+        assertEquals(TreatmentStatus.CLOSED, ((TreatmentView) closed.getEntity()).status());
+        assertEquals(2, ((TreatmentView) closed.getEntity()).actions().size());
+        assertEquals(List.of("engine"), cases.closedBy, "the engine's close stands");
+        assertTrue(operatorCloses.isEmpty(), "no operator close is recorded on a closed case");
+
+        assertEquals(409, call(resource.open(ORG, "-22",
+                new OpenTreatmentRequest(TreatmentType.CALL, "DEMO01", "T-1", null))).getStatus(),
+                "once finished, no new treatment opens on the closed case");
+    }
+
+    @Test
     void aHandlingRecordTellsTheEngineTheCaseWasHandled() {
         addCase(32, "T-1", null);
         TreatmentView handling = open(32, TreatmentType.CALL);

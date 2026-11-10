@@ -198,6 +198,29 @@ class NativeMembershipMigrationDefaultsTest {
     }
 
     @Test
+    void aTimeoutDuringTheFlushCommitsNoneOfItsRows() throws Exception {
+        // Each insert is short, but the 449 of them outlast the timeout.
+        exec("CREATE FUNCTION miot_iam.slow_default_binding() RETURNS trigger LANGUAGE plpgsql AS $$ "
+                + "BEGIN PERFORM pg_sleep(0.03); RETURN NEW; END $$");
+        exec("CREATE TRIGGER slow_default_binding BEFORE INSERT ON miot_iam.iam_role_binding "
+                + "FOR EACH ROW EXECUTE FUNCTION miot_iam.slow_default_binding()");
+        long started = System.nanoTime();
+        given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().post(MIGRATE).then().statusCode(200)
+                .body("find { it.organization == '" + ORG + "' }.error", containsString("Not done after"));
+        // Wait until the whole flush would have finished, had it gone on after the rollback.
+        long flushNanos = 449L * 30_000_000L;
+        long left = flushNanos - (System.nanoTime() - started);
+        if (left > 0) {
+            Thread.sleep(left / 1_000_000L + 2_000L);
+        }
+        assertEquals("0", query("SELECT count(*) FROM miot_iam.iam_role_binding WHERE created_by = '"
+                + NativeMembershipMigration.ACTOR + "'"));
+        assertPending();
+        assertLockReleased();
+    }
+
+    @Test
     void aNewPendingOrganizationKeepsReadinessDownEvenAfterAnEarlierSuccessfulRun() throws SQLException {
         given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
                 .when().post(MIGRATE).then().statusCode(200)

@@ -11,7 +11,10 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
+import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -50,6 +53,8 @@ public class NativeMembershipMigration {
     /** Off on a pod that does not serve the API: without the Alfresco settings it would skip the import. */
     static final String ENABLED_PROPERTY = "miot.iam.native-migration.enabled";
     static final String TIMEOUT_PROPERTY = "miot.iam.native-migration.timeout";
+    /** How long a timed-out run waits for Postgres to end its connection (pg_terminate_backend, Postgres 14+). */
+    private static final long TERMINATE_WAIT_MS = 10_000;
     private static final Logger LOG = Logger.getLogger(NativeMembershipMigration.class);
 
     /** One organization: how many people the import added and suspended, how many default roles were bound. */
@@ -65,9 +70,10 @@ public class NativeMembershipMigration {
     private final boolean alreadyNative;
     private final boolean scheduled;
     private final Duration timeout;
+    private final Instance<Pool> pools;
 
     @Inject
-    public NativeMembershipMigration(AlfrescoBridge bridge, AccessRegistry registry,
+    public NativeMembershipMigration(AlfrescoBridge bridge, AccessRegistry registry, Instance<Pool> pools,
             @ConfigProperty(name = LEGACY_PROPERTY, defaultValue = "alfresco") String legacyMembership,
             @ConfigProperty(name = ALFRESCO_AUTH_PROPERTY, defaultValue = "stub") String alfrescoAuth,
             @ConfigProperty(name = IMPORT_STUB_PROPERTY, defaultValue = "false") boolean importStub,
@@ -76,6 +82,7 @@ public class NativeMembershipMigration {
             @ConfigProperty(name = TIMEOUT_PROPERTY, defaultValue = "5m") Duration timeout) {
         this.bridge = bridge;
         this.registry = registry;
+        this.pools = pools;
         this.alreadyNative = "native".equalsIgnoreCase(legacyMembership.trim())
                 || ("stub".equalsIgnoreCase(alfrescoAuth.trim()) && !importStub);
         this.scheduled = enabled && !"off".equalsIgnoreCase(every.trim());
@@ -115,14 +122,36 @@ public class NativeMembershipMigration {
         // Timeout inside the transaction: report failure only after rollback and session cleanup finish.
         return Panache.withTransaction(() -> {
             Context context = Vertx.currentContext();
-            return AlfrescoBridge.lock(slug, timeout).flatMap(ignored -> migrateLocked(slug))
-                    .call(Panache::flush)
-                    .ifNoItem().after(timeout).failWith(() -> new TimeoutException(
-                            "Not done after " + timeout + "; tried again on the next run"))
+            return backendPid().flatMap(pid -> AlfrescoBridge.lock(slug, timeout)
+                            .flatMap(ignored -> migrateLocked(slug))
+                            .call(Panache::flush)
+                            .ifNoItem().after(timeout).recoverWithUni(() -> abort(pid)))
                     // The timeout fires on a timer thread; Hibernate cleanup must use the session's context.
                     .emitOn(task -> context.runOnContext(ignored -> task.run()));
         }).invoke(result -> LOG.infof("%s now uses native membership: %d added, %d suspended, %d default roles bound",
                 slug, result.added(), result.suspended(), result.defaultsBound()));
+    }
+
+    private static Uni<Integer> backendPid() {
+        return Panache.getSession().flatMap(session -> session
+                .createNativeQuery("select pg_backend_pid()", Integer.class).getSingleResult());
+    }
+
+    /**
+     * Ends the timed-out run's connection from another one and waits for it to exit, so Postgres rolls its
+     * transaction back. Cancelling the Uni does not stop a flush in progress: after a rollback over the same
+     * connection, its remaining inserts would run outside the transaction and commit.
+     */
+    private Uni<Migrated> abort(int pid) {
+        TimeoutException timedOut = new TimeoutException("Not done after " + timeout + "; tried again on the next run");
+        return pools.get().preparedQuery("select pg_terminate_backend($1, $2)")
+                .execute(Tuple.of(pid, TERMINATE_WAIT_MS))
+                .onItemOrFailure().transformToUni((rows, e) -> {
+                    if (e != null) {
+                        timedOut.addSuppressed(e);
+                    }
+                    return Uni.createFrom().failure(timedOut);
+                });
     }
 
     private Uni<Migrated> migrateLocked(String slug) {

@@ -11,6 +11,8 @@ describe("normalizeRut", () => {
     expect(normalizeRut("00.000.001-9")).toBe("000000019");
     expect(normalizeRut(" 00 000 001 - 9 ")).toBe("000000019");
     expect(normalizeRut("000000019")).toBe("000000019");
+    expect(normalizeRut("\u00a000.000.001-9\u00a0")).toBe("000000019");
+    expect(normalizeRut("\ufeff00.000.001-9\u202f")).toBe("000000019");
   });
 
   it("upper-cases a lowercase K verifier", () => {
@@ -21,5 +23,6 @@ describe("normalizeRut", () => {
     expect(normalizeRut("")).toBe("");
     expect(normalizeRut("  ")).toBe("");
     expect(normalizeRut(" . - \t ")).toBe("");
+    expect(normalizeRut("\u00a0\u202f\ufeff")).toBe("");
   });
 });

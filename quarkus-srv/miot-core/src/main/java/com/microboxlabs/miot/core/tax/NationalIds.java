@@ -10,14 +10,15 @@ import java.util.regex.Pattern;
  */
 public final class NationalIds {
 
-    private static final Pattern SEPARATORS = Pattern.compile("[.\\-\\s]");
+    // The same whitespace as JavaScript's \s in normalizeRut, including non-breaking spaces and BOM.
+    private static final Pattern SEPARATORS = Pattern.compile("[.\\-\\t-\\r\\p{Zs}\\u2028\\u2029\\uFEFF]");
 
     private NationalIds() {
     }
 
     /** The id without separators, upper case; null when it is null, blank or only separators. */
     public static String normalize(String id) {
-        if (id == null || id.isBlank()) {
+        if (id == null) {
             return null;
         }
         String normalized = SEPARATORS.matcher(id).replaceAll("").toUpperCase(Locale.ROOT);

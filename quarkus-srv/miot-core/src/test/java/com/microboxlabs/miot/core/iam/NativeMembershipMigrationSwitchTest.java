@@ -12,8 +12,8 @@ class NativeMembershipMigrationSwitchTest {
 
     @Test
     void offItTouchesNoOrganizationAndReadinessStaysUp() {
-        NativeMembershipMigration off = new NativeMembershipMigration(null, null, "alfresco", "stub", false, "1m",
-                false);
+        NativeMembershipMigration off = new NativeMembershipMigration(null, null, null, "alfresco", "stub", false, "1m",
+                false, Duration.ofMinutes(5));
 
         // Without the switch this would list the organizations on Alfresco membership and mark them native.
         off.scheduled().await().atMost(Duration.ofSeconds(1));
@@ -40,7 +40,8 @@ class NativeMembershipMigrationSwitchTest {
     }
 
     private static NativeMembershipMigration migration(Uni<Boolean> settled) {
-        return new NativeMembershipMigration(null, null, "alfresco", "stub", false, "1m", false) {
+        return new NativeMembershipMigration(null, null, null, "alfresco", "stub", false, "1m", false,
+                Duration.ofMinutes(5)) {
             @Override
             public Uni<Boolean> settled() {
                 return settled;

@@ -45,6 +45,8 @@ interface LaneColumnProps {
   dict: I18nRecord;
   /** `pages.reviewProcess` subtree — the review-integration config UI. */
   reviewDict: I18nRecord;
+  /** Organization owners only; the review routes refuse everyone else. */
+  canConfigureReview: boolean;
   /** Every channel attached to this column, own or inherited. */
   reviewBindings: readonly EventBinding[];
   reviewTargets: readonly DispatchTarget[];
@@ -126,6 +128,7 @@ export function LaneColumn({
   isLoading,
   dict,
   reviewDict,
+  canConfigureReview,
   reviewBindings,
   reviewTargets,
   reviewSaving,
@@ -328,20 +331,22 @@ export function LaneColumn({
               {tr("kanban.lane.collapse", dict)}
             </DropdownItem>
 
-            <DropdownDivider />
-            <DropdownItem
-              icon={reviewEnabled ? ReviewSettingsIconOn : ReviewSettingsIconOff}
-              onClick={() => setReviewDrawerOpen(true)}
-            >
-              <span className="flex items-center gap-2">
-                {tr("menu.settings", reviewDict)}
-                {reviewEnabled && (
-                  <span className="rounded-full bg-primary-100 px-1.5 text-[10px] font-medium text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
-                    {tr("menu.on", reviewDict)}
-                  </span>
-                )}
-              </span>
-            </DropdownItem>
+            {canConfigureReview && <DropdownDivider />}
+            {canConfigureReview && (
+              <DropdownItem
+                icon={reviewEnabled ? ReviewSettingsIconOn : ReviewSettingsIconOff}
+                onClick={() => setReviewDrawerOpen(true)}
+              >
+                <span className="flex items-center gap-2">
+                  {tr("menu.settings", reviewDict)}
+                  {reviewEnabled && (
+                    <span className="rounded-full bg-primary-100 px-1.5 text-[10px] font-medium text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
+                      {tr("menu.on", reviewDict)}
+                    </span>
+                  )}
+                </span>
+              </DropdownItem>
+            )}
           </Dropdown>
         </div>
       </div>
@@ -383,16 +388,18 @@ export function LaneColumn({
         ))}
       </ReactSortable>
 
-      <ReviewSettingsDrawer
-        show={reviewDrawerOpen}
-        onClose={() => setReviewDrawerOpen(false)}
-        laneTitle={title}
-        bindings={reviewBindings}
-        targets={reviewTargets}
-        saving={reviewSaving}
-        onSave={handleReviewSave}
-        dict={reviewDict}
-      />
+      {canConfigureReview && (
+        <ReviewSettingsDrawer
+          show={reviewDrawerOpen}
+          onClose={() => setReviewDrawerOpen(false)}
+          laneTitle={title}
+          bindings={reviewBindings}
+          targets={reviewTargets}
+          saving={reviewSaving}
+          onSave={handleReviewSave}
+          dict={reviewDict}
+        />
+      )}
     </div>
   );
 }

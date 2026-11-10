@@ -176,15 +176,11 @@ public class TeamsService {
         }
     }
 
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     private static Uni<Void> replaceMembers(IamTeam team, Set<UUID> wanted) {
-        return IamTeamMember.delete("id.teamId = ?1", team.id).flatMap(ignored -> {
-            Uni<Void> chain = Uni.createFrom().voidItem();
-            for (UUID id : wanted) {
-                chain = chain.flatMap(i -> new IamTeamMember(team.id, id).persist().replaceWithVoid());
-            }
-            return chain;
-        });
+        return IamTeamMember.delete("id.teamId = ?1", team.id)
+                .flatMap(ignored -> Panache.getSession())
+                .flatMap(session -> session.persistAll(wanted.stream()
+                        .map(id -> new IamTeamMember(team.id, id)).toArray()));
     }
 
     /** Replaces the team's organization-wide roles in one transaction. Sub-account bindings stay. */

@@ -13,6 +13,7 @@ import { trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
 import { isSegmentPrefix } from "../../utils/utils";
+import { useLocalizedHref } from "../../hooks/use-localized-href";
 
 interface MobileSidebarSectionProps {
   item: SidebarItem;
@@ -63,6 +64,7 @@ function ChildItem({
   totals: Record<string, number | string>;
   onNavigate: () => void;
 }>) {
+  const localize = useLocalizedHref();
   const translatedLabel = trDynamic(child.label, dict);
   const itemTotal = child.totals?.[child.label] ?? totals[child.label];
   const showBadge = itemTotal !== undefined && typeof itemTotal === "number";
@@ -70,7 +72,7 @@ function ChildItem({
   return (
     <li>
       <Link
-        href={child.href ?? "#"}
+        href={localize(child.href ?? "#")}
         onClick={onNavigate}
         className={twMerge(
           "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
@@ -147,6 +149,7 @@ export default function MobileSidebarSection({
   onNavigate,
 }: Readonly<PropsWithI18nDict<MobileSidebarSectionProps>>) {
   const { canAccess } = usePermissions();
+  const localize = useLocalizedHref();
   const searchParamsHook = useSearchParams();
   const searchParamsStr = searchParamsHook.toString();
 
@@ -177,7 +180,7 @@ export default function MobileSidebarSection({
   return (
     <li>
       <Link
-        href={item.href ?? "#"}
+        href={localize(item.href ?? "#")}
         onClick={onNavigate}
         className={twMerge(
           "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",

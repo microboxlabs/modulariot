@@ -4,6 +4,7 @@ import { useState, type ComponentProps, type FC } from "react";
 import Link from "next/link";
 import { twMerge } from "tailwind-merge";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { useLocalizedHref } from "../../hooks/use-localized-href";
 
 interface IconBarItemProps {
   icon?: FC<ComponentProps<"svg">>;
@@ -27,6 +28,7 @@ export default function IconBarItem({
   onClick,
 }: Readonly<IconBarItemProps>) {
   const { canAccess } = usePermissions();
+  const localize = useLocalizedHref();
   const [isHovered, setIsHovered] = useState(false);
 
   if (!canAccess({ requiredPermissions })) return null;
@@ -96,7 +98,7 @@ export default function IconBarItem({
   return (
     <li>
       <Link
-        href={href ?? "#"}
+        href={localize(href ?? "#")}
         aria-label={translatedLabel}
         onClick={onClick}
         className="flex w-full items-center justify-center"

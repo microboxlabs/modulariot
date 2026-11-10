@@ -11,14 +11,15 @@ import com.microboxlabs.miot.core.iam.model.IamUser;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.quarkus.scheduler.Scheduled;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -28,7 +29,7 @@ import org.jboss.logging.Logger;
  * Copies an organization's Alfresco group into memberships, and keeps the group in step afterwards.
  *
  * <ul>
- *   <li>{@link #importMembers}: every member of the org's Alfresco group becomes a membership. Site and group
+ *   <li>{@link #importSnapshot}: every member of the org's Alfresco group becomes a membership. Site and group
  *       managers are Admin, or Owner when the organization has no owner; everyone else is Member. Existing
  *       memberships keep their role. Memberships recorded from Alfresco for people no longer in the group are
  *       suspended. {@link NativeMembershipMigration} runs it once per organization.</li>
@@ -51,7 +52,6 @@ public class AlfrescoBridge {
     }
 
     private final boolean projection;
-    private final AccessEvaluator evaluator;
     private final IAlfrescoDirectoryClient directory;
     private final IAlfrescoMembershipClient membership;
     private final IAlfrescoGroupAdminClient groups;
@@ -59,10 +59,9 @@ public class AlfrescoBridge {
 
     @Inject
     public AlfrescoBridge(@ConfigProperty(name = PROJECTION_PROPERTY, defaultValue = "false") boolean projection,
-            AccessEvaluator evaluator, IAlfrescoDirectoryClient directory, IAlfrescoMembershipClient membership,
+            IAlfrescoDirectoryClient directory, IAlfrescoMembershipClient membership,
             IAlfrescoGroupAdminClient groups, ProjectionQueue queue) {
         this.projection = projection;
-        this.evaluator = evaluator;
         this.directory = directory;
         this.membership = membership;
         this.groups = groups;
@@ -71,58 +70,68 @@ public class AlfrescoBridge {
 
     // --- import ---
 
-    /**
-     * Copies the Alfresco group of {@code slug}'s top-level organization into memberships, under a lock per
-     * organization so concurrent runs wait for each other.
-     */
-    public Uni<ImportResult> importMembers(String slug, String actor) {
-        return Panache.withTransaction(() -> lock(slug)
-                .flatMap(locked -> Organization.findBySlug(slug))
-                .flatMap(found -> {
-                    if (found == null) {
-                        throw new NoSuchElementException("Organization not found: " + slug);
-                    }
-                    return evaluator.root(found);
-                })
-                .flatMap(org -> importInto(org, actor)));
+    record Member(AlfrescoPerson person, String role) { }
+
+    record Snapshot(String groupId, List<Member> members) { }
+
+    /** Read remote data before opening the import transaction or taking its advisory lock. */
+    Uni<Snapshot> readMembers(String groupId) {
+        if (groupId == null) {
+            return Uni.createFrom().failure(new IllegalStateException("The organization has no Alfresco group"));
+        }
+        return directory.listAllGroupMembers(groupId).flatMap(people -> Multi.createFrom().iterable(people)
+                .onItem().transformToUniAndConcatenate(person -> emailOf(person) == null
+                        ? Uni.createFrom().item(new Member(person, null))
+                        : membership.getRole(emailOf(person), groupId).map(role -> new Member(person, role)))
+                .collect().asList().map(members -> new Snapshot(groupId, members)));
     }
 
-    private Uni<ImportResult> importInto(Organization org, String actor) {
-        if (org.alfrescoGroupId == null) {
-            throw new IllegalStateException("The organization has no Alfresco group");
+    Uni<ImportResult> importSnapshot(Organization org, Snapshot snapshot, String actor) {
+        if (!snapshot.groupId().equals(org.alfrescoGroupId)) {
+            return Uni.createFrom().failure(new IllegalStateException("The organization's Alfresco group changed"));
         }
-        return directory.listAllGroupMembers(org.alfrescoGroupId)
-                .flatMap(people -> IamMembership.findByRole(org.id, BaseRole.OWNER.name())
-                        .flatMap(owners -> addAll(org, people, owners.isEmpty(), actor)))
+        return IamMembership.findByRole(org.id, BaseRole.OWNER.name())
+                .flatMap(owners -> addAll(org, snapshot.members(), owners.isEmpty(), actor))
                 .flatMap(result -> IamAuditEvent.of(org.id, actor, "alfresco.imported", org.alfrescoGroupId,
                         Map.of("seen", result.seen(), "added", result.added(), "suspended", result.suspended()))
                         .persist().replaceWith(result));
     }
 
-    /** Holds a transaction-scoped lock for this organization's import until the transaction ends. */
-    static Uni<Void> lock(String slug) {
+    /**
+     * Holds a transaction-scoped lock for this organization's import until the transaction ends. Postgres gives up
+     * waiting for it or executing a statement after {@code limit}, and ends the transaction when it sits idle that
+     * long, so a run that stalls or is cancelled does not keep the lock or a pooled connection. All settings end
+     * with this transaction.
+     */
+    static Uni<Void> lock(String slug, Duration limit) {
+        long ms = Math.max(1, limit.toMillis());
         return Panache.getSession()
-                .flatMap(session -> session.createNativeQuery("select pg_advisory_xact_lock(hashtext(?1))")
-                        .setParameter(1, "iam-alfresco-import:" + slug)
-                        .executeUpdate())
+                .flatMap(session -> session.createNativeQuery("SET LOCAL lock_timeout = '" + ms + "ms'")
+                        .executeUpdate()
+                        .flatMap(set -> session.createNativeQuery(
+                                "SET LOCAL idle_in_transaction_session_timeout = '" + ms + "ms'").executeUpdate())
+                        .flatMap(set -> session.createNativeQuery(
+                                "SET LOCAL statement_timeout = '" + ms + "ms'").executeUpdate())
+                        .flatMap(set -> session.createNativeQuery("select pg_advisory_xact_lock(hashtext(?1))")
+                                .setParameter(1, "iam-alfresco-import:" + slug)
+                                .executeUpdate()))
                 .replaceWithVoid();
     }
 
-    private Uni<ImportResult> addAll(Organization org, List<AlfrescoPerson> people, boolean noOwner, String actor) {
+    private Uni<ImportResult> addAll(Organization org, List<Member> people, boolean noOwner, String actor) {
         int[] added = {0};
         int[] existing = {0};
         Set<String> inGroup = new HashSet<>();
-        Uni<Void> chain = Uni.createFrom().voidItem();
-        for (AlfrescoPerson person : people) {
-            String email = emailOf(person);
-            if (email != null) {
-                inGroup.add(email);
-                chain = chain.flatMap(i -> importOne(org, person, email, noOwner, actor)
+        return Multi.createFrom().iterable(people)
+                .select().where(member -> emailOf(member.person()) != null)
+                .onItem().transformToUniAndConcatenate(member -> {
+                    String email = emailOf(member.person());
+                    inGroup.add(email);
+                    return importOne(org, member, email, noOwner, actor)
                         .invoke(isNew -> (Boolean.TRUE.equals(isNew) ? added : existing)[0]++)
-                        .replaceWithVoid());
-            }
-        }
-        return chain.flatMap(i -> suspendLeavers(org.id, inGroup))
+                        .replaceWithVoid();
+                }).collect().asList()
+                .flatMap(i -> suspendLeavers(org.id, inGroup))
                 .map(suspended -> new ImportResult(org.slug, org.alfrescoGroupId, people.size(), added[0],
                         existing[0], suspended));
     }
@@ -139,14 +148,9 @@ public class AlfrescoBridge {
             return IamUser.findByIds(fromAlfresco.stream().map(m -> m.userId).toList()).flatMap(users -> {
                 Set<UUID> gone = new HashSet<>();
                 users.stream().filter(u -> !inGroup.contains(IamUser.normalize(u.email))).forEach(u -> gone.add(u.id));
-                Uni<Void> chain = Uni.createFrom().voidItem();
-                for (IamMembership m : fromAlfresco) {
-                    if (gone.contains(m.userId)) {
-                        m.status = "SUSPENDED";
-                        chain = chain.flatMap(i -> m.persist().replaceWithVoid());
-                    }
-                }
-                return chain.replaceWith(gone.size());
+                // Managed rows: the change is flushed on commit. One Uni per row would nest the stack.
+                fromAlfresco.stream().filter(m -> gone.contains(m.userId)).forEach(m -> m.status = "SUSPENDED");
+                return Uni.createFrom().item(gone.size());
             });
         });
     }
@@ -160,15 +164,14 @@ public class AlfrescoBridge {
 
     /** Adds the person as a member unless they already are; true when added. */
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
-    private Uni<Boolean> importOne(Organization org, AlfrescoPerson person, String email, boolean noOwner,
+    private Uni<Boolean> importOne(Organization org, Member member, String email, boolean noOwner,
             String actor) {
-        return membership.getRole(email, org.alfrescoGroupId)
-                .flatMap(role -> IamUser.findOrCreate(email)
-                        .flatMap(user -> named(user, person))
-                        .flatMap(user -> IamMembership.findOne(org.id, user.id).flatMap(m -> m != null
-                                ? Uni.createFrom().item(false)
-                                : IamMembership.of(org.id, user.id, baseRoleOf(role, noOwner).name(),
-                                        ALFRESCO, actor).persist().replaceWith(true))));
+        return IamUser.findOrCreate(email)
+                .flatMap(user -> named(user, member.person()))
+                .flatMap(user -> IamMembership.findOne(org.id, user.id).flatMap(m -> m != null
+                        ? Uni.createFrom().item(false)
+                        : IamMembership.of(org.id, user.id, baseRoleOf(member.role(), noOwner).name(),
+                                ALFRESCO, actor).persist().replaceWith(true)));
     }
 
     /**

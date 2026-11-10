@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
+import static org.hamcrest.Matchers.hasSize;
 
 import com.microboxlabs.miot.core.auth.PlatformTestProfile;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
@@ -15,6 +16,10 @@ import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -108,6 +113,43 @@ class TeamsAndKeysTest {
                 .then().statusCode(204);
         given().header("Authorization", bearer(ANA)).when().get("/api/v1/orgs/" + ORG + "/me/access")
                 .then().statusCode(200).body("roles", empty());
+    }
+
+    @Test
+    void aLargeTeamsMembersAreFlushedAndReplacedTogether() throws SQLException {
+        exec("INSERT INTO miot_iam.iam_user (email) SELECT 'teammate' || g || '@example.test' "
+                + "FROM generate_series(1, 500) g ON CONFLICT DO NOTHING");
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role) "
+                + "SELECT o.id, u.id, 'MEMBER' FROM miot_core.organizations o, miot_iam.iam_user u "
+                + "WHERE o.slug = '" + ORG + "' AND u.email LIKE 'teammate%@example.test'");
+        List<String> ids = new ArrayList<>();
+        try (Connection c = ds.getConnection(); var st = c.createStatement();
+                var rs = st.executeQuery("SELECT id FROM miot_iam.iam_user WHERE email LIKE 'teammate%@example.test'")) {
+            while (rs.next()) {
+                ids.add(rs.getString(1));
+            }
+        }
+        String team = given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body("{\"name\":\"Large team\"}").when().post(BASE + "/teams")
+                .then().statusCode(201).extract().path("id");
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("userIds", ids)).when().put(BASE + "/teams/" + team + "/members")
+                .then().statusCode(200).body("members", hasSize(500));
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("userIds", List.of(ids.getFirst()))).when().put(BASE + "/teams/" + team + "/members")
+                .then().statusCode(200).body("members", contains(ids.getFirst()));
+    }
+
+    @Test
+    void hundredsOfClientRoleHoldersAreStoredWithoutANestedPersistChain() {
+        List<String> clients = IntStream.range(0, 500).mapToObj(i -> "test-client-" + i).toList();
+        String path = "/api/v1/orgs/" + ORG + "/roles/HARNESS_TRAINER";
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("assigneeIds", clients)).when().put(path)
+                .then().statusCode(200).body("assigneeIds", hasSize(500));
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("assigneeIds", List.of(clients.getFirst()))).when().put(path)
+                .then().statusCode(200).body("assigneeIds", contains(clients.getFirst()));
     }
 
     @Test

@@ -50,8 +50,9 @@ public class PgExternalEventStore implements ExternalEventStore {
             SELECT $1, $2, i.type, i.context_kind, i.description, COALESCE(i.fields, '[]'::jsonb), $4
               FROM incoming i
             ON CONFLICT (tenant_code, type) DO UPDATE SET
-                source = EXCLUDED.source, context_kind = EXCLUDED.context_kind,
-                description = EXCLUDED.description, fields = EXCLUDED.fields, updated_at = EXCLUDED.updated_at""";
+                context_kind = EXCLUDED.context_kind,
+                description = EXCLUDED.description, fields = EXCLUDED.fields, updated_at = EXCLUDED.updated_at
+            WHERE miot_conversational.conv_external_event_type.source = EXCLUDED.source""";
 
     private final Supplier<Pool> pool;
 

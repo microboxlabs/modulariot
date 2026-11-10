@@ -19,3 +19,7 @@ CREATE TABLE miot_conversational.conv_external_event_type (
 
 CREATE INDEX idx_conv_external_event_type_source
     ON miot_conversational.conv_external_event_type (tenant_code, source);
+
+-- An event delivered again starts only the rules it has not started yet; this finds them.
+CREATE INDEX idx_conv_run_event
+    ON miot_conversational.conv_run (event_id);

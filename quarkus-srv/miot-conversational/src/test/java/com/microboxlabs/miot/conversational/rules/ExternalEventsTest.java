@@ -195,4 +195,41 @@ class ExternalEventsTest {
                 """));
         assertTrue(f.service.validate(TENANT, ok).stream().noneMatch(x -> "noEvent".equals(x.code())));
     }
+
+    @Test
+    void aRetryAfterTheEventWasStoredStartsTheRulesItMissed() {
+        teamsRule();
+        String id = ConversationEventJob.eventId(TENANT, "erp", SHIPPED, false, "shipment-4521");
+        // The first attempt stored the event and failed before starting any rule.
+        f.store.runStore.saveEvent(new StoredEvent(id, TENANT, SHIPPED, "erp", "service", "4521",
+                Map.of("order", "4521"), false, T0, T0));
+        JobOutcome retry = publish.handle(TENANT, event("shipment-4521"));
+        assertEquals(JobOutcome.SUCCEEDED, retry.outcome());
+        assertEquals(1, ((List<?>) retry.result().get("runs")).size());
+        assertEquals(JobOutcome.SKIPPED, publish.handle(TENANT, event("shipment-4521")).outcome());
+        f.engine.runDue();
+        assertEquals(1, f.integrations.calls.size());
+    }
+
+    @Test
+    void theSameKeyOnAnotherTypeOrATestIsAnotherEvent() {
+        assertEquals(JobOutcome.SUCCEEDED, publish.handle(TENANT, event("4521")).outcome());
+        Map<String, Object> cancelled = event("4521");
+        cancelled.put("type", "erp.order.cancelled");
+        assertEquals(JobOutcome.SUCCEEDED, publish.handle(TENANT, cancelled).outcome());
+        Map<String, Object> test = event("4521");
+        test.put("test", true);
+        JobOutcome first = publish.handle(TENANT, test);
+        assertEquals(JobOutcome.SUCCEEDED, first.outcome());
+        assertEquals(3, f.store.events.size());
+    }
+
+    @Test
+    void anEventAboutAnotherKindParks() {
+        Map<String, Object> e = event("k");
+        e.put("context", Map.of("kind", "trip", "key", "4521"));
+        assertThrows(NonRetryableJobException.class, () -> publish.handle(TENANT, e));
+        e.put("context", Map.of("kind", "service", "key", "4521"));
+        assertEquals(JobOutcome.SUCCEEDED, publish.handle(TENANT, e).outcome());
+    }
 }

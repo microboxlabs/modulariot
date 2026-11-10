@@ -35,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -209,11 +210,16 @@ public class RulesEngine {
 
     /**
      * {@link #accept(OperationalEvent)} with the stored event's id. A producer that may deliver an event twice
-     * derives the id from its own key and checks {@link RunStore#event} first: the id is the primary key, so a
-     * second copy fails to store instead of starting the runs again.
+     * derives the id from its own key. When the event is already stored, only the rules it has not started yet
+     * start, so a retry after a partial failure completes it and a second copy starts nothing.
      */
     public List<Run> accept(OperationalEvent event, String eventId) {
         Instant now = clock.instant();
+        Optional<StoredEvent> seen = runs.event(eventId);
+        if (seen.isPresent()) {
+            // A retry after the event was stored: start only the rules it has not started yet.
+            return start(seen.get(), now, runs.rulesStartedBy(eventId));
+        }
         StoredEvent stored = runs.saveEvent(new StoredEvent(eventId, event.tenantCode(),
                 event.type(), event.source(), event.context().kind(), event.context().key(), data(event.data()),
                 event.test(), event.at(), now));
@@ -227,9 +233,17 @@ public class RulesEngine {
     }
 
     private List<Run> start(StoredEvent event, Instant now) {
+        return start(event, now, Set.of());
+    }
+
+    /** Starts the matching rules, except those in {@code skip}. */
+    private List<Run> start(StoredEvent event, Instant now, Set<String> skip) {
         List<Run> started = new ArrayList<>();
         for (RuleStore.InForce f : rules.inForce(event.tenantCode())) {
             Rule rule = f.rule();
+            if (skip.contains(rule.id())) {
+                continue;
+            }
             RuleSpec spec = RuleSpec.read(f.version().spec());
             if ((event.test() && rule.state() != Rule.State.TEST) || !matches(spec, event)) {
                 continue;

@@ -3,6 +3,7 @@ package com.microboxlabs.miot.conversational.rules;
 import com.microboxlabs.miot.core.auth.PlatformScope;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A message a rule sends: a base text (what the inbox stores) and one variant per channel. Variables are
@@ -69,9 +70,14 @@ public record ConvTemplate(String id, String tenantCode, String key, String name
             List<Fact> facts, List<String> notes, List<Action> actions) {
 
         public Teams {
-            facts = facts == null ? List.of() : List.copyOf(facts);
-            notes = notes == null ? List.of() : List.copyOf(notes);
-            actions = actions == null ? List.of() : List.copyOf(actions);
+            facts = present(facts);
+            notes = present(notes);
+            actions = present(actions);
+        }
+
+        /** The list without its null entries. */
+        private static <T> List<T> present(List<T> list) {
+            return list == null ? List.of() : list.stream().filter(Objects::nonNull).toList();
         }
 
         /**

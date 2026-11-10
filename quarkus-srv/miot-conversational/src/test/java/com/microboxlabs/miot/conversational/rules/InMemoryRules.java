@@ -185,6 +185,13 @@ final class InMemoryRules {
         }
 
         @Override
+        public java.util.Set<String> rulesStartedBy(String eventId) {
+            java.util.Set<String> out = new java.util.HashSet<>();
+            runs.values().stream().filter(r -> eventId.equals(r.eventId())).forEach(r -> out.add(r.ruleId()));
+            return out;
+        }
+
+        @Override
         public Run createRun(Run run) {
             Optional<Run> first = invoked(run.ruleId(), run.invocationKey());
             if (first.isPresent()) {

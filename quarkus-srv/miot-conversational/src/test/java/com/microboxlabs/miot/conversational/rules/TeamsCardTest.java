@@ -132,6 +132,14 @@ class TeamsCardTest {
     }
 
     @Test
+    void nullEntriesAreDropped() throws Exception {
+        Teams read = JSON.readValue("{\"title\": \"T\", \"facts\": [null], \"notes\": [null, \"n\"]}",
+                Teams.class);
+        assertTrue(read.facts().isEmpty());
+        assertEquals(List.of("n"), read.notes());
+    }
+
+    @Test
     void theCardReadsBackFromItsJson() throws Exception {
         Teams read = JSON.readValue(JSON.writeValueAsString(CARD), Teams.class);
         assertEquals(CARD, read);

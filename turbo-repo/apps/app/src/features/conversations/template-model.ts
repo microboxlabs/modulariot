@@ -242,7 +242,7 @@ export function templateFindings({
       ? whatsappFindings(body.whatsapp, body.baseText, metaTemplates)
       : []),
     ...(body.email ? emailFindings(body.email) : []),
-    ...(body.whatsapp || body.email
+    ...(body.whatsapp || body.email || body.teams
       ? []
       : [
           {
@@ -267,8 +267,8 @@ function generalFindings(
       section: "general",
       key: "templateKeyTaken",
     });
-  // WhatsApp sends the short text, and without an email Slack, Teams and webhooks have nothing else.
-  if (!body.baseText.trim() && (body.whatsapp || !body.email))
+  // WhatsApp sends the short text, and without an email or a Teams card the chats have nothing else.
+  if (!body.baseText.trim() && (body.whatsapp || (!body.email && !body.teams)))
     out.push({ severity: "error", section: "text", key: "tplNoText" });
   return out;
 }

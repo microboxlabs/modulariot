@@ -58,7 +58,7 @@ public final class TeamsCard {
         return out;
     }
 
-    /** The title, else the text, rendered: what the inbox stores as the message's subject. */
+    /** The title, rendered: what the inbox stores as the message's subject; null without one. */
     public static String subject(Teams card, Map<String, String> vars) {
         String title = render(card.title(), vars);
         return title.isEmpty() ? null : title;
@@ -80,13 +80,13 @@ public final class TeamsCard {
             out.add("teams.images.field is required");
         }
         for (Teams.Fact f : card.facts()) {
-            if (f == null || blank(f.title())) {
+            if (blank(f.title())) {
                 out.add("each teams fact needs a title");
                 break;
             }
         }
         for (Teams.Action a : card.actions()) {
-            if (a == null || blank(a.title()) || blank(a.url())) {
+            if (blank(a.title()) || blank(a.url())) {
                 out.add("each teams action needs a title and a url");
                 break;
             }

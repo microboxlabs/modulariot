@@ -1,0 +1,36 @@
+# 🔔 Release Notes v0.6.10 — ModularIoT
+
+### Fecha: 10/11/2026
+
+**Objetivo**: Esta versión corrige un problema de navegación en las tareas cuyo paquete no contiene archivos. El alcance incluye exclusivamente cambios del milestone OSS MIOT-0.6.10.
+
+## 🐛 Correcciones
+
+- **🐛 La navegación desde tareas sin archivos queda bloqueada** (#2588)
+  - **Impacto**: Los enlaces de la barra lateral y la navegación con `router.push` no completaban la transición ni actualizaban la URL.
+  - **Solución**: Se corrige el ciclo de renderizado de la galería multimedia cuando la tarea no tiene archivos, permitiendo que la navegación se complete.
+
+## 📊 Beneficios
+
+- Permite salir de la página de una tarea aunque su paquete no tenga archivos.
+- La URL se actualiza al navegar desde la página de la tarea.
+- Las transiciones de navegación pueden completarse sin quedar pendientes.
+- Evita el ciclo continuo de renderizado asociado a la galería multimedia en este caso.
+- Mejora la estabilidad de la página de edición de tareas.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.6.10` — versión 0.6.10.
+- **App**: `app@v0.6.10` — con cambios.
+- **Docs**: `docs@v0.6.10` — con cambios.
+- **Web**: `web@v0.6.10` — con cambios.
+- **Modulith**: `modulith@v0.5.48` — sin cambios.
+- **Harness**: `harness@v0.1.15` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión resuelve un bloqueo de navegación específico en tareas sin archivos y mejora la estabilidad de esa experiencia.
+
+El alcance corresponde al milestone OSS indicado; no incluye cambios de clientes.

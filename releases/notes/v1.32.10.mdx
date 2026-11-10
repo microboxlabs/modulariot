@@ -1,0 +1,36 @@
+# 🔔 Release Notes v1.32.10 — ModularIoT
+
+### Fecha: 10/11/2026
+
+**Objetivo**: Esta versión incluye una corrección de navegación en la página de tareas cuando el paquete no contiene archivos. El cambio corresponde a la integración OSS del milestone MIOT-0.6.10.
+
+## 🐛 Correcciones
+
+- **🐛 Navegación en tareas sin archivos**
+  - **Impacto**: Los enlaces de la barra lateral y la navegación con `router.push` podían quedarse pendientes sin cambiar la URL.
+  - **Solución**: Se corrige el ciclo de renderizado continuo provocado por una lista de archivos vacía, que interrumpía la transición de navegación.
+  - **Origen**: Integración OSS del milestone MIOT-0.6.10.
+
+## 📊 Beneficios
+
+- La navegación desde tareas sin archivos puede completarse.
+- Los enlaces de la barra lateral y la navegación programática dejan de quedar bloqueados por renders repetidos.
+- Se mejora el uso de tareas cuyos paquetes todavía no contienen archivos.
+- Se reduce el trabajo de renderizado innecesario en la galería multimedia para este caso.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.10`.
+- App: `app@v0.6.10` — con cambios.
+- Docs: `docs@v0.6.10` — con cambios.
+- Web: `web@v0.6.10` — con cambios.
+- Modulith: `modulith@v0.5.48` — sin cambios.
+- Harness: `harness@v0.1.15` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La corrección mejora la navegación en un caso límite de la página de tareas: cuando el paquete asociado no tiene archivos. El cambio se incorpora desde el milestone OSS MIOT-0.6.10.
+
+La versión de stack 0.6.10 incluye cambios en App, Docs y Web; Modulith y Harness mantienen sus versiones indicadas sin cambios.

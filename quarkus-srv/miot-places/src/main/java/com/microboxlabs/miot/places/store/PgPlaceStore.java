@@ -199,6 +199,26 @@ public class PgPlaceStore implements PlaceStore {
                 .stream().map(r -> new Pending(place(r), !r.getBoolean("is_active"))).toList();
     }
 
+    @Override
+    public <T> Optional<T> syncExclusively(Supplier<T> work) {
+        // A separate transaction pins the advisory lock even behind a transaction-mode pooler. Source
+        // acknowledgements commit independently, so one failed GPS write does not undo successful copies.
+        var connection = pool.get().getConnection().await().atMost(TIMEOUT);
+        try {
+            var transaction = connection.begin().await().atMost(TIMEOUT);
+            try {
+                boolean held = connection.query("SELECT pg_try_advisory_xact_lock("
+                        + "hashtextextended('miot_places.streamhub_sync', 0))")
+                        .execute().await().atMost(TIMEOUT).iterator().next().getBoolean(0);
+                return held ? Optional.ofNullable(work.get()) : Optional.empty();
+            } finally {
+                transaction.rollback().await().atMost(TIMEOUT);
+            }
+        } finally {
+            connection.close().await().atMost(TIMEOUT);
+        }
+    }
+
     /** Runs on the open transaction ({@link PgTx}) when there is one; constraint violations become 400/409. */
     private RowSet<Row> query(String sql, Tuple params) {
         try {

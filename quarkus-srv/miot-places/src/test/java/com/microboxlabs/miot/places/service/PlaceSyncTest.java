@@ -13,7 +13,9 @@ import com.microboxlabs.miot.places.store.InMemoryPlaceStore;
 import com.microboxlabs.miot.places.store.PlaceStore.Place;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 /** Every place a write touches reaches {@link PlaceSync} by its organization and code, once the write commits. */
@@ -49,8 +51,8 @@ class PlaceSyncTest {
         }
 
         @Override
-        public void deleted(String tenantCode, String externalCode, String kind) {
-            heard.add("deleted " + kind + " " + tenantCode + "/" + externalCode);
+        public void deleted(String tenantCode, String externalCode, Place place) {
+            heard.add("deleted " + place.kind() + " " + tenantCode + "/" + externalCode);
             if (meanwhile != null) {
                 Runnable other = meanwhile;
                 meanwhile = null;
@@ -227,6 +229,26 @@ class PlaceSyncTest {
     }
 
     @Test
+    void aBusyReplicaLeavesBothApiWritesAndRetriesPending() {
+        boolean[] busy = {true};
+        InMemoryPlaceStore shared = new InMemoryPlaceStore() {
+            @Override
+            public <T> Optional<T> syncExclusively(Supplier<T> work) {
+                return busy[0] ? Optional.empty() : Optional.ofNullable(work.get());
+            }
+        };
+        PlaceService api = new PlaceService(shared, Transactions.none(), recorder);
+        api.create(TENANT, geofence(null, null), ACTOR);
+        assertEquals(0, api.retryPending(100));
+        assertEquals(List.of(), heard);
+        assertEquals(1, shared.pending(100).size());
+        busy[0] = false;
+        assertEquals(1, api.retryPending(100));
+        assertEquals(0, api.retryPending(100));
+        assertEquals(1, heard.size());
+    }
+
+    @Test
     void aSyncThatWorksLeavesNothingPendingButRoutesAreNeverMarked() {
         service.create(TENANT, geofence(List.of(inner(null, "AND-1")), null), ACTOR);
         service.create(TENANT, route("RUTA-1", null), ACTOR);
@@ -279,7 +301,7 @@ class PlaceSyncTest {
             }
 
             @Override
-            public void deleted(String tenantCode, String externalCode, String kind) {
+            public void deleted(String tenantCode, String externalCode, Place place) {
                 heard.add("deleted " + externalCode);
             }
 

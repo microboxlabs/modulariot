@@ -297,6 +297,24 @@ class PgTreatmentStoresTest {
     }
 
     @Test
+    void pendingTeamsCallersRotateAndWrapAfterTheCursor() {
+        String tenant = tenant();
+        Treatment treatment = treatments.insert(openTreatment(tenant, 10L, ACTOR)).treatment();
+        List<String> operators = List.of("alpha@example.test", "beta@example.test", "gamma@example.test");
+        for (String operator : operators) {
+            TreatmentAction action = treatments.addAction(pendingTelephonyCall(tenant, treatment.id()));
+            pool.preparedQuery("UPDATE miot_symptoms.treatment_action SET performed_by = $2 WHERE id = $1")
+                    .execute(Tuple.of(UUID.fromString(action.id()), operator)).await().atMost(WAIT);
+        }
+        var cursor = new TreatmentStore.Caller(tenant, "beta@example.test");
+
+        List<String> rotated = treatments.pendingTeamsCallers(OffsetDateTime.now().minusMinutes(1), 1000, cursor)
+                .stream().filter(c -> c.tenantCode().equals(tenant)).map(TreatmentStore.Caller::performedBy).toList();
+
+        assertEquals(List.of("gamma@example.test", "alpha@example.test", "beta@example.test"), rotated);
+    }
+
+    @Test
     void concurrentReconcilesClaimARecordOnceAndCannotOverwriteTheWinner() throws Exception {
         String tenant = tenant();
         Treatment treatment = treatments.insert(openTreatment(tenant, 10L, ACTOR)).treatment();
@@ -310,6 +328,8 @@ class PgTreatmentStoresTest {
                 .execute(Tuple.of(UUID.fromString(first.id()), PgJson.write(first.details())))
                 .await().atMost(WAIT);
         assertEquals(2, treatments.pendingTelephonyCalls(tenant, ACTOR, OffsetDateTime.now().minusMinutes(1)).size());
+        assertTrue(treatments.pendingTeamsCallers(OffsetDateTime.now().minusMinutes(1), 1000)
+                .contains(new TreatmentStore.Caller(tenant, ACTOR)));
         Map<String, Object> recorded = Map.of("telephony", Map.of("provider", "TEAMS_PHONE", "status", "RECORDED",
                 "connectionId", "m1", "recordId", "r1"));
         ExecutorService threads = Executors.newFixedThreadPool(2);

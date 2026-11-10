@@ -46,6 +46,7 @@ public class PgTreatmentStore implements TreatmentStore {
     };
     private static final TypeReference<Map<String, Object>> DETAILS = new TypeReference<>() {
     };
+    private static final String TENANT_CODE = "tenant_code";
     private static final String DETAILS_JSON = detailsJson("details");
     private static final String CLAIMED_DETAILS_JSON = detailsJson("claimed.details");
 
@@ -115,6 +116,16 @@ public class PgTreatmentStore implements TreatmentStore {
             WHERE tenant_code = $1 AND kind = 'CALL' AND performed_by = $2 AND performed_at >= $3
               AND %s #>> '{telephony,status}' = 'PENDING'
             ORDER BY performed_at LIMIT 50""".formatted(DETAILS_JSON);
+
+    private static final String PENDING_TEAMS_CALLERS = """
+            SELECT tenant_code, performed_by FROM (
+            SELECT DISTINCT tenant_code, performed_by FROM miot_symptoms.treatment_action
+            WHERE kind = 'CALL' AND performed_at >= $1 AND performed_by IS NOT NULL
+              AND %s #>> '{telephony,status}' = 'PENDING'
+              AND %s #>> '{telephony,provider}' = 'TEAMS_PHONE'
+            ) callers
+            ORDER BY CASE WHEN $3::text IS NULL OR (tenant_code, performed_by) > ($3, $4) THEN 0 ELSE 1 END,
+                     tenant_code, performed_by LIMIT $2""".formatted(DETAILS_JSON, DETAILS_JSON);
 
     private static final String UPDATE_CALL = """
             UPDATE miot_symptoms.treatment_action
@@ -350,7 +361,7 @@ public class PgTreatmentStore implements TreatmentStore {
 
     private static Treatment treatment(Row r) {
         return new Treatment(
-                text(r.getUUID("id")), r.getString("tenant_code"), r.getLong("symptom_id"),
+                text(r.getUUID("id")), r.getString(TENANT_CODE), r.getLong("symptom_id"),
                 r.getString("asset_id"), r.getString("trip_id"), TreatmentType.valueOf(r.getString("type")),
                 TreatmentStatus.valueOf(r.getString("status")), r.getString("opened_by"),
                 PgJson.time(r, "opened_at"), r.getString("closed_by"), PgJson.time(r, "closed_at"),
@@ -364,7 +375,7 @@ public class PgTreatmentStore implements TreatmentStore {
     private static TreatmentAction action(Row r) {
         String method = r.getString("method");
         return new TreatmentAction(
-                text(r.getUUID("id")), text(r.getUUID("treatment_id")), r.getString("tenant_code"),
+                text(r.getUUID("id")), text(r.getUUID("treatment_id")), r.getString(TENANT_CODE),
                 r.getInteger("seq"), ActionKind.valueOf(r.getString("kind")), text(r.getUUID("contact_id")),
                 r.getString("contact_name"), r.getString("contact_role"), r.getString("contact_phone"),
                 method == null ? null : CallMethod.valueOf(method), r.getString("outcome_key"),
@@ -378,6 +389,13 @@ public class PgTreatmentStore implements TreatmentStore {
     public List<TreatmentAction> pendingTelephonyCalls(String tenantCode, String performedBy,
             OffsetDateTime since) {
         return actions(query(pool.get(), PENDING_CALLS, Tuple.of(tenantCode, performedBy, since)));
+    }
+
+    @Override
+    public List<Caller> pendingTeamsCallers(OffsetDateTime since, int limit, Caller after) {
+        return query(pool.get(), PENDING_TEAMS_CALLERS, Tuple.of(since, limit,
+                after == null ? null : after.tenantCode(), after == null ? null : after.performedBy())).stream()
+                .map(r -> new Caller(r.getString(TENANT_CODE), r.getString("performed_by"))).toList();
     }
 
     @Override

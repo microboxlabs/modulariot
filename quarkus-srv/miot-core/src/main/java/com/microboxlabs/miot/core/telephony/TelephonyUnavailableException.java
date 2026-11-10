@@ -12,6 +12,8 @@ public class TelephonyUnavailableException extends IllegalStateException {
     public static final String QUOTA_EXHAUSTED = "telephony_quota_exhausted";
     /** Every channel of the line is in a call. */
     public static final String CHANNELS_BUSY = "telephony_channels_busy";
+    /** A complete report needs a smaller time window. */
+    public static final String CALL_RECORDS_PAGE_LIMIT = "telephony_call_records_page_limit";
     /** WhatsApp calling is not configured, or the organization's line cannot reach it. */
     public static final String WHATSAPP_UNAVAILABLE = "whatsapp_calling_unavailable";
     /** The contact has not allowed the business number to call (Meta answers SIP 403). */

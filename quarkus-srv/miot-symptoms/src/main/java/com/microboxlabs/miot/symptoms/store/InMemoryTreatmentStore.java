@@ -23,6 +23,8 @@ import java.util.UUID;
 /** Process-local treatment store for unit tests. Not a CDI bean: the running service uses {@link PgTreatmentStore}. */
 public class InMemoryTreatmentStore implements TreatmentStore {
 
+    private static final String PENDING = "PENDING";
+
     private final Map<String, Treatment> treatments = new LinkedHashMap<>();
     private final Map<String, List<TreatmentAction>> actions = new LinkedHashMap<>();
 
@@ -162,8 +164,21 @@ public class InMemoryTreatmentStore implements TreatmentStore {
         return actions.values().stream().flatMap(List::stream)
                 .filter(a -> a.tenantCode().equals(tenantCode) && a.kind() == ActionKind.CALL
                         && performedBy.equals(a.performedBy()) && !a.performedAt().isBefore(since)
-                        && "PENDING".equals(telephonyStatus(a)))
+                        && PENDING.equals(telephonyStatus(a)))
                 .sorted(java.util.Comparator.comparing(TreatmentAction::performedAt)).limit(50).toList();
+    }
+
+    @Override
+    public synchronized List<Caller> pendingTeamsCallers(OffsetDateTime since, int limit, Caller after) {
+        var order = java.util.Comparator.comparing(Caller::tenantCode).thenComparing(Caller::performedBy);
+        return actions.values().stream().flatMap(List::stream)
+                .filter(a -> a.kind() == ActionKind.CALL && a.performedBy() != null
+                        && !a.performedAt().isBefore(since) && PENDING.equals(telephonyStatus(a))
+                        && "TEAMS_PHONE".equals(telephonyDetails(a).get("provider")))
+                .map(a -> new Caller(a.tenantCode(), a.performedBy())).distinct()
+                .sorted(java.util.Comparator.comparing((Caller c) -> after != null && order.compare(c, after) <= 0)
+                        .thenComparing(order))
+                .limit(limit).toList();
     }
 
     @Override
@@ -179,7 +194,7 @@ public class InMemoryTreatmentStore implements TreatmentStore {
             for (int i = 0; i < list.size(); i++) {
                 TreatmentAction a = list.get(i);
                 if (a.id().equals(actionId) && a.tenantCode().equals(tenantCode) && a.kind() == ActionKind.CALL
-                        && "PENDING".equals(telephonyStatus(a))) {
+                        && PENDING.equals(telephonyStatus(a))) {
                     TreatmentAction updated = new TreatmentAction(a.id(), a.treatmentId(), a.tenantCode(), a.seq(),
                             a.kind(), a.contactId(), a.contactName(), a.contactRole(), a.contactPhone(), a.method(),
                             a.outcomeKey(), a.outcomeLabel(), answered,

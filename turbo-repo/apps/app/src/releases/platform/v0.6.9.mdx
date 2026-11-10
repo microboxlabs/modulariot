@@ -1,0 +1,40 @@
+# 🔔 Release Notes v0.6.9 — ModularIoT
+
+### Fecha: 10/11/2026
+
+**Objetivo**: Esta versión mejora la conciliación de llamadas de Teams y la identificación de conductores y transportistas. Incluye únicamente cambios del milestone OSS MIOT-0.6.9.
+
+## 🐛 Correcciones
+
+- **🐛 Identificación de conductores y transportistas por RUT**
+  - **Impacto**: Los formatos con puntos, guiones, espacios o una `k` minúscula podían impedir la coincidencia con el libro de contactos.
+  - **Solución**: La comparación reconoce esos formatos como equivalentes, por ejemplo, `00.000.001-9` y `000000019`. (Issue #2584)
+
+- **🐛 Conciliación de llamadas de Teams**
+  - **Impacto**: La conciliación rechazaba registros de llamadas salientes PSTN y de conferencias; además, las ejecuciones programadas podían exceder los límites de consultas de organizaciones de Graph.
+  - **Solución**: Se corrigieron los tipos de llamada admitidos y se ajustaron las consultas para respetar la limitación de solicitudes de Graph. (Issue #2582)
+
+## 📊 Beneficios
+
+- Menos coincidencias fallidas al asociar viajes con conductores y transportistas.
+- Compatibilidad con distintas formas de escribir un mismo RUT.
+- Conciliación de más tipos de registros de llamadas de Teams.
+- Menor riesgo de superar los límites de consultas de Microsoft Graph en ejecuciones programadas.
+- Mejor continuidad operativa para los procesos de viajes y conciliación.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.9`
+- App: `app@v0.6.9` (actualizada)
+- Docs: `docs@v0.6.8` (sin cambios)
+- Web: `web@v0.6.8` (sin cambios)
+- Modulith: `modulith@v0.5.48` (actualizado)
+- Harness: `harness@v0.1.15` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 0.6.9 aporta mejoras concretas a la correspondencia de contactos por RUT y a la conciliación de llamadas de Teams, incluidas las consultas sujetas a límites de Graph.
+
+El alcance comprende exclusivamente cambios de la plataforma incluidos en el milestone OSS MIOT-0.6.9; no incluye cambios de clientes.

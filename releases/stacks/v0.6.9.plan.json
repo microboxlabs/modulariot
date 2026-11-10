@@ -1,0 +1,101 @@
+{
+  "stack_version": "0.6.9",
+  "stack_tag": "miot-stack@v0.6.9",
+  "milestone": "MIOT-0.6.9",
+  "pull_requests": [
+    {
+      "number": 2563,
+      "title": "fix(telephony): Teams outbound PSTN types and a bounded, throttle-aware reconcile run",
+      "source_issues": [
+        {
+          "number": 2582,
+          "title": "bug: Teams outbound call types and reconciliation lookup limits"
+        }
+      ]
+    },
+    {
+      "number": 2583,
+      "title": "fix(symptoms): match trip drivers and carriers to the contact book whatever the RUT format",
+      "source_issues": [
+        {
+          "number": 2584,
+          "title": "fix(symptoms): match trip drivers and carriers to the contact book whatever the RUT format"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/Audiences.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/EventCondition.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/BookContactConditionsTest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/tax/NationalIds.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/telephony/PstnCall.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/telephony/TelephonyThrottledException.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/telephony/TelephonyUnavailableException.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/tax/NationalIdsTest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/telephony/TeamsCallRecords.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/StubHttp.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/telephony/TeamsCallRecordsTest.java",
+    "quarkus-srv/miot-symptoms/docs/telephony.md",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/dto/TripPeople.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/events/BookContacts.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/ContactService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/TeamsCallReconcileJob.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/TeamsCallReconciler.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/InMemoryTreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/TreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.28__teams_reconcile_cursor.sql",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/PgTripWindowsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/service/TeamsCallReconcileJobTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/service/TeamsCallReconcilerTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/service/TripContactsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgTreatmentStoresTest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/events/TripEvents.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/events/TripEventsTest.java",
+    "turbo-repo/apps/app/src/features/conversations/contact-samples.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/contact-samples.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-duplicates.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-duplicates.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/parse-contacts-csv.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/tax-id.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/use-carrier-companies.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-center-menu.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-center-menu.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-targets.ts",
+    "turbo-repo/apps/app/src/utils/rut.test.ts",
+    "turbo-repo/apps/app/src/utils/rut.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.9",
+      "tag": "app@v0.6.9"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.6.8",
+      "version": "0.6.8",
+      "tag": "docs@v0.6.8"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.6.8",
+      "version": "0.6.8",
+      "tag": "web@v0.6.8"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.47",
+      "version": "0.5.48",
+      "tag": "modulith@v0.5.48"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

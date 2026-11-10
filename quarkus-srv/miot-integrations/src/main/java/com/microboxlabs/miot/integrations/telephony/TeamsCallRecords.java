@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.PstnCall.Report;
+import com.microboxlabs.miot.core.telephony.TelephonyThrottledException;
 import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
 import com.microboxlabs.miot.integrations.auth.AuthResolutionException;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthRegistry;
@@ -26,10 +27,13 @@ import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiFunction;
 
 /**
@@ -37,12 +41,15 @@ import java.util.function.BiFunction;
  * Graph reports for the window, {@code getPstnCalls} (Calling Plans, Operator Connect) and
  * {@code getDirectRoutingCalls} (the organization's own carrier), each following at most {@link #MAX_PAGES} pages.
  * A 404 means the records are not there yet and counts as an empty report. Any other failure of either report
- * fails the lookup, since a match needs the complete list.
+ * fails the lookup, since a match needs the complete list. A 429, or a 503 with {@code Retry-After}, fails it with
+ * {@link TelephonyThrottledException} carrying the wait Graph asked for.
  */
 @ApplicationScoped
 public class TeamsCallRecords {
 
     static final int MAX_PAGES = 5;
+    static final Duration DEFAULT_RETRY_AFTER = Duration.ofMinutes(1);
+    static final Duration MAX_RETRY_AFTER = Duration.ofHours(1);
 
     private final BiFunction<String, String, IntegrationConnection> connections;
     private final BiFunction<String, IntegrationConnection, ResolvedConnection> resolver;
@@ -153,6 +160,11 @@ public class TeamsCallRecords {
 
     private JsonNode callList(HttpResponse<String> response, String name) {
         int status = response.statusCode();
+        Optional<String> retryAfter = response.headers().firstValue("Retry-After");
+        if (status == 429 || (status == 503 && retryAfter.isPresent())) {
+            throw new TelephonyThrottledException("Graph returned HTTP " + status + " for the " + name
+                    + " calls: throttled", retryAfter(retryAfter.orElse(null), Instant.now()));
+        }
         if (status == 401 || status == 403) {
             throw new TelephonyUnavailableException("Graph returned HTTP " + status + " for the " + name
                     + " calls: the app needs CallRecords.Read.All");
@@ -165,6 +177,27 @@ public class TeamsCallRecords {
             throw new TelephonyUnavailableException("Graph returned an invalid " + name + " call list");
         }
         return body;
+    }
+
+    /** {@code Retry-After} as seconds or an HTTP date; one minute when absent or unreadable, at most one hour. */
+    static Duration retryAfter(String value, Instant now) {
+        Duration wait = DEFAULT_RETRY_AFTER;
+        if (value != null && !value.isBlank()) {
+            String v = value.trim();
+            try {
+                wait = Duration.ofSeconds(Long.parseLong(v));
+            } catch (NumberFormatException notSeconds) {
+                try {
+                    wait = Duration.between(now, ZonedDateTime.parse(v, DateTimeFormatter.RFC_1123_DATE_TIME));
+                } catch (DateTimeParseException notADate) {
+                    wait = DEFAULT_RETRY_AFTER;
+                }
+            }
+        }
+        if (wait.compareTo(Duration.ofSeconds(1)) < 0) {
+            return Duration.ofSeconds(1);
+        }
+        return wait.compareTo(MAX_RETRY_AFTER) > 0 ? MAX_RETRY_AFTER : wait;
     }
 
     private static PstnCall pstnCall(JsonNode row) {

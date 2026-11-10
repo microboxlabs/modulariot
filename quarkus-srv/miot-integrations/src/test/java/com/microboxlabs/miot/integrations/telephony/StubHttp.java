@@ -34,7 +34,7 @@ public final class StubHttp implements TelephonyHttp {
         }
     }
 
-    private record Reply(int status, String body) {
+    private record Reply(int status, String body, Map<String, List<String>> headers) {
     }
 
     private final Map<String, Reply> replies = new LinkedHashMap<>();
@@ -43,7 +43,14 @@ public final class StubHttp implements TelephonyHttp {
 
     /** {@code pathPrefix} is a path prefix, or a method and a path prefix such as {@code "POST /v2/x"}. */
     public StubHttp reply(String pathPrefix, int status, String body) {
-        replies.put(pathPrefix, new Reply(status, body));
+        return reply(pathPrefix, status, body, Map.of());
+    }
+
+    /** A reply with response headers, e.g. {@code Retry-After}. */
+    public StubHttp reply(String pathPrefix, int status, String body, Map<String, String> headers) {
+        Map<String, List<String>> all = new LinkedHashMap<>();
+        headers.forEach((k, v) -> all.put(k, List.of(v)));
+        replies.put(pathPrefix, new Reply(status, body, all));
         return this;
     }
 
@@ -70,8 +77,8 @@ public final class StubHttp implements TelephonyHttp {
         String keyed = request.method() + " " + path;
         Reply reply = replies.entrySet().stream()
                 .filter(e -> path.startsWith(e.getKey()) || keyed.startsWith(e.getKey()))
-                .map(Map.Entry::getValue).findFirst().orElse(new Reply(404, "{}"));
-        return new Response(request, reply.status(), reply.body());
+                .map(Map.Entry::getValue).findFirst().orElse(new Reply(404, "{}", Map.of()));
+        return new Response(request, reply.status(), reply.body(), reply.headers());
     }
 
     private static String body(HttpRequest request) {
@@ -113,7 +120,8 @@ public final class StubHttp implements TelephonyHttp {
         }
     }
 
-    private record Response(HttpRequest request, int statusCode, String body) implements HttpResponse<String> {
+    private record Response(HttpRequest request, int statusCode, String body, Map<String, List<String>> headerMap)
+            implements HttpResponse<String> {
         @Override
         public Optional<HttpResponse<String>> previousResponse() {
             return Optional.empty();
@@ -121,7 +129,7 @@ public final class StubHttp implements TelephonyHttp {
 
         @Override
         public HttpHeaders headers() {
-            return HttpHeaders.of(Map.of(), (a, b) -> true);
+            return HttpHeaders.of(headerMap, (a, b) -> true);
         }
 
         @Override

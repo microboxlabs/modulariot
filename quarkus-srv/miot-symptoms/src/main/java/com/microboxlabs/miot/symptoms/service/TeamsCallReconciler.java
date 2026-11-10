@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
 import com.microboxlabs.miot.core.telephony.TelephonyProvider;
+import com.microboxlabs.miot.core.telephony.TelephonyThrottledException;
 import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.store.TreatmentStore;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Fills the duration and the result of the operator's Teams calls from the Microsoft Graph call records,
@@ -32,7 +34,8 @@ import java.util.Set;
  * a default caller id, the caller is that number; the record must also be an outbound call. No match, or more than one, leaves the action pending:
  * Graph publishes records late, and a record of another operator must never be taken by number and time
  * alone. After {@link #GIVE_UP} without a record the action is marked NOT_FOUND. The operator's own request and
- * {@link TeamsCallReconcileJob} both run it.
+ * {@link TeamsCallReconcileJob} both run it. When Graph throttles an organization, its lookups wait the
+ * {@code Retry-After} it gave, on this replica, before Graph is asked again.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -57,6 +60,7 @@ public class TeamsCallReconciler {
     private final Telephony telephony;
     private final AuditService audit;
     private final Clock clock;
+    private final Map<String, Instant> throttledUntil = new ConcurrentHashMap<>();
 
     @Inject
     public TeamsCallReconciler(TreatmentStore treatments, Telephony telephony, AuditService audit) {
@@ -72,6 +76,7 @@ public class TeamsCallReconciler {
 
     /**
      * @throws TelephonyUnavailableException when the organization has no ready Teams Phone line, or Graph refuses
+     * @throws TelephonyThrottledException   when Graph throttles the organization, or it is still waiting
      */
     public Result reconcile(String tenantCode, String operator) {
         return reconcileOperators(tenantCode, List.of(operator));
@@ -97,7 +102,7 @@ public class TeamsCallReconciler {
         if (to.isAfter(now)) {
             to = now;
         }
-        List<PstnCall> records = new ReportScan().read(tenantCode, line.connectionId(), from, to);
+        List<PstnCall> records = lookup(tenantCode, line.connectionId(), from, to, now);
         Set<String> taken = new HashSet<>(treatments.recordedTelephonyRecordIds(tenantCode, line.connectionId()));
         Lookup lookup = new Lookup(line, records, pending, taken);
         int recorded = 0;
@@ -108,6 +113,33 @@ public class TeamsCallReconciler {
             stillPending += result.pending();
         }
         return new Result(pending.size(), recorded, stillPending);
+    }
+
+    /** Whether Graph asked this organization to wait and the wait has not passed. */
+    boolean throttled(String tenantCode) {
+        Instant until = throttledUntil.get(tenantCode);
+        if (until == null) {
+            return false;
+        }
+        if (clock.instant().isBefore(until)) {
+            return true;
+        }
+        throttledUntil.remove(tenantCode, until);
+        return false;
+    }
+
+    private List<PstnCall> lookup(String tenantCode, String connectionId, Instant from, Instant to, Instant now) {
+        Instant until = throttledUntil.get(tenantCode);
+        if (until != null && now.isBefore(until)) {
+            throw new TelephonyThrottledException("Microsoft Graph asked to wait before the next lookup",
+                    Duration.between(now, until));
+        }
+        try {
+            return new ReportScan().read(tenantCode, connectionId, from, to);
+        } catch (TelephonyThrottledException e) {
+            throttledUntil.merge(tenantCode, now.plus(e.retryAfter()), (a, b) -> a.isAfter(b) ? a : b);
+            throw e;
+        }
     }
 
     /** Split only a page-limit failure; every subwindow must complete before any record is assigned. */

@@ -24,7 +24,7 @@ export async function forwardControlTowerMap(
   const org = encodeURIComponent(scope.scope.activeOrg.slug);
   return forwardToStreamhubModulith(
     `/api/v1/orgs/${org}/control-tower/map/${resource}${search}`,
-    { method: "GET", sessionOnly: true }
+    { method: "GET" }
   );
 }
 
@@ -39,17 +39,6 @@ export function isoDate(value: string): string {
     return `${date.slice(0, 10)}T${date.slice(11)}`;
   }
   return date;
-}
-
-/**
- * Whether this installation shows the GPS database's (legacy) symptoms beside
- * the evaluator's cases. `MIOT_SYMPTOMS_LEGACY_ENABLED=false` turns them off;
- * set it on the modulith too, which reads the same name.
- */
-export function legacySymptomsEnabled(): boolean {
-  return (
-    process.env.MIOT_SYMPTOMS_LEGACY_ENABLED?.trim().toLowerCase() !== "false"
-  );
 }
 
 export const SSE_HEADERS = {

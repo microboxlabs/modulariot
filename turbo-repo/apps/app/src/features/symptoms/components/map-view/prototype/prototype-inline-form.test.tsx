@@ -8,12 +8,8 @@ import PrototypeInlineForm from "./prototype-inline-form";
 
 const flow = vi.hoisted(() => ({
   onSkip: vi.fn<(step: number) => void>(),
-  startPendingTreatment: vi.fn(),
 }));
 vi.mock("next-auth/react", () => ({ useSession: () => ({ data: null }) }));
-vi.mock("./prototype-api-guard", () => ({
-  startPendingTreatment: flow.startPendingTreatment,
-}));
 vi.mock("./prototype-record-handling", () => ({
   default: () => <p>Handling form</p>,
 }));
@@ -65,16 +61,11 @@ function panel(
 }
 
 describe("opening the engine-only handling form", () => {
-  it.each([-7, 7])(
-    "never creates a pending GPS treatment for case %s",
-    (id) => {
-      flow.startPendingTreatment.mockClear();
-      render(panel(id, 3, "2026-11-05T12:00:00Z", "record_handling"));
+  it.each([-7, 7])("shows the handling form for case %s", (id) => {
+    render(panel(id, 3, "2026-11-05T12:00:00Z", "record_handling"));
 
-      expect(screen.getByText("Handling form")).toBeInTheDocument();
-      expect(flow.startPendingTreatment).not.toHaveBeenCalled();
-    }
-  );
+    expect(screen.getByText("Handling form")).toBeInTheDocument();
+  });
 });
 
 describe("local call-step progress", () => {

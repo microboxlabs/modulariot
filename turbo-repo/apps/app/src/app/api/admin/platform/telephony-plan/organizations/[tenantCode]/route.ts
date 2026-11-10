@@ -15,6 +15,6 @@ export async function PUT(
   }
   return forwardToStreamhubModulith(
     `/api/v1/platform/telephony-plan/organizations/${encodeURIComponent(tenantCode)}`,
-    { method: "PUT", body, sessionOnly: true }
+    { method: "PUT", body }
   );
 }

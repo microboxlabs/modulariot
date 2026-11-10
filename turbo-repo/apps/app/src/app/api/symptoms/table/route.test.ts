@@ -59,7 +59,7 @@ describe("GET /api/symptoms/table", () => {
     );
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme/control-tower/map/symptoms?p_asset_id=AB12&p_icu_code=3&p_page_size=10&p_page=1",
-      { method: "GET", sessionOnly: true }
+      { method: "GET" }
     );
     const body = await res.json();
     expect(body.data[0]).toMatchObject({
@@ -110,7 +110,7 @@ describe("GET /api/symptoms/table", () => {
     );
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme/control-tower/map/symptoms?p_start_date_historic=2026-10-15T00%3A00%3A00&p_end_date_historic=2026-10-15T23%3A59%3A59",
-      { method: "GET", sessionOnly: true }
+      { method: "GET" }
     );
   });
 

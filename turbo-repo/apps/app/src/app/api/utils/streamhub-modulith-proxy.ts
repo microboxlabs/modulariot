@@ -2,47 +2,20 @@ import "server-only";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
-import { getSharedAuthToken } from "@/app/api/utils/streamhub-api-client";
 import { proxyToUpstream } from "@/app/api/utils/upstream-proxy";
 import { modulithHost } from "@/lib/modulith-host";
 import { sessionAuthHeader } from "@/features/auth/services/session-auth";
 import { logger } from "@/lib/logger";
-import { PLATFORM_SCOPE_SLUG } from "@/features/common/platform-scope";
-
-const PLATFORM_ORG_PATH = `/api/v1/orgs/${PLATFORM_SCOPE_SLUG}/`;
 
 /**
- * Proxy to the StreamHub-facing modulith API (GPS webhooks and future GPS
- * control-plane routes).
+ * Proxy to the modulith that holds the GPS data (positions, symptoms, webhook
+ * subscriptions), with the logged-in user's session token.
  *
- * Why a separate helper from {@code forwardToQuarkus}?
- * - Coordinator domain (orgs, WhatsApp, harness) uses {@code MIOT_MODULITH_URL}
- *   with the browser user's session JWT (RS256).
- * - StreamHub domain (GPS positions, symptoms, webhook subscriptions) may be
- *   a different host / cluster. Locally it often points at the same modulith;
- *   in production it can move to the StreamHub GKE cluster independently.
- *
- * Auth modes ({@code MIOT_STREAMHUB_AUTH}):
- * - {@code session} (default) — forward the logged-in user's JWT. Correct for
- *   Settings UI (OrganizationRequestFilter validates Alfresco membership).
- * - {@code m2m} — StreamHub client_credentials token (HS256, audience
- *   {@code STREAMHUB_AUDIENCE}). Useful for service probes; M2M only passes
- *   org checks when JWT azp/aud matches {@code org.tenantClientId}. Requests
- *   in the platform scope ({@code /api/v1/orgs/_platform/...}) always forward
- *   the session.
- *
- * Base URL resolution order:
- * 1. {@code MIOT_STREAMHUB_API_URL}
- * 2. fallback {@code MIOT_MODULITH_URL}
+ * Base URL: {@code MIOT_STREAMHUB_API_URL}, else {@code MIOT_MODULITH_URL}.
  */
 export async function forwardToStreamhubModulith(
   path: string,
-  init?: {
-    method?: string;
-    body?: unknown;
-    /** Always forward the user's JWT, whatever {@code MIOT_STREAMHUB_AUTH} says. */
-    sessionOnly?: boolean;
-  }
+  init?: { method?: string; body?: unknown }
 ): Promise<NextResponse> {
   const session = await auth();
   if (!session?.user?.id) {
@@ -62,33 +35,17 @@ export async function forwardToStreamhubModulith(
     );
   }
 
-  // The modulith checks platform ownership from the token's email, which an M2M token does not carry.
-  const headers = await buildHeaders(
-    session,
-    (init?.sessionOnly ?? false) || path.startsWith(PLATFORM_ORG_PATH)
-  );
-  return proxyToUpstream(baseUrl, path, headers, init, {
+  return proxyToUpstream(baseUrl, path, sessionHeaders(session), init, {
     upstreamErrorMessage:
       "Content service is temporarily unavailable. Please try again.",
   });
 }
 
-async function buildHeaders(
-  session: Session,
-  sessionOnly: boolean
-): Promise<Record<string, string>> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  const mode = sessionOnly
-    ? "session"
-    : (process.env.MIOT_STREAMHUB_AUTH ?? "session").toLowerCase();
-
-  if (mode === "m2m") {
-    const token = await getSharedAuthToken().getToken();
-    headers.Authorization = `Bearer ${token}`;
-    return headers;
-  }
-
-  Object.assign(headers, sessionAuthHeader(session));
+function sessionHeaders(session: Session): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...sessionAuthHeader(session),
+  };
   if (session.user?.email) {
     headers["X-Dev-User-Email"] = session.user.email;
   }
@@ -117,7 +74,7 @@ export async function streamFromStreamhubModulith(
       { status: 500 }
     );
   }
-  const headers = await buildHeaders(session, true);
+  const headers = sessionHeaders(session);
   const upstream = await fetch(`${baseUrl}${path}`, {
     headers: { ...headers, Accept: "text/event-stream" },
     cache: "no-store",
@@ -168,7 +125,7 @@ export async function relayToStreamhubModulith(
       { status: 500 }
     );
   }
-  const headers = await buildHeaders(session, true);
+  const headers = sessionHeaders(session);
   delete headers.Accept;
   let upstream: Response;
   try {

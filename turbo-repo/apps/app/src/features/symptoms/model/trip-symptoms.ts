@@ -16,28 +16,20 @@ export type EngineTripSymptom = {
   last_opened_at: string | null;
 };
 
-/** What `/api/symptoms/trip` answers: the GPS database's rows, or the engine's symptoms. */
-export type TripSymptoms =
-  | { source: "legacy"; rows: Record<string, unknown>[] }
-  | { source: "engine"; trip: string; symptoms: EngineTripSymptom[] };
+/** What `/api/symptoms/trip` answers: the engine's symptoms of the trip. */
+export type TripSymptoms = { trip: string; symptoms: EngineTripSymptom[] };
 
 /**
- * The route's body as {@link TripSymptoms}. An object with a `symptoms` array
- * is the engine's answer. Anything else is the legacy answer: an array, or
- * `null` or `{}` for a trip without rows.
+ * The route's body as {@link TripSymptoms}. A body without a `symptoms` array
+ * is a trip without symptoms.
  */
 export function parseTripSymptoms(body: unknown): TripSymptoms {
-  if (Array.isArray(body)) {
-    return { source: "legacy", rows: body as Record<string, unknown>[] };
-  }
   const value = (body ?? {}) as { trip?: unknown; symptoms?: unknown };
-  if (!Array.isArray(value.symptoms)) {
-    return { source: "legacy", rows: [] };
-  }
   return {
-    source: "engine",
     trip: typeof value.trip === "string" ? value.trip : "",
-    symptoms: value.symptoms as EngineTripSymptom[],
+    symptoms: Array.isArray(value.symptoms)
+      ? (value.symptoms as EngineTripSymptom[])
+      : [],
   };
 }
 

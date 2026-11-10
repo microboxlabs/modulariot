@@ -52,17 +52,14 @@ describe("/api/trips/[...path]", () => {
       ctx(["monitors", "direct", "draft"])
     );
     expect(forwardMock.mock.calls).toEqual([
-      [
-        "/api/v1/orgs/acme/trips/monitors",
-        { method: "GET", body: undefined, sessionOnly: true },
-      ],
+      ["/api/v1/orgs/acme/trips/monitors", { method: "GET", body: undefined }],
       [
         "/api/v1/orgs/acme/trips/monitors/direct",
-        { method: "PUT", body: { name: "Direct" }, sessionOnly: true },
+        { method: "PUT", body: { name: "Direct" } },
       ],
       [
         "/api/v1/orgs/acme/trips/monitors/direct/draft",
-        { method: "DELETE", body: undefined, sessionOnly: true },
+        { method: "DELETE", body: undefined },
       ],
     ]);
   });
@@ -88,7 +85,7 @@ describe("/api/trips/[...path]", () => {
     );
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme/trips/test-trip/milestones/departure/confirm",
-      { method: "POST", body: { channel: "ui" }, sessionOnly: true }
+      { method: "POST", body: { channel: "ui" } }
     );
   });
 });

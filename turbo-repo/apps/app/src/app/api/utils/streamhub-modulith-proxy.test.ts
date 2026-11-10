@@ -3,19 +3,17 @@ import { NextResponse } from "next/server";
 
 const proxyMock = vi.fn();
 const fetchMock = vi.fn();
+const modulithHostMock = vi.fn(() => "http://modulith.test");
 
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn() } }));
 vi.mock("@/auth", () => ({
   auth: async () => ({ user: { id: "u1", email: "ana@example.com" } }),
 }));
 vi.mock("@/lib/modulith-host", () => ({
-  modulithHost: () => "http://modulith.test",
+  modulithHost: () => modulithHostMock(),
 }));
 vi.mock("@/features/auth/services/session-auth", () => ({
   sessionAuthHeader: () => ({ Authorization: "Bearer user-jwt" }),
-}));
-vi.mock("@/app/api/utils/streamhub-api-client", () => ({
-  getSharedAuthToken: () => ({ getToken: async () => "shared-m2m" }),
 }));
 vi.mock("@/app/api/utils/upstream-proxy", () => ({
   proxyToUpstream: (...args: unknown[]) => proxyMock(...args),
@@ -26,31 +24,23 @@ import {
   relayToStreamhubModulith,
 } from "./streamhub-modulith-proxy";
 
-const sentAuthorization = () =>
-  (proxyMock.mock.calls[0][2] as Record<string, string>).Authorization;
+const sentHeaders = () => proxyMock.mock.calls[0][2] as Record<string, string>;
 
 describe("forwardToStreamhubModulith", () => {
   beforeEach(() => {
     proxyMock.mockReset();
     proxyMock.mockResolvedValue(NextResponse.json({}));
-    vi.stubEnv("MIOT_STREAMHUB_AUTH", "m2m");
+    modulithHostMock.mockReturnValue("http://modulith.test");
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it("uses the shared token when the deployment asks for m2m", async () => {
+  it("forwards the user's token and email", async () => {
     await forwardToStreamhubModulith("/x", { method: "GET" });
-    expect(sentAuthorization()).toBe("Bearer shared-m2m");
-  });
-
-  it("forwards the user's token for a session-only call", async () => {
-    await forwardToStreamhubModulith("/x", {
-      method: "GET",
-      sessionOnly: true,
-    });
-    expect(sentAuthorization()).toBe("Bearer user-jwt");
+    expect(sentHeaders().Authorization).toBe("Bearer user-jwt");
+    expect(sentHeaders()["X-Dev-User-Email"]).toBe("ana@example.com");
   });
 
   it("forwards the user's token for the platform scope", async () => {
@@ -58,14 +48,34 @@ describe("forwardToStreamhubModulith", () => {
       "/api/v1/orgs/_platform/conversations/templates",
       { method: "GET" }
     );
-    expect(sentAuthorization()).toBe("Bearer user-jwt");
+    expect(sentHeaders().Authorization).toBe("Bearer user-jwt");
+  });
+
+  it("uses MIOT_STREAMHUB_API_URL when set", async () => {
+    vi.stubEnv("MIOT_STREAMHUB_API_URL", "http://gps-api.test/");
+    await forwardToStreamhubModulith("/x");
+    expect(proxyMock.mock.calls[0][0]).toBe("http://gps-api.test");
+  });
+
+  it("falls back to MIOT_MODULITH_URL without MIOT_STREAMHUB_API_URL", async () => {
+    vi.stubEnv("MIOT_STREAMHUB_API_URL", "");
+    await forwardToStreamhubModulith("/x");
+    expect(proxyMock.mock.calls[0][0]).toBe("http://modulith.test");
+  });
+
+  it("answers 500 when neither URL is configured", async () => {
+    vi.stubEnv("MIOT_STREAMHUB_API_URL", "");
+    modulithHostMock.mockReturnValue("");
+    const response = await forwardToStreamhubModulith("/x");
+    expect(response.status).toBe(500);
+    expect(proxyMock).not.toHaveBeenCalled();
   });
 });
 
 describe("relayToStreamhubModulith", () => {
   beforeEach(() => {
+    modulithHostMock.mockReturnValue("http://modulith.test");
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubEnv("MIOT_STREAMHUB_AUTH", "m2m");
     fetchMock.mockReset();
   });
   afterEach(() => {

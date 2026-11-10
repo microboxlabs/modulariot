@@ -7,61 +7,53 @@ vi.mock("@/auth", () => ({ auth: async () => ({ user: { id: "user" } }) }));
 vi.mock("@/app/api/utils/control-tower-map", () => ({
   forwardControlTowerMap: (...args: string[]) => forward(...args),
 }));
-vi.mock(
-  "@/features/common/providers/sreamhub-api/streamhub-api.provider",
-  () => ({
-    AuthToken: class {
-      getToken = async () => "test-token";
-    },
-  })
-);
 import { GET } from "./route";
+
+const geofences = [{ id: "g1", name: "Origin" }];
 
 describe("trip geofence source", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubEnv("STREAMHUB_IOT_URL", "http://avl.test");
-    forward.mockResolvedValue(NextResponse.json([]));
-    fetchMock.mockResolvedValue(NextResponse.json({ data: [] }));
+    forward.mockImplementation(async () => NextResponse.json(geofences));
   });
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
 
-  it("uses the modulith for a UUID with the AVL API configured", async () => {
+  it("reads a trips-module UUID from the modulith", async () => {
     const id = "11111111-1111-4111-8111-111111111111";
     const result = await GET(
       new NextRequest(`http://app.test/map?tripId=${id}`)
     );
-    expect(await result.json()).toEqual({ data: [] });
+    expect(await result.json()).toEqual({ data: geofences });
     expect(forward).toHaveBeenCalledWith(`trips/${id}/geofences`);
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  it("keeps a numeric trip on the legacy RPC", async () => {
-    const result = await GET(new NextRequest("http://app.test/map?tripId=123"));
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "api_modular_treatments_geofences_service?p_trip_id=123"
-      ),
-      expect.any(Object)
+
+  it("reads a service code from the modulith", async () => {
+    const result = await GET(
+      new NextRequest("http://app.test/map?tripId=SVC%20001")
     );
-    expect(await result.json()).toEqual({ data: [] });
-    expect(forward).not.toHaveBeenCalled();
-  });
-  it("uses the modulith without the AVL API", async () => {
-    vi.stubEnv("STREAMHUB_IOT_URL", "");
-    await GET(new NextRequest("http://app.test/map?tripId=123"));
-    expect(forward).toHaveBeenCalledWith("trips/123/geofences");
+    expect(await result.json()).toEqual({ data: geofences });
+    expect(forward).toHaveBeenCalledWith("trips/SVC%20001/geofences");
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  it("accepts an empty legacy response", async () => {
-    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
-    expect(
-      await (
-        await GET(new NextRequest("http://app.test/map?tripId=123"))
-      ).json()
-    ).toEqual([]);
+
+  it("passes a modulith error through", async () => {
+    forward.mockImplementation(async () =>
+      NextResponse.json({ error: "Trip not found" }, { status: 404 })
+    );
+    const result = await GET(new NextRequest("http://app.test/map?tripId=9"));
+    expect(result.status).toBe(404);
+  });
+
+  it("refuses a missing trip", async () => {
+    const result = await GET(
+      new NextRequest("http://app.test/map?tripId=null")
+    );
+    expect(result.status).toBe(400);
+    expect(forward).not.toHaveBeenCalled();
   });
 });

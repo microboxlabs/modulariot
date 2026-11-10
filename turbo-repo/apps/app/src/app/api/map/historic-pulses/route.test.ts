@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const forwardMock = vi.fn();
 const sessionMock = vi.fn();
+const fetchMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/auth", () => ({ auth: () => sessionMock() }));
@@ -15,14 +16,6 @@ vi.mock("@/app/api/utils/tenant-scope", () => ({
 vi.mock("@/app/api/utils/streamhub-modulith-proxy", () => ({
   forwardToStreamhubModulith: (...args: unknown[]) => forwardMock(...args),
 }));
-vi.mock(
-  "@/features/common/providers/sreamhub-api/streamhub-api.provider",
-  () => ({
-    AuthToken: class {
-      getToken = async () => "m2m";
-    },
-  })
-);
 
 import { GET } from "./route";
 
@@ -63,13 +56,12 @@ describe("GET /api/map/historic-pulses", () => {
     vi.clearAllMocks();
     sessionMock.mockResolvedValue({ user: { id: "u1" } });
     forwardMock.mockImplementation(async () => NextResponse.json(positions));
-    vi.stubEnv("STREAMHUB_IOT_URL", "");
+    vi.stubGlobal("fetch", fetchMock);
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
-    vi.restoreAllMocks();
   });
 
   it("sends the modulith's positions for the range as server-sent events, with the metres between them", async () => {
@@ -77,7 +69,7 @@ describe("GET /api/map/historic-pulses", () => {
 
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme/control-tower/map/assets/AB%2012/positions?from=2026-10-22T00%3A00%3A00-03%3A00&to=2026-10-23T23%3A59%3A59-03%3A00",
-      { method: "GET", sessionOnly: true }
+      { method: "GET" }
     );
     expect(res.headers.get("Content-Type")).toBe("text/event-stream");
     const events = (await res.text())
@@ -88,6 +80,59 @@ describe("GET /api/map/historic-pulses", () => {
       { ...positions[0], distance: 0 },
       { ...positions[1], distance: 1001 },
     ]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("turns a date with a space before the time into ISO", async () => {
+    await GET(
+      request({
+        ...range,
+        p_from: "2026-10-22 00:00:00-03:00",
+        p_to: "2026-10-22 12:00:00-03:00",
+      })
+    );
+    expect(forwardMock.mock.calls[0][0]).toContain(
+      "?from=2026-10-22T00%3A00%3A00-03%3A00&to=2026-10-22T12%3A00%3A00-03%3A00"
+    );
+  });
+
+  it("accepts a range of exactly 7 days", async () => {
+    const res = await GET(
+      request({
+        ...range,
+        p_from: "2026-10-01T00:00:00-03:00",
+        p_to: "2026-10-08T00:00:00-03:00",
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(forwardMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a range longer than 7 days without calling the modulith", async () => {
+    const res = await GET(
+      request({
+        ...range,
+        p_from: "2026-10-01T00:00:00-03:00",
+        p_to: "2026-10-08T00:00:01-03:00",
+      })
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: "The range may span at most 7 days",
+    });
+    expect(forwardMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves a date it cannot read to the modulith", async () => {
+    forwardMock.mockImplementation(async () =>
+      NextResponse.json(
+        { error: "from must be an ISO-8601 date-time with an offset" },
+        { status: 400 }
+      )
+    );
+    const res = await GET(request({ ...range, p_from: "not a date" }));
+    expect(res.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("sends an empty stream when the asset has no signals", async () => {
@@ -105,18 +150,6 @@ describe("GET /api/map/historic-pulses", () => {
     );
 
     expect(await (await GET(request(range))).text()).toBe("");
-  });
-
-  it("closes the AVL stream on a date it cannot read", async () => {
-    vi.stubEnv("STREAMHUB_IOT_URL", "http://avl.test");
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const res = await GET(request({ ...range, p_from: "not a date" }));
-
-    expect(await res.text()).toMatch(/^event: failed\ndata: /);
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("answers 502 when the modulith's body is not JSON", async () => {
@@ -141,20 +174,6 @@ describe("GET /api/map/historic-pulses", () => {
   it("refuses a request without the asset or the range", async () => {
     expect((await GET(request({ ...range, assetId: "" }))).status).toBe(400);
     expect((await GET(request({ ...range, p_to: "" }))).status).toBe(400);
-    expect(forwardMock).not.toHaveBeenCalled();
-  });
-
-  it("keeps reading the AVL API when it is configured", async () => {
-    vi.stubEnv("STREAMHUB_IOT_URL", "http://avl.test");
-    const fetchMock = vi.fn(async () => new Response("down", { status: 503 }));
-    vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const res = await GET(request(range));
-
-    expect(res.headers.get("Content-Type")).toBe("text/event-stream");
-    expect(await res.text()).toMatch(/^event: failed\ndata: /);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(forwardMock).not.toHaveBeenCalled();
   });
 

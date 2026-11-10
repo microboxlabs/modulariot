@@ -165,7 +165,7 @@ export default function PrototypeIgnoreCondition({
           placeholder={t("reason_required")}
         />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-1 flex-col">
         <span className={fieldLabel}>
           {t("ignore_note")}
           {notaObligatoria ? " *" : ""}

@@ -60,16 +60,19 @@ function firstPoint(
     : null;
 }
 
+// `minSide` keeps an open form usable on narrow screens (about 1280-1440 px
+// with the app sidebar open): the map shrinks instead. At 1600 px and wider
+// the percentages are already larger, so these minimums do not apply.
 function panelWidths(
   isFormOpen: boolean,
   isCallDriver: boolean,
   isCallFormStep: boolean
-): { side: string; map: string } {
+): { side: string; map: string; minSide?: string } {
   if (!isFormOpen) return { side: "35%", map: "65%" };
-  if (!isCallDriver) return { side: "62%", map: "38%" };
+  if (!isCallDriver) return { side: "62%", map: "38%", minSide: "36rem" };
   return isCallFormStep
-    ? { side: "50%", map: "50%" }
-    : { side: "33.3333%", map: "66.6667%" };
+    ? { side: "50%", map: "50%", minSide: "36rem" }
+    : { side: "33.3333%", map: "66.6667%", minSide: "26rem" };
 }
 
 function contextRowClass(show: boolean): string {
@@ -403,7 +406,7 @@ export default function PrototypeGeneralMap({
         {/* Map — shrinks (width) when the inline form opens, and (height)
             makes room for the symptom-context row below it when that's showing. */}
         <div
-          className="flex h-full flex-col gap-2 transition-[width] duration-500 ease-in-out"
+          className="flex h-full min-w-0 flex-col gap-2 transition-[width] duration-500 ease-in-out"
           style={{ width: layout.mapWidth }}
         >
           <div className="min-h-0 flex-1 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">

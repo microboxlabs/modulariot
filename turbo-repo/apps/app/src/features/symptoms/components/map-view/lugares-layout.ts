@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 // toma todo el ancho
 export function lugaresLayout(
   lugaresAbierto: boolean,
-  anchos: { side: string; map: string }
+  anchos: { side: string; map: string; minSide?: string }
 ): { sideStyle: CSSProperties; mapWidth: string } {
   if (lugaresAbierto) {
     return {
@@ -24,7 +24,9 @@ export function lugaresLayout(
       marginRight: "8px",
       opacity: 1,
       borderWidth: 1,
-      minWidth: 0,
+      // Leave room for the margin even when the viewport (or browser zoom)
+      // makes the available content area narrower than the preferred minimum.
+      minWidth: anchos.minSide ? `min(${anchos.minSide}, calc(100% - 8px))` : 0,
     },
     mapWidth: anchos.map,
   };

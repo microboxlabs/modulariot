@@ -160,8 +160,9 @@ function callTreatmentTexts({
 /**
  * PROTOTYPE — variant of
  * `blurrable-stepped-menu/menus/call-driver/call-driver.tsx`. Same state and
- * submit logic; laid out as a bento grid that fits the panel height with no
- * scroll — the message and results cells absorb the free space. Every
+ * submit logic; laid out as a bento grid that fits the panel height — the
+ * message and results cells absorb the free space, and the grid scrolls on
+ * short screens. Every
  * dropdown is a Flowbite `Dropdown`, not a native `<select>`. "Who to call"
  * and "tags" are Selectables — their options come from whichever one the
  * field's gear is bound to (see `prototype-form-kit`'s `SelectableDropdown` /
@@ -588,7 +589,7 @@ export default function PrototypeCallDriver({
           emptyLabel={t("result_pending")}
         />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-1 flex-col">
         <span className={fieldLabel}>{t("call_note")}</span>
         <Textarea
           className={fillTextarea}
@@ -693,7 +694,6 @@ export default function PrototypeCallDriver({
           title={t("proto_section_results")}
           aiFilled={resultAiFilled || notaAiFilled}
           grow
-          scrollBody={false}
         >
           {resultFields}
         </FieldCard>
@@ -707,7 +707,6 @@ export default function PrototypeCallDriver({
             title={t("proto_section_results")}
             aiFilled={resultAiFilled || notaAiFilled}
             grow
-            scrollBody={false}
           >
             {resultFields}
           </FieldCard>

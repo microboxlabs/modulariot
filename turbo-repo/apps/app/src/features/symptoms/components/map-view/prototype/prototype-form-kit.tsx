@@ -38,9 +38,9 @@ import { useFieldEditorMode } from "./call-center/field-editor-mode";
 /**
  * PROTOTYPE — shared building blocks for the inline treatment forms
  * (call driver / ignore condition / invalidate symptom). One layout only: a
- * "bento" of bordered cells that fills the panel height with no scroll —
- * the "tarjetas" (cards-with-hints, scrolling body) variant was tried and
- * dropped in favor of this.
+ * "bento" of bordered cells that fills the panel height. When the panel is
+ * shorter than the cells' minimum heights, the bento scrolls and the action
+ * bar stays at its bottom.
  */
 
 /** An option as the treatment forms use it: `id` is the stored value. */
@@ -86,9 +86,11 @@ function useBinding(fieldKey: string) {
 export const fieldLabel =
   "block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1";
 
-/** Textarea class for a cell that must fill (not push) its bento cell height. */
+/** Textarea class for a cell that fills its bento cell height. Never shorter
+ *  than three lines; the operator can drag it taller. Its wrapper must not
+ *  set `min-h-0`, or the cell shrinks below that minimum. */
 export const fillTextarea =
-  "w-full min-h-0 flex-1 resize-none text-sm text-gray-900 dark:text-white";
+  "w-full min-h-[5.25rem] flex-auto resize-y text-sm text-gray-900 dark:text-white";
 
 /** Every bento cell's header: full-bleed separator, title + optional action
  *  vertically centered. `-mx-*` cancels the cell's own side padding so the
@@ -105,7 +107,9 @@ const cellTitleClass =
   "truncate text-sm font-semibold leading-none text-gray-900 dark:text-white";
 
 /**
- * Compact "bento" column: fills the form body height, no outer scroll.
+ * Compact "bento" column: fills the form body height. It scrolls when its
+ * cells' minimum heights do not fit (short screens); `StickyActions` then
+ * stays at the bottom of the visible area.
  * Deliberately flexbox, not CSS Grid — grid `fr` tracks only expand to fill
  * free space when the grid container's own height is definite, which is easy
  * to lose across a few nested wrappers; `flex-1`/`min-h-0` resolve through
@@ -117,7 +121,7 @@ export function BentoGrid({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3">
+    <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto">
       {children}
     </div>
   );
@@ -126,8 +130,9 @@ export function BentoGrid({
 /**
  * A bento row: one or two cards side by side, always equal width
  * (`grid-cols-2`) and always full height (an *explicit* single
- * `minmax(0,1fr)` row track, not the implicit `auto` row CSS Grid falls back
- * to — explicit tracks are what actually stretch to the grid's own size).
+ * `minmax(min-content,1fr)` row track, not the implicit `auto` row CSS Grid
+ * falls back to — explicit tracks are what actually stretch to the grid's
+ * own size). The `min-content` floor keeps the cards from collapsing.
  * Pass `grow` for the row that should absorb the remaining height in a
  * `BentoGrid`; its cards (`FieldCard ... grow`) then fill that height too,
  * via the default grid `align-items: stretch` — no percentage math needed on
@@ -142,8 +147,8 @@ export function BentoRow({
 }>) {
   return (
     <div
-      className={`grid grid-cols-1 grid-rows-[minmax(0,1fr)] gap-3 sm:grid-cols-2 ${
-        grow ? "min-h-0 flex-1" : "shrink-0"
+      className={`grid grid-cols-1 grid-rows-[minmax(min-content,1fr)] gap-3 sm:grid-cols-2 ${
+        grow ? "flex-1" : "shrink-0"
       }`}
     >
       {children}
@@ -602,7 +607,6 @@ export function FieldCard({
   grow = false,
   aiFilled = false,
   borderClassName,
-  scrollBody = true,
   children,
 }: Readonly<{
   title: string;
@@ -614,19 +618,13 @@ export function FieldCard({
    *  match source order, so an appended override can silently lose) — e.g. a
    *  colored-border variant for a card that needs to stand out a little. */
   borderClassName?: string;
-  /** A `grow` card's body scrolls (`overflow-y-auto`) by default so its
-   *  content never pushes the bento layout taller than the panel. Pass
-   *  `false` for a card containing a floating panel that is not portaled
-   *  (e.g. a Flowbite `Dropdown`) — `overflow-y-auto` clips that panel to
-   *  this card's bounds. `OptionsDropdown` and `SelectableDropdown` portal
-   *  their menu, so they don't need it. */
-  scrollBody?: boolean;
   children: React.ReactNode;
 }>) {
-  const scrollClass = scrollBody ? "overflow-y-auto" : "";
+  // No `min-h-0` and no inner scroll: a card is never shorter than its
+  // content. `BentoGrid` scrolls instead.
   return (
     <section
-      className={`flex min-h-0 flex-col gap-3 rounded-lg border px-3 pb-3 transition-colors ${
+      className={`flex flex-col gap-3 rounded-lg border px-3 pb-3 transition-colors ${
         aiFilled
           ? aiFilledSectionClass
           : (borderClassName ??
@@ -644,11 +642,7 @@ export function FieldCard({
         </span>
         {action}
       </div>
-      <div
-        className={`flex flex-col gap-2 ${
-          grow ? `min-h-0 flex-1 ${scrollClass}` : ""
-        }`}
-      >
+      <div className={`flex flex-col gap-2 ${grow ? "flex-1" : ""}`}>
         {children}
       </div>
     </section>
@@ -656,11 +650,17 @@ export function FieldCard({
 }
 
 /** The form's action bar — the last (shrink-0) row in the bento column, held
- *  at the floor by the flexible row above it absorbing the rest of the height. */
+ *  at the floor by the flexible row above it absorbing the rest of the height.
+ *  When the bento scrolls, it sticks to the bottom of the visible area. Its
+ *  background matches the form body so scrolled cards pass under it. */
 export function StickyActions({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return <div className="shrink-0">{children}</div>;
+  return (
+    <div className="sticky bottom-0 z-10 shrink-0 bg-gray-50 dark:bg-gray-900">
+      {children}
+    </div>
+  );
 }
 
 /** Titled bento cell for the general-information grid. */

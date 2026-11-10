@@ -115,7 +115,7 @@ export default function PrototypeInvalidateSymptom({
   );
 
   const detailFields = (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex flex-1 flex-col">
       <div className="mb-1 flex items-baseline justify-between gap-2">
         <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
           {t("invalidate_reason")} *

@@ -1,3 +1,8 @@
+/** RUT without dots, dashes or spaces, upper-cased ("12.345.678-k" → "12345678K"). The contact book stores this form. */
+export function normalizeRut(rut: string): string {
+  return rut.replaceAll(/[.\-\s]/g, "").toUpperCase();
+}
+
 export function formatRut(rut: string) {
   return rut.replace(/\./g, "").replace(/-/g, "");
 }

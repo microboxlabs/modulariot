@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  checkRut,
-  displayRut,
-  maskRut,
-  normalizeRut,
-} from "./contact-duplicates";
+import { checkRut, displayRut, maskRut } from "./contact-duplicates";
 import type { BookContact } from "./store";
 
 const base: BookContact = {
@@ -18,12 +13,6 @@ const contacts: BookContact[] = [
   { ...base, rut: "11.111.111-1" },
   { ...base, id: "b", name: "Ana Pérez" },
 ];
-
-describe("normalizeRut", () => {
-  it("strips dots, dashes and spaces and upper-cases the DV", () => {
-    expect(normalizeRut(" 12.345.678-k ")).toBe("12345678K");
-  });
-});
 
 describe("maskRut", () => {
   it("formats while typing and keeps K only as the check digit", () => {

@@ -1,12 +1,18 @@
 package com.microboxlabs.miot.symptoms.dto;
 
+import com.microboxlabs.miot.core.tax.NationalIds;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * The RUTs of a case's trip: its driver and second driver, and its carrier company. Empty when the case has no live
  * trip or the trip does not say.
  *
- * @param driverRuts the driver's RUT, then the second driver's, as the trip stores them
+ * <p>RUTs are normalized with {@link NationalIds#normalize}: the trip stores {@code 11111111-1}, the book
+ * {@code 111111111}.
+ *
+ * @param driverRuts the driver's RUT, then the second driver's
  * @param carrierRut the carrier company's tax id, or null
  */
 public record TripPeople(List<String> driverRuts, String carrierRut, String driverRut, String secondDriverRut) {
@@ -18,16 +24,11 @@ public record TripPeople(List<String> driverRuts, String carrierRut, String driv
 
     public static final TripPeople NONE = new TripPeople(List.of(), null);
 
-    /** Leaves out blank and repeated RUTs. */
+    /** Normalizes the RUTs and leaves out blank and repeated ones. */
     public static TripPeople of(String driverRut, String secondDriverRut, String carrierRut) {
-        List<String> drivers = java.util.stream.Stream.of(driverRut, secondDriverRut)
-                .filter(r -> r != null && !r.isBlank())
-                .map(String::trim)
-                .distinct()
-                .toList();
-        return new TripPeople(drivers, clean(carrierRut), clean(driverRut), clean(secondDriverRut));
-    }
-    private static String clean(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
+        String driver = NationalIds.normalize(driverRut);
+        String second = NationalIds.normalize(secondDriverRut);
+        List<String> drivers = Stream.of(driver, second).filter(Objects::nonNull).distinct().toList();
+        return new TripPeople(drivers, NationalIds.normalize(carrierRut), driver, second);
     }
 }

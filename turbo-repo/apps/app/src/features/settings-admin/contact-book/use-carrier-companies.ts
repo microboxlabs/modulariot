@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { normalizeRut } from "./contact-duplicates";
+import { normalizeRut } from "@/utils/rut";
 import type { CompanyOption } from "./store";
 
 interface CompanyView {

@@ -1,5 +1,6 @@
 import { isRutValid } from "@/utils/rut";
-import { displayRut, maskRut, normalizeRut } from "./contact-duplicates";
+import { normalizeRut } from "@/utils/rut";
+import { displayRut, maskRut } from "./contact-duplicates";
 
 /** A person's document: RUT (Chile), DNI or CE (Peru), passport or another. */
 export const PERSON_ID_TYPES = [

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.event.ContactDirectory.Entry;
+import com.microboxlabs.miot.core.tax.NationalIds;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -70,6 +71,37 @@ class BookContactConditionsTest {
                 "contact.nationalId == event.data.driverRut && contact.nationalIdType == event.data.driverIdType",
                 "contact.companyRut == event.data.carrierRut && contact.companyTaxIdType == event.data.carrierIdType"),
                 Map.of("driverRut", "12345674", "driverIdType", "DNI", "carrierRut", "20100000009", "carrierIdType", "RUC")));
+    }
+
+    /** The trip's RUTs as {@code TripPeople.of} gives them to {@code event.data}. */
+    private static Map<String, Object> trip(String driverRut, String carrierRut) {
+        return Map.of("driverRut", NationalIds.normalize(driverRut), "carrierRut", NationalIds.normalize(carrierRut));
+    }
+
+    @Test
+    void theDriverAndCarrierMatchWhateverTheRutFormatOnEitherSide() {
+        List<String> who = List.of("contact.role == 'Conductor' && contact.nationalId == event.data.driverRut",
+                "contact.role == 'Gerente' && contact.companyRut == event.data.carrierRut");
+        BookContactConditions plain = new BookContactConditions(tenant -> List.of(
+                person("ana", "Conductor", null, "111111111"),
+                person("gerente", "Gerente", "222222222", null)));
+        BookContactConditions dashed = new BookContactConditions(tenant -> List.of(
+                person("ana", "Conductor", null, "11.111.111-1"),
+                person("gerente", "Gerente", "22.222.222-2", null)));
+        List<List<String>> both = List.of(List.of("ana"), List.of("gerente"));
+
+        assertEquals(both, plain.match("t", who, trip("11111111-1", "22222222-2")));
+        assertEquals(both, plain.match("t", who, trip("11.111.111-1", "22.222.222-2")));
+        assertEquals(both, dashed.match("t", who, trip("111111111", "222222222")));
+        assertEquals(both, dashed.match("t", who, trip("11111111-1", "22222222-2")));
+    }
+
+    @Test
+    void aLowercaseVerifierInTheBookMatchesTheTrip() {
+        BookContactConditions book = new BookContactConditions(tenant -> List.of(
+                person("ana", "Conductor", null, "1000005-k")));
+        assertEquals(List.of(List.of("ana")), book.match("t",
+                List.of("contact.nationalId == event.data.driverRut"), Map.of("driverRut", "1000005K")));
     }
 
 }

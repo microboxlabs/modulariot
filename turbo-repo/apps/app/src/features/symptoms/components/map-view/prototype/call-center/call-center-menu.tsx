@@ -45,6 +45,7 @@ import {
   partsText,
 } from "@/features/symptoms/maintainer/script-fill";
 import ScriptText from "@/features/symptoms/maintainer/script-text";
+import { normalizeRut } from "@/utils/rut";
 import {
   BentoGrid,
   GeneralInfoGrid,
@@ -141,24 +142,24 @@ function presetFor(
   trip: TowerTripContacts | undefined,
   carrierName: string | undefined
 ): NewContactPreset | undefined {
-  const driverRut =
+  const tripDriverRut =
     trip?.data.driverRut ??
     (summary?.driverField === "either"
       ? trip?.data.secondDriverRut
       : undefined);
+  const driverRut = tripDriverRut ? normalizeRut(tripDriverRut) : "";
+  const carrierRut = normalizeRut(trip?.data.carrierRut ?? "");
   if (summary?.driver && driverRut)
     return {
       role: DRIVER_ROLE,
       nationalId: driverRut,
-      nationalIdType: /^\d{11}$/.test(trip?.data.carrierRut ?? "")
-        ? "DNI"
-        : "RUT",
+      nationalIdType: /^\d{11}$/.test(carrierRut) ? "DNI" : "RUT",
     };
-  if (summary?.carrier && trip?.data.carrierRut)
+  if (summary?.carrier && carrierRut)
     return {
       role: summary.role ?? "",
-      companyRut: trip?.data.carrierRut,
-      companyTaxIdType: /^\d{11}$/.test(trip.data.carrierRut) ? "RUC" : "RUT",
+      companyRut: carrierRut,
+      companyTaxIdType: /^\d{11}$/.test(carrierRut) ? "RUC" : "RUT",
       company: carrierName?.trim() || undefined,
     };
   return undefined;

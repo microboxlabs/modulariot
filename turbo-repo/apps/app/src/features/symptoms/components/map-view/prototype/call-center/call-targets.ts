@@ -25,6 +25,7 @@ import {
   useContacts,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import { isDriverRole } from "@/features/symptoms/control-tower/step-who";
+import { normalizeRut } from "@/utils/rut";
 import { ALL_CALL_METHODS, type CallMethod } from "./call-method";
 
 export interface CallStats {
@@ -127,8 +128,7 @@ export function toCallTarget(c: TowerContact): CallTarget {
   };
 }
 
-const normalizedId = (id: string | null | undefined) =>
-  (id ?? "").replace(/[.\s-]/g, "").toUpperCase();
+const normalizedId = (id: string | null | undefined) => normalizeRut(id ?? "");
 
 /** True when the contact's national id is the trip driver's RUT. */
 export function isTripDriver(

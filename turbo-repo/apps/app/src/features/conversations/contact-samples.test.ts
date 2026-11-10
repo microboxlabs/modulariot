@@ -63,13 +63,13 @@ describe("contactSamples", () => {
 
   it("gives the RUTs in the book's form, as the server does", () => {
     const { samples } = contactSamples(
-      [contact({ nationalId: "11.111.111-1", companyRut: "22222222-2" })],
+      [contact({ nationalId: "00.000.001-9", companyRut: "00000003-0" })],
       []
     );
     expect(samples[0].contact).toEqual(
       expect.objectContaining({
-        nationalId: "111111111",
-        companyRut: "222222222",
+        nationalId: "000000019",
+        companyRut: "000000030",
       })
     );
   });

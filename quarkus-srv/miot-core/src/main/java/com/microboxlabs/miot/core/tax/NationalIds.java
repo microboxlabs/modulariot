@@ -15,11 +15,12 @@ public final class NationalIds {
     private NationalIds() {
     }
 
-    /** The id without separators, upper case; null when it is null or blank. */
+    /** The id without separators, upper case; null when it is null, blank or only separators. */
     public static String normalize(String id) {
         if (id == null || id.isBlank()) {
             return null;
         }
-        return SEPARATORS.matcher(id).replaceAll("").toUpperCase(Locale.ROOT);
+        String normalized = SEPARATORS.matcher(id).replaceAll("").toUpperCase(Locale.ROOT);
+        return normalized.isEmpty() ? null : normalized;
     }
 }

@@ -93,26 +93,28 @@ class TripContactsTest {
         assertEquals(Map.of("driverRut", "19", "secondDriverRut", "19", "driverIdType", "RUT", "secondDriverIdType", "RUT"),
                 ContactService.tripData(TripPeople.of("1-9", "1-9", null)));
         assertEquals(new TripPeople(List.of(), "76"), TripPeople.of(null, "", "76"));
+        assertEquals(TripPeople.NONE, TripPeople.of(".-", " - . ", "..."));
+        assertEquals(Map.of(), ContactService.tripData(TripPeople.of(".-", " - . ", "...")));
     }
     @Test
     void tripPeopleNormalizesTheRutsAsTheBookStoresThem() {
-        TripPeople dashed = TripPeople.of("11111111-1", "33.333.333-3", "22222222-2");
-        assertEquals(List.of("111111111", "333333333"), dashed.driverRuts());
-        assertEquals("111111111", dashed.driverRut());
-        assertEquals("333333333", dashed.secondDriverRut());
-        assertEquals("222222222", dashed.carrierRut());
-        assertEquals(dashed, TripPeople.of("111111111", "333333333", "222222222"));
-        assertEquals("1000005K", TripPeople.of("1.000.005-k", null, null).driverRut());
+        TripPeople dashed = TripPeople.of("00000001-9", "00.000.004-2", "00000003-0");
+        assertEquals(List.of("000000019", "000000042"), dashed.driverRuts());
+        assertEquals("000000019", dashed.driverRut());
+        assertEquals("000000042", dashed.secondDriverRut());
+        assertEquals("000000030", dashed.carrierRut());
+        assertEquals(dashed, TripPeople.of("000000019", "000000042", "000000030"));
+        assertEquals("00000002K", TripPeople.of("00.000.002-k", null, null).driverRut());
     }
 
     @Test
     void aDashedAndAnUndashedTripGiveTheSameEventData() {
-        Map<String, Object> dashed = ContactService.tripData(TripPeople.of("12.345.678-5", "1000005-k", "76111222-8"));
-        Map<String, Object> undashed = ContactService.tripData(TripPeople.of("123456785", "1000005K", "761112228"));
+        Map<String, Object> dashed = ContactService.tripData(TripPeople.of("00.000.001-9", "00000002-k", "00000003-0"));
+        Map<String, Object> undashed = ContactService.tripData(TripPeople.of("000000019", "00000002K", "000000030"));
         assertEquals(undashed, dashed);
-        assertEquals("123456785", dashed.get("driverRut"));
-        assertEquals("1000005K", dashed.get("secondDriverRut"));
-        assertEquals("761112228", dashed.get("carrierRut"));
+        assertEquals("000000019", dashed.get("driverRut"));
+        assertEquals("00000002K", dashed.get("secondDriverRut"));
+        assertEquals("000000030", dashed.get("carrierRut"));
     }
 
     @Test

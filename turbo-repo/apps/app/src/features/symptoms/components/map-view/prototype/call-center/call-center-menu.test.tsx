@@ -805,7 +805,7 @@ describe("CallCenterMenu", () => {
 
   it("pre-fills a trip RUT with dash in the book's form", async () => {
     data.match = () => [];
-    data.tripData = { driverRut: "11.111.111-1", carrierRut: "22222222-2" };
+    data.tripData = { driverRut: "00.000.001-9", carrierRut: "00000003-0" };
     data.level = levelWith([
       {
         role: "Conductor",
@@ -820,12 +820,16 @@ describe("CallCenterMenu", () => {
 
     await user.click(screen.getByRole("button", { name: "Nuevo número" }));
     expect(
-      screen.getByText("Se guarda como Conductor con RUT 111111111")
+      screen.getByText("Se guarda como Conductor con RUT 000000019")
     ).toBeTruthy();
+    await saveNewNumber(user, "Contacto de prueba");
+    expect(data.createContact).toHaveBeenCalledWith(
+      expect.objectContaining({ nationalId: "000000019" })
+    );
   });
 
   it("pre-fills a carrier RUT with dash in the book's form", async () => {
-    data.tripData = { driverRut: "000000019", carrierRut: "22.222.222-2" };
+    data.tripData = { driverRut: "000000019", carrierRut: "00.000.003-0" };
     data.level = levelWith([
       {
         role: "Oficina Comercial",
@@ -841,12 +845,12 @@ describe("CallCenterMenu", () => {
     await user.click(screen.getByRole("button", { name: "Nuevo número" }));
     expect(
       screen.getByText(
-        "Se guarda como Oficina Comercial de la empresa con RUT 222222222"
+        "Se guarda como Oficina Comercial de la empresa con RUT 000000030"
       )
     ).toBeTruthy();
-    await saveNewNumber(user, "Omar");
+    await saveNewNumber(user, "Contacto de prueba");
     expect(data.createContact).toHaveBeenCalledWith(
-      expect.objectContaining({ companyRut: "222222222" })
+      expect.objectContaining({ companyRut: "000000030" })
     );
   });
 

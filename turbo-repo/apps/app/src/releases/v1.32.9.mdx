@@ -1,0 +1,39 @@
+# 🔔 Release Notes v1.32.9 — ModularIoT
+
+### Fecha: 10/11/2026
+
+**Objetivo**: Esta versión reúne el alcance del milestone privado Release 1.32.9 y las integraciones OSS del milestone MIOT-0.6.9. Incluye correcciones para la conciliación de llamadas de Teams y la identificación de conductores y transportistas.
+
+## 🐛 Correcciones
+
+- **🐛 Coincidencia de conductores y transportistas con la libreta de contactos**
+  - **Impacto**: Los identificadores RUT con puntos, guiones, espacios o una «k» minúscula podían no coincidir con los de la libreta.
+  - **Solución**: Se corrige la comparación para que formatos como `00.000.001-9` coincidan con `000000019`. Integración OSS del milestone MIOT-0.6.9.
+
+- **🐛 Conciliación de llamadas salientes de Teams**
+  - **Impacto**: La conciliación rechazaba registros de llamadas con reenvío PSTN y conferencias; además, las ejecuciones programadas podían exceder los límites de consultas de la organización sin respetar la limitación de Graph.
+  - **Solución**: Se corrigen estos problemas en la conciliación y las consultas de la organización. Integración OSS del milestone MIOT-0.6.9.
+
+## 📊 Beneficios
+
+- Mayor consistencia al vincular conductores y transportistas con la libreta de contactos, aunque el RUT tenga distintos formatos.
+- Mejor compatibilidad de la conciliación con registros de reenvío PSTN y conferencias de Teams.
+- Menor riesgo de exceder los límites de consultas de Microsoft Graph durante ejecuciones programadas.
+- Integraciones OSS identificadas por su milestone para facilitar el seguimiento de cambios.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.9`
+- App: `app@v0.6.9` (con cambios)
+- Docs: `docs@v0.6.8` (sin cambios)
+- Web: `web@v0.6.8` (sin cambios)
+- Modulith: `modulith@v0.5.48` (con cambios)
+- Harness: `harness@v0.1.15` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de publicación `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.32.9 mejora la confiabilidad de dos flujos de coordinación: la identificación de participantes en viajes y la conciliación de llamadas de Teams.
+
+Las versiones de los componentes distinguen qué partes del stack cambiaron y cuáles permanecen sin cambios. Los digests de imágenes permiten consultar con precisión las compilaciones desplegadas.

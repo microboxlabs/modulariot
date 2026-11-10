@@ -176,7 +176,6 @@ public class TeamsService {
         }
     }
 
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     private static Uni<Void> replaceMembers(IamTeam team, Set<UUID> wanted) {
         return IamTeamMember.delete("id.teamId = ?1", team.id)
                 .flatMap(ignored -> Panache.getSession())

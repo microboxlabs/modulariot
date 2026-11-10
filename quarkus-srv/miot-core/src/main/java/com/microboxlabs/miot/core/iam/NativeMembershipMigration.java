@@ -122,19 +122,25 @@ public class NativeMembershipMigration {
         // Timeout inside the transaction: report failure only after rollback and session cleanup finish.
         return Panache.withTransaction(() -> {
             Context context = Vertx.currentContext();
-            return backendPid().flatMap(pid -> AlfrescoBridge.lock(slug, timeout)
-                            .flatMap(ignored -> migrateLocked(slug))
+            return backend().flatMap(backend -> AlfrescoBridge.lock(slug, timeout)
+                            .flatMap(ignored -> Organization.findBySlug(slug))
+                            // Another run may have moved it while this one waited for the lock.
+                            .flatMap(org -> org == null || !"ALFRESCO".equals(org.membershipSource)
+                                    ? Uni.createFrom().item(new Migrated(slug, 0, 0, 0, null))
+                                    : migrateLocked(slug))
                             .call(Panache::flush)
-                            .ifNoItem().after(timeout).recoverWithUni(() -> abort(pid)))
+                            .ifNoItem().after(timeout).recoverWithUni(() -> abort(backend)))
                     // The timeout fires on a timer thread; Hibernate cleanup must use the session's context.
                     .emitOn(task -> context.runOnContext(ignored -> task.run()));
         }).invoke(result -> LOG.infof("%s now uses native membership: %d added, %d suspended, %d default roles bound",
                 slug, result.added(), result.suspended(), result.defaultsBound()));
     }
 
-    private static Uni<Integer> backendPid() {
-        return Panache.getSession().flatMap(session -> session
-                .createNativeQuery("select pg_backend_pid()", Integer.class).getSingleResult());
+    /** This connection's backend: its pid and start time, so a pid Postgres reused later is not mistaken for it. */
+    private static Uni<String> backend() {
+        return Panache.getSession().flatMap(session -> session.createNativeQuery(
+                "select pid || ' ' || backend_start::text from pg_stat_activity where pid = pg_backend_pid()",
+                String.class).getSingleResult());
     }
 
     /**
@@ -142,11 +148,18 @@ public class NativeMembershipMigration {
      * transaction back. Cancelling the Uni does not stop a flush in progress: after a rollback over the same
      * connection, its remaining inserts would run outside the transaction and commit.
      */
-    private Uni<Migrated> abort(int pid) {
+    private Uni<Migrated> abort(String backend) {
+        String[] parts = backend.split(" ", 2);
         TimeoutException timedOut = new TimeoutException("Not done after " + timeout + "; tried again on the next run");
-        return pools.get().preparedQuery("select pg_terminate_backend($1, $2)")
-                .execute(Tuple.of(pid, TERMINATE_WAIT_MS))
+        return pools.get().preparedQuery("select pg_terminate_backend(pid, $3) from pg_stat_activity "
+                        + "where pid = $1 and backend_start::text = $2")
+                .execute(Tuple.of(Integer.parseInt(parts[0]), parts[1], TERMINATE_WAIT_MS))
                 .onItemOrFailure().transformToUni((rows, e) -> {
+                    // No row: Postgres already ended that backend.
+                    if (e != null || (rows.iterator().hasNext() && !rows.iterator().next().getBoolean(0))) {
+                        LOG.errorf(e, "Could not end backend %s after a timeout; its rollback may let queued"
+                                + " statements commit", parts[0]);
+                    }
                     if (e != null) {
                         timedOut.addSuppressed(e);
                     }

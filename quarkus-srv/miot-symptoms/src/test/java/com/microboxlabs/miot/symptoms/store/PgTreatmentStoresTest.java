@@ -616,6 +616,75 @@ class PgTreatmentStoresTest {
                 .get(TreatmentService.SKIP_TO_STEP));
     }
 
+    @Test
+    void concurrentEngineOpensResumeOnlyTheirOperatorTenantAndCase() throws Exception {
+        String tenant = tenant();
+        long symptomId = -pool.preparedQuery("""
+                INSERT INTO miot_symptoms.signal_transitions
+                    (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure)
+                VALUES ($1, $2, '1', 'ACTIVE', 'OPENED', 'vehicle-test', now(), 1, 0, 1) RETURNING id
+                """).execute(Tuple.of(tenant, UUID.randomUUID())).await().atMost(WAIT)
+                .iterator().next().getLong("id");
+        var barrier = new java.util.concurrent.CyclicBarrier(4);
+        List<TreatmentStore.Inserted> results = new ArrayList<>();
+        try (ExecutorService workers = Executors.newFixedThreadPool(4)) {
+            List<Future<TreatmentStore.Inserted>> requests = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                requests.add(workers.submit(() -> {
+                    barrier.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                    return treatments.insert(openTreatment(tenant, symptomId, ACTOR));
+                }));
+            }
+            for (Future<TreatmentStore.Inserted> request : requests) {
+                results.add(request.get(10, java.util.concurrent.TimeUnit.SECONDS));
+            }
+        }
+        assertEquals(1, results.stream().filter(TreatmentStore.Inserted::created).count());
+        assertEquals(1, results.stream().map(r -> r.treatment().id()).distinct().count());
+        assertEquals(1, treatments.listBySymptom(tenant, symptomId).size());
+        Treatment mine = results.getFirst().treatment();
+        Treatment other = treatments.insert(openTreatment(tenant, symptomId, "other@example.com")).treatment();
+        assertNotEquals(mine.id(), other.id());
+        assertTrue(treatments.findOpen(tenant(), symptomId, ACTOR).isEmpty());
+        assertTrue(treatments.findOpen(tenant, symptomId - 1, ACTOR).isEmpty());
+        Treatment wrongTenant = openTreatment(tenant(), symptomId, ACTOR);
+        assertThrows(java.util.NoSuchElementException.class,
+                () -> treatments.insert(wrongTenant));
+    }
+
+    @Test
+    void anOpenEpisodeResumesAfterTheEngineClosedItsCase() {
+        String tenant = tenant();
+        UUID definition = UUID.randomUUID();
+        long symptomId = -pool.preparedQuery("""
+                INSERT INTO miot_symptoms.signal_transitions
+                    (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure)
+                VALUES ($1, $2, '1', 'ACTIVE', 'OPENED', 'vehicle-test', now(), 1, 0, 1) RETURNING id
+                """).execute(Tuple.of(tenant, definition)).await().atMost(WAIT).iterator().next().getLong("id");
+        Treatment mine = treatments.insert(openTreatment(tenant, symptomId, ACTOR)).treatment();
+        pool.preparedQuery("""
+                INSERT INTO miot_symptoms.signal_transitions
+                    (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure)
+                VALUES ($1, $2, '1', 'ACTIVE', 'CLOSED', 'vehicle-test', now(), 1, 1, 0)
+                """).execute(Tuple.of(tenant, definition)).await().atMost(WAIT);
+
+        TreatmentStore.Inserted resumed = treatments.insert(openTreatment(tenant, symptomId, ACTOR));
+        assertFalse(resumed.created());
+        assertEquals(mine.id(), resumed.treatment().id());
+
+        Treatment otherOperator = openTreatment(tenant, symptomId, "other@example.com");
+        IllegalStateException refused = assertThrows(IllegalStateException.class,
+                () -> treatments.insert(otherOperator));
+        assertEquals("the case is closed", refused.getMessage());
+        treatments.addAction(note(tenant, mine.id(), null));
+        assertTrue(treatments.transition(tenant, mine.id(), TreatmentStatus.CLOSED, ACTOR, "resolved", null)
+                .isPresent());
+        Treatment newEpisode = openTreatment(tenant, symptomId, ACTOR);
+        assertThrows(IllegalStateException.class,
+                () -> treatments.insert(newEpisode),
+                "a finished episode does not make room for a new one on the closed case");
+    }
+
     private static String tenant() {
         return "tenant-" + UUID.randomUUID();
     }

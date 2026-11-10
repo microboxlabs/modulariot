@@ -86,6 +86,11 @@ public class TreatmentService {
         return new OpenResult(TreatmentView.of(saved, List.of()), true);
     }
 
+    /** True when {@code actor} has an episode open on the symptom, which {@link #open} would resume. */
+    public boolean hasOpen(String tenantCode, String actor, long symptomId) {
+        return treatments.findOpen(tenantCode, symptomId, actor).isPresent();
+    }
+
     public TreatmentAction addAction(String tenantCode, String actor, String treatmentId, AddActionRequest req) {
         if (req == null || req.kind() == null) {
             throw new IllegalArgumentException("kind is required (CALL, IGNORE, INVALIDATE, NOTE)");

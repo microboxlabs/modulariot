@@ -29,6 +29,7 @@ import {
   openTreatment,
   revalidateCase,
   type AddActionBody,
+  type ControlTowerError,
   type TowerActionKind,
   type TowerTreatmentType,
 } from "@/features/symptoms/control-tower/control-tower-api";
@@ -80,6 +81,31 @@ export interface EngineTreatmentProgress {
     treatmentId: string;
     resolution?: string;
   };
+  /** The treatment this form already opened: later saves add to it without opening again. */
+  opened?: {
+    symptomId: TreatmentsRequest["symptom_id"];
+    treatmentId: string;
+  };
+}
+
+/** A conflict answer from the Control Tower API (`ControlTowerError`). */
+function isConflict(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    (error as Partial<ControlTowerError>).status === 409
+  );
+}
+
+/** The API refused a new treatment, or a hold, because the case is already closed. */
+export function isCaseClosedError(error: unknown): boolean {
+  return isConflict(error) && error.message === "the case is closed";
+}
+
+/** The dictionary key of the message for a failed save. */
+export function treatmentSaveErrorKey(error: unknown): string {
+  return isCaseClosedError(error)
+    ? "treatment_case_closed"
+    : "treatment_save_error";
 }
 
 /** The call forms leave `treatment_type` empty: their saves are calls. */
@@ -124,18 +150,64 @@ async function saveEngineTreatment(
   if (progress?.pendingClose?.symptomId === payload.symptom_id) {
     await finishEngineTreatment(payload, progress);
   } else {
-    const treatment = await openEngineTreatment(payload);
-    await addTreatmentAction(treatment.id, engineAction(payload, action));
+    const treatmentId = await addEngineAction(
+      payload,
+      engineAction(payload, action),
+      progress
+    );
     if (finish) {
       await finishEngineTreatment(
         payload,
         progress,
-        treatment.id,
+        treatmentId,
         payload.description ?? undefined
       );
     }
   }
   return payload;
+}
+
+/**
+ * The treatment this form opened, else the operator's open one on the case,
+ * which the API resumes even after the engine closed the case. Only a new
+ * treatment on a closed case is refused.
+ */
+async function engineTreatmentId(
+  payload: TreatmentsRequest,
+  progress?: EngineTreatmentProgress
+): Promise<string> {
+  const known = progress?.opened;
+  if (known?.symptomId === payload.symptom_id) return known.treatmentId;
+  const treatment = await openEngineTreatment(payload);
+  if (progress) {
+    progress.opened = {
+      symptomId: payload.symptom_id,
+      treatmentId: treatment.id,
+    };
+  }
+  return treatment.id;
+}
+
+/** A remembered treatment closed elsewhere is forgotten and the open one is looked up once. */
+async function addEngineAction(
+  payload: TreatmentsRequest,
+  body: AddActionBody,
+  progress?: EngineTreatmentProgress
+): Promise<string> {
+  const remembered = progress?.opened?.symptomId === payload.symptom_id;
+  const treatmentId = await engineTreatmentId(payload, progress);
+  try {
+    await addTreatmentAction(treatmentId, body);
+    return treatmentId;
+  } catch (error) {
+    if (!remembered || !isConflict(error)) {
+      throw error;
+    }
+    if (progress) progress.opened = undefined;
+    const reopened = await engineTreatmentId(payload, progress);
+    await addTreatmentAction(reopened, body);
+    return reopened;
+  }
 }
 
 async function finishEngineTreatment(
@@ -148,7 +220,7 @@ async function finishEngineTreatment(
   if (pending?.symptomId !== payload.symptom_id) pending = undefined;
   pending ??= {
     symptomId: payload.symptom_id,
-    treatmentId: treatmentId ?? (await openEngineTreatment(payload)).id,
+    treatmentId: treatmentId ?? (await engineTreatmentId(payload, progress)),
     resolution,
   };
   if (progress) progress.pendingClose = pending;
@@ -156,7 +228,10 @@ async function finishEngineTreatment(
     pending.treatmentId,
     pending.resolution === undefined ? {} : { resolution: pending.resolution }
   );
-  if (progress) progress.pendingClose = undefined;
+  if (progress) {
+    progress.pendingClose = undefined;
+    progress.opened = undefined;
+  }
 }
 
 /** On a NOTE action: the call-script step (1-based) the operator skipped to. */
@@ -213,7 +288,10 @@ export async function guardedRequestTreatment(
   payload: TreatmentsRequest,
   engine: EngineTreatmentOptions = {}
 ): Promise<TreatmentsRequest> {
-  if (payload.treatment_type === RECORD_HANDLING_TYPE && !isEngineCase(payload)) {
+  if (
+    payload.treatment_type === RECORD_HANDLING_TYPE &&
+    !isEngineCase(payload)
+  ) {
     throw new TypeError("Handling records require an engine case");
   }
   if (isPrototypeApiDisabled()) return payload;

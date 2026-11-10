@@ -65,6 +65,9 @@ public class PgTreatmentStore implements TreatmentStore {
             ON CONFLICT (tenant_code, symptom_id, opened_by) WHERE status = 'OPEN' DO NOTHING
             RETURNING\s""" + TREATMENT_COLUMNS;
 
+    private static final String SELECT_MY_OPEN = SELECT_TREATMENTS
+            + " AND symptom_id = $2 AND opened_by = $3 AND status = 'OPEN'";
+
     private static final String LOCK_ENGINE_CASE = """
             SELECT id FROM miot_symptoms.signal_transitions
              WHERE tenant_code = $1 AND id = $2 AND kind = 'OPENED' FOR UPDATE
@@ -212,25 +215,32 @@ public class PgTreatmentStore implements TreatmentStore {
                 .orElseThrow(() -> new IllegalStateException("could not open treatment")), false);
     }
 
-    /** Check, insert and resume under the case's lock, so a close cannot slip between them. */
+    /**
+     * Resume, check and insert under the case's lock, so a close cannot slip between them. The operator's open
+     * episode resumes even when the case closed after it opened. Only a new episode needs an open case.
+     */
     private Inserted insertOnEngineCase(Treatment t, Tuple params) {
         Tuple key = Tuple.of(t.tenantCode(), -t.symptomId());
+        Tuple mine = Tuple.of(t.tenantCode(), t.symptomId(), t.openedBy());
         return pool.get().withTransaction(tx -> tx.preparedQuery(LOCK_ENGINE_CASE).execute(key)
                 .invoke(rows -> {
                     if (!rows.iterator().hasNext()) throw new NoSuchElementException("case not found");
                 })
-                .flatMap(ignored -> tx.preparedQuery(ENGINE_CASE_CLOSED).execute(key))
-                .invoke(rows -> {
-                    if (rows.iterator().hasNext()) throw new IllegalStateException("the case is closed");
-                })
-                .flatMap(ignored -> tx.preparedQuery(INSERT_TREATMENT).execute(params))
-                .flatMap(rows -> {
-                    List<Treatment> saved = treatments(rows);
-                    if (!saved.isEmpty()) return Uni.createFrom().item(new Inserted(saved.get(0), true));
-                    return tx.preparedQuery(SELECT_TREATMENTS
-                            + " AND symptom_id = $2 AND opened_by = $3 AND status = 'OPEN'")
-                            .execute(Tuple.of(t.tenantCode(), t.symptomId(), t.openedBy()))
-                            .map(open -> new Inserted(treatments(open).get(0), false));
+                .flatMap(ignored -> tx.preparedQuery(SELECT_MY_OPEN).execute(mine))
+                .flatMap(open -> {
+                    List<Treatment> resumed = treatments(open);
+                    if (!resumed.isEmpty()) return Uni.createFrom().item(new Inserted(resumed.get(0), false));
+                    return tx.preparedQuery(ENGINE_CASE_CLOSED).execute(key)
+                            .invoke(rows -> {
+                                if (rows.iterator().hasNext()) throw new IllegalStateException("the case is closed");
+                            })
+                            .flatMap(ignored -> tx.preparedQuery(INSERT_TREATMENT).execute(params))
+                            .flatMap(rows -> {
+                                List<Treatment> saved = treatments(rows);
+                                if (!saved.isEmpty()) return Uni.createFrom().item(new Inserted(saved.get(0), true));
+                                return tx.preparedQuery(SELECT_MY_OPEN).execute(mine)
+                                        .map(again -> new Inserted(treatments(again).get(0), false));
+                            });
                 })).await().atMost(QUERY_TIMEOUT);
     }
 

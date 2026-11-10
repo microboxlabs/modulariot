@@ -7,6 +7,7 @@ import PrototypeCallCenterFlow, {
 } from "./prototype-call-center-flow";
 import type { CallScript } from "./call-center-menu";
 import type { CallTarget } from "./call-targets";
+import type { EngineTreatmentProgress } from "../prototype-api-guard";
 import {
   CallSessionProvider,
   useCallSession,
@@ -84,13 +85,25 @@ vi.mock("../prototype-call-driver", () => ({
   default: ({
     onMakeAnotherCall,
     initialCallTargetPhone,
+    treatmentProgress,
   }: {
     onMakeAnotherCall: () => void;
     initialCallTargetPhone?: string;
+    treatmentProgress: EngineTreatmentProgress;
   }) => (
     <>
       <span data-testid="result-phone">{initialCallTargetPhone}</span>
-      <button onClick={onMakeAnotherCall}>Another call</button>
+      <span data-testid="treatment-id">
+        {treatmentProgress.opened?.treatmentId ?? "none"}
+      </span>
+      <button
+        onClick={() => {
+          treatmentProgress.opened = { symptomId: "-1", treatmentId: "t-1" };
+          onMakeAnotherCall();
+        }}
+      >
+        Another call
+      </button>
     </>
   ),
 }));
@@ -162,6 +175,17 @@ function Flow({
 }
 
 describe("call step scripts", () => {
+  it("keeps the treatment when another call remounts the results form", () => {
+    render(<Flow />);
+    fireEvent.click(screen.getByText("Step contact"));
+    fireEvent.click(screen.getByText("Confirm call"));
+    expect(screen.getByTestId("treatment-id")).toHaveTextContent("none");
+    fireEvent.click(screen.getByText("Another call"));
+    fireEvent.click(screen.getByText("Other contact"));
+    fireEvent.click(screen.getByText("Confirm call"));
+    expect(screen.getByTestId("treatment-id")).toHaveTextContent("t-1");
+  });
+
   it.each([
     ["-1", "TELNYX"],
     ["42", "manual"],

@@ -117,6 +117,10 @@ class OrgControlTowerTreatmentsResourceTest {
     private final OrgControlTowerTreatmentsResource resource = resource();
 
     private OrgControlTowerTreatmentsResource resource() {
+        return resource(caseService);
+    }
+
+    private OrgControlTowerTreatmentsResource resource(EngineCaseService engineCases) {
         OrganizationContext org = new OrganizationContext();
         org.setOrganizationId(ORG);
         org.setUserEmail("ops@example.com");
@@ -124,7 +128,7 @@ class OrgControlTowerTreatmentsResourceTest {
         tenant.setClientId(TENANT);
         return new OrgControlTowerTreatmentsResource(tenant, org, new Roles(), null,
                 new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments), audit, holds),
-                caseService, holds);
+                engineCases, holds);
     }
 
     private static Response call(Uni<Response> uni) {
@@ -217,6 +221,55 @@ class OrgControlTowerTreatmentsResourceTest {
         assertTrue(treatments.listBySymptom(TENANT, -20).isEmpty(), "no treatment was stored");
         assertEquals(404, call(resource.open(ORG, "-21",
                 new OpenTreatmentRequest(TreatmentType.CALL, "DEMO01", "T-1", null))).getStatus());
+    }
+
+    @Test
+    void resumesAnEpisodeOpenedByAConcurrentRequestBeforeTheCaseCheck() {
+        addCase(23, "T-1", null);
+        List<String> concurrent = new ArrayList<>();
+        EngineCaseService racing = new EngineCaseService(cases, (tenant, asset, definition) -> {}, t -> null, clock) {
+            @Override
+            public void requireOpen(String tenantCode, long symptomId) {
+                concurrent.add(OrgControlTowerTreatmentsResourceTest.this.open(23, TreatmentType.CALL).id());
+                cases.close(TENANT, 23, "engine", NOW);
+                super.requireOpen(tenantCode, symptomId);
+            }
+        };
+
+        Response resumed = call(resource(racing).open(ORG, "-23",
+                new OpenTreatmentRequest(TreatmentType.CALL, "DEMO01", "T-1", null)));
+
+        assertEquals(200, resumed.getStatus(), String.valueOf(resumed.getEntity()));
+        assertEquals(concurrent.getFirst(), ((TreatmentView) resumed.getEntity()).id());
+        assertEquals(1, treatments.listBySymptom(TENANT, -23).size());
+    }
+
+    @Test
+    void aTreatmentOpenedBeforeTheEngineClosedTheCaseStillFinishes() {
+        addCase(22, "T-1", null);
+        TreatmentView mine = open(22, TreatmentType.CALL);
+        call(resource.addAction(ORG, mine.id(), new AddActionRequest(ActionKind.CALL, null, "Conductor", null,
+                "+12025550100", CallMethod.PHONE, null, "Sin respuesta", false, 30, null, null, null, null)));
+        cases.close(TENANT, 22, "engine", NOW);
+
+        Response resumed = call(resource.open(ORG, "-22",
+                new OpenTreatmentRequest(TreatmentType.CALL, "DEMO01", "T-1", null)));
+        assertEquals(200, resumed.getStatus(), String.valueOf(resumed.getEntity()));
+        assertEquals(mine.id(), ((TreatmentView) resumed.getEntity()).id());
+
+        assertEquals(201, call(resource.addAction(ORG, mine.id(), new AddActionRequest(ActionKind.CALL, null,
+                "Conductor", null, "+12025550100", CallMethod.PHONE, null, "Compromete corrección", true, 60, null,
+                null, null, null))).getStatus());
+        Response closed = call(resource.close(ORG, mine.id(), new CloseTreatmentRequest("resolved", null)));
+        assertEquals(200, closed.getStatus(), String.valueOf(closed.getEntity()));
+        assertEquals(TreatmentStatus.CLOSED, ((TreatmentView) closed.getEntity()).status());
+        assertEquals(2, ((TreatmentView) closed.getEntity()).actions().size());
+        assertEquals(List.of("engine"), cases.closedBy, "the engine's close stands");
+        assertTrue(operatorCloses.isEmpty(), "no operator close is recorded on a closed case");
+
+        assertEquals(409, call(resource.open(ORG, "-22",
+                new OpenTreatmentRequest(TreatmentType.CALL, "DEMO01", "T-1", null))).getStatus(),
+                "once finished, no new treatment opens on the closed case");
     }
 
     @Test

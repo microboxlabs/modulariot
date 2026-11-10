@@ -11,6 +11,7 @@ import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
 import com.microboxlabs.miot.core.telephony.TelephonyProvider;
 import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
+import com.microboxlabs.miot.core.telephony.TelephonyThrottledException;
 import com.microboxlabs.miot.symptoms.domain.ActionKind;
 import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.Treatment;
@@ -27,10 +28,70 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class TeamsCallReconcilerTest {
+
+    @Test
+    void concurrentRequestsObserveTheFirstThrottledResponse() throws Exception {
+        pendingCall("+12025550101");
+        var calls = new AtomicInteger();
+        var lineReads = new AtomicInteger();
+        var firstStarted = new CountDownLatch(1);
+        var secondReady = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        Telephony slowGraph = new Telephony() {
+            @Override
+            public List<TelephonyLine> lines(String tenantCode) {
+                if (lineReads.incrementAndGet() == 2) {
+                    secondReady.countDown();
+                }
+                return List.of(line);
+            }
+
+            @Override
+            public List<PstnCall> pstnCalls(String tenantCode, String connectionId, Instant from, Instant to) {
+                if (calls.incrementAndGet() == 1) {
+                    firstStarted.countDown();
+                    try {
+                        assertTrue(release.await(5, TimeUnit.SECONDS));
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException(e);
+                    }
+                }
+                throw new TelephonyThrottledException("Graph returned HTTP 429", Duration.ofMinutes(1));
+            }
+        };
+        var service = new TeamsCallReconciler(store, slowGraph, new AuditService(new InMemoryAuditStore()),
+                Clock.fixed(now, ZoneOffset.UTC));
+        var requests = Executors.newFixedThreadPool(2);
+        try {
+            var first = requests.submit(() -> service.reconcile(TENANT, OPERATOR));
+            assertTrue(firstStarted.await(5, TimeUnit.SECONDS));
+            var second = requests.submit(() -> service.reconcile(TENANT, OPERATOR));
+            assertTrue(secondReady.await(5, TimeUnit.SECONDS));
+            assertThrows(TimeoutException.class, () -> second.get(200, TimeUnit.MILLISECONDS),
+                    "the second lookup waits for the first response before checking the pause");
+            release.countDown();
+            assertTrue(assertThrows(ExecutionException.class, () -> first.get(5, TimeUnit.SECONDS))
+                    .getCause() instanceof TelephonyThrottledException);
+            assertTrue(assertThrows(ExecutionException.class, () -> second.get(5, TimeUnit.SECONDS))
+                    .getCause() instanceof TelephonyThrottledException);
+            assertEquals(1, calls.get(), "a queued request must not call Graph during Retry-After");
+        } finally {
+            release.countDown();
+            requests.shutdownNow();
+            assertTrue(requests.awaitTermination(5, TimeUnit.SECONDS));
+        }
+    }
 
     @Test
     void aRecordAssignedOnAnEarlierRunCannotBeReused() {

@@ -86,7 +86,7 @@ class PgTreatmentStoresTest {
                 "V0.8.4__create_signal_transitions.sql",
                 "V0.8.3__create_tower_settings.sql", "V0.12.1__contact_company_rut.sql",
                 "V0.12.2__contact_company_tax_id_type.sql", "V0.12.3__contact_member_unique.sql",
-                "V0.12.16__tower_settings_telephony.sql")) {
+                "V0.12.16__tower_settings_telephony.sql", "V0.12.28__teams_reconcile_cursor.sql")) {
             try (InputStream in = PgTreatmentStoresTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -294,6 +294,18 @@ class PgTreatmentStoresTest {
         List<Integer> seqs = treatments.listActions(tenant, List.of(t.id())).stream().map(TreatmentAction::seq)
                 .toList();
         assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), seqs);
+    }
+
+    @Test
+    void teamsReconcileCheckpointSurvivesANewStoreInstance() {
+        var first = new PgTreatmentStore(() -> pool);
+        var second = new PgTreatmentStore(() -> pool);
+        var cursor = new TreatmentStore.Caller("example-org", "operator1@example.test");
+        first.saveTeamsReconcileCursor(cursor);
+        assertEquals(Optional.of(cursor), second.teamsReconcileCursor());
+        var next = new TreatmentStore.Caller("example-org-2", "operator2@example.test");
+        second.saveTeamsReconcileCursor(next);
+        assertEquals(Optional.of(next), first.teamsReconcileCursor());
     }
 
     @Test

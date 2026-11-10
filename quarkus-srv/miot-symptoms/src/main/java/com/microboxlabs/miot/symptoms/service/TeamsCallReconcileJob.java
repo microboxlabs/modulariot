@@ -26,9 +26,9 @@ import org.jboss.logging.Logger;
  * operators in each organization with a ready TEAMS_PHONE line. A record still goes only to the operator who
  * placed the call. A run makes at most {@code max-lookups} organization lookups, each one complete Graph read.
  * The next run starts after the last organization this one reached, so every organization is reached over
- * several runs. An organization Graph throttled is skipped until its {@code Retry-After} has passed. A run with
- * nothing pending ends after that one query. One replica runs it at a time (Postgres advisory lock), and a run
- * never overlaps the previous one.
+ * several runs. An organization Graph throttled is skipped until its {@code Retry-After} has passed. The shared
+ * checkpoint survives restarts and changes of replica. A run with nothing pending ends without contacting Graph.
+ * One replica runs it at a time (Postgres advisory lock), and a run never overlaps the previous one.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -58,7 +58,6 @@ public class TeamsCallReconcileJob {
     private final TeamsCallReconciler reconciler;
     private final Function<Supplier<Run>, Optional<Run>> exclusively;
     private final Clock clock;
-    private Caller cursor;
 
     @Inject
     TeamsCallReconcileJob(
@@ -102,12 +101,12 @@ public class TeamsCallReconcileJob {
     }
 
     Run run() {
-        OffsetDateTime since = OffsetDateTime.now(clock).minus(TeamsCallReconciler.LOOKBACK);
-        List<Caller> callers = treatments.pendingTeamsCallers(since, MAX_CALLERS, cursor);
-        if (callers.isEmpty()) {
-            return Run.NOTHING;
-        }
-        Optional<Run> run = exclusively.apply(() -> reconcile(callers));
+        Optional<Run> run = exclusively.apply(() -> {
+            OffsetDateTime since = OffsetDateTime.now(clock).minus(TeamsCallReconciler.LOOKBACK);
+            List<Caller> callers = treatments.pendingTeamsCallers(since, MAX_CALLERS,
+                    treatments.teamsReconcileCursor().orElse(null));
+            return reconcile(callers);
+        });
         if (run.isEmpty()) {
             LOG.debug("Teams call reconcile skipped: another replica is running it");
         }
@@ -121,38 +120,42 @@ public class TeamsCallReconcileJob {
         int recorded = 0;
         int failed = 0;
         int throttled = 0;
-        int lookups = 0;
         for (List<Caller> organization : byOrganization(callers)) {
-            if (lookups == maxLookups) {
+            if (organizations == maxLookups) {
                 break;
             }
             String tenant = organization.getFirst().tenantCode();
-            cursor = organization.getLast();
-            if (reconciler.throttled(tenant)) {
-                throttled++;
-                continue;
-            }
-            if (!hasReadyTeamsLine(tenant)) {
-                continue;
-            }
-            lookups++;
-            organizations++;
-            int operatorCount = organization.size();
-            operators += operatorCount;
-            try {
-                recorded += reconciler.reconcileOperators(tenant,
-                        organization.stream().map(Caller::performedBy).toList()).recorded();
-            } catch (TelephonyThrottledException e) {
-                throttled++;
-                failed += operatorCount;
-                LOG.warnf("Teams call reconcile throttled by Graph for an organization; waiting %ds",
-                        e.retryAfter().toSeconds());
-            } catch (RuntimeException e) {
-                failed += operatorCount;
-                LOG.warnf("Teams call reconcile failed for an organization: %s", e.getMessage());
-            }
+            treatments.saveTeamsReconcileCursor(organization.getLast());
+            Run result = reconcileOrganization(tenant, organization);
+            organizations += result.organizations();
+            operators += result.operators();
+            recorded += result.recorded();
+            failed += result.failed();
+            throttled += result.throttled();
         }
         return new Run(organizations, operators, recorded, failed, throttled);
+    }
+
+    private Run reconcileOrganization(String tenant, List<Caller> organization) {
+        if (reconciler.throttled(tenant)) {
+            return new Run(0, 0, 0, 0, 1);
+        }
+        if (!hasReadyTeamsLine(tenant)) {
+            return Run.NOTHING;
+        }
+        int operators = organization.size();
+        try {
+            int recorded = reconciler.reconcileOperators(tenant,
+                    organization.stream().map(Caller::performedBy).toList()).recorded();
+            return new Run(1, operators, recorded, 0);
+        } catch (TelephonyThrottledException e) {
+            LOG.warnf("Teams call reconcile throttled by Graph for an organization; waiting %ds",
+                    e.retryAfter().toSeconds());
+            return new Run(1, operators, 0, operators, 1);
+        } catch (RuntimeException e) {
+            LOG.warnf("Teams call reconcile failed for an organization: %s", e.getMessage());
+            return new Run(1, operators, 0, operators);
+        }
     }
 
     private static List<List<Caller>> byOrganization(List<Caller> callers) {

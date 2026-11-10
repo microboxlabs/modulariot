@@ -392,6 +392,21 @@ public class PgTreatmentStore implements TreatmentStore {
     }
 
     @Override
+    public Optional<Caller> teamsReconcileCursor() {
+        return query(pool.get(), "SELECT tenant_code, performed_by FROM miot_symptoms.teams_reconcile_cursor WHERE id = 1",
+                Tuple.tuple()).stream().findFirst()
+                .map(r -> new Caller(r.getString(TENANT_CODE), r.getString("performed_by")));
+    }
+
+    @Override
+    public void saveTeamsReconcileCursor(Caller caller) {
+        query(pool.get(), """
+                INSERT INTO miot_symptoms.teams_reconcile_cursor (id, tenant_code, performed_by) VALUES (1, $1, $2)
+                ON CONFLICT (id) DO UPDATE SET tenant_code = EXCLUDED.tenant_code, performed_by = EXCLUDED.performed_by
+                """, Tuple.of(caller.tenantCode(), caller.performedBy()));
+    }
+
+    @Override
     public List<Caller> pendingTeamsCallers(OffsetDateTime since, int limit, Caller after) {
         return query(pool.get(), PENDING_TEAMS_CALLERS, Tuple.of(since, limit,
                 after == null ? null : after.tenantCode(), after == null ? null : after.performedBy())).stream()

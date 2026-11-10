@@ -102,7 +102,7 @@ and their pages, are serialized and paced at no more than four per second per re
 limit and an incomplete scan fails without assigning records. The advisory lock covers the entire scheduled run.
 Graph requests use a fair, interruptible queue so interactive requests cannot be starved by the background run.
 Caller selection starts after the last organization reached, including skipped organizations and failed lookups,
-so every organization is reached over several runs. This cursor is held by each scheduler replica and resets on restart.
+so every organization is reached over several runs. This cursor is stored in PostgreSQL and read under the advisory lock, so restarts and changes of replica preserve progress.
 When a shared report exceeds the page limit, reconciliation bisects its time window, at most 16 lookups per
 organization. All subwindows must complete before matching, preserving ambiguity checks across split boundaries.
 PSTN's inclusive end bound can repeat a row at a split boundary; completed results are deduplicated by report and
@@ -121,7 +121,7 @@ A 404 or an empty list from Graph is treated as pending. Any other error from ei
 
 A 429, or a 503 with `Retry-After`, pauses that organization's lookups on this replica for the `Retry-After`
 seconds or date (1 minute when absent, at most 1 hour). Scheduled runs skip a paused organization without using a
-lookup, and `POST /reconcile` fails without calling Graph until the pause ends.
+lookup, and `POST /reconcile` fails without calling Graph until the pause ends. The pause starts when the response arrives. Concurrent lookups for the same organization wait for the current lookup and then check its pause.
 
 The connection test reads both reports for the last hour and says how many calls each returned, e.g. `PSTN: 0, Direct Routing: 3`. A count with `+` has more pages.
 

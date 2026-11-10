@@ -3,6 +3,8 @@ package com.microboxlabs.miot.core.telephony;
 import java.time.Duration;
 
 /** The provider asked us to slow down (HTTP 429, or 503 with {@code Retry-After}). */
+// Preserve the existing telephony/IllegalStateException contract (including HTTP 409 mapping).
+@SuppressWarnings("java:S110")
 public class TelephonyThrottledException extends TelephonyUnavailableException {
 
     private final Duration retryAfter;

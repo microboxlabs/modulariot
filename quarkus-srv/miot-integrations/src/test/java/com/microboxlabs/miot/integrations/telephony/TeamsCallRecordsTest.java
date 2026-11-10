@@ -50,11 +50,21 @@ class TeamsCallRecordsTest {
     }
 
     @Test
-    void a429OnALaterPageOrTheSecondReportIsThrottledToo() {
+    void a429OnTheSecondReportIsThrottledToo() {
         http.reply(PATH, 200, "{\"value\":[]}").reply(DR_PATH, 429, "{}");
         TelephonyThrottledException e = assertThrows(TelephonyThrottledException.class,
                 () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
         assertEquals(TeamsCallRecords.DEFAULT_RETRY_AFTER, e.retryAfter());
+    }
+
+    @Test
+    void a429OnALaterPageStopsTheScan() {
+        http.reply(PATH, 200, "{\"value\":[],\"@odata.nextLink\":\"https://graph.test/next\"}")
+                .reply("/next", 429, "{}", Map.of("Retry-After", "15"));
+        TelephonyThrottledException failure = assertThrows(TelephonyThrottledException.class,
+                () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+        assertEquals(Duration.ofSeconds(15), failure.retryAfter());
+        assertEquals(2, http.seen().size());
     }
 
     @Test
@@ -180,10 +190,10 @@ class TeamsCallRecordsTest {
     @Test
     void directRoutingOutboundTypes() {
         for (String type : List.of("ByotOut", "ByotOutUserForwarding", "ByotOutUserTransfer", "ByotOutUserConf",
-                "ByotOutEmergency", "dr_out", "dr_out_user_conf", "dr_out_user_forwarding", "dr_out_user_transfer")) {
+                "ByotOutEmergency", "dr_out", "dr_out_user_conf", "dr_out_user_forwarding", "dr_out_user_transfer", "dr_emergency_out", "dr_out_bot")) {
             assertTrue(drType(type).outbound(), type);
         }
-        for (String type : List.of("ByotIn", "dr_in", "dr_in_bot")) {
+        for (String type : List.of("ByotIn", "dr_in", "dr_in_bot", "dr_unassigned_in")) {
             assertFalse(drType(type).outbound(), type);
         }
         assertFalse(drType(null).outbound());
@@ -192,7 +202,7 @@ class TeamsCallRecordsTest {
     @Test
     void pstnOutboundTypes() {
         for (String type : List.of("user_out", "user_out_conf", "user_out_forwarding", "user_out_transfer",
-                "conf_out", "fmc_out", "USER_OUT_FORWARDING")) {
+                "conf_out", "fmc_out", "emergency_out", "ucap_out", "ucap_out_conf", "USER_OUT_FORWARDING")) {
             assertTrue(pstnType(type).outbound(), type);
         }
         for (String type : List.of("user_in", "conf_in", "unassigned_in", "emergency_in", "fmc_in", "ucap_in",

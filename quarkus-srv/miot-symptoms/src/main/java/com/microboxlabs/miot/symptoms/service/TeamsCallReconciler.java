@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 /**
  * Fills the duration and the result of the operator's Teams calls from the Microsoft Graph call records,
@@ -61,6 +62,8 @@ public class TeamsCallReconciler {
     private final AuditService audit;
     private final Clock clock;
     private final Map<String, Instant> throttledUntil = new ConcurrentHashMap<>();
+    // Bound lock storage while ensuring requests for the same organization observe each other's pause.
+    private final Object[] lookupLocks = Stream.generate(Object::new).limit(64).toArray();
 
     @Inject
     public TeamsCallReconciler(TreatmentStore treatments, Telephony telephony, AuditService audit) {
@@ -102,7 +105,7 @@ public class TeamsCallReconciler {
         if (to.isAfter(now)) {
             to = now;
         }
-        List<PstnCall> records = lookup(tenantCode, line.connectionId(), from, to, now);
+        List<PstnCall> records = lookup(tenantCode, line.connectionId(), from, to);
         Set<String> taken = new HashSet<>(treatments.recordedTelephonyRecordIds(tenantCode, line.connectionId()));
         Lookup lookup = new Lookup(line, records, pending, taken);
         int recorded = 0;
@@ -128,17 +131,20 @@ public class TeamsCallReconciler {
         return false;
     }
 
-    private List<PstnCall> lookup(String tenantCode, String connectionId, Instant from, Instant to, Instant now) {
-        Instant until = throttledUntil.get(tenantCode);
-        if (until != null && now.isBefore(until)) {
-            throw new TelephonyThrottledException("Microsoft Graph asked to wait before the next lookup",
-                    Duration.between(now, until));
-        }
-        try {
-            return new ReportScan().read(tenantCode, connectionId, from, to);
-        } catch (TelephonyThrottledException e) {
-            throttledUntil.merge(tenantCode, now.plus(e.retryAfter()), (a, b) -> a.isAfter(b) ? a : b);
-            throw e;
+    private List<PstnCall> lookup(String tenantCode, String connectionId, Instant from, Instant to) {
+        synchronized (lookupLocks[Math.floorMod(tenantCode.hashCode(), lookupLocks.length)]) {
+            Instant now = clock.instant();
+            Instant until = throttledUntil.get(tenantCode);
+            if (until != null && now.isBefore(until)) {
+                throw new TelephonyThrottledException("Microsoft Graph asked to wait before the next lookup",
+                        Duration.between(now, until));
+            }
+            try {
+                return new ReportScan().read(tenantCode, connectionId, from, to);
+            } catch (TelephonyThrottledException e) {
+                throttledUntil.merge(tenantCode, clock.instant().plus(e.retryAfter()), (a, b) -> a.isAfter(b) ? a : b);
+                throw e;
+            }
         }
     }
 

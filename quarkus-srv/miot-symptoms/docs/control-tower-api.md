@@ -26,7 +26,7 @@ replaces the `store` package implementations without changing this contract.
 | Operation | Method and path | Notes |
 |---|---|---|
 | `listSymptomTreatments` | `GET /symptoms/{symptomId}/treatments` | Episodes oldest first, each with its actions |
-| `openTreatment` | `POST /symptoms/{symptomId}/treatments` | Body `{type, assetId, tripId, note}`. 201 new; 200 returns the episode the caller already has open on this symptom. 409 on an engine case that is closed |
+| `openTreatment` | `POST /symptoms/{symptomId}/treatments` | Body `{type, assetId, tripId, note}`. 201 new; 200 returns the episode the caller already has open on this symptom, including after an engine case closes. 409 when creating a new episode on a closed engine case. Resume and creation are serialized under the case row lock and scoped to the caller, tenant and case |
 | `getTreatment` | `GET /treatments/{treatmentId}` | |
 | `addTreatmentAction` | `POST /treatments/{treatmentId}/actions` | 201. Only while `OPEN` |
 | `closeTreatment` | `POST /treatments/{treatmentId}/close` | Body `{resolution, note}`, optional. Needs at least one action. On an engine case, an invalidation blocks the symptom's next case while its condition holds, a handled close blocks it up to the case's level ([evaluator.md](evaluator.md#reopening-after-an-operator-close)) |

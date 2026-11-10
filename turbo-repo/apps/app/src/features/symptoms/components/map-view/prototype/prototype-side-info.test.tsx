@@ -21,7 +21,6 @@ vi.mock("@/features/auth/components/access-allowed", () => ({
   AccessAllowed: ({ children }: PropsWithChildren) => <>{children}</>,
 }));
 vi.mock("../timeline", () => ({ default: () => <p>Timeline</p> }));
-vi.mock("../blurrable-dropdown", () => ({ default: () => null }));
 vi.mock("../../blurrable-stepped-menu/symptom-form", () => ({
   default: () => <p>Past modal</p>,
 }));
@@ -82,14 +81,30 @@ beforeEach(() => {
   config.pastForms = false;
 });
 
+function openOtherOptions() {
+  fireEvent.click(screen.getByRole("button", { name: /Otras opciones/ }));
+}
+
 describe("the case panel's actions", () => {
-  it("offers 'Registrar gestión' on an engine case and opens its form", () => {
+  it("shows only 'Otras opciones' and 'Llamar' as buttons", () => {
+    renderPanel("call_driver", false);
+
+    expect(
+      screen.getByRole("button", { name: /Otras opciones/ })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Llamar/ })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Registrar gestión" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers 'Registrar gestión' in 'Otras opciones' on an engine case and opens its form", () => {
     const { setSelectedOption, setIsFormOpen } = renderPanel(
       "call_driver",
       false
     );
 
-    expect(screen.getByRole("button", { name: /Llamar/ })).toBeInTheDocument();
+    openOtherOptions();
     fireEvent.click(screen.getByRole("button", { name: "Registrar gestión" }));
 
     expect(setSelectedOption).toHaveBeenCalledWith("record_handling");
@@ -97,16 +112,18 @@ describe("the case panel's actions", () => {
   });
 
   it.each([42, 0, null])(
-    "hides 'Registrar gestión' outside an engine case (%s)",
+    "leaves 'Registrar gestión' out of 'Otras opciones' outside an engine case (%s)",
     (symptomId) => {
       renderPanel("call_driver", false, symptomId);
 
+      openOtherOptions();
+
+      expect(
+        screen.getByRole("button", { name: "Ignorar condición" })
+      ).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Registrar gestión" })
       ).not.toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /Llamar/ })
-      ).toBeInTheDocument();
     }
   );
 

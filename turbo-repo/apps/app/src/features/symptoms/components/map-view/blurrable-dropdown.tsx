@@ -14,7 +14,11 @@ import {
   useInteractions,
 } from "@floating-ui/react";
 import { Button } from "flowbite-react";
-import { HiChevronUp, HiArrowRight } from "react-icons/hi";
+import {
+  HiChevronUp,
+  HiArrowRight,
+  HiOutlineClipboardCheck,
+} from "react-icons/hi";
 import { FaWhatsapp } from "react-icons/fa";
 import { BsStars } from "react-icons/bs";
 import { GiPoliceBadge } from "react-icons/gi";
@@ -34,10 +38,14 @@ export interface OtherOption {
 
 /** The "Otras opciones" list — shared with the call-center debug flow's own
  *  in-form switch dropdown (see `call-center/call-switch-dropdown.tsx`) so
- *  both places always offer the exact same set, disabled ones included. */
-export function buildOtherOptions(dict: I18nRecord): OtherOption[] {
+ *  both places always offer the exact same set, disabled ones included.
+ *  `recordHandling` adds "Registrar gestión", which only engine cases have. */
+export function buildOtherOptions(
+  dict: I18nRecord,
+  { recordHandling = false }: { recordHandling?: boolean } = {}
+): OtherOption[] {
   const dictSy = dict.symptoms as I18nRecord;
-  return [
+  const options: OtherOption[] = [
     {
       id: 0,
       label: dictSy.derive_to_specialist as string,
@@ -82,6 +90,15 @@ export function buildOtherOptions(dict: I18nRecord): OtherOption[] {
       option: "invalidate_symptom" as SelectedOption,
     },
   ];
+  if (recordHandling) {
+    options.push({
+      id: 6,
+      label: dictSy.record_handling as string,
+      icon: HiOutlineClipboardCheck,
+      option: "record_handling",
+    });
+  }
+  return options;
 }
 
 /** Injected above the standard option list, its own group separated by a
@@ -120,6 +137,7 @@ export default function BlurrableDropdown({
   forceDisableOptions,
   triggerClassName,
   disabled,
+  recordHandling,
 }: {
   dict: any;
   /** Called with the chosen treatment type — what happens next (open the
@@ -140,9 +158,11 @@ export default function BlurrableDropdown({
   triggerClassName?: string;
   /** Disables the trigger itself — the whole dropdown can't be opened. */
   disabled?: boolean;
+  /** Offers "Registrar gestión". Pass it only on an engine case. */
+  recordHandling?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const other_options = buildOtherOptions(dict);
+  const other_options = buildOtherOptions(dict, { recordHandling });
 
   // Guards the case where `disabled` flips true while already open (e.g.
   // the note the operator was writing gets cleared) — forces it shut rather

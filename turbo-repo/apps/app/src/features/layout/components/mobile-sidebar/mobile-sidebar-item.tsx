@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { twMerge } from "tailwind-merge";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { useLocalizedHref } from "../../hooks/use-localized-href";
 import { trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
@@ -24,6 +25,7 @@ export default function MobileSidebarItem({
   onClick,
 }: Readonly<PropsWithI18nDict<MobileSidebarItemProps>>) {
   const { canAccess } = usePermissions();
+  const localize = useLocalizedHref();
   if (!canAccess(item)) return null;
 
   const Icon = item.icon;
@@ -73,7 +75,7 @@ export default function MobileSidebarItem({
   return (
     <li>
       <Link
-        href={item.href ?? "#"}
+        href={localize(item.href ?? "#")}
         aria-label={translatedLabel}
         onClick={onClick}
         className="flex w-full items-center justify-center"

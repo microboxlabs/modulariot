@@ -1,0 +1,36 @@
+# 🔔 Release Notes v0.6.8 — ModularIoT
+
+### Fecha: 10/11/2026
+
+**Objetivo**: Corregir el agotamiento de conexiones del pooler en el arranque de Modulith. La corrección aborda un problema que podía impedir que las sondas de disponibilidad respondieran y que una actualización gradual finalizara.
+
+## 🐛 Correcciones
+
+- **🐛 Agotamiento del pooler de conexiones al iniciar Modulith**
+  - **Impacto**: Las consultas de las sondas de disponibilidad y una migración con tiempo de espera podían aumentar la demanda sobre el pooler en modo de sesión, causando esperas y fallos de disponibilidad.
+  - **Solución**: Se corrigió el problema de consumo de conexiones durante el arranque.
+
+## 📊 Beneficios
+
+- Reduce el riesgo de que las sondas de disponibilidad queden bloqueadas por la demanda de conexiones.
+- Evita que el arranque de Modulith comprometa la finalización de una actualización gradual.
+- Mejora la estabilidad operativa de Modulith al utilizar un pooler en modo de sesión.
+- Aborda la competencia por conexiones entre las sondas de disponibilidad y las migraciones.
+- Facilita que el servicio recupere su disponibilidad de forma fiable durante los despliegues.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.8`
+- App: `app@v0.6.8` — actualizado.
+- Docs: `docs@v0.6.8` — actualizado.
+- Web: `web@v0.6.8` — actualizado.
+- Modulith: `modulith@v0.5.47` — actualizado.
+- Harness: `harness@v0.1.15` — sin cambios.
+
+Los digest exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión corrige un problema de conexiones que podía afectar la disponibilidad de Modulith durante el arranque y complicar las actualizaciones graduales.
+
+El cambio se limita a la plataforma ModularIoT y al milestone OSS MIOT-0.6.8.

@@ -1,0 +1,58 @@
+{
+  "stack_version": "0.6.8",
+  "stack_tag": "miot-stack@v0.6.8",
+  "milestone": "MIOT-0.6.8",
+  "pull_requests": [
+    {
+      "number": 2578,
+      "title": "fix(modulith): prevent startup session pool starvation",
+      "source_issues": [
+        {
+          "number": 2579,
+          "title": "fix(modulith): startup exhausts a session-mode connection pooler"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-cli/src/test/java/com/microboxlabs/miot/cli/EngineSplitConfigTest.java",
+    "quarkus-srv/miot-core/docs/organization-access.md",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AlfrescoBridge.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/NativeMembershipMigration.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/NativeMembershipReadiness.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/NativeMembershipMigrationDefaultsTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/NativeMembershipReadinessRefreshTest.java"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.8",
+      "tag": "app@v0.6.8"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.6.6",
+      "version": "0.6.8",
+      "tag": "docs@v0.6.8"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.6.6",
+      "version": "0.6.8",
+      "tag": "web@v0.6.8"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.46",
+      "version": "0.5.47",
+      "tag": "modulith@v0.5.47"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

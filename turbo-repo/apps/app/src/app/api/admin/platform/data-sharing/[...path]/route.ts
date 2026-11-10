@@ -28,7 +28,7 @@ const badPath = () =>
 export async function GET(_request: Request, context: RouteParams) {
   const path = await upstreamPath(context);
   if (!path) return badPath();
-  return forwardToStreamhubModulith(path, { sessionOnly: true });
+  return forwardToStreamhubModulith(path);
 }
 
 export async function POST(request: Request, context: RouteParams) {
@@ -46,6 +46,5 @@ export async function POST(request: Request, context: RouteParams) {
   return forwardToStreamhubModulith(path, {
     method: "POST",
     body,
-    sessionOnly: true,
   });
 }

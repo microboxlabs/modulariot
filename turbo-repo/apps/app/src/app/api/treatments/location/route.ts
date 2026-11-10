@@ -1,33 +1,11 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/rpc/api_modular_treatment_symptoms_signals_map`;
-
-import {
-  AuthToken,
-  AuthTokenConfig,
-} from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
-
-import {
-  TreatmentsLocationResponse,
-  TreatmentsLocationResponseItem,
-} from "./route.type";
+import { TreatmentsLocationResponseItem } from "./route.type";
 import { parseWKBPoint } from "@/utils/map-conversion";
-import {
-  forwardControlTowerMap,
-  legacySymptomsEnabled,
-} from "@/app/api/utils/control-tower-map";
-import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
+import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
 
-const config: AuthTokenConfig = {
-  clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
-  clientSecret: `${process.env.STREAMHUB_CLIENT_SECRET}`,
-  audience: `${process.env.STREAMHUB_AUDIENCE}`,
-  grantType: "client_credentials",
-};
-
-const authToken = new AuthToken(config);
-
+/** The signals of an evaluator's case (`symptom_id`), from the modulith, with coordinates. */
 export async function GET(request: Request) {
   const session = await auth();
   if (!session) {
@@ -36,17 +14,10 @@ export async function GET(request: Request) {
     });
   }
   const { searchParams } = new URL(request.url);
-  const symptom_id = searchParams.get("symptom_id");
-  const trip_id = searchParams.get("trip_id");
+  const symptom_id = searchParams.get("symptom_id")?.trim();
   const symptom_name = searchParams.get("symptom_name");
-  /* const first_date = searchParams.get("first_date")?.replaceAll(" ", "+");
-  const last_date = searchParams.get("last_date")?.replaceAll(" ", "+"); */
 
-  //!symptom_name || !first_date || !last_date ||
-
-  // The evaluator's cases live in the modulith and may have no trip.
-  const engineCase = isEngineCaseId(symptom_id);
-  if (!symptom_id || (!trip_id && !engineCase)) {
+  if (!symptom_id) {
     return NextResponse.json(
       {
         data: {
@@ -60,64 +31,16 @@ export async function GET(request: Request) {
       { status: 400 }
     );
   }
-  // Without PostgREST or legacy symptoms, the modulith reads the signals as the
-  // active organization.
-  if (!process.env.STREAMHUB_URL || engineCase || !legacySymptomsEnabled()) {
-    const response = await forwardControlTowerMap(
-      `symptoms/${encodeURIComponent(symptom_id)}/signals`
-    );
-    if (!response.ok) return response;
-    const data = (await response.json()) as TreatmentsLocationResponseItem;
-    return NextResponse.json(withCoordinates(data, symptom_name));
-  }
 
-  try {
-    const token = await authToken.getToken();
-    const response = await fetch(
-      SYMPTOMS_API_URL +
-        "?p_client_id=" +
-        config.clientId +
-        "&p_trip_id=" +
-        trip_id +
-        "&p_symptom_name=" +
-        symptom_name +
-        /*  "&p_first_date=" +
-        encodeURIComponent(first_date ?? "") +
-        "&p_last_date=" +
-        encodeURIComponent(last_date ?? "") + */
-        "&p_symptom_id=" +
-        symptom_id,
-      {
-        headers: {
-          accept: "application/json",
-          Authorization: ` Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const apiData = (await response.json()) as TreatmentsLocationResponse;
-    return NextResponse.json(withCoordinates(apiData.data, symptom_name));
-  } catch (error: any) {
-    return NextResponse.json(
-      {
-        data: {
-          type: "FeatureCollection",
-          features: [],
-          description: {},
-        },
-        status: 500,
-        message: error.message,
-      },
-      { status: 500 }
-    );
-  }
+  const response = await forwardControlTowerMap(
+    `symptoms/${encodeURIComponent(symptom_id)}/signals`
+  );
+  if (!response.ok) return response;
+  const data = (await response.json()) as TreatmentsLocationResponseItem;
+  return NextResponse.json(withCoordinates(data, symptom_name));
 }
 
-// The GPS function answers features: null when the symptom has no GPS rows.
+// A case without GPS rows answers features: null.
 function withCoordinates(
   data: Omit<TreatmentsLocationResponseItem, "features"> & {
     features: TreatmentsLocationResponseItem["features"] | null;

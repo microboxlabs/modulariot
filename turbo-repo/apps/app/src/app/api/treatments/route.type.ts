@@ -15,9 +15,3 @@ export type TreatmentsRequest = {
 
   v_symptom_treatment_time?: number | null | undefined;
 };
-
-export type TreatmentsResponse = {
-  data: TreatmentsRequest;
-  status: number;
-  message: string;
-};

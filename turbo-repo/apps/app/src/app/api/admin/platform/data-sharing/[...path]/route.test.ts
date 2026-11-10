@@ -20,8 +20,7 @@ describe("/api/admin/platform/data-sharing/[...path]", () => {
   it("forwards reads with the user's session", async () => {
     await GET(new Request("http://x"), ctx(["orgs", "gps-austral", "assets"]));
     expect(forwardMock).toHaveBeenCalledWith(
-      "/api/v1/platform/data-sharing/orgs/gps-austral/assets",
-      { sessionOnly: true }
+      "/api/v1/platform/data-sharing/orgs/gps-austral/assets"
     );
   });
 
@@ -33,7 +32,7 @@ describe("/api/admin/platform/data-sharing/[...path]", () => {
     );
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/platform/data-sharing/shares",
-      { method: "POST", body, sessionOnly: true }
+      { method: "POST", body }
     );
   });
 

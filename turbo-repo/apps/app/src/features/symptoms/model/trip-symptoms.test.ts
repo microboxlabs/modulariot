@@ -24,29 +24,18 @@ const symptom: EngineTripSymptom = {
 };
 
 describe("parseTripSymptoms", () => {
-  it("reads an array as the legacy answer", () => {
-    expect(parseTripSymptoms([{ a: 1 }])).toEqual({
-      source: "legacy",
-      rows: [{ a: 1 }],
-    });
-  });
-
-  it("reads an object with symptoms as the engine answer", () => {
+  it("reads the engine's symptoms of the trip", () => {
     expect(parseTripSymptoms({ trip: "SVC-1", symptoms: [symptom] })).toEqual({
-      source: "engine",
       trip: "SVC-1",
       symptoms: [symptom],
     });
-    expect(parseTripSymptoms({ trip: "", symptoms: [] })).toEqual({
-      source: "engine",
-      trip: "",
-      symptoms: [],
-    });
   });
 
-  it("reads null or an object without symptoms as a legacy trip without rows", () => {
-    expect(parseTripSymptoms(null)).toEqual({ source: "legacy", rows: [] });
-    expect(parseTripSymptoms({})).toEqual({ source: "legacy", rows: [] });
+  it("reads anything without a symptoms array as a trip without symptoms", () => {
+    const none = { trip: "", symptoms: [] };
+    expect(parseTripSymptoms([{ a: 1 }])).toEqual(none);
+    expect(parseTripSymptoms(null)).toEqual(none);
+    expect(parseTripSymptoms({})).toEqual(none);
   });
 });
 

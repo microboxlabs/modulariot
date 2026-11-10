@@ -12,19 +12,9 @@ vi.mock("@/app/api/utils/tenant-scope", () => ({
 vi.mock("@/app/api/utils/streamhub-modulith-proxy", () => ({
   forwardToStreamhubModulith: (...args: unknown[]) => forwardMock(...args),
 }));
-vi.mock(
-  "@/features/common/providers/sreamhub-api/streamhub-api.provider",
-  () => ({
-    AuthToken: class {
-      getToken = async () => "m2m";
-    },
-  })
-);
 
 import { GET as icu } from "./route";
 import { GET as trip } from "../trip/route";
-import { GET as taskConditions } from "../../task/conditions/route";
-import { NextRequest } from "next/server";
 
 const row = {
   id: -3,
@@ -34,13 +24,11 @@ const row = {
   trip_code: "SERVICE-001",
 };
 
-describe("legacy symptom routes with MIOT_SYMPTOMS_LEGACY_ENABLED=false", () => {
+describe("symptom routes read the engine only", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubEnv("STREAMHUB_URL", "http://pgrest");
-    vi.stubEnv("MIOT_SYMPTOMS_LEGACY_ENABLED", "false");
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     scopeMock.mockResolvedValue({
@@ -61,10 +49,18 @@ describe("legacy symptom routes with MIOT_SYMPTOMS_LEGACY_ENABLED=false", () => 
     const res = await icu(new Request("http://x/i?p_icu_code=4"));
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme/control-tower/map/symptoms?p_page_size=200&p_icu_code=4",
-      { method: "GET", sessionOnly: true }
+      { method: "GET" }
     );
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await res.json()).toEqual([row]);
+  });
+
+  it("lists every level without p_icu_code", async () => {
+    await icu(new Request("http://x/i"));
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme/control-tower/map/symptoms?p_page_size=200",
+      { method: "GET" }
+    );
   });
 
   it("passes a modulith error through", async () => {
@@ -74,41 +70,30 @@ describe("legacy symptom routes with MIOT_SYMPTOMS_LEGACY_ENABLED=false", () => 
     expect((await icu(new Request("http://x/i"))).status).toBe(503);
   });
 
-  it("answers no legacy conditions for a trip", async () => {
-    const res = await taskConditions(new NextRequest("http://x/c?tripId=T1"));
-    expect(await res.json()).toEqual([]);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
   it("reads a trip's engine symptoms from the modulith by service code", async () => {
     const body = { trip: "SVC 1/A", symptoms: [{ name: "Demo", cases: 2 }] };
     forwardMock.mockImplementation(async () => NextResponse.json(body));
     const res = await trip(new Request("http://x/t?id=%20SVC%201%2FA%20"));
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme/control-tower/map/trips/SVC%201%2FA/symptoms",
-      { method: "GET", sessionOnly: true }
+      { method: "GET" }
     );
     expect(await res.json()).toEqual(body);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("reads a trips-module trip's engine symptoms from the modulith", async () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    await trip(new Request(`http://x/t?id=${id}`));
+    expect(forwardMock).toHaveBeenCalledWith(
+      `/api/v1/orgs/acme/control-tower/map/trips/${id}/symptoms`,
+      { method: "GET" }
+    );
+  });
+
   it("answers no engine symptoms without a trip", async () => {
     const res = await trip(new Request("http://x/t"));
     expect(await res.json()).toEqual({ trip: "", symptoms: [] });
-    expect(forwardMock).not.toHaveBeenCalled();
-  });
-
-  it("keeps PostgREST when legacy symptoms are on", async () => {
-    vi.stubEnv("MIOT_SYMPTOMS_LEGACY_ENABLED", "true");
-    fetchMock.mockImplementation(async () =>
-      Response.json({ status: 200, message: "ok", data: [row] })
-    );
-    expect(
-      await (await icu(new Request("http://x/i?p_icu_code=4"))).json()
-    ).toEqual([row]);
-    expect(String(fetchMock.mock.calls[0][0])).toContain(
-      "/rpc/api_modular_symptoms_icu_view"
-    );
     expect(forwardMock).not.toHaveBeenCalled();
   });
 });

@@ -1,27 +1,16 @@
 "use client";
 
 /**
- * Single kill switch for every place this prototype could otherwise write to
- * the REAL backend: `requestTreatment` (→ `/app/api/treatments` →
- * Streamhub's `process_treatment_manual_notifi_audit`, a live external
- * system — see `route.ts`) and the "invalidar síntoma" webhook
- * (`/app/api/symptoms/invalidate`). Every prototype form's save funnels
- * through `guardedRequestTreatment` instead of calling `requestTreatment`
- * directly, and every other real-write call site checks
- * `isPrototypeApiDisabled()` itself — so there is exactly one flag
- * controlling all of it. It gates ONLY those production writes — nothing
- * else in the prototype (UI, local stores, mock display data) reads it.
+ * Single kill switch for the treatment writes the forms make to the Control
+ * Tower API. Every form save goes through `guardedRequestTreatment`.
  *
- * Opt-OUT: the server env var `SYMPTOMS_PROTOTYPE_DISABLE_API=true`
- * disconnects those writes. With the var set to anything else, or not set at
- * all, the prototype writes to the real backend normally. It is read from the
+ * Opt-OUT: the server env var `SYMPTOMS_PROTOTYPE_DISABLE_API=true` turns the
+ * writes off; the save then echoes its payload back. It is read from the
  * runtime config, so the map-view page renders only after that has loaded.
  */
 
 import { getRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
-import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
-import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
 import {
   addTreatmentAction,
@@ -279,26 +268,20 @@ export async function guardedSkipStep(skip: StepSkip): Promise<void> {
 }
 
 /**
- * Drop-in replacement for `requestTreatment` — when the real API is
- * disabled, echoes the request payload straight back instead of sending it,
- * so callers reading the response (`treatment_id`, etc.) don't need their
- * own disabled-path branching. Engine cases go to the Control Tower API.
+ * Saves a form on an engine case through the Control Tower API. When the API
+ * is disabled, echoes the payload back. A case that is not the engine's is
+ * refused.
  */
 export async function guardedRequestTreatment(
   payload: TreatmentsRequest,
   engine: EngineTreatmentOptions = {}
 ): Promise<TreatmentsRequest> {
-  if (
-    payload.treatment_type === RECORD_HANDLING_TYPE &&
-    !isEngineCase(payload)
-  ) {
-    throw new TypeError("Handling records require an engine case");
+  if (!isEngineCase(payload)) {
+    throw new TypeError("Treatments require an engine case");
   }
   if (isPrototypeApiDisabled()) return payload;
   try {
-    return isEngineCase(payload)
-      ? await saveEngineTreatment(payload, engine)
-      : await requestTreatment(payload);
+    return await saveEngineTreatment(payload, engine);
   } finally {
     // An action can be committed even when closing its case subsequently fails.
     void revalidateCase(payload.symptom_id);
@@ -321,48 +304,15 @@ export async function guardedFinishTreatment(
   }
 }
 
-/**
- * The preaction every treatment form runs when its menu opens: records a
- * `pending` treatment of `treatmentType` and keeps the returned
- * `treatment_id` so the form's final save updates that same record. Shared
- * by the past modal (`symptom-form.tsx`) and the inline form. An engine case
- * opens its treatment at the save instead.
- */
-export async function startPendingTreatment(
-  treatmentRequest: TreatmentsRequest,
-  setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void,
-  treatmentType: string
-): Promise<void> {
-  if (isEngineCase(treatmentRequest)) return;
-  const pending = {
-    ...treatmentRequest,
-    treatment_type: treatmentType,
-    status: "pending",
-  };
-  setTreatmentRequest(pending);
-  const response = await guardedRequestTreatment(pending);
-  setTreatmentRequest({
-    ...treatmentRequest,
-    treatment_id: response.treatment_id,
-  });
-}
-
-/**
- * Saves an "invalidar síntoma" treatment and fires the invalidate-symptom
- * webhook — a second, separate real write, not routed through
- * `requestTreatment`, so it needs its own check. Throws if the webhook
- * fails. Shared by the past modal and the inline form.
- */
+/** Saves an "invalidar síntoma" treatment. Shared by the past modal and the inline form. */
 export async function guardedInvalidateSymptom({
   treatmentRequest,
   setTreatmentRequest,
-  treatmentData,
   reason,
   progress,
 }: {
   treatmentRequest: TreatmentsRequest;
   setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
-  treatmentData: TreatmentsGeneralResponseItem | null;
   reason: string;
   progress?: EngineTreatmentProgress;
 }): Promise<void> {
@@ -382,21 +332,4 @@ export async function guardedInvalidateSymptom({
     description: reason,
     treatment_id: treatmentResult.treatment_id,
   });
-
-  if (isPrototypeApiDisabled() || isEngineCase(treatmentRequest)) return;
-
-  const invalidateResponse = await fetch("/app/api/symptoms/invalidate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      symptom_id: treatmentData?.symptom_info?.id.toString() ?? "",
-      asset_id: treatmentData?.trip_info?.asset_id ?? "",
-      trip_id: treatmentData?.trip_info?.trip_id ?? "",
-      reason,
-      invalidated_by: treatmentRequest.assigned_to,
-      treatment_id: treatmentResult.treatment_id,
-    }),
-  });
-  if (!invalidateResponse.ok) throw new Error("Invalidate webhook failed");
-  void revalidateCase(treatmentRequest.symptom_id);
 }

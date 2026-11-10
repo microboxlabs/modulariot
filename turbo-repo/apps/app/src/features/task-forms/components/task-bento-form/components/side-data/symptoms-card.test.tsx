@@ -104,14 +104,12 @@ describe("SymptomsCard", () => {
     expect(screen.getAllByText(/^\d\d$/)).toHaveLength(2);
   });
 
-  it("keeps the legacy rule list for a legacy answer", async () => {
-    respond([{ "Stay Risk": { total_symptoms: 2, "Critical Condition": 1 } }]);
+  it("shows no rows for an answer without symptoms", async () => {
+    const fetchMock = respond([{ "Stay Risk": { total_symptoms: 2 } }]);
     render(<SymptomsCard task={task} dict={dict as unknown as I18nRecord} />);
 
-    const label = dict.symptoms["RISK ZONE STOP"];
-    await waitFor(() =>
-      expect(within(row(label)).getByText("02")).toBeVisible()
-    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(screen.queryAllByText(/^\d\d$/)).toHaveLength(0);
     expect(screen.queryByRole("link")).toBeNull();
   });
 });

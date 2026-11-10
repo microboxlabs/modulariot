@@ -16,8 +16,7 @@ const geocercasSchema = z.array(geocercaModulithSchema);
 
 async function leerPagina(org: string, page: number) {
   const upstream = await forwardToStreamhubModulith(
-    `/api/v1/orgs/${org}/places/geofences?size=${PAGE_SIZE}&page=${page}`,
-    { sessionOnly: true }
+    `/api/v1/orgs/${org}/places/geofences?size=${PAGE_SIZE}&page=${page}`
   );
   if (!upstream.ok) return upstream;
   const parsed = geocercasSchema.safeParse(

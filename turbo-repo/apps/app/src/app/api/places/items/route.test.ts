@@ -92,8 +92,7 @@ describe("/api/places/items", () => {
     const { GET } = await import("./route");
     const res = await GET();
     expect(forwardMock).toHaveBeenCalledWith(
-      "/api/v1/orgs/acme%20corp/places/items?size=2000&page=0",
-      { sessionOnly: true }
+      "/api/v1/orgs/acme%20corp/places/items?size=2000&page=0"
     );
     const json = await res.json();
     expect(json.lugares.map((l: { place_id: string }) => l.place_id)).toEqual([
@@ -118,7 +117,7 @@ describe("/api/places/items", () => {
     expect(res.status).toBe(201);
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme%20corp/places/items",
-      { method: "POST", body, sessionOnly: true }
+      { method: "POST", body }
     );
   });
 
@@ -168,12 +167,12 @@ describe("/api/places/items/[id]", () => {
     expect(forwardMock).toHaveBeenNthCalledWith(
       1,
       "/api/v1/orgs/acme/places/items/p%201",
-      { method: "PUT", body, sessionOnly: true }
+      { method: "PUT", body }
     );
     expect(forwardMock).toHaveBeenNthCalledWith(
       2,
       "/api/v1/orgs/acme/places/items?code=PL%2F01",
-      { method: "DELETE", sessionOnly: true }
+      { method: "DELETE" }
     );
   });
 

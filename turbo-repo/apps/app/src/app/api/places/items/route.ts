@@ -17,8 +17,7 @@ const placesSchema = z.array(placeViewSchema);
 
 async function leerPagina(org: string, page: number) {
   const upstream = await forwardToStreamhubModulith(
-    `/api/v1/orgs/${org}/places/items?size=${PAGE_SIZE}&page=${page}`,
-    { sessionOnly: true }
+    `/api/v1/orgs/${org}/places/items?size=${PAGE_SIZE}&page=${page}`
   );
   if (!upstream.ok) return upstream;
   const parsed = placesSchema.safeParse(
@@ -76,7 +75,6 @@ export async function POST(request: Request) {
   return forwardToStreamhubModulith(`/api/v1/orgs/${org}/places/items`, {
     method: "POST",
     body: body.data,
-    sessionOnly: true,
   });
 }
 
@@ -96,6 +94,6 @@ export async function DELETE(request: Request) {
   const org = encodeURIComponent(scope.scope.activeOrg.slug);
   return forwardToStreamhubModulith(
     `/api/v1/orgs/${org}/places/items?code=${encodeURIComponent(code)}`,
-    { method: "DELETE", sessionOnly: true }
+    { method: "DELETE" }
   );
 }

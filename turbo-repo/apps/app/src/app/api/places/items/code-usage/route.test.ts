@@ -32,8 +32,7 @@ describe("GET /app/api/places/items/code-usage", () => {
     const res = await GET(pedir("?code=SCL%2001"));
     expect(res.status).toBe(200);
     expect(forwardMock).toHaveBeenCalledWith(
-      "/api/v1/orgs/acme/places/items/code-usage?code=SCL%2001",
-      { sessionOnly: true }
+      "/api/v1/orgs/acme/places/items/code-usage?code=SCL%2001"
     );
   });
 

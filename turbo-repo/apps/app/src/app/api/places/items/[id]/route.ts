@@ -37,6 +37,5 @@ export async function PUT(request: Request, { params }: RouteParams) {
   return forwardToStreamhubModulith(path, {
     method: "PUT",
     body: body.data,
-    sessionOnly: true,
   });
 }

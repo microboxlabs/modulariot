@@ -57,8 +57,7 @@ describe("GET /api/places/geofences", () => {
     const { GET } = await import("./route");
     const res = await GET();
     expect(forwardMock).toHaveBeenCalledWith(
-      "/api/v1/orgs/acme%20corp/places/geofences?size=2000&page=0",
-      { sessionOnly: true }
+      "/api/v1/orgs/acme%20corp/places/geofences?size=2000&page=0"
     );
     const body = await res.json();
     expect(body).toHaveLength(1);
@@ -125,8 +124,7 @@ describe("GET /api/places/geofences", () => {
     expect(body.at(-1).place_id).toBe("streamhub-2000");
     expect(forwardMock).toHaveBeenNthCalledWith(
       2,
-      "/api/v1/orgs/acme%20corp/places/geofences?size=2000&page=1",
-      { sessionOnly: true }
+      "/api/v1/orgs/acme%20corp/places/geofences?size=2000&page=1"
     );
   });
 

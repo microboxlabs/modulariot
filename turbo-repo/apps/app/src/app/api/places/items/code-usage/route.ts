@@ -18,7 +18,6 @@ export async function GET(request: Request) {
   }
   const org = encodeURIComponent(scope.scope.activeOrg.slug);
   return forwardToStreamhubModulith(
-    `/api/v1/orgs/${org}/places/items/code-usage?code=${encodeURIComponent(code)}`,
-    { sessionOnly: true }
+    `/api/v1/orgs/${org}/places/items/code-usage?code=${encodeURIComponent(code)}`
   );
 }

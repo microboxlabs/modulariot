@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { HiCalendar } from "react-icons/hi";
 import dayjs from "dayjs";
+import { usePlacesT } from "../i18n/places-i18n";
 
 // alto aproximado del calendario inline, para abrirlo hacia arriba si no cabe
 const ALTO_POPUP = 340;
@@ -25,6 +26,7 @@ export default function DateField({
   minDate?: string;
   maxDate?: string;
 }>) {
+  const t = usePlacesT();
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
 
@@ -70,7 +72,7 @@ export default function DateField({
         readOnly
         aria-label={label}
         placeholder="dd/mm/aaaa"
-        value={value ? dayjs(value).format("DD/MM/YYYY") : ""}
+        value={value ? dayjs(value).format(t("common.date_format")) : ""}
         onClick={() => (pos ? setPos(null) : abrir())}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -90,13 +92,13 @@ export default function DateField({
           >
             <Datepicker
               inline
-              language="es-ES"
+              language={t("common.date_locale")}
               weekStart={1}
               value={value ? dayjs(value).toDate() : null}
               minDate={minDate ? dayjs(minDate).toDate() : undefined}
               maxDate={maxDate ? dayjs(maxDate).toDate() : undefined}
-              labelTodayButton="Hoy"
-              labelClearButton="Limpiar"
+              labelTodayButton={t("common.today")}
+              labelClearButton={t("common.clear")}
               onChange={elegir}
             />
           </div>,

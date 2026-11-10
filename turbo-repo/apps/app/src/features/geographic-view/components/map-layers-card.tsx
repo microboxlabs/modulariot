@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import type { IconType } from "react-icons";
 import { TbPolygon, TbRoute, TbTruck } from "react-icons/tb";
 import { twMerge } from "tailwind-merge";
-import { useOutThenIn } from "./places-overlay/panel-motion";
 import { z } from "zod";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -83,9 +82,14 @@ export function useCapasMapa(): [
 
 /**
  * Lo que tiene sentido apagar en cada vista: la general no dibuja trayectos
- * y Lugares no muestra vehículos.
+ * y Lugares no muestra vehículos. Sin permiso para ver Lugares no hay
+ * geocercas que apagar.
  */
-export function capasDeVista(vista: GeographicMapViewId | null): CapaMapa[] {
+export function capasDeVista(
+  vista: GeographicMapViewId | null,
+  verLugares = true
+): CapaMapa[] {
+  if (!verLugares) return ["vehiculos"];
   return vista === "places"
     ? ["geocercas", "trayectos"]
     : ["vehiculos", "geocercas"];
@@ -107,9 +111,6 @@ export function formaCapa(arribaActiva: boolean, abajoActiva: boolean): string {
 const ORDEN_CAPAS: CapaMapa[] = ["vehiculos", "geocercas", "trayectos"];
 
 const TRANSICION = "duration-200 ease-out motion-reduce:transition-none";
-/** Fundido rápido al cambiar de vista: 75 ms de salida y 75 ms de entrada. */
-const FUNDIDO_MS = 75;
-const FUNDIDO = "duration-75 ease-out motion-reduce:transition-none";
 
 function BotonCapa({
   capa,
@@ -190,25 +191,18 @@ export default function MapLayersCard({
   disponibles: CapaMapa[];
   onCambiar: (capa: CapaMapa, ver: boolean) => void;
 }>) {
-  // al cambiar de vista la píldora se desvanece, cambia sus botones sin que
-  // se vea y vuelve a aparecer: nada se pliega ni salta de lugar
-  const clave = ORDEN_CAPAS.filter((c) => disponibles.includes(c)).join(",");
-  const { shown, visible } = useOutThenIn(clave, FUNDIDO_MS);
-  const visibles = (shown ? shown.split(",") : []) as CapaMapa[];
+  // al cambiar de vista los botones cambian al instante, sin fundido
+  const visibles = ORDEN_CAPAS.filter((c) => disponibles.includes(c));
+  // la clave lleva la vista: al cambiarla los botones se montan de nuevo y su
+  // forma nueva sale sin transición; encender o apagar una capa sí la anima
+  const vista = visibles.join(",");
   return (
     <section aria-label={tr("geographic_view.layers.title", dict)}>
       {/* misma píldora que el notch de arriba */}
-      <div
-        data-capas-visible={visible ? "in" : "out"}
-        className={twMerge(
-          "pointer-events-auto flex flex-col rounded-full border border-gray-200 bg-white/95 p-0.5 shadow-lg backdrop-blur transition-opacity dark:border-gray-700 dark:bg-gray-800/95",
-          FUNDIDO,
-          visible ? "opacity-100" : "pointer-events-none opacity-0"
-        )}
-      >
+      <div className="pointer-events-auto flex flex-col rounded-full border border-gray-200 bg-white/95 p-0.5 shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-800/95">
         {visibles.map((capa) => (
           <BotonCapa
-            key={capa}
+            key={`${vista}:${capa}`}
             capa={capa}
             dict={dict}
             activa={capas[capa]}

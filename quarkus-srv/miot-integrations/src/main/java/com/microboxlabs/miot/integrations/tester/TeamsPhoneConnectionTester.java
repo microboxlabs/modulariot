@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.integrations.tester;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.integrations.auth.AuthResolutionException;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthContext;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthRegistry;
@@ -30,8 +32,10 @@ import java.net.URI;
 import java.util.function.Consumer;
 
 /**
- * Checks a TEAMS_PHONE connection: Entra issues an app token for the credential, and Graph
- * answers the PSTN call list of the last hour, which needs CallRecords.Read.All.
+ * Checks a TEAMS_PHONE connection: Entra issues an app token for the credential, and Graph answers both call
+ * reports of the last hour, PSTN (Calling Plans, Operator Connect) and Direct Routing, which need
+ * CallRecords.Read.All. The message says how many calls each report returned, so an organization can see which
+ * one holds its calls.
  */
 @ApplicationScoped
 public class TeamsPhoneConnectionTester implements ConnectionTester {
@@ -40,6 +44,7 @@ public class TeamsPhoneConnectionTester implements ConnectionTester {
     private final CredentialAuthRegistry auth;
     private final IntegrationSecretCipher secretCipher;
     private final Consumer<URI> tokenUrlGuard;
+    private final ObjectMapper json = new ObjectMapper();
 
     @Inject
     public TeamsPhoneConnectionTester(GraphClient graph, CredentialAuthRegistry auth,
@@ -98,22 +103,51 @@ public class TeamsPhoneConnectionTester implements ConnectionTester {
             return fail(now, "Microsoft Entra did not issue a token: " + e.getMessage());
         }
         Instant to = Instant.now();
+        Instant from = to.minus(Duration.ofHours(1));
         try {
-            HttpResponse<String> response = graph.pstnCalls(headers, to.minus(Duration.ofHours(1)), to);
-            int status = response.statusCode();
-            if (status >= 200 && status < 300) {
-                return new ConnectionTestResponse(true, now, "Entra issued a token and Graph returned the PSTN calls");
+            Report pstn = report(graph.pstnCalls(headers, from, to), "PSTN");
+            if (pstn.failure() != null) {
+                return fail(now, pstn.failure());
             }
-            if (status == 401 || status == 403) {
-                return fail(now, "Graph returned HTTP " + status
-                        + ": grant the app CallRecords.Read.All (application) with admin consent");
+            Report directRouting = report(graph.directRoutingCalls(headers, from, to), "Direct Routing");
+            if (directRouting.failure() != null) {
+                return fail(now, directRouting.failure());
             }
-            return fail(now, "Graph returned HTTP " + status + " for the PSTN call list");
+            return new ConnectionTestResponse(true, now, "Entra issued a token and Graph returned the call records"
+                    + " of the last hour (PSTN: " + pstn.count() + ", Direct Routing: " + directRouting.count() + ")");
         } catch (IOException e) {
             return fail(now, "Could not reach Microsoft Graph: " + e.getMessage());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return fail(now, "The Teams connection test was interrupted");
+        }
+    }
+
+    /** {@code count}: rows of the first page, with a {@code +} when Graph has more pages. */
+    private record Report(String count, String failure) {
+    }
+
+    private Report report(HttpResponse<String> response, String name) {
+        int status = response.statusCode();
+        if (status == 404) {
+            return new Report("0", null);
+        }
+        if (status == 401 || status == 403) {
+            return new Report(null, "Graph returned HTTP " + status + " for the " + name
+                    + " calls: grant the app CallRecords.Read.All (application) with admin consent");
+        }
+        if (status < 200 || status >= 300) {
+            return new Report(null, "Graph returned HTTP " + status + " for the " + name + " call list");
+        }
+        try {
+            JsonNode body = json.readTree(response.body() == null ? "{}" : response.body());
+            if (body == null || !body.path("value").isArray()) {
+                return new Report(null, "Graph returned an invalid " + name + " call list");
+            }
+            boolean more = !body.path("@odata.nextLink").asText("").isBlank();
+            return new Report(body.path("value").size() + (more ? "+" : ""), null);
+        } catch (IOException e) {
+            return new Report(null, "Graph returned a " + name + " call list that is not JSON");
         }
     }
 

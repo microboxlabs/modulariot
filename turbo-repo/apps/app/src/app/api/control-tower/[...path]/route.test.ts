@@ -124,7 +124,12 @@ describe("/api/control-tower/[...path]", () => {
     );
   });
 
-  it.each(["webrtc-token", "reconcile", "calls/ref-1/ended"])(
+  it.each([
+    "webrtc-token",
+    "reconcile",
+    "calls/ref-1/ended",
+    "whatsapp-calls/incoming-1/answer",
+  ])(
     "uses the individual operator's session for telephony %s",
     async (endpoint) => {
       await POST(

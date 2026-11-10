@@ -4,8 +4,8 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GeographicProfileProvider } from "../../profiles/geographic-profile-context";
 import MapNotch from "./map-notch";
 
-// the signed-in user's permissions; the places editor needs "Editor de lugares"
-const permisos = vi.hoisted(() => ({ lista: ["controltower:places.edit"] }));
+// the signed-in user's permissions: Lugares needs places:view, its editor places:write
+const permisos = vi.hoisted(() => ({ lista: ["places:view", "places:write"] }));
 vi.mock("@/features/settings-admin/team/team-api", () => ({
   useMyAccess: () => ({
     access: undefined,
@@ -33,13 +33,21 @@ function renderNotch(alSalirDeLugares?: (seguir: () => void) => void) {
 
 describe("MapNotch", () => {
   beforeEach(() => {
-    permisos.lista = ["controltower:places.edit"];
+    permisos.lista = ["places:view", "places:write"];
     globalThis.localStorage.clear();
+  });
+
+  it("hides Lugares without places:view (no Lugares role)", () => {
+    permisos.lista = [];
+    renderNotch();
+    expect(
+      screen.queryByRole("button", { name: "Places of interest" })
+    ).toBeNull();
   });
 
   it("shows Lugares even without the Editor de lugares permission", () => {
     // without it Lugares opens read-only (the editor decides), not hidden
-    permisos.lista = [];
+    permisos.lista = ["places:view"];
     renderNotch();
     const places = screen.getByRole("button", { name: "Places of interest" });
     fireEvent.click(places);

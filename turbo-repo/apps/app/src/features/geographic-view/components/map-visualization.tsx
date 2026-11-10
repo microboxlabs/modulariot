@@ -28,11 +28,13 @@ import { MapRef } from "react-map-gl";
 import MapVisualizationGeneric from "@/features/map-visualization/map-visualization";
 import { useGeographicProfile } from "../profiles/geographic-profile-context";
 import MapNotch from "./map-notch/map-notch";
+import { PlacesI18nProvider } from "@/features/places/i18n/places-i18n";
 import MapControlsFrame from "./map-controls-frame";
 import PlacesPermissionDebug from "./places-permission-debug";
 import {
   DEBUG_PERMISO_LUGARES,
   usePermisoEditorLugares,
+  usePermisoVerLugares,
 } from "../profiles/places-permission";
 import PlacesFloatingOverlay from "./places-overlay/places-floating-overlay";
 import { SlidePanel } from "./places-overlay/panel-motion";
@@ -67,13 +69,17 @@ export default function MapVisualization({
 
   const mapRef = useRef<MapRef | null>(null);
   const { activeView, setActiveView } = useGeographicProfile();
-  const placesMode = activeView === "places";
+  // sin permiso para ver Lugares (rol de Lugares en Ajustes › Equipo) no hay
+  // editor ni geocercas en el mapa, y nada se pide al modulith
+  const verLugares = usePermisoVerLugares();
+  const placesMode = verLugares && activeView === "places";
   // barra "Capas": qué se dibuja; en la vista general las geocercas (forma y
   // nombre) se ven, solo lectura, bajo los camiones mientras estén activas
   const [capas, setCapa] = useCapasMapa();
-  const geocercasEnGeneral = !placesMode && capas.geocercas;
+  const geocercasEnGeneral = verLugares && !placesMode && capas.geocercas;
   const puedeEditarLugares = usePermisoEditorLugares();
   const lugares = usePlacesEnMapa(mapRef, {
+    dict,
     editando: placesMode,
     verGeocercas: placesMode || geocercasEnGeneral,
     puedeEditar: puedeEditarLugares,
@@ -93,6 +99,7 @@ export default function MapVisualization({
   useEffect(() => {
     if (
       !places.storageScope ||
+      !verLugares ||
       !puedeEditarLugares ||
       borradorRevisado.current === places.storageScope
     )
@@ -100,7 +107,13 @@ export default function MapVisualization({
     borradorRevisado.current = places.storageScope;
     if (!placesMode && hayBorrador("geografico", places.storageScope))
       setActiveView("places");
-  }, [puedeEditarLugares, placesMode, setActiveView, places.storageScope]);
+  }, [
+    verLugares,
+    puedeEditarLugares,
+    placesMode,
+    setActiveView,
+    places.storageScope,
+  ]);
 
   useEffect(() => {
     if (placesMode) {
@@ -216,98 +229,102 @@ export default function MapVisualization({
     // el mapa y, a su lado, la barra de Lugares: al abrirla el mapa se
     // angosta (su centro sigue siendo el de lo que se ve) y sus controles se
     // mueven con su borde
-    <div className="flex h-full w-full overflow-hidden">
-      <div className="relative h-full min-w-0 flex-1 overflow-hidden">
-        <MapVisualizationGeneric
-          rounded={false}
-          mapStyle={
-            mapStyle as
-              | "satellite"
-              | "streets"
-              | "dark"
-              | "light"
-              | "outdoors"
-              | "hybrid"
-          }
-          layers={layers}
-          isLoading={false}
-          mapRef={mapRef}
-          onZoomChange={alCambioZoom}
-          {...lugares.propsMapa}
-        >
-          {placesMode || geocercasEnGeneral ? (
-            <PlacesMapLayers
-              ws={places}
-              vistaGeneral={geocercasEnGeneral}
-              ocultar={{
-                geocercas: !capas.geocercas,
-                trayectos: !capas.trayectos,
-              }}
-            />
-          ) : null}
-        </MapVisualizationGeneric>
-        {/* todos los controles a 20 px del borde; con Lugares abierto, a su lado */}
-        <MapControlsFrame
-          topLeft={
-            // filtros de camiones: se van al abrir Lugares (no hay camiones)
-            <SlidePanel show={!placesMode} from="left">
-              <Filters
-                dict={dict}
-                originalPositions={originalPositions}
-                setPositions={setPositions}
-                className="p-0"
-              />
-            </SlidePanel>
-          }
-          topRight={
-            <>
-              {/* dejar Lugares con cambios sin guardar: igual que su ✕ */}
-              <MapNotch dict={dict} alSalirDeLugares={places.pedirSalir} />
-              {/* capas, justo bajo los botones de vistas */}
-              <MapLayersCard
-                dict={dict}
-                capas={capas}
-                disponibles={capasDeVista(activeView)}
-                onCambiar={setCapa}
-              />
-            </>
-          }
-          bottomLeft={
-            <>
-              {/* solo con NEXT_PUBLIC_DEBUG_PLACES_PERMISSION=true: probar Lugares sin el permiso */}
-              {DEBUG_PERMISO_LUGARES && <PlacesPermissionDebug dict={dict} />}
-              <MapStyleSelector
-                dict={dict}
-                selectedStyle={mapStyle}
-                setSelectedStyle={setMapStyle}
-              />
-            </>
-          }
-        />
-        {/* menús y barras de dibujo: sobre el mapa, en sus coordenadas */}
-        {placesMode && <PlacesEditorOverlays ws={places} dict={dict} />}
-        {/* vista general: nombre y categorías de la geocerca bajo el mouse */}
-        {geocercasEnGeneral && places.tooltipBadge && (
-          <PlaceBadgeTooltip
-            badge={places.tooltipBadge.badge}
-            x={places.tooltipBadge.x}
-            y={places.tooltipBadge.y}
-          />
-        )}
-        {hoverInfo && !placesMode && (
-          <MapTooltip
-            left={hoverInfo.x}
-            top={hoverInfo.y}
-            setHoverInfo={setHoverInfo}
+    // isolate: el mapa es su propia capa, así ningún z de adentro (controles,
+    // filtros, la barra de Lugares) queda sobre la barra superior y sus menús
+    <PlacesI18nProvider dict={dict}>
+      <div className="isolate flex h-full w-full overflow-hidden">
+        <div className="relative h-full min-w-0 flex-1 overflow-hidden">
+          <MapVisualizationGeneric
+            rounded={false}
+            mapStyle={
+              mapStyle as
+                | "satellite"
+                | "streets"
+                | "dark"
+                | "light"
+                | "outdoors"
+                | "hybrid"
+            }
+            layers={layers}
+            isLoading={false}
+            mapRef={mapRef}
+            onZoomChange={alCambioZoom}
+            {...lugares.propsMapa}
           >
-            <PinTooltip
-              object={pinWithSignal(hoverInfo.object, mapPositions)}
-              dict={dict}
+            {placesMode || geocercasEnGeneral ? (
+              <PlacesMapLayers
+                ws={places}
+                vistaGeneral={geocercasEnGeneral}
+                ocultar={{
+                  geocercas: !capas.geocercas,
+                  trayectos: !capas.trayectos,
+                }}
+              />
+            ) : null}
+          </MapVisualizationGeneric>
+          {/* todos los controles a 20 px del borde; con Lugares abierto, a su lado */}
+          <MapControlsFrame
+            topLeft={
+              // filtros de camiones: se van al abrir Lugares (no hay camiones)
+              <SlidePanel show={!placesMode} from="left">
+                <Filters
+                  dict={dict}
+                  originalPositions={originalPositions}
+                  setPositions={setPositions}
+                  className="p-0"
+                />
+              </SlidePanel>
+            }
+            topRight={
+              <>
+                {/* dejar Lugares con cambios sin guardar: igual que su ✕ */}
+                <MapNotch dict={dict} alSalirDeLugares={places.pedirSalir} />
+                {/* capas, justo bajo los botones de vistas */}
+                <MapLayersCard
+                  dict={dict}
+                  capas={capas}
+                  disponibles={capasDeVista(activeView, verLugares)}
+                  onCambiar={setCapa}
+                />
+              </>
+            }
+            bottomLeft={
+              <>
+                {/* solo con NEXT_PUBLIC_DEBUG_PLACES_PERMISSION=true: probar Lugares sin el permiso */}
+                {DEBUG_PERMISO_LUGARES && <PlacesPermissionDebug dict={dict} />}
+                <MapStyleSelector
+                  dict={dict}
+                  selectedStyle={mapStyle}
+                  setSelectedStyle={setMapStyle}
+                />
+              </>
+            }
+          />
+          {/* menús y barras de dibujo: sobre el mapa, en sus coordenadas */}
+          {placesMode && <PlacesEditorOverlays ws={places} dict={dict} />}
+          {/* vista general: nombre y categorías de la geocerca bajo el mouse */}
+          {geocercasEnGeneral && places.tooltipBadge && (
+            <PlaceBadgeTooltip
+              badge={places.tooltipBadge.badge}
+              x={places.tooltipBadge.x}
+              y={places.tooltipBadge.y}
             />
-          </MapTooltip>
-        )}
+          )}
+          {hoverInfo && !placesMode && (
+            <MapTooltip
+              left={hoverInfo.x}
+              top={hoverInfo.y}
+              setHoverInfo={setHoverInfo}
+            >
+              <PinTooltip
+                object={pinWithSignal(hoverInfo.object, mapPositions)}
+                dict={dict}
+              />
+            </MapTooltip>
+          )}
+        </div>
+        <PlacesFloatingOverlay dict={dict} ws={places} show={placesMode} />
       </div>
-      <PlacesFloatingOverlay dict={dict} ws={places} show={placesMode} />
-    </div>
+    </PlacesI18nProvider>
   );
 }

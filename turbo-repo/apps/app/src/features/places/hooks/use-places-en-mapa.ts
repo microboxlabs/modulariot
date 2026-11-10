@@ -17,6 +17,7 @@ import {
 } from "../map/place-labels";
 import { capasNombresGeocercas } from "../map/place-name-layer";
 import { usePlacesWorkspace } from "./use-places-workspace";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export function usePlacesEnMapa(
   mapRef: RefObject<MapRef | null>,
@@ -28,7 +29,10 @@ export function usePlacesEnMapa(
     mapStyle,
     zoom,
     ambito = "geografico",
+    dict,
   }: {
+    /** El diccionario de la página: los textos de Lugares en su idioma. */
+    dict?: I18nRecord;
     /** Dónde se guarda el borrador del formulario (uno por mapa). */
     ambito?: AmbitoBorrador;
     /** El editor de Lugares está abierto: los clics del mapa son suyos. */
@@ -47,6 +51,7 @@ export function usePlacesEnMapa(
     enabled: editando || verGeocercas,
     puedeEditar,
     ambito,
+    dict,
   });
 
   // al cerrar el editor, lo que quedó abierto (formulario, import) se cierra
@@ -88,7 +93,12 @@ export function usePlacesEnMapa(
     () =>
       ws.nombresImport ?? [
         ...(conGeocercas
-          ? itemsNombresMapa(ws.fcPropios, ws.prevLugarFC, ws.todosLugares)
+          ? itemsNombresMapa(
+              ws.fcPropios,
+              ws.prevLugarFC,
+              ws.todosLugares,
+              ws.t
+            )
           : []),
         ...(conTrayectos ? itemsTrayectos(ws.fcTray) : []),
       ],
@@ -97,6 +107,7 @@ export function usePlacesEnMapa(
       ws.fcPropios,
       ws.prevLugarFC,
       ws.todosLugares,
+      ws.t,
       ws.fcTray,
       conGeocercas,
       conTrayectos,
@@ -149,6 +160,7 @@ export function usePlacesEnMapa(
         resaltadoAnim,
         onHoverBadge: ws.onHoverBadge,
         onAcercar: abrirCluster,
+        textos: ws.t,
       }),
     [
       nombresItems,
@@ -160,6 +172,7 @@ export function usePlacesEnMapa(
       resaltadoAnim,
       ws.onHoverBadge,
       abrirCluster,
+      ws.t,
     ]
   );
 

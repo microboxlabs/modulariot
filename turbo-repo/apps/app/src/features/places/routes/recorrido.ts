@@ -3,6 +3,7 @@
 // paradas de paso. Transiciones puras; la página decide cuándo trazar.
 import type { Sugerencia } from "../data/geocoding";
 import type { FormTrayecto, LatLon, Parada, TipoPunto } from "../places.types";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
 
 /** Directions acepta 25 coordenadas. */
 export const MAX_PUNTOS = 25;
@@ -27,7 +28,10 @@ export type Distintivo = {
  * Distintivo de cada punto: A, las paradas numeradas en orden (1, 2, …; los
  * desvíos no cuentan, van sin número) y B.
  */
-export function distintivos(recorrido: Parada[]): Distintivo[] {
+export function distintivos(
+  recorrido: Parada[],
+  t: TextosLugares = textosLugares()
+): Distintivo[] {
   const ultimo = recorrido.length - 1;
   let paradas = 0;
   let desvios = 0;
@@ -36,14 +40,14 @@ export function distintivos(recorrido: Parada[]): Distintivo[] {
       return {
         letra: "A",
         colorCls: "bg-green-600",
-        label: "Desde",
+        label: t("routes.from"),
         rol: "origen",
       };
     if (i === ultimo)
       return {
         letra: "B",
         colorCls: "bg-rose-600",
-        label: "Hasta",
+        label: t("routes.to"),
         rol: "destino",
       };
     if (tipoDe(p) === "desvio") {
@@ -51,7 +55,7 @@ export function distintivos(recorrido: Parada[]): Distintivo[] {
       return {
         letra: "",
         colorCls: "",
-        label: `Desvío ${desvios}`,
+        label: t("routes.detour_n", { n: desvios }),
         rol: "desvio",
       };
     }
@@ -59,7 +63,7 @@ export function distintivos(recorrido: Parada[]): Distintivo[] {
     return {
       letra: String(paradas),
       colorCls: "bg-red-600",
-      label: `Parada ${paradas}`,
+      label: t("routes.stop_n", { n: paradas }),
       rol: "parada",
     };
   });
@@ -174,10 +178,13 @@ export function longitudM(pts: LatLon[]): number {
 }
 
 /** "850 m" o "12,4 km". */
-export function textoDistancia(m: number): string {
+export function textoDistancia(
+  m: number,
+  t: TextosLugares = textosLugares()
+): string {
   if (m < 1000) return `${Math.round(m)} m`;
   const km = m / 1000;
-  return `${km.toLocaleString("es-CL", { maximumFractionDigits: km < 100 ? 1 : 0 })} km`;
+  return `${km.toLocaleString(t("common.number_locale"), { maximumFractionDigits: km < 100 ? 1 : 0 })} km`;
 }
 
 export function textoDesdeCoords(punto: LatLon): string {
@@ -217,16 +224,26 @@ export function waypointsDirections(tipos: TipoPunto[]): string | null {
 export function cambiarCategoriaPunto(
   t: FormTrayecto,
   id: string,
-  categoria: string | undefined
+  categoria: string | undefined,
+  lista: string | null = t.categorias_puntos_lista
 ): FormTrayecto {
+  // un trayecto usa un solo seleccionable para sus puntos: elegir de otro
+  // (se cambió la lista del campo) deja sin categoría a los que venían del anterior
+  const otraLista =
+    !!categoria &&
+    !!t.categorias_puntos_lista &&
+    lista !== t.categorias_puntos_lista;
+  const sinCategoria = (p: Parada) => {
+    const sin = { ...p };
+    delete sin.categoria;
+    return sin;
+  };
   return {
     ...t,
+    categorias_puntos_lista: categoria ? lista : t.categorias_puntos_lista,
     recorrido: t.recorrido.map((p) => {
-      if (p.id !== id) return p;
-      if (categoria) return { ...p, categoria };
-      const sin = { ...p };
-      delete sin.categoria;
-      return sin;
+      if (p.id !== id) return otraLista ? sinCategoria(p) : p;
+      return categoria ? { ...p, categoria } : sinCategoria(p);
     }),
   };
 }

@@ -4,7 +4,6 @@ import {
   fusionarPorId,
   isLocalId,
   lugarDesdeForm,
-  newLocalId,
   readLocal,
   trayectoDesdeForm,
   useLocalPlaces,
@@ -14,8 +13,8 @@ import { COLOR_KEY, FORM_VACIO, TRAY_VACIO } from "../places.types";
 describe("local-store", () => {
   beforeEach(() => window.localStorage.clear());
 
-  it("generates ids recognised as local", () => {
-    expect(isLocalId(newLocalId())).toBe(true);
+  it("recognises local ids", () => {
+    expect(isLocalId("local-9b1c")).toBe(true);
     expect(isLocalId("9b1c-server-id")).toBe(false);
     expect(isLocalId(null)).toBe(false);
   });

@@ -1,0 +1,36 @@
+# 🔔 Release Notes v0.6.5 — ModularIoT
+
+### Fecha: 09/11/2026
+
+**Objetivo**: Esta versión de la plataforma incorpora una condición configurable por nivel para determinar qué casos requieren atención de un operador. El cambio corresponde exclusivamente al milestone OSS MIOT-0.6.5.
+
+## 🚀 Evolutivos
+
+- **📍 Condición «Requiere operador» por nivel** *(Integración OSS — MIOT-0.6.5)*
+  - **Punto clave**: Cada nivel puede definir `response.operatorWhen` para limitar qué casos requieren atención de un operador.
+  - **Detalle técnico**: La condición CEL se evalúa ante la apertura del caso o un cambio de nivel. Todos los casos quedan registrados; si la condición es falsa o no está definida, el caso no aparece en la bandeja de atención ni recibe SLA, presupuesto de pasos o escalamiento.
+
+## 📊 Beneficios
+
+- 🎯 **Atención más precisa**: Se dirige a operadores solo los casos que cumplen el criterio definido para su nivel.
+- 🧾 **Registro completo**: Se registran también los casos que no requieren atención del operador.
+- 🔕 **Menos alertas innecesarias**: Los casos que no cumplen la condición quedan fuera de la bandeja de atención.
+- ⏱️ **Gestión de SLA coherente**: Los casos excluidos no reciben SLA ni presupuesto de pasos.
+- 📈 **Escalamiento controlado**: El escalamiento aplica cuando el caso requiere atención según la condición.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.5`
+- App: `app@v0.6.5` (cambios incluidos)
+- Docs: `docs@v0.6.5` (cambios incluidos)
+- Web: `web@v0.6.5` (cambios incluidos)
+- Modulith: `modulith@v0.5.44` (cambios incluidos)
+- Harness: `harness@v0.1.15` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 0.6.5 permite definir por nivel qué casos requieren intervención, manteniendo el registro de todos ellos y reservando la atención operativa y sus mecanismos asociados para los que cumplen la condición.
+
+Este cambio del milestone OSS MIOT-0.6.5 hace más explícitos los criterios de atención en la plataforma, sin incluir cambios de clientes en el alcance de esta publicación.

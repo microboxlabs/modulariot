@@ -7,19 +7,25 @@
  */
 
 import useSWR, { mutate } from "swr";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import {
   CONTROL_TOWER_BASE,
   controlTowerRequest as request,
 } from "./control-tower-api";
 
 import {
+  parseCallOutcome,
+  parseInboundCalls,
   parseTelephonySetup,
   parseWebRtcToken,
   parseReconcileResult,
+  type InboundWhatsAppCall,
   type TelephonyProvider,
   type TelephonySetup,
 } from "./telephony-api.types";
 export type {
+  CallOutcome,
+  InboundWhatsAppCall,
   TelephonyProvider,
   TelephonyLine,
   TelephonySetup,
@@ -28,31 +34,53 @@ export type {
 export const telephonyKey = `${CONTROL_TOWER_BASE}/telephony`;
 
 export function useTelephony(enabled = true) {
-  return useSWR<TelephonySetup>(
-    enabled ? telephonyKey : null,
-    async (path: string) => parseTelephonySetup(await request<unknown>(path)),
+  const { activeOrg, isSwitching } = useOrgScopes();
+  const orgSlug = activeOrg?.slug;
+  const result = useSWR<TelephonySetup>(
+    enabled && orgSlug && !isSwitching ? [telephonyKey, orgSlug] : null,
+    async ([path]: [string, string]) =>
+      parseTelephonySetup(await request<unknown>(path)),
     { revalidateOnFocus: false, shouldRetryOnError: false }
   );
+  return { ...result, orgSlug };
 }
 
-export async function saveTelephony(provider: TelephonyProvider | null) {
+export async function saveTelephony(
+  provider: TelephonyProvider | null,
+  orgSlug?: string
+) {
   const saved = parseTelephonySetup(
     await request<unknown>(telephonyKey, {
       method: "PUT",
       body: { provider },
     })
   );
-  await mutate(telephonyKey, saved, { revalidate: false });
+  await mutate([telephonyKey, orgSlug], saved, { revalidate: false });
   return saved;
 }
 
 /** Refusal codes of the token request (409). */
 export const QUOTA_EXHAUSTED = "telephony_quota_exhausted";
 export const CHANNELS_BUSY = "telephony_channels_busy";
+export const WHATSAPP_NO_PERMISSION = "whatsapp_no_permission";
+export const WHATSAPP_UNAVAILABLE = "whatsapp_calling_unavailable";
+export const WHATSAPP_CALL_TAKEN = "whatsapp_call_taken";
 
-/** Reserves a managed call and requests the operator's reusable Telnyx login. */
+/** Refusals the dialing step explains in words; any other shows the provider's message. */
+export const KNOWN_REFUSALS: readonly string[] = [
+  QUOTA_EXHAUSTED,
+  CHANNELS_BUSY,
+  WHATSAPP_NO_PERMISSION,
+  WHATSAPP_UNAVAILABLE,
+  WHATSAPP_CALL_TAKEN,
+];
+
+/**
+ * Reserves a managed call and requests the operator's reusable Telnyx login.
+ * With `channel: "WHATSAPP"` the server calls the number on WhatsApp.
+ */
 export async function fetchWebRtcToken(
-  call: { calleeNumber?: string; caseRef?: string } = {}
+  call: { calleeNumber?: string; caseRef?: string; channel?: "WHATSAPP" } = {}
 ) {
   return parseWebRtcToken(
     await request<unknown>(`${telephonyKey}/webrtc-token`, {
@@ -70,6 +98,45 @@ export function reportCallEnded(
   return request<void>(
     `${telephonyKey}/calls/${encodeURIComponent(callRef)}/ended`,
     { method: "POST", body: { providerCallId } }
+  );
+}
+
+/** Why the provider ended a call before it connected (e.g. whatsapp_no_permission). */
+export async function fetchCallOutcome(callRef: string) {
+  return parseCallOutcome(
+    await request<unknown>(
+      `${telephonyKey}/calls/${encodeURIComponent(callRef)}`
+    )
+  );
+}
+
+export const ringingWhatsAppCallsKey = `${telephonyKey}/whatsapp-calls`;
+
+/** WhatsApp calls from contacts ringing in the tower; polled only while WhatsApp calling is on. */
+export function useRingingWhatsAppCalls(enabled: boolean, intervalMs = 4000) {
+  const { activeOrg, isSwitching } = useOrgScopes();
+  return useSWR<InboundWhatsAppCall[]>(
+    enabled && activeOrg?.slug && !isSwitching
+      ? [ringingWhatsAppCallsKey, activeOrg.slug]
+      : null,
+    async ([path]: [string, string]) =>
+      parseInboundCalls(await request<unknown>(path)),
+    {
+      refreshInterval: intervalMs,
+      revalidateOnFocus: true,
+      shouldRetryOnError: true,
+      errorRetryInterval: intervalMs,
+    }
+  );
+}
+
+/** A login to take a ringing WhatsApp call; dial with it like any Telnyx call. */
+export async function answerWhatsAppCall(callId: string) {
+  return parseWebRtcToken(
+    await request<unknown>(
+      `${ringingWhatsAppCallsKey}/${encodeURIComponent(callId)}/answer`,
+      { method: "POST" }
+    )
   );
 }
 

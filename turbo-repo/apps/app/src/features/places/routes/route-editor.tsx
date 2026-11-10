@@ -33,6 +33,7 @@ import {
   textoDesdeCoords,
   tramosRecorrido,
 } from "./recorrido";
+import { usePlacesT, type TextosLugares } from "../i18n/places-i18n";
 
 type SetTray = Dispatch<SetStateAction<FormTrayecto>>;
 
@@ -120,6 +121,7 @@ function TramoHandles({
 }: Readonly<
   Acciones & { tray: FormTrayecto; recienArrastrado: RefObject<boolean> }
 >) {
+  const t = usePlacesT();
   // parada recién insertada que se está arrastrando
   const [arrastre, setArrastre] = useState<Arrastre | null>(null);
   const lleno = tray.recorrido.length >= MAX_PUNTOS;
@@ -184,7 +186,7 @@ function TramoHandles({
         >
           <span
             className={handleParada(key)}
-            title="Clic o arrastra para agregar una parada"
+            title={t("routes.segment_hint")}
           />
         </Marker>
       ))}
@@ -226,8 +228,8 @@ function MarcaPunto({
   );
 }
 
-const tituloMarca = (label: string, editable: boolean) =>
-  editable ? `${label} · arrastra para mover` : label;
+const tituloMarca = (t: TextosLugares, label: string, editable: boolean) =>
+  editable ? t("routes.point_drag_hint", { label }) : label;
 
 /**
  * Puntos del recorrido con el mismo distintivo que la lista. Editables:
@@ -250,9 +252,10 @@ export default function RouteHandles({
     onHover?: (id: string | null) => void;
   }
 >) {
+  const t = usePlacesT();
   // el navegador dispara click al soltar un arrastre: ignorar ese click
   const recienArrastrado = useRef(false);
-  const ds = distintivos(tray.recorrido);
+  const ds = distintivos(tray.recorrido, t);
 
   const empezarArrastre = () => {
     setTray(marcarHistorialRecorrido);
@@ -299,7 +302,7 @@ export default function RouteHandles({
                   "cursor-grab hover:scale-110 active:cursor-grabbing",
                 resaltado && "scale-125"
               )}
-              title={tituloMarca(distintivo.label, editable)}
+              title={tituloMarca(t, distintivo.label, editable)}
               onMouseEnter={() => onHover(p.id)}
               onMouseLeave={() => onHover(null)}
             >

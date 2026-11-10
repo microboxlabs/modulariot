@@ -29,7 +29,7 @@ public interface TelephonyUsageStore {
     /** STARTED rows started before {@code before}: marked EXPIRED. Returns how many. */
     int expireStarted(Instant before);
 
-    /** The tenant of the latest managed VOICE row to this number started after {@code since}. */
+    /** The tenant of the latest managed VOICE or WHATSAPP_CALL row to this number started after {@code since}. */
     Optional<String> latestCallerTenant(String calleeDigits, Instant since);
 
     /** Sum of billed minutes of the tenant's CONFIRMED managed VOICE rows in [from, to). */

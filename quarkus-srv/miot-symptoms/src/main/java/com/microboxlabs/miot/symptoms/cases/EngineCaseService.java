@@ -11,9 +11,11 @@ import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.dto.TripPeople;
 import com.microboxlabs.miot.symptoms.dto.TripRoute;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
+import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
 import com.microboxlabs.miot.symptoms.lostsignal.SignalStateReader.Reported;
+import com.microboxlabs.miot.symptoms.map.TripWindows;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -42,6 +44,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import org.jboss.logging.Logger;
 
@@ -57,6 +60,8 @@ public class EngineCaseService {
     private static final String PAGE = "p_page";
     private static final Set<String> PAGING = Set.of(PAGE, "p_page_size");
     private static final String POSITION_ASSET_ID = "asset_id";
+    /** The vehicle the case's trip is on now; differs from {@code asset_id} after a truck change. */
+    private static final String TRIP_ASSET_ID = "trip_asset_id";
     private static final String TRIP_ID = "p_trip_id";
     private static final String ASSET_ID = "p_asset_id";
     private static final String NAME = "p_symptom_name";
@@ -136,6 +141,15 @@ public class EngineCaseService {
             episode(tenantCode, assetId, definitionId);
         }
 
+        /** As {@link #closed(String, String, UUID, String)}, with how the operator closed the case. */
+        default void closed(String tenantCode, String assetId, UUID definitionId, OperatorClose close) {
+            closed(tenantCode, assetId, definitionId, close.tripId());
+        }
+
+        default Consumer<OperatorClose> operatorClose(String tenant, String asset, UUID definition) {
+            return close -> closed(tenant, asset, definition, close);
+        }
+
         default void staleEpisode(EngineCaseStore.StaleCase c) {
             episode(c.tenantCode(), c.assetId(), c.definitionId());
         }
@@ -147,7 +161,16 @@ public class EngineCaseService {
     private final Clock clock;
     private final SymptomEvents events;
     private final Vehicles vehicles;
+    private final TripTracks tripTracks;
     private static final String CHECK = "check";
+
+    /** The time range of a case's trip for its map ({@link TripWindows#track}); empty without one. */
+    @FunctionalInterface
+    public interface TripTracks {
+        TripTracks NONE = (tenantCode, tripId, assetId) -> Optional.empty();
+
+        Optional<TripWindows.Window> track(String tenantCode, String tripId, String assetId);
+    }
 
     /** What the lost-signal detector's profiles say about a vehicle now; empty without a profile. */
     @FunctionalInterface
@@ -159,7 +182,7 @@ public class EngineCaseService {
 
     @Inject
     EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, Instance<Pool> pool, SymptomEvents events,
-            LostSignalDetector lostSignal) {
+            LostSignalDetector lostSignal, TripWindows tripWindows) {
         this(store, new Forget() {
             @Override
             public void episode(String tenantCode, String assetId, UUID definitionId) {
@@ -172,11 +195,22 @@ public class EngineCaseService {
             }
 
             @Override
+            public void closed(String tenantCode, String assetId, UUID definitionId, OperatorClose close) {
+                evaluator.closedByOperator(tenantCode, assetId, definitionId, close);
+            }
+
+            @Override
+            public Consumer<OperatorClose> operatorClose(String tenant, String asset, UUID definition) {
+                return evaluator.operatorCloseAction(tenant, asset, definition);
+            }
+
+            @Override
             public void staleEpisode(EngineCaseStore.StaleCase c) {
                 evaluator.forgetStale(c);
             }
         }, t -> readTrip(pool.get(), t), Clock.systemUTC(), events,
-                lostSignal::reported);
+                lostSignal::reported, (tenant, trip, asset) -> TripWindows.tripsModuleId(trip)
+                        .flatMap(id -> tripWindows.track(tenant, id, asset)));
     }
 
     private static Row readTrip(Pool pool, Tuple key) {
@@ -199,7 +233,13 @@ public class EngineCaseService {
 
     public EngineCaseService(EngineCaseStore store, Forget forget, Function<Tuple, Row> trips, Clock clock,
             SymptomEvents events, Vehicles vehicles) {
+        this(store, forget, trips, clock, events, vehicles, TripTracks.NONE);
+    }
+
+    public EngineCaseService(EngineCaseStore store, Forget forget, Function<Tuple, Row> trips, Clock clock,
+            SymptomEvents events, Vehicles vehicles, TripTracks tripTracks) {
         this.vehicles = vehicles;
+        this.tripTracks = tripTracks;
         this.store = store;
         this.forget = forget;
         this.trips = trips;
@@ -522,6 +562,7 @@ public class EngineCaseService {
         r.put(CARRIER_FIELD, trip == null ? null : trip.carrier());
         r.put(ORIGIN_FIELD, trip == null ? null : trip.origin());
         r.put(DESTINATION_FIELD, trip == null ? null : trip.destination());
+        r.put(TRIP_ASSET_ID, trip == null ? null : trip.assetId());
         putHold(r, c);
         return r;
     }
@@ -716,12 +757,16 @@ public class EngineCaseService {
         symptom.put(ICU_CONDITION, condition(c.level()));
         symptom.put("opened_at", c.openedAt().toString());
         symptom.put("sla_since", c.slaStart().toString());
+        symptom.put("sla_minutes", c.slaMinutes());
         symptom.put("started_at", start);
         symptom.put("duration_sec", Duration.between(started, ended).toSeconds());
         putHold(symptom, c);
         out.set("level_reason", levelReason(c));
+        putMapWindow(out.putObject("map_window"), signalWindow(tenantCode, c), started, ended);
+        out.set("level_response", c.levelResponse() == null ? JSON.nullNode() : c.levelResponse());
         ObjectNode trip = out.putObject("trip_info");
         trip.put(POSITION_ASSET_ID, c.assetId());
+        trip.put(TRIP_ASSET_ID, c.trip() == null ? null : c.trip().assetId());
         trip.put("trip_id", c.tripId());
         trip.put("trip_code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
@@ -994,8 +1039,8 @@ public class EngineCaseService {
     /**
      * The header with the case's treatments in its timeline, one entry per call, ignore or invalidate action,
      * in the shape of the GPS database's treatments. Each action goes in the level step whose time holds it; one
-     * before the first step goes in the first, one after the last in the last. Cancelled treatments and notes are
-     * left out.
+     * before the first step goes in the first, one after the last in the last. A handling record ("Registrar
+     * gestión") shows as {@code registrar gestion}. Cancelled treatments and other notes are left out.
      */
     public static JsonNode withTreatments(JsonNode header, List<TreatmentView> treatments) {
         ObjectNode out = header.deepCopy();
@@ -1014,7 +1059,7 @@ public class EngineCaseService {
                 continue;
             }
             String operator = t.closedBy() != null ? t.closedBy() : t.openedBy();
-            t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE).forEach(a -> {
+            t.actions().stream().filter(EngineCaseService::includedInHistory).forEach(a -> {
                 int step = stepOf(aggs, a.performedAt());
                 rows.get(step).add(timelineRow(a));
                 assignees.set(step, a.performedBy() != null ? a.performedBy() : t.openedBy());
@@ -1032,6 +1077,10 @@ public class EngineCaseService {
             aggs.get(i).put("assigned_to", assignees.get(i));
         }
         return out;
+    }
+
+    private static boolean includedInHistory(TreatmentAction action) {
+        return action.kind() != ActionKind.NOTE || action.recordsHandling();
     }
 
     /** The index of the last agg that starts at or before {@code when}; the first when none does. */
@@ -1058,8 +1107,8 @@ public class EngineCaseService {
             description.put(MESSAGE, a.message() != null ? a.message() : "Llamado a: " + a.contactName());
             description.put(DRIVER_RESPONSE, joined(a.outcomeLabel(), a.note()));
         } else {
-            row.put(TREATMENT_TYPE, a.kind() == ActionKind.IGNORE ? "ignorar condicion" : "invalidar sintoma");
-            description.put(MESSAGE, a.outcomeLabel());
+            row.put(TREATMENT_TYPE, otherTreatmentType(a.kind()));
+            description.put(MESSAGE, a.outcomeLabel() != null ? a.outcomeLabel() : a.outcomeKey());
             description.put(DRIVER_RESPONSE, a.note());
         }
         row.put("at", a.performedAt() == null ? null : a.performedAt().toInstant().toString());
@@ -1073,6 +1122,14 @@ public class EngineCaseService {
             row.put("scope", scope == null ? null : scope.toString());
         }
         return row;
+    }
+
+    private static String otherTreatmentType(ActionKind kind) {
+        return switch (kind) {
+            case IGNORE -> "ignorar condicion";
+            case NOTE -> "registrar gestion";
+            default -> "invalidar sintoma";
+        };
     }
 
     private static Map<String, Object> details(TreatmentAction a) {
@@ -1103,15 +1160,54 @@ public class EngineCaseService {
     }
 
     /** The vehicle and the time range of the signals the treatment page shows for a case. */
-    public record SignalWindow(String assetId, Instant from, Instant to) {
+    public record SignalWindow(String assetId, Instant from, Instant to, boolean onTrip) {
+        public SignalWindow(String assetId, Instant from, Instant to) {
+            this(assetId, from, to, false);
+        }
     }
 
     /**
      * From an hour before the case's condition began, or from the vehicle's previous case when that opened later,
-     * until the case closed or now; at most {@link #SIGNALS_AT_MOST} after the start.
+     * until the case closed or now; at most {@link #SIGNALS_AT_MOST} after the start. A case on a trips-module trip
+     * uses the trip's bounded range ({@link TripWindows#track}), and {@code onTrip} is true. The case's own time
+     * remains in the header and timeline, even when it falls outside that range.
      */
     public SignalWindow signalWindow(String tenantCode, long symptomId) {
-        EngineCase c = find(tenantCode, symptomId);
+        return signalWindow(tenantCode, find(tenantCode, symptomId));
+    }
+
+    private SignalWindow signalWindow(String tenantCode, EngineCase c) {
+        return tripTrack(tenantCode, c)
+                .map(t -> new SignalWindow(c.assetId(), t.from(), t.to(), true))
+                .orElseGet(() -> caseSignalWindow(tenantCode, c));
+    }
+
+    private Optional<TripWindows.Window> tripTrack(String tenantCode, EngineCase c) {
+        if (c.tripId() == null) {
+            return Optional.empty();
+        }
+        try {
+            return tripTracks.track(tenantCode, c.tripId(), c.assetId());
+        } catch (RuntimeException e) {
+            LOG.debugf("Engine case %d: trip range unavailable (%s)", c.id(), e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * {@code track_from}/{@code track_to}: the range of the positions the map draws ({@link #signalWindow}), the
+     * trip's when {@code on_trip}; {@code case_from}/{@code case_to}: the case's own time, whose signals the map
+     * highlights.
+     */
+    private static void putMapWindow(ObjectNode out, SignalWindow track, Instant caseFrom, Instant caseTo) {
+        out.put("track_from", track.from().toString());
+        out.put("track_to", track.to().toString());
+        out.put("on_trip", track.onTrip());
+        out.put("case_from", caseFrom.toString());
+        out.put("case_to", caseTo.toString());
+    }
+
+    private SignalWindow caseSignalWindow(String tenantCode, EngineCase c) {
         Instant opened = start(c);
         Instant earliest = opened.minus(SIGNALS_BEFORE);
         Instant from = store.previousOpening(tenantCode, c.assetId(), c.id(), earliest, opened).orElse(earliest);
@@ -1121,17 +1217,34 @@ public class EngineCaseService {
         return new SignalWindow(c.assetId(), from, to.isBefore(opened) ? opened : to);
     }
 
-    /**
-     * An operator closed the case's treatment: the case closes, and the next signal may open a new one. The
-     * episode goes first, so a failed drop leaves the case open and the call can be retried. Publishes
-     * {@code symptom.case.closed}.
-     */
+    /** A treatment opens only on an open case. The persistent treatment store rechecks under the case lock. */
+    public void requireOpen(String tenantCode, long symptomId) {
+        if (find(tenantCode, symptomId).closedAt() != null) {
+            throw new IllegalStateException("the case is closed");
+        }
+    }
+
+    /** As {@link #close(String, long, String, boolean)} for a case the operator handled. */
     public void close(String tenantCode, long symptomId, String actor) {
+        close(tenantCode, symptomId, actor, false);
+    }
+
+    /**
+     * An operator closed the case's treatment: the case closes. While the condition holds on the case's trip, the
+     * symptom opens no new case on the vehicle after an invalidation, and after a handled close only above the
+     * case's level ({@link OperatorClose}). The marker is installed under the case lock before the CLOSED row,
+     * so a failed marker write leaves the case open and the call can be retried. The CLOSED row records the close, so a restart keeps the block. Publishes
+     * {@code symptom.case.closed}.
+     *
+     * @param invalidated the operator invalidated the case
+     */
+    public void close(String tenantCode, long symptomId, String actor, boolean invalidated) {
         EngineCase c = find(tenantCode, symptomId);
         if (c.closedAt() == null) {
-            forget.closed(tenantCode, c.assetId(), c.definitionId(), c.tripId());
             Instant at = clock.instant();
-            if (store.close(tenantCode, c.id(), actor, at)) {
+            OperatorClose how = new OperatorClose(c.tripId(), at, c.level(), invalidated);
+            var mark = forget.operatorClose(tenantCode, c.assetId(), c.definitionId());
+            if (store.close(tenantCode, c.id(), actor, at, how, mark)) {
                 events.closedByOperator(tenantCode, c, actor, at);
             }
         }

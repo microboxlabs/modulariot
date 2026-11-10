@@ -27,6 +27,10 @@ export const formatosPara = (que: QueExportar): FormatoExport[] =>
 
 const lonLat = ([la, lo]: LatLon): [number, number] => [lo, la];
 const esPoligono = (l: Lugar) => (l.polygon?.length ?? 0) >= 3;
+const anillosDeLugar = (l: Lugar) => [
+  l.polygon ?? [],
+  ...(l.polygon_holes ?? []),
+];
 
 /** Datos de un lugar que el import entiende (además de su geometría). */
 function propsLugar(l: Lugar) {
@@ -53,6 +57,7 @@ function propsTrayecto(t: Trayecto) {
     waypoints: waypoints.map(lonLat),
     tipos_puntos: t.tipos_puntos ?? waypoints.map(() => "parada"),
     categorias_puntos: t.categorias_puntos ?? waypoints.map(() => null),
+    categorias_puntos_selectable: t.categorias_puntos_lista ?? null,
   };
 }
 
@@ -66,7 +71,7 @@ export function exportarGeoJson(lugares: Lugar[], trayectos: Trayecto[]) {
             properties: propsLugar(l),
             geometry: {
               type: "Polygon",
-              coordinates: [anilloGeoJSON(l.polygon ?? [])],
+              coordinates: anillosDeLugar(l).map(anilloGeoJSON),
             },
           },
         ];
@@ -127,7 +132,13 @@ function placemarkLugar(l: Lugar): string {
     const poly = l.polygon ?? [];
     // anillo cerrado: el primer punto se repite al final
     const anillo = poly[0] ? [...poly, poly[0]] : poly;
-    geom = `<Polygon><outerBoundaryIs><LinearRing><coordinates>${coordsKml(anillo)}</coordinates></LinearRing></outerBoundaryIs></Polygon>`;
+    const huecos = (l.polygon_holes ?? [])
+      .map((hole) => {
+        const cerrado = hole[0] ? [...hole, hole[0]] : hole;
+        return `<innerBoundaryIs><LinearRing><coordinates>${coordsKml(cerrado)}</coordinates></LinearRing></innerBoundaryIs>`;
+      })
+      .join("");
+    geom = `<Polygon><outerBoundaryIs><LinearRing><coordinates>${coordsKml(anillo)}</coordinates></LinearRing></outerBoundaryIs>${huecos}</Polygon>`;
   } else if (l.center) {
     geom = `<Point><coordinates>${coordsKml([l.center])}</coordinates></Point>`;
   } else return "";
@@ -179,9 +190,14 @@ export function exportarCsv(lugares: Lugar[]) {
     const centro = l.center ?? l.polygon?.[0];
     if (!centro) return [];
     const wkt = poly
-      ? `POLYGON((${anilloGeoJSON(l.polygon ?? [])
-          .map(([lo, la]) => `${lo} ${la}`)
-          .join(", ")}))`
+      ? `POLYGON(${anillosDeLugar(l)
+          .map(
+            (ring) =>
+              `(${anilloGeoJSON(ring)
+                .map(([lo, la]) => `${lo} ${la}`)
+                .join(", ")})`
+          )
+          .join(", ")})`
       : "";
     return [
       [

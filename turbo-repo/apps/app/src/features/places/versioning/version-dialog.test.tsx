@@ -1,14 +1,6 @@
-import {
-  act,
-  fireEvent,
-  render,
-  renderHook,
-  screen,
-  within,
-} from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import VersionDialog, { type VersionPendiente } from "./version-dialog";
-import { useVersionesPlaces } from "./versions-store";
 
 const pendiente: VersionPendiente = {
   nombre: "Planta Norte",
@@ -56,15 +48,49 @@ describe("VersionDialog", () => {
     fireEvent.click(
       screen.getByRole("button", { name: /Tipo de actualización/ })
     );
-    // Flowbite: the item's button (inside the menuitem) takes the click
+    // the menu opens in a portal, above the modal's scrolling content
     const mayor = screen.getByRole("menuitem", { name: /Mayor/ });
-    fireEvent.click(within(mayor).getByRole("button"));
+    expect(mayor.closest('[role="dialog"]')).toBeNull();
+    fireEvent.click(mayor);
+    expect(screen.queryByRole("menuitem")).toBeNull();
     expect(guardar()).toHaveTextContent("Guardar versión 2.0.0");
     fireEvent.change(screen.getByLabelText(/Descripción/), {
       target: { value: "  Nueva bodega  " },
     });
     fireEvent.click(guardar());
     expect(onConfirmar).toHaveBeenCalledWith("MAJOR", "Nueva bodega");
+  });
+
+  it("moves through the type menu by keyboard; Escape closes only the menu", async () => {
+    const onCancelar = vi.fn();
+    render(
+      <VersionDialog
+        pendiente={pendiente}
+        onCancelar={onCancelar}
+        onConfirmar={vi.fn()}
+      />
+    );
+    const tipo = screen.getByRole("button", { name: /Tipo de actualización/ });
+    fireEvent.click(tipo);
+    const menu = await screen.findByRole("menu");
+    // the selected type takes the focus, and the arrows move it
+    await waitFor(() =>
+      expect(screen.getByRole("menuitem", { name: /Menor/ })).toHaveFocus()
+    );
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(screen.getByRole("menuitem", { name: /Parche/ })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole("menuitem", { name: /Parche/ }), {
+      key: "Escape",
+    });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(onCancelar).not.toHaveBeenCalled();
+    await waitFor(() => expect(tipo).toHaveFocus());
+    // open again, Escape on the button itself
+    fireEvent.click(tipo);
+    await screen.findByRole("menu");
+    fireEvent.keyDown(tipo, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(onCancelar).not.toHaveBeenCalled();
   });
 
   it("opens as the blurred absolute modal and cancels with Escape", () => {
@@ -93,65 +119,5 @@ describe("VersionDialog", () => {
       />
     );
     expect(container).toBeEmptyDOMElement();
-  });
-});
-
-describe("places versions store", () => {
-  beforeEach(() => globalThis.localStorage.clear());
-
-  it("isolates history by account and organization, and refuses unscoped writes", () => {
-    const { result, rerender } = renderHook(
-      ({ scope }: { scope: string | null }) => useVersionesPlaces(scope),
-      { initialProps: { scope: "demo-user-a:org-a" as string | null } }
-    );
-    act(() => {
-      result.current.registrar("lugar", "demo-id", {
-        version: "1.1.0",
-        bump: "MINOR",
-        descripcion: "Demo private change",
-        cambios: [],
-      });
-    });
-    rerender({ scope: "demo-user-a:org-b" });
-    expect(result.current.historialDe("lugar", "demo-id")).toEqual([]);
-    rerender({ scope: "demo-user-b:org-a" });
-    expect(result.current.historialDe("lugar", "demo-id")).toEqual([]);
-    rerender({ scope: null });
-    act(() =>
-      expect(
-        result.current.registrar("lugar", "demo-id", {
-          version: "2.0.0",
-          bump: "MAJOR",
-          descripcion: "Not saved",
-          cambios: [],
-        })
-      ).toBe(false)
-    );
-    rerender({ scope: "demo-user-a:org-a" });
-    expect(result.current.versionDe("lugar", "demo-id")).toBe("1.1.0");
-  });
-
-  it("starts at 1.0.0 and keeps each saved version in the history", () => {
-    const { result } = renderHook(() => useVersionesPlaces("demo-user:org"));
-    expect(result.current.versionDe("lugar", "p1")).toBe("1.0.0");
-    expect(result.current.versionDe("lugar", null)).toBeNull();
-    act(() => {
-      result.current.registrar("lugar", "p1", {
-        version: "1.1.0",
-        bump: "MINOR",
-        descripcion: "Nueva categoría",
-        cambios: ["Categorías: 1 agregada"],
-      });
-    });
-    expect(result.current.versionDe("lugar", "p1")).toBe("1.1.0");
-    // trayectos keep their own history, even with the same id
-    expect(result.current.versionDe("trayecto", "p1")).toBe("1.0.0");
-    // and it is still there on the next visit
-    const otra = renderHook(() => useVersionesPlaces("demo-user:org"));
-    const [entrada] = otra.result.current.historialDe("lugar", "p1");
-    expect(entrada).toMatchObject({
-      version: "1.1.0",
-      descripcion: "Nueva categoría",
-    });
   });
 });

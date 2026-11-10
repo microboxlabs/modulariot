@@ -485,6 +485,19 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void aCaseOnAReplacedTruckNamesTheTripsCurrentPlate() {
+        store.add(new EngineCase(12, PANIC, "0.1.0", "Botón de pánico", "emergencies", "TRUCK1", OPENED, 4, "T-1",
+                null, null, null, null, 0, null, 0L, null).withTrip(new EngineCase.TripDetails("Driver", "Carrier",
+                        "Norte", "Sur", "TRUCK2")));
+
+        JsonNode row = service.casesPage(TENANT, Map.of()).get("data").get(0);
+
+        assertEquals("TRUCK1", row.get("asset_id").asText());
+        assertEquals("TRUCK2", row.get("trip_asset_id").asText());
+        assertEquals("TRUCK2", service.header(TENANT, -12).path("trip_info").path("trip_asset_id").asText());
+    }
+
+    @Test
     void aTripsCasesOpenAndClosedComeWithADateRange() {
         store.add(engineCase(12, "DEMO01", 4, 0));
         store.add(new EngineCase(13, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01",
@@ -512,6 +525,27 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void theHeaderExplicitlyReportsNoSlaForACaseWithoutAnOperator() {
+        store.add(new EngineCase(13, PANIC, "0.1.0", "Demo symptom", "demo", "vehicle-demo", OPENED, 4,
+                null, null, null, null, null, 0, null, null));
+
+        JsonNode symptom = service.header(TENANT, -13).path("symptom_info");
+        assertTrue(symptom.has("sla_minutes"));
+        assertTrue(symptom.path("sla_minutes").isNull());
+    }
+
+    @Test
+    void theHeaderCarriesTheCasesOwnPublishedResponse() throws Exception {
+        JsonNode response = new ObjectMapper().readTree("""
+                {"definitionId":"demo-definition","version":"2.0.0","level":{
+                  "icu":4,"response":{"operator":true,"steps":[{"role":"Demo role","budgetMinutes":2}]}}}
+                """);
+        store.add(panic(12, "DEMO01").withLevelResponse(response).withTest(true).withLevelAt(OPENED));
+
+        assertEquals(response, service.header(TENANT, -12).path("level_response"));
+    }
+
+    @Test
     void theHeaderAndTheSignalsDescribeTheCase() {
         store.add(panic(12, "DEMO01"));
 
@@ -519,6 +553,10 @@ class EngineCaseServiceTest {
         assertEquals("Botón de pánico", header.path("symptom_info").path("name").asText());
         assertEquals(4, header.path("symptom_info").path("icu_code").asInt());
         assertEquals("T-1", header.path("trip_info").path("trip_id").asText());
+        assertTrue(header.path("symptom_info").has("sla_minutes"));
+        assertEquals(store.find(TENANT, 12).orElseThrow().slaMinutes(),
+                header.path("symptom_info").path("sla_minutes").isNull() ? null
+                        : header.path("symptom_info").path("sla_minutes").asInt());
         JsonNode agg = header.path("timeline").get(0).path("conditions_agg").get(0);
         assertEquals(-12, agg.path("symptom_id").asLong(), "the map selects the case to load its point");
         assertEquals("Botón de pánico", agg.path("type").asText());
@@ -714,6 +752,43 @@ class EngineCaseServiceTest {
         assertEquals("Contestó · Va en camino", rows.get(0).path("description").path("driver_response").asText());
         assertEquals("invalidar sintoma", rows.get(1).path("treatment_type").asText());
         assertEquals("Motivo: prueba", rows.get(1).path("description").path("message").asText());
+    }
+
+    @Test
+    void aHandlingRecordShowsInTheHeaderLikeAHandledClose() {
+        store.add(new EngineCase(12, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01", OPENED, 4, "T-1",
+                null, null, null, OPENED.plusSeconds(600), 0, null, 0L));
+        List<TreatmentView> treatments = List.of(treatment(TreatmentStatus.CLOSED,
+                action(ActionKind.NOTE, null, null, "salto de paso"),
+                action(ActionKind.NOTE, null, "Verificado por GPS", "Detenido en el área de descanso")));
+
+        JsonNode agg = EngineCaseService.withTreatments(service.header(TENANT, -12), treatments)
+                .path("timeline").get(0).path("conditions_agg").get(0);
+
+        JsonNode rows = agg.path("treatments");
+        assertEquals(1, rows.size(), "a note without an outcome stays out");
+        assertEquals("registrar gestion", rows.get(0).path("treatment_type").asText());
+        assertEquals("Verificado por GPS", rows.get(0).path("description").path("message").asText());
+        assertEquals("Detenido en el área de descanso",
+                rows.get(0).path("description").path("driver_response").asText());
+        assertEquals("operator@example.com", rows.get(0).path("by").asText());
+        assertEquals("operator@example.com", agg.path("assigned_to").asText());
+    }
+
+    @Test
+    void aHandlingOutcomeKeyIsVisibleWhenNoLabelWasSent() {
+        store.add(panic(12, "DEMO01"));
+        TreatmentAction handling = new TreatmentAction("a", "t", TENANT, 1, ActionKind.NOTE, null, null,
+                null, null, null, "handling_outcome_1", null, null, null, null, "Verificado", List.of(),
+                Map.of(), "operator@example.com", OPENED.atOffset(ZoneOffset.UTC));
+
+        JsonNode row = EngineCaseService.withTreatments(service.header(TENANT, -12),
+                List.of(treatment(TreatmentStatus.CLOSED, handling)))
+                .path("timeline").get(0).path("conditions_agg").get(0).path("treatments").get(0);
+
+        assertEquals("registrar gestion", row.path("treatment_type").asText());
+        assertEquals("handling_outcome_1", row.path("description").path("message").asText());
+        assertEquals("Verificado", row.path("description").path("driver_response").asText());
     }
 
     @Test

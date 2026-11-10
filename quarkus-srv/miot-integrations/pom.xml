@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.42</version>
+        <version>0.5.44</version>
     </parent>
 
     <artifactId>miot-integrations</artifactId>
@@ -17,9 +17,9 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>${quarkus.platform.group-id}</groupId>
+                <groupId>io.quarkiverse.googlecloudservices</groupId>
                 <artifactId>quarkus-google-cloud-services-bom</artifactId>
-                <version>${quarkus.platform.version}</version>
+                <version>${google-cloud-services.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

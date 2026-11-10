@@ -1,0 +1,300 @@
+package com.microboxlabs.miot.places.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.places.dto.PlaceRequest;
+import com.microboxlabs.miot.places.dto.PlaceRequest.VersionRequest;
+import com.microboxlabs.miot.places.store.InMemoryPlaceStore;
+import com.microboxlabs.miot.places.store.PlaceStore.Place;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+/** Every place a write touches reaches {@link PlaceSync} by its organization and code, once the write commits. */
+class PlaceSyncTest {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final String TENANT = "acme-client";
+    private static final String ACTOR = "ana@example.com";
+    private static final String SQUARE = """
+            {"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[-70,-33],[-70,-32],[-69,-32],[-70,-33]]]},
+             "properties":{}}""";
+    private static final String CIRCLE = """
+            {"type":"Feature","geometry":{"type":"Point","coordinates":[-70,-33]},"properties":{"radius_m":20}}""";
+    private static final String LINE = """
+            {"type":"Feature","geometry":{"type":"LineString","coordinates":[[-70,-33],[-69,-32]]}}""";
+
+    private final List<String> heard = new ArrayList<>();
+    private boolean failing;
+    /** Runs once, while a copy is in StreamHub's hands: another write landing meanwhile. */
+    private Runnable meanwhile;
+    private final PlaceSync recorder = new PlaceSync() {
+        @Override
+        public void saved(String tenantCode, String externalCode, Place place) {
+            heard.add("saved " + place.kind() + " " + tenantCode + "/" + externalCode);
+            if (meanwhile != null) {
+                Runnable other = meanwhile;
+                meanwhile = null;
+                other.run();
+            }
+            if (failing) {
+                throw new IllegalStateException("StreamHub is down");
+            }
+        }
+
+        @Override
+        public void deleted(String tenantCode, String externalCode, String kind) {
+            heard.add("deleted " + kind + " " + tenantCode + "/" + externalCode);
+            if (meanwhile != null) {
+                Runnable other = meanwhile;
+                meanwhile = null;
+                other.run();
+            }
+            if (failing) {
+                throw new IllegalStateException("StreamHub is down");
+            }
+        }
+    };
+    private final InMemoryPlaceStore store = new InMemoryPlaceStore();
+    private final PlaceService service = new PlaceService(store, Transactions.none(), recorder);
+
+    private static JsonNode json(String text) {
+        try {
+            return MAPPER.readTree(text);
+        } catch (Exception e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
+    private static PlaceRequest geofence(List<PlaceRequest> inners, VersionRequest version) {
+        return new PlaceRequest("geofence", null, "SCL", "Planta", null, null, null, null, null, json(SQUARE), null,
+                null, null, inners, version);
+    }
+
+    private static PlaceRequest inner(UUID id, String code) {
+        return new PlaceRequest(null, null, code, code, null, null, null, null, null, json(CIRCLE), null, null,
+                id == null ? null : id.toString(), null, null);
+    }
+
+    private static PlaceRequest route(String code, VersionRequest version) {
+        return new PlaceRequest("route", null, code, "Ruta", null, null, null, null, null, json(LINE), null, null,
+                null, null, version);
+    }
+
+    private static VersionRequest patch() {
+        return new VersionRequest("PATCH", "Ajuste", List.of());
+    }
+
+    @Test
+    void aCopyOverwrittenByAnOlderOneStaysPending() {
+        Place planta = service.create(TENANT, geofence(null, null), ACTOR).place();
+        UUID id = planta.id();
+        // a newer edit lands, and is copied and marked, while the older one's copy is still being written
+        meanwhile = () -> service.update(TENANT, id, geofence(null, patch()), ACTOR);
+
+        service.update(TENANT, id, geofence(null, patch()), ACTOR);
+
+        assertEquals(List.of(id), store.pending(100).stream().map(p -> p.place().id()).toList(),
+                "StreamHub may hold the older version: the current one is copied again");
+        assertEquals(1, service.retryPending(100));
+        assertEquals(List.of(), store.pending(100));
+    }
+
+    @Test
+    void anOldSaveThatOvertakesANewOwnersCopyLeavesTheNewOwnerPending() {
+        Place previous = service.create(TENANT, geofence(null, null), ACTOR).place();
+        meanwhile = () -> {
+            service.delete(TENANT, "SCL", ACTOR);
+            service.create(TENANT, geofence(null, null), ACTOR);
+        };
+
+        service.update(TENANT, previous.id(), geofence(null, patch()), ACTOR);
+
+        UUID newOwner = store.findByCode(TENANT, "SCL").orElseThrow().id();
+        assertTrue(store.pending(100).stream().anyMatch(p -> p.place().id().equals(newOwner)),
+                "the stale save may have replaced the new owner's copy");
+        service.retryPending(100);
+        assertEquals(List.of(), store.pending(100));
+    }
+
+    @Test
+    void anOldDeleteThatOvertakesANewOwnersCopyLeavesTheNewOwnerPending() {
+        service.create(TENANT, geofence(null, null), ACTOR);
+        meanwhile = () -> service.create(TENANT, geofence(null, null), ACTOR);
+
+        service.delete(TENANT, "SCL", ACTOR);
+
+        UUID newOwner = store.findByCode(TENANT, "SCL").orElseThrow().id();
+        assertEquals(List.of(newOwner), store.pending(100).stream().map(p -> p.place().id()).toList());
+        assertEquals(1, service.retryPending(100));
+        assertEquals(List.of(), store.pending(100));
+    }
+
+    @Test
+    void aDeleteStillReachesStreamHubWhenTheCodeComesBackInAnotherCase() {
+        service.create(TENANT, geofence(null, null), ACTOR);
+        failing = true;
+        service.delete(TENANT, "SCL", ACTOR);
+        failing = false;
+        service.create(TENANT, new PlaceRequest("geofence", null, "scl", "Planta", null, null, null, null, null,
+                json(SQUARE), null, null, null, null, null), ACTOR);
+        heard.clear();
+
+        service.retryPending(100);
+
+        assertTrue(heard.contains("deleted geofence acme-client/SCL"),
+                "StreamHub's key is case sensitive: 'scl' is another row, so 'SCL' is removed");
+    }
+
+    @Test
+    void createHearsTheGeofenceAndEachInnerGeofence() {
+        service.create(TENANT, geofence(List.of(inner(null, "AND-1"), inner(null, "PAT-1")), null), ACTOR);
+
+        assertEquals(List.of("saved geofence acme-client/SCL", "saved inner_geofence acme-client/AND-1",
+                "saved inner_geofence acme-client/PAT-1"), heard);
+    }
+
+    @Test
+    void anEditHearsTheInnerGeofencesItDropsSavesAndAdds() {
+        PlaceService.Saved planta = service.create(TENANT,
+                geofence(List.of(inner(null, "AND-1"), inner(null, "PAT-1")), null), ACTOR);
+        UUID anden = planta.inners().get(0).id();
+        heard.clear();
+
+        service.update(TENANT, planta.place().id(), geofence(List.of(inner(anden, "AND-1"), inner(null, "PAT-2")),
+                patch()), ACTOR);
+
+        assertEquals(List.of("saved geofence acme-client/SCL", "deleted inner_geofence acme-client/PAT-1",
+                "saved inner_geofence acme-client/AND-1", "saved inner_geofence acme-client/PAT-2"), heard);
+    }
+
+    @Test
+    void anEditWithoutInnersLeavesThemUnheard() {
+        PlaceService.Saved planta = service.create(TENANT, geofence(List.of(inner(null, "AND-1")), null), ACTOR);
+        heard.clear();
+
+        service.update(TENANT, planta.place().id(), geofence(null, patch()), ACTOR);
+
+        assertEquals(List.of("saved geofence acme-client/SCL"), heard);
+    }
+
+    @Test
+    void aRouteWhoseCodeChangesLetsGoOfTheOldOne() {
+        Place ruta = service.create(TENANT, route("RUTA-1", null), ACTOR).place();
+        heard.clear();
+
+        service.update(TENANT, ruta.id(), route("RUTA-2", patch()), ACTOR);
+
+        assertEquals(List.of("deleted route acme-client/RUTA-1", "saved route acme-client/RUTA-2"), heard);
+    }
+
+    @Test
+    void deletingAGeofenceDeletesEachInnerGeofenceByItsCode() {
+        service.create(TENANT, geofence(List.of(inner(null, "AND-1"), inner(null, "PAT-1")), null), ACTOR);
+        heard.clear();
+
+        service.delete(TENANT, "scl", ACTOR);
+
+        assertEquals(List.of("deleted inner_geofence acme-client/AND-1", "deleted inner_geofence acme-client/PAT-1",
+                "deleted geofence acme-client/SCL"), heard);
+        assertTrue(store.findByCode(TENANT, "AND-1").isEmpty());
+    }
+
+    @Test
+    void aFailedWriteIsNeverHeard() {
+        // the geofence is inserted, then its inner geofences fail: the write rolls back
+        var request = geofence(List.of(inner(UUID.randomUUID(), "AJENA")), null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, request, ACTOR));
+        assertThrows(java.util.NoSuchElementException.class, () -> service.delete(TENANT, "NO-EXISTE", ACTOR));
+
+        assertEquals(List.of(), heard);
+    }
+
+    @Test
+    void aSyncThatFailsDoesNotUndoTheWrite() {
+        failing = true;
+
+        PlaceService.Saved planta = service.create(TENANT, geofence(List.of(inner(null, "AND-1")), null), ACTOR);
+
+        assertEquals(2, heard.size(), "the next place is still heard");
+        assertEquals(planta.place().id(), store.findByCode(TENANT, "SCL").orElseThrow().id());
+    }
+
+    @Test
+    void aSyncThatWorksLeavesNothingPendingButRoutesAreNeverMarked() {
+        service.create(TENANT, geofence(List.of(inner(null, "AND-1")), null), ACTOR);
+        service.create(TENANT, route("RUTA-1", null), ACTOR);
+        service.delete(TENANT, "RUTA-1", ACTOR);
+
+        assertEquals(List.of(), store.pending(100));
+    }
+
+    @Test
+    void theRetryCopiesWhatFailedDeletionsFirst() {
+        failing = true;
+        service.create(TENANT, geofence(List.of(inner(null, "AND-1")), null), ACTOR);
+        service.create(TENANT, new PlaceRequest("geofence", null, "ANF", "Antofagasta", null, null, null, null, null,
+                json(SQUARE), null, null, null, null, null), ACTOR);
+        service.delete(TENANT, "ANF", ACTOR);
+        assertEquals(3, store.pending(100).size());
+        failing = false;
+        heard.clear();
+
+        assertEquals(3, service.retryPending(100));
+
+        assertEquals(List.of("deleted geofence acme-client/ANF", "saved geofence acme-client/SCL",
+                "saved inner_geofence acme-client/AND-1"), heard);
+        assertEquals(List.of(), store.pending(100));
+        assertEquals(0, service.retryPending(100));
+    }
+
+    @Test
+    void aDeletionWhoseCodeIsTakenAgainIsNotRemovedFromStreamHub() {
+        service.create(TENANT, geofence(null, null), ACTOR);
+        failing = true;
+        service.delete(TENANT, "SCL", ACTOR);
+        failing = false;
+        // the code it freed is a new geofence's, copied already: removing it there would remove that one
+        service.create(TENANT, geofence(null, null), ACTOR);
+        heard.clear();
+
+        assertEquals(1, service.retryPending(100));
+
+        assertEquals(List.of(), heard);
+        assertEquals(List.of(), store.pending(100));
+    }
+
+    @Test
+    void whileNothingReallyCopiesEveryPlaceStaysPending() {
+        PlaceSync off = new PlaceSync() {
+            @Override
+            public void saved(String tenantCode, String externalCode, Place place) {
+                heard.add("saved " + externalCode);
+            }
+
+            @Override
+            public void deleted(String tenantCode, String externalCode, String kind) {
+                heard.add("deleted " + externalCode);
+            }
+
+            @Override
+            public boolean copies() {
+                return false;
+            }
+        };
+        PlaceService stub = new PlaceService(store, Transactions.none(), off);
+
+        stub.create(TENANT, geofence(List.of(inner(null, "AND-1")), null), ACTOR);
+
+        assertEquals(List.of(), heard, "nothing is called while it does not copy");
+        assertEquals(2, store.pending(100).size());
+        assertEquals(0, stub.retryPending(100));
+        assertEquals(2, store.pending(100).size(), "left for the sync that will copy");
+    }
+}

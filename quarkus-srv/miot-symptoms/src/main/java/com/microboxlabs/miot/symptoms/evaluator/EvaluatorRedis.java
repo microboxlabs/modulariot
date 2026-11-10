@@ -6,6 +6,7 @@ import io.vertx.mutiny.redis.client.Redis;
 import io.vertx.mutiny.redis.client.RedisAPI;
 import io.vertx.redis.client.RedisOptions;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.time.Duration;
 import java.util.Optional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -20,6 +21,7 @@ public class EvaluatorRedis {
 
     private final Redis client;
     private final RedisAPI api;
+    private EpisodeRepository episodes;
 
     EvaluatorRedis(@ConfigProperty(name = "miot.symptoms.evaluator.redis-url") Optional<String> url,
             @ConfigProperty(name = "miot.symptoms.evaluator.redis-pool-size", defaultValue = "16") int poolSize,
@@ -39,5 +41,13 @@ public class EvaluatorRedis {
     /** The client itself, for pipelined batches. */
     public Optional<Redis> client() {
         return Optional.ofNullable(client);
+    }
+
+    /** Both consumers share the process-local fallback as well as the Redis episode keys. */
+    public synchronized EpisodeRepository episodes(Duration ttl) {
+        if (episodes == null) {
+            episodes = api == null ? new InMemoryEpisodeRepository() : new RedisEpisodes(api, ttl);
+        }
+        return episodes;
     }
 }

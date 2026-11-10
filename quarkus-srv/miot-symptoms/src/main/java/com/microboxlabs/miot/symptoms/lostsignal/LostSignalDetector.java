@@ -9,8 +9,6 @@ import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorRedis;
 import com.microboxlabs.miot.symptoms.evaluator.Holds;
-import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeRepository;
-import com.microboxlabs.miot.symptoms.evaluator.RedisEpisodes;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.IngestHealth.Heartbeat;
@@ -121,8 +119,7 @@ public class LostSignalDetector implements SignalStates {
                 redis.client().<LossStore>map(c -> new RedisLossStore(c, profileTtl))
                         .orElseGet(InMemoryLossStore::new),
                 // The evaluator's episodes: an operator's close records the same decision for both consumers.
-                new TripChecks(catalog, redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, episodeTtl))
-                        .orElseGet(InMemoryEpisodeRepository::new), transitionLog, events, audit, meters, holds,
+                new TripChecks(catalog, redis.episodes(episodeTtl), transitionLog, events, audit, meters, holds,
                         new PgTripEnds(pool::get, cases)),
                 new ShadowMaps(new PgCoverageStore(pool::get), CoverageSettings.from(ConfigProvider.getConfig()),
                         Clock.systemUTC()),
@@ -173,7 +170,7 @@ public class LostSignalDetector implements SignalStates {
 
     /**
      * One of the organization's trips changed. When it ended (completed, cancelled or gone), its open
-     * {@code trip_check} cases close with {@link TripEnds#REASON}; the vehicle's next check leaves the trip out.
+     * cases of every symptom close with {@link TripEnds#REASON}; the vehicle's next check leaves the trip out.
      *
      * @return how many cases it closed
      */
@@ -384,8 +381,13 @@ public class LostSignalDetector implements SignalStates {
 
     /** Keeps the same trip-close marker as the GPS consumer, including when their repository is shared. */
     public void forget(String tenant, String assetId, UUID definitionId, Episode marker) {
+        forget(tenant, assetId, definitionId, marker, null);
+    }
+
+    /** The GPS consumer already installed the marker when both consumers share its repository. */
+    public void forget(String tenant, String assetId, UUID definitionId, Episode marker, EpisodeRepository alreadyClosed) {
         if (enabled) {
-            trips.forget(tenant, assetId, definitionId, marker);
+            trips.forget(tenant, assetId, definitionId, marker, alreadyClosed);
         }
     }
 

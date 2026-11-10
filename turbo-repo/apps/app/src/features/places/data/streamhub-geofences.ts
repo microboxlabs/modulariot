@@ -42,19 +42,9 @@ export type GeocercaModulith = z.infer<typeof geocercaModulithSchema>;
 /** Prefijo de sus ids: no chocan con los de PT4 ni con los locales. */
 export const PREFIJO_STREAMHUB = "streamhub-";
 
-/** De dónde lee Lugares sus geocercas (la tabla `geofences` de StreamHub). */
-export const URL_GEOCERCAS = "/app/api/places/geofences";
-
 /** Una geocerca de StreamHub: se ve, se busca y se va a ella; no se edita. */
 export const esDeStreamhub = (placeId: string | null | undefined) =>
   !!placeId?.startsWith(PREFIJO_STREAMHUB);
-
-/**
- * Escribir en StreamHub aún no existe: los lugares que se crean o editan se
- * guardan de prueba en el navegador (ids "local-"), no en PT4, que ya no se
- * lee (lo guardado ahí no volvería a verse).
- */
-export const LUGARES_EN_LOCAL = true;
 
 /** Un texto de `properties`, si lo es y no está vacío. */
 function texto(props: Record<string, unknown> | null, clave: string) {

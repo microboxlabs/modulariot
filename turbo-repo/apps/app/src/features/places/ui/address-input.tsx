@@ -9,22 +9,28 @@ import { buscarDirecciones, type Sugerencia } from "../data/geocoding";
 import { inputCls, inputErrorCls } from "./form-ui";
 import { opcionesGeocerca } from "../routes/geofence-options";
 import type { LatLon, Lugar } from "../places.types";
+import { usePlacesT, type TextosLugares } from "../i18n/places-i18n";
 
 const ESPERA_MS = 300;
 
 export type Extremo = { texto: string; punto: LatLon | null };
 
-function textoAyuda(label: string, conGeocercas: boolean): string {
-  if (conGeocercas) return `${label}: geocerca, dirección o Plus Code…`;
-  return `${label}: dirección o Plus Code…`;
+function textoAyuda(
+  t: TextosLugares,
+  label: string,
+  conGeocercas: boolean
+): string {
+  if (conGeocercas) return t("form.address_or_geofence_hint", { label });
+  return t("form.address_hint", { label });
 }
 
 /** Una fila de la lista: una geocerca lleva su icono y la etiqueta. */
 function OpcionSugerencia({
   sugerencia: s,
 }: Readonly<{ sugerencia: Sugerencia }>) {
+  const t = usePlacesT();
   const contexto = s.geocerca
-    ? ["Geocerca", s.contexto].filter(Boolean).join(" · ")
+    ? [t("common.geofence"), s.contexto].filter(Boolean).join(" · ")
     : s.contexto;
   return (
     <span className="flex items-center gap-2">
@@ -77,6 +83,7 @@ export default function AddressInput({
   /** Geocercas guardadas que también se pueden elegir, sobre las direcciones. */
   geocercas?: Lugar[];
 }>) {
+  const t = usePlacesT();
   const idLista = useId();
   const [direcciones, setDirecciones] = useState<Sugerencia[]>([]);
   const [activa, setActiva] = useState(0);
@@ -87,8 +94,8 @@ export default function AddressInput({
   useEffect(() => {
     if (!buscar || !token) return;
     const ctrl = new AbortController();
-    const t = setTimeout(() => {
-      void buscarDirecciones(value.texto, token, cerca(), ctrl.signal).then(
+    const espera = setTimeout(() => {
+      void buscarDirecciones(value.texto, token, cerca(), ctrl.signal, t).then(
         (xs) => {
           setDirecciones(xs);
           setActiva(0);
@@ -96,12 +103,12 @@ export default function AddressInput({
       );
     }, ESPERA_MS);
     return () => {
-      clearTimeout(t);
+      clearTimeout(espera);
       ctrl.abort();
     };
     // `cerca` se lee al momento de buscar; no debe re-disparar la búsqueda
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buscar, value.texto, token]);
+  }, [buscar, value.texto, token, t]);
 
   // primero las geocercas que calzan (todas al abrir sin texto), luego
   // las direcciones de Mapbox
@@ -154,7 +161,7 @@ export default function AddressInput({
         )}
         <input
           className={twMerge(inputCls, invalido && inputErrorCls)}
-          placeholder={placeholder ?? textoAyuda(label, !!geocercas)}
+          placeholder={placeholder ?? textoAyuda(t, label, !!geocercas)}
           aria-label={label}
           aria-invalid={invalido}
           role="combobox"

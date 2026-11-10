@@ -148,6 +148,33 @@ describe("CallBar", () => {
     expect(nav.push).toHaveBeenCalledWith(CASE_HREF);
   });
 
+  it.each([null, "case-1"])(
+    "clears a completed inbound call with case %s",
+    (caseId) => {
+      mount();
+      act(() => {
+        s().startManual({
+          ...call,
+          key: "wa-in:test",
+          method: "whatsapp",
+          context: { caseId },
+        });
+        s().confirm();
+      });
+      expect(
+        screen.queryByRole("button", { name: es.symptoms.call_record_result })
+      ).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_dismiss })
+      );
+      expect(s().call).toBeNull();
+      expect(s().busy).toBe(false);
+      act(() => {
+        expect(s().startManual(call)).toBe(true);
+      });
+    }
+  );
+
   it("cancels the call", () => {
     mount();
     act(() => {

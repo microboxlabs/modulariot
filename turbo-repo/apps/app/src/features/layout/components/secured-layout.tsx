@@ -17,6 +17,7 @@ import { KioskShell } from "./kiosk-shell";
 import { NoOrganizationGate } from "@/features/settings-admin/team/no-organization-gate";
 import { isEcmConfigured } from "@/features/common/providers/alfresco-api/ecm-config";
 import { ScopedCallSessionProvider } from "@/features/symptoms/components/map-view/prototype/call-center/call-session";
+import IncomingWhatsAppCalls from "@/features/symptoms/components/map-view/prototype/call-center/incoming-whatsapp-calls";
 import CallBar from "@/features/symptoms/components/map-view/prototype/call-center/call-bar";
 
 const isHarnessSettingsEnabled = process.env.ENABLE_HARNESS_SETTINGS === "true";
@@ -48,6 +49,7 @@ export default async function SecuredLayout({
         <ScopedCallSessionProvider userId={session.user.id}>
           <KioskShell>
             <CallBar dict={dictionary as I18nRecord} />
+            <IncomingWhatsAppCalls dict={dictionary as I18nRecord} />
             <SseListener
               dictionary={dictionary}
               tenantId={session.user.email}

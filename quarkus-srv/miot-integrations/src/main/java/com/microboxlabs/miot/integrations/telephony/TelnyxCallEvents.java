@@ -91,9 +91,10 @@ public class TelnyxCallEvents {
         String ref = decode(text(p, "client_state"));
         UsageRow token = ref == null ? null : usage.find(ref).orElse(null);
         if (token != null && (!connectionId.equals(token.connectionId())
-                || !UsageRow.VOICE.equals(token.channel())
+                || !(UsageRow.VOICE.equals(token.channel()) || UsageRow.WHATSAPP_CALL.equals(token.channel()))
                 || (token.externalId() != null && !callControlId.equals(token.externalId())))) token = null;
-        UsageRow canonical = usage.findByExternal(UsageRow.VOICE, callControlId).orElse(null);
+        UsageRow canonical = usage.findByExternal(token != null ? token.channel() : UsageRow.VOICE, callControlId)
+                .orElse(null);
         if (canonical != null && (!connectionId.equals(canonical.connectionId())
                 || (token != null && !canonical.tenantCode().equals(token.tenantCode())))) {
             return new Outcome(event, null, null, null);
@@ -107,8 +108,12 @@ public class TelnyxCallEvents {
                     r.answeredAt(), token.caseRef());
         }
         if (!UsageRow.SOURCE_DETAIL_RECORD.equals(r.source())) {
-            String callee = PhoneNumbers.e164(text(p, "to"));
-            if (callee == null && r.externalId() != null) callee = r.calleeNumber();
+            // For inbound WhatsApp the provider's "to" can be the business number. Keep the contact reserved.
+            String callee = UsageRow.WHATSAPP_CALL.equals(r.channel()) ? r.calleeNumber()
+                    : PhoneNumbers.e164(text(p, "to"));
+            if (callee == null && (r.externalId() != null || !UsageRow.VOICE.equals(r.channel()))) {
+                callee = r.calleeNumber();
+            }
             r = r.providerData(callControlId, callee, time(text(p, "start_time")), r.answeredAt(), r.caseRef());
             if ("call.answered".equals(event) && r.answeredAt() == null) {
                 r = r.providerData(callControlId, r.calleeNumber(), r.startedAt(), at, r.caseRef());

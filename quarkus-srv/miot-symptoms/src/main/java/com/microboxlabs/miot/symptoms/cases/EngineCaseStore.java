@@ -1,9 +1,11 @@
 package com.microboxlabs.miot.symptoms.cases;
 
+import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /** The evaluator's cases: open ones, one by id, the operator's close, and the close after a state change. */
 public interface EngineCaseStore {
@@ -83,6 +85,20 @@ public interface EngineCaseStore {
      */
     boolean close(String tenantCode, long caseId, String actor, Instant at);
 
+    /** As {@link #close(String, long, String, Instant)}, and the CLOSED row keeps how the operator closed it. */
+    default boolean close(String tenantCode, long caseId, String actor, Instant at,
+            OperatorClose how) {
+        return close(tenantCode, caseId, actor, at);
+    }
+
+    /** Install the marker under the persistent store's case lock, before recording the close. */
+    default boolean close(String tenantCode, long caseId, String actor, Instant at,
+            OperatorClose how,
+            Consumer<OperatorClose> beforeClose) {
+        beforeClose.accept(how);
+        return close(tenantCode, caseId, actor, at, how);
+    }
+
     /**
      * Closes each open case whose state is no longer its symptom's state, as when the symptom moved between TEST
      * and ACTIVE or was turned off, and returns the cases it closed. Each gets a CLOSED transition in its own state
@@ -98,6 +114,8 @@ public interface EngineCaseStore {
     /**
      * Closes the open cases of the trip among {@code definitionIds}, whatever their level, with {@code reason} as
      * {@code closed_by} and in the context, and returns them. A case already closed is left alone.
+     *
+     * @param definitionIds null for every symptom of the organization
      */
     default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
             String reason) {
@@ -112,6 +130,12 @@ public interface EngineCaseStore {
     default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
             String reason, java.util.function.Function<StaleCase, ClosingFrame> frames) {
         return closeTrip(tenantCode, tripId, definitionIds, at, reason);
+    }
+
+    /** As above, leaving open the cases of {@code keepAsset} (null closes every vehicle's). */
+    default List<StaleCase> closeTrip(String tenantCode, String tripId, List<UUID> definitionIds, Instant at,
+            String reason, String keepAsset, java.util.function.Function<StaleCase, ClosingFrame> frames) {
+        return keepAsset == null ? closeTrip(tenantCode, tripId, definitionIds, at, reason, frames) : List.of();
     }
 
     /** A case {@link #closeStale} or {@link #closeTrip} closed; {@code id} is its OPENED transition's. */
@@ -143,9 +167,10 @@ public interface EngineCaseStore {
      * is the RUT of either driver, {@code carrierId} the carrier's RUT or id; both ignore dots, dashes, spaces and
      * case. {@code origin} and {@code destination} are the whole place name, ignoring case and outer spaces.
      *
-     * <p>{@code operatorOnly} keeps the cases whose current level has {@code response.operator: true} in the
-     * published version the case runs on: the tower inbox. A level with {@code operator: false} or no response is
-     * left out.
+     * <p>{@code operatorOnly} keeps the cases whose current level goes to the operators: the tower inbox. The
+     * evaluator decides it when the case opens or changes level ({@code response.operator} and
+     * {@code operatorWhen}); for a case recorded before that, {@code response.operator: true} in the published
+     * version the case runs on. A level with {@code operator: false} or no response is left out.
      */
     record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to,
             String driverId, String carrierId, String origin, String destination, boolean underTreatmentOnly,
@@ -191,7 +216,15 @@ public interface EngineCaseStore {
         }
     }
 
-    record LevelCount(UUID definitionId, int level, long count) {
+    /**
+     * Cases opened at a level. {@code withoutOperator} counts cases without an operator, using the stored
+     * decision or, for older rows, the response in the version that opened the case.
+     */
+    record LevelCount(UUID definitionId, int level, long count, long withoutOperator) {
+
+        public LevelCount(UUID definitionId, int level, long count) {
+            this(definitionId, level, count, 0);
+        }
     }
 
     /**

@@ -88,7 +88,7 @@ form, and the gate passes that selector straight through.
 | `status --settled` | every active reviewer has a verdict on head and no check is running | 0 settled, 3 waiting |
 | `classify` | `lite` / `balanced` + reasons; `--json` | 0 |
 | `findings` | open items from all sources; `--json`, `--limit N`, `--include-outdated`, `--with-rule-docs` | 0 |
-| `request` | `--copilot`, `--coderabbit`, `--full`, `--all` | 0 |
+| `request` | `--copilot`, `--coderabbit`, `--full`, `--all`; a reviewer it must not ping is reported `skipped` with a `reason` | 0 |
 | `reply` | `--thread-id ID` or `--comment-id ID`, `--body TEXT\|-` | 0 |
 | `resolve` | `--thread-id ID` (repeatable) | 0 |
 | `stamp` | `--rounds N`, `--notes TEXT\|-` | 0 |
@@ -160,7 +160,8 @@ when `fresh` is true, which means `reviewedSha == head`.
   "orgs": {
     "microboxlabs": {
       "maxRounds": 5,
-      "maxCopilotRounds": 1,                // Copilot passes before `request` skips it
+      "maxCopilotRounds": 1,                // Copilot passes before `request` skips it; 0 = never
+      "requestCodeRabbit": true,            // false = `request` never pings CodeRabbit
       "sonarOrg": "microboxlabs",           // defaults to the project key's prefix
       "balanced": { "loc": 300, "files": 20, "pathHints": [...], "labels": [...] }
     }
@@ -175,8 +176,9 @@ An org absent from `orgs` is not certified and not gated: `status` says so and `
 merge. Onboarding an org is one command: `prcert config --enable-org <org>`.
 
 Per-org keys: `maxRounds`, `maxCopilotRounds` (Copilot review passes before `request` starts
-skipping it and `status` downgrades its stale verdict to a warning; one round by default, because
-each fix is new code for the next review to find something in), `sonarHost`, `sonarOrg`,
+skipping it and `status` downgrades its stale verdict to a warning; one round by default; `0`
+means `request` never asks Copilot), `requestCodeRabbit` (default `true`; `false` means `request`
+never pings CodeRabbit), `sonarHost`, `sonarOrg`,
 `sonarTokenEnv`, `requireCopilot` (set it
 `false` where Copilot code review is not available, so a missing Copilot verdict is a warning
 rather than a blocker that never clears), and a `balanced` block.
@@ -193,7 +195,7 @@ rollup, reviews, review threads and comments.
 | action | call |
 |---|---|
 | request Copilot | GraphQL `requestReviews(botIds:[<copilot bot node id>], union:true)` |
-| request CodeRabbit | `POST /repos/{o}/{r}/issues/{n}/comments` with `@coderabbitai review` |
+| request CodeRabbit | `POST /repos/{o}/{r}/issues/{n}/comments` with `@coderabbitai review` (`full review` only with `--full`) |
 | reply in a thread | `addPullRequestReviewThreadReply`, or `POST /pulls/{n}/comments/{id}/replies` |
 | resolve a thread | `resolveReviewThread` |
 | stamp | `POST`/`PATCH` `/repos/{o}/{r}/issues[/comments]` |
@@ -233,7 +235,8 @@ As of September 2026:
 - **Bot reviewers are invisible over REST.** `GET /pulls/{n}` reports `requested_reviewers: []` even
   while Copilot is queued. Read GraphQL `reviewRequests` instead, which is what `prcert` does.
 - **Re-requesting is the re-review trigger.** Calling `requestReviews` again after Copilot has
-  reviewed queues a fresh review of the new head. That is what `prcert request --copilot` does.
+  reviewed queues a fresh review of the new head. `prcert request --copilot` does that, within
+  `maxCopilotRounds`.
 - **Copilot never approves.** Its reviews are always `COMMENTED`; the verdict is in the body's
   headline emoji, not in the review state. CodeRabbit behaves the same way. Do not wait for
   `APPROVED`.

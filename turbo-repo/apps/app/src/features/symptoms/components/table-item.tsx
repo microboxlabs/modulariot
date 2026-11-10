@@ -17,6 +17,19 @@ import { tr } from "@/features/i18n/tr.service";
 const ROW_LINK =
   "-m-1 flex w-fit items-center gap-2 rounded-md p-1 cursor-pointer hover:bg-black/5 hover:underline dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
 
+/** The trip's current plate under the case's, when the truck was replaced after the case opened. */
+function TripPlateNow({
+  data,
+  dict,
+}: Readonly<{ data: TableItemType; dict: I18nRecord }>) {
+  if (!data.tripPlateNow) return null;
+  return (
+    <span className="block text-[11px] font-normal text-amber-700 dark:text-amber-400">
+      {tr("symptoms.trip_plate_now", dict, { plate: data.tripPlateNow })}
+    </span>
+  );
+}
+
 function slaBadge(data: TableItemType, dict: I18nRecord) {
   const slaMin = data.sla_minutes;
   // A badge, not plain colored text: the row itself is already tinted by
@@ -98,6 +111,7 @@ export default function TableItem({
               className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
             >
               {data.licensePlate}
+              <TripPlateNow data={data} dict={dict} />
             </span>
           </Link>
         </TableCell>
@@ -227,6 +241,7 @@ export default function TableItem({
             <Link href={treatmentHref(data.id, data.trip, data.licensePlate)}>
               {data.licensePlate}
             </Link>
+            <TripPlateNow data={data} dict={dict} />
           </p>
         </div>
       </TableCell>

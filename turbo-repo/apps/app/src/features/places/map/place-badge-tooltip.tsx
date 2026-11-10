@@ -12,7 +12,8 @@ import {
 } from "react-icons/hi";
 import type { IconType } from "react-icons";
 import { textoCluster, type BadgeMapa } from "./place-name-layer";
-import { categoriasDeLugar } from "../places.types";
+import { categoriasDeLugar, listaDeLugar } from "../places.types";
+import { usePlacesT } from "../i18n/places-i18n";
 
 /**
  * Nombres que se listan en el tooltip de un cluster; el resto queda en
@@ -22,17 +23,21 @@ export const MAX_NOMBRES_CLUSTER = 5;
 /** Separación entre el cursor y el tooltip. */
 const DESPLAZAMIENTO_PX = 14;
 
-function CategoriasDelLugar({ codigos }: Readonly<{ codigos: string[] }>) {
-  const { lang, opciones } = useListaCampo(CAMPO_CATEGORIAS);
+function CategoriasDelLugar({
+  codigos,
+  lista,
+}: Readonly<{ codigos: string[]; lista: string | null }>) {
+  const t = usePlacesT();
+  const { lang, opciones } = useListaCampo(CAMPO_CATEGORIAS, lista);
   if (codigos.length === 0) {
     return (
       <p className="text-[11px] text-gray-500 dark:text-gray-400">
-        Sin categorías
+        {t("map.no_categories")}
       </p>
     );
   }
   return (
-    <ul aria-label="Categorías" className="flex flex-wrap gap-1">
+    <ul aria-label={t("common.categories")} className="flex flex-wrap gap-1">
       {codigos.map((codigo) => {
         // un código que ya no está en la lista se muestra tal cual
         const opcion = opciones.find((o) => o.value === codigo) ?? {
@@ -50,6 +55,7 @@ function CategoriasDelLugar({ codigos }: Readonly<{ codigos: string[] }>) {
 }
 
 function ContenidoLugar({ badge }: Readonly<{ badge: BadgeMapa }>) {
+  const t = usePlacesT();
   const { item } = badge;
   const lugar = item.lugar;
   return (
@@ -59,19 +65,25 @@ function ContenidoLugar({ badge }: Readonly<{ badge: BadgeMapa }>) {
       </p>
       {item.inner && (
         <p className="text-[10px] text-gray-500 dark:text-gray-400">
-          Geocerca interior
+          {t("common.inner_geofence")}
         </p>
       )}
       {item.trayectoId && (
-        <p className="text-[11px] text-gray-500 dark:text-gray-400">Trayecto</p>
+        <p className="text-[11px] text-gray-500 dark:text-gray-400">
+          {t("common.route")}
+        </p>
       )}
       {lugar && (
         <>
-          <CategoriasDelLugar codigos={categoriasDeLugar(lugar)} />
-          {lugar.category && (
+          <CategoriasDelLugar
+            codigos={categoriasDeLugar(lugar)}
+            lista={listaDeLugar(lugar)}
+          />
+          {/* una geocerca de StreamHub trae su propio texto; una de Lugares, sus categorías */}
+          {lugar.category && categoriasDeLugar(lugar).length === 0 && (
             <p className="text-[11px] text-gray-600 dark:text-gray-300">
               <span className="text-gray-500 dark:text-gray-400">
-                Categoría de alerta:
+                {t("map.alert_category")}
               </span>{" "}
               {lugar.category}
             </p>
@@ -81,7 +93,7 @@ function ContenidoLugar({ badge }: Readonly<{ badge: BadgeMapa }>) {
       {/* sin lugar ni trayecto guardado: una forma del archivo importado */}
       {!lugar && !item.trayectoId && (
         <p className="text-[11px] text-gray-500 dark:text-gray-400">
-          Importada (aún sin guardar)
+          {t("map.imported_unsaved")}
         </p>
       )}
     </div>
@@ -94,6 +106,7 @@ function GrupoCluster({
   titulo,
   nombres,
 }: Readonly<{ icono: IconType; titulo: string; nombres: string[] }>) {
+  const t = usePlacesT();
   const resto = nombres.length - MAX_NOMBRES_CLUSTER;
   return (
     <div className="space-y-0.5">
@@ -108,7 +121,9 @@ function GrupoCluster({
           </li>
         ))}
         {resto > 0 && (
-          <li className="text-gray-500 dark:text-gray-400">+{resto} más</li>
+          <li className="text-gray-500 dark:text-gray-400">
+            {t("map.more", { n: resto })}
+          </li>
         )}
       </ul>
     </div>
@@ -116,6 +131,7 @@ function GrupoCluster({
 }
 
 function ContenidoCluster({ badge }: Readonly<{ badge: BadgeMapa }>) {
+  const t = usePlacesT();
   const geocercas = badge.miembros.filter((m) => !m.trayectoId);
   const trayectos = badge.miembros.filter((m) => m.trayectoId);
   return (
@@ -123,19 +139,25 @@ function ContenidoCluster({ badge }: Readonly<{ badge: BadgeMapa }>) {
       {geocercas.length > 0 && (
         <GrupoCluster
           icono={HiOutlineLocationMarker}
-          titulo={textoCluster({ geocercas: geocercas.length, trayectos: 0 })}
+          titulo={textoCluster(
+            { geocercas: geocercas.length, trayectos: 0 },
+            t
+          )}
           nombres={geocercas.map((m) => m.name)}
         />
       )}
       {trayectos.length > 0 && (
         <GrupoCluster
           icono={HiOutlineSwitchHorizontal}
-          titulo={textoCluster({ geocercas: 0, trayectos: trayectos.length })}
+          titulo={textoCluster(
+            { geocercas: 0, trayectos: trayectos.length },
+            t
+          )}
           nombres={trayectos.map((m) => m.name)}
         />
       )}
       <p className="text-[10px] text-gray-500 dark:text-gray-400">
-        Acércate para ver cada uno.
+        {t("map.zoom_in_to_see")}
       </p>
     </div>
   );

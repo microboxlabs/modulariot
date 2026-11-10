@@ -26,10 +26,10 @@ replaces the `store` package implementations without changing this contract.
 | Operation | Method and path | Notes |
 |---|---|---|
 | `listSymptomTreatments` | `GET /symptoms/{symptomId}/treatments` | Episodes oldest first, each with its actions |
-| `openTreatment` | `POST /symptoms/{symptomId}/treatments` | Body `{type, assetId, tripId, note}`. 201 new; 200 returns the episode the caller already has open on this symptom |
+| `openTreatment` | `POST /symptoms/{symptomId}/treatments` | Body `{type, assetId, tripId, note}`. 201 new; 200 returns the episode the caller already has open on this symptom. 409 on an engine case that is closed |
 | `getTreatment` | `GET /treatments/{treatmentId}` | |
 | `addTreatmentAction` | `POST /treatments/{treatmentId}/actions` | 201. Only while `OPEN` |
-| `closeTreatment` | `POST /treatments/{treatmentId}/close` | Body `{resolution, note}`, optional. Needs at least one action |
+| `closeTreatment` | `POST /treatments/{treatmentId}/close` | Body `{resolution, note}`, optional. Needs at least one action. On an engine case, an invalidation blocks the symptom's next case while its condition holds, a handled close blocks it up to the case's level ([evaluator.md](evaluator.md#reopening-after-an-operator-close)) |
 | `cancelTreatment` | `POST /treatments/{treatmentId}/cancel` | Body `{reason}`, optional. 409 on an engine case's hold |
 | `resumeTreatment` | `POST /treatments/{treatmentId}/resume` | "Reanudar": ends a hold early, as if its time ran out. 409 when the treatment is not an open hold |
 
@@ -46,7 +46,7 @@ Action body:
 | `contactId` | string | A tenant contact. Name, role and phone are copied onto the action |
 | `contactName`, `contactRole`, `contactPhone` | string | Ad hoc contact, e.g. the trip's driver. A `CALL` needs `contactId` or `contactName` |
 | `method` | `PHONE` `WHATSAPP` `MEET` `TEAMS` | Channel used |
-| `outcomeKey`, `outcomeLabel` | string | Option id and its text. `IGNORE` and `INVALIDATE` need one of them (the reason) |
+| `outcomeKey`, `outcomeLabel` | string | Option id and its text. `IGNORE` and `INVALIDATE` need one of them (the reason). On a `NOTE`, they make it a handling record (below) |
 | `answered` | boolean | Feeds the contact's answered and missed counts |
 | `durationSeconds` | int ≥ 0 | |
 | `message` | string | What the operator told the contact |
@@ -65,6 +65,15 @@ starts the script over. The app also sends `level` and `version`, and a UUID
 action or audit event.
 It also sends the panel's `slaSince`: the reader excludes a skip from a
 different level or SLA interval even when a delayed save lands after the reset.
+
+A `NOTE` with `outcomeKey` or `outcomeLabel` is a handling record
+("Registrar gestión"): the operator handled the case without a call. The
+outcome comes from the `handling_outcome` list and `note` is required. The
+app then calls `closeTreatment` with `resolution` "Gestión: …". The case
+history shows it as `registrar gestion`, with the outcome as `message` and
+the note as `driver_response`; the timeline lists it as an `ACTION` of kind
+`NOTE` with its outcome. SLA and the tower counters read the treatment, not
+the action kind, so it counts as handled like a call close.
 
 ### Ignorar condición (engine cases)
 
@@ -329,8 +338,6 @@ Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerA
 | `CONTROL_TOWER_MAINTAINER` | all of the above plus contact.delete, symptom.edit, symptom.publish, settings.update |
 | `CONTROL_TOWER_EVENT_SENDER` | event.send, for an event producer's service account |
 
-`controltower:places.edit` (the app's places editor) is disabled for now: it is not declared, so no one holds it, Owners and Admins included, and the app hides the editor. `ControlTowerAccessCatalog.PLACES_EDIT` lists the steps to turn it back on.
-
 With Alfresco membership, a member who holds no control tower role is an Operator, as before the roles existed. The organization's own M2M client is one too.
 
 `GET /access` returns the caller's `baseRole`, `roles` and `controltower:*` permissions; the app shows only the actions they allow. Memberships, base roles and role assignment are described in the core organization access API (`/api/v1/orgs/{org}/me/access`, `/api/v1/access/catalog`, `/api/v1/orgs/{org}/roles/{roleCode}`, `/api/v1/platform/orgs`).
@@ -358,6 +365,7 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 | Ignore, from the menu or mid-call | `addTreatmentAction {kind: IGNORE, outcomeKey, durationSeconds, details.scope}`; the treatment stays open while the hold lasts |
 | "Reanudar" | `resumeTreatment` |
 | Invalidate | `addTreatmentAction {kind: INVALIDATE, outcomeKey, note}` then `closeTreatment` |
+| "Registrar gestión" | `openTreatment {type: CALL}`, `addTreatmentAction {kind: NOTE, outcomeKey, outcomeLabel, note}` then `closeTreatment` |
 | Panel closed with nothing recorded | `cancelTreatment` |
 | Timeline and symptom card | `listSymptomTreatments` |
 | Settings › Seleccionables | core selectables API |

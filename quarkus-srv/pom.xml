@@ -6,7 +6,7 @@
 
     <groupId>com.microboxlabs.miot</groupId>
     <artifactId>miot-parent</artifactId>
-    <version>0.5.42</version>
+    <version>0.5.44</version>
     <packaging>pom</packaging>
 
     <name>ModularIoT — Parent</name>
@@ -46,6 +46,8 @@
         <async-http-client.version>2.16.1</async-http-client.version>
         <bookkeeper.version>4.17.4</bookkeeper.version>
         <opentelemetry.version>1.62.0</opentelemetry.version>
+        <!-- 2.22 registers the relocated OTel 1.62 random holder for native images. -->
+        <google-cloud-services.version>2.22.0</google-cloud-services.version>
         <pulsar.version>3.3.9</pulsar.version>
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.4</surefire-plugin.version>

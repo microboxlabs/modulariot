@@ -194,6 +194,35 @@ class TreatmentServiceTest {
     }
 
     @Test
+    void aHandlingRecordClosesTheEpisodeWithoutACall() {
+        String id = service.open(TENANT, ACTOR, -42L, open(TreatmentType.CALL)).treatment().id();
+
+        var saved = service.addAction(TENANT, ACTOR, id, handling("handling_outcome_1", "Verificado por GPS",
+                "Detenido en el área de descanso"));
+        TreatmentView closed = service.close(TENANT, ACTOR, id,
+                new CloseTreatmentRequest("Gestión: Verificado por GPS", null));
+
+        assertTrue(saved.recordsHandling());
+        assertEquals(ACTOR, saved.performedBy());
+        assertEquals(TreatmentStatus.CLOSED, closed.status());
+        assertEquals("Gestión: Verificado por GPS", closed.resolution());
+        var added = audit.list(TENANT, null, null, null, null, 2).get(1);
+        assertEquals("treatment.action_added", added.action());
+        assertEquals("handling_outcome_1", added.details().get("outcomeKey"));
+        assertEquals("Detenido en el área de descanso", added.details().get("note"));
+    }
+
+    @Test
+    void aHandlingRecordNeedsANote() {
+        String id = service.open(TENANT, ACTOR, -42L, open(TreatmentType.CALL)).treatment().id();
+        AddActionRequest noNote = handling("handling_outcome_2", "Contacto por otro medio", " ");
+
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id, noNote));
+        assertFalse(service.addAction(TENANT, ACTOR, id, new AddActionRequest(ActionKind.NOTE, null, null, null,
+                null, null, null, null, null, null, null, "nota libre", null, null)).recordsHandling());
+    }
+
+    @Test
     void closeNeedsAnActionAndAnOpenEpisode() {
         String id = service.open(TENANT, ACTOR, 42L, open(TreatmentType.CALL)).treatment().id();
         assertThrows(IllegalStateException.class, () -> service.close(TENANT, ACTOR, id, null));
@@ -243,6 +272,11 @@ class TreatmentServiceTest {
 
         assertTrue(opened.created());
         assertTrue(treatments.find(TENANT, opened.treatment().id()).isPresent());
+    }
+
+    private static AddActionRequest handling(String key, String label, String note) {
+        return new AddActionRequest(ActionKind.NOTE, null, null, null, null, null, key, label, null, null, null,
+                note, null, null);
     }
 
     private static AddActionRequest skip(int toStep, String reason) {

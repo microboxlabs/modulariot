@@ -32,14 +32,30 @@ describe("route lists", () => {
       />
     );
     expect(screen.getByText("Trayectos")).toBeInTheDocument();
-    expect(
-      screen.getByText("vial · ajustado · 30 m · 2 pts")
-    ).toBeInTheDocument();
+    // like a geofence: its categories, then how long it is
+    expect(screen.getByText("sin categoría · 157 km")).toBeInTheDocument();
     expect(screen.queryByText("local")).toBeNull();
 
     fireEvent.click(screen.getByLabelText("Opciones de Acceso norte"));
     fireEvent.click(screen.getByText("Eliminar"));
     expect(onEliminar).toHaveBeenCalledWith(trayecto);
+  });
+
+  it("shows a route's category names", () => {
+    render(
+      <TrayectoList
+        trayectos={[
+          {
+            ...trayecto,
+            categorias: ["carga"],
+            categorias_nombres: "Carga pesada",
+          },
+        ]}
+        seleccionadoId={null}
+        onIr={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Carga pesada · 157 km")).toBeInTheDocument();
   });
 
   it("collapses the Trayectos section from the expandable header", () => {

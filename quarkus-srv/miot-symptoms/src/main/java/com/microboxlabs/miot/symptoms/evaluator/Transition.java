@@ -22,6 +22,9 @@ import java.util.UUID;
  * @param detail        what the log keeps with the change instead of the signal's context, or null: for
  *                      {@code NOTED}, {@code {"note": {"event_type", "description", "at"}}}
  * @param tripId        the case's trip, recorded instead of the signal's; null to record the signal's
+ * @param operator      on {@code OPENED} and {@code LEVEL_CHANGED}: whether the case at this level goes to the
+ *                      operators, decided on this signal from the level's {@code operator} and
+ *                      {@code operatorWhen}. Null when not decided; the case store then reads the spec
  */
 public record Transition(
         Kind kind,
@@ -34,7 +37,14 @@ public record Transition(
         int previousLevel,
         double measure,
         Map<String, Object> detail,
-        String tripId) {
+        String tripId,
+        Boolean operator) {
+
+    @SuppressWarnings("java:S107")
+    public Transition(Kind kind, UUID definitionId, String version, SymptomState state, String assetId, Instant at,
+            int level, int previousLevel, double measure, Map<String, Object> detail, String tripId) {
+        this(kind, definitionId, version, state, assetId, at, level, previousLevel, measure, detail, tripId, null);
+    }
 
     public Transition(Kind kind, UUID definitionId, String version, SymptomState state, String assetId, Instant at,
             int level, int previousLevel, double measure) {
@@ -49,12 +59,17 @@ public record Transition(
 
     public Transition withDetail(Map<String, Object> value) {
         return new Transition(kind, definitionId, version, state, assetId, at, level, previousLevel, measure, value,
-                tripId);
+                tripId, operator);
     }
 
     public Transition withTrip(String value) {
         return new Transition(kind, definitionId, version, state, assetId, at, level, previousLevel, measure, detail,
-                value);
+                value, operator);
+    }
+
+    public Transition withOperator(Boolean value) {
+        return new Transition(kind, definitionId, version, state, assetId, at, level, previousLevel, measure, detail,
+                tripId, value);
     }
 
     /** Records a close on its case's trip, retaining explicit state-change reasons. */

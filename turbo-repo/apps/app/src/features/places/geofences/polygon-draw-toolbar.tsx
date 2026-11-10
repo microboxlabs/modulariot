@@ -5,6 +5,7 @@ import { Tooltip } from "flowbite-react";
 import { HiCheck, HiPencil, HiX } from "react-icons/hi";
 import { HiArrowUturnLeft, HiArrowUturnRight } from "react-icons/hi2";
 import { KeyboardShortcutTrigger } from "@/features/common/components/keyboard-shortcut-trigger";
+import { usePlacesT, type ClaveLugares } from "../i18n/places-i18n";
 
 // Teclas dentro del formulario o sus popups (calendario, menús) no dibujan.
 const ignorarTecla = (t: EventTarget | null) =>
@@ -88,6 +89,7 @@ function GrupoHistorial({
   onDeshacer: () => void;
   onRehacer: () => void;
 }>) {
+  const t = usePlacesT();
   const mod = esMac() ? "⌘" : "Ctrl+";
   const btn =
     "flex h-7 w-7 items-center justify-center text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-gray-200 dark:hover:bg-gray-700";
@@ -96,7 +98,7 @@ function GrupoHistorial({
   // el grupo para que esa marca no se recorte.
   return (
     <fieldset
-      aria-label="Historial"
+      aria-label={t("draw.history")}
       className="min-w-0 flex rounded-md border border-gray-200 dark:border-gray-600"
     >
       <KeyboardShortcutTrigger
@@ -108,12 +110,12 @@ function GrupoHistorial({
         onTrigger={onDeshacer}
       >
         <Tooltip
-          content={<AtajoTooltip label="Deshacer" tecla={`${mod}Z`} />}
+          content={<AtajoTooltip label={t("draw.undo")} tecla={`${mod}Z`} />}
           placement="top"
         >
           <button
             type="button"
-            aria-label="Deshacer (⌫)"
+            aria-label={t("draw.undo_key")}
             disabled={!puedeDeshacer}
             onClick={onDeshacer}
             className={`${btn} rounded-l-md`}
@@ -132,12 +134,12 @@ function GrupoHistorial({
         onTrigger={onRehacer}
       >
         <Tooltip
-          content={<AtajoTooltip label="Rehacer" tecla={`${mod}⇧Z`} />}
+          content={<AtajoTooltip label={t("draw.redo")} tecla={`${mod}⇧Z`} />}
           placement="top"
         >
           <button
             type="button"
-            aria-label="Rehacer"
+            aria-label={t("draw.redo")}
             disabled={!puedeRehacer}
             onClick={onRehacer}
             className={`${btn} rounded-r-md`}
@@ -155,24 +157,35 @@ const terminarCls = "bg-blue-600 text-white hover:bg-blue-700";
 const seguirCls =
   "text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/30";
 
-const VARIANTES = {
+type TextosVariante = Record<
+  | "aria"
+  | "terminar"
+  | "terminarLabel"
+  | "terminarMin"
+  | "seguir"
+  | "seguirTecla"
+  | "cancelarLabel",
+  ClaveLugares
+>;
+
+const VARIANTES: Record<"poligono" | "trayecto", TextosVariante> = {
   poligono: {
-    aria: "Edición de polígono",
-    terminar: "Cerrar",
-    terminarLabel: "Cerrar (unir con el inicio)",
-    terminarMin: "Cerrar (mín. 3 puntos)",
-    seguir: "Seguir dibujando",
-    seguirTecla: "clic en el mapa agrega puntos",
-    cancelarLabel: "Cancelar dibujo",
+    aria: "draw.polygon_aria",
+    terminar: "draw.polygon_finish",
+    terminarLabel: "draw.polygon_finish_label",
+    terminarMin: "draw.polygon_finish_min",
+    seguir: "draw.polygon_continue",
+    seguirTecla: "draw.polygon_continue_hint",
+    cancelarLabel: "draw.polygon_cancel",
   },
   trayecto: {
-    aria: "Edición de recorrido",
-    terminar: "Listo",
-    terminarLabel: "Confirmar recorrido y trazar la ruta",
-    terminarMin: "Confirmar (ubica origen y destino)",
-    seguir: "Editar puntos",
-    seguirTecla: "arrastra puntos o el medio de un tramo",
-    cancelarLabel: "Borrar recorrido",
+    aria: "draw.route_aria",
+    terminar: "draw.route_finish",
+    terminarLabel: "draw.route_finish_label",
+    terminarMin: "draw.route_finish_min",
+    seguir: "draw.route_continue",
+    seguirTecla: "draw.route_continue_hint",
+    cancelarLabel: "draw.route_cancel",
   },
 };
 
@@ -228,7 +241,11 @@ export default function PolygonDrawToolbar({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [cerrado, puedeTerminar, onTerminar, onDeshacer, onRehacer, onCancelar]);
-  const v = VARIANTES[variante];
+  const t = usePlacesT();
+  const claves = VARIANTES[variante];
+  const v = Object.fromEntries(
+    Object.entries(claves).map(([k, clave]) => [k, t(clave)])
+  ) as Record<keyof TextosVariante, string>;
 
   return (
     <div
@@ -238,9 +255,11 @@ export default function PolygonDrawToolbar({
     >
       <span
         className="min-w-6 px-1.5 text-center text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400"
-        title={`${puntos} ${puntos === 1 ? "punto" : "puntos"}`}
+        title={t(puntos === 1 ? "draw.points_one" : "draw.points_many", {
+          n: puntos,
+        })}
       >
-        {puntos} pts
+        {t("draw.points_short", { n: puntos })}
       </span>
       <GrupoHistorial
         puedeDeshacer={puedeDeshacer}
@@ -249,7 +268,7 @@ export default function PolygonDrawToolbar({
         onRehacer={onRehacer}
       />
       {cerrado ? (
-        <fieldset aria-label="Edición" className={grupoCls}>
+        <fieldset aria-label={t("draw.editing")} className={grupoCls}>
           <BotonAccion
             label={v.seguir}
             texto={v.seguir}
@@ -261,7 +280,7 @@ export default function PolygonDrawToolbar({
           </BotonAccion>
         </fieldset>
       ) : (
-        <fieldset aria-label="Cerrar o cancelar" className={grupoCls}>
+        <fieldset aria-label={t("draw.finish_or_cancel")} className={grupoCls}>
           <BotonAccion
             label={puedeTerminar ? v.terminarLabel : v.terminarMin}
             texto={v.terminar}
@@ -275,7 +294,7 @@ export default function PolygonDrawToolbar({
           <span className={separadorCls} />
           <BotonAccion
             label={v.cancelarLabel}
-            texto="Cancelar"
+            texto={t("common.cancel")}
             tecla="Esc"
             onClick={onCancelar}
             className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/30"

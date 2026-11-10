@@ -29,12 +29,15 @@ export type {
 
 const PERMISSIONS = `${CONVERSATIONS_BASE}/whatsapp-call-permissions`;
 
-export const callPermissionKey = (phone: string) =>
-  `${PERMISSIONS}?phone=${encodeURIComponent(phone)}`;
+export const callPermissionKey = (phone: string, managed = false) =>
+  `${PERMISSIONS}?phone=${encodeURIComponent(phone)}${managed ? "&managed=true" : ""}`;
 
-export function useWhatsAppCallPermission(phone: string | null | undefined) {
+export function useWhatsAppCallPermission(
+  phone: string | null | undefined,
+  managed = false
+) {
   return useSWR<CallPermissionView>(
-    phone ? callPermissionKey(phone) : null,
+    phone ? callPermissionKey(phone, managed) : null,
     async (url: string) =>
       parseCallPermissionView(await controlTowerRequest<unknown>(url)),
     {
@@ -48,13 +51,17 @@ export function useWhatsAppCallPermission(phone: string | null | undefined) {
 
 export async function requestWhatsAppCallPermission(
   phone: string,
-  name?: string
+  name?: string,
+  managed = false
 ) {
   return parseCallPermissionRequest(
-    await controlTowerRequest<unknown>(`${PERMISSIONS}/requests`, {
-      method: "POST",
-      body: { phone, name },
-    })
+    await controlTowerRequest<unknown>(
+      `${PERMISSIONS}/requests${managed ? "?managed=true" : ""}`,
+      {
+        method: "POST",
+        body: { phone, name },
+      }
+    )
   );
 }
 
@@ -91,13 +98,15 @@ export default function WhatsAppCallPermission({
   phone,
   name,
   lang = "es",
+  managed = false,
 }: Readonly<{
   dict: I18nRecord;
   phone: string | null | undefined;
   name?: string;
   lang?: string;
+  managed?: boolean;
 }>) {
-  const { data, error, mutate } = useWhatsAppCallPermission(phone);
+  const { data, error, mutate } = useWhatsAppCallPermission(phone, managed);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   if (!phone || data?.callingEnabled === false) return null;
@@ -130,7 +139,7 @@ export default function WhatsAppCallPermission({
     setBusy(true);
     setMessage(null);
     try {
-      const result = await requestWhatsAppCallPermission(phone, name);
+      const result = await requestWhatsAppCallPermission(phone, name, managed);
       await mutate(result.view, { revalidate: false });
       setMessage(
         result.sent

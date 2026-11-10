@@ -1,6 +1,6 @@
 "use client";
 
-import { HiArrowRight } from "react-icons/hi";
+import { HiArrowRight, HiOutlineClipboardCheck } from "react-icons/hi";
 import { Button, ButtonGroup, Tooltip } from "flowbite-react";
 import BlurrableDropdown from "../blurrable-dropdown";
 import { useState } from "react";
@@ -18,6 +18,7 @@ import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import PrototypeInlineForm from "./prototype-inline-form";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import SymptomForm from "../../blurrable-stepped-menu/symptom-form";
+import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
 
 /** Menus the previous full-screen modal still implements. */
 const PAST_FORM_OPTIONS = new Set<SelectedOption>([
@@ -84,6 +85,7 @@ export default function PrototypeSideInfo({
   }
 
   const formReady = !!treatments_templates && !loading;
+  const engineCase = isEngineCaseId(treatmentData?.symptom_info?.id);
   const showPastModal =
     pastFormsEnabled && PAST_FORM_OPTIONS.has(selectedOption);
 
@@ -106,7 +108,7 @@ export default function PrototypeSideInfo({
 
       {/* Inline morphed form — replaces the timeline + action buttons in place.
           Fades in after the parent's width transition (~500ms) has mostly run. */}
-      {isFormOpen && formReady && !pastFormsEnabled && (
+      {isFormOpen && formReady && !showPastModal && (
         <div
           className="absolute inset-0 z-20 animate-fade-in-opacity"
           style={{ animationDelay: "250ms", opacity: 0 }}
@@ -125,8 +127,9 @@ export default function PrototypeSideInfo({
       )}
 
       {/* Timeline view — hidden while the inline form is open. The past
-          modal overlays the page, so the timeline stays put. */}
-      {(!isFormOpen || pastFormsEnabled) && (
+          modal overlays the page, so the timeline stays put. "Registrar
+          gestión" has no past modal and always opens inline. */}
+      {(!isFormOpen || showPastModal) && (
         <>
           <div className="flex flex-col h-full overflow-y-auto pb-20 gap-1">
             <div className="border border-gray-300 dark:border-gray-700 flex flex-row items-center justify-between gap-2 rounded-md transition-all duration-200">
@@ -183,6 +186,25 @@ export default function PrototypeSideInfo({
                     setIsFormOpen(true);
                   }}
                 />
+                {engineCase && (
+                  <Button
+                    size="md"
+                    color="alternative"
+                    className="h-10 rounded-none whitespace-nowrap"
+                    aria-label={
+                      (dict.symptoms as I18nRecord).record_handling as string
+                    }
+                    onClick={() => {
+                      setSelectedOption("record_handling");
+                      setIsFormOpen(true);
+                    }}
+                  >
+                    <HiOutlineClipboardCheck className="h-5 w-5 lg:mr-2" />
+                    <span className="lg:block hidden">
+                      {(dict.symptoms as I18nRecord).record_handling as string}
+                    </span>
+                  </Button>
+                )}
                 <Button
                   size="md"
                   color="blue"

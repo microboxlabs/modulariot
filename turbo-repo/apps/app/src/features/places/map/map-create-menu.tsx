@@ -5,6 +5,7 @@ import {
   HiOutlineLocationMarker,
   HiOutlineSwitchHorizontal,
 } from "react-icons/hi";
+import { usePlacesT } from "../i18n/places-i18n";
 
 /** Small menu anchored at the clicked map point: create a place or a route there. */
 export default function MapCreateMenu({
@@ -20,6 +21,7 @@ export default function MapCreateMenu({
   onCrearTrayecto: () => void;
   onClose: () => void;
 }>) {
+  const t = usePlacesT();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -42,7 +44,7 @@ export default function MapCreateMenu({
         onClick={onCrearLugar}
       >
         <HiOutlineLocationMarker className="h-4 w-4 text-blue-600" />
-        Crear lugar
+        {t("map.create_place")}
       </button>
       <button
         type="button"
@@ -51,7 +53,7 @@ export default function MapCreateMenu({
         onClick={onCrearTrayecto}
       >
         <HiOutlineSwitchHorizontal className="h-4 w-4 text-blue-600" />
-        Crear trayecto
+        {t("map.create_route")}
       </button>
     </div>
   );

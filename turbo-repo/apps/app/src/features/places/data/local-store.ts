@@ -1,8 +1,9 @@
 "use client";
 
-// Respaldo local (localStorage) para lugares y trayectos mientras el backend
-// PT4 (PostgREST :3011) no esté disponible. Los ids locales llevan prefijo
-// "local-" para que guardar/borrar no intente ir al servidor.
+// Lugares y trayectos que quedaron guardados en este navegador (antes,
+// cuando el servidor no respondía). Ya no se guarda nada nuevo aquí: se
+// siguen mostrando para subirlos (al guardarlos van al servidor) o borrarlos.
+// Sus ids llevan el prefijo "local-".
 import { useCallback, useEffect, useState } from "react";
 import type {
   Categoria,
@@ -24,8 +25,6 @@ const EMPTY: LocalData = { lugares: [], trayectos: [] };
 
 export const isLocalId = (id: string | null | undefined): boolean =>
   !!id?.startsWith(LOCAL_PREFIX);
-
-export const newLocalId = (): string => `${LOCAL_PREFIX}${crypto.randomUUID()}`;
 
 export function readLocal(scope: string | null): LocalData {
   const key = placesStorageKey(STORAGE_KEY, scope);
@@ -147,6 +146,9 @@ export function lugarDesdeForm(
     color: form.color || cat?.color || null,
     center: form.lat != null && form.lon != null ? [form.lat, form.lon] : null,
     polygon: polygon ? form.vertices : null,
+    ...(polygon && form.polygon_holes?.length
+      ? { polygon_holes: form.polygon_holes }
+      : {}),
     radius_m: polygon ? null : form.radius_m,
     metadata: metadataParaGuardar(form),
     icon: form.icon || null,
@@ -173,6 +175,8 @@ export function trayectoDesdeForm(
     external_id: tray.external_id || null,
     icon: tray.icon || null,
     categorias: tray.categorias.length > 0 ? tray.categorias : null,
+    categorias_lista: tray.categorias.length > 0 ? tray.categorias_lista : null,
+    categorias_puntos_lista: tray.categorias_puntos_lista,
     tipos_puntos: tiposUbicados(tray),
     categorias_puntos: categoriasUbicadas(tray),
   };

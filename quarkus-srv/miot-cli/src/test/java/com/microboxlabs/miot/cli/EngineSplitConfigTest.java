@@ -82,7 +82,15 @@ class EngineSplitConfigTest {
                 "miot.conversational.rules.enabled", "miot.conversational.send-jobs.reconcile.enabled",
                 "miot.trips.geofences.enabled", "mp.messaging.incoming.trip-gps-signals.enabled",
                 "miot.trips.monitors.clock.enabled", "miot.trips.board-events.enabled",
-                "miot.symptoms.driver-sync.enabled", "miot.integrations.retransmit.worker.enabled");
+                "miot.symptoms.driver-sync.enabled", "miot.integrations.retransmit.worker.enabled",
+                "miot.places.sync.enabled");
+    }
+
+    @Test
+    void placesSyncRequiresExplicitOptInEvenOnTheAllComponentsApiPod() throws IOException {
+        off(config(API_POD), "miot.places.sync.enabled");
+        on(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true", "MIOT_PLACES_SYNC_ENABLED", "true")),
+                "miot.component.places.enabled", "miot.places.sync.enabled");
     }
 
     @Test

@@ -15,7 +15,7 @@ vi.mock("@/features/common/providers/client-api.provider", () => ({
 }));
 
 // the signed-in user's permissions; the places editor needs "Editor de lugares"
-const permisos = vi.hoisted(() => ({ lista: ["controltower:places.edit"] }));
+const permisos = vi.hoisted(() => ({ lista: ["places:write"] }));
 vi.mock("@/features/settings-admin/team/team-api", () => ({
   useMyAccess: () => ({
     access: undefined,

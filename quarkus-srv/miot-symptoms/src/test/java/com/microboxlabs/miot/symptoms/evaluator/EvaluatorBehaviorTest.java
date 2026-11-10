@@ -182,6 +182,8 @@ class EvaluatorBehaviorTest {
     private static String normalized(Object value, Map<String, String> ids) throws Exception {
         value = withoutCaseTrips(JSON.valueToTree(value));
         if (value instanceof ObjectNode transition && transition.has("previousLevel")) {
+            // The original fingerprint predates the operator decision; OperatorDecisionTest covers it.
+            transition.remove("operator");
             if (transition.get("detail") instanceof ObjectNode detail && detail.has(SpeedLimitContext.KEY)) {
                 // The original fingerprint covers decisions. Speed evidence is checked by EvaluatorStreamTest.
                 detail.remove(SpeedLimitContext.KEY);

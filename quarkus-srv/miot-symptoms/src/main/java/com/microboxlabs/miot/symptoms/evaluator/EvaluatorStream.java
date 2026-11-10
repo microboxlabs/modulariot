@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -116,9 +117,9 @@ public class EvaluatorStream {
         /** In Redis when its URL is set, also when not consuming: closing a case drops its episode there. */
         static Stores of(EvaluatorRedis redis, Duration ttl) {
             if (redis.api().isEmpty() || redis.client().isEmpty()) {
-                return new Stores(new InMemoryEpisodeRepository(), new InMemoryDutyStore());
+                return new Stores(redis.episodes(ttl), new InMemoryDutyStore());
             }
-            return new Stores(new RedisEpisodes(redis.api().get(), ttl), new RedisDutyStore(redis.api().get(), ttl),
+            return new Stores(redis.episodes(ttl), new RedisDutyStore(redis.api().get(), ttl),
                     VehicleReads.redis(redis.client().get()));
         }
     }
@@ -382,12 +383,13 @@ public class EvaluatorStream {
         if (!o.symptoms().isEmpty()) {
             Instant newest = state.watermark(tenant, assetId, SOURCE).orElse(null);
             late = newest != null && at.isBefore(newest);
+            boolean afterTripEnd = lateTripEnded(o, late);
             // A late frame runs only the event-driven symptoms, without moving the watermark (a buffered panic or
             // sabotage event still opens its case); the others keep skipping it.
-            if (!late || lateRuns(tenant, assetId, at, newest, o.signal(), o.symptoms())) {
+            if (!late || lateRuns(tenant, assetId, at, newest, o.signal(), o.symptoms(), afterTripEnd)) {
                 SignalEvaluator evaluator = new SignalEvaluator(state, held);
                 Map<String, Object> root = Map.of(SignalFields.ROOT, o.signal());
-                SignalEvaluator.Result result = late ? evaluator.evaluateLate(tenant, assetId, at, root, o.symptoms())
+                SignalEvaluator.Result result = late ? evaluator.evaluateLate(tenant, assetId, at, root, o.symptoms(), afterTripEnd)
                         : evaluator.evaluate(tenant, assetId, at, root, o.symptoms());
                 result = new SignalEvaluator.Result(SpeedLimitContext.with(o.signal(), result.transitions(),
                         o.symptoms()), result.errors());
@@ -428,6 +430,12 @@ public class EvaluatorStream {
     /** A rejected frame can still carry a changed duty state to save, without a check to evaluate. */
     private static boolean skippedDuty(DutyChecks.Check check) {
         return check == null || !check.applied();
+    }
+
+    /** Ordinary buffered frames only need a preflight trip read when their spec opts in. */
+    private boolean lateTripEnded(Organization organization, boolean late) {
+        return late && organization.symptoms().stream().anyMatch(s -> !s.opensOnEvents() && s.allowsAfterTripEnd())
+                && transitionLog.tripEnded(organization.tenant(), place(organization.signal()).tripId());
     }
 
     /**
@@ -496,14 +504,14 @@ public class EvaluatorStream {
 
     /** Hands a late frame to the late hook; true when an event-driven symptom still has to run on it. */
     private boolean lateRuns(String tenant, String assetId, Instant at, Instant newest, Map<String, Object> signal,
-            List<CompiledSymptom> symptoms) {
+            List<CompiledSymptom> symptoms, boolean afterTripEnd) {
         try {
             lateFrames.late(tenant, assetId, at, newest, signal);
         } catch (RuntimeException e) {
             // A failed hook is not worth a redelivery.
             meters.counter("miot.symptoms.evaluator.late_hook_failed").increment();
         }
-        return symptoms.stream().anyMatch(CompiledSymptom::eventDriven);
+        return symptoms.stream().anyMatch(s -> s.eventDriven() || (afterTripEnd && s.allowsAfterTripEnd()));
     }
 
     /** The context a device-events signal's case changes keep: its event id. */
@@ -526,7 +534,10 @@ public class EvaluatorStream {
         TransitionLog.Place place = place(signal);
         List<Transition> changes = asRecorded(result.transitions(), state, signal, context);
         // Only the changes new to the log: a replayed signal publishes nothing twice.
-        List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, changes, place, context);
+        TransitionLog.Appended appended = transitionLog.appendEvaluated(tenant, changes, place, context,
+                () -> episodes.validate(state));
+        appended.discarded().forEach(id -> state.delete(tenant, assetId, id));
+        List<TransitionLog.Recorded> recorded = appended.recorded();
         events.transitions(tenant, recorded.stream()
                 .filter(r -> !held.held(tenant, assetId, r.transition().definitionId(), Instant.EPOCH))
                 .toList(), place);
@@ -535,7 +546,9 @@ public class EvaluatorStream {
             // episode, or that episode would block the next real event.
             changes.stream()
                     .filter(t -> t.kind() == Transition.Kind.OPENED)
-                    .filter(t -> recorded.stream().noneMatch(r -> r.transition().equals(t)))
+                    .filter(t -> recorded.stream().noneMatch(r -> r.transition().kind() == Transition.Kind.OPENED
+                            && r.transition().definitionId().equals(t.definitionId())
+                            && r.transition().at().equals(t.at()) && r.transition().version().equals(t.version())))
                     .forEach(t -> state.delete(tenant, assetId, t.definitionId()));
         }
     }
@@ -554,7 +567,7 @@ public class EvaluatorStream {
      * meets the condition opens a new case.
      */
     public void forget(String tenant, String assetId, java.util.UUID definitionId) {
-        forget(tenant, assetId, definitionId, null);
+        forget(tenant, assetId, definitionId, (Episode) null);
     }
 
     /**
@@ -562,15 +575,41 @@ public class EvaluatorStream {
      * reads {@code case.closed_on_trip} true while the vehicle stays on that trip.
      */
     public void forget(String tenant, String assetId, java.util.UUID definitionId, String tripId) {
-        Episode marker = tripId == null ? null : Episode.closedOnTrip(definitionId, assetId, tripId, clock.instant());
+        forget(tenant, assetId, definitionId, tripId == null ? null : Episode.closedOnTrip(definitionId, assetId,
+                tripId, clock.instant()));
+    }
+
+    /**
+     * As {@link #forget(String, String, java.util.UUID, String)}, and while the condition holds on the case's trip
+     * the symptom opens a new case only above the close's {@link OperatorClose#reopenAbove()}.
+     */
+    public void closedByOperator(String tenant, String assetId, java.util.UUID definitionId, OperatorClose close) {
+        operatorCloseAction(tenant, assetId, definitionId).accept(close);
+    }
+
+    /** Prepare catalog reads before the case lock; the returned action only writes shared episode/duty state. */
+    public Consumer<OperatorClose> operatorCloseAction(String tenant, String assetId,
+            java.util.UUID definitionId) {
+        boolean restart = restartsDuty(tenant, definitionId);
+        return close -> forget(tenant, assetId, definitionId, close.marker(definitionId, assetId), restart);
+    }
+
+    private boolean restartsDuty(String tenant, java.util.UUID definitionId) {
+        return dutySymptoms(tenant).stream().anyMatch(s -> s.definitionId().equals(definitionId) && DutyChecks.readsDuty(s));
+    }
+
+    private void forget(String tenant, String assetId, java.util.UUID definitionId, Episode marker) {
+        forget(tenant, assetId, definitionId, marker, restartsDuty(tenant, definitionId));
+    }
+
+    private void forget(String tenant, String assetId, java.util.UUID definitionId, Episode marker, boolean restart) {
         // Reset counters before exposing a closed episode, so an interleaved frame cannot reopen from old duty.
-        if (dutySymptoms(tenant).stream().anyMatch(s -> s.definitionId().equals(definitionId)
-                && DutyChecks.readsDuty(s))) {
+        if (restart) {
             duty.restartDuty(tenant, assetId);
         }
-        // Both consumers may share Redis. Neither close may expose an empty episode before installing its marker.
-        lostSignal.forget(tenant, assetId, definitionId, marker);
+        // Install once per shared repository: a second write could undo an interleaved normal frame.
         episodes.operatorClose(tenant, assetId, definitionId, marker);
+        lostSignal.forget(tenant, assetId, definitionId, marker, episodes);
     }
 
     /** Drops only the case the sweep closed, preserving a newer episode opened on another replica. */

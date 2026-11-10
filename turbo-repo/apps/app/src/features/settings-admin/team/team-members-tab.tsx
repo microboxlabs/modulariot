@@ -148,7 +148,11 @@ function MemberRow({
 }
 
 interface TeamMembersTabProps {
+  /** The members that pass the filters. */
   readonly members: TeamMember[];
+  /** All members, before the filters. Defaults to the shown count. */
+  readonly total?: number;
+  readonly onClearFilters?: () => void;
   readonly roles: CatalogRole[];
   readonly me: string | undefined;
   readonly allowed: MemberPermissions;
@@ -158,14 +162,34 @@ interface TeamMembersTabProps {
   readonly onRemove: (member: TeamMember) => void;
 }
 
+/** The empty state of a filtered list that had rows before the filters. */
+export function NoMatches({
+  d,
+  onClear,
+}: Readonly<{ d: I18nRecord; onClear?: () => void }>) {
+  return (
+    <div className="flex flex-col items-center gap-3 py-10 text-sm text-gray-500">
+      <p>{tr("noMatches", d)}</p>
+      {onClear && (
+        <Button size="xs" color="light" onClick={onClear}>
+          {tr("clearFilters", d)}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function TeamMembersTab(props: TeamMembersTabProps) {
-  const { members, d } = props;
-  if (members.length === 0) {
+  const { members, total = members.length, onClearFilters, d } = props;
+  if (total === 0) {
     return (
       <p className="py-10 text-center text-sm text-gray-500">
         {tr("noMembers", d)}
       </p>
     );
+  }
+  if (members.length === 0) {
+    return <NoMatches d={d} onClear={onClearFilters} />;
   }
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
@@ -183,7 +207,17 @@ export function TeamMembersTab(props: TeamMembersTabProps) {
         </thead>
         <tbody>
           {members.map((member) => (
-            <MemberRow key={member.userId} {...props} member={member} />
+            <MemberRow
+              key={member.userId}
+              roles={props.roles}
+              me={props.me}
+              allowed={props.allowed}
+              lang={props.lang}
+              d={d}
+              onBaseRole={props.onBaseRole}
+              onRemove={props.onRemove}
+              member={member}
+            />
           ))}
         </tbody>
       </table>

@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 
 type Tag = {
   text: string | React.ReactNode;
+  measurementText?: string;
   icon?: React.ReactNode;
 };
 
@@ -17,7 +18,7 @@ export default function TagManager({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleTags, setVisibleTags] = useState<Tag[]>([]);
-  const [hiddenCount, setHiddenCount] = useState(0);
+  const [hiddenTags, setHiddenTags] = useState<Tag[]>([]);
 
   useEffect(() => {
     const calculateVisibleTags = () => {
@@ -37,7 +38,7 @@ export default function TagManager({
       document.body.appendChild(tempDiv);
 
       const visible: Tag[] = [];
-      let hidden = 0;
+      const hidden: Tag[] = [];
 
       tempDiv.textContent = "+99";
       const plusTagWidth = tempDiv.offsetWidth + 16;
@@ -46,28 +47,29 @@ export default function TagManager({
 
       for (const tag of tags) {
         tempDiv.textContent =
-          typeof tag.text === "string" ? tag.text : "placeholder";
+          tag.measurementText ??
+          (typeof tag.text === "string" ? tag.text : "placeholder");
         const tagWidth = tempDiv.offsetWidth + 16;
         const withGap = tagWidth + 15;
         totalGapWidth = visible.length * 15;
 
         if (
           currentWidth + withGap + totalGapWidth <=
-          containerWidth - (hidden > 0 ? plusTagWidth + 15 : 0)
+          containerWidth - (hidden.length > 0 ? plusTagWidth + 15 : 0)
         ) {
           visible.push(tag);
           currentWidth += tagWidth;
         } else {
-          hidden++;
+          hidden.push(tag);
         }
       }
 
       document.body.removeChild(tempDiv);
       setVisibleTags(visible);
-      setHiddenCount(hidden);
+      setHiddenTags(hidden);
     };
 
-    requestAnimationFrame(() => {
+    const animationFrame = requestAnimationFrame(() => {
       calculateVisibleTags();
     });
 
@@ -79,7 +81,10 @@ export default function TagManager({
       resizeObserver.observe(containerRef.current);
     }
 
-    return () => resizeObserver.disconnect();
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+    };
   }, [tags]);
 
   return (
@@ -98,7 +103,7 @@ export default function TagManager({
             </div>
           )
       )}
-      {hiddenCount > 0 && (
+      {hiddenTags.length > 0 && (
         <Tooltip
           placement="bottom"
           theme={{
@@ -115,7 +120,7 @@ export default function TagManager({
           style="auto"
           content={
             <div className="flex flex-col gap-1">
-              {tags.slice(visibleTags.length).map(
+              {hiddenTags.map(
                 (tag, index) =>
                   tag.text && (
                     <div
@@ -135,7 +140,7 @@ export default function TagManager({
           <div
             className={`shrink-0 inline-flex items-center gap-2 ${tag_style} border-2 rounded-lg px-1 py-0.5 text-sm gap-1 cursor-pointer relative`}
           >
-            +{hiddenCount}
+            +{hiddenTags.length}
           </div>
         </Tooltip>
       )}

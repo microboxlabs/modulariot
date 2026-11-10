@@ -26,7 +26,13 @@ import { GET as trip } from "../trip/route";
 import { GET as taskConditions } from "../../task/conditions/route";
 import { NextRequest } from "next/server";
 
-const row = { id: -3, symptom_name: "Panic", icu_code: "4", asset_id: "AB12" };
+const row = {
+  id: -3,
+  symptom_name: "Panic",
+  icu_code: "4",
+  asset_id: "AB12",
+  trip_code: "SERVICE-001",
+};
 
 describe("legacy symptom routes with MIOT_SYMPTOMS_LEGACY_ENABLED=false", () => {
   let fetchMock: ReturnType<typeof vi.fn>;

@@ -19,6 +19,30 @@ import org.junit.jupiter.api.Test;
 class SpecRulesTest {
 
     @Test
+    void afterTripEndIsValidatedAndDefaultsToIgnore() throws Exception {
+        SymptomSpec base = Specs.speeding();
+        assertEquals("ignore", base.lifecycle().effectiveAfterTripEnd());
+        for (String policy : SymptomSpec.Lifecycle.AFTER_TRIP_END_VALUES) {
+            var json = new ObjectMapper();
+            var tree = json.valueToTree(base);
+            ((com.fasterxml.jackson.databind.node.ObjectNode) tree.path("lifecycle")).put("after_trip_end", policy);
+            SymptomSpec spec = json.treeToValue(tree, SymptomSpec.class);
+            assertEquals(policy, spec.lifecycle().effectiveAfterTripEnd());
+            assertTrue(SpecValidator.validate(spec, Specs.gpsSignal()).publishable());
+            assertEquals(policy.equals("ignore") ? null : VersionBump.MINOR,
+                    SpecDiff.bump(SpecDiff.changes(base, spec)));
+        }
+        var l = base.lifecycle();
+        SymptomSpec invalid = new SymptomSpec(base.source(), base.activation(), base.measure(), base.levels(),
+                new SymptomSpec.Lifecycle(l.open(), l.close(), false, null, "unsupported"), base.recurrence());
+        assertTrue(SpecValidator.validate(invalid, Specs.gpsSignal()).findings().stream()
+                .anyMatch(f -> f.section().equals("lifecycle.after_trip_end") && f.severity() == Severity.ERROR));
+        assertEquals("open_and_keep", SeedTemplates.get("panic-button").spec().lifecycle().afterTripEnd());
+        assertEquals("open_and_close", SeedTemplates.get("gps-sabotage").spec().lifecycle().afterTripEnd());
+        assertEquals("ignore", SeedTemplates.get("signal-loss").spec().lifecycle().effectiveAfterTripEnd());
+    }
+
+    @Test
     void contactConditionsBlockPublicationWhenTheSharedEvaluatorRejectsThem() {
         SymptomSpec base = Specs.speeding();
         var response = new SymptomSpec.Response(true, 5,

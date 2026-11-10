@@ -45,7 +45,8 @@ class NativeMembershipMigrationDefaultsTest {
         public Map<String, String> getConfigOverrides() {
             Map<String, String> overrides = new HashMap<>(super.getConfigOverrides());
             overrides.put(LegacyDefaultsTestCatalog.PROPERTY, "true");
-            overrides.put("miot.iam.native-migration.every", "off");
+            overrides.put("miot.iam.native-migration.every", "1m");
+            overrides.put("quarkus.scheduler.enabled", "false");
             overrides.put(NativeMembershipMigration.TIMEOUT_PROPERTY, "5s");
             return overrides;
         }
@@ -194,6 +195,24 @@ class NativeMembershipMigrationDefaultsTest {
         assertLockReleased();
         assertEquals("0", query("SELECT count(*) FROM miot_iam.iam_role_binding WHERE created_by = '"
                 + NativeMembershipMigration.ACTOR + "'"));
+    }
+
+    @Test
+    void aNewPendingOrganizationKeepsReadinessDownEvenAfterAnEarlierSuccessfulRun() throws SQLException {
+        given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().post(MIGRATE).then().statusCode(200)
+                .body("find { it.organization == '" + ORG + "' }.error", nullValue());
+        given().when().get("/q/health/ready").then().statusCode(200)
+                .body("checks.find { it.name == 'native-membership-migration' }.status", is("UP"));
+        String pending = "defaults-created-later";
+        exec("INSERT INTO miot_core.organizations (slug, name, tenant_client_id, active, membership_source) "
+                + "VALUES ('" + pending + "', 'Pending', 'pending-client', true, 'ALFRESCO')");
+        try {
+            given().when().get("/q/health/ready").then().statusCode(503)
+                    .body("checks.find { it.name == 'native-membership-migration' }.status", is("DOWN"));
+        } finally {
+            exec("DELETE FROM miot_core.organizations WHERE slug = '" + pending + "'");
+        }
     }
 
     private void assertPending() throws SQLException {

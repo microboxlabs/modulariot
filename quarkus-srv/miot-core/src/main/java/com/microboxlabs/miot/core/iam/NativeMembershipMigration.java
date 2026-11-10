@@ -116,7 +116,7 @@ public class NativeMembershipMigration {
         return Panache.withTransaction(() -> {
             Context context = Vertx.currentContext();
             return AlfrescoBridge.lock(slug, timeout).flatMap(ignored -> migrateLocked(slug))
-                    .call(ignored -> Panache.getSession().flatMap(session -> session.flush()))
+                    .call(Panache::flush)
                     .ifNoItem().after(timeout).failWith(() -> new TimeoutException(
                             "Not done after " + timeout + "; tried again on the next run"))
                     // The timeout fires on a timer thread; Hibernate cleanup must use the session's context.
@@ -199,10 +199,8 @@ public class NativeMembershipMigration {
     private Uni<Map<UUID, Set<String>>> modulesHeld(List<IamRoleBinding> bindings) {
         Map<UUID, Set<String>> held = new HashMap<>();
         Map<UUID, Set<String>> byTeam = new HashMap<>();
-        for (IamRoleBinding b : bindings) {
-            if (!IamRoleBinding.USER.equals(b.principalKind) && !IamRoleBinding.TEAM.equals(b.principalKind)) {
-                continue;
-            }
+        for (IamRoleBinding b : bindings.stream().filter(binding -> IamRoleBinding.USER.equals(binding.principalKind)
+                || IamRoleBinding.TEAM.equals(binding.principalKind)).toList()) {
             String module = registry.role(b.roleKey).map(RoleDef::module).orElse(null);
             UUID principal = uuidOrNull(b.principalId);
             if (principal == null) {

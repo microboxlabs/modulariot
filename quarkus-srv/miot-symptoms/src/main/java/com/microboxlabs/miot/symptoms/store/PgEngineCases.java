@@ -317,6 +317,51 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String OPENED_PAGE = WITH_SLA.formatted(LEVEL_SINCE.formatted(
             SELECT.formatted(OPENED + " AND o.id > $4") + " ORDER BY x.id LIMIT $5")) + " ORDER BY y.id";
 
+    /** $2 itself, as cases store a trip id. */
+    private static final String TRIP_AS_GIVEN = "SELECT $2::text AS trip_id";
+    /** $2 as a trip id, or the service code of a trips-module trip: its feed service's or a current mandate's. */
+    private static final String TRIP_BY_CODE = TRIP_AS_GIVEN + """
+
+            UNION SELECT f.trip_id::text FROM miot_trips.feed_service f
+             WHERE f.tenant_code = $1 AND f.external_code = $2 AND f.trip_id IS NOT NULL
+            UNION SELECT tm.trip_id::text FROM miot_trips.mandate m
+              JOIN miot_trips.trip_mandate tm ON tm.mandate_id = m.id AND tm.tenant_code = m.tenant_code
+             WHERE m.tenant_code = $1 AND m.external_code = $2 AND m.version_of IS NULL AND m.is_active
+               AND tm.version_of IS NULL AND tm.is_active""";
+    /**
+     * The ACTIVE symptoms and those with a case on the trip ids of {@code %s}, each with its cases there: how
+     * many, how many are open, the highest level any reached (its opening or a later change before it closed),
+     * and the trip id of the latest.
+     */
+    private static final String TRIP_SYMPTOMS = """
+            WITH trips AS (%s),
+            trip_cases AS (
+                SELECT o.definition_id, o.trip_id, o.at, closed.id IS NULL AS open,
+                       GREATEST(o.level, COALESCE((SELECT max(l.level) FROM miot_symptoms.signal_transitions l
+                           WHERE l.tenant_code = o.tenant_code AND l.definition_id = o.definition_id
+                             AND l.asset_id = o.asset_id AND l.state = o.state AND l.kind = 'LEVEL_CHANGED'
+                             AND l.id > o.id AND (closed.id IS NULL OR l.id < closed.id)), o.level)) AS max_level
+                  FROM miot_symptoms.signal_transitions o
+                  LEFT JOIN LATERAL (SELECT c.id FROM miot_symptoms.signal_transitions c
+                         WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
+                           AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id
+                         ORDER BY c.id LIMIT 1) closed ON true
+                 WHERE o.tenant_code = $1 AND o.kind = 'OPENED' AND o.state = 'ACTIVE'
+                   AND o.trip_id IN (SELECT trip_id FROM trips)),
+            per_symptom AS (
+                SELECT definition_id, count(*) AS n, count(*) FILTER (WHERE open) AS open_n,
+                       max(max_level) AS max_level, min(at) AS first_at, max(at) AS last_at,
+                       (array_agg(trip_id ORDER BY at DESC))[1] AS trip_id
+                  FROM trip_cases GROUP BY definition_id)
+            SELECT d.id, d.symptom_key, d.name, d.family, d.icon, COALESCE(p.n, 0) AS n,
+                   COALESCE(p.open_n, 0) AS open_n, COALESCE(p.max_level, 0) AS max_level, p.trip_id,
+                   p.first_at, p.last_at
+              FROM miot_symptoms.symptom_definition d
+              LEFT JOIN per_symptom p ON p.definition_id = d.id
+             WHERE d.tenant_code = $1 AND (d.state = 'ACTIVE' OR p.n > 0)
+             ORDER BY lower(d.name), d.id
+            """;
+
     private static final String FIRST = """
             SELECT min(at) AS at FROM miot_symptoms.signal_transitions
              WHERE tenant_code = $1 AND kind = 'OPENED' AND state = 'ACTIVE'
@@ -644,6 +689,28 @@ public class PgEngineCases implements EngineCaseStore {
                 speedStep(instant(r.getOffsetDateTime("speed_at")), r.getInteger("current_level"),
                         r.getString("measure_expression"), r.getDouble(SPEED_KMH),
                         json(r.getString("speed_context")), r.getDouble(MEASURE)))));
+        return out;
+    }
+
+    @Override
+    public List<TripSymptom> tripSymptoms(String tenantCode, String trip) {
+        Tuple args = Tuple.of(tenantCode, trip);
+        RowSet<Row> rows;
+        try {
+            rows = PgIds.query(pool.get(), TRIP_SYMPTOMS.formatted(TRIP_BY_CODE), args);
+        } catch (PgException e) {
+            // Without the trips tables a case's trip id is the only way to find the trip.
+            if (!"42P01".equals(e.getSqlState())) {
+                throw e;
+            }
+            LOG.debug("Trip codes not resolved: trips unavailable", e);
+            rows = PgIds.query(pool.get(), TRIP_SYMPTOMS.formatted(TRIP_AS_GIVEN), args);
+        }
+        List<TripSymptom> out = new ArrayList<>();
+        rows.forEach(r -> out.add(new TripSymptom(r.getUUID("id"), r.getString("symptom_key"), r.getString("name"),
+                r.getString("family"), r.getString("icon"), r.getLong("n"), r.getLong("open_n"),
+                r.getInteger("max_level"), r.getString(TRIP_ID), instant(r.getOffsetDateTime("first_at")),
+                instant(r.getOffsetDateTime("last_at")))));
         return out;
     }
 

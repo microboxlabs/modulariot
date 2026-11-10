@@ -43,6 +43,27 @@ public interface EngineCaseStore {
     /** Every open case's vehicle, symptom and current level, not capped to a page; held cases are left out. */
     List<OpenLevel> openLevels(String tenantCode);
 
+    /**
+     * The organization's ACTIVE symptoms, and any other symptom with a case on the trip, each with the cases it
+     * opened on that trip. {@code trip} is a trip id as cases store it, or the client's service code of a
+     * trips-module trip (its feed service or one of its mandates).
+     */
+    default List<TripSymptom> tripSymptoms(String tenantCode, String trip) {
+        return List.of();
+    }
+
+    /**
+     * A symptom's cases on one trip.
+     *
+     * @param maxLevel   the highest level any of them reached, 0 without cases
+     * @param tripId     the trip id of its latest case, null without cases
+     * @param firstAt    when its first case opened, null without cases
+     * @param lastAt     when its latest case opened, null without cases
+     */
+    record TripSymptom(UUID definitionId, String symptomKey, String name, String family, String icon, long cases,
+            long openCases, int maxLevel, String tripId, Instant firstAt, Instant lastAt) {
+    }
+
     Optional<EngineCase> find(String tenantCode, long caseId);
 
     /** The cases opened from {@code from} until before {@code to}, counted by symptom and level. */

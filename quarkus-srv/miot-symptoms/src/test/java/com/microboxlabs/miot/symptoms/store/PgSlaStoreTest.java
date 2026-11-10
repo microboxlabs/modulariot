@@ -83,6 +83,10 @@ class PgSlaStoreTest {
                     id uuid PRIMARY KEY, tenant_code text NOT NULL, external_code text NOT NULL)
                 """).execute().await().atMost(WAIT);
         pool.query("""
+                ALTER TABLE miot_trips.mandate
+                    ADD COLUMN IF NOT EXISTS version_of uuid, ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true
+                """).execute().await().atMost(WAIT);
+        pool.query("""
                 CREATE TABLE IF NOT EXISTS miot_trips.trip_mandate (
                     trip_id uuid NOT NULL, mandate_id uuid NOT NULL, tenant_code text NOT NULL, seq int NOT NULL,
                     version_of uuid, is_active boolean NOT NULL DEFAULT true)
@@ -285,6 +289,92 @@ class PgSlaStoreTest {
         EngineCase closed = cases.find(tenant, ids.get(ended)).orElseThrow();
         assertEquals(at.plusSeconds(60), closed.closedAt());
         assertEquals("SERVICE-A", closed.tripCode(), "a closed case");
+    }
+
+    private static UUID definition(String tenant, String key, String name, String state) {
+        UUID id = UUID.randomUUID();
+        PgIds.query(pool, """
+                INSERT INTO miot_symptoms.symptom_definition
+                    (id, tenant_code, symptom_key, name, family, icon, source_key, state, current_version,
+                     created_by, updated_by)
+                VALUES ($1, $2, $3, $4, 'demo_family', 'LOST SIGNAL', 'gps_signal', $5, '1.0.0', 't', 't')
+                """, Tuple.of(id, tenant, key, name).addString(state));
+        return id;
+    }
+
+    @Test
+    void aTripsSymptomsCountTheCasesOfTheTripFoundByIdFeedCodeOrMandateCode() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID signal = definition(tenant, "signal-loss", "Pérdida de señal", "ACTIVE");
+        UUID speeding = definition(tenant, "speeding", "Exceso de velocidad", "ACTIVE");
+        UUID retired = definition(tenant, "retired", "Antiguo", "ACTIVE");
+        definition(tenant, "unused", "Sin uso", "OFF");
+        definition("other-" + tenant, "signal-loss", "Otra organización", "ACTIVE");
+        UUID fed = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        Instant t0 = Instant.parse("2026-01-01T00:00:00Z");
+        TransitionLog.Place onFed = new TransitionLog.Place(fed.toString(), null, null, null, null);
+        // A closed case that rose to 3 before it closed, then an open one at 2, on the fed trip.
+        log.append(tenant, List.of(t(Kind.OPENED, signal, t0, 1, 0)), onFed);
+        log.append(tenant, List.of(t(Kind.LEVEL_CHANGED, signal, t0.plusSeconds(60), 3, 1)), onFed);
+        log.append(tenant, List.of(t(Kind.CLOSED, signal, t0.plusSeconds(120), 0, 3)), onFed);
+        log.append(tenant, List.of(t(Kind.OPENED, signal, t0.plusSeconds(600), 2, 0)), onFed);
+        log.append(tenant, List.of(new Transition(Kind.OPENED, retired, "1.0.0", SymptomState.ACTIVE, "DEMO02",
+                t0, 1, 0, 30)), onFed);
+        log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE, "DEMO03",
+                t0, 4, 0, 30)), new TransitionLog.Place(other.toString(), null, null, null, null));
+        log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE, "DEMO05",
+                t0, 2, 0, 30)), new TransitionLog.Place("GPS-77", null, null, null, null));
+        PgIds.query(pool, "UPDATE miot_symptoms.symptom_definition SET state = 'TEST' WHERE id = $1",
+                Tuple.of(speeding));
+        log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.TEST, "DEMO04",
+                t0, 4, 0, 30)), onFed);
+        PgIds.query(pool, "UPDATE miot_symptoms.symptom_definition SET state = 'ACTIVE' WHERE id = $1",
+                Tuple.of(speeding));
+        PgIds.query(pool, "UPDATE miot_symptoms.symptom_definition SET state = 'OFF' WHERE id = $1",
+                Tuple.of(retired));
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.feed_service (tenant_code, feed_key, external_code, trip_id)
+                VALUES ($1, 'demo-feed', 'FEED-TRIP-1', $2)
+                """, Tuple.of(tenant, fed));
+        mandate(tenant, other, 1, "MANDATE-TRIP-2", true);
+        mandate(tenant, other, 2, "MANDATE-OLD", false);
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        List<EngineCaseStore.TripSymptom> byFeed = cases.tripSymptoms(tenant, "FEED-TRIP-1");
+        assertEquals(List.of("Antiguo", "Exceso de velocidad", "Pérdida de señal"),
+                byFeed.stream().map(EngineCaseStore.TripSymptom::name).toList());
+        EngineCaseStore.TripSymptom lost = byFeed.get(2);
+        assertEquals(signal, lost.definitionId());
+        assertEquals("LOST SIGNAL", lost.icon());
+        assertEquals(2, lost.cases());
+        assertEquals(1, lost.openCases());
+        assertEquals(3, lost.maxLevel());
+        assertEquals(fed.toString(), lost.tripId());
+        assertEquals(t0, lost.firstAt());
+        assertEquals(t0.plusSeconds(600), lost.lastAt());
+        assertEquals(0, byFeed.get(1).cases(), "a TEST case is not counted");
+        assertEquals(0, byFeed.get(1).maxLevel());
+        assertNull(byFeed.get(1).tripId());
+        assertEquals(1, byFeed.get(0).cases(), "an OFF symptom with a case on the trip");
+
+        assertEquals(byFeed, cases.tripSymptoms(tenant, fed.toString()), "by trip id");
+        List<EngineCaseStore.TripSymptom> byMandate = cases.tripSymptoms(tenant, "MANDATE-TRIP-2");
+        assertEquals(List.of(1L, 0L), byMandate.stream().map(EngineCaseStore.TripSymptom::cases).toList(),
+                "an OFF symptom without a case on the trip is left out");
+        assertEquals(4, byMandate.get(0).maxLevel());
+        assertEquals(0, cases.tripSymptoms(tenant, "MANDATE-OLD").stream()
+                .mapToLong(EngineCaseStore.TripSymptom::cases).sum(), "a replaced mandate");
+        assertEquals(1, cases.tripSymptoms(tenant, "GPS-77").get(0).cases(), "a trip id that is not a UUID");
+        assertEquals(0, cases.tripSymptoms("other-" + tenant, "FEED-TRIP-1").get(0).cases(), "another tenant");
+
+        pool.query("ALTER TABLE miot_trips.feed_service RENAME TO unavailable_feed_service").execute().await().atMost(WAIT);
+        try {
+            assertEquals(2, cases.tripSymptoms(tenant, fed.toString()).get(2).cases(), "without the trips tables");
+        } finally {
+            pool.query("ALTER TABLE miot_trips.unavailable_feed_service RENAME TO feed_service")
+                    .execute().await().atMost(WAIT);
+        }
     }
 
     @Test

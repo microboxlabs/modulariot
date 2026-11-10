@@ -222,6 +222,20 @@ other `method` is a 400.
 | `getMapSummary` | `GET /map/summary` | Service, fleet and symptom totals shown beside the map |
 | `listMapSymptoms` | `GET /map/symptoms?p_*` | One page of symptoms with `total_rows`, `total_pages`, `page`, `page_size` and `symptom_name_list`. Filters: `p_asset_id`, `p_trip_id`, `p_driver_id`, `p_carrier_id`, `p_origin`, `p_destination`, `p_symptom_name`, `p_icu_code`, `p_page`, `p_page_size`, `p_start_date_historic`, `p_end_date_historic`. Any other is a 400 |
 | `countSymptomConditions` | `GET /map/conditions?from&to` | Symptom counts by condition name. Active symptoms, or with `from` and `to` (ISO-8601, both or neither) those created in that range |
+| `listMapTripSymptoms` | `GET /map/trips/{trip}/symptoms` | The evaluator's cases on one trip, by symptom (below). Reads no GPS database data, with either value of the legacy setting |
+
+`{trip}` is a trip id as cases store it, or the client's service code of a trips-module trip: its feed service's
+`external_code` or a current mandate's. Without the trips tables only the trip id matches. The answer is
+`{trip, symptoms: [...]}`, one row per ACTIVE symptom of the organization and per other symptom with a case on the
+trip, ordered by name. TEST cases are not counted.
+
+| Field | Meaning |
+|---|---|
+| `definition_id`, `symptom_key`, `name`, `family`, `icon` | The symptom definition |
+| `cases`, `open_cases` | Its cases on the trip, open or closed, and those still open |
+| `max_level`, `max_condition` | The highest level any of them reached before closing (0 and null without cases) |
+| `trip_id` | The trip id of its latest case; null without cases |
+| `first_opened_at`, `last_opened_at` | When its first and latest cases opened |
 
 All of them need `controltower:view`. The modulith calls the GPS database
 functions through PostgREST (`miot.symptoms.gps.rpc-url`) with a token for the

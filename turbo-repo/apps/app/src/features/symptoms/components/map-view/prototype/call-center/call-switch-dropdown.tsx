@@ -35,6 +35,8 @@ export default function CallSwitchDropdown({
    *  still empty. */
   disabled?: boolean;
 }>) {
+  // No "Registrar gestión" here: it records a case handled without a call,
+  // and this menu only shows after a call.
   const otherOptions = buildOtherOptions(dict);
 
   // "Guardar y hacer otra llamada" is always enabled; everything else in

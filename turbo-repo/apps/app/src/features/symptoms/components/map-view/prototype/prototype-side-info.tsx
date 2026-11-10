@@ -1,6 +1,6 @@
 "use client";
 
-import { HiArrowRight, HiOutlineClipboardCheck } from "react-icons/hi";
+import { HiArrowRight } from "react-icons/hi";
 import { Button, ButtonGroup, Tooltip } from "flowbite-react";
 import BlurrableDropdown from "../blurrable-dropdown";
 import { useState } from "react";
@@ -72,7 +72,6 @@ export default function PrototypeSideInfo({
     treatmentData?.symptom_info?.name ?? "Bad Sign",
     treatmentData?.symptom_info?.icu_code.toString() ?? "4"
   );
-
 
   if (error) {
     return (
@@ -181,30 +180,12 @@ export default function PrototypeSideInfo({
               <ButtonGroup className="w-full">
                 <BlurrableDropdown
                   dict={dict}
+                  recordHandling={engineCase}
                   onSelect={(option) => {
                     setSelectedOption(option);
                     setIsFormOpen(true);
                   }}
                 />
-                {engineCase && (
-                  <Button
-                    size="md"
-                    color="alternative"
-                    className="h-10 rounded-none whitespace-nowrap"
-                    aria-label={
-                      (dict.symptoms as I18nRecord).record_handling as string
-                    }
-                    onClick={() => {
-                      setSelectedOption("record_handling");
-                      setIsFormOpen(true);
-                    }}
-                  >
-                    <HiOutlineClipboardCheck className="h-5 w-5 lg:mr-2" />
-                    <span className="lg:block hidden">
-                      {(dict.symptoms as I18nRecord).record_handling as string}
-                    </span>
-                  </Button>
-                )}
                 <Button
                   size="md"
                   color="blue"

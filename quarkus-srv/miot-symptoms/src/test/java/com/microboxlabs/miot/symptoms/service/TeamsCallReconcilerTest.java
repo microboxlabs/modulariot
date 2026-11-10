@@ -180,11 +180,15 @@ class TeamsCallReconcilerTest {
                         "Report page limit");
             }
             if (maximumWindow != null) {
-                return records.stream().filter(r -> !r.start().isBefore(from) && r.start().isBefore(to)).toList();
+                return records.stream().filter(r -> !r.start().isBefore(from) && withinReportEnd(r, to)).toList();
             }
             return List.copyOf(records);
         }
     };
+
+    private static boolean withinReportEnd(PstnCall call, Instant to) {
+        return call.report() == PstnCall.Report.PSTN ? !call.start().isAfter(to) : call.start().isBefore(to);
+    }
 
     private TeamsCallReconciler reconciler() {
         return new TeamsCallReconciler(store, telephony, new AuditService(new InMemoryAuditStore()),
@@ -210,6 +214,30 @@ class TeamsCallReconcilerTest {
         TreatmentAction action = pendingCall("+12025550101");
         records.add(record("r1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 61));
         records.add(record("r2", OPERATOR, "+12025550101", CALL_START.plusSeconds(50), 12));
+        maximumWindow = Duration.ofMinutes(6);
+
+        assertEquals(new TeamsCallReconciler.Result(1, 0, 1), reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals("AMBIGUOUS", TeamsCallReconciler.telephony(stored(action.id())).get("reason"));
+    }
+
+    @Test
+    void aPstnRecordAtTheInclusiveSplitBoundaryMatchesOnce() {
+        TreatmentAction action = pendingCall("+12025550101");
+        records.add(record("boundary", OPERATOR, "+12025550101", CALL_START.plusSeconds(45), 20));
+        maximumWindow = Duration.ofMinutes(6);
+
+        assertEquals(new TeamsCallReconciler.Result(1, 1, 0), reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals(3, asked.size());
+        assertEquals("boundary", TeamsCallReconciler.telephony(stored(action.id())).get("recordId"));
+    }
+
+    @Test
+    void splitDeduplicationDoesNotCollapseDifferentReports() {
+        TreatmentAction action = pendingCall("+12025550101");
+        Instant boundary = CALL_START.plusSeconds(45);
+        records.add(record("same-id", OPERATOR, "+12025550101", boundary, 20));
+        records.add(new PstnCall("same-id", "corr-direct", OPERATOR, "+12025550100", "+12025550101",
+                boundary, boundary.plusSeconds(20), 20, "ByotOut", true, PstnCall.Report.DIRECT_ROUTING));
         maximumWindow = Duration.ofMinutes(6);
 
         assertEquals(new TeamsCallReconciler.Result(1, 0, 1), reconciler().reconcile(TENANT, OPERATOR));

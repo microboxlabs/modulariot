@@ -103,6 +103,8 @@ Caller selection rotates after the last selected caller, including skipped organ
 full batch cannot indefinitely exclude later callers. This cursor is held by each scheduler replica and resets on restart.
 When a shared report exceeds the page limit, reconciliation bisects its time window, at most 16 lookups per
 organization. All subwindows must complete before matching, preserving ambiguity checks across split boundaries.
+PSTN's inclusive end bound can repeat a row at a split boundary; completed results are deduplicated by report and
+record identity, while distinct rows and reports remain separate candidates.
 Authentication failures and other provider errors are not split or retried. Missing Direct Routing answer timestamps
 fall back to `inviteDateTime` for matching; connected duration still uses the answer timestamp.
 

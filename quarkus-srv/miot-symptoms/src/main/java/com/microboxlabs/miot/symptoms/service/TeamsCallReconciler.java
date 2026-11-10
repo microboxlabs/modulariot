@@ -132,9 +132,24 @@ public class TeamsCallReconciler {
                     throw tooLarge;
                 }
                 calls.addAll(read(tenantCode, connectionId, middle, to));
-                return List.copyOf(calls);
+                return distinctRecords(calls);
             }
         }
+    }
+
+    private record RecordKey(PstnCall.Report report, String id) {
+    }
+
+    /** PSTN includes both time bounds, so split responses may repeat the same report row. */
+    private static List<PstnCall> distinctRecords(List<PstnCall> calls) {
+        Map<RecordKey, PstnCall> distinct = new LinkedHashMap<>();
+        for (PstnCall call : calls) {
+            String id = key(call);
+            if (id != null) {
+                distinct.put(new RecordKey(call.report(), id), call);
+            }
+        }
+        return List.copyOf(distinct.values());
     }
 
     private record Lookup(TelephonyLine line, List<PstnCall> records, List<TreatmentAction> pending, Set<String> taken) {

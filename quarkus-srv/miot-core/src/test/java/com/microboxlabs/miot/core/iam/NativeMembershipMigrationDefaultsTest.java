@@ -8,6 +8,8 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import com.microboxlabs.miot.core.alfresco.AlfrescoPerson;
@@ -30,6 +32,7 @@ import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.SqlConnection;
 import jakarta.inject.Inject;
+import jakarta.enterprise.inject.Instance;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
@@ -84,6 +87,15 @@ class NativeMembershipMigrationDefaultsTest {
 
     @Inject
     Pool pool;
+
+    @Inject
+    AlfrescoBridge bridge;
+
+    @Inject
+    AccessRegistry registry;
+
+    @Inject
+    Instance<Pool> pools;
 
     @BeforeEach
     void seed() throws SQLException {
@@ -141,6 +153,30 @@ class NativeMembershipMigrationDefaultsTest {
         given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
                 .when().post(MIGRATE).then().statusCode(200)
                 .body("findAll { it.organization == '" + ORG + "' }", empty());
+    }
+
+    @Test
+    void aFailedReadinessRefreshPreservesTheCommittedMigrationResults() throws SQLException {
+        NativeMembershipMigration failingRefresh = new NativeMembershipMigration(bridge, registry, pools,
+                "alfresco", "stub", true, "off", false, Duration.ofSeconds(5)) {
+            @Override
+            Uni<Boolean> refreshReadiness() {
+                return Uni.createFrom().failure(new IllegalStateException("Readiness database unavailable"));
+            }
+        };
+        CompletableFuture<List<NativeMembershipMigration.Migrated>> completed = new CompletableFuture<>();
+        var context = VertxContext.getOrCreateDuplicatedContext(vertx.getOrCreateContext());
+        VertxContextSafetyToggle.setContextSafe(context, true);
+        context.runOnContext(ignored -> failingRefresh.migrateAll().subscribe()
+                .with(completed::complete, completed::completeExceptionally));
+        var result = completed.orTimeout(10, java.util.concurrent.TimeUnit.SECONDS).join().stream()
+                .filter(m -> ORG.equals(m.organization())).findFirst().orElseThrow();
+        assertNull(result.error());
+        assertEquals(MEMBERS * LegacyDefaultsTestCatalog.MODULES.size() - 1, result.defaultsBound());
+        assertEquals("NATIVE", query("SELECT membership_source FROM miot_core.organizations WHERE slug = '"
+                + ORG + "'"));
+        assertFalse(failingRefresh.settled().await().atMost(Duration.ofSeconds(1)));
+        assertLockReleased();
     }
 
     @Test

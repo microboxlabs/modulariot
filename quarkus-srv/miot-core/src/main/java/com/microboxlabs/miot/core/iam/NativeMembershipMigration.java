@@ -144,7 +144,9 @@ public class NativeMembershipMigration {
                                     return Migrated.failed(slug, e);
                                 }))
                         .collect().asList())
-                .call(this::refreshReadiness)
+                .call(() -> refreshReadiness()
+                        .onFailure().invoke(e -> LOG.warn("Native membership readiness refresh failed; leaving readiness down", e))
+                        .onFailure().recoverWithItem(false))
                 .onFailure().invoke(() -> done = false);
     }
 

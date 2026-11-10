@@ -74,13 +74,28 @@ describe("legacy symptom routes with MIOT_SYMPTOMS_LEGACY_ENABLED=false", () => 
     expect((await icu(new Request("http://x/i"))).status).toBe(503);
   });
 
-  it("answers no legacy symptoms for a trip", async () => {
-    expect(await (await trip(new Request("http://x/t?id=T1"))).json()).toEqual(
-      []
-    );
+  it("answers no legacy conditions for a trip", async () => {
     const res = await taskConditions(new NextRequest("http://x/c?tripId=T1"));
     expect(await res.json()).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reads a trip's engine symptoms from the modulith by service code", async () => {
+    const body = { trip: "SVC 1/A", symptoms: [{ name: "Demo", cases: 2 }] };
+    forwardMock.mockImplementation(async () => NextResponse.json(body));
+    const res = await trip(new Request("http://x/t?id=%20SVC%201%2FA%20"));
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme/control-tower/map/trips/SVC%201%2FA/symptoms",
+      { method: "GET", sessionOnly: true }
+    );
+    expect(await res.json()).toEqual(body);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("answers no engine symptoms without a trip", async () => {
+    const res = await trip(new Request("http://x/t"));
+    expect(await res.json()).toEqual({ trip: "", symptoms: [] });
+    expect(forwardMock).not.toHaveBeenCalled();
   });
 
   it("keeps PostgREST when legacy symptoms are on", async () => {

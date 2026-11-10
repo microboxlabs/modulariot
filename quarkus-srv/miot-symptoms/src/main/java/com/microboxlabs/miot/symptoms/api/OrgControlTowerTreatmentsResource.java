@@ -92,13 +92,25 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
         String actor = actor();
         return work(() -> {
             long id = parseSymptomId(symptomId);
-            if (EngineCase.caseId(id).isPresent() && !treatments.hasOpen(tenant, actor, id)) {
-                cases.requireOpen(tenant, id);
+            if (EngineCase.caseId(id).isPresent()) {
+                requireOpenOrResumable(tenant, actor, id);
             }
             TreatmentService.OpenResult result = treatments.open(tenant, actor, id, body);
             return Response.status(result.created() ? Response.Status.CREATED : Response.Status.OK)
                     .entity(result.treatment()).build();
         });
+    }
+
+    private void requireOpenOrResumable(String tenant, String actor, long id) {
+        try {
+            cases.requireOpen(tenant, id);
+        } catch (IllegalStateException closed) {
+            // Look up the episode after the case check: another request may have opened it just before the close.
+            // The persistent store makes the final resume-or-create decision under the case row lock.
+            if (!treatments.hasOpen(tenant, actor, id)) {
+                throw closed;
+            }
+        }
     }
 
     @GET

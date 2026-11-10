@@ -5,6 +5,7 @@ import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import {
   guardedRequestTreatment,
   isEngineCase,
+  treatmentSaveErrorKey,
   type EngineTreatmentProgress,
 } from "./prototype-api-guard";
 import {
@@ -134,8 +135,11 @@ export default function PrototypeIgnoreCondition({
       setIsMenuOpen(false);
       router.push(`/${lang}/symptoms`);
       ShowNotification({ type: "success", message: t("treatment_saved") });
-    } catch {
-      ShowNotification({ type: "error", message: t("treatment_save_error") });
+    } catch (error) {
+      ShowNotification({
+        type: "error",
+        message: t(treatmentSaveErrorKey(error)),
+      });
     } finally {
       submitting.current = false;
       setIsSubmitting(false);

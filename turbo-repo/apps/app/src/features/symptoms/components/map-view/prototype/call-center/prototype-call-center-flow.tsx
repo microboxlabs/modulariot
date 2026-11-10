@@ -43,7 +43,10 @@ import { useTelephony } from "@/features/symptoms/control-tower/telephony-api";
 import { readyTeamsLine } from "@/features/symptoms/control-tower/telephony-api.types";
 import type { CallMethod } from "./call-method";
 import type { CallTarget } from "./call-targets";
-import { isEngineCase } from "../prototype-api-guard";
+import {
+  isEngineCase,
+  type EngineTreatmentProgress,
+} from "../prototype-api-guard";
 import {
   useCallSession,
   type ActiveCall,
@@ -164,6 +167,7 @@ export default function PrototypeCallCenterFlow({
   onFormDraftChange?: (draft: CallFormDraft | null) => void;
 }>) {
   const session = useCallSession();
+  const treatmentProgress = useRef<EngineTreatmentProgress>({});
   const pathname = usePathname();
   const caseId =
     treatmentData?.symptom_info?.id == null
@@ -415,6 +419,7 @@ export default function PrototypeCallCenterFlow({
           onSwitchTreatment={onSwitchTreatment}
           initialDraft={formDraft}
           onDraftChange={onFormDraftChange}
+          treatmentProgress={treatmentProgress.current}
         />
       )}
     </>

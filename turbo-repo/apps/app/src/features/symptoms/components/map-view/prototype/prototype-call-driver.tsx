@@ -8,6 +8,7 @@ import BrandedMultiSelect from "@/features/task-forms/components/task-confirm-mo
 import {
   guardedFinishTreatment,
   guardedRequestTreatment,
+  treatmentSaveErrorKey,
   type EngineTreatmentProgress,
 } from "./prototype-api-guard";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
@@ -211,6 +212,7 @@ export default function PrototypeCallDriver({
   onSwitchTreatment,
   initialDraft = null,
   onDraftChange,
+  treatmentProgress,
 }: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
@@ -261,6 +263,8 @@ export default function PrototypeCallDriver({
   initialDraft?: CallFormDraft | null;
   /** Debug call-center flow only: reports every form change upward. */
   onDraftChange?: (draft: CallFormDraft) => void;
+  /** Held by the call flow so the treatment survives the next call's form remount. */
+  treatmentProgress?: EngineTreatmentProgress;
 }>) {
   const dictSy = dict.symptoms as I18nRecord;
   const t = (k: string) => dictSy[k] as string;
@@ -304,7 +308,8 @@ export default function PrototypeCallDriver({
   const [saved, setSaved] = useState(initialDraft?.saved ?? false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitting = useRef(false);
-  const engineProgress = useRef<EngineTreatmentProgress>({});
+  const localProgress = useRef<EngineTreatmentProgress>({});
+  const engineProgress = treatmentProgress ?? localProgress.current;
   const markEdited = () => setSaved(false);
 
   // Convention: the first "who to call" option is the driver.
@@ -369,7 +374,7 @@ export default function PrototypeCallDriver({
       },
       {
         finish,
-        progress: engineProgress.current,
+        progress: engineProgress,
         action: {
           contactId: initialCallTargetContactId,
           contactName: initialCallTargetName || targetLabel || "Conductor",
@@ -406,7 +411,7 @@ export default function PrototypeCallDriver({
     setIsSubmitting(true);
     try {
       if (skipSave) {
-        await guardedFinishTreatment(treatmentRequest, engineProgress.current);
+        await guardedFinishTreatment(treatmentRequest, engineProgress);
       } else {
         const response = await saveTreatment(true);
         setTreatmentRequest({
@@ -417,8 +422,11 @@ export default function PrototypeCallDriver({
       }
       setIsMenuOpen(false);
       router.push(`/${lang}/symptoms`);
-    } catch {
-      ShowNotification({ type: "error", message: t("treatment_save_error") });
+    } catch (error) {
+      ShowNotification({
+        type: "error",
+        message: t(treatmentSaveErrorKey(error)),
+      });
     } finally {
       submitting.current = false;
       setIsSubmitting(false);
@@ -449,8 +457,11 @@ export default function PrototypeCallDriver({
         });
       }
       onMakeAnotherCall?.();
-    } catch {
-      ShowNotification({ type: "error", message: t("treatment_save_error") });
+    } catch (error) {
+      ShowNotification({
+        type: "error",
+        message: t(treatmentSaveErrorKey(error)),
+      });
     } finally {
       submitting.current = false;
       setIsSubmitting(false);
@@ -632,9 +643,7 @@ export default function PrototypeCallDriver({
           onSaveAndCallAgain={handleSaveAndCallAgain}
           onSwitchOption={onSwitchTreatment}
           disableSwitchOptions={sinRespuesta}
-          disabled={
-            noteEmpty || isSubmitting || !!engineProgress.current.pendingClose
-          }
+          disabled={noteEmpty || isSubmitting || !!engineProgress.pendingClose}
         />
       ) : (
         <Button

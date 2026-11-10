@@ -2,6 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
 
 const tower = vi.hoisted(() => ({
+  ControlTowerError: class extends Error {
+    constructor(
+      message: string,
+      readonly status: number
+    ) {
+      super(message);
+    }
+  },
   openTreatment: vi.fn(),
   addTreatmentAction: vi.fn(),
   closeTreatment: vi.fn(),
@@ -23,8 +31,10 @@ import {
   guardedInvalidateSymptom,
   guardedRequestTreatment,
   guardedSkipStep,
+  isCaseClosedError,
   RECORD_HANDLING_TYPE,
   startPendingTreatment,
+  treatmentSaveErrorKey,
 } from "./prototype-api-guard";
 
 const base: TreatmentsRequest = {
@@ -148,6 +158,61 @@ describe("treatments on an engine case", () => {
       ["t-1", {}],
       ["t-1", {}],
     ]);
+  });
+
+  it("adds the next call to the treatment it opened, even after the engine closed the case", async () => {
+    const progress = {};
+    await guardedRequestTreatment(base, { finish: false, progress });
+    tower.openTreatment.mockRejectedValue(
+      new tower.ControlTowerError("the case is closed", 409)
+    );
+
+    await guardedRequestTreatment(base, { progress });
+
+    expect(tower.openTreatment).toHaveBeenCalledTimes(1);
+    expect(tower.addTreatmentAction.mock.calls.map(([id]) => id)).toEqual([
+      "t-1",
+      "t-1",
+    ]);
+    expect(tower.closeTreatment).toHaveBeenCalledWith("t-1", {});
+  });
+
+  it("looks up the open treatment again when the remembered one was closed elsewhere", async () => {
+    const progress = {};
+    await guardedRequestTreatment(base, { finish: false, progress });
+    tower.addTreatmentAction.mockRejectedValueOnce(
+      new tower.ControlTowerError("treatment is CLOSED", 409)
+    );
+    tower.openTreatment.mockResolvedValue({ id: "t-2" });
+
+    await guardedRequestTreatment(base, { progress });
+
+    expect(tower.addTreatmentAction.mock.calls.map(([id]) => id)).toEqual([
+      "t-1",
+      "t-1",
+      "t-2",
+    ]);
+    expect(tower.closeTreatment).toHaveBeenCalledWith("t-2", {});
+  });
+
+  it("names a refusal on a closed case apart from other failures", async () => {
+    const closed = new tower.ControlTowerError("the case is closed", 409);
+    tower.openTreatment.mockRejectedValueOnce(closed);
+
+    const error = await guardedRequestTreatment(base).catch((e) => e);
+
+    expect(error).toBe(closed);
+    expect(isCaseClosedError(error)).toBe(true);
+    expect(treatmentSaveErrorKey(error)).toBe("treatment_case_closed");
+    expect(treatmentSaveErrorKey(new Error("network"))).toBe(
+      "treatment_save_error"
+    );
+    expect(
+      treatmentSaveErrorKey(
+        new tower.ControlTowerError("treatment is CLOSED", 409)
+      )
+    ).toBe("treatment_save_error");
+    expect(tower.addTreatmentAction).not.toHaveBeenCalled();
   });
 
   it("retries finishing the same treatment if the case close failed after it closed", async () => {

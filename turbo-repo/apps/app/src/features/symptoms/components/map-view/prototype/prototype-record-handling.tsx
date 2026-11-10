@@ -5,6 +5,7 @@ import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import {
   guardedRequestTreatment,
   RECORD_HANDLING_TYPE,
+  treatmentSaveErrorKey,
   type EngineTreatmentProgress,
 } from "./prototype-api-guard";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -101,9 +102,12 @@ export default function PrototypeRecordHandling({
       setIsMenuOpen(false);
       router.push(`/${lang}/symptoms`);
       ShowNotification({ type: "success", message: t("treatment_saved") });
-    } catch {
+    } catch (error) {
       setIsClosingOnly(engineProgress.current.pendingClose !== undefined);
-      ShowNotification({ type: "error", message: t("treatment_save_error") });
+      ShowNotification({
+        type: "error",
+        message: t(treatmentSaveErrorKey(error)),
+      });
     } finally {
       submitting.current = false;
       setIsSubmitting(false);

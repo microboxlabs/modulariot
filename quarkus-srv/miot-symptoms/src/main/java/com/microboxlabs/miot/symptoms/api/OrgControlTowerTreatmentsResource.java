@@ -80,7 +80,8 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     @Path("/symptoms/{symptomId}/treatments")
     @Operation(operationId = "openTreatment", summary = "Open a treatment on a symptom, or resume yours",
             description = "201 with a new episode, or 200 with the episode the caller already has open on this symptom. "
-                    + "409 on an engine case (negative symptom id) that is closed.")
+                    + "409 on an engine case (negative symptom id) that is closed, unless the caller already has an "
+                    + "episode open on it: that one is resumed, so its actions and close still land.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> open(
@@ -92,12 +93,24 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
         return work(() -> {
             long id = parseSymptomId(symptomId);
             if (EngineCase.caseId(id).isPresent()) {
-                cases.requireOpen(tenant, id);
+                requireOpenOrResumable(tenant, actor, id);
             }
             TreatmentService.OpenResult result = treatments.open(tenant, actor, id, body);
             return Response.status(result.created() ? Response.Status.CREATED : Response.Status.OK)
                     .entity(result.treatment()).build();
         });
+    }
+
+    private void requireOpenOrResumable(String tenant, String actor, long id) {
+        try {
+            cases.requireOpen(tenant, id);
+        } catch (IllegalStateException closed) {
+            // Look up the episode after the case check: another request may have opened it just before the close.
+            // The persistent store makes the final resume-or-create decision under the case row lock.
+            if (!treatments.hasOpen(tenant, actor, id)) {
+                throw closed;
+            }
+        }
     }
 
     @GET

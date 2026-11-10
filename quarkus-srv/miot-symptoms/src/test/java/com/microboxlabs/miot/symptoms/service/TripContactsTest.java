@@ -106,6 +106,16 @@ class TripContactsTest {
     }
 
     @Test
+    void aDashedAndAnUndashedTripGiveTheSameEventData() {
+        Map<String, Object> dashed = ContactService.tripData(TripPeople.of("12.345.678-5", "1000005-k", "76111222-8"));
+        Map<String, Object> undashed = ContactService.tripData(TripPeople.of("123456785", "1000005K", "761112228"));
+        assertEquals(undashed, dashed);
+        assertEquals("123456785", dashed.get("driverRut"));
+        assertEquals("1000005K", dashed.get("secondDriverRut"));
+        assertEquals("761112228", dashed.get("carrierRut"));
+    }
+
+    @Test
     void tripDataPreservesExpectedIdentifierTypesForLegacyConditions() {
         assertEquals(Map.of("driverRut", "12345674", "driverIdType", "DNI", "carrierRut", "20100000009", "carrierIdType", "RUC"),
                 ContactService.tripData(TripPeople.of("12345674", null, "20100000009")));

@@ -83,17 +83,17 @@ class BookContactConditionsTest {
         List<String> who = List.of("contact.role == 'Conductor' && contact.nationalId == event.data.driverRut",
                 "contact.role == 'Gerente' && contact.companyRut == event.data.carrierRut");
         BookContactConditions plain = new BookContactConditions(tenant -> List.of(
-                person("ana", "Conductor", null, "111111111"),
-                person("gerente", "Gerente", "222222222", null)));
+                person("ana", "Conductor", null, "123456785"),
+                person("gerente", "Gerente", "761112228", null)));
         BookContactConditions dashed = new BookContactConditions(tenant -> List.of(
-                person("ana", "Conductor", null, "11.111.111-1"),
-                person("gerente", "Gerente", "22.222.222-2", null)));
+                person("ana", "Conductor", null, "12.345.678-5"),
+                person("gerente", "Gerente", "76111222-8", null)));
         List<List<String>> both = List.of(List.of("ana"), List.of("gerente"));
 
-        assertEquals(both, plain.match("t", who, trip("11111111-1", "22222222-2")));
-        assertEquals(both, plain.match("t", who, trip("11.111.111-1", "22.222.222-2")));
-        assertEquals(both, dashed.match("t", who, trip("111111111", "222222222")));
-        assertEquals(both, dashed.match("t", who, trip("11111111-1", "22222222-2")));
+        assertEquals(both, plain.match("t", who, trip("12345678-5", "76111222-8")));
+        assertEquals(both, plain.match("t", who, trip("12.345.678-5", "76.111.222-8")));
+        assertEquals(both, dashed.match("t", who, trip("123456785", "761112228")));
+        assertEquals(both, dashed.match("t", who, trip("12345678-5", "76111222-8")));
     }
 
     @Test

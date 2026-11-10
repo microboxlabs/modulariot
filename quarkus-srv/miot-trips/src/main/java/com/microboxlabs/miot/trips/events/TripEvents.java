@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.core.event.EventContext;
 import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.core.fleet.FleetResources;
+import com.microboxlabs.miot.core.tax.NationalIds;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Mandate;
@@ -150,8 +151,7 @@ public class TripEvents {
 
     /** "76.111.222-3" becomes "761112223", as contact books store a company's RUT. */
     static String rut(String raw) {
-        String rut = raw.replaceAll("[.\\-\\s]", "").toUpperCase(java.util.Locale.ROOT);
-        return rut.isEmpty() ? null : rut;
+        return NationalIds.normalize(raw);
     }
 
     private String place(String tenantCode, String id) {

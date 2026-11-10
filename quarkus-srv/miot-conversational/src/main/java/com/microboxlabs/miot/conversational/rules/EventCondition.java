@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.rules;
 
+import com.microboxlabs.miot.core.tax.NationalIds;
 import dev.cel.bundle.Cel;
 import dev.cel.common.CelFunctionDecl;
 import dev.cel.common.CelOverloadDecl;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -56,7 +58,7 @@ public final class EventCondition {
             .addFunctionDeclarations(CelFunctionDecl.newFunctionDeclaration("nationalId",
                     CelOverloadDecl.newGlobalOverload("national_id_string", SimpleType.STRING, SimpleType.STRING)))
             .addFunctionBindings(CelFunctionBinding.from("national_id_string", String.class,
-                    value -> value.replaceAll("[.\\-\\s]", "").toUpperCase(java.util.Locale.ROOT)))
+                    value -> Objects.requireNonNullElse(NationalIds.normalize(value), "")))
             .build();
 
     private static final int MAX_PROGRAMS = 512;

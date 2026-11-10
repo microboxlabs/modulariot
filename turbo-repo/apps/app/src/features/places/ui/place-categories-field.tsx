@@ -129,6 +129,7 @@ export default function CampoCategorias({
         <div className="min-w-0 flex-1">
           <SelectableDropdown
             fieldKey={fieldKey}
+            ariaLabel={label}
             dict={dict}
             value={deOtraLista ? "" : value.join(",")}
             onSelect={elegir}

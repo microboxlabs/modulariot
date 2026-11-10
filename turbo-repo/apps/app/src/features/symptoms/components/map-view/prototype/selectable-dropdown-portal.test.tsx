@@ -31,6 +31,7 @@ function renderInClippingCard(props: {
     <section data-testid="card" style={{ overflowY: "auto", height: 40 }}>
       <SelectableDropdown
         fieldKey="reasons"
+        ariaLabel="Reason"
         dict={{}}
         value={props.value ?? ""}
         onSelect={onSelect}
@@ -45,7 +46,7 @@ function renderInClippingCard(props: {
 }
 
 async function openMenu(shown: string) {
-  const trigger = screen.getByRole("combobox");
+  const trigger = screen.getByRole("combobox", { name: "Reason" });
   expect(trigger).toHaveTextContent(shown);
   await act(async () => {
     fireEvent.click(trigger);
@@ -72,6 +73,9 @@ describe("SelectableDropdown single-pick menu", () => {
       expect.objectContaining({ id: "second", name: "Second reason" })
     );
     expect(screen.queryByRole("listbox")).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("combobox", { name: "Reason" })
+    );
   });
 
   it("marks the current value and offers the clear item", async () => {

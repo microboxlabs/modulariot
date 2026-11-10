@@ -307,7 +307,6 @@ export const dropdownDefaultBorderClass =
   "border-gray-300 dark:border-gray-600";
 
 const MENU_MAX_HEIGHT = 240;
-const MENU_MIN_HEIGHT = 96;
 const MENU_VIEWPORT_PADDING = 8;
 
 const menuItemClass =
@@ -336,6 +335,7 @@ export function OptionsDropdown({
   triggerBorderClassName = dropdownDefaultBorderClass,
   clearLabel,
   onClear,
+  ariaLabel,
 }: Readonly<{
   options: FormOption[];
   value: string;
@@ -343,6 +343,9 @@ export function OptionsDropdown({
   placeholder: string;
   emptyLabel: string;
   className?: string;
+  /** Accessible name of the trigger. A `combobox` does not take its name
+   *  from its text, and the field labels next to it are plain text. */
+  ariaLabel: string;
   /** With `onClear`, the menu opens with this item to empty the field (only
    *  while something is picked). Off by default. */
   clearLabel?: string;
@@ -376,7 +379,7 @@ export function OptionsDropdown({
           Object.assign(elements.floating.style, {
             width: `${rects.reference.width}px`,
             maxHeight: `${Math.max(
-              MENU_MIN_HEIGHT,
+              0,
               Math.min(MENU_MAX_HEIGHT, availableHeight)
             )}px`,
           });
@@ -410,6 +413,7 @@ export function OptionsDropdown({
         ref={refs.setReference}
         type="button"
         disabled={disabled}
+        aria-label={ariaLabel}
         className={`${dropdownTriggerBaseClass} ${triggerBorderClassName}`}
         {...getReferenceProps()}
       >
@@ -428,7 +432,9 @@ export function OptionsDropdown({
               {...getFloatingProps()}
             >
               {showClear && (
-                <button
+                // A native <option> only works inside a <select>; this is
+                // the ARIA listbox pattern, so S6819 does not apply.
+                <button // NOSONAR (typescript:S6819)
                   type="button"
                   role="option"
                   aria-selected={false}
@@ -454,7 +460,7 @@ export function OptionsDropdown({
                   const index = i + offsetIndex;
                   const isSelected = o.id === value;
                   return (
-                    <button
+                    <button // NOSONAR (typescript:S6819)
                       key={o.id}
                       type="button"
                       role="option"
@@ -504,12 +510,15 @@ export function SelectableDropdown({
   triggerBorderClassName,
   clearLabel,
   onClear,
+  ariaLabel,
 }: Readonly<{
   fieldKey: string;
   dict: I18nRecord;
   value: string;
   onSelect: (option: FormOption) => void;
   placeholder?: string;
+  /** Accessible name of the single-pick trigger (see `OptionsDropdown`). */
+  ariaLabel: string;
   /** Adds a "clear" entry inside the dropdown (single or multiple), which
    *  calls `onClear`. Off by default. */
   clearLabel?: string;
@@ -564,6 +573,7 @@ export function SelectableDropdown({
       onSelect={onSelect}
       placeholder={placeholder ?? unassignedLabel}
       emptyLabel={unassignedLabel}
+      ariaLabel={ariaLabel}
       {...(triggerBorderClassName ? { triggerBorderClassName } : {})}
       {...(clearLabel && onClear ? { clearLabel, onClear } : {})}
     />

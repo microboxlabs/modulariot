@@ -2,12 +2,21 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { SelectedOption } from "@/features/symptoms/types/side-info";
 import es from "@/lang/es.json";
 import PrototypeInlineForm from "./prototype-inline-form";
 
-const flow = vi.hoisted(() => ({ onSkip: vi.fn<(step: number) => void>() }));
+const flow = vi.hoisted(() => ({
+  onSkip: vi.fn<(step: number) => void>(),
+  startPendingTreatment: vi.fn(),
+}));
 vi.mock("next-auth/react", () => ({ useSession: () => ({ data: null }) }));
-vi.mock("./prototype-api-guard", () => ({ startPendingTreatment: vi.fn() }));
+vi.mock("./prototype-api-guard", () => ({
+  startPendingTreatment: flow.startPendingTreatment,
+}));
+vi.mock("./prototype-record-handling", () => ({
+  default: () => <p>Handling form</p>,
+}));
 vi.mock("./prototype-ignore-condition", () => ({ default: () => null }));
 vi.mock("./prototype-invalidate-symptom", () => ({ default: () => null }));
 vi.mock(
@@ -32,7 +41,12 @@ vi.mock("./call-center/prototype-call-center-flow", () => ({
   },
 }));
 
-function panel(id: number, level: number, since: string) {
+function panel(
+  id: number,
+  level: number,
+  since: string,
+  selectedOption: SelectedOption = "call_driver"
+) {
   const treatmentData = {
     symptom_info: { id, icu_code: level, sla_since: since },
     trip_info: {},
@@ -42,13 +56,26 @@ function panel(id: number, level: number, since: string) {
       setIsMenuOpen={vi.fn()}
       isMenuOpen={true}
       dict={es as I18nRecord}
-      selectedOption="call_driver"
+      selectedOption={selectedOption}
       setSelectedOption={vi.fn()}
       treatmentData={treatmentData}
       treatments_templates={null}
     />
   );
 }
+
+describe("opening the engine-only handling form", () => {
+  it.each([-7, 7])(
+    "never creates a pending GPS treatment for case %s",
+    (id) => {
+      flow.startPendingTreatment.mockClear();
+      render(panel(id, 3, "2026-11-05T12:00:00Z", "record_handling"));
+
+      expect(screen.getByText("Handling form")).toBeInTheDocument();
+      expect(flow.startPendingTreatment).not.toHaveBeenCalled();
+    }
+  );
+});
 
 describe("local call-step progress", () => {
   it.each([

@@ -21,6 +21,7 @@ import com.microboxlabs.miot.symptoms.domain.ActionKind;
 import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
+import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
@@ -216,6 +217,25 @@ class OrgControlTowerTreatmentsResourceTest {
         assertTrue(treatments.listBySymptom(TENANT, -20).isEmpty(), "no treatment was stored");
         assertEquals(404, call(resource.open(ORG, "-21",
                 new OpenTreatmentRequest(TreatmentType.CALL, "DEMO01", "T-1", null))).getStatus());
+    }
+
+    @Test
+    void aHandlingRecordTellsTheEngineTheCaseWasHandled() {
+        addCase(32, "T-1", null);
+        TreatmentView handling = open(32, TreatmentType.CALL);
+        Response added = call(resource.addAction(ORG, handling.id(), new AddActionRequest(ActionKind.NOTE,
+                null, null, null, null, null, "handling_outcome_1", "Verificado por GPS", null, null, null,
+                "Verificado", null, null)));
+
+        assertEquals(201, added.getStatus());
+        Response response = call(resource.close(ORG, handling.id(),
+                new CloseTreatmentRequest("Gestión: Verificado por GPS · Nota: Verificado", null)));
+
+        assertEquals(200, response.getStatus());
+        TreatmentView closed = (TreatmentView) response.getEntity();
+        assertEquals(TreatmentStatus.CLOSED, closed.status());
+        assertEquals("Gestión: Verificado por GPS · Nota: Verificado", closed.resolution());
+        assertEquals(List.of(new OperatorClose("T-1", NOW, 3, false)), operatorCloses);
     }
 
     @Test

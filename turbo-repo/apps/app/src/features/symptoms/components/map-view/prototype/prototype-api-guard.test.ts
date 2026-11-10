@@ -8,11 +8,14 @@ const tower = vi.hoisted(() => ({
   revalidateCase: vi.fn(),
 }));
 const legacy = vi.hoisted(() => ({ requestTreatment: vi.fn() }));
+const config = vi.hoisted(() => ({ disabled: false }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => tower);
 vi.mock("@/features/common/providers/client-api.provider", () => legacy);
 vi.mock("@/features/runtime-config/runtime-config-context", () => ({
-  getRuntimeConfig: () => ({}),
+  getRuntimeConfig: () => ({
+    SYMPTOMS_PROTOTYPE_DISABLE_API: config.disabled ? "true" : "false",
+  }),
 }));
 
 import {
@@ -20,12 +23,13 @@ import {
   guardedInvalidateSymptom,
   guardedRequestTreatment,
   guardedSkipStep,
+  RECORD_HANDLING_TYPE,
   startPendingTreatment,
 } from "./prototype-api-guard";
 
 const base: TreatmentsRequest = {
   asset_id: "asset-test",
-  assigned_to: "operator@example.com",
+  assigned_to: "operator-test",
   client_id: null,
   status: "active",
   symptom_id: "-16",
@@ -36,6 +40,7 @@ const base: TreatmentsRequest = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  config.disabled = false;
   tower.openTreatment.mockResolvedValue({ id: "t-1", type: "CALL" });
   tower.addTreatmentAction.mockResolvedValue({});
   tower.closeTreatment.mockResolvedValue({});
@@ -168,6 +173,26 @@ describe("treatments on an engine case", () => {
 
 describe("treatments on a GPS database symptom", () => {
   const gps = { ...base, symptom_id: "4512" };
+
+  it.each([false, true])(
+    "refuses handling records even when called directly (API disabled: %s)",
+    async (disabled) => {
+      config.disabled = disabled;
+
+      await expect(
+        guardedRequestTreatment({
+          ...gps,
+          treatment_type: RECORD_HANDLING_TYPE,
+        })
+      ).rejects.toThrow("Handling records require an engine case");
+
+      expect(legacy.requestTreatment).not.toHaveBeenCalled();
+      expect(tower.openTreatment).not.toHaveBeenCalled();
+      expect(tower.addTreatmentAction).not.toHaveBeenCalled();
+      expect(tower.closeTreatment).not.toHaveBeenCalled();
+      expect(tower.revalidateCase).not.toHaveBeenCalled();
+    }
+  );
 
   it("keep going through the treatments RPC", async () => {
     const saved = await guardedRequestTreatment({

@@ -21,10 +21,12 @@ class TreatmentFormSelectablesTest {
         List<Selectable> lists = new TreatmentFormSelectables().forTenant(TENANT);
 
         assertEquals(List.of("who_to_call", "call_result", "call_tags", "ignore_reason", "ignore_duration",
-                "invalidate_reason"), lists.stream().map(Selectable::key).toList());
+                "invalidate_reason", "handling_outcome"), lists.stream().map(Selectable::key).toList());
         assertEquals(List.of("result_commits", "result_corrected", "result_rejects", "result_no_answer",
                 "result_voicemail"), lists.get(1).options().stream().map(SelectableOption::value).toList());
         assertEquals(SelectionMode.MULTIPLE, lists.get(2).mode());
+        assertEquals(List.of("handling_outcome_1", "handling_outcome_2", "handling_outcome_3"),
+                lists.get(6).options().stream().map(SelectableOption::value).toList());
     }
 
     @Test

@@ -47,6 +47,7 @@ public class PgTreatmentStore implements TreatmentStore {
     private static final TypeReference<Map<String, Object>> DETAILS = new TypeReference<>() {
     };
     private static final String TENANT_CODE = "tenant_code";
+    private static final String PERFORMED_BY = "performed_by";
     private static final String DETAILS_JSON = detailsJson("details");
     private static final String CLAIMED_DETAILS_JSON = detailsJson("claimed.details");
 
@@ -381,7 +382,7 @@ public class PgTreatmentStore implements TreatmentStore {
                 method == null ? null : CallMethod.valueOf(method), r.getString("outcome_key"),
                 r.getString("outcome_label"), r.getBoolean("answered"), r.getInteger("duration_seconds"),
                 r.getString("message"), r.getString("note"), PgJson.read(r, "tags", TAGS),
-                PgJson.read(r, "details", DETAILS), r.getString("performed_by"),
+                PgJson.read(r, "details", DETAILS), r.getString(PERFORMED_BY),
                 PgJson.time(r, "performed_at"));
     }
 
@@ -395,7 +396,7 @@ public class PgTreatmentStore implements TreatmentStore {
     public Optional<Caller> teamsReconcileCursor() {
         return query(pool.get(), "SELECT tenant_code, performed_by FROM miot_symptoms.teams_reconcile_cursor WHERE id = 1",
                 Tuple.tuple()).stream().findFirst()
-                .map(r -> new Caller(r.getString(TENANT_CODE), r.getString("performed_by")));
+                .map(r -> new Caller(r.getString(TENANT_CODE), r.getString(PERFORMED_BY)));
     }
 
     @Override
@@ -410,7 +411,7 @@ public class PgTreatmentStore implements TreatmentStore {
     public List<Caller> pendingTeamsCallers(OffsetDateTime since, int limit, Caller after) {
         return query(pool.get(), PENDING_TEAMS_CALLERS, Tuple.of(since, limit,
                 after == null ? null : after.tenantCode(), after == null ? null : after.performedBy())).stream()
-                .map(r -> new Caller(r.getString(TENANT_CODE), r.getString("performed_by"))).toList();
+                .map(r -> new Caller(r.getString(TENANT_CODE), r.getString(PERFORMED_BY))).toList();
     }
 
     @Override

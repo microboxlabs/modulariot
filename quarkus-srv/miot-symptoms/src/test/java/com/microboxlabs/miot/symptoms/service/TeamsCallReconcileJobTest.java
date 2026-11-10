@@ -331,6 +331,37 @@ class TeamsCallReconcileJobTest {
     }
 
     @Test
+    void aWrappedOrganizationSharesOneLookupAndFailureAcrossBothBlocks() {
+        seedWrappedCallers();
+        for (boolean fail : List.of(false, true)) {
+            graphAsked.clear();
+            store.saveTeamsReconcileCursor(new Caller("a", "operator1@example.test"));
+            failingTenant = fail ? "a" : null;
+            assertEquals(new TeamsCallReconcileJob.Run(2, 3, 0, fail ? 2 : 0), job().run());
+            assertEquals(List.of("a", "b"), graphAsked, "a's two blocks share the lookup, including failures");
+        }
+    }
+
+    @Test
+    void mergingWrappedCallersDoesNotJumpTheCursorPastTheNextOrganization() {
+        seedWrappedCallers();
+        maxLookups = 1;
+        store.saveTeamsReconcileCursor(new Caller("a", "operator1@example.test"));
+        assertEquals(2, job().run().operators());
+        assertEquals(Optional.of(new Caller("a", "operator2@example.test")), store.teamsReconcileCursor());
+        assertEquals(1, job().run().operators());
+        assertEquals(List.of("a", "b"), graphAsked, "a fresh scheduler must reach b with a bound of one");
+    }
+
+    private void seedWrappedCallers() {
+        lines.put("a", teamsLine());
+        lines.put("b", teamsLine());
+        pendingCall("a", "operator1@example.test", "+12025550101");
+        pendingCall("a", "operator2@example.test", "+12025550101");
+        pendingCall("b", "operator3@example.test", "+12025550101");
+    }
+
+    @Test
     void theLookupBoundMustBePositive() {
         maxLookups = 0;
         assertThrows(IllegalArgumentException.class, this::job);

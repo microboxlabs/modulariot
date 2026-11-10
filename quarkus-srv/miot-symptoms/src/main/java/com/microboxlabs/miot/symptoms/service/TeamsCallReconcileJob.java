@@ -13,10 +13,14 @@ import jakarta.inject.Inject;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -113,25 +117,30 @@ public class TeamsCallReconcileJob {
         return run.orElse(Run.NOTHING);
     }
 
-    /** Callers come ordered by organization; each run of the same organization is one lookup. */
+    /** Checkpoint in selection order, but share one lookup even when a wrapped organization has two blocks. */
     private Run reconcile(List<Caller> callers) {
         int organizations = 0;
         int operators = 0;
         int recorded = 0;
         int failed = 0;
         int throttled = 0;
+        Map<String, List<Caller>> callersByOrganization = callers.stream()
+                .collect(Collectors.groupingBy(Caller::tenantCode));
+        Set<String> visited = new HashSet<>();
         for (List<Caller> organization : byOrganization(callers)) {
             if (organizations == maxLookups) {
                 break;
             }
             String tenant = organization.getFirst().tenantCode();
             treatments.saveTeamsReconcileCursor(organization.getLast());
-            Run result = reconcileOrganization(tenant, organization);
-            organizations += result.organizations();
-            operators += result.operators();
-            recorded += result.recorded();
-            failed += result.failed();
-            throttled += result.throttled();
+            if (visited.add(tenant)) {
+                Run result = reconcileOrganization(tenant, callersByOrganization.get(tenant));
+                organizations += result.organizations();
+                operators += result.operators();
+                recorded += result.recorded();
+                failed += result.failed();
+                throttled += result.throttled();
+            }
         }
         return new Run(organizations, operators, recorded, failed, throttled);
     }

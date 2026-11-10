@@ -142,6 +142,27 @@ class TeamsCallReconcilerTest {
         assertEquals("dr1", TeamsCallReconciler.telephony(stored(direct.id())).get("recordId"));
     }
 
+    @Test
+    void pstnForwardingAndConferenceRecordsMatch() {
+        TreatmentAction forwarded = pendingCall("+12025550101");
+        TreatmentAction conference = pendingCall("+12025550103");
+        TreatmentAction inbound = pendingCall("+12025550104");
+        records.add(typed(record("f1", OPERATOR, "+12025550101", CALL_START.plusSeconds(4), 42),
+                "user_out_forwarding"));
+        records.add(typed(record("c1", OPERATOR, "+12025550103", CALL_START.plusSeconds(5), 17), "user_out_conf"));
+        records.add(typed(record("i1", OPERATOR, "+12025550104", CALL_START.plusSeconds(6), 30), "user_in"));
+
+        assertEquals(new TeamsCallReconciler.Result(3, 2, 1), reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals("f1", TeamsCallReconciler.telephony(stored(forwarded.id())).get("recordId"));
+        assertEquals("c1", TeamsCallReconciler.telephony(stored(conference.id())).get("recordId"));
+        assertEquals("PENDING", TeamsCallReconciler.telephony(stored(inbound.id())).get("status"));
+    }
+
+    private static PstnCall typed(PstnCall r, String type) {
+        return new PstnCall(r.id(), r.callId(), r.userPrincipalName(), r.callerNumber(), r.calleeNumber(), r.start(),
+                r.end(), r.durationSeconds(), type);
+    }
+
     private static PstnCall directRouting(String id, String callee, String type, boolean success, int seconds) {
         Instant start = CALL_START.plusSeconds(6);
         return new PstnCall(id, "corr-" + id, OPERATOR, "+12025550100", callee, start, start.plusSeconds(seconds),

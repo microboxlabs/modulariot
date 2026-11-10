@@ -134,13 +134,30 @@ class TeamsCallRecordsTest {
     @Test
     void directRoutingOutboundTypes() {
         for (String type : List.of("ByotOut", "ByotOutUserForwarding", "ByotOutUserTransfer", "ByotOutUserConf",
-                "dr_out")) {
+                "ByotOutEmergency", "dr_out", "dr_out_user_conf", "dr_out_user_forwarding", "dr_out_user_transfer")) {
             assertTrue(drType(type).outbound(), type);
         }
         for (String type : List.of("ByotIn", "dr_in", "dr_in_bot")) {
             assertFalse(drType(type).outbound(), type);
         }
         assertFalse(drType(null).outbound());
+    }
+
+    @Test
+    void pstnOutboundTypes() {
+        for (String type : List.of("user_out", "user_out_conf", "user_out_forwarding", "user_out_transfer",
+                "conf_out", "fmc_out", "USER_OUT_FORWARDING")) {
+            assertTrue(pstnType(type).outbound(), type);
+        }
+        for (String type : List.of("user_in", "conf_in", "unassigned_in", "emergency_in", "fmc_in", "ucap_in",
+                "outbound", "user_output", "")) {
+            assertFalse(pstnType(type).outbound(), type);
+        }
+        assertFalse(pstnType(null).outbound());
+    }
+
+    private static PstnCall pstnType(String type) {
+        return new PstnCall("p", "c", "operator1@example.test", null, null, FROM, FROM, 0, type);
     }
 
     private static PstnCall drType(String type) {

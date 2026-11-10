@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.core.telephony;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Locale;
 
 /**
@@ -31,19 +32,20 @@ public record PstnCall(String id, String callId, String userPrincipalName, Strin
     }
 
     /**
-     * Whether a user placed the call. PSTN types end in {@code _out} ({@code user_out}, {@code conf_out}, ...).
-     * Direct Routing types start with {@code ByotOut} ({@code ByotOut}, {@code ByotOutUserForwarding}, ...) or,
-     * in the older names, {@code dr_out}.
+     * Whether the call left Teams toward the PSTN. PSTN types carry an {@code out} part ({@code user_out},
+     * {@code user_out_conf}, {@code user_out_forwarding}, {@code conf_out}, ...); inbound ones carry {@code in}.
+     * Direct Routing types start with {@code ByotOut} ({@code ByotOut}, {@code ByotOutUserForwarding}, ...) or, in
+     * the older names, carry an {@code out} part ({@code dr_out}, {@code dr_out_user_conf}, ...).
      */
     public boolean outbound() {
         if (callType == null) {
             return false;
         }
         String type = callType.toLowerCase(Locale.ROOT);
-        if (report == Report.DIRECT_ROUTING) {
-            return type.startsWith("byotout") || type.startsWith("dr_out");
+        if (report == Report.DIRECT_ROUTING && type.startsWith("byotout")) {
+            return true;
         }
-        return type.endsWith("_out");
+        return Arrays.asList(type.split("_")).contains("out");
     }
 
     /** Whether the call connected: what the report says, else a connected duration. */

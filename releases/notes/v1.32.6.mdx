@@ -1,0 +1,68 @@
+# 🔔 Release Notes v1.32.6 — ModularIoT
+
+### Fecha: 10/11/2026
+
+**Objetivo**: Esta versión coordina el milestone privado Release 1.32.6 con los cambios de plataforma OSS del milestone MIOT-0.6.6. Incluye mejoras para la gestión de casos, la telefonía y la visualización de viajes, además de correcciones en llamadas de Teams y en el flujo de revisión de PR.
+
+Los cambios OSS descritos a continuación corresponden a la integración del milestone MIOT-0.6.6.
+
+## 🚀 Evolutivos
+
+- **📍 Definición inicial del backend de lugares**
+  - **Punto clave**: Se conectaron los lugares con el frontend y se definió una estructura SQL inicial para sus tablas.
+  - **Detalle técnico**: La estructura prepara el backend para el desarrollo de lugares.
+
+- **📝 Registrar gestión sin realizar una llamada**
+  - **Punto clave**: Los operadores pueden marcar un caso como atendido sin llamar al conductor; la acción requiere un resultado y una nota.
+  - **Detalle técnico**: Registra una nota mediante la API de Control Tower y cierra el caso como atendido.
+
+- **📞 Llamadas de voz de WhatsApp mediante SIP y Telnyx**
+  - **Punto clave**: El botón de WhatsApp en «Llamar a» permite iniciar una llamada de voz desde el navegador; los contactos también pueden llamar a la torre por WhatsApp.
+  - **Detalle técnico**: La llamada se realiza mediante SIP entre Meta y la aplicación WhatsApp Call Control de Telnyx.
+
+- **🗺️ Mapa de síntomas con el recorrido completo del viaje**
+  - **Punto clave**: El mapa del caso puede mostrar el recorrido completo del viaje y resaltar los pulsos correspondientes al período del caso.
+  - **Detalle técnico**: Usa el rango del viaje cuando sus datos se pueden leer; si no, conserva la ventana anterior del caso. El rango está limitado a los últimos siete días.
+
+- **📡 Nodos GPS y de la aplicación en mapas geográficos**
+  - **Punto clave**: Se agregó la visualización de nodos GPS o de la aplicación en los mapas de vista geográfica.
+
+## 🐛 Correcciones
+
+- **🐇 Revisión de PR sin solicitudes innecesarias al revisor**
+  - **Impacto**: El proceso podía contactar a revisores limitados por tasa o que ya habían revisado, y escalar a una revisión completa sin que se solicitara.
+  - **Solución**: Evita esos contactos y solo solicita una revisión completa cuando se usa `--full`. Los comentarios de CodeRabbit que indiquen limitación de tasa o rechazo se tratan como no aplicables y generan una advertencia, en vez de bloquear la comprobación.
+
+- **📞 Resultado y duración de llamadas de Teams Direct Routing**
+  - **Impacto**: Las llamadas de Teams iniciadas desde Control Tower no recibían su duración ni resultado para organizaciones con Direct Routing.
+  - **Solución**: La reconciliación consulta los reportes PSTN y Direct Routing, reconoce los registros de salida `ByotOut` y el resultado `successfulCall`, y ahora también se ejecuta en el servidor cada cinco minutos para llamadas pendientes.
+
+- **🔒 Casos cerrados por operadores permanecen cerrados mientras persista la condición**
+  - **Impacto**: Un caso invalidado o marcado como atendido podía reabrirse en el mismo viaje mientras la condición seguía activa.
+  - **Solución**: La invalidación permanece cerrada mientras persista la condición; un caso atendido solo vuelve a abrirse si el nivel supera el que tenía al cerrarse. Una señal normal o una señal de otro viaje termina el bloqueo.
+
+## 📊 Beneficios
+
+- Más opciones para gestionar casos sin iniciar una llamada al conductor.
+- Mayor visibilidad del recorrido y de los pulsos asociados a cada caso.
+- Comunicación de voz por WhatsApp desde el navegador y desde los contactos hacia la torre.
+- Resultados y duración de llamadas de Teams Direct Routing disponibles mediante reconciliación periódica.
+- Menos reaperturas inesperadas de casos cerrados por operadores.
+- Comprobaciones de PR menos propensas a bloquearse por límites o decisiones de revisores.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.6.6`
+- **App**: `app@v0.6.6` — con cambios.
+- **Docs**: `docs@v0.6.6` — con cambios.
+- **Web**: `web@v0.6.6` — con cambios.
+- **Modulith**: `modulith@v0.5.45` — con cambios.
+- **Harness**: `harness@v0.1.15` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.32.6 integra las entregas del milestone OSS MIOT-0.6.6 y amplía las herramientas para coordinar viajes y gestionar casos. También mejora los flujos de telefonía y la fiabilidad de las comprobaciones automatizadas.
+
+En conjunto, estos cambios ofrecen a los operadores más contexto para actuar y reducen interrupciones en la gestión diaria de casos y llamadas.

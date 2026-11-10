@@ -27,7 +27,7 @@ describe("asset signal route", () => {
     await GET(new NextRequest("http://x/app/api/map/signal?assetId=AB%2012"));
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme/control-tower/map/assets/AB%2012/signal",
-      { method: "GET", sessionOnly: true }
+      { method: "GET" }
     );
   });
 

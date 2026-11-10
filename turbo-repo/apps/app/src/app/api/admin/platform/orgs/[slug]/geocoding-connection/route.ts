@@ -19,19 +19,17 @@ async function path(params: RouteParams["params"]): Promise<string> {
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
-  return forwardToStreamhubModulith(await path(params), { sessionOnly: true });
+  return forwardToStreamhubModulith(await path(params));
 }
 
 export async function POST(_request: Request, { params }: RouteParams) {
   return forwardToStreamhubModulith(await path(params), {
     method: "POST",
-    sessionOnly: true,
   });
 }
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
   return forwardToStreamhubModulith(await path(params), {
     method: "DELETE",
-    sessionOnly: true,
   });
 }

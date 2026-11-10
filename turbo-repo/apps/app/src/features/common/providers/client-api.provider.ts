@@ -29,7 +29,6 @@ import {
 import { MapService } from "@/features/geographic-view/services/map.service";
 import { isOfflineFrame } from "@/features/geographic-view/utils/signal-state";
 import { isEngineOffFrame } from "@/features/geographic-view/utils/engine-state";
-import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
 import {
   SignIdCardRequest,
@@ -373,51 +372,6 @@ export function useSymptomsTable({
   };
 }
 
-export function useHistoricSignals({
-  assetId,
-  p_from,
-  p_to,
-}: {
-  assetId: string;
-  p_from: string;
-  p_to: string;
-}) {
-  const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
-    // Pass null to prevent the request from executing
-    assetId && p_from && p_to
-      ? `/app/api/signals/historic-signals?asset_id=${assetId}&p_from=${p_from}&p_to=${p_to}`
-      : null,
-    fetcher
-  );
-
-  return {
-    data,
-    isLoading,
-    error,
-  };
-}
-
-export function useHistoricTimeline({
-  assetId,
-  p_from,
-  p_to,
-}: {
-  assetId: string;
-  p_from: string;
-  p_to: string;
-}) {
-  const { data, error, isLoading } = useSWR<any, FetcherError>(
-    `/app/api/signals/timeline?asset_id=${assetId}&p_from=${p_from}&p_to=${p_to}`,
-    fetcher
-  );
-
-  return {
-    data,
-    isLoading,
-    error,
-  };
-}
-
 export function useSymptomsIcu(condition?: string) {
   const url = condition
     ? `/app/api/symptoms/icu?p_icu_code=${condition}`
@@ -554,19 +508,6 @@ export function useTreatmentsTemplates(
     treatments_templates_error: error,
     treatments_templates_isLoading: isLoading,
   };
-}
-
-export function requestTreatment(
-  treatmentRequest: TreatmentsRequest
-): Promise<TreatmentsRequest> {
-  const url = `/app/api/treatments`;
-  return fetcher(url, {
-    headers: {
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-    body: JSON.stringify(treatmentRequest),
-  });
 }
 
 interface Release {

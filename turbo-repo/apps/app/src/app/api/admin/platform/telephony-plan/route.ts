@@ -9,7 +9,7 @@ import { forwardToStreamhubModulith } from "@/app/api/utils/streamhub-modulith-p
 const PATH = "/api/v1/platform/telephony-plan";
 
 export async function GET() {
-  return forwardToStreamhubModulith(PATH, { sessionOnly: true });
+  return forwardToStreamhubModulith(PATH);
 }
 
 export async function PUT(request: Request) {
@@ -22,6 +22,5 @@ export async function PUT(request: Request) {
   return forwardToStreamhubModulith(PATH, {
     method: "PUT",
     body,
-    sessionOnly: true,
   });
 }

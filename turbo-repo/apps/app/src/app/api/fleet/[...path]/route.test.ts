@@ -50,11 +50,11 @@ describe("/api/fleet/[...path]", () => {
     expect(forwardMock.mock.calls).toEqual([
       [
         "/api/v1/orgs/acme%20org/fleet/assets?kind=TRUCK&page=1",
-        { method: "GET", body: undefined, sessionOnly: true },
+        { method: "GET", body: undefined },
       ],
       [
         "/api/v1/orgs/acme%20org/fleet/assets/00%3A1A%3A2B%3A3C",
-        { method: "GET", body: undefined, sessionOnly: true },
+        { method: "GET", body: undefined },
       ],
     ]);
   });
@@ -72,7 +72,6 @@ describe("/api/fleet/[...path]", () => {
       {
         method: "PATCH",
         body: { fields: { label: "Tracto" } },
-        sessionOnly: true,
       }
     );
   });

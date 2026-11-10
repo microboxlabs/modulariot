@@ -107,7 +107,7 @@ describe("/api/control-tower/[...path]", () => {
     expect(forwardMock).not.toHaveBeenCalled();
   });
 
-  it("saves as template with the user's session only", async () => {
+  it("forwards a save as template", async () => {
     await POST(
       req(
         "http://x/app/api/control-tower/symptom-definitions/abc/save-as-template",
@@ -120,7 +120,7 @@ describe("/api/control-tower/[...path]", () => {
     );
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme%20org/control-tower/symptom-definitions/abc/save-as-template",
-      { method: "POST", body: {}, sessionOnly: true }
+      { method: "POST", body: {} }
     );
   });
 
@@ -129,19 +129,16 @@ describe("/api/control-tower/[...path]", () => {
     "reconcile",
     "calls/ref-1/ended",
     "whatsapp-calls/incoming-1/answer",
-  ])(
-    "uses the individual operator's session for telephony %s",
-    async (endpoint) => {
-      await POST(
-        req(`http://x/app/api/control-tower/telephony/${endpoint}`, {
-          method: "POST",
-        }),
-        ctx(["telephony", ...endpoint.split("/")])
-      );
-      expect(forwardMock).toHaveBeenCalledWith(
-        `/api/v1/orgs/acme%20org/control-tower/telephony/${endpoint}`,
-        { method: "POST", body: {}, sessionOnly: true }
-      );
-    }
-  );
+  ])("forwards telephony %s", async (endpoint) => {
+    await POST(
+      req(`http://x/app/api/control-tower/telephony/${endpoint}`, {
+        method: "POST",
+      }),
+      ctx(["telephony", ...endpoint.split("/")])
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      `/api/v1/orgs/acme%20org/control-tower/telephony/${endpoint}`,
+      { method: "POST", body: {} }
+    );
+  });
 });

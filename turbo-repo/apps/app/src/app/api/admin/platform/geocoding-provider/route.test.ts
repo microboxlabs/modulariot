@@ -20,9 +20,7 @@ describe("platform geocoding provider proxy", () => {
   it("reads with the session", async () => {
     await GET();
 
-    expect(forwardToStreamhubModulith).toHaveBeenCalledWith(PATH, {
-      sessionOnly: true,
-    });
+    expect(forwardToStreamhubModulith).toHaveBeenCalledWith(PATH);
   });
 
   it("forwards the body of a save", async () => {
@@ -38,7 +36,6 @@ describe("platform geocoding provider proxy", () => {
     expect(forwardToStreamhubModulith).toHaveBeenCalledWith(PATH, {
       method: "PUT",
       body,
-      sessionOnly: true,
     });
   });
 
@@ -56,7 +53,6 @@ describe("platform geocoding provider proxy", () => {
 
     expect(forwardToStreamhubModulith).toHaveBeenCalledWith(PATH, {
       method: "DELETE",
-      sessionOnly: true,
     });
   });
 });

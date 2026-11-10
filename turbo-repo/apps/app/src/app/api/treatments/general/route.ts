@@ -1,30 +1,9 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/rpc/api_modular_treatments_info_general`;
+import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
 
-import {
-  AuthToken,
-  AuthTokenConfig,
-} from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
-import {
-  TreatmentsGeneralResponse,
-  TreatmentsGeneralResponseItem,
-} from "./route.type";
-import {
-  forwardControlTowerMap,
-  legacySymptomsEnabled,
-} from "@/app/api/utils/control-tower-map";
-
-const config: AuthTokenConfig = {
-  clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
-  clientSecret: `${process.env.STREAMHUB_CLIENT_SECRET}`,
-  audience: `${process.env.STREAMHUB_AUDIENCE}`,
-  grantType: "client_credentials",
-};
-
-const authToken = new AuthToken(config);
-
+/** One evaluator's case (`id`), read from the modulith as the active organization. */
 export async function GET(request: Request) {
   const session = await auth();
   if (!session) {
@@ -33,45 +12,9 @@ export async function GET(request: Request) {
     });
   }
   const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
-
-  // Without PostgREST or legacy symptoms, the modulith reads the symptom as the
-  // active organization.
-  if (!process.env.STREAMHUB_URL || !legacySymptomsEnabled()) {
-    if (!id?.trim()) {
-      return NextResponse.json({ error: "Missing id" }, { status: 400 });
-    }
-    return forwardControlTowerMap(`symptoms/${encodeURIComponent(id.trim())}`);
+  const id = searchParams.get("id")?.trim();
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
-
-  try {
-    const token = await authToken.getToken();
-    const response = await fetch(
-      SYMPTOMS_API_URL + "?p_symptom_id=" + id + "&p_dev_env=1",
-      {
-        headers: {
-          accept: "application/json",
-          Authorization: ` Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const apiData = (await response.json()) as TreatmentsGeneralResponse;
-    // Transform API data into our desired structure
-    const formattedResponse: TreatmentsGeneralResponseItem = apiData.data;
-    return NextResponse.json(formattedResponse);
-  } catch (error) {
-    return NextResponse.json(
-      {
-        data: [],
-        status: 500,
-        message: "Failed to fetch symptoms data",
-      },
-      { status: 500 }
-    );
-  }
+  return forwardControlTowerMap(`symptoms/${encodeURIComponent(id)}`);
 }

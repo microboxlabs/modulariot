@@ -22,7 +22,6 @@ export async function GET(
   }
   const query = month ? `?month=${month}` : "";
   return forwardToStreamhubModulith(
-    `/api/v1/orgs/${encodeURIComponent(orgId)}/telephony-usage${query}`,
-    { sessionOnly: true }
+    `/api/v1/orgs/${encodeURIComponent(orgId)}/telephony-usage${query}`
   );
 }

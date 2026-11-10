@@ -22,9 +22,7 @@ describe("organization geocoding connection proxy", () => {
   it("reads with the session", async () => {
     await GET(request, params);
 
-    expect(forwardToStreamhubModulith).toHaveBeenCalledWith(PATH, {
-      sessionOnly: true,
-    });
+    expect(forwardToStreamhubModulith).toHaveBeenCalledWith(PATH);
   });
 
   it("forwards a connect", async () => {
@@ -32,7 +30,6 @@ describe("organization geocoding connection proxy", () => {
 
     expect(forwardToStreamhubModulith).toHaveBeenCalledWith(PATH, {
       method: "POST",
-      sessionOnly: true,
     });
   });
 
@@ -41,7 +38,6 @@ describe("organization geocoding connection proxy", () => {
 
     expect(forwardToStreamhubModulith).toHaveBeenCalledWith(PATH, {
       method: "DELETE",
-      sessionOnly: true,
     });
   });
 });

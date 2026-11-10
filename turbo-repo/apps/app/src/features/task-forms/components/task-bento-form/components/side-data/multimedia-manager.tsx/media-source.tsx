@@ -117,14 +117,18 @@ export function createAlfrescoSource(
       );
       const contents = useGetNodeContents(entries.map((f) => f.entry.id));
       // A node whose document read failed is left out, as the gallery always did.
+      // Keep the empty list memoized too. The gallery copies `files` into
+      // state in an effect, so a new array on each render never stops
+      // re-rendering, and the router cannot leave the page.
       const files = useMemo(() => {
+        if (entries.length === 0 && data) return [];
         if (!contents.data) return null;
         return entries.filter(
           (_, i) => contents.data.data?.[i] && !contents.data.data[i].error
         );
-      }, [entries, contents.data]);
+      }, [data, entries, contents.data]);
       return {
-        files: entries.length === 0 && data ? [] : files,
+        files,
         isLoading: isLoading || contents.isLoading,
         refresh: async () => {
           await mutate();

@@ -8,20 +8,27 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import com.microboxlabs.miot.core.alfresco.AlfrescoPerson;
 import com.microboxlabs.miot.core.alfresco.IAlfrescoDirectoryClient;
+import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
+import com.microboxlabs.miot.core.auth.StubAlfrescoMembershipClient;
 import com.microboxlabs.miot.core.alfresco.StubAlfrescoDirectoryClient;
 import com.microboxlabs.miot.core.auth.PlatformTestProfile;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
 import io.agroal.api.AgroalDataSource;
-import io.quarkus.hibernate.reactive.panache.Panache;
+import io.smallrye.common.vertx.VertxContext;
+import io.quarkus.vertx.core.runtime.context.VertxContextSafetyToggle;
+import io.vertx.core.Vertx;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
 import io.restassured.config.HttpClientConfig;
 import io.restassured.config.RestAssuredConfig;
 import io.smallrye.mutiny.Uni;
+import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.SqlConnection;
 import jakarta.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -29,6 +36,8 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import org.hibernate.reactive.mutiny.Mutiny;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +59,7 @@ class NativeMembershipMigrationDefaultsTest {
             overrides.put("miot.iam.native-migration.every", "1m");
             overrides.put("quarkus.scheduler.enabled", "false");
             overrides.put(NativeMembershipMigration.TIMEOUT_PROPERTY, "5s");
+            overrides.put("quarkus.datasource.reactive.max-size", "2");
             return overrides;
         }
     }
@@ -62,6 +72,18 @@ class NativeMembershipMigrationDefaultsTest {
 
     @Inject
     AgroalDataSource ds;
+
+    @Inject
+    NativeMembershipMigration migration;
+
+    @Inject
+    Mutiny.SessionFactory sessionFactory;
+
+    @Inject
+    Vertx vertx;
+
+    @Inject
+    Pool pool;
 
     @BeforeEach
     void seed() throws SQLException {
@@ -98,7 +120,7 @@ class NativeMembershipMigrationDefaultsTest {
                 + "miot_core.organizations WHERE slug = '" + ORG + "')");
         exec("DELETE FROM miot_core.organizations WHERE slug = '" + ORG + "'");
         exec("DROP FUNCTION IF EXISTS miot_iam.slow_default_binding() CASCADE");
-        exec("DELETE FROM miot_iam.iam_user WHERE email LIKE 'member%@defaults.test'");
+        exec("DELETE FROM miot_iam.iam_user WHERE email LIKE 'member%@defaults.test' OR email = 'remote@migration.test'");
     }
 
     @Test
@@ -156,10 +178,8 @@ class NativeMembershipMigrationDefaultsTest {
         QuarkusMock.installMockForType(new StubAlfrescoDirectoryClient() {
             @Override
             public Uni<List<AlfrescoPerson>> listAllGroupMembers(String groupId) {
-                // Isolate the application timer from the database timers, which are tested separately.
-                return Panache.getSession().flatMap(session -> session.createNativeQuery(
-                                "SET LOCAL idle_in_transaction_session_timeout = '30s'").executeUpdate())
-                        .flatMap(ignored -> Uni.createFrom().nothing());
+                assertNoOpenTransaction();
+                return Uni.createFrom().nothing();
             }
         }, IAlfrescoDirectoryClient.class);
         String next = "zz-defaults-next";
@@ -184,28 +204,55 @@ class NativeMembershipMigrationDefaultsTest {
     }
 
     @Test
+    void remoteMemberRolesAreReadBeforeTheTransactionAndConcurrentRunsShareThePool() throws SQLException {
+        exec("UPDATE miot_core.organizations SET alfresco_group_id = 'GROUP_roles' WHERE slug = '" + ORG + "'");
+        CompletableFuture<List<AlfrescoPerson>> people = new CompletableFuture<>();
+        CompletableFuture<Void> reading = new CompletableFuture<>();
+        QuarkusMock.installMockForType(new StubAlfrescoDirectoryClient() {
+            @Override
+            public Uni<List<AlfrescoPerson>> listAllGroupMembers(String groupId) {
+                assertNoOpenTransaction();
+                reading.complete(null);
+                return Uni.createFrom().completionStage(people);
+            }
+        }, IAlfrescoDirectoryClient.class);
+        QuarkusMock.installMockForType(new StubAlfrescoMembershipClient() {
+            @Override
+            public Uni<String> getRole(String personId, String groupId) {
+                assertNoOpenTransaction();
+                return Uni.createFrom().item("SITE_MANAGER");
+            }
+        }, IAlfrescoMembershipClient.class);
+        Runnable migrate = () -> given().config(BOUNDED)
+                .header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().post(MIGRATE).then().statusCode(200)
+                .body("find { it.organization == '" + ORG + "' }.error", nullValue());
+        CompletableFuture<Void> first = CompletableFuture.runAsync(migrate);
+        reading.orTimeout(10, java.util.concurrent.TimeUnit.SECONDS).join();
+        assertSame(migration.migrateAll(), migration.migrateAll());
+        CompletableFuture<Void> second = CompletableFuture.runAsync(migrate);
+        people.complete(List.of(new AlfrescoPerson("remote@migration.test", "remote@migration.test",
+                "Remote", "Member", "Remote Member")));
+        CompletableFuture.allOf(first, second).orTimeout(15, java.util.concurrent.TimeUnit.SECONDS).join();
+        assertLockReleased();
+    }
+
+    @Test
     void anActiveStatementCannotKeepTheMigrationLockAfterTimeout() throws SQLException {
-        exec("CREATE FUNCTION miot_iam.slow_default_binding() RETURNS trigger LANGUAGE plpgsql AS $$ "
-                + "BEGIN PERFORM pg_sleep(30); RETURN NEW; END $$");
-        exec("CREATE TRIGGER slow_default_binding BEFORE INSERT ON miot_iam.iam_role_binding "
-                + "FOR EACH ROW EXECUTE FUNCTION miot_iam.slow_default_binding()");
+        slowBindings(30);
         given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
                 .when().post(MIGRATE).then().statusCode(200)
                 .body("find { it.organization == '" + ORG + "' }.error", anyOf(
                         containsString("Not done after"), containsString("statement timeout")));
         assertPending();
         assertLockReleased();
-        assertEquals("0", query("SELECT count(*) FROM miot_iam.iam_role_binding WHERE created_by = '"
-                + NativeMembershipMigration.ACTOR + "'"));
+        assertNoMigrationBindings();
     }
 
     @Test
     void aTimeoutDuringTheFlushCommitsNoneOfItsRows() throws Exception {
         // Each insert is short, but the 449 of them outlast the timeout.
-        exec("CREATE FUNCTION miot_iam.slow_default_binding() RETURNS trigger LANGUAGE plpgsql AS $$ "
-                + "BEGIN PERFORM pg_sleep(0.03); RETURN NEW; END $$");
-        exec("CREATE TRIGGER slow_default_binding BEFORE INSERT ON miot_iam.iam_role_binding "
-                + "FOR EACH ROW EXECUTE FUNCTION miot_iam.slow_default_binding()");
+        slowBindings(0.03);
         given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
                 .when().post(MIGRATE).then().statusCode(200)
                 .body("find { it.organization == '" + ORG + "' }.error", containsString("Not done after"));
@@ -213,8 +260,27 @@ class NativeMembershipMigrationDefaultsTest {
         await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofMillis(200)).until(() -> "0".equals(query(
                 "SELECT count(*) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND state = 'active' "
                         + "AND query ILIKE 'insert into %iam_role_binding%'")));
-        assertEquals("0", query("SELECT count(*) FROM miot_iam.iam_role_binding WHERE created_by = '"
-                + NativeMembershipMigration.ACTOR + "'"));
+        assertNoMigrationBindings();
+        assertPending();
+        assertLockReleased();
+    }
+
+    @Test
+    void aLostControlConnectionStillDrainsTheFlushBeforeRollback() throws SQLException {
+        slowBindings(0.02);
+        CompletableFuture<Void> run = CompletableFuture.runAsync(() -> given().config(BOUNDED)
+                .header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().post(MIGRATE).then().statusCode(200)
+                .body("find { it.organization == '" + ORG + "' }.error", containsString("Not done after")));
+        await().atMost(Duration.ofSeconds(3)).until(() -> "1".equals(query(
+                "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND state = 'active' "
+                        + "AND query ILIKE 'insert into %iam_role_binding%'")));
+        // Both reactive leases are occupied: one flush, one idle control connection. End the latter.
+        assertEquals("t", query("SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                + "WHERE datname = current_database() AND application_name = 'vertx-pg-client' "
+                + "AND state = 'idle' AND query = 'SELECT 1'"));
+        run.orTimeout(30, java.util.concurrent.TimeUnit.SECONDS).join();
+        assertNoMigrationBindings();
         assertPending();
         assertLockReleased();
     }
@@ -230,11 +296,64 @@ class NativeMembershipMigrationDefaultsTest {
         exec("INSERT INTO miot_core.organizations (slug, name, tenant_client_id, active, membership_source) "
                 + "VALUES ('" + pending + "', 'Pending', 'pending-client', true, 'ALFRESCO')");
         try {
+            refreshOnly();
             given().when().get("/q/health/ready").then().statusCode(503)
                     .body("checks.find { it.name == 'native-membership-migration' }.status", is("DOWN"));
         } finally {
             exec("DELETE FROM miot_core.organizations WHERE slug = '" + pending + "'");
         }
+    }
+
+    @Test
+    void repeatedReadinessCallsUseNoDatabaseConnection() {
+        given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().post(MIGRATE).then().statusCode(200);
+        var stats = sessionFactory.getStatistics();
+        long queries = stats.getQueryExecutionCount();
+        SqlConnection first = pool.getConnection().await().atMost(Duration.ofSeconds(2));
+        SqlConnection second = pool.getConnection().await().atMost(Duration.ofSeconds(2));
+        try {
+            NativeMembershipReadiness readiness = new NativeMembershipReadiness(migration, true);
+            for (int i = 0; i < 1000; i++) {
+                assertEquals(org.eclipse.microprofile.health.HealthCheckResponse.Status.UP,
+                        readiness.call().await().atMost(Duration.ofSeconds(1)).getStatus());
+            }
+            assertEquals(queries, stats.getQueryExecutionCount());
+        } finally {
+            second.close().await().atMost(Duration.ofSeconds(2));
+            first.close().await().atMost(Duration.ofSeconds(2));
+        }
+    }
+
+    private void refreshOnly() {
+        CompletableFuture<Void> refreshed = new CompletableFuture<>();
+        var context = VertxContext.getOrCreateDuplicatedContext(vertx.getOrCreateContext());
+        VertxContextSafetyToggle.setContextSafe(context, true);
+        context.runOnContext(ignored -> new NativeMembershipReadiness(migration, true).refresh().subscribe()
+                .with(refreshed::complete, refreshed::completeExceptionally));
+        refreshed.orTimeout(10, java.util.concurrent.TimeUnit.SECONDS).join();
+        assertEquals(false, migration.settled().await().atMost(Duration.ofSeconds(1)));
+    }
+
+    private void assertNoOpenTransaction() {
+        try {
+            assertEquals("0", query("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                    + "AND state LIKE 'idle in transaction%'"));
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private void slowBindings(double seconds) throws SQLException {
+        exec("CREATE FUNCTION miot_iam.slow_default_binding() RETURNS trigger LANGUAGE plpgsql AS $$ "
+                + "BEGIN PERFORM pg_sleep(" + seconds + "); RETURN NEW; END $$");
+        exec("CREATE TRIGGER slow_default_binding BEFORE INSERT ON miot_iam.iam_role_binding "
+                + "FOR EACH ROW EXECUTE FUNCTION miot_iam.slow_default_binding()");
+    }
+
+    private void assertNoMigrationBindings() throws SQLException {
+        assertEquals("0", query("SELECT count(*) FROM miot_iam.iam_role_binding WHERE created_by = '"
+                + NativeMembershipMigration.ACTOR + "'"));
     }
 
     private void assertPending() throws SQLException {

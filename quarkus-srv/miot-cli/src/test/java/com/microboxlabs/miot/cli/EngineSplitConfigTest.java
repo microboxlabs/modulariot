@@ -2,6 +2,7 @@ package com.microboxlabs.miot.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.smallrye.config.EnvConfigSource;
 import io.smallrye.config.PropertiesConfigSource;
@@ -17,6 +18,17 @@ import org.junit.jupiter.api.Test;
  * and the symptom engine. Reads the real file with only the environment of each pod, no profile.
  */
 class EngineSplitConfigTest {
+
+    @Test
+    void primaryPoolsLeaveCapacityInATwentySlotSessionPooler() throws IOException {
+        SmallRyeConfig c = config(Map.of());
+        int reactive = c.getValue("quarkus.datasource.reactive.max-size", Integer.class);
+        int jdbc = c.getValue("quarkus.datasource.jdbc.max-size", Integer.class);
+        assertTrue(reactive + jdbc + 2 < 20, "Leave capacity for two other clients and operational access");
+        assertEquals("60S", c.getValue("quarkus.datasource.reactive.idle-timeout", String.class));
+        assertEquals(8, config(Map.of("MIOT_DB_REACTIVE_MAX_SIZE", "8"))
+                .getValue("quarkus.datasource.reactive.max-size", Integer.class));
+    }
 
     /** The API pod: every component, the engine's consumers and timers off, device events on. */
     static final Map<String, String> API_POD = Map.of(

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.iam;
 
 import io.smallrye.health.api.AsyncHealthCheck;
 import io.smallrye.mutiny.Uni;
+import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -31,5 +32,12 @@ public class NativeMembershipReadiness implements AsyncHealthCheck {
         return (api ? migration.settled() : Uni.createFrom().item(true))
                 .onFailure().recoverWithItem(false)
                 .map(ready -> HealthCheckResponse.named("native-membership-migration").status(ready).build());
+    }
+
+    /** Also observes migrations owned by another pod when migration is disabled here. */
+    @Scheduled(every = "${miot.iam.native-migration.every:1m}", delayed = "1s",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    Uni<Void> refresh() {
+        return api ? migration.refreshReadiness().replaceWithVoid() : Uni.createFrom().voidItem();
     }
 }

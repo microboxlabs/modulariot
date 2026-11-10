@@ -12,6 +12,7 @@ import io.smallrye.mutiny.Uni;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -22,15 +23,17 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.Executor;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
  * Moves organizations whose members came from their Alfresco group onto memberships. For each one still marked
- * ALFRESCO: imports the group (see {@link AlfrescoBridge#importMembers}), binds each module's legacy-default role to
+ * ALFRESCO: imports the group (see {@link AlfrescoBridge#importSnapshot}), binds each module's legacy-default role to
  * members who hold no role of that module (what Alfresco membership gave them), then marks it NATIVE.
  *
  * <p>Where {@value #LEGACY_PROPERTY} is {@code native}, membership already came from the modulith, and where
@@ -71,6 +74,8 @@ public class NativeMembershipMigration {
     private final boolean scheduled;
     private final Duration timeout;
     private final Instance<Pool> pools;
+    private volatile boolean done;
+    private Uni<List<Migrated>> running;
 
     @Inject
     public NativeMembershipMigration(AlfrescoBridge bridge, AccessRegistry registry, Instance<Pool> pools,
@@ -103,37 +108,104 @@ public class NativeMembershipMigration {
 
     /** Whether no organization is left behind, including when another pod owns the migration. */
     public Uni<Boolean> settled() {
-        return Panache.withSession(() -> Organization.listAlfrescoMembership().map(List::isEmpty));
+        return Uni.createFrom().item(() -> done);
+    }
+
+    Uni<Boolean> refreshReadiness() {
+        return Panache.withSession(() -> Organization.listAlfrescoMembership().map(List::isEmpty))
+                .invoke(ready -> done = ready)
+                .onFailure().invoke(() -> done = false);
     }
 
     /** Moves every organization still on Alfresco membership; failures are reported and left for the next run. */
-    public Uni<List<Migrated>> migrateAll() {
-        return Panache.withSession(Organization::listAlfrescoMembership).flatMap(orgs ->
+    public synchronized Uni<List<Migrated>> migrateAll() {
+        if (running == null) {
+            // Manual and scheduled callers share a run, so they cannot each reserve the last control lease.
+            running = Uni.createFrom().deferred(this::runAll).eventually(this::finished).memoize().indefinitely();
+        }
+        return running;
+    }
+
+    private synchronized void finished() {
+        running = null;
+    }
+
+    private Uni<List<Migrated>> runAll() {
+        return Panache.withSession(Organization::listAlfrescoMembership)
+                .invoke(orgs -> {
+                    if (!orgs.isEmpty()) {
+                        done = false;
+                    }
+                }).flatMap(orgs ->
                 Multi.createFrom().iterable(orgs.stream().map(o -> o.slug).toList())
                         .onItem().transformToUniAndConcatenate(slug -> migrate(slug)
                                 .onFailure().recoverWithItem(e -> {
                                     LOG.warnf(e, "Moving %s to native membership failed: %s", slug, e.getMessage());
                                     return Migrated.failed(slug, e);
                                 }))
-                        .collect().asList());
+                        .collect().asList())
+                .call(this::refreshReadiness)
+                .onFailure().invoke(() -> done = false);
     }
 
     private Uni<Migrated> migrate(String slug) {
-        // Timeout inside the transaction: report failure only after rollback and session cleanup finish.
+        Executor onContext = onContext();
+        long deadline = System.nanoTime() + timeout.toNanos();
+        return prepare(slug).ifNoItem().after(timeout).failWith(this::timedOut)
+                .emitOn(onContext)
+                // Reserve and warm the control connection BEFORE the transaction. With a pool of two, the
+                // transaction takes the other one; abort never queues for another lease from an exhausted pool.
+                .flatMap(snapshot -> pools.get().withConnection(control -> control.query("SELECT 1").execute()
+                        .emitOn(onContext)
+                        .flatMap(ignored -> migratePrepared(slug, snapshot, control, deadline))))
+                .emitOn(onContext)
+                .invoke(result -> LOG.infof("%s now uses native membership: %d added, %d suspended, %d default roles bound",
+                        slug, result.added(), result.suspended(), result.defaultsBound()));
+    }
+
+    private Uni<AlfrescoBridge.Snapshot> prepare(String slug) {
+        if (alreadyNative) {
+            return Uni.createFrom().nullItem();
+        }
+        return Panache.withSession(() -> withoutChildGroups(slug).map(org -> org.alfrescoGroupId))
+                .flatMap(group -> group == null ? Uni.createFrom().nullItem() : bridge.readMembers(group));
+    }
+
+    private Uni<Migrated> migratePrepared(String slug, AlfrescoBridge.Snapshot snapshot, SqlConnection control,
+            long deadline) {
+        Duration remaining = Duration.ofNanos(deadline - System.nanoTime());
+        if (remaining.isNegative() || remaining.isZero()) {
+            return Uni.createFrom().failure(timedOut());
+        }
         return Panache.withTransaction(() -> {
-            Context context = Vertx.currentContext();
-            return backend().flatMap(backend -> AlfrescoBridge.lock(slug, timeout)
-                            .flatMap(ignored -> Organization.findBySlug(slug))
-                            // Another run may have moved it while this one waited for the lock.
-                            .flatMap(org -> org == null || !"ALFRESCO".equals(org.membershipSource)
-                                    ? Uni.createFrom().item(new Migrated(slug, 0, 0, 0, null))
-                                    : migrateLocked(slug))
-                            .call(Panache::flush)
-                            .ifNoItem().after(timeout).recoverWithUni(() -> abort(backend)))
-                    // The timeout fires on a timer thread; Hibernate cleanup must use the session's context.
-                    .emitOn(task -> context.runOnContext(ignored -> task.run()));
-        }).invoke(result -> LOG.infof("%s now uses native membership: %d added, %d suspended, %d default roles bound",
-                slug, result.added(), result.suspended(), result.defaultsBound()));
+            Executor onContext = onContext();
+            return backend().flatMap(backend -> {
+                // Keep the actual work subscribed after the timer fires. Drain it before Hibernate rolls back:
+                // even if termination fails, no queued flush insert may run after ROLLBACK and auto-commit.
+                Uni<Migrated> work = AlfrescoBridge.lock(slug, remaining)
+                        .flatMap(ignored -> Organization.findBySlug(slug))
+                        .flatMap(org -> org == null || !"ALFRESCO".equals(org.membershipSource)
+                                ? Uni.createFrom().item(new Migrated(slug, 0, 0, 0, null))
+                                : migrateLocked(slug, snapshot))
+                        .call(Panache::flush).memoize().indefinitely();
+                return work.ifNoItem().after(remaining).recoverWithUni(() -> abort(control, backend)
+                        .emitOn(onContext)
+                        .flatMap(ignored -> failAfterDrain(work)));
+            }).emitOn(onContext);
+        });
+    }
+
+    private static Executor onContext() {
+        Context context = Vertx.currentContext();
+        return task -> context.runOnContext(ignored -> task.run());
+    }
+
+    private Uni<Migrated> failAfterDrain(Uni<Migrated> work) {
+        return work.onItemOrFailure().transformToUni((result, failure) -> Uni.createFrom().failure(timedOut()));
+    }
+
+    private TimeoutException timedOut() {
+        return new TimeoutException("Not done after " + timeout + "; tried again on the next run");
     }
 
     /** This connection's backend: its pid and start time, so a pid Postgres reused later is not mistaken for it. */
@@ -148,33 +220,33 @@ public class NativeMembershipMigration {
      * transaction back. Cancelling the Uni does not stop a flush in progress: after a rollback over the same
      * connection, its remaining inserts would run outside the transaction and commit.
      */
-    private Uni<Migrated> abort(String backend) {
+    private Uni<Void> abort(SqlConnection control, String backend) {
         String[] parts = backend.split(" ", 2);
-        TimeoutException timedOut = new TimeoutException("Not done after " + timeout + "; tried again on the next run");
-        return pools.get().preparedQuery("select pg_terminate_backend(pid, $3) from pg_stat_activity "
+        return control.preparedQuery("select pg_terminate_backend(pid, $3) from pg_stat_activity "
                         + "where pid = $1 and backend_start::text = $2")
                 .execute(Tuple.of(Integer.parseInt(parts[0]), parts[1], TERMINATE_WAIT_MS))
+                .ifNoItem().after(Duration.ofMillis(TERMINATE_WAIT_MS + 1000)).fail()
                 .onItemOrFailure().transformToUni((rows, e) -> {
                     // No row: Postgres already ended that backend.
                     if (e != null || (rows.iterator().hasNext() && !rows.iterator().next().getBoolean(0))) {
-                        LOG.errorf(e, "Could not end backend %s after a timeout; its rollback may let queued"
-                                + " statements commit", parts[0]);
+                        LOG.errorf(e, "Could not end backend %s after a timeout; waiting for its statements"
+                                + " before rollback", parts[0]);
                     }
-                    if (e != null) {
-                        timedOut.addSuppressed(e);
-                    }
-                    return Uni.createFrom().failure(timedOut);
+                    return Uni.createFrom().voidItem();
                 });
     }
 
-    private Uni<Migrated> migrateLocked(String slug) {
+    private Uni<Migrated> migrateLocked(String slug, AlfrescoBridge.Snapshot snapshot) {
         if (alreadyNative) {
             return markNative(slug, new Migrated(slug, 0, 0, 0, null));
         }
         return Panache.withSession(() -> withoutChildGroups(slug)).flatMap(org -> {
-            Uni<Migrated> imported = org.alfrescoGroupId == null
+            if (!Objects.equals(org.alfrescoGroupId, snapshot == null ? null : snapshot.groupId())) {
+                return Uni.createFrom().failure(new IllegalStateException("The organization's Alfresco group changed"));
+            }
+            Uni<Migrated> imported = snapshot == null
                     ? Uni.createFrom().item(new Migrated(slug, 0, 0, 0, null))
-                    : bridge.importMembers(slug, ACTOR, timeout)
+                    : bridge.importSnapshot(org, snapshot, ACTOR)
                             .map(r -> new Migrated(slug, r.added(), r.suspended(), 0, null));
             return imported
                     .flatMap(result -> bindDefaults(slug).map(bound -> new Migrated(slug, result.added(),

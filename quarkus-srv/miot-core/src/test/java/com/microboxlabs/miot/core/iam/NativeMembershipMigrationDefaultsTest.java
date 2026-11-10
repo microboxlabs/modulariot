@@ -238,6 +238,61 @@ class NativeMembershipMigrationDefaultsTest {
     }
 
     @Test
+    void aGroupChangedDuringTheRemoteReadIsNotImported() throws SQLException {
+        changeOrganizationDuringRead("alfresco_group_id = 'GROUP_changed'");
+        given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().post(MIGRATE).then().statusCode(200)
+                .body("find { it.organization == '" + ORG + "' }.error", containsString("Alfresco group changed"));
+        assertPending();
+        assertNoMigrationBindings();
+        assertLockReleased();
+    }
+
+    @Test
+    void anOrganizationMovedByAnotherPodDuringTheRemoteReadIsNotImportedAgain() throws SQLException {
+        changeOrganizationDuringRead("membership_source = 'NATIVE'");
+        given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().post(MIGRATE).then().statusCode(200)
+                .body("find { it.organization == '" + ORG + "' }.added", is(0))
+                .body("find { it.organization == '" + ORG + "' }.defaultsBound", is(0))
+                .body("find { it.organization == '" + ORG + "' }.error", nullValue());
+        assertNoMigrationBindings();
+        assertEquals("0", query("SELECT count(*) FROM miot_iam.iam_audit_event "
+                + "WHERE actor = 'native-migration' AND organization_id = "
+                + "(SELECT id FROM miot_core.organizations WHERE slug = '" + ORG + "')"));
+        assertLockReleased();
+    }
+
+    private void changeOrganizationDuringRead(String update) throws SQLException {
+        exec("UPDATE miot_core.organizations SET alfresco_group_id = 'GROUP_before' WHERE slug = '" + ORG + "'");
+        QuarkusMock.installMockForType(new StubAlfrescoDirectoryClient() {
+            @Override
+            public Uni<List<AlfrescoPerson>> listAllGroupMembers(String groupId) {
+                assertNoOpenTransaction();
+                try {
+                    exec("UPDATE miot_core.organizations SET " + update + " WHERE slug = '" + ORG + "'");
+                } catch (SQLException e) {
+                    return Uni.createFrom().failure(e);
+                }
+                return Uni.createFrom().item(List.of(new AlfrescoPerson("remote@migration.test",
+                        "remote@migration.test", "Remote", "Member", "Remote Member")));
+            }
+        }, IAlfrescoDirectoryClient.class);
+    }
+
+    @Test
+    void readinessObservesAnotherPodsMigrationWithLocalMigrationDisabled() throws SQLException {
+        NativeMembershipReadiness observer = new NativeMembershipReadiness(migration, true);
+        refreshOnly();
+        assertEquals(org.eclipse.microprofile.health.HealthCheckResponse.Status.DOWN,
+                observer.call().await().atMost(Duration.ofSeconds(1)).getStatus());
+        exec("UPDATE miot_core.organizations SET membership_source = 'NATIVE' WHERE slug = '" + ORG + "'");
+        refreshOnly();
+        assertEquals(org.eclipse.microprofile.health.HealthCheckResponse.Status.UP,
+                observer.call().await().atMost(Duration.ofSeconds(1)).getStatus());
+    }
+
+    @Test
     void anActiveStatementCannotKeepTheMigrationLockAfterTimeout() throws SQLException {
         slowBindings(30);
         given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
@@ -260,6 +315,35 @@ class NativeMembershipMigrationDefaultsTest {
         await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofMillis(200)).until(() -> "0".equals(query(
                 "SELECT count(*) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND state = 'active' "
                         + "AND query ILIKE 'insert into %iam_role_binding%'")));
+        assertNoMigrationBindings();
+        assertPending();
+        assertLockReleased();
+    }
+
+    @Test
+    void aTimeoutRollsBackImportedMembersAndAuditAlongWithDefaultBindings() throws SQLException {
+        exec("UPDATE miot_core.organizations SET alfresco_group_id = 'GROUP_atomic' WHERE slug = '" + ORG + "'");
+        List<AlfrescoPerson> people = new java.util.ArrayList<>();
+        for (int i = 1; i <= MEMBERS; i++) {
+            String email = "member" + i + "@defaults.test";
+            people.add(new AlfrescoPerson(email, email, "Member", "Existing", "Existing Member"));
+        }
+        people.add(new AlfrescoPerson("remote@migration.test", "remote@migration.test",
+                "Remote", "Member", "Remote Member"));
+        QuarkusMock.installMockForType(new StubAlfrescoDirectoryClient() {
+            @Override
+            public Uni<List<AlfrescoPerson>> listAllGroupMembers(String groupId) {
+                return Uni.createFrom().item(people);
+            }
+        }, IAlfrescoDirectoryClient.class);
+        slowBindings(0.03);
+        given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().post(MIGRATE).then().statusCode(200)
+                .body("find { it.organization == '" + ORG + "' }.error", containsString("Not done after"));
+        assertEquals("0", query("SELECT count(*) FROM miot_iam.iam_user WHERE email = 'remote@migration.test'"));
+        assertEquals("0", query("SELECT count(*) FROM miot_iam.iam_audit_event "
+                + "WHERE actor = 'native-migration' AND organization_id = "
+                + "(SELECT id FROM miot_core.organizations WHERE slug = '" + ORG + "')"));
         assertNoMigrationBindings();
         assertPending();
         assertLockReleased();
@@ -332,7 +416,6 @@ class NativeMembershipMigrationDefaultsTest {
         context.runOnContext(ignored -> new NativeMembershipReadiness(migration, true).refresh().subscribe()
                 .with(refreshed::complete, refreshed::completeExceptionally));
         refreshed.orTimeout(10, java.util.concurrent.TimeUnit.SECONDS).join();
-        assertEquals(false, migration.settled().await().atMost(Duration.ofSeconds(1)));
     }
 
     private void assertNoOpenTransaction() {
@@ -367,6 +450,14 @@ class NativeMembershipMigrationDefaultsTest {
         assertEquals("t", query("SELECT pg_try_advisory_xact_lock(hashtext('iam-alfresco-import:" + ORG + "'))"));
         assertEquals("0", query("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
                 + "AND state LIKE 'idle in transaction%'"));
+        // This profile has exactly two leases: both the transaction and its reserved control must be returned.
+        SqlConnection first = pool.getConnection().await().atMost(Duration.ofSeconds(2));
+        try {
+            SqlConnection second = pool.getConnection().await().atMost(Duration.ofSeconds(2));
+            second.close().await().atMost(Duration.ofSeconds(2));
+        } finally {
+            first.close().await().atMost(Duration.ofSeconds(2));
+        }
     }
 
     private String query(String sql) throws SQLException {

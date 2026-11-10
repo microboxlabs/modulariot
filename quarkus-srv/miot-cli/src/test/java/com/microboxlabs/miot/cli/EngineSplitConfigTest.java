@@ -21,13 +21,29 @@ class EngineSplitConfigTest {
 
     @Test
     void primaryPoolsLeaveCapacityInATwentySlotSessionPooler() throws IOException {
-        SmallRyeConfig c = config(Map.of());
-        int reactive = c.getValue("quarkus.datasource.reactive.max-size", Integer.class);
-        int jdbc = c.getValue("quarkus.datasource.jdbc.max-size", Integer.class);
-        assertTrue(reactive + jdbc + 2 < 20, "Leave capacity for two other clients and operational access");
-        assertEquals("60S", c.getValue("quarkus.datasource.reactive.idle-timeout", String.class));
-        assertEquals(8, config(Map.of("MIOT_DB_REACTIVE_MAX_SIZE", "8"))
-                .getValue("quarkus.datasource.reactive.max-size", Integer.class));
+        for (String profile : new String[] {"dev", "test"}) {
+            SmallRyeConfig c = config(Map.of(), profile);
+            int reactive = c.getValue("quarkus.datasource.reactive.max-size", Integer.class);
+            int jdbc = c.getValue("quarkus.datasource.jdbc.max-size", Integer.class);
+            assertTrue(reactive + jdbc + 2 < 20, "Leave capacity for two other clients and operational access");
+            assertEquals("60S", c.getValue("quarkus.datasource.reactive.idle-timeout", String.class));
+        }
+    }
+
+    @Test
+    void deployedApiAndEngineKeepTheirPoolCapacityUnlessExplicitlyOverridden() throws IOException {
+        for (Map<String, String> pod : java.util.List.of(API_POD, ENGINE_POD)) {
+            for (String profile : new String[] {"prod", "custom-deployment"}) {
+                assertEquals(20, config(pod, profile)
+                        .getValue("quarkus.datasource.reactive.max-size", Integer.class));
+            }
+        }
+        for (String profile : new String[] {"prod", "dev", "test"}) {
+            assertEquals(8, config(Map.of("MIOT_DB_REACTIVE_MAX_SIZE", "8"), profile)
+                    .getValue("quarkus.datasource.reactive.max-size", Integer.class));
+            assertEquals(12, config(Map.of("QUARKUS_DATASOURCE_REACTIVE_MAX_SIZE", "12"), profile)
+                    .getValue("quarkus.datasource.reactive.max-size", Integer.class));
+        }
     }
 
     /** The API pod: every component, the engine's consumers and timers off, device events on. */
@@ -148,8 +164,9 @@ class EngineSplitConfigTest {
     }
 
     /** The modulith's application.properties under this environment; {@code quarkus.uuid} differs per call. */
-    private static SmallRyeConfig config(Map<String, String> env) throws IOException {
+    private static SmallRyeConfig config(Map<String, String> env, String... profiles) throws IOException {
         return new SmallRyeConfigBuilder()
+                .withProfiles(java.util.List.of(profiles))
                 .addDefaultInterceptors()
                 .withSources(new PropertiesConfigSource(
                         Path.of("src/main/resources/application.properties").toUri().toURL(), 250))

@@ -87,13 +87,36 @@ class TripContactsTest {
 
     @Test
     void tripPeopleDropsBlankAndRepeatedRuts() {
-        assertEquals(List.of("1-9"), TripPeople.of(" 1-9 ", "1-9", "  ").driverRuts());
+        assertEquals(List.of("19"), TripPeople.of(" 1-9 ", "19", "  ").driverRuts());
         assertEquals(Map.of("secondDriverRut", "00000002K"),
                 ContactService.tripData(TripPeople.of(null, "00.000.002-k", null)));
         assertEquals(Map.of("driverRut", "19", "secondDriverRut", "19", "driverIdType", "RUT", "secondDriverIdType", "RUT"),
                 ContactService.tripData(TripPeople.of("1-9", "1-9", null)));
         assertEquals(new TripPeople(List.of(), "76"), TripPeople.of(null, "", "76"));
+        assertEquals(TripPeople.NONE, TripPeople.of(".-", " - . ", "..."));
+        assertEquals(Map.of(), ContactService.tripData(TripPeople.of(".-", " - . ", "...")));
     }
+    @Test
+    void tripPeopleNormalizesTheRutsAsTheBookStoresThem() {
+        TripPeople dashed = TripPeople.of("00000001-9", "00.000.004-2", "00000003-0");
+        assertEquals(List.of("000000019", "000000042"), dashed.driverRuts());
+        assertEquals("000000019", dashed.driverRut());
+        assertEquals("000000042", dashed.secondDriverRut());
+        assertEquals("000000030", dashed.carrierRut());
+        assertEquals(dashed, TripPeople.of("000000019", "000000042", "000000030"));
+        assertEquals("00000002K", TripPeople.of("00.000.002-k", null, null).driverRut());
+    }
+
+    @Test
+    void aDashedAndAnUndashedTripGiveTheSameEventData() {
+        Map<String, Object> dashed = ContactService.tripData(TripPeople.of("00.000.001-9", "00000002-k", "00000003-0"));
+        Map<String, Object> undashed = ContactService.tripData(TripPeople.of("000000019", "00000002K", "000000030"));
+        assertEquals(undashed, dashed);
+        assertEquals("000000019", dashed.get("driverRut"));
+        assertEquals("00000002K", dashed.get("secondDriverRut"));
+        assertEquals("000000030", dashed.get("carrierRut"));
+    }
+
     @Test
     void tripDataPreservesExpectedIdentifierTypesForLegacyConditions() {
         assertEquals(Map.of("driverRut", "12345674", "driverIdType", "DNI", "carrierRut", "20100000009", "carrierIdType", "RUC"),

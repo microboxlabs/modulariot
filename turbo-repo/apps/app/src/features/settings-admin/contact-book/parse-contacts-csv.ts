@@ -8,7 +8,8 @@
  */
 
 import type { CallMethod } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
-import { checkRut, normalizeRut } from "./contact-duplicates";
+import { normalizeRut } from "@/utils/rut";
+import { checkRut } from "./contact-duplicates";
 import type { BookContact } from "./store";
 import { normalizeLabel } from "./taxonomy-store";
 

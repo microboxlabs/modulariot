@@ -73,6 +73,34 @@ class BookContactConditionsTest {
     }
 
     @Test
+    void formattedContactsMatchTheNormalizedTripData() {
+        List<String> who = List.of("contact.role == 'Conductor' && contact.nationalId == event.data.driverRut",
+                "contact.role == 'Gerente' && contact.companyRut == event.data.carrierRut");
+        Map<String, Object> trip = Map.of("driverRut", "000000019", "carrierRut", "000000030");
+        List<List<String>> formats = List.of(
+                List.of("000000019", "000000030"),
+                List.of("00000001-9", "00000003-0"),
+                List.of("00.000.001-9", "00.000.003-0"),
+                List.of(" 00 000 001 - 9 ", " 00 000 003 - 0 "));
+        for (List<String> format : formats) {
+            Entry driver = person("driver-demo", "Conductor", null, format.get(0));
+            Entry manager = person("manager-demo", "Gerente", format.get(1), null);
+            BookContactConditions book = new BookContactConditions(tenant -> List.of(driver, manager));
+            assertEquals(List.of(List.of("driver-demo"), List.of("manager-demo")), book.match("t", who, trip));
+            assertEquals(format.get(0), driver.nationalId());
+            assertEquals(format.get(1), manager.companyRut());
+        }
+    }
+
+    @Test
+    void aLowercaseVerifierInTheBookMatchesTheTrip() {
+        BookContactConditions book = new BookContactConditions(tenant -> List.of(
+                person("driver-demo", "Conductor", null, "00000002-k")));
+        assertEquals(List.of(List.of("driver-demo")), book.match("t",
+                List.of("contact.nationalId == event.data.driverRut"), Map.of("driverRut", "00000002K")));
+    }
+
+    @Test
     void findsTheCoordinatorOfTheTripsOriginByTag() {
         BookContactConditions cats = new BookContactConditions(tenant -> List.of(
                 new Entry("norte", "Norte", "CAT", List.of("Planta Norte", "Bodega Este"), null, null, null, false,

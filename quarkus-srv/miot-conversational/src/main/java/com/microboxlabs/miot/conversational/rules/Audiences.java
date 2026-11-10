@@ -5,6 +5,7 @@ import com.microboxlabs.miot.core.event.ContactDirectory;
 import com.microboxlabs.miot.core.event.Participant;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
 import com.microboxlabs.miot.core.event.TextKey;
+import com.microboxlabs.miot.core.tax.NationalIds;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -117,7 +118,9 @@ public final class Audiences {
 
     /**
      * The contact as {@code contact} in a condition; a missing text is empty and missing tags an empty list.
-     * {@code tagKeys} are the tags as {@link TextKey}: lower case, without accents and with single spaces.
+     * {@code tagKeys} are the tags as {@link TextKey}: lower case, without accents and with single spaces. The
+     * national id and company RUT are normalized, as the trip's RUTs in {@code event.data} are, so the stored format
+     * does not matter.
      */
     static Map<String, Object> contactVars(ContactDirectory.Entry c) {
         Map<String, Object> m = new LinkedHashMap<>();
@@ -129,12 +132,12 @@ public final class Audiences {
         m.put("tags", tags);
         m.put("tagKeys", tags.stream().map(TextKey::of).filter(k -> !k.isEmpty()).distinct().toList());
         m.put("company", text(c.company()));
-        m.put("companyRut", text(c.companyRut()));
+        m.put("companyRut", text(NationalIds.normalize(c.companyRut())));
         m.put("position", text(c.position()));
         m.put("member", c.member());
         m.put("email", text(c.email()));
         m.put("whatsapp", text(c.whatsapp()));
-        m.put("nationalId", text(c.nationalId()));
+        m.put("nationalId", text(NationalIds.normalize(c.nationalId())));
         m.put("nationalIdType", text(c.nationalIdType()));
         m.put("companyTaxIdType", text(c.companyTaxIdType()));
         return m;

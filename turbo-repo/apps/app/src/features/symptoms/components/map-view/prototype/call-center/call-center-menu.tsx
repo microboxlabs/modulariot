@@ -48,6 +48,7 @@ import {
   partsText,
 } from "@/features/symptoms/maintainer/script-fill";
 import ScriptText from "@/features/symptoms/maintainer/script-text";
+import { normalizeRut } from "@/utils/rut";
 import {
   BentoGrid,
   GeneralInfoGrid,
@@ -213,14 +214,14 @@ function presetFor(
   trip: TowerTripContacts | undefined,
   carrierName: string | undefined
 ): NewContactPreset | undefined {
-  const carrierRut = trip?.data.carrierRut;
+  const carrierRut = normalizeRut(trip?.data.carrierRut ?? "") || undefined;
   const company = summary?.company ?? (carrierName?.trim() || undefined);
   const preset: NewContactPreset = {
     role: rolesOf(who, summary)[0] ?? "",
     company: summary?.company ?? undefined,
     tags: presetTags(summary, trip),
   };
-  const driverRut = driverId(summary, trip);
+  const driverRut = normalizeRut(driverId(summary, trip) ?? "");
   if (summary?.driver && driverRut)
     return {
       ...preset,

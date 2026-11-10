@@ -35,7 +35,7 @@ class PgTripWindowsTest {
         connection = PgConnection.connect(vertx, PgConnectOptions.fromUri(System.getProperty(
                 PgTreatmentReadsTest.URL_PROPERTY))).await().atMost(WAIT);
         run("CREATE TEMP TABLE trip (id uuid, tenant_code text, actual_start timestamptz, actual_end timestamptz, "
-                + "version_of uuid, is_active boolean DEFAULT true)");
+                + "planned_start timestamptz, version_of uuid, is_active boolean DEFAULT true)");
         run("CREATE TEMP TABLE trip_milestone (trip_id uuid, tenant_code text, milestone text, status text, "
                 + "confirmed_at timestamptz)");
         run("CREATE TEMP TABLE stage (subject_id uuid, tenant_code text, subject_type text, stage_type text, "

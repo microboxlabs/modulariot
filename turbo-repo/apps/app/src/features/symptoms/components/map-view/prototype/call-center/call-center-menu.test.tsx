@@ -803,6 +803,57 @@ describe("CallCenterMenu", () => {
     );
   });
 
+  it("pre-fills a trip RUT with dash in the book's form", async () => {
+    data.match = () => [];
+    data.tripData = { driverRut: "00.000.001-9", carrierRut: "00000003-0" };
+    data.level = levelWith([
+      {
+        role: "Conductor",
+        scope: "DRIVER",
+        channel: "call",
+        budgetMinutes: 2,
+        script: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    renderMenu();
+
+    await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+    expect(
+      screen.getByText("Se guarda como Conductor con RUT 000000019")
+    ).toBeTruthy();
+    await saveNewNumber(user, "Contacto de prueba");
+    expect(data.createContact).toHaveBeenCalledWith(
+      expect.objectContaining({ nationalId: "000000019" })
+    );
+  });
+
+  it("pre-fills a carrier RUT with dash in the book's form", async () => {
+    data.tripData = { driverRut: "000000019", carrierRut: "00.000.003-0" };
+    data.level = levelWith([
+      {
+        role: "Oficina Comercial",
+        scope: "TRIP_CARRIER",
+        channel: "call",
+        budgetMinutes: 2,
+        script: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    renderMenu();
+
+    await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+    expect(
+      screen.getByText(
+        "Se guarda como Oficina Comercial de la empresa con RUT 000000030"
+      )
+    ).toBeTruthy();
+    await saveNewNumber(user, "Contacto de prueba");
+    expect(data.createContact).toHaveBeenCalledWith(
+      expect.objectContaining({ companyRut: "000000030" })
+    );
+  });
+
   it("marks a contact already called in this case by contact id", () => {
     data.level = levelWith([
       { role: "Conductor", channel: "call", budgetMinutes: 2, script: null },

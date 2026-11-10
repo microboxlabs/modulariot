@@ -30,8 +30,9 @@ public class BookContacts implements ContactDirectory {
     static Entry entry(Contact c) {
         ContactChannels ch = c.channels() == null ? ContactChannels.NONE : c.channels();
         String whatsapp = ch.whatsapp() != null ? ch.whatsapp() : c.phone();
+        boolean member = c.memberUserId() != null && !c.memberUserId().isBlank();
         return new Entry(c.id(), c.name(), c.role(), c.tags() == null ? List.of() : c.tags(), c.company(),
-                c.companyRut(), c.position(), c.memberUserId() != null && !c.memberUserId().isBlank(), ch.email(),
-                whatsapp, ContactService.normalizeNationalId(c.nationalId()), c.nationalIdType(), c.companyTaxIdType());
+                ContactService.normalizeNationalId(c.companyRut()), c.position(), member, ch.email(), whatsapp,
+                ContactService.normalizeNationalId(c.nationalId()), c.nationalIdType(), c.companyTaxIdType());
     }
 }

@@ -60,4 +60,17 @@ describe("contactSamples", () => {
     );
     expect(contactSamples(many, []).samples).toHaveLength(MAX_CONTACT_SAMPLES);
   });
+
+  it("gives the RUTs in the book's form, as the server does", () => {
+    const { samples } = contactSamples(
+      [contact({ nationalId: "00.000.001-9", companyRut: "00000003-0" })],
+      []
+    );
+    expect(samples[0].contact).toEqual(
+      expect.objectContaining({
+        nationalId: "000000019",
+        companyRut: "000000030",
+      })
+    );
+  });
 });

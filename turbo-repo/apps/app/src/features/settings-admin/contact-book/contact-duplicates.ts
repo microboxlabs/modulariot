@@ -4,13 +4,8 @@
  * blocks creating another contact.
  */
 
-import { isRutValid } from "@/utils/rut";
+import { isRutValid, normalizeRut } from "@/utils/rut";
 import type { BookContact } from "./store";
-
-/** RUT without dots, dashes or spaces, upper-cased ("12.345.678-k" → "12345678K"). */
-export function normalizeRut(rut: string): string {
-  return rut.replaceAll(/[.\-\s]/g, "").toUpperCase();
-}
 
 /** A normalized RUT with dots and dash, for display ("111111111" → "11.111.111-1"). */
 export function displayRut(rut: string): string {

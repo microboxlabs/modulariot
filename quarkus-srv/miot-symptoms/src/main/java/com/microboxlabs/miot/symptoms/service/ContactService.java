@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.service;
 
 import com.microboxlabs.miot.core.event.ContactConditions;
 import com.microboxlabs.miot.core.event.TextKey;
+import com.microboxlabs.miot.core.tax.NationalIds;
 import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.ContactCallStats;
@@ -402,10 +403,7 @@ public class ContactService {
 
     /** The id without dots, dashes or spaces, upper case: "12.345.678-k" becomes "12345678K". Blank is null. */
     public static String normalizeNationalId(String nationalId) {
-        if (blank(nationalId)) {
-            return null;
-        }
-        return nationalId.replaceAll("[.\\-\\s]", "").toUpperCase(Locale.ROOT);
+        return NationalIds.normalize(nationalId);
     }
 
     /** Normalises the id and, for a RUT, checks its check digit. */

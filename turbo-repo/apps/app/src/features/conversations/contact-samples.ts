@@ -6,6 +6,7 @@
  */
 
 import type { TowerContact } from "@/features/symptoms/control-tower/control-tower-api";
+import { normalizeRut } from "@/utils/rut";
 import type { EventField } from "./conversations-types";
 
 /** How many contacts the tree pages through. */
@@ -23,8 +24,8 @@ export function contactVars(c: TowerContact): Record<string, unknown> {
     roleKey: text(c.role).trim().toLowerCase(),
     tags: c.tags ?? [],
     company: text(c.company),
-    companyRut: text(c.companyRut),
-    nationalId: text(c.nationalId),
+    companyRut: normalizeRut(text(c.companyRut)),
+    nationalId: normalizeRut(text(c.nationalId)),
     position: text(c.position),
     member: Boolean(c.memberUserId),
     email: text(ch.email),

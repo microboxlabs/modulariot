@@ -24,7 +24,9 @@ export function lugaresLayout(
       marginRight: "8px",
       opacity: 1,
       borderWidth: 1,
-      minWidth: anchos.minSide ?? 0,
+      // Leave room for the margin even when the viewport (or browser zoom)
+      // makes the available content area narrower than the preferred minimum.
+      minWidth: anchos.minSide ? `min(${anchos.minSide}, calc(100% - 8px))` : 0,
     },
     mapWidth: anchos.map,
   };

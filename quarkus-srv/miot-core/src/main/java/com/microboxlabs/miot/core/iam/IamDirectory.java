@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.iam.model.IamAuditEvent;
 import com.microboxlabs.miot.core.iam.model.IamMembership;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.iam.model.IamUser;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import java.time.Duration;
@@ -115,13 +116,10 @@ public class IamDirectory {
                 .flatMap(previous -> IamRoleBinding
                         .delete("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3",
                                 organizationId, roleKey, IamRoleBinding.ORGANIZATION)
-                        .flatMap(ignored -> {
-                            Uni<Void> chain = Uni.createFrom().voidItem();
-                            for (String subject : subjects) {
-                                chain = chain.flatMap(i -> bind(organizationId, roleKey, subject, actor));
-                            }
-                            return chain;
-                        })
+                        .flatMap(ignored -> Multi.createFrom().iterable(subjects)
+                                .onItem().transformToUniAndConcatenate(subject ->
+                                        bind(organizationId, roleKey, subject, actor))
+                                .collect().asList().replaceWithVoid())
                         // People who lost the role; the new holders were projected by bind.
                         .flatMap(ignored -> rolesChanged(organizationId, previous, List.of(roleKey))))
                 .flatMap(ignored -> audit(organizationId, actor, "role.replaced", roleKey,

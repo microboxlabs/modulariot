@@ -11,6 +11,7 @@ import com.microboxlabs.miot.core.iam.model.IamUser;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.quarkus.scheduler.Scheduled;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -102,16 +103,19 @@ public class AlfrescoBridge {
 
     /**
      * Holds a transaction-scoped lock for this organization's import until the transaction ends. Postgres gives up
-     * waiting for it after {@code limit}, and ends the transaction when it sits idle that long, so a run that stalls
-     * or is cancelled does not keep the lock or a pooled connection.
+     * waiting for it or executing a statement after {@code limit}, and ends the transaction when it sits idle that
+     * long, so a run that stalls or is cancelled does not keep the lock or a pooled connection. All settings end
+     * with this transaction.
      */
     static Uni<Void> lock(String slug, Duration limit) {
-        String ms = String.valueOf(limit.toMillis());
+        long ms = Math.max(1, limit.toMillis());
         return Panache.getSession()
-                .flatMap(session -> session.createNativeQuery("select set_config('lock_timeout', ?1, true),"
-                                + " set_config('idle_in_transaction_session_timeout', ?1, true)")
-                        .setParameter(1, ms)
-                        .getSingleResult()
+                .flatMap(session -> session.createNativeQuery("SET LOCAL lock_timeout = '" + ms + "ms'")
+                        .executeUpdate()
+                        .flatMap(set -> session.createNativeQuery(
+                                "SET LOCAL idle_in_transaction_session_timeout = '" + ms + "ms'").executeUpdate())
+                        .flatMap(set -> session.createNativeQuery(
+                                "SET LOCAL statement_timeout = '" + ms + "ms'").executeUpdate())
                         .flatMap(set -> session.createNativeQuery("select pg_advisory_xact_lock(hashtext(?1))")
                                 .setParameter(1, "iam-alfresco-import:" + slug)
                                 .executeUpdate()))
@@ -122,17 +126,16 @@ public class AlfrescoBridge {
         int[] added = {0};
         int[] existing = {0};
         Set<String> inGroup = new HashSet<>();
-        Uni<Void> chain = Uni.createFrom().voidItem();
-        for (AlfrescoPerson person : people) {
-            String email = emailOf(person);
-            if (email != null) {
-                inGroup.add(email);
-                chain = chain.flatMap(i -> importOne(org, person, email, noOwner, actor)
+        return Multi.createFrom().iterable(people)
+                .select().where(person -> emailOf(person) != null)
+                .onItem().transformToUniAndConcatenate(person -> {
+                    String email = emailOf(person);
+                    inGroup.add(email);
+                    return importOne(org, person, email, noOwner, actor)
                         .invoke(isNew -> (Boolean.TRUE.equals(isNew) ? added : existing)[0]++)
-                        .replaceWithVoid());
-            }
-        }
-        return chain.flatMap(i -> suspendLeavers(org.id, inGroup))
+                        .replaceWithVoid();
+                }).collect().asList()
+                .flatMap(i -> suspendLeavers(org.id, inGroup))
                 .map(suspended -> new ImportResult(org.slug, org.alfrescoGroupId, people.size(), added[0],
                         existing[0], suspended));
     }

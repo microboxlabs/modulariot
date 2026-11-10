@@ -1,22 +1,31 @@
 package com.microboxlabs.miot.core.iam;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.microboxlabs.miot.core.alfresco.AlfrescoPerson;
+import com.microboxlabs.miot.core.alfresco.IAlfrescoDirectoryClient;
+import com.microboxlabs.miot.core.alfresco.StubAlfrescoDirectoryClient;
 import com.microboxlabs.miot.core.auth.PlatformTestProfile;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
 import io.agroal.api.AgroalDataSource;
+import io.quarkus.hibernate.reactive.panache.Panache;
+import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
 import io.restassured.config.HttpClientConfig;
 import io.restassured.config.RestAssuredConfig;
+import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,6 +94,7 @@ class NativeMembershipMigrationDefaultsTest {
         exec("DELETE FROM miot_iam.iam_role_binding WHERE organization_id IN (SELECT id FROM "
                 + "miot_core.organizations WHERE slug = '" + ORG + "')");
         exec("DELETE FROM miot_core.organizations WHERE slug = '" + ORG + "'");
+        exec("DROP FUNCTION IF EXISTS miot_iam.slow_default_binding() CASCADE");
         exec("DELETE FROM miot_iam.iam_user WHERE email LIKE 'member%@defaults.test'");
     }
 
@@ -103,6 +113,9 @@ class NativeMembershipMigrationDefaultsTest {
         assertEquals(String.valueOf(expected), query("SELECT count(*) FROM miot_iam.iam_role_binding b "
                 + "JOIN miot_core.organizations o ON o.id = b.organization_id WHERE o.slug = '" + ORG
                 + "' AND b.created_by = '" + NativeMembershipMigration.ACTOR + "'"));
+        given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().post(MIGRATE).then().statusCode(200)
+                .body("findAll { it.organization == '" + ORG + "' }", empty());
     }
 
     @Test
@@ -116,11 +129,15 @@ class NativeMembershipMigrationDefaultsTest {
             given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
                     .when().post(MIGRATE)
                     .then().statusCode(200)
-                    .body("find { it.organization == '" + ORG + "' }.error", containsString("Not done after"));
+                    .body("find { it.organization == '" + ORG + "' }.error", anyOf(
+                            containsString("Not done after"), containsString("lock timeout"),
+                            containsString("statement timeout")));
             assertEquals("ALFRESCO", query("SELECT membership_source FROM miot_core.organizations WHERE slug = '"
                     + ORG + "'"));
             holder.rollback();
         }
+        assertLockReleased();
+        assertPending();
 
         given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
                 .when().post(MIGRATE)
@@ -128,6 +145,68 @@ class NativeMembershipMigrationDefaultsTest {
                 .body("find { it.organization == '" + ORG + "' }.error", nullValue());
         assertEquals("NATIVE", query("SELECT membership_source FROM miot_core.organizations WHERE slug = '"
                 + ORG + "'"));
+    }
+
+    @Test
+    void anAlfrescoTimeoutRollsBackAndContinuesWithTheNextOrganization() throws SQLException {
+        exec("UPDATE miot_core.organizations SET alfresco_group_id = 'GROUP_timeout' WHERE slug = '" + ORG + "'");
+        QuarkusMock.installMockForType(new StubAlfrescoDirectoryClient() {
+            @Override
+            public Uni<List<AlfrescoPerson>> listAllGroupMembers(String groupId) {
+                // Isolate the application timer from the database timers, which are tested separately.
+                return Panache.getSession().flatMap(session -> session.createNativeQuery(
+                                "SET LOCAL idle_in_transaction_session_timeout = '30s'").executeUpdate())
+                        .flatMap(ignored -> Uni.createFrom().nothing());
+            }
+        }, IAlfrescoDirectoryClient.class);
+        String next = "zz-defaults-next";
+        exec("INSERT INTO miot_core.organizations (slug, name, tenant_client_id, active, membership_source) "
+                + "VALUES ('" + next + "', 'Next', 'next-client', true, 'ALFRESCO')");
+        try {
+            given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                    .when().post(MIGRATE).then().statusCode(200)
+                    .body("find { it.organization == '" + ORG + "' }.error", containsString("Not done after"))
+                    .body("find { it.organization == '" + next + "' }.error", nullValue());
+            assertEquals("NATIVE", query("SELECT membership_source FROM miot_core.organizations WHERE slug = '"
+                    + next + "'"));
+            assertPending();
+            assertLockReleased();
+            exec("UPDATE miot_core.organizations SET alfresco_group_id = null WHERE slug = '" + ORG + "'");
+            given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                    .when().post(MIGRATE).then().statusCode(200)
+                    .body("find { it.organization == '" + ORG + "' }.error", nullValue());
+        } finally {
+            exec("DELETE FROM miot_core.organizations WHERE slug = '" + next + "'");
+        }
+    }
+
+    @Test
+    void anActiveStatementCannotKeepTheMigrationLockAfterTimeout() throws SQLException {
+        exec("CREATE FUNCTION miot_iam.slow_default_binding() RETURNS trigger LANGUAGE plpgsql AS $$ "
+                + "BEGIN PERFORM pg_sleep(30); RETURN NEW; END $$");
+        exec("CREATE TRIGGER slow_default_binding BEFORE INSERT ON miot_iam.iam_role_binding "
+                + "FOR EACH ROW EXECUTE FUNCTION miot_iam.slow_default_binding()");
+        given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().post(MIGRATE).then().statusCode(200)
+                .body("find { it.organization == '" + ORG + "' }.error", anyOf(
+                        containsString("Not done after"), containsString("statement timeout")));
+        assertPending();
+        assertLockReleased();
+        assertEquals("0", query("SELECT count(*) FROM miot_iam.iam_role_binding WHERE created_by = '"
+                + NativeMembershipMigration.ACTOR + "'"));
+    }
+
+    private void assertPending() throws SQLException {
+        assertEquals("ALFRESCO", query("SELECT membership_source FROM miot_core.organizations WHERE slug = '"
+                + ORG + "'"));
+        given().when().get("/q/health/ready").then().statusCode(503)
+                .body("checks.find { it.name == 'native-membership-migration' }.status", is("DOWN"));
+    }
+
+    private void assertLockReleased() throws SQLException {
+        assertEquals("t", query("SELECT pg_try_advisory_xact_lock(hashtext('iam-alfresco-import:" + ORG + "'))"));
+        assertEquals("0", query("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                + "AND state LIKE 'idle in transaction%'"));
     }
 
     private String query(String sql) throws SQLException {

@@ -157,7 +157,7 @@ Organizations used to take their members from their Alfresco group (`membership_
 
 With `MIOT_ORGANIZATIONS_MEMBERSHIP=native` or `MIOT_ALFRESCO_AUTH=stub`, organizations are only marked `NATIVE`. An organization with a sub-account that has its own Alfresco group is left pending. A scheduled run has no caller, so it reads Alfresco with the Basic credentials.
 
-An organization not done within `miot.iam.native-migration.timeout` (default `5m`) counts as failed: the run logs the organization and the error and the next run tries again. The same limit applies in Postgres to waiting for the organization's lock and to sitting idle inside its transaction.
+An organization not done within `miot.iam.native-migration.timeout` (default `5m`, must be positive) counts as failed: the run logs the organization and the error and the next run tries again. Import, default bindings and the switch to `NATIVE` share one transaction. A timeout rolls it back before reporting the failure. The same limit applies in Postgres to active statements, waiting for the organization's lock and sitting idle inside its transaction. These settings use `SET LOCAL` and end with that transaction.
 
 Readiness (`native-membership-migration`) stays down until a run leaves no organization pending, so a rollout keeps traffic on the previous version until then. A top-level organization created with an `alfrescoGroupId` gets its group imported the same way. `POST /api/v1/platform/orgs/native-migration` runs it at once and returns each organization's result, with `error` set when it failed.
 

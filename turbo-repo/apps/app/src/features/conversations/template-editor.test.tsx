@@ -190,6 +190,23 @@ describe("TemplateEditor's message", () => {
       "patente",
     ]);
   });
+
+  it("keeps the template's Teams card when it saves", async () => {
+    const teams = {
+      title: "Pedido {{patente}}",
+      text: "Salió",
+      facts: [{ title: "Patente", value: "{{patente}}" }],
+      actions: [{ title: "Ver", url: "https://app.example.com" }],
+    };
+    api.saveTemplate.mockResolvedValue({ ...TEMPLATE, teams });
+    editor({ ...TEMPLATE, teams });
+    fireEvent.change(messageText(), {
+      target: { value: "Hola {{nombre}}, {{patente}}" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar plantilla" }));
+    await waitFor(() => expect(api.saveTemplate).toHaveBeenCalled());
+    expect(api.saveTemplate.mock.calls.at(-1)?.[1].teams).toEqual(teams);
+  });
 });
 
 describe("TemplateEditor's email and chats", () => {

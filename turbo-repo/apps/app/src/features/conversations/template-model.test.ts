@@ -51,6 +51,25 @@ describe("templateFindings", () => {
     ).toEqual(["tplNoName", "tplNoText", "tplNoChannel"]);
   });
 
+  it("takes a Teams card as a channel with its own text", () => {
+    expect(
+      keys(
+        templateFindings({
+          body: {
+            name: "Pedido",
+            baseText: "",
+            whatsapp: null,
+            email: null,
+            teams: { title: "Pedido {{order}}", text: "Salió" },
+          },
+          keyTaken: false,
+          variables: null,
+          metaTemplates: undefined,
+        })
+      )
+    ).toEqual([]);
+  });
+
   it("names the variables the event does not give", () => {
     const [f] = templateFindings({
       body: { ...BODY, whatsapp: null, email: { subject: "{{x}}", body: "b" } },

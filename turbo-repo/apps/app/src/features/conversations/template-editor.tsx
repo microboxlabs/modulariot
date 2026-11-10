@@ -89,6 +89,7 @@ function bodyOf(t: ConversationTemplate | null): TemplateBody {
     baseText: t.baseText ?? "",
     whatsapp: t.whatsapp,
     email: withHtml(t.email),
+    teams: t.teams ?? null,
   };
 }
 

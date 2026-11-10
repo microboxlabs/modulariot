@@ -80,7 +80,7 @@ public final class StepMessages {
     /**
      * A connection step: one message to its connection, whose address is the connection id. Its subject is the
      * template's email subject, else its name; its text a plain-text email body, else the base text, else the HTML
-     * email's text. No template, neither.
+     * email's text. A Teams step with a template's Teams card takes the card's title and text. No template, neither.
      */
     private static Plan viaConnection(ConnectionChannel kind, Step step, StoredEvent event,
             Optional<ConvTemplate> template) {
@@ -102,7 +102,13 @@ public final class StepMessages {
             Optional<ConvTemplate> template) {
         String subject = null;
         String text = null;
-        if (template.isPresent()) {
+        if (template.isPresent() && kind == ConnectionChannel.TEAMS && template.get().teams() != null) {
+            // The card is the message: its title and text are what the inbox stores.
+            ConvTemplate.Teams card = template.get().teams();
+            Map<String, String> vars = TemplateVariables.of(event.data(), event.at(), null);
+            subject = TeamsCard.subject(card, vars);
+            text = TeamsCard.text(card, vars);
+        } else if (template.isPresent()) {
             ConvTemplate t = template.get();
             Map<String, String> vars = TemplateVariables.of(event.data(), event.at(), null);
             boolean email = t.email() != null;

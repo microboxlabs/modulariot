@@ -120,4 +120,26 @@ class PlatformTemplatesTest {
         org.junit.jupiter.api.Assertions.assertTrue(f.templates.platformGet(key).whatsapp().callPermission());
     }
 
+
+    @Test
+    void aTeamsCardIsVersionedAsAChannel() {
+        RulesFixture f = new RulesFixture();
+        ConvTemplate.Teams card = new ConvTemplate.Teams("Pedido {{order}}", null, null, "Salió", null,
+                List.of(new ConvTemplate.Teams.Fact("Pedido", "{{order}}")), List.of(), List.of());
+        TemplateView first = f.templates.save("order", new TemplateRequest("Pedido", "Pedido {{order}}", null,
+                null), "owner@example.com");
+        assertEquals("0.1.0", first.version());
+        TemplateView withCard = f.templates.save("order", new TemplateRequest("Pedido", "Pedido {{order}}", null,
+                null, card), "owner@example.com");
+        assertEquals("0.2.0", withCard.version(), "a Teams card added");
+        assertEquals(card, withCard.teams());
+        assertEquals("0.2.1", f.templates.save("order", new TemplateRequest("Pedido", "Pedido {{order}}", null,
+                null, new ConvTemplate.Teams("Pedido {{order}}", null, null, "Salió de bodega", null, card.facts(),
+                        List.of(), List.of())), "owner@example.com").version(), "only a text changed");
+        assertEquals("1.0.0", f.templates.save("order", new TemplateRequest("Pedido", "Pedido {{order}}", null,
+                null), "owner@example.com").version(), "the Teams card lost");
+        assertThrows(IllegalArgumentException.class, () -> f.templates.save("order", new TemplateRequest("Pedido",
+                "x", null, null, new ConvTemplate.Teams(null, null, null, null, null, null, null, null)),
+                "owner@example.com"));
+    }
 }

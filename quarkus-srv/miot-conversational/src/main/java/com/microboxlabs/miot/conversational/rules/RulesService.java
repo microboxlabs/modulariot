@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -78,6 +79,8 @@ public class RulesService {
     private final Supplier<List<ParticipantResolver>> resolvers;
     private final Clock clock;
     private final ConnectionCheck connectionCheck;
+    /** The organization's {@link ExternalEventType}s, for the catalog and the validator. */
+    private final Function<String, List<EventCatalog.EventTypeView>> external;
 
     /** Whether a connection id is one of the organization's connections of a channel. */
     @FunctionalInterface
@@ -87,9 +90,10 @@ public class RulesService {
 
     @Inject
     RulesService(RuleStore rules, TemplateStore templates, Instance<EventTypeCatalog> catalogs,
-            Instance<ParticipantResolver> resolvers, ConnectionChannels channels) {
+            Instance<ParticipantResolver> resolvers, ConnectionChannels channels, ExternalEvents externalEvents) {
         this(rules, templates, () -> catalogs.stream().toList(), () -> resolvers.stream().toList(),
-                Clock.systemUTC(), (tenant, channel, id) -> known(channels, tenant, channel, id));
+                Clock.systemUTC(), (tenant, channel, id) -> known(channels, tenant, channel, id),
+                externalEvents::views);
     }
 
     public RulesService(RuleStore rules, TemplateStore templates, Supplier<List<EventTypeCatalog>> catalogs,
@@ -99,6 +103,13 @@ public class RulesService {
 
     public RulesService(RuleStore rules, TemplateStore templates, Supplier<List<EventTypeCatalog>> catalogs,
             Supplier<List<ParticipantResolver>> resolvers, Clock clock, ConnectionCheck connectionCheck) {
+        this(rules, templates, catalogs, resolvers, clock, connectionCheck, tenant -> List.of());
+    }
+
+    public RulesService(RuleStore rules, TemplateStore templates, Supplier<List<EventTypeCatalog>> catalogs,
+            Supplier<List<ParticipantResolver>> resolvers, Clock clock, ConnectionCheck connectionCheck,
+            Function<String, List<EventCatalog.EventTypeView>> external) {
+        this.external = external;
         this.rules = rules;
         this.templates = templates;
         this.catalogs = catalogs;
@@ -229,7 +240,8 @@ public class RulesService {
         Map<String, ConvTemplate> byKey = new LinkedHashMap<>();
         templates.list(ConvTemplate.PLATFORM_TENANT).forEach(t -> byKey.put(t.key(), t));
         Audiences audiences = new Audiences(resolvers.get());
-        return RuleSpecValidator.validate(spec, new RuleSpecValidator.Context(catalog().contextKinds(), byKey,
+        return RuleSpecValidator.validate(spec, new RuleSpecValidator.Context(catalog(tenantCode).contextKinds(),
+                byKey,
                 kind -> audiences.roles(tenantCode, kind),
                 (channel, id) -> connectionCheck.known(tenantCode, channel, id)));
     }
@@ -245,19 +257,28 @@ public class RulesService {
         return catalog().types();
     }
 
-    /** The platform's tenant gets only the events published to it. */
+    /** The platform's tenant gets only the events published to it; an organization, also its external ones. */
     public List<EventCatalog.EventTypeView> events(String tenantCode) {
-        return catalog().types(ConvTemplate.PLATFORM_TENANT.equals(tenantCode));
+        return catalog(tenantCode).types(ConvTemplate.PLATFORM_TENANT.equals(tenantCode));
     }
 
     private EventCatalog catalog() {
         return new EventCatalog(catalogs.get());
     }
 
+    private EventCatalog catalog(String tenantCode) {
+        return new EventCatalog(catalogs.get(), tenantCode == null ? List.of() : external.apply(tenantCode));
+    }
+
     static void requireKey(String key) {
         if (key == null || !KEY.matcher(key).matches()) {
             throw new IllegalArgumentException("key: letras minúsculas, números, - y _ (hasta 128)");
         }
+    }
+
+    /** The organization's rule; {@link NoSuchElementException} when it has no such rule. */
+    public Rule find(String tenantCode, String id) {
+        return rule(tenantCode, id);
     }
 
     private Rule rule(String tenantCode, String id) {

@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 /**
  * How much saving a template changes it, in the bumps rules use. MAJOR: it loses a channel, its variables change,
  * or its WhatsApp variant sends another Meta template. MINOR: it gains a channel. PATCH: only its name or texts.
+ * The Teams card counts as a channel.
  */
 public final class TemplateBump {
 
@@ -22,22 +23,25 @@ public final class TemplateBump {
     /** The bump from {@code before} to {@code after}; null when they are the same. */
     public static RuleBump between(ConvTemplate before, ConvTemplate after) {
         boolean lostChannel = (before.whatsapp() != null && after.whatsapp() == null)
-                || (before.email() != null && after.email() == null);
+                || (before.email() != null && after.email() == null)
+                || (before.teams() != null && after.teams() == null);
         if (lostChannel || !variables(before).equals(variables(after)) || otherMetaTemplate(before, after)) {
             return RuleBump.MAJOR;
         }
         if ((before.whatsapp() == null && after.whatsapp() != null)
-                || (before.email() == null && after.email() != null)) {
+                || (before.email() == null && after.email() != null)
+                || (before.teams() == null && after.teams() != null)) {
             return RuleBump.MINOR;
         }
         boolean same = Objects.equals(before.name(), after.name())
                 && Objects.equals(before.baseText(), after.baseText())
                 && Objects.equals(before.whatsapp(), after.whatsapp())
-                && Objects.equals(before.email(), after.email());
+                && Objects.equals(before.email(), after.email())
+                && Objects.equals(before.teams(), after.teams());
         return same ? null : RuleBump.PATCH;
     }
 
-    /** The variables in its texts, HTML email expressions and WhatsApp parameters. */
+    /** The variables in its texts, HTML email expressions, WhatsApp parameters and Teams card. */
     static Set<String> variables(ConvTemplate t) {
         Set<String> out = new TreeSet<>();
         collect(t.baseText(), out);
@@ -52,6 +56,12 @@ public final class TemplateBump {
         }
         if (t.whatsapp() != null) {
             out.addAll(t.whatsapp().params());
+        }
+        if (t.teams() != null) {
+            TeamsCard.texts(t.teams()).forEach(text -> collect(text, out));
+            if (t.teams().images() != null && t.teams().images().field() != null) {
+                out.add(t.teams().images().field());
+            }
         }
         return out;
     }

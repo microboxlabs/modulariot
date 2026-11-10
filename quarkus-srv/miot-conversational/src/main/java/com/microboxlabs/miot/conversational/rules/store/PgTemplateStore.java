@@ -28,20 +28,20 @@ public class PgTemplateStore implements TemplateStore {
 
     private static final String COLUMNS = """
             id, tenant_code, key, name, base_text, whatsapp::text AS whatsapp, email::text AS email,
-            created_at, updated_at, updated_by, version""";
+            teams::text AS teams, created_at, updated_at, updated_by, version""";
     private static final String LIST = SELECT + COLUMNS
             + " FROM miot_conversational.conv_template WHERE tenant_code = $1 ORDER BY key";
     private static final String FIND = SELECT + COLUMNS
             + " FROM miot_conversational.conv_template WHERE tenant_code = $1 AND key = $2";
     private static final String UPSERT = """
             INSERT INTO miot_conversational.conv_template
-                (id, tenant_code, key, name, base_text, whatsapp, email, created_at, updated_at, updated_by,
-                 version)
-            VALUES ($1, $2, $3, $4, $5, $6::text::jsonb, $7::text::jsonb, $8, $8, $9, $10)
+                (id, tenant_code, key, name, base_text, whatsapp, email, teams, created_at, updated_at,
+                 updated_by, version)
+            VALUES ($1, $2, $3, $4, $5, $6::text::jsonb, $7::text::jsonb, $12::text::jsonb, $8, $8, $9, $10)
             ON CONFLICT (tenant_code, key) DO UPDATE SET
                 name = EXCLUDED.name, base_text = EXCLUDED.base_text, whatsapp = EXCLUDED.whatsapp,
-                email = EXCLUDED.email, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by,
-                version = EXCLUDED.version
+                email = EXCLUDED.email, teams = EXCLUDED.teams, updated_at = EXCLUDED.updated_at,
+                updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
             WHERE miot_conversational.conv_template.version IS NOT DISTINCT FROM $11::varchar
             RETURNING\s""" + COLUMNS;
 
@@ -71,7 +71,7 @@ public class PgTemplateStore implements TemplateStore {
         Tuple params = Tuple.tuple().addUUID(uuid(t.id())).addString(t.tenantCode()).addString(t.key())
                 .addString(t.name()).addString(t.baseText()).addString(Pg.write(t.whatsapp()))
                 .addString(Pg.write(t.email())).addOffsetDateTime(time(t.updatedAt())).addString(t.updatedBy())
-                .addString(t.version()).addString(expectedVersion);
+                .addString(t.version()).addString(expectedVersion).addString(Pg.write(t.teams()));
         return templates(query(pool.get(), UPSERT, params)).stream().findFirst();
     }
 
@@ -80,7 +80,8 @@ public class PgTemplateStore implements TemplateStore {
         rows.forEach(r -> out.add(new ConvTemplate(string(r, "id"), r.getString("tenant_code"), r.getString("key"),
                 r.getString("name"), r.getString("base_text"),
                 Pg.read(r.getString("whatsapp"), ConvTemplate.WhatsApp.class),
-                Pg.read(r.getString("email"), ConvTemplate.Email.class), instant(r, "created_at"),
+                Pg.read(r.getString("email"), ConvTemplate.Email.class),
+                Pg.read(r.getString("teams"), ConvTemplate.Teams.class), instant(r, "created_at"),
                 instant(r, "updated_at"), r.getString("updated_by"), r.getString("version"))));
         return out;
     }

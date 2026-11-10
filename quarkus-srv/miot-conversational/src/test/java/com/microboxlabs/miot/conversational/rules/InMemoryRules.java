@@ -165,7 +165,7 @@ final class InMemoryRules {
                 return Optional.empty();
             }
             ConvTemplate saved = existing == null ? t : new ConvTemplate(existing.id(), t.tenantCode(), t.key(),
-                    t.name(), t.baseText(), t.whatsapp(), t.email(), existing.createdAt(), t.updatedAt(),
+                    t.name(), t.baseText(), t.whatsapp(), t.email(), t.teams(), existing.createdAt(), t.updatedAt(),
                     t.updatedBy(), t.version());
             templates.put(t.tenantCode() + "/" + t.key(), saved);
             return Optional.of(saved);
@@ -182,6 +182,13 @@ final class InMemoryRules {
         @Override
         public Optional<StoredEvent> event(String id) {
             return Optional.ofNullable(events.get(id));
+        }
+
+        @Override
+        public java.util.Set<String> rulesStartedBy(String eventId) {
+            java.util.Set<String> out = new java.util.HashSet<>();
+            runs.values().stream().filter(r -> eventId.equals(r.eventId())).forEach(r -> out.add(r.ruleId()));
+            return out;
         }
 
         @Override

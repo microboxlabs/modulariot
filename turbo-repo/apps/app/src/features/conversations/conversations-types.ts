@@ -193,11 +193,41 @@ export interface EmailPreview {
   text: string;
 }
 
+/** One fact of a Teams card; an optional one is left out when its value is empty or `-`. */
+export interface TeamsFact {
+  title: string;
+  value: string;
+  optional?: boolean;
+}
+
+/** A Teams card button that opens a URL. */
+export interface TeamsAction {
+  title: string;
+  url: string;
+}
+
+/**
+ * The Adaptive Card a Teams step sends, top to bottom. Every text takes `{{variables}}`;
+ * `images.field` names a list of `{name, url}` in the event's data.
+ */
+export interface TeamsVariant {
+  title?: string | null;
+  subtitle?: string | null;
+  caption?: string | null;
+  text?: string | null;
+  images?: { field: string; label?: string | null } | null;
+  facts?: TeamsFact[];
+  notes?: string[];
+  actions?: TeamsAction[];
+}
+
 export interface TemplateBody {
   name: string;
   baseText: string;
   whatsapp: WhatsAppVariant | null;
   email: EmailVariant | null;
+  /** Kept as it is on save: the editor does not change it yet. */
+  teams?: TeamsVariant | null;
 }
 
 /** A platform template: every organization's rules send it. */

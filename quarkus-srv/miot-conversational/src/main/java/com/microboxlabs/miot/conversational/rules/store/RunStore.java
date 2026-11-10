@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /** Events, runs and the messages of runs. */
 public interface RunStore {
@@ -23,6 +24,9 @@ public interface RunStore {
     StoredEvent saveEvent(StoredEvent event);
 
     Optional<StoredEvent> event(String id);
+
+    /** The ids of the rules this event started runs of. */
+    Set<String> rulesStartedBy(String eventId);
 
     /** With an {@code invocationKey} the rule already ran, the run that key started. */
     Run createRun(Run run);

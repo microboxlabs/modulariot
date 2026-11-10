@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /** {@link RunStore} on {@code miot_conversational.conv_event}, {@code conv_run} and {@code wa_message}. */
@@ -47,6 +49,8 @@ public class PgRunStore implements RunStore {
             RETURNING\s""" + EVENT_COLUMNS;
     private static final String EVENT = SELECT + EVENT_COLUMNS
             + " FROM miot_conversational.conv_event WHERE id = $1";
+    private static final String RULES_STARTED_BY = "SELECT DISTINCT rule_id FROM miot_conversational.conv_run"
+            + " WHERE event_id = $1";
 
     private static final TypeReference<Map<String, List<Invocation.Person>>> RECIPIENTS = new TypeReference<>() {
     };
@@ -173,6 +177,16 @@ public class PgRunStore implements RunStore {
         }
         var rows = query(pool.get(), EVENT, Tuple.of(eventId)).iterator();
         return rows.hasNext() ? Optional.of(event(rows.next())) : Optional.empty();
+    }
+
+    @Override
+    public Set<String> rulesStartedBy(String eventId) {
+        UUID id = uuidOrNull(eventId);
+        Set<String> out = new HashSet<>();
+        if (id != null) {
+            query(pool.get(), RULES_STARTED_BY, Tuple.of(id)).forEach(r -> out.add(string(r, "rule_id")));
+        }
+        return out;
     }
 
     @Override

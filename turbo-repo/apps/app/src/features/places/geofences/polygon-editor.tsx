@@ -50,6 +50,7 @@ import {
   TOLERANCIA_ARRASTRE,
 } from "../map/map-handles";
 import type { FormLugar, LatLon } from "../places.types";
+import { usePlacesT, type TextosLugares } from "../i18n/places-i18n";
 
 /** Líneas guía del polígono en construcción, desde el último vértice al cursor. */
 export function guiasPoligono(
@@ -149,10 +150,9 @@ function claseVertice(
   return handleVertice;
 }
 
-function tituloVertice(i: number, cerrable: boolean): string {
-  if (i === 0 && cerrable)
-    return "Clic para unir con el inicio · clic derecho: opciones";
-  return "Arrastra para mover (sobre el otro extremo, los une) · clic para opciones";
+function tituloVertice(t: TextosLugares, i: number, cerrable: boolean): string {
+  if (i === 0 && cerrable) return t("draw.vertex_close_hint");
+  return t("draw.vertex_drag_hint");
 }
 
 function VertexPopup({
@@ -166,6 +166,7 @@ function VertexPopup({
   onEliminar: () => void;
   onCerrar: () => void;
 }>) {
+  const t = usePlacesT();
   // Supr/Delete elimina el punto con el menú abierto
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -194,7 +195,9 @@ function VertexPopup({
         className="inline-flex items-center gap-1.5 rounded px-1.5 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent"
       >
         <HiTrash className="h-3.5 w-3.5" />
-        {eliminable ? "Eliminar punto" : `Mínimo ${MIN_VERTICES} puntos`}
+        {eliminable
+          ? t("draw.delete_point")
+          : t("draw.min_points", { n: MIN_VERTICES })}
       </button>
     </Popup>
   );
@@ -210,6 +213,7 @@ function MidpointHandles({
   setForm: SetForm;
   recienArrastrado: RefObject<boolean>;
 }>) {
+  const t = usePlacesT();
   // lado cuyo punto medio se está arrastrando y posición actual del cursor
   const [arrastre, setArrastre] = useState<{ lado: number; p: LatLon } | null>(
     null
@@ -257,10 +261,7 @@ function MidpointHandles({
           onDragEnd={() => setArrastre(null)}
           onClick={(e) => clic(a, p, e)}
         >
-          <span
-            className={handleMedio}
-            title="Clic o arrastra para agregar un punto"
-          />
+          <span className={handleMedio} title={t("draw.midpoint_hint")} />
         </Marker>
       ))}
     </>
@@ -274,6 +275,7 @@ export default function PolygonHandles({
   form: FormLugar;
   setForm: SetForm;
 }>) {
+  const t = usePlacesT();
   // posición de inicio del arrastre del polígono completo + vértices originales
   const inicio = useRef<{ desde: LatLon; vertices: LatLon[] } | null>(null);
   // el navegador dispara click al soltar un arrastre: ignorar ese click
@@ -382,7 +384,7 @@ export default function PolygonHandles({
         >
           <span
             className={claseVertice(i, sel === i, cerrable, destinoUnion)}
-            title={tituloVertice(i, cerrable)}
+            title={tituloVertice(t, i, cerrable)}
             onContextMenu={(e) => menuContextual(i, e)}
           />
         </Marker>
@@ -406,10 +408,7 @@ export default function PolygonHandles({
           onDragEnd={() => (inicio.current = null)}
           onClick={frenar}
         >
-          <span
-            className={handleCentro}
-            title="Arrastra para mover el polígono"
-          />
+          <span className={handleCentro} title={t("draw.move_polygon")} />
         </Marker>
       )}
     </>

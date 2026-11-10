@@ -5,6 +5,7 @@ import { centroide } from "./map-handles";
 import { parentPlaceId } from "../geofences/inner-geofences";
 import { radioLugarM } from "./geofence-lod";
 import type { LatLon, Lugar } from "../places.types";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
 
 const COLOR_DEF = "#1C64F2";
 
@@ -55,11 +56,12 @@ export function anclaDeFeature(f: Feature): LatLon | null {
 export function itemsNombresMapa(
   fcPropios: FeatureCollection,
   prevLugarFC: FeatureCollection,
-  lugares: Lugar[]
+  lugares: Lugar[],
+  t: TextosLugares = textosLugares()
 ): ItemNombre[] {
   return [
-    ...itemsDesdeFC(fcPropios, lugares),
-    ...itemsDesdeFC(prevLugarFC, lugares),
+    ...itemsDesdeFC(fcPropios, lugares, t),
+    ...itemsDesdeFC(prevLugarFC, lugares, t),
   ];
 }
 
@@ -82,7 +84,8 @@ function radioDeItem(radioProp: unknown, lugar: Lugar | undefined): number {
 /** Chips a partir de las geocercas que el mapa ya está dibujando. */
 export function itemsDesdeFC(
   fc: FeatureCollection,
-  lugares: Lugar[] = []
+  lugares: Lugar[] = [],
+  t: TextosLugares = textosLugares()
 ): ItemNombre[] {
   const items: ItemNombre[] = [];
   for (const f of fc.features) {
@@ -91,7 +94,8 @@ export function itemsDesdeFC(
     const props = f.properties ?? {};
     const inner = Boolean(props.inner);
     const name =
-      String(props.name ?? "").trim() || (inner ? "Interior" : "Lugar");
+      String(props.name ?? "").trim() ||
+      t(inner ? "map.unnamed_inner" : "map.unnamed_place");
     const id = String(
       props.place_id ?? `${inner ? "inner" : "padre"}-${items.length}`
     );

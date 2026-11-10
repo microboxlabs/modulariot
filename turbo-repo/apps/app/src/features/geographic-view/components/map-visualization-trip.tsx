@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  type RefObject,
+} from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import {
   FlyToInterpolator,
@@ -30,7 +36,11 @@ import PulseTooltip, {
   PulseType,
 } from "./tooltips/pulse-tooltip";
 import ToolBar from "./tool-bar/tool-bar";
-import type { GeofencesMode } from "./tool-bar/geofences-mode-selector";
+import {
+  GEOFENCES_MODES,
+  GEOFENCES_MODES_DEL_VIAJE,
+  type GeofencesMode,
+} from "./tool-bar/geofences-mode-selector";
 // import MapStyleSelector from "./map-style-selector";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 // import MapButton from "./map-button";
@@ -57,8 +67,12 @@ import {
 } from "@/features/places";
 import PlacesFloatingOverlay from "./places-overlay/places-floating-overlay";
 import PlacesToggle from "./places-overlay/places-toggle";
+import { PlacesI18nProvider } from "@/features/places/i18n/places-i18n";
 import MapControlsFrame from "./map-controls-frame";
-import { usePermisoEditorLugares } from "../profiles/places-permission";
+import {
+  usePermisoEditorLugares,
+  usePermisoVerLugares,
+} from "../profiles/places-permission";
 import {
   flyTo,
   panTo,
@@ -431,6 +445,85 @@ export function capasDelMapa(
   return editando ? [...delViaje, ...nombres] : [...nombres, ...delViaje];
 }
 
+/**
+ * Lugares sobre el mapa de viaje: el mismo editor de la vista geográfica, con
+ * su botón. Sin el permiso "Editor de lugares" es de solo lectura; sin el de
+ * ver Lugares no hay botón ni geocercas de Lugares (las del viaje, origen y
+ * destino, siguen: son del viaje).
+ */
+function useLugaresDelViaje(
+  mapRef: RefObject<MapRef | null>,
+  {
+    dict,
+    mapStyle,
+    zoom,
+    geofencesMode,
+    onLugaresChange,
+  }: {
+    dict: I18nRecord;
+    mapStyle: string;
+    zoom: number;
+    geofencesMode: GeofencesMode;
+    onLugaresChange?: (abierto: boolean) => void;
+  }
+) {
+  const puedeEditarLugares = usePermisoEditorLugares();
+  const verLugares = usePermisoVerLugares();
+  const [lugaresAbierto, setLugaresAbierto] = useState(false);
+  const editandoLugares = verLugares && lugaresAbierto;
+  const cambiarLugares = (abierto: boolean) => {
+    setLugaresAbierto(abierto);
+    onLugaresChange?.(abierto);
+  };
+  // las de Lugares, solo de lectura sobre el viaje, van con "todas"; con el
+  // editor abierto se ven siempre (son lo que se edita)
+  const verGeocercas =
+    verLugares && (geofencesMode === "all" || editandoLugares);
+  const lugares = usePlacesEnMapa(mapRef, {
+    dict,
+    editando: editandoLugares,
+    verGeocercas,
+    puedeEditar: puedeEditarLugares,
+    // los trayectos se dibujan (y llevan badge) solo con Lugares abierto
+    nombres: { geocercas: verGeocercas, trayectos: editandoLugares },
+    mapStyle,
+    zoom,
+    ambito: "viaje",
+  });
+  // tras recargar con un lugar o trayecto a medio editar: reabrir Lugares
+  // (el editor retoma el borrador al abrirse)
+  const borradorRevisado = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !lugares.ws.storageScope ||
+      !verLugares ||
+      !puedeEditarLugares ||
+      borradorRevisado.current === lugares.ws.storageScope
+    )
+      return;
+    borradorRevisado.current = lugares.ws.storageScope;
+    if (!lugaresAbierto && hayBorrador("viaje", lugares.ws.storageScope))
+      cambiarLugares(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verLugares, puedeEditarLugares, lugares.ws.storageScope]);
+
+  // cerrar Lugares con cambios sin guardar: igual que el ✕ del formulario
+  const alternarLugares = () => {
+    if (!lugaresAbierto) cambiarLugares(true);
+    else lugares.ws.pedirSalir(() => cambiarLugares(false));
+  };
+  return {
+    verLugares,
+    lugaresAbierto,
+    editandoLugares,
+    verGeocercas,
+    // sin ver Lugares, el selector ofrece solo las del viaje o ninguna
+    modosGeocercas: verLugares ? GEOFENCES_MODES : GEOFENCES_MODES_DEL_VIAJE,
+    lugares,
+    alternarLugares,
+  };
+}
+
 export default function MapVisualizationTrip({
   tripId,
   positions,
@@ -464,15 +557,6 @@ export default function MapVisualizationTrip({
 
   const mapRef = useRef<MapRef>(null);
 
-  // Lugares (para probar): el mismo editor de la vista geográfica, con su
-  // botón; sin el permiso "Editor de lugares" es de solo lectura
-  const puedeEditarLugares = usePermisoEditorLugares();
-  const [lugaresAbierto, setLugaresAbierto] = useState(false);
-  const editandoLugares = lugaresAbierto;
-  const cambiarLugares = (abierto: boolean) => {
-    setLugaresAbierto(abierto);
-    onLugaresChange?.(abierto);
-  };
   const [zoom, setZoom] = useState(2);
   const alCambioZoom = (z: number) => {
     const next = Math.round((z || 2) * 10) / 10;
@@ -487,40 +571,21 @@ export default function MapVisualizationTrip({
     showAppSignalDetailDefault
   );
   const showGeofences = geofencesMode !== "none";
-  // las de Lugares, solo de lectura sobre el viaje, van con "todas"; con el
-  // editor abierto se ven siempre (son lo que se edita)
-  const verGeocercas = geofencesMode === "all" || editandoLugares;
-  const lugares = usePlacesEnMapa(mapRef, {
-    editando: editandoLugares,
+  const {
+    verLugares,
+    lugaresAbierto,
+    editandoLugares,
     verGeocercas,
-    puedeEditar: puedeEditarLugares,
-    // los trayectos se dibujan (y llevan badge) solo con Lugares abierto
-    nombres: { geocercas: verGeocercas, trayectos: editandoLugares },
+    modosGeocercas,
+    lugares,
+    alternarLugares,
+  } = useLugaresDelViaje(mapRef, {
+    dict,
     mapStyle,
     zoom,
-    ambito: "viaje",
+    geofencesMode,
+    onLugaresChange,
   });
-  // tras recargar con un lugar o trayecto a medio editar: reabrir Lugares
-  // (el editor retoma el borrador al abrirse)
-  const borradorRevisado = useRef<string | null>(null);
-  useEffect(() => {
-    if (
-      !lugares.ws.storageScope ||
-      !puedeEditarLugares ||
-      borradorRevisado.current === lugares.ws.storageScope
-    )
-      return;
-    borradorRevisado.current = lugares.ws.storageScope;
-    if (!lugaresAbierto && hayBorrador("viaje", lugares.ws.storageScope))
-      cambiarLugares(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puedeEditarLugares, lugares.ws.storageScope]);
-
-  // cerrar Lugares con cambios sin guardar: igual que el ✕ del formulario
-  const alternarLugares = () => {
-    if (!lugaresAbierto) cambiarLugares(true);
-    else lugares.ws.pedirSalir(() => cambiarLugares(false));
-  };
 
   const { timelapse } = useTimelapse(
     licensePlate ?? null,
@@ -1023,165 +1088,175 @@ export default function MapVisualizationTrip({
   return (
     // el mapa y, a su lado, la barra de Lugares (no encima): al abrirla el
     // mapa se angosta y sus controles se mueven con su borde
-    <div className="flex h-full w-full overflow-hidden">
-      <div className="relative h-full min-w-0 flex-1 overflow-hidden">
-        {(pictures_list.length > 0 || timelapse) && !minimized ? (
-          <div className="z-[700] absolute top-0 left-0 h-full pointer-events-none">
-            <ImageSelector
-              images={pictures_list}
+    // isolate: el mapa es su propia capa, así ningún z de adentro (controles,
+    // filtros, la barra de Lugares) queda sobre la barra superior y sus menús
+    <PlacesI18nProvider dict={dict}>
+      <div className="isolate flex h-full w-full overflow-hidden">
+        <div className="relative h-full min-w-0 flex-1 overflow-hidden">
+          {(pictures_list.length > 0 || timelapse) && !minimized ? (
+            <div className="z-[700] absolute top-0 left-0 h-full pointer-events-none">
+              <ImageSelector
+                images={pictures_list}
+                dictionary={dict}
+                timelapse={timelapse}
+              />
+            </div>
+          ) : null}
+          <div className="z-[700] absolute bottom-0 left-0 right-0 w-full pointer-events-none">
+            <ToolBar
               dictionary={dict}
-              timelapse={timelapse}
+              positions={positions ?? []}
+              display_position={{
+                displayPosition,
+                setDisplayPosition,
+              }}
+              selected_style={{
+                selectedStyle: mapStyle,
+                setSelectedStyle: setMapStyle,
+              }}
+              camera_movement={{
+                camera_movement,
+                setCameraMovement,
+              }}
+              show_stops={{
+                showStops,
+                setShowStops,
+              }}
+              geofences_mode={{
+                geofencesMode,
+                setGeofencesMode,
+                modes: modosGeocercas,
+              }}
+              show_pulse={{
+                showPulse,
+                setShowPulse,
+              }}
+              show_app_signal_detail={{
+                showAppSignalDetail,
+                setShowAppSignalDetail,
+              }}
+              timelineComponent={
+                <PulseRange
+                  positions={positions ?? []}
+                  displayPosition={displayPosition}
+                  setDisplayPosition={setDisplayPosition}
+                />
+              }
             />
           </div>
-        ) : null}
-        <div className="z-[700] absolute bottom-0 left-0 right-0 w-full pointer-events-none">
-          <ToolBar
-            dictionary={dict}
-            positions={positions ?? []}
-            display_position={{
-              displayPosition,
-              setDisplayPosition,
-            }}
-            selected_style={{
-              selectedStyle: mapStyle,
-              setSelectedStyle: setMapStyle,
-            }}
-            camera_movement={{
-              camera_movement,
-              setCameraMovement,
-            }}
-            show_stops={{
-              showStops,
-              setShowStops,
-            }}
-            geofences_mode={{
-              geofencesMode,
-              setGeofencesMode,
-            }}
-            show_pulse={{
-              showPulse,
-              setShowPulse,
-            }}
-            show_app_signal_detail={{
-              showAppSignalDetail,
-              setShowAppSignalDetail,
-            }}
-            timelineComponent={
-              <PulseRange
-                positions={positions ?? []}
-                displayPosition={displayPosition}
-                setDisplayPosition={setDisplayPosition}
+          <MapVisualization
+            mapStyle={
+              mapStyle as
+                | "satellite"
+                | "streets"
+                | "dark"
+                | "light"
+                | "outdoors"
+                | "hybrid"
+            }
+            layers={capasDelMapa(
+              layers,
+              verGeocercas ? lugares.capasNombres : [],
+              editandoLugares
+            )}
+            isLoading={false}
+            mapRef={mapRef}
+            // con la barra de Lugares al lado, el borde que la toca va recto
+            rounded={editandoLugares ? "left" : true}
+            onZoomChange={alCambioZoom}
+            minZoom={TRIP_MAP_MIN_ZOOM}
+            onMapLoad={() => setMapReady(true)}
+            {...lugares.propsMapa}
+          >
+            {verGeocercas && (
+              <PlacesMapLayers
+                ws={lugares.ws}
+                vistaGeneral={!editandoLugares}
               />
+            )}
+          </MapVisualization>
+
+          {/* resumen de los pulsos elegidos: arrastrable, abre a la izquierda
+            (20 px, como los demás controles) y centrada en el alto */}
+          {hoverInfo && (
+            <MapTooltip
+              {...selectionCardPlacement(pinSelectionCardToCorner)}
+              setHoverInfo={setHoverInfo}
+              onExitAction={cerrarPulsos}
+            >
+              <PulseTooltip
+                object={pulseWithSignal(
+                  hoverInfo.object as PulseListType | PulseType,
+                  newest?.assetid,
+                  signal,
+                  dict,
+                  filteredLocationData?.description,
+                  engineLabel
+                )}
+                dict={dict}
+              />
+            </MapTooltip>
+          )}
+          {/* mismos 20 px de margen que la barra de herramientas de abajo (p-5) */}
+          <MapControlsFrame
+            className="z-[760]"
+            topCenter={
+              // un solo lugar arriba al centro: mientras carga o no hay datos,
+              // el aviso; con datos, la distancia y el ETA al origen
+              isLoading || showsNoData(isLoading, positions, casePoint) ? (
+                <EstadoDelViaje dict={dict} cargando={isLoading} />
+              ) : (
+                !minimized &&
+                distanceToOriginKm != null && (
+                  <DistanciaAlOrigen
+                    dict={dict}
+                    km={distanceToOriginKm}
+                    etaHoras={etaToOriginHours}
+                  />
+                )
+              )
+            }
+            topRight={
+              <>
+                {verLugares && (
+                  <PlacesToggle
+                    dict={dict}
+                    abierto={lugaresAbierto}
+                    onCambiar={alternarLugares}
+                  />
+                )}
+                {positions && positions.length > 0 && (
+                  <PulseSourceLegend
+                    dict={dict}
+                    showStops={showStops}
+                    isDarkMap={isDarkMap}
+                  />
+                )}
+              </>
             }
           />
-        </div>
-        <MapVisualization
-          mapStyle={
-            mapStyle as
-              | "satellite"
-              | "streets"
-              | "dark"
-              | "light"
-              | "outdoors"
-              | "hybrid"
-          }
-          layers={capasDelMapa(
-            layers,
-            verGeocercas ? lugares.capasNombres : [],
-            editandoLugares
-          )}
-          isLoading={false}
-          mapRef={mapRef}
-          // con la barra de Lugares al lado, el borde que la toca va recto
-          rounded={editandoLugares ? "left" : true}
-          onZoomChange={alCambioZoom}
-          minZoom={TRIP_MAP_MIN_ZOOM}
-          onMapLoad={() => setMapReady(true)}
-          {...lugares.propsMapa}
-        >
-          {verGeocercas && (
-            <PlacesMapLayers ws={lugares.ws} vistaGeneral={!editandoLugares} />
-          )}
-        </MapVisualization>
-
-        {/* resumen de los pulsos elegidos: arrastrable, abre a la izquierda
-            (20 px, como los demás controles) y centrada en el alto */}
-        {hoverInfo && (
-          <MapTooltip
-            {...selectionCardPlacement(pinSelectionCardToCorner)}
-            setHoverInfo={setHoverInfo}
-            onExitAction={cerrarPulsos}
-          >
-            <PulseTooltip
-              object={pulseWithSignal(
-                hoverInfo.object as PulseListType | PulseType,
-                newest?.assetid,
-                signal,
-                dict,
-                filteredLocationData?.description,
-                engineLabel
-              )}
-              dict={dict}
+          {/* geocercas solo de lectura: nombre y categorías bajo el mouse */}
+          {!editandoLugares && lugares.ws.tooltipBadge && (
+            <PlaceBadgeTooltip
+              badge={lugares.ws.tooltipBadge.badge}
+              x={lugares.ws.tooltipBadge.x}
+              y={lugares.ws.tooltipBadge.y}
             />
-          </MapTooltip>
-        )}
-        {/* mismos 20 px de margen que la barra de herramientas de abajo (p-5) */}
-        <MapControlsFrame
-          className="z-[760]"
-          topCenter={
-            // un solo lugar arriba al centro: mientras carga o no hay datos,
-            // el aviso; con datos, la distancia y el ETA al origen
-            isLoading || showsNoData(isLoading, positions, casePoint) ? (
-              <EstadoDelViaje dict={dict} cargando={isLoading} />
-            ) : (
-              !minimized &&
-              distanceToOriginKm != null && (
-                <DistanciaAlOrigen
-                  dict={dict}
-                  km={distanceToOriginKm}
-                  etaHoras={etaToOriginHours}
-                />
-              )
-            )
-          }
-          topRight={
-            <>
-              <PlacesToggle
-                dict={dict}
-                abierto={lugaresAbierto}
-                onCambiar={alternarLugares}
-              />
-              {positions && positions.length > 0 && (
-                <PulseSourceLegend
-                  dict={dict}
-                  showStops={showStops}
-                  isDarkMap={isDarkMap}
-                />
-              )}
-            </>
-          }
+          )}
+          {/* menús y barras de dibujo de Lugares: sobre el mapa */}
+          {editandoLugares && (
+            <div className="contents [&>*]:z-[750]">
+              <PlacesEditorOverlays ws={lugares.ws} dict={dict} />
+            </div>
+          )}
+        </div>
+        <PlacesFloatingOverlay
+          dict={dict}
+          ws={lugares.ws}
+          show={editandoLugares}
+          externas={geocercasViaje}
         />
-        {/* geocercas solo de lectura: nombre y categorías bajo el mouse */}
-        {!editandoLugares && lugares.ws.tooltipBadge && (
-          <PlaceBadgeTooltip
-            badge={lugares.ws.tooltipBadge.badge}
-            x={lugares.ws.tooltipBadge.x}
-            y={lugares.ws.tooltipBadge.y}
-          />
-        )}
-        {/* menús y barras de dibujo de Lugares: sobre el mapa */}
-        {editandoLugares && (
-          <div className="contents [&>*]:z-[750]">
-            <PlacesEditorOverlays ws={lugares.ws} dict={dict} />
-          </div>
-        )}
       </div>
-      <PlacesFloatingOverlay
-        dict={dict}
-        ws={lugares.ws}
-        show={editandoLugares}
-        externas={geocercasViaje}
-      />
-    </div>
+    </PlacesI18nProvider>
   );
 }

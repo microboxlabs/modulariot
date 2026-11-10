@@ -1,5 +1,6 @@
 import {
   INNER_RADIO_DEFAULT,
+  INNER_RADIO_MIN,
   INNER_RECT_H_DEF,
   INNER_RECT_W_DEF,
   aplicarFormaBase,
@@ -20,6 +21,7 @@ import {
   type LatLon,
   type Lugar,
 } from "../places.types";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
 
 export const INNER_COLOR_DEF = "#1C64F2";
 
@@ -64,25 +66,104 @@ export function puntoDentroDelPadre(form: FormLugar, p: LatLon): boolean {
     if (form.lat == null || form.lon == null) return false;
     return distanciaM([form.lat, form.lon], p) <= form.radius_m;
   }
-  return puntoEnPoligono(p, form.vertices);
+  return (
+    puntoEnPoligono(p, form.vertices) &&
+    !(form.polygon_holes ?? []).some((hole) => puntoEnPoligono(p, hole))
+  );
 }
 
-export function nuevoInner(): InnerGeofence {
+/** Ancho y alto (m) de la geocerca: el diámetro de su círculo o la caja de su polígono. */
+function medidasDelPadre(
+  form: FormLugar
+): { ancho: number; alto: number } | null {
+  if (!padreTieneGeometria(form)) return null;
+  if (form.geom === "circle") {
+    const diametro = 2 * form.radius_m;
+    return { ancho: diametro, alto: diametro };
+  }
+  const lats = form.vertices.map(([lat]) => lat);
+  const lons = form.vertices.map(([, lon]) => lon);
+  const sur = Math.min(...lats);
+  const norte = Math.max(...lats);
+  const oeste = Math.min(...lons);
+  const este = Math.max(...lons);
+  const medio = (sur + norte) / 2;
+  return {
+    ancho: distanciaM([medio, oeste], [medio, este]),
+    alto: distanciaM([sur, oeste], [norte, oeste]),
+  };
+}
+
+const mitad = (m: number) => Math.max(INNER_RADIO_MIN, Math.round(m / 2));
+
+/**
+ * Una geocerca interior nueva, de la mitad del tamaño de su geocerca: así cabe
+ * dentro en vez de taparla. Sin la forma de la geocerca, las medidas fijas.
+ */
+export function nuevoInner(padre?: FormLugar): InnerGeofence {
+  const medidas = padre ? medidasDelPadre(padre) : null;
+  const lado = medidas ? Math.min(medidas.ancho, medidas.alto) : null;
   return {
     id: `local-inner-${crypto.randomUUID()}`,
     name: "",
+    external_id: "",
     geom: "circle",
     lat: null,
     lon: null,
-    radius_m: INNER_RADIO_DEFAULT,
+    radius_m: lado ? mitad(lado / 2) : INNER_RADIO_DEFAULT,
     vertices: [],
     cerrado: false,
     color: INNER_COLOR_DEF,
     polyBase: "libre",
     rectVinculado: false,
-    rect_w_m: INNER_RECT_W_DEF,
-    rect_h_m: INNER_RECT_H_DEF,
+    rect_w_m: medidas ? mitad(medidas.ancho) : INNER_RECT_W_DEF,
+    rect_h_m: medidas ? mitad(medidas.alto) : INNER_RECT_H_DEF,
   };
+}
+
+/**
+ * El External ID que se le propone a una interior nueva: el de su geocerca con
+ * el siguiente número libre entre sus interiores (SCL → SCL-1, SCL-2, …). Sin el
+ * de la geocerca no se propone nada. Se puede cambiar antes de guardar.
+ */
+export function codigoSugerido(
+  codigoPadre: string,
+  inners: readonly Pick<InnerGeofence, "external_id">[]
+): string {
+  const base = codigoPadre.trim();
+  if (!base) return "";
+  const prefijo = `${base.toLowerCase()}-`;
+  let mayor = 0;
+  for (const inner of inners) {
+    const codigo = (inner.external_id ?? "").trim().toLowerCase();
+    if (!codigo.startsWith(prefijo)) continue;
+    const resto = codigo.slice(prefijo.length);
+    if (/^\d+$/.test(resto)) mayor = Math.max(mayor, Number(resto));
+  }
+  return `${base}-${mayor + 1}`;
+}
+
+/**
+ * Cambia el External ID de la geocerca y, con él, el de las interiores que aún
+ * llevan el propuesto (SCL-1 pasa a PLT-1 si SCL pasa a PLT). Las que se
+ * escribieron a mano quedan como están. Solo pasa antes de guardar la geocerca:
+ * guardada, su código ya no cambia.
+ */
+export function conCodigoPadre(form: FormLugar, codigo: string): FormLugar {
+  const anterior = form.external_id.trim();
+  const nuevo = codigo.trim();
+  const prefijo = `${anterior.toLowerCase()}-`;
+  const propuesto = (c: string) =>
+    !!anterior &&
+    c.toLowerCase().startsWith(prefijo) &&
+    /^\d+$/.test(c.slice(prefijo.length));
+  const inners = form.inners.map((inner) => {
+    const actual = (inner.external_id ?? "").trim();
+    if (!propuesto(actual)) return inner;
+    const numero = actual.slice(prefijo.length);
+    return { ...inner, external_id: nuevo ? `${nuevo}-${numero}` : "" };
+  });
+  return { ...form, external_id: codigo, inners };
 }
 
 export function innerComoForm(inner: InnerGeofence): FormLugar {
@@ -94,6 +175,7 @@ export function innerComoForm(inner: InnerGeofence): FormLugar {
     lon: inner.lon,
     radius_m: inner.radius_m,
     vertices: inner.vertices,
+    polygon_holes: inner.polygon_holes ?? [],
     cerrado: inner.cerrado,
     polyBase: normalizarPolyBase(inner.polyBase),
     rectVinculado: esRectVinculado(inner),
@@ -114,6 +196,7 @@ export function formComoInner(
     lon: f.lon,
     radius_m: f.radius_m,
     vertices: f.vertices,
+    polygon_holes: f.geom === "polygon" ? f.polygon_holes : [],
     cerrado: f.cerrado,
     color: colorInner(inner),
     polyBase: f.polyBase,
@@ -154,13 +237,19 @@ function innerTieneGeometria(inner: InnerGeofence): boolean {
 }
 
 export function innerEsBorradorVacio(inner: InnerGeofence): boolean {
-  return !inner.name.trim() && !innerTieneGeometria(inner);
+  return (
+    !inner.name.trim() &&
+    !(inner.external_id ?? "").trim() &&
+    !innerTieneGeometria(inner)
+  );
 }
 
 export type FaltantesLugar = {
   name: boolean;
   ubicacion: boolean;
   geometria: boolean;
+  /** El External ID (el de la geocerca lo marca su propio campo). */
+  codigo?: boolean;
 };
 
 export const SIN_FALTANTES: FaltantesLugar = {
@@ -181,38 +270,48 @@ export function faltantesPadre(form: FormLugar): FaltantesLugar {
 }
 
 export function hayFaltantes(f: FaltantesLugar): boolean {
-  return f.name || f.ubicacion || f.geometria;
+  return f.name || f.ubicacion || f.geometria || !!f.codigo;
 }
 
-export function mensajePadreIncompleto(form: FormLugar): string | null {
+export function mensajePadreIncompleto(
+  form: FormLugar,
+  t: TextosLugares = textosLugares()
+): string | null {
   const f = faltantesPadre(form);
-  if (f.name) return "Falta el nombre.";
-  if (f.ubicacion) return "Fija el centro con clic en el mapa.";
-  if (f.geometria) return "El polígono necesita al menos 3 vértices.";
+  if (f.name) return t("validation.name_missing");
+  if (f.ubicacion) return t("validation.center_missing");
+  if (f.geometria) return t("validation.polygon_vertices");
   return null;
 }
 
 export function faltantesInner(inner: InnerGeofence): FaltantesLugar {
   if (innerEsBorradorVacio(inner)) return SIN_FALTANTES;
   const name = !inner.name.trim();
+  const codigo = !(inner.external_id ?? "").trim();
   if (inner.geom === "circle") {
-    return { name, ubicacion: inner.lat == null, geometria: false };
+    return { name, codigo, ubicacion: inner.lat == null, geometria: false };
   }
   if (normalizarPolyBase(inner.polyBase) === "libre") {
-    return { name, ubicacion: false, geometria: inner.vertices.length < 3 };
+    return {
+      name,
+      codigo,
+      ubicacion: false,
+      geometria: inner.vertices.length < 3,
+    };
   }
-  return { name, ubicacion: inner.lat == null, geometria: false };
+  return { name, codigo, ubicacion: inner.lat == null, geometria: false };
 }
 
-export function mensajeInnerIncompleto(inner: InnerGeofence): string | null {
+export function mensajeInnerIncompleto(
+  inner: InnerGeofence,
+  t: TextosLugares = textosLugares()
+): string | null {
   const f = faltantesInner(inner);
-  if (f.name) return "Cada geocerca interior necesita un nombre.";
-  if (f.ubicacion) {
-    return `Ubica «${inner.name}» con un clic dentro del lugar.`;
-  }
-  if (f.geometria) {
-    return `El interior «${inner.name}» necesita al menos 3 vértices.`;
-  }
+  const nombre = inner.name;
+  if (f.name) return t("validation.inner_name_missing");
+  if (f.codigo) return t("validation.inner_code_missing", { nombre });
+  if (f.ubicacion) return t("validation.inner_place", { nombre });
+  if (f.geometria) return t("validation.inner_vertices", { nombre });
   return null;
 }
 
@@ -250,11 +349,15 @@ export function innerDesdeLugar(l: Lugar): InnerGeofence {
   return {
     id: l.place_id,
     name: l.name,
+    external_id: l.external_id ?? "",
     geom: polygon ? "polygon" : "circle",
     lat: l.center?.[0] ?? null,
     lon: l.center?.[1] ?? null,
     radius_m: l.radius_m ?? INNER_RADIO_DEFAULT,
     vertices: l.polygon ?? [],
+    ...(polygon && l.polygon_holes?.length
+      ? { polygon_holes: l.polygon_holes }
+      : {}),
     cerrado: polygon,
     color: l.metadata?.[COLOR_KEY] || l.color || INNER_COLOR_DEF,
   };
@@ -287,38 +390,18 @@ export function lugarHijoDesdeInner(
     center:
       inner.lat != null && inner.lon != null ? [inner.lat, inner.lon] : null,
     polygon: polygon ? inner.vertices : null,
+    ...(polygon && inner.polygon_holes?.length
+      ? { polygon_holes: inner.polygon_holes }
+      : {}),
     radius_m: polygon ? null : inner.radius_m,
     metadata: {
       [PARENT_KEY]: parent.place_id,
       [COLOR_KEY]: colorInner(inner),
     },
     icon: null,
-    external_id: null,
+    external_id: inner.external_id?.trim() || null,
     active_from: parent.active_from,
     active_until: parent.active_until,
-  };
-}
-
-export function payloadInner(
-  inner: InnerGeofence,
-  parentId: string,
-  form: FormLugar
-): Record<string, unknown> {
-  return {
-    p_name: inner.name,
-    p_geometry_type: inner.geom,
-    p_category_id: form.category_id ? Number(form.category_id) : null,
-    p_address: null,
-    p_lat: inner.lat,
-    p_lon: inner.lon,
-    p_radius_m: inner.radius_m,
-    p_vertices: inner.geom === "polygon" ? inner.vertices : null,
-    p_metadata: {
-      [PARENT_KEY]: parentId,
-      [COLOR_KEY]: colorInner(inner),
-    },
-    p_external_id: null,
-    p_actor: "app-settings",
   };
 }
 

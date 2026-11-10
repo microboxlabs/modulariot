@@ -102,6 +102,16 @@ describe("filtrarTrayectos", () => {
     ]);
     expect(filtrarTrayectos(xs, "xyz")).toEqual([]);
   });
+
+  it("finds a route by the name of its category", () => {
+    const xs = [
+      trayecto({}),
+      trayecto({ trayecto_id: "t2", categorias_nombres: "Carga pesada" }),
+    ];
+    expect(filtrarTrayectos(xs, "carga").map((t) => t.trayecto_id)).toEqual([
+      "t2",
+    ]);
+  });
 });
 
 describe("filtrarPorEtiquetas", () => {

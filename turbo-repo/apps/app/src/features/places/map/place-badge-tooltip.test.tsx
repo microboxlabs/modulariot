@@ -36,7 +36,15 @@ const item = (over: Partial<ItemNombre> = {}): ItemNombre => ({
 });
 
 describe("PlaceBadgeTooltip", () => {
-  it("shows the geofence's categories and its alert category", () => {
+  it("shows a StreamHub geofence's own category as its alert category", () => {
+    const it0 = item({ lugar: { ...lugar, metadata: null } });
+    render(
+      <PlaceBadgeTooltip badge={{ item: it0, miembros: [it0] }} x={10} y={20} />
+    );
+    expect(screen.getByText("Zona de carga")).toBeInTheDocument();
+  });
+
+  it("shows the geofence's categories", () => {
     const it0 = item();
     render(
       <PlaceBadgeTooltip badge={{ item: it0, miembros: [it0] }} x={10} y={20} />
@@ -46,7 +54,8 @@ describe("PlaceBadgeTooltip", () => {
     expect(cats).toHaveTextContent("Bodega");
     // a code no longer in the list still shows
     expect(cats).toHaveTextContent("vieja");
-    expect(screen.getByText("Zona de carga")).toBeInTheDocument();
+    // its names are already above: no second line with them
+    expect(screen.queryByText("Zona de carga")).not.toBeInTheDocument();
   });
 
   it("says when a geofence has no categories", () => {

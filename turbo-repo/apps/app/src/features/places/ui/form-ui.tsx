@@ -2,14 +2,86 @@
 
 import type { ReactNode } from "react";
 import { Button, ButtonGroup } from "flowbite-react";
-import { HiX } from "react-icons/hi";
+import { HiCheck, HiX } from "react-icons/hi";
+import type { EstadoCodigo } from "../hooks/use-codigo-en-uso";
 import { twMerge } from "tailwind-merge";
+import { usePlacesT } from "../i18n/places-i18n";
 
 export const inputCls =
   "w-full rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700/60 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-700";
 
 export const inputErrorCls =
   "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 dark:border-rose-500";
+
+/** Un External ID ya guardado: se ve y se copia, pero no se edita. */
+export const inputFijoCls =
+  "cursor-not-allowed text-gray-500 focus:border-gray-200 focus:bg-gray-50 focus:ring-0 dark:text-gray-400 dark:focus:border-gray-600 dark:focus:bg-gray-700/60";
+
+/** Aviso junto a la etiqueta de un External ID ya guardado. */
+export function AvisoCodigoFijo() {
+  const t = usePlacesT();
+  return (
+    <span className="font-normal text-gray-400 dark:text-gray-500">
+      {t("form.cannot_change")}
+    </span>
+  );
+}
+
+/** Espacio a la derecha del campo para el ícono de su estado. */
+export const inputConIconoCls = "pr-8";
+
+const ICONO_ESTADO =
+  "pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2";
+
+/** Revisando, en uso (x) o libre (✓), dentro del campo del External ID. */
+export function IconoEstadoCodigo({
+  estado,
+}: Readonly<{ estado: EstadoCodigo | null }>) {
+  const t = usePlacesT();
+  if (!estado) return null;
+  if (estado.estado === "revisando") {
+    return (
+      <output
+        aria-label={t("form.code_checking")}
+        className={twMerge(
+          ICONO_ESTADO,
+          "h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 motion-reduce:animate-none dark:border-gray-600 dark:border-t-blue-400"
+        )}
+      />
+    );
+  }
+  if (estado.estado === "en-uso") {
+    return (
+      <HiX
+        role="img"
+        aria-label={t("form.code_in_use")}
+        className={twMerge(
+          ICONO_ESTADO,
+          "h-4 w-4 text-rose-600 dark:text-rose-400"
+        )}
+      />
+    );
+  }
+  return (
+    <HiCheck
+      role="img"
+      aria-label={t("form.code_free")}
+      className={twMerge(
+        ICONO_ESTADO,
+        "h-4 w-4 text-green-600 dark:text-green-400"
+      )}
+    />
+  );
+}
+
+/** Aviso bajo un External ID que ya está en uso. */
+export function AvisoCodigoEnUso({ aviso }: Readonly<{ aviso: string }>) {
+  return (
+    <output className="block text-[11px] font-medium text-rose-700 dark:text-rose-300">
+      {aviso}
+    </output>
+  );
+}
 
 /** Floating card over the map: header, optional full-width toolbar, scrollable body, sticky footer. */
 export function FloatingWindow({
@@ -30,6 +102,7 @@ export function FloatingWindow({
   className?: string;
   bodyClassName?: string;
 }>) {
+  const t = usePlacesT();
   return (
     <div
       data-places-form
@@ -44,7 +117,7 @@ export function FloatingWindow({
         </h2>
         <button
           type="button"
-          aria-label="Cerrar"
+          aria-label={t("common.close")}
           onClick={onClose}
           className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-white"
         >
@@ -158,7 +231,7 @@ export function FormFooter({
   guardando,
   saveLabel,
   saveCls,
-  cancelLabel = "Cancelar",
+  cancelLabel,
   onCancel,
   altLabel,
   onAlt,
@@ -174,8 +247,9 @@ export function FormFooter({
   onAlt?: () => void;
   onSave: () => void;
 }>) {
-  const saveText = guardando ? "Guardando…" : saveLabel;
-  const altText = guardando ? "Guardando…" : altLabel;
+  const t = usePlacesT();
+  const saveText = guardando ? t("common.saving") : saveLabel;
+  const altText = guardando ? t("common.saving") : altLabel;
 
   return (
     <div className="space-y-2">
@@ -209,7 +283,7 @@ export function FormFooter({
               onClick={onCancel}
               className="flex-1 rounded-lg border border-gray-200 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
             >
-              {cancelLabel}
+              {cancelLabel ?? t("common.cancel")}
             </button>
           )}
           <button

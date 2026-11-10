@@ -14,6 +14,7 @@ export type InnerGeofence = {
   lon: number | null;
   radius_m: number;
   vertices: LatLon[];
+  polygon_holes?: LatLon[][];
   cerrado: boolean;
   /** Hex de la geocerca en el mapa (por defecto el azul del sistema). */
   color: string;
@@ -21,6 +22,8 @@ export type InnerGeofence = {
   rectVinculado?: boolean;
   rect_w_m?: number;
   rect_h_m?: number;
+  /** Obligatorio, como el de su geocerca (un borrador anterior puede no traerlo). */
+  external_id?: string;
 };
 
 export type Lugar = {
@@ -33,6 +36,8 @@ export type Lugar = {
   color: string | null;
   center: [number, number] | null; // [lat, lon] (lab)
   polygon: [number, number][] | null;
+  /** Excluded rings, in [lat, lon], without the repeated closing point. */
+  polygon_holes?: LatLon[][];
   radius_m: number | null;
   metadata: Record<string, string> | null;
   external_id: string | null;
@@ -40,6 +45,8 @@ export type Lugar = {
   active_until: string | null;
   /** Solo en respaldo local; en el servidor viaja en metadata[ICON_KEY]. */
   icon?: string | null;
+  /** Versión vigente en el servidor; una geocerca interior va en la de su geocerca. */
+  version?: string | null;
 };
 export type Trayecto = {
   trayecto_id: string;
@@ -59,6 +66,14 @@ export type Trayecto = {
   tipos_puntos?: TipoPunto[] | null;
   /** Categoría de cada waypoint (null = sin categoría), también local. */
   categorias_puntos?: (string | null)[] | null;
+  /** El seleccionable de `categorias`, donde buscar sus nombres. */
+  categorias_lista?: string | null;
+  /** Los nombres de `categorias`, unidos por coma: solo para mostrar y buscar. */
+  categorias_nombres?: string | null;
+  /** El seleccionable de `categorias_puntos`. */
+  categorias_puntos_lista?: string | null;
+  /** Versión vigente en el servidor. */
+  version?: string | null;
 };
 export type Categoria = { category_id: number; name: string; color: string };
 
@@ -82,6 +97,8 @@ export const FORM_VACIO = {
   category_id: "",
   /** Categorías (códigos del seleccionable de categorías); se eligen varias. */
   categorias: [] as string[],
+  /** El seleccionable de esas categorías, donde buscar sus nombres. */
+  categorias_lista: null as string | null,
   address: "",
   external_id: "",
   radius_m: 20,
@@ -93,6 +110,7 @@ export const FORM_VACIO = {
   rect_w_m: 200,
   rect_h_m: 120,
   vertices: [] as LatLon[],
+  polygon_holes: [] as LatLon[][],
   /** Polígono terminado: los clics en el mapa ya no agregan vértices. */
   cerrado: false,
   /** Historial de edición del polígono: instantáneas de `vertices`. */
@@ -134,6 +152,10 @@ export const TRAY_VACIO = {
   ] as Parada[],
   /** Categorías (códigos del seleccionable de categorías), como en lugares. */
   categorias: [] as string[],
+  /** El seleccionable de esas categorías, donde buscar sus nombres. */
+  categorias_lista: null as string | null,
+  /** El seleccionable de las categorías de sus puntos: uno solo por trayecto. */
+  categorias_puntos_lista: null as string | null,
   /** Recorrido confirmado: se ve la ruta trazada; si no, la línea entre puntos. */
   confirmado: false,
   /** Historial del recorrido (deshacer/rehacer desde la barra del mapa). */
@@ -164,6 +186,8 @@ export const COLOR_KEY = "_color";
 export const COLOR_LUGAR_DEF = "#1C64F2";
 /** Categorías del lugar (códigos de un seleccionable), como arreglo JSON. */
 export const CATEGORIAS_KEY = "_categorias";
+/** El seleccionable de esas categorías, donde buscar sus nombres. */
+export const CATEGORIAS_LISTA_KEY = "_categorias_lista";
 
 const CLAVES_RESERVADAS = new Set([
   ICON_KEY,
@@ -171,6 +195,7 @@ const CLAVES_RESERVADAS = new Set([
   PARENT_KEY,
   COLOR_KEY,
   CATEGORIAS_KEY,
+  CATEGORIAS_LISTA_KEY,
 ]);
 
 const codigosSchema = z.array(z.string());
@@ -187,6 +212,10 @@ export function categoriasDeLugar(l: Pick<Lugar, "metadata">): string[] {
   }
 }
 
+/** El seleccionable de las categorías del lugar; sin él, el vinculado al campo. */
+export const listaDeLugar = (l: Pick<Lugar, "metadata">): string | null =>
+  l.metadata?.[CATEGORIAS_LISTA_KEY] || null;
+
 /** Filas del formulario → objeto metadata (sin filas vacías), con el icono. */
 export function metadataParaGuardar(form: FormLugar): Record<string, string> {
   const out: Record<string, string> = {};
@@ -196,8 +225,11 @@ export function metadataParaGuardar(form: FormLugar): Record<string, string> {
   }
   if (form.icon) out[ICON_KEY] = form.icon;
   if (form.color) out[COLOR_KEY] = form.color;
-  if (form.categorias.length > 0)
+  if (form.categorias.length > 0) {
     out[CATEGORIAS_KEY] = JSON.stringify(form.categorias);
+    if (form.categorias_lista)
+      out[CATEGORIAS_LISTA_KEY] = form.categorias_lista;
+  }
   if (form.inners.length > 0) out[INNER_KEY] = JSON.stringify(form.inners);
   return out;
 }

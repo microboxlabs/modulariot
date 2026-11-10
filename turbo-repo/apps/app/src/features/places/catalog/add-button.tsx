@@ -8,6 +8,7 @@ import {
   HiOutlineSwitchHorizontal,
   HiPlus,
 } from "react-icons/hi";
+import { usePlacesT } from "../i18n/places-i18n";
 
 export default function AddButton({
   onGeocerca,
@@ -16,6 +17,7 @@ export default function AddButton({
   onGeocerca: () => void;
   onTrayecto: () => void;
 }>) {
+  const t = usePlacesT();
   return (
     <Dropdown
       label=""
@@ -28,15 +30,15 @@ export default function AddButton({
           className="flex w-full shrink-0 cursor-pointer items-center justify-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
         >
           <HiPlus className="h-3.5 w-3.5" />
-          Agregar
+          {t("catalog.add")}
         </button>
       )}
     >
       <DropdownItem icon={HiOutlineLocationMarker} onClick={onGeocerca}>
-        Geocerca
+        {t("common.geofence")}
       </DropdownItem>
       <DropdownItem icon={HiOutlineSwitchHorizontal} onClick={onTrayecto}>
-        Trayecto
+        {t("common.route")}
       </DropdownItem>
     </Dropdown>
   );

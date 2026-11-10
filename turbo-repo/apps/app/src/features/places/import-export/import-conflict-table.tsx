@@ -24,17 +24,23 @@ import {
   type FilaConUid,
 } from "./import-conflicts";
 import type { LoteImport } from "./import-places";
+import {
+  usePlacesT,
+  type ClaveLugares,
+  type TextosLugares,
+} from "../i18n/places-i18n";
+import { textoCluster } from "../map/place-name-layer";
 
-export const ETIQUETAS_DECISION: Record<DecisionImport, string> = {
-  existente: "Existente",
-  nuevo: "Nuevo",
-  ambos: "Ambos",
+export const ETIQUETAS_DECISION: Record<DecisionImport, ClaveLugares> = {
+  existente: "import.keep_existing",
+  nuevo: "import.keep_new",
+  ambos: "import.keep_both",
 };
 
-const AYUDA_DECISION: Record<DecisionImport, string> = {
-  existente: "Conservar lo que ya está; esta fila no se importa",
-  nuevo: "Importar esta fila en lugar de lo que ya está",
-  ambos: "Conservar los dos",
+const AYUDA_DECISION: Record<DecisionImport, ClaveLugares> = {
+  existente: "import.keep_existing_help",
+  nuevo: "import.keep_new_help",
+  ambos: "import.keep_both_help",
 };
 
 type Estado = "total" | "parcial" | "ok";
@@ -45,10 +51,10 @@ const puntoEstado: Record<Estado, string> = {
   ok: "bg-blue-500",
 };
 
-const textoEstado: Record<Estado, string> = {
-  total: "Conflicto total: misma geocerca",
-  parcial: "Conflicto parcial: se cruzan",
-  ok: "Sin conflicto",
+const textoEstado: Record<Estado, ClaveLugares> = {
+  total: "import.conflict_total",
+  parcial: "import.conflict_partial",
+  ok: "import.conflict_none",
 };
 
 // en hover se rellena: queda claro cuál se está viendo en el mapa
@@ -116,14 +122,19 @@ function ChipConflicto({
   c: ConflictoImport;
   onHover: (uid: string, c: ConflictoImport | null) => void;
 }>) {
+  const t = usePlacesT();
   const entrar = () => onHover(uid, c);
   const salir = () => onHover(uid, null);
-  const donde = c.con.tipo === "fila" ? "en este import" : "guardado";
+  const donde =
+    c.con.tipo === "fila" ? t("import.in_this_import") : t("import.saved");
   return (
     <span
       onMouseEnter={entrar}
       onMouseLeave={salir}
-      title={`${nombreConflicto(c)} (${donde}) · pasa el mouse para verlos en el mapa`}
+      title={t("import.conflict_chip_hint", {
+        nombre: nombreConflicto(c),
+        donde,
+      })}
       className={twMerge(
         "max-w-28 cursor-default truncate rounded border px-1 leading-4 transition-colors",
         chipCls[c.tipo]
@@ -146,16 +157,17 @@ function SelectorDecision({
   elegida: DecisionImport | undefined;
   onDecidir: (uid: string, d: DecisionImport) => void;
 }>) {
+  const t = usePlacesT();
   const actual = decisionDe(cs, elegida);
   return (
-    <ButtonGroup aria-label={`Qué conservar para ${fila.name}`}>
+    <ButtonGroup aria-label={t("import.what_to_keep", { nombre: fila.name })}>
       {opcionesDecision(cs).map((d) => (
         <Button
           key={d}
           size="xs"
           color={actual === d ? "blue" : "alternative"}
           aria-pressed={actual === d}
-          title={AYUDA_DECISION[d]}
+          title={t(AYUDA_DECISION[d])}
           onClick={() => onDecidir(fila.uid, d)}
           // en un grupo Flowbite pone borde izquierdo al primero, y el azul
           // sólido no le da color: quedaría blanco (el color del texto)
@@ -164,7 +176,7 @@ function SelectorDecision({
             actual === d && "border-blue-700 dark:border-blue-600"
           )}
         >
-          {ETIQUETAS_DECISION[d]}
+          {t(ETIQUETAS_DECISION[d])}
         </Button>
       ))}
     </ButtonGroup>
@@ -178,6 +190,7 @@ function FilaImportRow({
   fila: FilaConUid;
   acciones: AccionesImport;
 }>) {
+  const t = usePlacesT();
   const cs = acciones.conflictos.get(fila.uid);
   const estado: Estado = cs ? gravedad(cs) : "ok";
   const marcada = acciones.seleccion.includes(fila.uid);
@@ -198,14 +211,14 @@ function FilaImportRow({
     >
       <input
         type="checkbox"
-        aria-label={`Seleccionar ${fila.name}`}
+        aria-label={t("catalog.select_item", { nombre: fila.name })}
         checked={marcada}
         onChange={marcar}
         className={checkboxCls}
       />
       <span
-        title={textoEstado[estado]}
-        aria-label={textoEstado[estado]}
+        title={t(textoEstado[estado])}
+        aria-label={t(textoEstado[estado])}
         className={twMerge(
           "h-2 w-2 shrink-0 rounded-full",
           puntoEstado[estado]
@@ -213,12 +226,12 @@ function FilaImportRow({
       />
       {fila.geometry_type === "line" ? (
         <HiOutlineSwitchHorizontal
-          aria-label="Trayecto"
+          aria-label={t("common.route")}
           className="h-3.5 w-3.5 shrink-0 text-blue-600"
         />
       ) : (
         <HiOutlineLocationMarker
-          aria-label="Geocerca"
+          aria-label={t("common.geofence")}
           className="h-3.5 w-3.5 shrink-0 text-gray-500"
         />
       )}
@@ -229,7 +242,7 @@ function FilaImportRow({
         {cs && (
           <div className="mt-0.5 flex items-center gap-1 text-[10px]">
             <span className="shrink-0 text-gray-500 dark:text-gray-400">
-              {estado === "total" ? "Igual a" : "Se cruza con"}
+              {estado === "total" ? t("import.same_as") : t("import.crosses")}
             </span>
             <div className="flex min-w-0 gap-1 overflow-hidden">
               {cs.map((c) => (
@@ -257,17 +270,11 @@ function FilaImportRow({
   );
 }
 
-const plural = (n: number, uno: string, varios: string) =>
-  `${n} ${n === 1 ? uno : varios}`;
-
 /** "2 geocercas · 1 trayecto": qué trae el archivo. */
-function conteoArchivo(filas: FilaConUid[]): string {
+function conteoArchivo(t: TextosLugares, filas: FilaConUid[]): string {
   const trayectos = filas.filter((f) => f.geometry_type === "line").length;
   const geocercas = filas.length - trayectos;
-  const partes = [];
-  if (geocercas) partes.push(plural(geocercas, "geocerca", "geocercas"));
-  if (trayectos) partes.push(plural(trayectos, "trayecto", "trayectos"));
-  return partes.join(" · ");
+  return textoCluster({ geocercas, trayectos }, t);
 }
 
 export function ImportLoteTable({
@@ -277,6 +284,7 @@ export function ImportLoteTable({
   lote: LoteImport;
   acciones: AccionesImport;
 }>) {
+  const t = usePlacesT();
   const filas = lote.filas.filter((f): f is FilaConUid => Boolean(f.uid));
   const uids = filas.map((f) => f.uid);
   const marcadas = uids.filter((u) => acciones.seleccion.includes(u)).length;
@@ -286,7 +294,7 @@ export function ImportLoteTable({
     <section className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
       <header className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-2 py-1.5 dark:border-gray-700 dark:bg-gray-800">
         <CheckboxTodas
-          label={`Seleccionar todo ${lote.filename}`}
+          label={t("import.select_all_of", { archivo: lote.filename })}
           marcadas={marcadas}
           total={filas.length}
           onCambiar={marcarArchivo}
@@ -295,7 +303,7 @@ export function ImportLoteTable({
           {lote.filename}
         </span>
         <span className="shrink-0 text-[11px] text-gray-500 dark:text-gray-400">
-          {conteoArchivo(filas)}
+          {conteoArchivo(t, filas)}
         </span>
       </header>
       <ul className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -320,6 +328,7 @@ export function ImportSelectionBar({
   acciones: AccionesImport;
   onSeleccionarTodo: (todo: boolean) => void;
 }>) {
+  const t = usePlacesT();
   const marcadas = acciones.seleccion.length;
   let totales = 0;
   let parciales = 0;
@@ -330,21 +339,21 @@ export function ImportSelectionBar({
   const sinConflicto = filas.length - totales - parciales;
   const quitarMarcadas = () => acciones.onQuitarFilas(acciones.seleccion);
   const leyenda: [Estado, string][] = [
-    ["ok", `${sinConflicto} sin conflicto`],
-    ["parcial", `${parciales} parcial`],
-    ["total", `${totales} total`],
+    ["ok", t("import.legend_none", { n: sinConflicto })],
+    ["parcial", t("import.legend_partial", { n: parciales })],
+    ["total", t("import.legend_total", { n: totales })],
   ];
   return (
     <div className="shrink-0 space-y-1.5 rounded-lg border border-gray-200 bg-white p-2 text-[11px] dark:border-gray-700 dark:bg-gray-900">
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-200">
           <CheckboxTodas
-            label="Seleccionar todo"
+            label={t("import.select_all")}
             marcadas={marcadas}
             total={filas.length}
             onCambiar={onSeleccionarTodo}
           />
-          Seleccionar todo ({filas.length})
+          {t("import.select_all_count", { n: filas.length })}
         </label>
         <Button
           size="xs"
@@ -353,7 +362,7 @@ export function ImportSelectionBar({
           onClick={quitarMarcadas}
           className="ml-auto px-2 py-0.5 text-[11px]"
         >
-          Quitar seleccionadas ({marcadas})
+          {t("import.remove_selected", { n: marcadas })}
         </Button>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-600 dark:text-gray-300">

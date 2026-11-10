@@ -1,0 +1,64 @@
+# 🔔 Release Notes v0.6.6 — ModularIoT
+
+### Fecha: 10/11/2026
+
+**Objetivo**: Esta versión amplía las herramientas de gestión de casos y visualización de viajes, e incorpora llamadas de voz por WhatsApp. También mejora la conciliación de llamadas de Teams y la estabilidad del cierre de casos.
+
+## 🚀 Evolutivos
+
+- **📍 Gestión inicial de lugares**
+  - **Alcance**: Se conectó la vista de lugares con el frontend y se definió una estructura SQL inicial para las tablas del backend.
+
+- **📝 Registrar gestión sin llamada**
+  - **Alcance**: Los operadores pueden marcar un caso como atendido sin llamar al conductor. La acción requiere un resultado y una nota, registra una nota mediante la API de Control Tower y cierra el caso como atendido.
+
+- **📞 Llamadas de voz por WhatsApp**
+  - **Alcance**: El botón de WhatsApp en «Llamar a» permite iniciar una llamada desde el navegador; los contactos también pueden llamar a la torre.
+  - **Detalle técnico**: La llamada se realiza mediante SIP entre Meta y la aplicación WhatsApp Call Control de Telnyx.
+
+- **🗺️ Mapa del viaje y pulsos del caso**
+  - **Alcance**: El mapa de un caso muestra el recorrido completo del viaje y destaca los pulsos del caso dentro de su intervalo.
+  - **Detalle técnico**: Usa el inicio y fin del viaje como rango, con un límite de siete días; si el viaje no está disponible, conserva el rango anterior del caso.
+
+- **📡 Nodos GPS y de aplicación en mapas**
+  - **Alcance**: Los mapas de vista geográfica ahora muestran nodos GPS o de aplicación.
+
+## 🐛 Correcciones
+
+- **🐛 Conciliación de llamadas de Teams Direct Routing**
+  - **Impacto**: Las llamadas realizadas desde Control Tower no recibían su duración ni resultado en organizaciones con Direct Routing.
+  - **Solución**: Se consultan los informes de PSTN y Direct Routing, se procesan registros `ByotOut*` y `successfulCall`, y un proceso del servidor reconcilia llamadas pendientes cada cinco minutos.
+
+- **🐛 Cierre persistente de casos**
+  - **Impacto**: Un caso cerrado por un operador podía reabrirse en el mismo viaje mientras la condición seguía activa.
+  - **Solución**: El caso permanece cerrado mientras se mantiene la condición en el mismo vehículo y viaje. Una señal normal o una señal de otro viaje termina ese bloqueo; un caso atendido puede reabrirse si la condición supera el nivel que tenía al cerrarse.
+
+- **🐛 Revisiones en `pr-certify`**
+  - **Impacto**: La herramienta podía volver a contactar a revisores con límite de solicitudes o que ya habían revisado, e iniciar una revisión completa sin solicitarla.
+  - **Solución**: No contacta a esos revisores y solo solicita una revisión completa con `--full`. Los comentarios de CodeRabbit que indiquen límite de solicitudes o rechazo se tratan como no aplicables y generan una advertencia.
+
+## 📊 Beneficios
+
+- Más opciones para resolver y documentar casos sin iniciar una llamada.
+- Comunicación por voz con contactos a través de WhatsApp.
+- Mejor contexto geográfico al consultar casos y recorridos completos.
+- Resultados y duración de llamadas de Teams Direct Routing disponibles mediante conciliación periódica en el servidor.
+- Menos reaperturas inesperadas de casos cerrados por operadores.
+- Comprobaciones de `pr-certify` más predecibles ante límites o rechazos de revisores.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.6`
+- App: `app@v0.6.6` (actualizada)
+- Docs: `docs@v0.6.6` (actualizada)
+- Web: `web@v0.6.6` (actualizada)
+- Modulith: `modulith@v0.5.45` (actualizado)
+- Harness: `harness@v0.1.15` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 0.6.6 refuerza el flujo operativo de casos y viajes, desde su visualización y documentación hasta la estabilidad de su cierre. También mejora la disponibilidad de resultados de llamadas de Teams y añade llamadas de voz por WhatsApp.
+
+Las mejoras combinan cambios de interfaz, backend y procesos de conciliación para dar más continuidad a las operaciones de Control Tower y más claridad al seguimiento de incidentes.

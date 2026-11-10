@@ -8,6 +8,7 @@ import { RxCheck } from "react-icons/rx";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import React, { useState } from "react";
 import SovosDeps from "../task-forms/components/sovos-deps/sovos-deps";
+import { totemEvent } from "./diagnostics/totem-diagnostics";
 
 export default function Stepped({
   setCurrentStep,
@@ -23,6 +24,7 @@ export default function Stepped({
   deviceLocation: string | null;
 }) {
   const [pluginReady, setPluginReady] = useState(false);
+  const [pluginError, setPluginError] = useState<string | null>(null);
   const [rutData, setRutData] = useState<{
     rut: string;
     rut_validated: boolean;
@@ -56,6 +58,7 @@ export default function Stepped({
           rutData={rutData}
           setRutData={setRutData}
           pluginReady={pluginReady}
+          pluginError={pluginError}
           onBiometricResult={setBiometricResult}
           setIdCardNumber={setIdCardNumber}
           idCardNumber={idCardNumber}
@@ -151,7 +154,16 @@ export default function Stepped({
         </div>
       </div>
       <div className="h-5 w-full"></div>
-      <SovosDeps onReady={() => setPluginReady(true)} />
+      <SovosDeps
+        onReady={() => {
+          totemEvent("deps.loaded");
+          setPluginReady(true);
+        }}
+        onError={(script) => {
+          totemEvent("deps.failed", { message: script });
+          setPluginError(script);
+        }}
+      />
     </div>
   );
 }

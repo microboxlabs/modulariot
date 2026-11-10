@@ -7,9 +7,16 @@ import com.microboxlabs.miot.core.iam.model.IamTeamMember;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.quarkus.scheduler.Scheduled;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.Context;
+import io.vertx.core.Vertx;
+import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeoutException;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -31,7 +38,8 @@ import org.jboss.logging.Logger;
  * An organization with a sub-account that has its own Alfresco group is left pending: only the top-level group is
  * imported.
  *
- * <p>Runs a second after start and every minute; a failed organization is tried again on the next run. See
+ * <p>Runs a second after start and every minute; a failed organization, or one not done within
+ * {@value #TIMEOUT_PROPERTY} (5 minutes by default), is tried again on the next run. See
  * {@link NativeMembershipReadiness} for how traffic waits for it.
  */
 @ApplicationScoped
@@ -44,6 +52,9 @@ public class NativeMembershipMigration {
     static final String IMPORT_STUB_PROPERTY = "miot.iam.native-migration.import-stub";
     /** Off on a pod that does not serve the API: without the Alfresco settings it would skip the import. */
     static final String ENABLED_PROPERTY = "miot.iam.native-migration.enabled";
+    static final String TIMEOUT_PROPERTY = "miot.iam.native-migration.timeout";
+    /** How long a timed-out run waits for Postgres to end its connection (pg_terminate_backend, Postgres 14+). */
+    private static final long TERMINATE_WAIT_MS = 10_000;
     private static final Logger LOG = Logger.getLogger(NativeMembershipMigration.class);
 
     /** One organization: how many people the import added and suspended, how many default roles were bound. */
@@ -58,20 +69,27 @@ public class NativeMembershipMigration {
     private final AccessRegistry registry;
     private final boolean alreadyNative;
     private final boolean scheduled;
-    private final AtomicBoolean done = new AtomicBoolean();
+    private final Duration timeout;
+    private final Instance<Pool> pools;
 
     @Inject
-    public NativeMembershipMigration(AlfrescoBridge bridge, AccessRegistry registry,
+    public NativeMembershipMigration(AlfrescoBridge bridge, AccessRegistry registry, Instance<Pool> pools,
             @ConfigProperty(name = LEGACY_PROPERTY, defaultValue = "alfresco") String legacyMembership,
             @ConfigProperty(name = ALFRESCO_AUTH_PROPERTY, defaultValue = "stub") String alfrescoAuth,
             @ConfigProperty(name = IMPORT_STUB_PROPERTY, defaultValue = "false") boolean importStub,
             @ConfigProperty(name = "miot.iam.native-migration.every", defaultValue = "1m") String every,
-            @ConfigProperty(name = ENABLED_PROPERTY, defaultValue = "true") boolean enabled) {
+            @ConfigProperty(name = ENABLED_PROPERTY, defaultValue = "true") boolean enabled,
+            @ConfigProperty(name = TIMEOUT_PROPERTY, defaultValue = "5m") Duration timeout) {
         this.bridge = bridge;
         this.registry = registry;
+        this.pools = pools;
         this.alreadyNative = "native".equalsIgnoreCase(legacyMembership.trim())
                 || ("stub".equalsIgnoreCase(alfrescoAuth.trim()) && !importStub);
         this.scheduled = enabled && !"off".equalsIgnoreCase(every.trim());
+        if (timeout.isZero() || timeout.isNegative()) {
+            throw new IllegalArgumentException(TIMEOUT_PROPERTY + " must be positive");
+        }
+        this.timeout = timeout;
     }
 
     @Scheduled(every = "${miot.iam.native-migration.every:1m}", delayed = "1s",
@@ -85,41 +103,78 @@ public class NativeMembershipMigration {
 
     /** Whether no organization is left behind, including when another pod owns the migration. */
     public Uni<Boolean> settled() {
-        return scheduled ? Uni.createFrom().item(done.get())
-                : Panache.withSession(() -> Organization.listAlfrescoMembership().map(List::isEmpty));
+        return Panache.withSession(() -> Organization.listAlfrescoMembership().map(List::isEmpty));
     }
 
     /** Moves every organization still on Alfresco membership; failures are reported and left for the next run. */
     public Uni<List<Migrated>> migrateAll() {
-        return Panache.withSession(Organization::listAlfrescoMembership).flatMap(orgs -> {
-            List<Migrated> results = new ArrayList<>();
-            Uni<Void> chain = Uni.createFrom().voidItem();
-            for (String slug : orgs.stream().map(o -> o.slug).toList()) {
-                chain = chain.flatMap(i -> migrate(slug)
-                        .onFailure().recoverWithItem(e -> {
-                            LOG.warnf("Moving %s to native membership failed: %s", slug, e.getMessage());
-                            return Migrated.failed(slug, e);
-                        })
-                        .invoke(results::add)
-                        .replaceWithVoid());
-            }
-            return chain.map(i -> {
-                if (results.stream().allMatch(r -> r.error() == null)) {
-                    done.set(true);
-                }
-                return List.copyOf(results);
-            });
-        });
+        return Panache.withSession(Organization::listAlfrescoMembership).flatMap(orgs ->
+                Multi.createFrom().iterable(orgs.stream().map(o -> o.slug).toList())
+                        .onItem().transformToUniAndConcatenate(slug -> migrate(slug)
+                                .onFailure().recoverWithItem(e -> {
+                                    LOG.warnf(e, "Moving %s to native membership failed: %s", slug, e.getMessage());
+                                    return Migrated.failed(slug, e);
+                                }))
+                        .collect().asList());
     }
 
     private Uni<Migrated> migrate(String slug) {
+        // Timeout inside the transaction: report failure only after rollback and session cleanup finish.
+        return Panache.withTransaction(() -> {
+            Context context = Vertx.currentContext();
+            return backend().flatMap(backend -> AlfrescoBridge.lock(slug, timeout)
+                            .flatMap(ignored -> Organization.findBySlug(slug))
+                            // Another run may have moved it while this one waited for the lock.
+                            .flatMap(org -> org == null || !"ALFRESCO".equals(org.membershipSource)
+                                    ? Uni.createFrom().item(new Migrated(slug, 0, 0, 0, null))
+                                    : migrateLocked(slug))
+                            .call(Panache::flush)
+                            .ifNoItem().after(timeout).recoverWithUni(() -> abort(backend)))
+                    // The timeout fires on a timer thread; Hibernate cleanup must use the session's context.
+                    .emitOn(task -> context.runOnContext(ignored -> task.run()));
+        }).invoke(result -> LOG.infof("%s now uses native membership: %d added, %d suspended, %d default roles bound",
+                slug, result.added(), result.suspended(), result.defaultsBound()));
+    }
+
+    /** This connection's backend: its pid and start time, so a pid Postgres reused later is not mistaken for it. */
+    private static Uni<String> backend() {
+        return Panache.getSession().flatMap(session -> session.createNativeQuery(
+                "select pid || ' ' || backend_start::text from pg_stat_activity where pid = pg_backend_pid()",
+                String.class).getSingleResult());
+    }
+
+    /**
+     * Ends the timed-out run's connection from another one and waits for it to exit, so Postgres rolls its
+     * transaction back. Cancelling the Uni does not stop a flush in progress: after a rollback over the same
+     * connection, its remaining inserts would run outside the transaction and commit.
+     */
+    private Uni<Migrated> abort(String backend) {
+        String[] parts = backend.split(" ", 2);
+        TimeoutException timedOut = new TimeoutException("Not done after " + timeout + "; tried again on the next run");
+        return pools.get().preparedQuery("select pg_terminate_backend(pid, $3) from pg_stat_activity "
+                        + "where pid = $1 and backend_start::text = $2")
+                .execute(Tuple.of(Integer.parseInt(parts[0]), parts[1], TERMINATE_WAIT_MS))
+                .onItemOrFailure().transformToUni((rows, e) -> {
+                    // No row: Postgres already ended that backend.
+                    if (e != null || (rows.iterator().hasNext() && !rows.iterator().next().getBoolean(0))) {
+                        LOG.errorf(e, "Could not end backend %s after a timeout; its rollback may let queued"
+                                + " statements commit", parts[0]);
+                    }
+                    if (e != null) {
+                        timedOut.addSuppressed(e);
+                    }
+                    return Uni.createFrom().failure(timedOut);
+                });
+    }
+
+    private Uni<Migrated> migrateLocked(String slug) {
         if (alreadyNative) {
             return markNative(slug, new Migrated(slug, 0, 0, 0, null));
         }
         return Panache.withSession(() -> withoutChildGroups(slug)).flatMap(org -> {
             Uni<Migrated> imported = org.alfrescoGroupId == null
                     ? Uni.createFrom().item(new Migrated(slug, 0, 0, 0, null))
-                    : bridge.importMembers(slug, ACTOR)
+                    : bridge.importMembers(slug, ACTOR, timeout)
                             .map(r -> new Migrated(slug, r.added(), r.suspended(), 0, null));
             return imported
                     .flatMap(result -> bindDefaults(slug).map(bound -> new Migrated(slug, result.added(),
@@ -148,7 +203,7 @@ public class NativeMembershipMigration {
         if (defaults.isEmpty()) {
             return Uni.createFrom().item(0);
         }
-        return Panache.withTransaction(() -> AlfrescoBridge.lock(slug)
+        return Panache.withTransaction(() -> AlfrescoBridge.lock(slug, timeout)
                 .flatMap(locked -> Organization.findBySlug(slug))
                 .flatMap(org -> IamMembership.findByOrganization(org.id).flatMap(rows -> IamRoleBinding
                         .findByOrganization(org.id).flatMap(this::modulesHeld)
@@ -172,28 +227,34 @@ public class NativeMembershipMigration {
         return added;
     }
 
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    /**
+     * Persists in one call. A persist with an assigned id completes at once, so chaining one Uni per binding nests
+     * the stack on the event loop until it overflows, and the overflow is lost with the Uni left pending.
+     */
     private static Uni<Integer> persistAll(List<IamRoleBinding> bindings) {
-        Uni<Void> chain = Uni.createFrom().voidItem();
-        for (IamRoleBinding b : bindings) {
-            chain = chain.flatMap(i -> b.persist().replaceWithVoid());
-        }
-        return chain.replaceWith(bindings.size());
+        return Panache.getSession()
+                .flatMap(session -> session.persistAll(bindings.toArray()))
+                .replaceWith(bindings.size());
     }
 
     /** The modules each user holds a role of, through their own bindings or their teams'. */
     private Uni<Map<UUID, Set<String>>> modulesHeld(List<IamRoleBinding> bindings) {
         Map<UUID, Set<String>> held = new HashMap<>();
         Map<UUID, Set<String>> byTeam = new HashMap<>();
-        for (IamRoleBinding b : bindings) {
+        for (IamRoleBinding b : bindings.stream().filter(binding -> IamRoleBinding.USER.equals(binding.principalKind)
+                || IamRoleBinding.TEAM.equals(binding.principalKind)).toList()) {
             String module = registry.role(b.roleKey).map(RoleDef::module).orElse(null);
-            if (module == null) {
+            UUID principal = uuidOrNull(b.principalId);
+            if (principal == null) {
+                LOG.warnf("Skipping role binding %s (%s): principal_id is not a UUID", b.id, b.principalKind);
+            }
+            if (module == null || principal == null) {
                 continue;
             }
             if (IamRoleBinding.USER.equals(b.principalKind)) {
-                held.computeIfAbsent(UUID.fromString(b.principalId), k -> new HashSet<>()).add(module);
+                held.computeIfAbsent(principal, k -> new HashSet<>()).add(module);
             } else if (IamRoleBinding.TEAM.equals(b.principalKind)) {
-                byTeam.computeIfAbsent(UUID.fromString(b.principalId), k -> new HashSet<>()).add(module);
+                byTeam.computeIfAbsent(principal, k -> new HashSet<>()).add(module);
             }
         }
         if (byTeam.isEmpty()) {
@@ -206,6 +267,15 @@ public class NativeMembershipMigration {
         });
     }
 
+    /** A user or team id; null for one that is not a UUID, which no member has. */
+    private static UUID uuidOrNull(String id) {
+        try {
+            return id == null ? null : UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     private static Uni<Migrated> markNative(String slug, Migrated result) {
         return Panache.withTransaction(() -> Organization.findBySlug(slug).flatMap(org -> {
@@ -214,8 +284,6 @@ public class NativeMembershipMigration {
                     .flatMap(saved -> IamAuditEvent.of(org.id, ACTOR, "membership.native", org.slug,
                             Map.of("added", result.added(), "suspended", result.suspended(),
                                     "defaultsBound", result.defaultsBound())).persist())
-                    .invoke(ignored -> LOG.infof("%s now uses native membership: %d added, %d suspended, %d default"
-                            + " roles bound", slug, result.added(), result.suspended(), result.defaultsBound()))
                     .replaceWith(result);
         }));
     }

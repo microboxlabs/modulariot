@@ -11,9 +11,11 @@ import com.microboxlabs.miot.core.iam.model.IamUser;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.quarkus.scheduler.Scheduled;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -73,10 +75,10 @@ public class AlfrescoBridge {
 
     /**
      * Copies the Alfresco group of {@code slug}'s top-level organization into memberships, under a lock per
-     * organization so concurrent runs wait for each other.
+     * organization so concurrent runs wait for each other, up to {@code limit} (see {@link #lock}).
      */
-    public Uni<ImportResult> importMembers(String slug, String actor) {
-        return Panache.withTransaction(() -> lock(slug)
+    public Uni<ImportResult> importMembers(String slug, String actor, Duration limit) {
+        return Panache.withTransaction(() -> lock(slug, limit)
                 .flatMap(locked -> Organization.findBySlug(slug))
                 .flatMap(found -> {
                     if (found == null) {
@@ -99,12 +101,24 @@ public class AlfrescoBridge {
                         .persist().replaceWith(result));
     }
 
-    /** Holds a transaction-scoped lock for this organization's import until the transaction ends. */
-    static Uni<Void> lock(String slug) {
+    /**
+     * Holds a transaction-scoped lock for this organization's import until the transaction ends. Postgres gives up
+     * waiting for it or executing a statement after {@code limit}, and ends the transaction when it sits idle that
+     * long, so a run that stalls or is cancelled does not keep the lock or a pooled connection. All settings end
+     * with this transaction.
+     */
+    static Uni<Void> lock(String slug, Duration limit) {
+        long ms = Math.max(1, limit.toMillis());
         return Panache.getSession()
-                .flatMap(session -> session.createNativeQuery("select pg_advisory_xact_lock(hashtext(?1))")
-                        .setParameter(1, "iam-alfresco-import:" + slug)
-                        .executeUpdate())
+                .flatMap(session -> session.createNativeQuery("SET LOCAL lock_timeout = '" + ms + "ms'")
+                        .executeUpdate()
+                        .flatMap(set -> session.createNativeQuery(
+                                "SET LOCAL idle_in_transaction_session_timeout = '" + ms + "ms'").executeUpdate())
+                        .flatMap(set -> session.createNativeQuery(
+                                "SET LOCAL statement_timeout = '" + ms + "ms'").executeUpdate())
+                        .flatMap(set -> session.createNativeQuery("select pg_advisory_xact_lock(hashtext(?1))")
+                                .setParameter(1, "iam-alfresco-import:" + slug)
+                                .executeUpdate()))
                 .replaceWithVoid();
     }
 
@@ -112,17 +126,16 @@ public class AlfrescoBridge {
         int[] added = {0};
         int[] existing = {0};
         Set<String> inGroup = new HashSet<>();
-        Uni<Void> chain = Uni.createFrom().voidItem();
-        for (AlfrescoPerson person : people) {
-            String email = emailOf(person);
-            if (email != null) {
-                inGroup.add(email);
-                chain = chain.flatMap(i -> importOne(org, person, email, noOwner, actor)
+        return Multi.createFrom().iterable(people)
+                .select().where(person -> emailOf(person) != null)
+                .onItem().transformToUniAndConcatenate(person -> {
+                    String email = emailOf(person);
+                    inGroup.add(email);
+                    return importOne(org, person, email, noOwner, actor)
                         .invoke(isNew -> (Boolean.TRUE.equals(isNew) ? added : existing)[0]++)
-                        .replaceWithVoid());
-            }
-        }
-        return chain.flatMap(i -> suspendLeavers(org.id, inGroup))
+                        .replaceWithVoid();
+                }).collect().asList()
+                .flatMap(i -> suspendLeavers(org.id, inGroup))
                 .map(suspended -> new ImportResult(org.slug, org.alfrescoGroupId, people.size(), added[0],
                         existing[0], suspended));
     }
@@ -139,14 +152,9 @@ public class AlfrescoBridge {
             return IamUser.findByIds(fromAlfresco.stream().map(m -> m.userId).toList()).flatMap(users -> {
                 Set<UUID> gone = new HashSet<>();
                 users.stream().filter(u -> !inGroup.contains(IamUser.normalize(u.email))).forEach(u -> gone.add(u.id));
-                Uni<Void> chain = Uni.createFrom().voidItem();
-                for (IamMembership m : fromAlfresco) {
-                    if (gone.contains(m.userId)) {
-                        m.status = "SUSPENDED";
-                        chain = chain.flatMap(i -> m.persist().replaceWithVoid());
-                    }
-                }
-                return chain.replaceWith(gone.size());
+                // Managed rows: the change is flushed on commit. One Uni per row would nest the stack.
+                fromAlfresco.stream().filter(m -> gone.contains(m.userId)).forEach(m -> m.status = "SUSPENDED");
+                return Uni.createFrom().item(gone.size());
             });
         });
     }

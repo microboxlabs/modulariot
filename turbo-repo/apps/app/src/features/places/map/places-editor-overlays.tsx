@@ -113,7 +113,6 @@ function LugarFormCard({
       dict={dict}
       form={ws.form}
       setForm={ws.setForm}
-      cats={ws.cats ?? []}
       guardando={ws.guardando}
       msg={ws.msg}
       token={ws.MAPBOX_TOKEN}
@@ -123,6 +122,10 @@ function LugarFormCard({
       onContinuar={ws.continuarAInteriores}
       onGuardar={() => void ws.guardarLugar()}
       version={ws.versionDe("lugar", ws.form.place_id)}
+      codigoFijo={!!ws.codigoDeLugar(ws.form.place_id)}
+      estadoCodigo={ws.estadoCodigoLugar}
+      estadosInteriores={ws.estadosCodigoInteriores}
+      codigoFijoInterior={ws.codigoInteriorFijo}
       onBack={ws.volverAGeocerca}
       onClose={ws.pedirCerrarForm}
     />
@@ -140,6 +143,7 @@ function TrayectoFormCard({
 }>) {
   return (
     <TrayectoForm
+      estadoCodigo={ws.estadoCodigoTrayecto}
       className={className}
       dict={dict}
       token={ws.MAPBOX_TOKEN}

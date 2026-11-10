@@ -397,3 +397,19 @@ it("adds unique waypoint IDs after restoring IDs from a previous page load", asy
     next.recorrido.length
   );
 });
+
+it("keeps one selectable for a route's point categories", () => {
+  const recorrido = [
+    { id: "a", texto: "", punto: null, categoria: "vieja" },
+    { id: "b", texto: "", punto: null },
+  ];
+  const t = { ...TRAY_VACIO, recorrido, categorias_puntos_lista: "antigua" };
+
+  const misma = cambiarCategoriaPunto(t, "b", "carga", "antigua");
+  expect(misma.recorrido[0]?.categoria).toBe("vieja");
+
+  const otra = cambiarCategoriaPunto(t, "b", "carga", "nueva");
+  expect(otra.categorias_puntos_lista).toBe("nueva");
+  expect(otra.recorrido[0]?.categoria).toBeUndefined();
+  expect(otra.recorrido[1]?.categoria).toBe("carga");
+});

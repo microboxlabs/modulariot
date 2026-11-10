@@ -41,6 +41,8 @@ type ToolBarProps = {
   geofences_mode?: {
     geofencesMode: GeofencesMode;
     setGeofencesMode: (geofencesMode: GeofencesMode) => void;
+    /** Las opciones del selector; por defecto, todas. */
+    modes?: readonly GeofencesMode[];
   };
   show_pulse?: {
     showPulse: boolean;
@@ -216,6 +218,7 @@ export default function ToolBar({
             <GeofencesModeSelector
               mode={geofences_mode.geofencesMode}
               setMode={geofences_mode.setGeofencesMode}
+              modes={geofences_mode.modes}
               dictionary={dictionary}
             />
           </div>

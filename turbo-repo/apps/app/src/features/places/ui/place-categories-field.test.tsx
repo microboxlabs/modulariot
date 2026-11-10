@@ -5,6 +5,7 @@ import CampoCategorias, { AJUSTES_PARA_TODOS } from "./place-categories-field";
 const estado = vi.hoisted(() => ({
   role: "MEMBER",
   modo: "SINGLE" as "SINGLE" | "MULTIPLE",
+  vinculos: {} as Record<string, string> | undefined,
 }));
 
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
@@ -24,6 +25,12 @@ vi.mock("@/features/settings-admin/selectables/store", () => ({
           { value: "cliente", label: { es: "Cliente" }, color: "green" },
         ],
       },
+      {
+        key: "lista_anterior",
+        mode: "SINGLE",
+        source: { kind: "STATIC" },
+        options: [{ value: "vieja", label: { es: "Vieja" }, color: "red" }],
+      },
     ],
     hydrated: true,
   }),
@@ -33,6 +40,7 @@ vi.mock("@/features/settings-admin/selectables/field-bindings", () => ({
 }));
 vi.mock("@/features/settings-admin/selectables/selectables-api", () => ({
   useSelectableOptions: () => ({ data: undefined }),
+  useSelectableBindings: () => ({ data: estado.vinculos }),
 }));
 // the treatment view's selector: only what it gets and what it sends back
 vi.mock(
@@ -77,6 +85,69 @@ describe("CampoCategorias", () => {
   beforeEach(() => {
     estado.role = "MEMBER";
     estado.modo = "SINGLE";
+    estado.vinculos = {};
+  });
+
+  it("gives codes saved without a list the field's list, once its binding is known", () => {
+    const onChange = vi.fn();
+    estado.vinculos = undefined;
+    const { rerender } = render(
+      <CampoCategorias
+        fieldKey="place_categories"
+        label="Categorías"
+        value={["bodega"]}
+        onChange={onChange}
+        dict={{}}
+      />
+    );
+    expect(onChange).not.toHaveBeenCalled();
+    estado.vinculos = {};
+    rerender(
+      <CampoCategorias
+        fieldKey="place_categories"
+        label="Categorías"
+        value={["bodega"]}
+        onChange={onChange}
+        dict={{}}
+      />
+    );
+    expect(onChange).toHaveBeenCalledWith(["bodega"], "place_categories");
+  });
+
+  it("leaves codes that already have their list alone", () => {
+    const onChange = vi.fn();
+    render(
+      <CampoCategorias
+        fieldKey="place_categories"
+        label="Categorías"
+        value={["vieja"]}
+        listaGuardada="lista_anterior"
+        onChange={onChange}
+        dict={{}}
+      />
+    );
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("names what was saved from its own list, until a pick from the current one replaces it", () => {
+    const onChange = vi.fn();
+    render(
+      <CampoCategorias
+        fieldKey="place_categories"
+        label="Categorías"
+        value={["vieja"]}
+        listaGuardada="lista_anterior"
+        onChange={onChange}
+        dict={{}}
+      />
+    );
+    expect(screen.getByText("Vieja")).toBeInTheDocument();
+    expect(screen.getByTestId("dropdown")).toHaveAttribute("data-value", "");
+    fireEvent.click(screen.getByText("elegir varias"));
+    expect(onChange).toHaveBeenCalledWith(
+      ["bodega", "cliente"],
+      "place_categories"
+    );
   });
 
   it("shows the picks of a multiple-choice list as removable badges", () => {
@@ -95,7 +166,7 @@ describe("CampoCategorias", () => {
     expect(elegidas).toHaveTextContent("Bodega");
     expect(elegidas).toHaveTextContent("Cliente");
     fireEvent.click(screen.getByLabelText("Quitar Bodega"));
-    expect(onChange).toHaveBeenCalledWith(["cliente"]);
+    expect(onChange).toHaveBeenCalledWith(["cliente"], "place_categories");
   });
 
   it("does not repeat a single pick under the dropdown", () => {
@@ -129,7 +200,10 @@ describe("CampoCategorias", () => {
     expect(dropdown).toHaveAttribute("data-value", "bodega");
     // a multiple-choice list sends several codes joined by comma
     fireEvent.click(screen.getByText("elegir varias"));
-    expect(onChange).toHaveBeenCalledWith(["bodega", "cliente"]);
+    expect(onChange).toHaveBeenCalledWith(
+      ["bodega", "cliente"],
+      "place_categories"
+    );
   });
 
   it("clears from inside the dropdown, with no × beside it", () => {
@@ -146,7 +220,7 @@ describe("CampoCategorias", () => {
     expect(screen.queryByLabelText("Quitar categorías")).toBeNull();
     // single-choice list: "Sin categoría"
     fireEvent.click(screen.getByRole("button", { name: "Sin categoría" }));
-    expect(onChange).toHaveBeenCalledWith([]);
+    expect(onChange).toHaveBeenCalledWith([], null);
   });
 
   it("names the clear option for a multiple-choice list", () => {

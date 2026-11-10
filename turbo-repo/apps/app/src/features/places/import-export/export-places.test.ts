@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   contenidoExport,
+  exportarGeoJson,
+  exportarKml,
   exportarCsv,
   formatosPara,
   nombreArchivoExport,
@@ -60,6 +62,31 @@ const trayecto: Trayecto = {
 };
 
 describe("export places", () => {
+  it("exports excluded polygon rings in every format", () => {
+    const place: Lugar = {
+      ...poligono,
+      polygon: [
+        [0, 0],
+        [0, 4],
+        [4, 4],
+        [4, 0],
+      ],
+      polygon_holes: [
+        [
+          [1, 1],
+          [1, 2],
+          [2, 2],
+          [2, 1],
+        ],
+      ],
+    };
+    expect(
+      JSON.parse(exportarGeoJson([place], [])).features[0].geometry.coordinates
+    ).toHaveLength(2);
+    expect(exportarKml([place], [])).toContain("<innerBoundaryIs>");
+    expect(exportarCsv([place])).toContain("(1 1, 2 1, 2 2, 1 2, 1 1)");
+  });
+
   it("preserves delimiter, quote and newline characters on CSV round-trip", () => {
     const name = 'Demo; "quoted"\nsite';
     const address = 'Demo address; suite "A"';

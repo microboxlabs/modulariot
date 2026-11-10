@@ -1,6 +1,8 @@
 import * as matchers from "@testing-library/jest-dom/matchers";
 import type { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
 import { expect, vi } from "vitest";
+import { usarDiccionarioDeRespaldo } from "@/features/places/i18n/places-i18n";
+import esDictionary from "@/lang/es.json";
 
 // jest-dom's bundled augmentation targets the pre-Vitest 5 Assertion interface.
 declare module "vitest" {
@@ -52,3 +54,7 @@ Object.defineProperty(window, "scrollTo", {
   writable: true,
   value: vi.fn(),
 });
+
+// Lugares sin proveedor de diccionario (pruebas de componentes y funciones
+// sueltas): sus textos salen en español, como antes de traducirlos.
+usarDiccionarioDeRespaldo(esDictionary);

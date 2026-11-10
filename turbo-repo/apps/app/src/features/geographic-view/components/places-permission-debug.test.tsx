@@ -113,8 +113,25 @@ describe("places permission debug", () => {
     ).toBe("activo");
   });
 
+  it("lets Lugares › Mantenedor edit places", async () => {
+    permisos.lista = ["places:view", "places:write"];
+    await renderDebug("false");
+    expect(screen.getByTestId("lugares")).toHaveTextContent("si");
+  });
+
+  it("does not let a viewer, or another module's maintainer, edit places", async () => {
+    permisos.lista = [
+      "places:view",
+      "controltower:view",
+      "controltower:symptom.edit",
+      "controltower:places.edit",
+    ];
+    await renderDebug("false");
+    expect(screen.getByTestId("lugares")).toHaveTextContent("no");
+  });
+
   it("keeps Lugares open, read-only, when the permission is forced off", async () => {
-    permisos.lista = ["controltower:places.edit"];
+    permisos.lista = ["places:write"];
     await renderDebug();
     fireEvent.click(screen.getByRole("button", { name: "abrir lugares" }));
     expect(screen.getByTestId("lugares")).toHaveTextContent("si");

@@ -6,7 +6,6 @@ import { SectionHeader } from "@/features/layout/components/section-header/secti
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import ClientMapStarter from "@/features/geographic-view/components/client-map-starter";
 import { GeographicProfileProvider } from "@/features/geographic-view/profiles/geographic-profile-context";
-import ProfileDropdown from "@/features/geographic-view/profiles/profile-dropdown";
 
 export default function GeographicViewShell({
   lang,
@@ -24,6 +23,7 @@ export default function GeographicViewShell({
           filterDict={dict as I18nRecord}
           leftContent={
             <div className="flex items-center">
+              {/* el selector de perfil queda oculto: solo hay uno (admin) */}
               <Breadcrumb
                 path={["mission_control", "geographic_view"]}
                 lang={lang}
@@ -31,7 +31,6 @@ export default function GeographicViewShell({
                 dict={breadcrumbDict}
                 disableLinks
               />
-              <ProfileDropdown dict={dict} />
             </div>
           }
         />

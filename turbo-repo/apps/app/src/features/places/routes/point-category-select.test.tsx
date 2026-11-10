@@ -60,9 +60,9 @@ describe("PointCategorySelect", () => {
     expect(campo).toHaveAttribute("data-label", "Categoría de Parada 1");
     expect(campo).toHaveAttribute("data-value", "carga");
     fireEvent.click(screen.getByText("varias"));
-    expect(onChange).toHaveBeenCalledWith("carga,descarga");
+    expect(onChange).toHaveBeenCalledWith("carga,descarga", undefined);
     fireEvent.click(screen.getByText("ninguna"));
-    expect(onChange).toHaveBeenLastCalledWith(undefined);
+    expect(onChange).toHaveBeenLastCalledWith(undefined, undefined);
   });
 
   it("names the pick, or the first plus how many more", () => {

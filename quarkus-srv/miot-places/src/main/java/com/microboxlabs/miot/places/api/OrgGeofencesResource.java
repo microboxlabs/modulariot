@@ -58,8 +58,8 @@ public class OrgGeofencesResource extends OrgResourceSupport {
 
     @GET
     @Operation(operationId = "listGeofences", summary = "The organization's geofences with their shapes")
-    @PermissionsAllowed(value = {PlacesAccessCatalog.VIEW, PlacesAccessCatalog.CONTROL_TOWER_VIEW},
-            permission = OrgPermission.class, params = "organizationId")
+    @PermissionsAllowed(value = PlacesAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> list(@PathParam(ORG) String organizationId, @QueryParam("q") String q,
             @QueryParam("size") String size, @QueryParam("page") String page) {
         String tenant = tenantCode(organizationId);

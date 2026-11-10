@@ -13,6 +13,7 @@ import {
 import { esDeStreamhub } from "../data/streamhub-geofences";
 import { parentPlaceId } from "../geofences/inner-geofences";
 import { colorDeLugar, iconoDeLugar, type Lugar } from "../places.types";
+import { usePlacesT, type TextosLugares } from "../i18n/places-i18n";
 
 function gruposLugares(lugares: Lugar[]): { padre: Lugar; hijos: Lugar[] }[] {
   const ids = new Set(lugares.map((l) => l.place_id));
@@ -34,21 +35,23 @@ function gruposLugares(lugares: Lugar[]): { padre: Lugar; hijos: Lugar[] }[] {
   }));
 }
 
-function textoInteriores(nHijos: number): string {
+function textoInteriores(t: TextosLugares, nHijos: number): string {
   if (nHijos === 0) return "";
-  return nHijos === 1 ? " · 1 interior" : ` · ${nHijos} interiores`;
+  return nHijos === 1
+    ? ` · ${t("catalog.inners_one")}`
+    : ` · ${t("catalog.inners_many", { n: nHijos })}`;
 }
 
-function detallePadre(l: Lugar, nHijos: number): string {
-  const cat = l.category ?? "sin categoría";
-  const interiores = textoInteriores(nHijos);
+function detallePadre(t: TextosLugares, l: Lugar, nHijos: number): string {
+  const cat = l.category ?? t("common.no_category");
+  const interiores = textoInteriores(t, nHijos);
   const dir = l.address ? ` · ${l.address}` : "";
   return `${cat}${interiores}${dir}`;
 }
 
-function vacioLugares(busqueda: string): string {
-  if (busqueda) return `Sin lugares para «${busqueda}».`;
-  return "Sin lugares — crea el primero.";
+function vacioLugares(t: TextosLugares, busqueda: string): string {
+  if (busqueda) return t("catalog.no_places_for", { busqueda });
+  return t("catalog.no_places");
 }
 
 export default function PlaceList({
@@ -77,6 +80,7 @@ export default function PlaceList({
   /** Resalta la geocerca en el mapa (filas interiores). */
   onHover?: (placeId: string | null) => void;
 }>) {
+  const t = usePlacesT();
   const [plegados, setPlegados] = useState<Set<string>>(() => new Set());
 
   const plegar = (id: string) => {
@@ -105,12 +109,12 @@ export default function PlaceList({
   return (
     <ListSection
       seleccion={marcas && { ids: lugares.map((l) => l.place_id), marcas }}
-      titulo="Lugares"
+      titulo={t("catalog.places")}
       icono={
         <HiOutlineLocationMarker className="h-4 w-4 text-gray-500 dark:text-gray-400" />
       }
       total={lugares.length}
-      vacio={vacioLugares(busqueda)}
+      vacio={vacioLugares(t, busqueda)}
     >
       {gruposLugares(lugares).map(({ padre, hijos }) => {
         const plegado = plegados.has(padre.place_id);
@@ -161,12 +165,13 @@ function PlaceGroup({
   onEliminar?: (l: Lugar) => void;
   onHover?: (placeId: string | null) => void;
 }>) {
+  const t = usePlacesT();
   const plegarEste = () => onPlegar(padre.place_id);
   return (
     <li>
       <LugarRow
         lugar={padre}
-        detalle={detallePadre(padre, hijos.length)}
+        detalle={detallePadre(t, padre, hijos.length)}
         seleccionadoId={seleccionadoId}
         as="div"
         expandido={hijos.length > 0 ? !plegado : undefined}

@@ -10,13 +10,15 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The places module's permissions and roles.
+ * The places module's permissions and roles; access to Lugares is decided by these alone. A member holding neither
+ * role has no access: Lugares and the geofences on the map are hidden and the endpoints refuse them. Seeing the
+ * places is {@value #VIEWER}'s, editing them {@value #MAINTAINER}'s; an Admin or Owner holds both.
  *
  * <table>
  *   <caption>Roles</caption>
  *   <tr><th>Role</th><th>Permissions</th></tr>
  *   <tr><td>{@value #VIEWER}</td><td>{@value #VIEW}</td></tr>
- *   <tr><td>{@value #MAINTAINER}</td><td>+ {@value #GEOFENCE_WRITE}</td></tr>
+ *   <tr><td>{@value #MAINTAINER}</td><td>+ {@value #WRITE}</td></tr>
  * </table>
  */
 @ApplicationScoped
@@ -25,10 +27,10 @@ public class PlacesAccessCatalog implements AccessCatalog {
 
     public static final String MODULE = "places";
 
+    /** Seeing places (geofences, inner geofences, routes) and the organization's GPS geofences. */
     public static final String VIEW = "places:view";
-    /** Existing map readers retain read access without a new role assignment. */
-    public static final String CONTROL_TOWER_VIEW = "controltower:view";
-    public static final String GEOFENCE_WRITE = "places:geofence.write";
+    /** Creating, changing and deleting places (geofences, inner geofences, routes). */
+    public static final String WRITE = "places:write";
 
     public static final String VIEWER = "PLACES_VIEWER";
     public static final String MAINTAINER = "PLACES_MAINTAINER";
@@ -36,20 +38,19 @@ public class PlacesAccessCatalog implements AccessCatalog {
     @Override
     public List<PermissionDef> permissions() {
         return List.of(
-                PermissionDef.of(VIEW, "Ver lugares y geocercas", "View places and geofences"),
-                PermissionDef.of(GEOFENCE_WRITE, "Mantener geocercas", "Maintain geofences"));
+                PermissionDef.of(VIEW, "Ver lugares", "View places"),
+                PermissionDef.of(WRITE, "Editar lugares", "Edit places"));
     }
 
     @Override
     public List<RoleDef> roles() {
         return List.of(
                 RoleDef.of(VIEWER, MODULE, "Lector", "Viewer", Set.of(VIEW))
-                        .asLegacyDefault()
-                        .describedAs("Ve los lugares y sus geocercas sin cambiar nada.",
-                                "Sees places and their geofences without changing anything."),
-                RoleDef.of(MAINTAINER, MODULE, "Mantenedor", "Maintainer", Set.of(VIEW, GEOFENCE_WRITE))
-                        .describedAs("Además crea, cambia y elimina geocercas.",
-                                "Also creates, changes and deletes geofences."));
+                        .describedAs("Ve los lugares, también en el mapa: geocercas, geocercas internas y trayectos.",
+                                "Sees places, also on the map: geofences, inner geofences and routes."),
+                RoleDef.of(MAINTAINER, MODULE, "Mantenedor", "Maintainer", Set.of(VIEW, WRITE))
+                        .describedAs("Además crea, cambia y elimina geocercas, geocercas internas y trayectos.",
+                                "Also creates, changes and deletes geofences, inner geofences and routes."));
     }
 
     @Override

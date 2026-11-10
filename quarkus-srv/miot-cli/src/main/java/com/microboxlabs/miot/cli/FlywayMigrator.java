@@ -41,6 +41,9 @@ public class FlywayMigrator {
     @ConfigProperty(name = "miot.component.trips.enabled", defaultValue = "false")
     boolean tripsEnabled;
 
+    @ConfigProperty(name = "miot.component.places.enabled", defaultValue = "false")
+    boolean placesEnabled;
+
     @ConfigProperty(name = "quarkus.datasource.active", defaultValue = "true")
     boolean dataSourceActive;
 
@@ -57,7 +60,7 @@ public class FlywayMigrator {
         // Skip migration entirely when no DB-dependent component is active
         // to avoid connecting to (or validating against) a database that isn't needed.
         if (!fleetEnabled && !trackingEnabled && !integrationsEnabled
-                && !conversationalEnabled && !symptomsEnabled && !tripsEnabled) {
+                && !conversationalEnabled && !symptomsEnabled && !tripsEnabled && !placesEnabled) {
             LOG.debug("No DB-dependent components enabled — skipping Flyway");
             return;
         }
@@ -72,27 +75,7 @@ public class FlywayMigrator {
             return;
         }
 
-        List<String> locations = new ArrayList<>(baseLocations);
-
-        // trips reads miot_fleet's resources through FleetResources
-        if (fleetEnabled || tripsEnabled) {
-            locations.add("db/migration/fleet");
-        }
-        if (trackingEnabled) {
-            locations.add("db/migration/tracking");
-        }
-        if (integrationsEnabled) {
-            locations.add("db/migration/integrations");
-        }
-        if (conversationalEnabled) {
-            locations.add("db/migration/conversational");
-        }
-        if (symptomsEnabled) {
-            locations.add("db/migration/symptoms");
-        }
-        if (tripsEnabled) {
-            locations.add("db/migration/trips");
-        }
+        List<String> locations = migrationLocations();
 
         LOG.infof("Flyway locations: %s", locations);
 
@@ -120,5 +103,35 @@ public class FlywayMigrator {
                 .load();
 
         flyway.migrate();
+    }
+
+    /** All enabled components share miot_core.flyway_schema_history; disabled locations must be absent. */
+    List<String> migrationLocations() {
+        List<String> locations = new ArrayList<>(baseLocations);
+
+        // trips reads miot_fleet's resources through FleetResources
+        if (fleetEnabled || tripsEnabled) {
+            locations.add("db/migration/fleet");
+        }
+        if (trackingEnabled) {
+            locations.add("db/migration/tracking");
+        }
+        if (integrationsEnabled) {
+            locations.add("db/migration/integrations");
+        }
+        if (conversationalEnabled) {
+            locations.add("db/migration/conversational");
+        }
+        if (symptomsEnabled) {
+            locations.add("db/migration/symptoms");
+        }
+        if (tripsEnabled) {
+            locations.add("db/migration/trips");
+        }
+        if (placesEnabled) {
+            locations.add("db/migration/places");
+        }
+
+        return locations;
     }
 }

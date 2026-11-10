@@ -19,8 +19,18 @@ import {
   fetchDispatchTargets,
   upsertBinding,
 } from "../components/lane/review-bindings-data-service";
+import { isPlatformScope } from "@/features/common/platform-scope";
 
 const BINDINGS_KEY = "integration-event-bindings";
+
+/** Whether the user may read and change review bindings: the same rule as `requireOrganizationOwner`. */
+export function canConfigureReviews(
+  org: { readonly slug: string; readonly role: string } | null | undefined
+): boolean {
+  if (!org) return false;
+  if (org.role === "OWNER") return true;
+  return isPlatformScope(org.slug) && org.role === "PLATFORM_OWNER";
+}
 const TARGETS_KEY = "integration-dispatch-targets";
 
 /**
@@ -39,7 +49,13 @@ const TARGETS_KEY = "integration-dispatch-targets";
  * tasks, saving writes one binding per channel per task, so every task fires on its
  * own completion rather than one of them silently going unbound.
  */
-export function useReviewBindings(orgSlug: string | null) {
+export function useReviewBindings(
+  org: { readonly slug: string; readonly role: string } | null | undefined
+) {
+  // Both feeds are organization-owner routes. Anyone else gets a 403, so the
+  // board does not ask for them and hides the settings.
+  const canConfigure = canConfigureReviews(org);
+  const orgSlug = canConfigure && org ? org.slug : null;
   const {
     data: bindings,
     error,
@@ -116,6 +132,7 @@ export function useReviewBindings(orgSlug: string | null) {
   );
 
   return {
+    canConfigure,
     bindings: allBindings,
     targets: targets ?? [],
     bindingsForBoard,

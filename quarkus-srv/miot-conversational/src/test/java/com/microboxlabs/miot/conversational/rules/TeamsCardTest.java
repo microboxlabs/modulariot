@@ -132,6 +132,21 @@ class TeamsCardTest {
     }
 
     @Test
+    void onlyHttpsImagesAndHttpButtonsAreDrawn() {
+        Map<String, Object> d = data();
+        d.put("photos", List.of(Map.of("name", "a", "url", "javascript:alert(1)"),
+                Map.of("name", "b", "url", "http://files.example.com/b"),
+                Map.of("name", "c", "url", "https://files.example.com/c")));
+        d.put("link", "javascript:alert(1)");
+        JsonNode content = draw(CARD, d).at("/attachments/0/content");
+        JsonNode images = content.at("/body/3/columns/0/items");
+        assertEquals(2, images.size());
+        assertEquals("Photo 1: c", images.get(0).get("text").asText());
+        assertEquals("https://files.example.com/c", images.get(1).get("url").asText());
+        assertFalse(content.has("actions"));
+    }
+
+    @Test
     void nullEntriesAreDropped() throws Exception {
         Teams read = JSON.readValue("{\"title\": \"T\", \"facts\": [null], \"notes\": [null, \"n\"]}",
                 Teams.class);

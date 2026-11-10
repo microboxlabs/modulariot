@@ -14,10 +14,10 @@ import java.util.Map;
  *   <li>title: a heading;</li>
  *   <li>subtitle and caption: a bold line and a grey line under it;</li>
  *   <li>text: the message;</li>
- *   <li>images: a label and the image for each {@code {name, url}} in the data field;</li>
+ *   <li>images: a label and the image for each {@code {name, url}} in the data field whose URL is https;</li>
  *   <li>facts: one fact set; an optional fact whose value is empty or {@code -} is left out;</li>
  *   <li>notes: a blank line, then each note in grey;</li>
- *   <li>actions: an Open URL button each.</li>
+ *   <li>actions: an Open URL button each, when its URL is http or https.</li>
  * </ul>
  */
 public final class TeamsCard {
@@ -181,12 +181,14 @@ public final class TeamsCard {
         }
         int n = 0;
         for (Object item : list) {
-            if (!(item instanceof Map<?, ?> m) || m.get("url") == null || String.valueOf(m.get("url")).isBlank()) {
+            String url = item instanceof Map<?, ?> m && m.get("url") != null ? String.valueOf(m.get("url")).strip()
+                    : "";
+            if (!url.regionMatches(true, 0, "https://", 0, 8)) {
                 continue;
             }
             n++;
-            String name = m.get("name") == null ? "" : String.valueOf(m.get("name"));
-            String url = String.valueOf(m.get("url"));
+            Object rawName = ((Map<?, ?>) item).get("name");
+            String name = rawName == null ? "" : String.valueOf(rawName);
             Map<String, String> itemVars = new LinkedHashMap<>(vars);
             itemVars.put("n", String.valueOf(n));
             itemVars.put("name", name);
@@ -225,7 +227,7 @@ public final class TeamsCard {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Teams.Action a : card.actions()) {
             String url = render(a.url(), vars);
-            if (url.isEmpty()) {
+            if (!url.regionMatches(true, 0, "https://", 0, 8) && !url.regionMatches(true, 0, "http://", 0, 7)) {
                 continue;
             }
             Map<String, Object> action = new LinkedHashMap<>();

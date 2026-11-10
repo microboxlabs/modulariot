@@ -92,4 +92,20 @@ describe("TeamsCardPreview", () => {
     expect(screen.getByText("Salida: 08:00")).toBeTruthy();
     expect(screen.getByText("Ver")).toBeTruthy();
   });
+
+  it("leaves out an optional fact and a button whose variables have no example", () => {
+    render(
+      <TeamsCardPreview
+        card={{
+          title: "Pedido",
+          facts: [{ title: "Motivo", value: "{{reason}}", optional: true }],
+          actions: [{ title: "Ver", url: "{{link}}" }],
+        }}
+        values={{}}
+        d={{ previewTeamsLabel: "Tarjeta" }}
+      />
+    );
+    expect(screen.queryByText("Motivo")).toBeNull();
+    expect(screen.queryByText("Ver")).toBeNull();
+  });
 });

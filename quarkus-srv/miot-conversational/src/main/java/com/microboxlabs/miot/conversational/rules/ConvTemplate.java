@@ -95,7 +95,7 @@ public record ConvTemplate(String id, String tenantCode, String key, String name
             }
         }
 
-        /** A button that opens a URL; left out when the URL is empty. */
+        /** A button that opens a URL; left out when the URL is not http or https. */
         public record Action(String title, String url) {
         }
     }

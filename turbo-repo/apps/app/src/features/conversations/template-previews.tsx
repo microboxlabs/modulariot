@@ -20,6 +20,7 @@ import type {
   TeamsVariant,
   TemplateBody,
 } from "./conversations-types";
+import { fillText } from "./rule-model";
 import WhatsAppText, { filled } from "./whatsapp-text";
 
 // Meta has more button types (COPY_CODE, FLOW, OTP…); those show without an icon.
@@ -239,15 +240,24 @@ export function TeamsCardPreview({
 }>) {
   const fill = (text: string | null | undefined) =>
     text ? filled(text, values).trim() : "";
+  // What the card gets: a variable without a value is empty, as the backend renders it.
+  const sent = (text: string | null | undefined) =>
+    text
+      ? fillText(text, values)
+          .map((p) => ("text" in p ? p.text : (p.value ?? "")))
+          .join("")
+          .trim()
+      : "";
   const facts = (card.facts ?? [])
-    .map((f) => ({
-      title: fill(f.title),
-      value: fill(f.value),
-      optional: f.optional,
-    }))
-    .filter((f) => !f.optional || (f.value !== "" && f.value !== "-"));
-  const notes = (card.notes ?? []).map(fill).filter(Boolean);
-  const actions = (card.actions ?? []).filter((a) => fill(a.url));
+    .filter((f) => {
+      const value = sent(f.value);
+      return !f.optional || (value !== "" && value !== "-");
+    })
+    .map((f) => ({ title: fill(f.title), value: fill(f.value) }));
+  const notes = (card.notes ?? []).filter((n) => sent(n)).map(fill);
+  const actions = (card.actions ?? []).filter((a) =>
+    /^https?:\/\//i.test(sent(a.url))
+  );
   return (
     <figure
       aria-label={tr("previewTeamsLabel", d)}

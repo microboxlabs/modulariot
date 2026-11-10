@@ -243,8 +243,10 @@ final class RulesFixture {
                                 store.conversations.messageRepository), sendQueue), JSON, clock);
     }
 
+    final InMemoryExternalEvents externalStore = new InMemoryExternalEvents();
+    final ExternalEvents externalEvents = new ExternalEvents(externalStore, () -> List.of(catalog), clock);
     final RulesService service = new RulesService(store.ruleStore, store.templateStore, () -> List.of(catalog),
-            () -> List.of(participants), clock);
+            () -> List.of(participants), clock, (tenant, channel, id) -> true, externalEvents::views);
     final RuleSimulator simulator = new RuleSimulator(service, store.templateStore, () -> List.of(participants),
             clock);
     final TemplatesService templates = new TemplatesService(store.ruleStore, store.templateStore, clock);

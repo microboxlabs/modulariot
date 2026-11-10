@@ -40,11 +40,18 @@ public class TemplatesService {
     }
 
     public record TemplateView(String id, String key, String name, String baseText, ConvTemplate.WhatsApp whatsapp,
-            ConvTemplate.Email email, String version, Instant updatedAt, String updatedBy, List<RuleRef> usedBy) {
+            ConvTemplate.Email email, @JsonInclude(JsonInclude.Include.NON_NULL) ConvTemplate.Teams teams,
+            String version, Instant updatedAt, String updatedBy, List<RuleRef> usedBy) {
     }
 
+    /** {@code teams} null saves the template without a Teams card. */
     public record TemplateRequest(String name, String baseText, ConvTemplate.WhatsApp whatsapp,
-            ConvTemplate.Email email) {
+            ConvTemplate.Email email, ConvTemplate.Teams teams) {
+
+        public TemplateRequest(String name, String baseText, ConvTemplate.WhatsApp whatsapp,
+                ConvTemplate.Email email) {
+            this(name, baseText, whatsapp, email, null);
+        }
     }
 
     /** A rule and the template keys its version in force and its draft use. */
@@ -133,19 +140,25 @@ public class TemplatesService {
             // Fails here, not on the first send, when the HTML or the subject does not parse.
             NotificationMail.body(body.email().subject(), body.email().html(), Map.of());
         }
+        if (body.teams() != null) {
+            List<String> problems = TeamsCard.problems(body.teams());
+            if (!problems.isEmpty()) {
+                throw new IllegalArgumentException(String.join("; ", problems));
+            }
+        }
         requireCallPermissionMarker(key, body);
         Instant now = clock.instant();
         Optional<ConvTemplate> existing = templates.find(PLATFORM_TENANT, key);
         ConvTemplate next = new ConvTemplate(existing.map(ConvTemplate::id).orElse(UUID.randomUUID().toString()),
                 PLATFORM_TENANT, key, body.name().trim(), body.baseText(), body.whatsapp(), body.email(),
-                existing.map(ConvTemplate::createdAt).orElse(now), now, actor, RuleBump.FIRST);
+                body.teams(), existing.map(ConvTemplate::createdAt).orElse(now), now, actor, RuleBump.FIRST);
         if (existing.isPresent()) {
             RuleBump bump = TemplateBump.between(existing.get(), next);
             if (bump == null) {
                 return platformGet(key);
             }
             next = new ConvTemplate(next.id(), next.tenantCode(), key, next.name(), next.baseText(), next.whatsapp(),
-                    next.email(), next.createdAt(), now, actor, bump.next(existing.get().version()));
+                    next.email(), next.teams(), next.createdAt(), now, actor, bump.next(existing.get().version()));
         }
         templates.upsert(next, existing.map(ConvTemplate::version).orElse(null))
                 .orElseThrow(() -> new IllegalStateException(
@@ -192,8 +205,8 @@ public class TemplatesService {
     private static TemplateView view(ConvTemplate t, List<Usage> usage) {
         List<RuleRef> usedBy = usage.stream().filter(u -> u.templateKeys().contains(t.key())).map(Usage::rule)
                 .toList();
-        return new TemplateView(t.id(), t.key(), t.name(), t.baseText(), t.whatsapp(), t.email(), t.version(),
-                t.updatedAt(), t.updatedBy(), usedBy);
+        return new TemplateView(t.id(), t.key(), t.name(), t.baseText(), t.whatsapp(), t.email(), t.teams(),
+                t.version(), t.updatedAt(), t.updatedBy(), usedBy);
     }
 
     private static boolean blank(String s) {

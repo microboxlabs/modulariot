@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.rules;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.microboxlabs.miot.conversational.rules.RuleSpec.Step;
 import com.microboxlabs.miot.conversational.rules.RuleSpecValidator.Finding;
 import com.microboxlabs.miot.conversational.rules.store.TemplateStore;
@@ -40,7 +41,15 @@ public class RuleSimulator {
     public record To(String address, String channel, String name) {
     }
 
-    public record SimulatedMessage(int step, Instant at, String channel, To to, String text) {
+    /**
+     * @param body a connection step: the request body its connection would receive; null otherwise
+     */
+    public record SimulatedMessage(int step, Instant at, String channel, To to, String text,
+            @JsonInclude(JsonInclude.Include.NON_NULL) Map<String, Object> body) {
+
+        public SimulatedMessage(int step, Instant at, String channel, To to, String text) {
+            this(step, at, channel, to, text, null);
+        }
     }
 
     public record Simulation(boolean matches, List<Recipient> recipients, List<SimulatedMessage> messages,
@@ -86,6 +95,7 @@ public class RuleSimulator {
             return new Simulation(false, List.of(), List.of(), findings);
         }
         Audiences audiences = new Audiences(resolvers.get(), directories.get());
+        Rule rule = rules.find(tenantCode, id);
         Map<String, Recipient> recipients = new LinkedHashMap<>();
         List<SimulatedMessage> messages = new ArrayList<>();
         List<Step> steps = spec.steps();
@@ -98,11 +108,26 @@ public class RuleSimulator {
             int index = i;
             Instant stepAt = t;
             plan.messages().forEach(m -> messages.add(new SimulatedMessage(index, stepAt, m.channel(),
-                    new To(m.to().address(), m.to().channel(), m.to().name()), m.text())));
+                    new To(m.to().address(), m.to().channel(), m.to().name()), m.text(),
+                    body(m, event, rule, index, version))));
             int after = i + 1 < steps.size() ? steps.get(i + 1).afterMinutes() : 0;
             t = t.plus(Duration.ofMinutes((long) step.waitMinutes() + after));
         }
         return new Simulation(true, List.copyOf(recipients.values()), messages, findings);
+    }
+
+    /** What a connection step's connection would receive; the run is a test run of the simulation. */
+    private static Map<String, Object> body(StepMessages.Planned m, StoredEvent event, Rule rule, int step,
+            RuleVersion version) {
+        Optional<ConnectionChannel> channel = ConnectionChannel.of(m.channel());
+        if (channel.isEmpty()) {
+            return null;
+        }
+        Run run = new Run("simulation", event.tenantCode(), rule.id(),
+                version == null ? null : version.version(), event.id(), event.contextKind(), event.contextKey(),
+                true, Run.Status.WAITING, step, event.at(), null, event.at(), event.at());
+        return channel.get().body(new ConnectionChannel.Delivery(event, run, rule, m.subject(), m.text(),
+                m.template()));
     }
 
     private StoredEvent sampleEvent(String tenantCode, SampleEvent sample) {

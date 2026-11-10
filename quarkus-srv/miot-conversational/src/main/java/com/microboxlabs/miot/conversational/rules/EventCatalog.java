@@ -38,9 +38,16 @@ public final class EventCatalog {
             LocalDateTime.class, LocalDate.class);
 
     private final List<EventTypeCatalog> catalogs;
+    private final List<EventTypeView> external;
 
     public EventCatalog(List<EventTypeCatalog> catalogs) {
+        this(catalogs, List.of());
+    }
+
+    /** @param external the organization's {@link ExternalEventType}s, listed after the in-process types */
+    public EventCatalog(List<EventTypeCatalog> catalogs, List<EventTypeView> external) {
         this.catalogs = List.copyOf(catalogs);
+        this.external = List.copyOf(external);
     }
 
     public List<EventTypeView> types() {
@@ -60,6 +67,9 @@ public final class EventCatalog {
                         variables(fields)));
             }
         }
+        if (!platform) {
+            out.addAll(external);
+        }
         return out;
     }
 
@@ -69,6 +79,7 @@ public final class EventCatalog {
         for (EventTypeCatalog c : catalogs) {
             c.types().forEach(t -> out.put(t.type(), c.contextKind()));
         }
+        external.forEach(t -> out.putIfAbsent(t.type(), t.contextKind()));
         return out;
     }
 

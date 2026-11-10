@@ -149,6 +149,16 @@ public class RulesEngine {
         this.clock = clock;
     }
 
+    /** Whether events are stored and start runs ({@code miot.conversational.rules.events.enabled}). */
+    public boolean acceptsEvents() {
+        return events;
+    }
+
+    /** The stored event with this id. */
+    public Optional<StoredEvent> event(String id) {
+        return runs.event(id);
+    }
+
     void onEvent(@ObservesAsync OperationalEvent event) {
         if (!events) {
             return;
@@ -194,8 +204,17 @@ public class RulesEngine {
 
     /** Stores the event, cancels what it closes, and returns the runs it started. */
     public List<Run> accept(OperationalEvent event) {
+        return accept(event, UUID.randomUUID().toString());
+    }
+
+    /**
+     * {@link #accept(OperationalEvent)} with the stored event's id. A producer that may deliver an event twice
+     * derives the id from its own key and checks {@link RunStore#event} first: the id is the primary key, so a
+     * second copy fails to store instead of starting the runs again.
+     */
+    public List<Run> accept(OperationalEvent event, String eventId) {
         Instant now = clock.instant();
-        StoredEvent stored = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), event.tenantCode(),
+        StoredEvent stored = runs.saveEvent(new StoredEvent(eventId, event.tenantCode(),
                 event.type(), event.source(), event.context().kind(), event.context().key(), data(event.data()),
                 event.test(), event.at(), now));
         if (CASE_CLOSED.equals(stored.type()) || CASE_IGNORED.equals(stored.type())) {
@@ -387,7 +406,8 @@ public class RulesEngine {
         String connection = m.to().address();
         Rule rule = rules.find(run.tenantCode(), run.ruleId()).orElse(null);
         String name = channels.name(run.tenantCode(), connection).orElse(null);
-        ConnectionChannel.Delivery delivery = new ConnectionChannel.Delivery(event, run, rule, m.subject(), m.text());
+        ConnectionChannel.Delivery delivery = new ConnectionChannel.Delivery(event, run, rule, m.subject(), m.text(),
+                m.template());
         ContextMessage message = new ContextMessage(kind, run.contextKey(), connection, name, null, null,
                 m.template() == null ? null : m.template().key(), null, Map.of(), m.subject(),
                 delivery.textOrSummary(), run.id(), run.step());

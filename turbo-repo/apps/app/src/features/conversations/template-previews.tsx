@@ -17,6 +17,7 @@ import type {
   EmailPreview as EmailPreviewData,
   EmailVariant,
   MetaTemplate,
+  TeamsVariant,
   TemplateBody,
 } from "./conversations-types";
 import WhatsAppText, { filled } from "./whatsapp-text";
@@ -226,7 +227,90 @@ export function PlainPreview({
   );
 }
 
-type PreviewTab = "whatsapp" | "email" | "text";
+/** The template's Teams card with the example values, as Teams draws it: title, byline, text, facts, notes, buttons. */
+export function TeamsCardPreview({
+  card,
+  values,
+  d,
+}: Readonly<{
+  card: TeamsVariant;
+  values: Record<string, string>;
+  d: I18nRecord;
+}>) {
+  const fill = (text: string | null | undefined) =>
+    text ? filled(text, values).trim() : "";
+  const facts = (card.facts ?? [])
+    .map((f) => ({
+      title: fill(f.title),
+      value: fill(f.value),
+      optional: f.optional,
+    }))
+    .filter((f) => !f.optional || (f.value !== "" && f.value !== "-"));
+  const notes = (card.notes ?? []).map(fill).filter(Boolean);
+  const actions = (card.actions ?? []).filter((a) => fill(a.url));
+  return (
+    <figure
+      aria-label={tr("previewTeamsLabel", d)}
+      className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+    >
+      {fill(card.title) && (
+        <p className="text-base font-semibold">{fill(card.title)}</p>
+      )}
+      {(fill(card.subtitle) || fill(card.caption)) && (
+        <div>
+          {fill(card.subtitle) && (
+            <p className="font-semibold">{fill(card.subtitle)}</p>
+          )}
+          {fill(card.caption) && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {fill(card.caption)}
+            </p>
+          )}
+        </div>
+      )}
+      {fill(card.text) && (
+        <p className="whitespace-pre-wrap break-words">{fill(card.text)}</p>
+      )}
+      {card.images?.field && (
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {tr("previewTeamsImages", d, { field: card.images.field })}
+        </p>
+      )}
+      {facts.length > 0 && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+          {facts.map((f, i) => (
+            <div key={`${f.title}-${i}`} className="contents">
+              <dt className="font-semibold">{f.title}</dt>
+              <dd className="break-words">{f.value || "—"}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {notes.map((n, i) => (
+        <p
+          key={`note-${i}`}
+          className="text-xs text-gray-500 dark:text-gray-400"
+        >
+          {n}
+        </p>
+      ))}
+      {actions.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {actions.map((a, i) => (
+            <span
+              key={`${a.title}-${i}`}
+              className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium dark:border-gray-600"
+            >
+              {fill(a.title)}
+            </span>
+          ))}
+        </div>
+      )}
+    </figure>
+  );
+}
+
+type PreviewTab = "whatsapp" | "email" | "teams" | "text";
 
 /** What Slack, Teams and webhooks send: the short text, else the email's text. */
 export function chatText(
@@ -254,6 +338,7 @@ export function TemplatePreviewPanel({
   const tabs: PreviewTab[] = [
     ...(body.whatsapp ? (["whatsapp"] as const) : []),
     ...(body.email ? (["email"] as const) : []),
+    ...(body.teams ? (["teams"] as const) : []),
     "text",
   ];
   const [picked, setPicked] = useState<PreviewTab>(tabs[0]);
@@ -261,6 +346,7 @@ export function TemplatePreviewPanel({
   const label: Record<PreviewTab, string> = {
     whatsapp: tr("channelWhatsapp", d),
     email: tr("channelEmail", d),
+    teams: tr("channelTeams", d),
     text: tr("previewTextTab", d),
   };
   return (
@@ -292,6 +378,9 @@ export function TemplatePreviewPanel({
       )}
       {tab === "email" && (
         <EmailPreview preview={email} to={values.nombre ?? "—"} d={d} />
+      )}
+      {tab === "teams" && body.teams && (
+        <TeamsCardPreview card={body.teams} values={values} d={d} />
       )}
       {tab === "text" && (
         <>

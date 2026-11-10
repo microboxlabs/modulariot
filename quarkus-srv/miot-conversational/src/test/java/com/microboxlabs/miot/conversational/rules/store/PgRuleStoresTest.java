@@ -11,6 +11,8 @@ import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
 import com.microboxlabs.miot.conversational.persistence.MessageRepository;
 import com.microboxlabs.miot.conversational.rules.ConvTemplate;
+import com.microboxlabs.miot.conversational.rules.EventCatalog;
+import com.microboxlabs.miot.conversational.rules.ExternalEventType;
 import com.microboxlabs.miot.conversational.rules.Rule;
 import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RuleVersion;
@@ -57,7 +59,8 @@ class PgRuleStoresTest {
             "V0.10.2__platform_message_templates.sql", "V0.11.0__connection_channel_messages.sql",
             "V0.11.1__whatsapp_outbound_by_address.sql",
             // This constraint change is independent of 0.11.3, which needs the integrations schema.
-            "V0.11.4__trip_conversations.sql", "V0.11.5__run_invocations.sql");
+            "V0.11.4__trip_conversations.sql", "V0.11.5__run_invocations.sql",
+            "V0.11.10__external_events_and_teams_cards.sql");
     private static final Instant T0 = Instant.parse("2026-10-23T12:00:00Z");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -67,6 +70,7 @@ class PgRuleStoresTest {
     private final PgRuleStore rules = new PgRuleStore(() -> pool);
     private final PgTemplateStore templates = new PgTemplateStore(() -> pool);
     private final PgRunStore runs = new PgRunStore(() -> pool);
+    private final PgExternalEventStore external = new PgExternalEventStore(() -> pool);
 
     @BeforeAll
     static void migrate() throws IOException {
@@ -548,5 +552,44 @@ class PgRuleStoresTest {
         var rows = pool.preparedQuery((String) f.get(null)).execute(Tuple.of(tenant, "+56900000000"))
                 .await().atMost(WAIT).iterator();
         return rows.hasNext() ? rows.next().getUUID("run_id").toString() : null;
+    }
+
+    @Test
+    void aTemplatesTeamsCardIsStoredAndReadBack() {
+        String tenant = "test-" + UUID.randomUUID();
+        ConvTemplate.Teams card = new ConvTemplate.Teams("Pedido {{order}}", "{{author}}", "Creado {{created}}",
+                "Salió", new ConvTemplate.Teams.Images("photos", "Foto {{n}}"),
+                List.of(new ConvTemplate.Teams.Fact("Motivo", "{{reason}}", true)), List.of("{{departure}}"),
+                List.of(new ConvTemplate.Teams.Action("Ver", "{{link}}")));
+        templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "order", "Pedido", "Pedido",
+                null, null, card, T0, T0, "owner@example.com", "0.1.0"), null).orElseThrow();
+        assertEquals(card, templates.find(tenant, "order").orElseThrow().teams());
+        templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "order", "Pedido", "Pedido",
+                null, null, T0, T0, "owner@example.com", "1.0.0"), "0.1.0").orElseThrow();
+        assertNull(templates.find(tenant, "order").orElseThrow().teams());
+    }
+
+    @Test
+    void aSourcesDeclarationReplacesOnlyItsTypes() {
+        String tenant = "test-" + UUID.randomUUID();
+        EventCatalog.Field order = new EventCatalog.Field("order", "Pedido", null, "string");
+        external.replace(tenant, "erp", List.of(
+                new ExternalEventType(tenant, "erp", "erp.order.shipped", "service", "Shipped", List.of(order), T0),
+                new ExternalEventType(tenant, "erp", "erp.order.cancelled", "service", null, List.of(), T0)));
+        external.replace(tenant, "crm", List.of(
+                new ExternalEventType(tenant, "crm", "crm.lead.won", null, null, List.of(), T0)));
+        external.replace(tenant, "erp", List.of(
+                new ExternalEventType(tenant, "erp", "erp.order.shipped", "trip", "v2", List.of(order), T0)));
+
+        List<ExternalEventType> types = external.list(tenant);
+        assertEquals(List.of("crm.lead.won", "erp.order.shipped"), types.stream().map(ExternalEventType::type)
+                .toList());
+        ExternalEventType shipped = types.get(1);
+        assertEquals("trip", shipped.contextKind());
+        assertEquals("v2", shipped.description());
+        assertEquals(List.of(order), shipped.fields());
+        assertTrue(external.list("other-" + tenant).isEmpty());
+        external.replace(tenant, "erp", List.of());
+        assertEquals(List.of("crm.lead.won"), external.list(tenant).stream().map(ExternalEventType::type).toList());
     }
 }

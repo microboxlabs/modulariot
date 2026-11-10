@@ -5152,6 +5152,8 @@
         "previewEmpty": "Escribe el mensaje para verlo aquí.",
         "previewNoSubject": "(sin asunto)",
         "previewTo": "Para: {name}",
+        "previewTeamsLabel": "Vista previa de la tarjeta de Teams",
+        "previewTeamsImages": "Más las imágenes de {field}, si el evento trae.",
         "previewTextTab": "Texto",
         "previewTextHint": "Lo que reciben Slack, Teams y los webhooks, y lo que guarda el historial.",
         "metaSubmitTitle": "Enviar a revisión de Meta",

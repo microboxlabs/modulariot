@@ -204,6 +204,7 @@ export function changedFields(
   if (body.baseText !== stored.baseText) out.push("baseText");
   if (!same(body.whatsapp, stored.whatsapp)) out.push("whatsapp");
   if (!same(body.email, stored.email)) out.push("email");
+  if (!same(body.teams, stored.teams)) out.push("teams");
   return out;
 }
 

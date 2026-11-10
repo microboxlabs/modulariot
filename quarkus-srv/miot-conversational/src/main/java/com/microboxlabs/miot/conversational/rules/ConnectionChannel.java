@@ -17,7 +17,8 @@ import java.util.Optional;
  * <ul>
  *   <li>{@code webhook}: the event, the rule, the run, the template's title and text, and the data.</li>
  *   <li>{@code slack}: an incoming-webhook message, {@code {"text": "*title*\ntext"}}.</li>
- *   <li>{@code teams}: a Workflows incoming-webhook message with one Adaptive Card.</li>
+ *   <li>{@code teams}: a Workflows incoming-webhook message with one Adaptive Card: the template's
+ *       {@link ConvTemplate.Teams} card ({@link TeamsCard}), else the title and the text.</li>
  * </ul>
  */
 public enum ConnectionChannel {
@@ -63,6 +64,10 @@ public enum ConnectionChannel {
     TEAMS("teams", "Teams de comunicaciones") {
         @Override
         public Map<String, Object> body(Delivery d) {
+            if (d.template() != null && d.template().teams() != null) {
+                return TeamsCard.body(d.template().teams(),
+                        TemplateVariables.of(d.event().data(), d.event().at(), null), d.event().data());
+            }
             List<Map<String, Object>> blocks = new ArrayList<>();
             if (d.title() != null) {
                 Map<String, Object> title = new LinkedHashMap<>();
@@ -112,10 +117,15 @@ public enum ConnectionChannel {
     /**
      * What one step sends to one connection.
      *
-     * @param title the template's email subject, else its name; null without a template
-     * @param text  the template's email body, else its base text, rendered; null without a template
+     * @param title    the template's email subject, else its name; null without a template
+     * @param text     the template's email body, else its base text, rendered; null without a template
+     * @param template the step's template; null without one
      */
-    public record Delivery(StoredEvent event, Run run, Rule rule, String title, String text) {
+    public record Delivery(StoredEvent event, Run run, Rule rule, String title, String text, ConvTemplate template) {
+
+        public Delivery(StoredEvent event, Run run, Rule rule, String title, String text) {
+            this(event, run, rule, title, text, null);
+        }
 
         /** The text, or without a template a line about the event: {@code symptom.case.opened · symptom_case -7}. */
         public String textOrSummary() {
@@ -229,14 +239,20 @@ public enum ConnectionChannel {
         }
 
         private static Map<String, Object> teams() {
-            Map<String, Object> block = object("Un bloque de texto: el título en negrita, si hay, y el texto",
-                    List.of(TYPE, "text"), TYPE, constant(TEXT_BLOCK), "weight", field(STRING, "Bolder en el título"),
-                    "text", field(STRING, null), WRAP, field(BOOLEAN, null));
+            Map<String, Object> block = object("Un elemento de la tarjeta: sin tarjeta de Teams en la plantilla, "
+                    + "un bloque de texto con el título en negrita y otro con el texto; con ella, también filas, "
+                    + "imágenes y hechos", List.of(TYPE), TYPE, field(STRING, "TextBlock, ColumnSet, Image o FactSet"),
+                    "weight", field(STRING, "Bolder en el título"), "text", field(STRING, null), WRAP,
+                    field(BOOLEAN, null));
             Map<String, Object> blocks = field(ARRAY, null);
             blocks.put("items", block);
+            Map<String, Object> action = object("Un botón que abre una URL", List.of(TYPE, TITLE, "url"),
+                    TYPE, constant("Action.OpenUrl"), TITLE, field(STRING, null), "url", field(STRING, null));
+            Map<String, Object> actions = field(ARRAY, "Los botones de la tarjeta de Teams de la plantilla");
+            actions.put("items", action);
             Map<String, Object> card = object("La tarjeta adaptable", List.of(TYPE, VERSION, "body"),
                     "$schema", constant(CARD_SCHEMA), TYPE, constant("AdaptiveCard"), VERSION,
-                    constant(CARD_VERSION), "body", blocks);
+                    constant(CARD_VERSION), "body", blocks, "actions", actions);
             Map<String, Object> attachment = object(null, List.of(CONTENT_TYPE, CONTENT),
                     CONTENT_TYPE, constant(CARD_CONTENT_TYPE), CONTENT, card);
             Map<String, Object> attachments = field(ARRAY, "Una tarjeta");

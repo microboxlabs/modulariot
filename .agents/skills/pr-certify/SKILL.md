@@ -1,11 +1,11 @@
 ---
 name: pr-certify
 description: >
-  Drive a pull request to merge-ready by looping over its AI reviewers. Requests Copilot code
-  review (and CodeRabbit where enabled), reads SonarCloud quality-gate issues and hotspots,
-  triages every finding, applies fixes, replies to and resolves each review thread, pushes,
-  re-requests review on the new head, and repeats until all reviewers are clean on the current
-  head SHA — then stamps the PR so `gh pr merge` is unblocked. Use when the user asks to certify
+  Drive a pull request to merge-ready by looping over its AI reviewers. Requests Copilot and
+  CodeRabbit reviews once per PR where the org allows them, reads SonarCloud quality-gate issues
+  and hotspots, triages every finding, applies fixes, replies to and resolves each review thread,
+  pushes, and repeats until the required reviewers are clean on the current head SHA — then
+  stamps the PR so `gh pr merge` is unblocked. Use when the user asks to certify
   a PR, get a PR reviewed and merge-ready, fix Copilot/CodeRabbit/SonarCloud findings, check
   whether a PR is ready to merge, or when a PR was just created or pushed to.
 ---
@@ -84,22 +84,40 @@ Copilot does state the level it used, in its review body, and `prcert` reads it 
 `status` warns about the mismatch — tell the user, and that Copilot's own Balanced pass has to be
 picked in the PR's Reviewers menu.
 
-### 2. Request reviews on the current head
+### 2. Request reviews, once per PR
 
 ```bash
 prcert request --all
 ```
 
-Re-requests `Copilot` through the GraphQL `requestReviews` mutation, and posts
-`@coderabbitai review` when CodeRabbit is active on the PR. SonarCloud needs no request — it
+Run this once per PR, in the first round only. It requests Copilot through the GraphQL
+`requestReviews` mutation and posts `@coderabbitai review`. SonarCloud needs no request. It
 analyses on push.
+
+`request` skips a reviewer and reports `skipped: true` with the reason when:
+
+| Reviewer | Skipped when |
+| --- | --- |
+| Copilot | `maxCopilotRounds` is `0`, or its rounds are spent |
+| CodeRabbit | `requestCodeRabbit` is `false` for the org |
+| CodeRabbit | it says it is rate limited, or reviews are disabled for the base branch |
+| CodeRabbit | it says it already reviewed ("Already reviewed the last commit") |
+| CodeRabbit | it already reviewed the head, or someone already pinged it on the head |
+
+Si un revisor está limitado por cuota o dice que ya revisó, sigue sin él; no lo vuelvas a
+mencionar. A rate-limited CodeRabbit review can still run through usage-based billing, so every
+extra ping can cost money. Do not post `@coderabbitai` comments by hand.
+
+Where the org has Copilot off (`maxCopilotRounds: 0`), the independent review is
+`codex-review-pr owner/name#N`. Run it once per head and answer each finding like a review
+thread.
 
 Do not reach for `gh pr edit --add-reviewer @copilot` or the REST `requested_reviewers` endpoint
 instead — both exit 0 without reliably queuing anything. And do not check the result over REST:
 `GET /pulls/{n}` reports `requested_reviewers: []` even while Copilot is queued.
 
-Use `--full` for a CodeRabbit full re-review instead of an incremental one, after a rebase or a
-large rewrite.
+`--full` posts `@coderabbitai full review`. `request` never sends it on its own. Use it only when
+a person asks for it.
 
 ### 3. Wait for the reviewers to land
 
@@ -184,8 +202,9 @@ say so in the reply, and carry it into the final report as a blocker for the hum
 
 ### 7. Loop — once for Copilot
 
-Go back to step 2 with the new head. Stop when `prcert status` reports certified, or after
-`maxRounds` (default 5) — whichever comes first. Do not start a round that changes nothing.
+After you push, go back to step 3 with the new head. Do not run `prcert request` again: reviews
+are requested once per PR (step 2). Stop when `prcert status` reports certified, or after
+`maxRounds` (default 5), whichever comes first. Do not start a round that changes nothing.
 
 **Copilot gets one round** (`maxCopilotRounds`, default 1). Triage what it said, fix what holds,
 reply, resolve, push — then report and hand over. `prcert request` skips it after that and says
@@ -268,8 +287,10 @@ reviewed. Treat stale as unreviewed.
   `reviews are disabled for this base branch` and no review arrives. `prcert` marks it `n/a` and
   downgrades it to a warning rather than waiting. Say so in the report.
 - **CodeRabbit refuses a repeat incremental review.** It answers a ping with "Already reviewed the
-  last commit", and no review follows. `prcert` treats that reply as terminal and `request` escalates
-  to `@coderabbitai full review` by itself.
+  last commit", and no review follows. `prcert` treats that reply as terminal: `status` marks
+  CodeRabbit `n/a` (a warning), and `request` does not ping it again.
+- **CodeRabbit says it is rate limited in a comment.** It often edits its summary comment in place.
+  `status` reads its comments as well as its check, marks it `n/a` and warns. `request` skips it.
 - **An org can opt out per reviewer.** `requireCopilot`, `requireCodeRabbit` and `requireSonar`
   turn a missing verdict from a blocker into a warning. Absent that, a reviewer that produced no
   analysis at all blocks — silence is not a pass.
@@ -316,7 +337,8 @@ prcert config --disable-org acme
 prcert config --gate off                   # stop blocking gh pr merge everywhere
 ```
 
-Per-org overrides go under `orgs.<name>`: `maxRounds`, `maxCopilotRounds`, `sonarHost`,
+Per-org overrides go under `orgs.<name>`: `maxRounds`, `maxCopilotRounds` (`0` = never request
+Copilot), `requestCodeRabbit` (default `true`; `false` = never ping CodeRabbit), `sonarHost`,
 `sonarOrg`, `sonarTokenEnv`, and a `balanced` block (`loc`, `files`, `pathHints`, `labels`) to
 retune the depth heuristic.
 

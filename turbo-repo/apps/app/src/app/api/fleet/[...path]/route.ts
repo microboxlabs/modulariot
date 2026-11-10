@@ -11,8 +11,7 @@ const ASSET_SEGMENT = /^(?!\.+$)[A-Za-z0-9_.:@+ -]{1,128}$/;
  */
 const proxy = orgApiProxy("fleet", {
   segment: ASSET_SEGMENT,
-  forward: (path, init) =>
-    forwardToStreamhubModulith(path, { ...init, sessionOnly: true }),
+  forward: forwardToStreamhubModulith,
 });
 
 export const GET = proxy.GET;

@@ -72,7 +72,6 @@ export default function PrototypeInvalidateSymptom({
       await guardedInvalidateSymptom({
         treatmentRequest,
         setTreatmentRequest,
-        treatmentData,
         reason: razonCompleta,
         progress: engineProgress.current,
       });

@@ -25,8 +25,7 @@ export async function GET(
   }
   const query = month ? `?month=${month}` : "";
   return forwardToStreamhubModulith(
-    `/api/v1/orgs/${encodeURIComponent(orgId)}/geocoding-plan${query}`,
-    { sessionOnly: true }
+    `/api/v1/orgs/${encodeURIComponent(orgId)}/geocoding-plan${query}`
   );
 }
 
@@ -47,6 +46,6 @@ export async function PUT(
   }
   return forwardToStreamhubModulith(
     `/api/v1/orgs/${encodeURIComponent(orgId)}/geocoding-plan`,
-    { method: "PUT", body, sessionOnly: true }
+    { method: "PUT", body }
   );
 }

@@ -19,7 +19,6 @@ import type { CallFormDraft } from "./prototype-call-driver";
 import { useFieldEditorMode } from "./call-center/field-editor-mode";
 import WhatsAppContact from "../../blurrable-stepped-menu/menus/whatsapp-contact/whatsapp-contact";
 import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
-import { startPendingTreatment } from "./prototype-api-guard";
 import PrototypeIgnoreCondition from "./prototype-ignore-condition";
 import PrototypeInvalidateSymptom from "./prototype-invalidate-symptom";
 import PrototypeRecordHandling from "./prototype-record-handling";
@@ -40,7 +39,7 @@ const CALL_FLOW_TITLE_KEYS: Record<CallCenterReportedStep, string> = {
 /**
  * PROTOTYPE — inline variant of `blurrable-stepped-menu/symptom-form.tsx`.
  *
- * Identical menu wiring (state, preactions, effects) but rendered *inside* the
+ * Identical menu wiring (state, effects) but rendered *inside* the
  * timeline side panel instead of a fixed full-screen blurred modal. Mirrors the
  * bento document viewer morph (`task-bento-form/bento-media-section.tsx`), where
  * the panel grows and swaps its content in place rather than opening a dialog.
@@ -238,13 +237,8 @@ export default function PrototypeInlineForm({
   }, [messageToCommunicate]);
 
   // Lets the call flow's `CallSwitchDropdown` jump to a different treatment
-  // form without leaving the panel. Runs that other menu's own `preactions`
-  // manually — the effect below only fires when the panel itself opens, not
-  // on an in-place `selectedOption` swap like this one — so `treatmentRequest`
-  // still gets that treatment's `treatment_type`/`status` set correctly.
+  // form without leaving the panel.
   const handleSwitchFromCall = (option: SelectedOption) => {
-    const nextMenu = menus[option as keyof typeof menus];
-    void nextMenu?.preactions?.();
     setCameFromCall(true);
     setSelectedOption(option);
   };
@@ -252,12 +246,6 @@ export default function PrototypeInlineForm({
   const menus = {
     call_driver: {
       title: (dict.symptoms as I18nRecord).call_driver,
-      preactions: () =>
-        startPendingTreatment(
-          treatmentRequest,
-          setTreatmentRequest,
-          "llamar al conductor"
-        ),
       component: (
         <div className="flex h-full min-h-0 w-full flex-col">
           <PrototypeCallCenterFlow
@@ -285,8 +273,6 @@ export default function PrototypeInlineForm({
     },
     contact_via_whatsapp: {
       title: (dict.symptoms as I18nRecord).contact_via_whatsapp,
-      // No preaction: sending a WhatsApp doesn't pre-create a treatment record.
-      preactions: undefined,
       component: (
         // key by trip so the form re-seeds its defaults if the selected treatment changes.
         <WhatsAppContact
@@ -300,12 +286,6 @@ export default function PrototypeInlineForm({
     },
     ignore_condition: {
       title: (dict.symptoms as I18nRecord).ignore_condition,
-      preactions: () =>
-        startPendingTreatment(
-          treatmentRequest,
-          setTreatmentRequest,
-          "ignorar condicion"
-        ),
       component: (
         <PrototypeIgnoreCondition
           dict={dict as I18nRecord}
@@ -323,12 +303,6 @@ export default function PrototypeInlineForm({
     },
     invalidate_symptom: {
       title: (dict.symptoms as I18nRecord).invalidate_symptom,
-      preactions: () =>
-        startPendingTreatment(
-          treatmentRequest,
-          setTreatmentRequest,
-          "invalidar sintoma"
-        ),
       component: (
         <PrototypeInvalidateSymptom
           dict={dict}
@@ -344,8 +318,6 @@ export default function PrototypeInlineForm({
     },
     record_handling: {
       title: (dict.symptoms as I18nRecord).record_handling,
-      // Engine-only: the treatment opens at save, never as a pending GPS record.
-      preactions: undefined,
       component: (
         <PrototypeRecordHandling
           dict={dict}
@@ -358,13 +330,6 @@ export default function PrototypeInlineForm({
       icon: <HiOutlineClipboardCheck className="h-7 w-7" />,
     },
   };
-
-  useEffect(() => {
-    if (isMenuOpen) {
-      const preaction = menus[selectedOption as keyof typeof menus]?.preactions;
-      void preaction?.();
-    }
-  }, [isMenuOpen]);
 
   useEffect(() => {
     setTreatmentRequest({

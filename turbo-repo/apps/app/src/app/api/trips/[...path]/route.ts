@@ -7,8 +7,7 @@ import { forwardToStreamhubModulith } from "@/app/api/utils/streamhub-modulith-p
  * with the user's session, so the modulith checks the user's permission.
  */
 const proxy = orgApiProxy("trips", {
-  forward: (path, init) =>
-    forwardToStreamhubModulith(path, { ...init, sessionOnly: true }),
+  forward: forwardToStreamhubModulith,
 });
 
 export const GET = proxy.GET;

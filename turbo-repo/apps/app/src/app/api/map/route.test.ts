@@ -33,12 +33,9 @@ describe("map and dashboard routes", () => {
     expect(forwardMock.mock.calls).toEqual([
       [
         "/api/v1/orgs/acme%20org/control-tower/map/positions",
-        { method: "GET", sessionOnly: true },
+        { method: "GET" },
       ],
-      [
-        "/api/v1/orgs/acme%20org/control-tower/map/summary",
-        { method: "GET", sessionOnly: true },
-      ],
+      ["/api/v1/orgs/acme%20org/control-tower/map/summary", { method: "GET" }],
     ]);
   });
 
@@ -72,7 +69,7 @@ describe("map and dashboard routes", () => {
     });
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme%20org/control-tower/map/conditions",
-      { method: "GET", sessionOnly: true }
+      { method: "GET" }
     );
   });
 

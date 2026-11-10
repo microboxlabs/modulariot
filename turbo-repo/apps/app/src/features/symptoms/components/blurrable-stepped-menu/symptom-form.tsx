@@ -11,7 +11,6 @@ import FormIcon from "./form-icon";
 import CallDriver from "./menus/call-driver/call-driver";
 import WhatsAppContact from "./menus/whatsapp-contact/whatsapp-contact";
 import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
-import { startPendingTreatment } from "@/features/symptoms/components/map-view/prototype/prototype-api-guard";
 import IgnoreCondition from "./menus/ignore-condition/ignore-condition";
 import InvalidateSymptom from "./menus/invalidate-symptom/invalidate-symptom";
 import { TiDelete } from "react-icons/ti";
@@ -19,15 +18,6 @@ import { MdBlock } from "react-icons/md";
 
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
-
-// Treatment recorded as `pending` when each menu opens, so the form's final
-// save updates that same record. WhatsApp is absent: sending one doesn't
-// pre-create a treatment record.
-const PENDING_TREATMENT_TYPES: Record<string, string | undefined> = {
-  call_driver: "llamar al conductor",
-  ignore_condition: "ignorar condicion",
-  invalidate_symptom: "invalidar sintoma",
-};
 
 export default function SymptomForm({
   setIsMenuOpen,
@@ -149,19 +139,6 @@ export default function SymptomForm({
       icon: <MdBlock className="h-7 w-7" />,
     },
   };
-
-  useEffect(() => {
-    if (isMenuOpen) {
-      const treatmentType = PENDING_TREATMENT_TYPES[selectedOption];
-      if (treatmentType) {
-        void startPendingTreatment(
-          treatmentRequest,
-          setTreatmentRequest,
-          treatmentType
-        );
-      }
-    }
-  }, [isMenuOpen]);
 
   useEffect(() => {
     setTreatmentRequest({

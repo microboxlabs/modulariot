@@ -1,9 +1,3 @@
-export type TreatmentsLocationResponse = {
-  data: TreatmentsLocationResponseItem;
-  status: number;
-  message: string;
-};
-
 export type DescriptionProps = {
   speed?: number;
   speed_limit?: number;

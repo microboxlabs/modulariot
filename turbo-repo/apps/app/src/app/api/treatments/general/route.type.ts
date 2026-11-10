@@ -7,12 +7,6 @@ import type { LevelReason } from "@/features/symptoms/model/level-reason";
 import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
 import type { MapWindow } from "@/features/symptoms/model/case-window";
 
-export type TreatmentsGeneralResponse = {
-  data: TreatmentsGeneralResponseItem;
-  status: number;
-  message: string;
-};
-
 export type TreatmentsGeneralResponseItem = {
   conditions_agg: ConditionsAgg[];
   timeline?: TimelineElement[];

@@ -1,47 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  classifySignalDescription,
   countPulseSources,
   filterVisiblePulses,
   getAppSignalRingHex,
   getSignalDescription,
   getSignalDetail,
-  hasAppSignalDetail,
   isDarkMapStyle,
   isVisiblePulse,
-  mapCsvPulseRecord,
-  normalizeCsvColumnName,
 } from "./pulse-source";
 
 describe("pulse source", () => {
-  it.each(["app_gps", "APP_GPS", "app gps", "app-gps", "mobile", "mobile_app"])(
-    "classifies %s as app signal_detail",
-    (description) => {
-      expect(classifySignalDescription(description)).toBe("app");
-      expect(
-        hasAppSignalDetail({
-          signal_detail: classifySignalDescription(description),
-        })
-      ).toBe(true);
-    }
-  );
-
-  it.each(["gps", "truck", "GPS"])(
-    "classifies %s as gps signal_detail",
-    (description) => {
-      expect(classifySignalDescription(description)).toBe("gps");
-    }
-  );
-
-  it.each(["", undefined, null])(
-    "classifies missing %s as unknown, not gps",
-    (description) => {
-      expect(classifySignalDescription(description as string | null)).toBe(
-        "unknown"
-      );
-    }
-  );
-
   it("reads signal_description from the record or its properties", () => {
     expect(getSignalDescription({ signal_description: " app_gps " })).toBe(
       "app_gps"
@@ -53,73 +21,8 @@ describe("pulse source", () => {
     ).toBe("truck");
   });
 
-  it("maps CSV rows onto signal_description, signal_detail, and drops mobile_origin", () => {
-    expect(
-      mapCsvPulseRecord(
-        {
-          location: "wkb",
-          mobile_origin: true,
-          type_signal_description: "app_gps",
-        },
-        -70.6,
-        -33.4
-      )
-    ).toEqual({
-      location: "wkb",
-      longitude: -70.6,
-      latitude: -33.4,
-      signal_description: "app_gps",
-      signal_detail: "app",
-    });
-    expect(
-      mapCsvPulseRecord({ signal_description: "gps" }, 1, 2)
-    ).toMatchObject({
-      signal_description: "gps",
-      signal_detail: "gps",
-    });
-    expect(mapCsvPulseRecord({}, 1, 2).signal_detail).toBe("unknown");
-    expect(
-      mapCsvPulseRecord({ signal_description: 12 }, 1, 2).signal_description
-    ).toBe("12");
-    expect(
-      mapCsvPulseRecord({ signal_description: { nested: true } }, 1, 2)
-        .signal_description
-    ).toBeNull();
-  });
-
-  it("normalizes CSV headers before records are mapped", () => {
-    expect(normalizeCsvColumnName("\uFEFF Signal_Description ")).toBe(
-      "signal_description"
-    );
-  });
-
-  it("reads camelCase and spaced CSV aliases as signal_description", () => {
-    expect(
-      mapCsvPulseRecord({ signalDescription: "truck" }, 1, 2)
-        .signal_description
-    ).toBe("truck");
-    expect(
-      mapCsvPulseRecord({ " Type_Signal_Description ": "app_gps" }, 1, 2)
-        .signal_description
-    ).toBe("app_gps");
-    expect(
-      mapCsvPulseRecord(
-        { signalDescription: "truck", typeSignalDescription: "app_gps" },
-        1,
-        2
-      )
-    ).toEqual({
-      longitude: 1,
-      latitude: 2,
-      signal_description: "truck",
-      signal_detail: "gps",
-    });
-  });
-
   it("hides app pulses when the toggle is off", () => {
-    expect(
-      isVisiblePulse({ signal_detail: "app" }, false)
-    ).toBe(false);
+    expect(isVisiblePulse({ signal_detail: "app" }, false)).toBe(false);
     expect(isVisiblePulse({ signal_detail: "gps" }, false)).toBe(true);
     expect(isVisiblePulse({ signal_detail: "unknown" }, false)).toBe(true);
     expect(isVisiblePulse({ signal_detail: "app" }, true)).toBe(true);

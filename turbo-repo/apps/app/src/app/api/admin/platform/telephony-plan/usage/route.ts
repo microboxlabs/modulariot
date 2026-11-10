@@ -17,7 +17,6 @@ export async function GET(request: NextRequest) {
   }
   const query = month ? `?month=${month}` : "";
   return forwardToStreamhubModulith(
-    `/api/v1/platform/telephony-plan/usage${query}`,
-    { sessionOnly: true }
+    `/api/v1/platform/telephony-plan/usage${query}`
   );
 }

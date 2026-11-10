@@ -15,11 +15,9 @@ const tower = vi.hoisted(() => ({
   closeTreatment: vi.fn(),
   revalidateCase: vi.fn(),
 }));
-const legacy = vi.hoisted(() => ({ requestTreatment: vi.fn() }));
 const config = vi.hoisted(() => ({ disabled: false }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => tower);
-vi.mock("@/features/common/providers/client-api.provider", () => legacy);
 vi.mock("@/features/runtime-config/runtime-config-context", () => ({
   getRuntimeConfig: () => ({
     SYMPTOMS_PROTOTYPE_DISABLE_API: config.disabled ? "true" : "false",
@@ -33,7 +31,6 @@ import {
   guardedSkipStep,
   isCaseClosedError,
   RECORD_HANDLING_TYPE,
-  startPendingTreatment,
   treatmentSaveErrorKey,
 } from "./prototype-api-guard";
 
@@ -54,10 +51,6 @@ beforeEach(() => {
   tower.openTreatment.mockResolvedValue({ id: "t-1", type: "CALL" });
   tower.addTreatmentAction.mockResolvedValue({});
   tower.closeTreatment.mockResolvedValue({});
-  legacy.requestTreatment.mockImplementation(async (p) => ({
-    ...p,
-    treatment_id: 7,
-  }));
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => new Response("{}"))
@@ -65,11 +58,10 @@ beforeEach(() => {
 });
 
 describe("treatments on an engine case", () => {
-  it("invalidating records the reason and closes the treatment, without the GPS RPC or the webhook", async () => {
+  it("invalidating records the reason and closes the treatment, without the webhook", async () => {
     await guardedInvalidateSymptom({
       treatmentRequest: base,
       setTreatmentRequest: vi.fn(),
-      treatmentData: null,
       reason: "Motivo: prueba",
     });
 
@@ -88,7 +80,6 @@ describe("treatments on an engine case", () => {
     expect(tower.closeTreatment).toHaveBeenCalledWith("t-1", {
       resolution: "Motivo: prueba",
     });
-    expect(legacy.requestTreatment).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
     expect(tower.revalidateCase).toHaveBeenLastCalledWith("-16");
   });
@@ -131,13 +122,6 @@ describe("treatments on an engine case", () => {
     await guardedFinishTreatment(base);
     expect(tower.closeTreatment).toHaveBeenCalledWith("t-1", {});
     expect(tower.revalidateCase).toHaveBeenCalledWith("-16");
-  });
-
-  it("opening a form records nothing", async () => {
-    await startPendingTreatment(base, vi.fn(), "llamar al conductor");
-
-    expect(legacy.requestTreatment).not.toHaveBeenCalled();
-    expect(tower.openTreatment).not.toHaveBeenCalled();
   });
 
   it("retries a failed close without recording the acknowledged action again", async () => {
@@ -236,22 +220,24 @@ describe("treatments on an engine case", () => {
   });
 });
 
-describe("treatments on a GPS database symptom", () => {
+describe("treatments on a symptom that is not an engine case", () => {
   const gps = { ...base, symptom_id: "4512" };
 
-  it.each([false, true])(
-    "refuses handling records even when called directly (API disabled: %s)",
-    async (disabled) => {
+  it.each([
+    [RECORD_HANDLING_TYPE, false],
+    [RECORD_HANDLING_TYPE, true],
+    ["ignorar condicion", false],
+    ["ignorar condicion", true],
+  ])(
+    "refuses %s without writing anything (API disabled: %s)",
+    async (treatment_type, disabled) => {
       config.disabled = disabled;
 
       await expect(
-        guardedRequestTreatment({
-          ...gps,
-          treatment_type: RECORD_HANDLING_TYPE,
-        })
-      ).rejects.toThrow("Handling records require an engine case");
+        guardedRequestTreatment({ ...gps, treatment_type })
+      ).rejects.toThrow("Treatments require an engine case");
 
-      expect(legacy.requestTreatment).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
       expect(tower.openTreatment).not.toHaveBeenCalled();
       expect(tower.addTreatmentAction).not.toHaveBeenCalled();
       expect(tower.closeTreatment).not.toHaveBeenCalled();
@@ -259,15 +245,15 @@ describe("treatments on a GPS database symptom", () => {
     }
   );
 
-  it("keep going through the treatments RPC", async () => {
-    const saved = await guardedRequestTreatment({
-      ...gps,
-      treatment_type: "ignorar condicion",
-    });
-
-    expect(saved.treatment_id).toBe(7);
-    expect(tower.openTreatment).not.toHaveBeenCalled();
-    expect(tower.revalidateCase).toHaveBeenCalledWith(gps.symptom_id);
+  it("invalidating is refused without calling the webhook", async () => {
+    await expect(
+      guardedInvalidateSymptom({
+        treatmentRequest: gps,
+        setTreatmentRequest: vi.fn(),
+        reason: "Motivo: prueba",
+      })
+    ).rejects.toThrow("Treatments require an engine case");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("finishing has nothing to close", async () => {

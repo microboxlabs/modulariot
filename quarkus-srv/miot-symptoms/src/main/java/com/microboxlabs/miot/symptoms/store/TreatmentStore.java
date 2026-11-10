@@ -81,6 +81,15 @@ public interface TreatmentStore {
     record Caller(String tenantCode, String performedBy) {
     }
 
+    /** Shared scheduler progress, read and saved while holding the Teams reconcile advisory lock. */
+    default Optional<Caller> teamsReconcileCursor() {
+        throw new UnsupportedOperationException("teamsReconcileCursor");
+    }
+
+    default void saveTeamsReconcileCursor(Caller caller) {
+        throw new UnsupportedOperationException("saveTeamsReconcileCursor");
+    }
+
     /**
      * Every organization and operator with a Teams CALL action since {@code since} whose telephony record is
      * still pending, at most {@code limit}.

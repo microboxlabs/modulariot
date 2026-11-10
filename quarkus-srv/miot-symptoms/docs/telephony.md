@@ -72,8 +72,8 @@ It reads both Graph call reports for the window of the operator's pending calls 
 
 | Report | Graph function | Outbound call types |
 | --- | --- | --- |
-| PSTN (Calling Plans, Operator Connect) | `getPstnCalls` | ending in `_out`, e.g. `user_out` |
-| Direct Routing | `getDirectRoutingCalls` | starting with `ByotOut` (`ByotOut`, `ByotOutUserForwarding`, ...) or `dr_out` |
+| PSTN (Calling Plans, Operator Connect) | `getPstnCalls` | with an `out` part: `user_out`, `user_out_conf`, `user_out_forwarding`, `user_out_transfer`, `conf_out`, ... |
+| Direct Routing | `getDirectRoutingCalls` | starting with `ByotOut` (`ByotOut`, `ByotOutUserForwarding`, ...), or with an `out` part (`dr_out`, `dr_out_user_conf`, ...) |
 
 A record fills the action only when all of these match:
 
@@ -95,12 +95,14 @@ A record fills the action only when all of these match:
 A record is assigned to one action only.
 
 The scheduled run shares one complete Graph lookup per organization across its pending operators. A failed lookup
-is not retried for each operator. Each run considers at most 500 callers; Graph requests, including both reports
+is not retried for each operator. Each run reads at most 500 callers and makes at most
+`MIOT_SYMPTOMS_TEAMS_RECONCILE_MAX_LOOKUPS` organization lookups (default 50). The next run starts after the last
+organization the run reached. Graph requests, including both reports
 and their pages, are serialized and paced at no more than four per second per replica. Each report has a five-page
 limit and an incomplete scan fails without assigning records. The advisory lock covers the entire scheduled run.
 Graph requests use a fair, interruptible queue so interactive requests cannot be starved by the background run.
-Caller selection rotates after the last selected caller, including skipped organizations and failed lookups, so a
-full batch cannot indefinitely exclude later callers. This cursor is held by each scheduler replica and resets on restart.
+Caller selection starts after the last organization reached, including skipped organizations and failed lookups,
+so every organization is reached over several runs. This cursor is stored in PostgreSQL and read under the advisory lock, so restarts and changes of replica preserve progress.
 When a shared report exceeds the page limit, reconciliation bisects its time window, at most 16 lookups per
 organization. All subwindows must complete before matching, preserving ambiguity checks across split boundaries.
 PSTN's inclusive end bound can repeat a row at a split boundary; completed results are deduplicated by report and
@@ -117,12 +119,17 @@ fall back to `inviteDateTime` for matching; connected duration still uses the an
 
 A 404 or an empty list from Graph is treated as pending. Any other error from either report fails the reconcile, and the actions stay pending.
 
+A 429, or a 503 with `Retry-After`, pauses that organization's lookups on this replica for the `Retry-After`
+seconds or date (1 minute when absent, at most 1 hour). Scheduled runs skip a paused organization without using a
+lookup, and `POST /reconcile` fails without calling Graph until the pause ends. The pause starts when the response arrives. Concurrent lookups for the same organization wait for the current lookup and then check its pause.
+
 The connection test reads both reports for the last hour and says how many calls each returned, e.g. `PSTN: 0, Direct Routing: 3`. A count with `+` has more pages.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `MIOT_SYMPTOMS_TEAMS_RECONCILE_ENABLED` | the symptoms component switch | Turns the server reconcile on or off. |
 | `MIOT_SYMPTOMS_TEAMS_RECONCILE_EVERY` | `5m` | How often it runs. One replica runs it at a time. |
+| `MIOT_SYMPTOMS_TEAMS_RECONCILE_MAX_LOOKUPS` | `50` | Most organization lookups per run. At least 1. |
 
 ## Managed line: usage and billing
 

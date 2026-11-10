@@ -27,6 +27,17 @@ public class InMemoryTreatmentStore implements TreatmentStore {
 
     private final Map<String, Treatment> treatments = new LinkedHashMap<>();
     private final Map<String, List<TreatmentAction>> actions = new LinkedHashMap<>();
+    private Caller teamsReconcileCursor;
+
+    @Override
+    public synchronized Optional<Caller> teamsReconcileCursor() {
+        return Optional.ofNullable(teamsReconcileCursor);
+    }
+
+    @Override
+    public synchronized void saveTeamsReconcileCursor(Caller caller) {
+        teamsReconcileCursor = caller;
+    }
 
     @Override
     public synchronized Inserted insert(Treatment t) {

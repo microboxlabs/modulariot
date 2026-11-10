@@ -1,12 +1,14 @@
 package com.microboxlabs.miot.symptoms.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.telephony.PstnCall;
 import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
 import com.microboxlabs.miot.core.telephony.TelephonyProvider;
+import com.microboxlabs.miot.core.telephony.TelephonyThrottledException;
 import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
 import com.microboxlabs.miot.symptoms.domain.ActionKind;
 import com.microboxlabs.miot.symptoms.domain.CallMethod;
@@ -18,6 +20,7 @@ import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryTreatmentStore;
 import com.microboxlabs.miot.symptoms.store.TreatmentStore.Caller;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -33,6 +36,23 @@ class TeamsCallReconcileJobTest {
     private static final Instant CALL_START = Instant.parse("2026-11-04T10:00:00Z");
     private static final Instant CALL_END = Instant.parse("2026-11-04T10:01:30Z");
     private static final Instant NOW = CALL_END.plusSeconds(1800);
+    private Instant now = NOW;
+    private final Clock clock = new Clock() {
+        @Override
+        public ZoneOffset getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
+    };
 
     private final InMemoryTreatmentStore store = new InMemoryTreatmentStore();
     private final Map<String, TelephonyLine> lines = new HashMap<>();
@@ -42,6 +62,9 @@ class TeamsCallReconcileJobTest {
     private int locked;
     private boolean graphFails;
     private String failingTenant;
+    private String throttledTenant;
+    private Duration graphDelay = Duration.ZERO;
+    private int maxLookups = TeamsCallReconcileJob.DEFAULT_MAX_LOOKUPS;
 
     private final Telephony telephony = new Telephony() {
         @Override
@@ -53,6 +76,10 @@ class TeamsCallReconcileJobTest {
         @Override
         public List<PstnCall> pstnCalls(String tenantCode, String connectionId, Instant from, Instant to) {
             graphAsked.add(tenantCode);
+            now = now.plus(graphDelay);
+            if (tenantCode.equals(throttledTenant)) {
+                throw new TelephonyThrottledException("Graph returned HTTP 429", Duration.ofMinutes(10));
+            }
             if (graphFails || tenantCode.equals(failingTenant)) {
                 throw new TelephonyUnavailableException("Graph returned HTTP 429");
             }
@@ -64,11 +91,11 @@ class TeamsCallReconcileJobTest {
         return job(true);
     }
 
+    private final TeamsCallReconciler reconciler = new TeamsCallReconciler(store, telephony,
+            new AuditService(new InMemoryAuditStore()), clock);
+
     private TeamsCallReconcileJob job(boolean enabled) {
-        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
-        TeamsCallReconciler reconciler = new TeamsCallReconciler(store, telephony,
-                new AuditService(new InMemoryAuditStore()), clock);
-        return new TeamsCallReconcileJob(enabled, store, telephony, reconciler, work -> {
+        return new TeamsCallReconcileJob(enabled, maxLookups, store, telephony, reconciler, work -> {
             locked++;
             return lockHeld ? Optional.empty() : Optional.ofNullable(work.get());
         }, clock);
@@ -116,11 +143,11 @@ class TeamsCallReconcileJobTest {
     }
 
     @Test
-    void nothingPendingEndsBeforeTheLockAndGraph() {
+    void nothingPendingEndsWithoutCallingGraph() {
         lines.put("acme", teamsLine());
 
         assertEquals(new TeamsCallReconcileJob.Run(0, 0, 0, 0), job().run());
-        assertEquals(0, locked);
+        assertEquals(1, locked);
         assertTrue(graphAsked.isEmpty());
     }
 
@@ -189,6 +216,155 @@ class TeamsCallReconcileJobTest {
         assertEquals(new TeamsCallReconcileJob.Run(1, 500, 0, 500), scheduled.run());
         assertEquals(1, scheduled.run().recorded());
         assertEquals(List.of("a-failing", "z-ready", "a-failing"), graphAsked);
+    }
+
+    @Test
+    void aRunMakesAtMostTheConfiguredLookupsAndTheNextRunContinues() {
+        for (int i = 0; i < 60; i++) {
+            String tenant = "org-%02d".formatted(i);
+            lines.put(tenant, teamsLine());
+            pendingCall(tenant, "operator1@example.test", "+12025550101");
+            pendingCall(tenant, "operator2@example.test", "+12025550101");
+        }
+        TeamsCallReconcileJob scheduled = job();
+
+        assertEquals(new TeamsCallReconcileJob.Run(50, 100, 0, 0), scheduled.run());
+        assertEquals(50, graphAsked.size());
+        assertEquals("org-49", graphAsked.getLast());
+
+        graphAsked.clear();
+        assertEquals(50, scheduled.run().organizations());
+        assertEquals("org-50", graphAsked.getFirst(), "the next run starts after the last organization reached");
+        assertEquals("org-00", graphAsked.get(10), "then wraps around");
+    }
+
+    @Test
+    void everyOrganizationIsReachedOverSeveralRuns() {
+        maxLookups = 2;
+        for (String tenant : List.of("a", "b", "c", "d", "e")) {
+            lines.put(tenant, teamsLine());
+            pendingCall(tenant, "operator1@example.test", "+12025550101");
+        }
+        lines.remove("c");
+        TeamsCallReconcileJob scheduled = job();
+
+        scheduled.run();
+        scheduled.run();
+        scheduled.run();
+
+        assertEquals(List.of("a", "b", "d", "e", "a", "b"), graphAsked,
+                "organizations without a ready line take no lookup and the cursor passes them");
+    }
+
+    @Test
+    void aThrottledOrganizationWaitsForRetryAfterWithoutUsingTheBudget() {
+        maxLookups = 1;
+        lines.put("a", teamsLine());
+        lines.put("b", teamsLine());
+        pendingCall("a", "operator1@example.test", "+12025550101");
+        TreatmentAction healthy = pendingCall("b", "operator1@example.test", "+12025550102");
+        records.add(callRecord("r1", "operator1@example.test", "+12025550102", 20));
+        throttledTenant = "a";
+        TeamsCallReconcileJob scheduled = job();
+
+        assertEquals(new TeamsCallReconcileJob.Run(1, 1, 0, 1, 1), scheduled.run());
+        assertEquals(List.of("a"), graphAsked);
+
+        assertEquals(new TeamsCallReconcileJob.Run(1, 1, 1, 0, 0), scheduled.run(), "the next run starts at b");
+        assertEquals(List.of("a", "b"), graphAsked);
+        assertEquals("RECORDED", TeamsCallReconciler.telephony(stored("b", healthy)).get("status"));
+
+        now = NOW.plus(Duration.ofMinutes(5));
+        assertEquals(new TeamsCallReconcileJob.Run(0, 0, 0, 0, 1), scheduled.run(),
+                "a is skipped while it waits, without a lookup");
+        assertThrows(TelephonyThrottledException.class,
+                () -> reconciler.reconcile("a", "operator1@example.test"),
+                "the operator's own request waits too");
+        assertEquals(List.of("a", "b"), graphAsked);
+
+        throttledTenant = null;
+        now = NOW.plus(Duration.ofMinutes(11));
+        assertEquals(new TeamsCallReconcileJob.Run(1, 1, 0, 0, 0), scheduled.run());
+        assertEquals(List.of("a", "b", "a"), graphAsked);
+    }
+
+    @Test
+    void aNewSchedulerResumesTheSharedCheckpoint() {
+        maxLookups = 1;
+        for (String tenant : List.of("a", "b", "c")) {
+            lines.put(tenant, teamsLine());
+            pendingCall(tenant, "operator1@example.test", "+12025550101");
+        }
+        job().run();
+        job().run();
+        job().run();
+        job().run();
+        assertEquals(List.of("a", "b", "c", "a"), graphAsked);
+    }
+
+    @Test
+    void aSkippedReplicaDoesNotAdvanceTheCheckpoint() {
+        pendingCall("a", "operator1@example.test", "+12025550101");
+        Caller previous = new Caller("previous", "operator1@example.test");
+        store.saveTeamsReconcileCursor(previous);
+        lockHeld = true;
+        job().run();
+        assertEquals(Optional.of(previous), store.teamsReconcileCursor());
+    }
+
+    @Test
+    void retryAfterStartsWhenTheThrottledResponseArrives() {
+        lines.put("a", teamsLine());
+        pendingCall("a", "operator1@example.test", "+12025550101");
+        throttledTenant = "a";
+        graphDelay = Duration.ofMinutes(2);
+        job().run();
+        now = NOW.plus(Duration.ofMinutes(11));
+        assertThrows(TelephonyThrottledException.class,
+                () -> reconciler.reconcile("a", "operator1@example.test"));
+        assertEquals(List.of("a"), graphAsked, "the full ten-minute pause follows the response");
+        now = NOW.plus(Duration.ofMinutes(12));
+        throttledTenant = null;
+        graphDelay = Duration.ZERO;
+        job().run();
+        assertEquals(List.of("a", "a"), graphAsked);
+    }
+
+    @Test
+    void aWrappedOrganizationSharesOneLookupAndFailureAcrossBothBlocks() {
+        seedWrappedCallers();
+        for (boolean fail : List.of(false, true)) {
+            graphAsked.clear();
+            store.saveTeamsReconcileCursor(new Caller("a", "operator1@example.test"));
+            failingTenant = fail ? "a" : null;
+            assertEquals(new TeamsCallReconcileJob.Run(2, 3, 0, fail ? 2 : 0), job().run());
+            assertEquals(List.of("a", "b"), graphAsked, "a's two blocks share the lookup, including failures");
+        }
+    }
+
+    @Test
+    void mergingWrappedCallersDoesNotJumpTheCursorPastTheNextOrganization() {
+        seedWrappedCallers();
+        maxLookups = 1;
+        store.saveTeamsReconcileCursor(new Caller("a", "operator1@example.test"));
+        assertEquals(2, job().run().operators());
+        assertEquals(Optional.of(new Caller("a", "operator2@example.test")), store.teamsReconcileCursor());
+        assertEquals(1, job().run().operators());
+        assertEquals(List.of("a", "b"), graphAsked, "a fresh scheduler must reach b with a bound of one");
+    }
+
+    private void seedWrappedCallers() {
+        lines.put("a", teamsLine());
+        lines.put("b", teamsLine());
+        pendingCall("a", "operator1@example.test", "+12025550101");
+        pendingCall("a", "operator2@example.test", "+12025550101");
+        pendingCall("b", "operator3@example.test", "+12025550101");
+    }
+
+    @Test
+    void theLookupBoundMustBePositive() {
+        maxLookups = 0;
+        assertThrows(IllegalArgumentException.class, this::job);
     }
 
     private void seedCrowdedTenant(String tenant) {

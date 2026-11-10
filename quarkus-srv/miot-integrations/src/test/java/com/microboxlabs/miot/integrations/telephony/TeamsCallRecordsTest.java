@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.telephony.PstnCall;
+import com.microboxlabs.miot.core.telephony.TelephonyThrottledException;
 import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthContext;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthProvider;
@@ -19,6 +20,7 @@ import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +37,60 @@ class TeamsCallRecordsTest {
                 () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
         assertEquals(TelephonyUnavailableException.CALL_RECORDS_PAGE_LIMIT, failure.code());
         assertEquals(TeamsCallRecords.MAX_PAGES, http.seen().size());
+    }
+
+    @Test
+    void a429CarriesTheWaitGraphAskedFor() {
+        http.reply(PATH, 429, "{}", Map.of("Retry-After", "120"));
+        TelephonyThrottledException e = assertThrows(TelephonyThrottledException.class,
+                () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+        assertEquals(TelephonyUnavailableException.THROTTLED, e.code());
+        assertEquals(Duration.ofSeconds(120), e.retryAfter());
+        assertEquals(1, http.seen().size(), "the Direct Routing report is not read after a 429");
+    }
+
+    @Test
+    void a429OnTheSecondReportIsThrottledToo() {
+        http.reply(PATH, 200, "{\"value\":[]}").reply(DR_PATH, 429, "{}");
+        TelephonyThrottledException e = assertThrows(TelephonyThrottledException.class,
+                () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+        assertEquals(TeamsCallRecords.DEFAULT_RETRY_AFTER, e.retryAfter());
+    }
+
+    @Test
+    void a429OnALaterPageStopsTheScan() {
+        http.reply(PATH, 200, "{\"value\":[],\"@odata.nextLink\":\"https://graph.test/next\"}")
+                .reply("/next", 429, "{}", Map.of("Retry-After", "15"));
+        TelephonyThrottledException failure = assertThrows(TelephonyThrottledException.class,
+                () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+        assertEquals(Duration.ofSeconds(15), failure.retryAfter());
+        assertEquals(2, http.seen().size());
+    }
+
+    @Test
+    void a503WithRetryAfterIsThrottled() {
+        http.reply(PATH, 503, "{}", Map.of("Retry-After", "5"));
+        assertEquals(Duration.ofSeconds(5), assertThrows(TelephonyThrottledException.class,
+                () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600))).retryAfter());
+    }
+
+    @Test
+    void a503WithoutRetryAfterIsAPlainFailure() {
+        http.reply(PATH, 503, "{}");
+        TelephonyUnavailableException e = assertThrows(TelephonyUnavailableException.class,
+                () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+        assertEquals(TelephonyUnavailableException.UNAVAILABLE, e.code());
+    }
+
+    @Test
+    void retryAfterReadsSecondsOrADateWithinBounds() {
+        Instant now = Instant.parse("2026-11-04T10:00:00Z");
+        assertEquals(Duration.ofSeconds(30), TeamsCallRecords.retryAfter("30", now));
+        assertEquals(Duration.ofSeconds(90), TeamsCallRecords.retryAfter("Wed, 04 Nov 2026 10:01:30 GMT", now));
+        assertEquals(TeamsCallRecords.DEFAULT_RETRY_AFTER, TeamsCallRecords.retryAfter(null, now));
+        assertEquals(TeamsCallRecords.DEFAULT_RETRY_AFTER, TeamsCallRecords.retryAfter("soon", now));
+        assertEquals(Duration.ofSeconds(1), TeamsCallRecords.retryAfter("0", now));
+        assertEquals(TeamsCallRecords.MAX_RETRY_AFTER, TeamsCallRecords.retryAfter("86400", now));
     }
 
     @Test
@@ -134,13 +190,30 @@ class TeamsCallRecordsTest {
     @Test
     void directRoutingOutboundTypes() {
         for (String type : List.of("ByotOut", "ByotOutUserForwarding", "ByotOutUserTransfer", "ByotOutUserConf",
-                "dr_out")) {
+                "ByotOutEmergency", "dr_out", "dr_out_user_conf", "dr_out_user_forwarding", "dr_out_user_transfer", "dr_emergency_out", "dr_out_bot")) {
             assertTrue(drType(type).outbound(), type);
         }
-        for (String type : List.of("ByotIn", "dr_in", "dr_in_bot")) {
+        for (String type : List.of("ByotIn", "dr_in", "dr_in_bot", "dr_unassigned_in")) {
             assertFalse(drType(type).outbound(), type);
         }
         assertFalse(drType(null).outbound());
+    }
+
+    @Test
+    void pstnOutboundTypes() {
+        for (String type : List.of("user_out", "user_out_conf", "user_out_forwarding", "user_out_transfer",
+                "conf_out", "fmc_out", "emergency_out", "ucap_out", "ucap_out_conf", "USER_OUT_FORWARDING")) {
+            assertTrue(pstnType(type).outbound(), type);
+        }
+        for (String type : List.of("user_in", "conf_in", "unassigned_in", "emergency_in", "fmc_in", "ucap_in",
+                "outbound", "user_output", "")) {
+            assertFalse(pstnType(type).outbound(), type);
+        }
+        assertFalse(pstnType(null).outbound());
+    }
+
+    private static PstnCall pstnType(String type) {
+        return new PstnCall("p", "c", "operator1@example.test", null, null, FROM, FROM, 0, type);
     }
 
     private static PstnCall drType(String type) {

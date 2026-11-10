@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 // toma todo el ancho
 export function lugaresLayout(
   lugaresAbierto: boolean,
-  anchos: { side: string; map: string }
+  anchos: { side: string; map: string; minSide?: string }
 ): { sideStyle: CSSProperties; mapWidth: string } {
   if (lugaresAbierto) {
     return {
@@ -24,7 +24,7 @@ export function lugaresLayout(
       marginRight: "8px",
       opacity: 1,
       borderWidth: 1,
-      minWidth: 0,
+      minWidth: anchos.minSide ?? 0,
     },
     mapWidth: anchos.map,
   };

@@ -427,7 +427,8 @@ export default function PrototypeInlineForm({
           </label>
         </div>
       </div>
-      {/* Body — a fixed-height bento, no scroll (see prototype-form-kit). */}
+      {/* Body — a fixed-height bento; the bento itself scrolls on short
+          screens (see prototype-form-kit). */}
       <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-3 bg-gray-50 dark:bg-gray-900">
         {selectedMenu.component}
       </div>

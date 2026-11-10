@@ -124,7 +124,7 @@ export default function PrototypeRecordHandling({
 
       <fieldset
         disabled={isSubmitting || isClosingOnly}
-        className="flex min-h-0 min-w-0 flex-1 flex-col"
+        className="flex min-w-0 flex-1 flex-col"
       >
         <legend className="sr-only">{t("proto_section_handling")}</legend>
         <FieldCard
@@ -148,7 +148,7 @@ export default function PrototypeRecordHandling({
               placeholder={t("handling_outcome_required")}
             />
           </div>
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-1 flex-col">
             <div className="mb-1 flex items-baseline justify-between gap-2">
               <label
                 htmlFor="handling-note"

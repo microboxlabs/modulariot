@@ -241,9 +241,8 @@ public class PlaceService {
 
     /**
      * Copies one place and marks it synced; false when it stays pending, as everything does while {@link PlaceSync}
-     * does not really copy. A deleted one whose code a current geofence
-     * or inner geofence holds now is not removed from StreamHub: they share the key there, and that one's copy
-     * replaces it.
+     * does not really copy. Every deletion is attempted, including an old owner of a reused code: the GPS delete
+     * matches its source UUID and cannot remove the new owner's row.
      */
     private boolean copy(Place p, boolean deleted) {
         if (!sync.copies()) {
@@ -252,11 +251,8 @@ public class PlaceService {
         try {
             if (!deleted) {
                 sync.saved(p.tenantCode(), p.externalCode(), p);
-            } else if (!takenOver(p)) {
+            } else {
                 sync.deleted(p.tenantCode(), p.externalCode(), p);
-                // If a new owner appeared while the delete was in flight, keep it pending until its current
-                // data has been copied.
-                markCurrentOwnerPending(p);
             }
             if (!PlaceStore.SYNCED_KINDS.contains(p.kind())) {
                 return false;
@@ -286,17 +282,6 @@ public class PlaceService {
                 .filter(owner -> previous.externalCode().equals(owner.externalCode()))
                 .flatMap(owner -> store.find(previous.tenantCode(), owner.id()))
                 .ifPresent(store::markPending);
-    }
-
-    /**
-     * Whether a current geofence or inner geofence holds the deleted one's code exactly. StreamHub's key is case
-     * sensitive, so one holding it in another case is another row there, and the deleted one's is still removed.
-     */
-    private boolean takenOver(Place deleted) {
-        return PlaceStore.SYNCED_KINDS.contains(deleted.kind())
-                && store.findByCode(deleted.tenantCode(), deleted.externalCode())
-                        .filter(owner -> PlaceStore.SYNCED_KINDS.contains(owner.kind()))
-                        .filter(owner -> deleted.externalCode().equals(owner.externalCode())).isPresent();
     }
 
     /** The versions of a geofence or route, oldest first. */

@@ -8,6 +8,7 @@ import BrandedMultiSelect from "@/features/task-forms/components/task-confirm-mo
 import {
   guardedFinishTreatment,
   guardedRequestTreatment,
+  treatmentSaveErrorKey,
   type EngineTreatmentProgress,
 } from "./prototype-api-guard";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
@@ -416,8 +417,11 @@ export default function PrototypeCallDriver({
       }
       setIsMenuOpen(false);
       router.push(`/${lang}/symptoms`);
-    } catch {
-      ShowNotification({ type: "error", message: t("treatment_save_error") });
+    } catch (error) {
+      ShowNotification({
+        type: "error",
+        message: t(treatmentSaveErrorKey(error)),
+      });
     } finally {
       submitting.current = false;
       setIsSubmitting(false);
@@ -448,8 +452,11 @@ export default function PrototypeCallDriver({
         });
       }
       onMakeAnotherCall?.();
-    } catch {
-      ShowNotification({ type: "error", message: t("treatment_save_error") });
+    } catch (error) {
+      ShowNotification({
+        type: "error",
+        message: t(treatmentSaveErrorKey(error)),
+      });
     } finally {
       submitting.current = false;
       setIsSubmitting(false);

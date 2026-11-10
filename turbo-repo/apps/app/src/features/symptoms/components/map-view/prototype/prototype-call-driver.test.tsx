@@ -11,6 +11,14 @@ import PrototypeCallDriver, {
 import type { TelephonyCallResult } from "./call-center/telnyx-call";
 
 const api = vi.hoisted(() => ({
+  ControlTowerError: class extends Error {
+    constructor(
+      message: string,
+      readonly status: number
+    ) {
+      super(message);
+    }
+  },
   openTreatment: vi.fn(),
   addTreatmentAction: vi.fn(),
   closeTreatment: vi.fn(),
@@ -313,9 +321,11 @@ describe("engine call treatment form", () => {
     );
   });
 
-  it("keeps the form open and reports a refused treatment on a closed case", async () => {
+  it("keeps the form open and says so when the case closed before the first save", async () => {
     const user = userEvent.setup();
-    api.openTreatment.mockRejectedValueOnce(new Error("the case is closed"));
+    api.openTreatment.mockRejectedValueOnce(
+      new api.ControlTowerError("the case is closed", 409)
+    );
     const closeMenu = renderCall();
     await user.click(
       screen.getByRole("button", { name: es.symptoms.save_treatment })
@@ -324,13 +334,41 @@ describe("engine call treatment form", () => {
     await waitFor(() =>
       expect(api.notify).toHaveBeenCalledWith({
         type: "error",
-        message: es.symptoms.treatment_save_error,
+        message: es.symptoms.treatment_case_closed,
       })
     );
     expect(api.addTreatmentAction).not.toHaveBeenCalled();
     expect(api.closeTreatment).not.toHaveBeenCalled();
     expect(closeMenu).not.toHaveBeenCalled();
     expect(api.push).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue(draft.notaLlamada)).toBeInTheDocument();
+  });
+
+  it("finishes on the treatment it already opened, without opening another", async () => {
+    const user = userEvent.setup();
+    const closeMenu = renderCall();
+    await user.click(
+      screen.getByRole("button", { name: es.symptoms.save_and_call_again })
+    );
+    await waitFor(() =>
+      expect(api.addTreatmentAction).toHaveBeenCalledTimes(1)
+    );
+    // The engine closes the case now: a new treatment would be refused.
+    api.openTreatment.mockRejectedValue(
+      new api.ControlTowerError("the case is closed", 409)
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: es.symptoms.save_treatment })
+    );
+
+    await waitFor(() => expect(closeMenu).toHaveBeenCalledWith(false));
+    expect(api.openTreatment).toHaveBeenCalledTimes(1);
+    expect(api.addTreatmentAction.mock.calls.map(([id]) => id)).toEqual([
+      "t-1",
+      "t-1",
+    ]);
+    expect(api.closeTreatment).toHaveBeenCalledWith("t-1", expect.anything());
   });
 
   it("keeps the form open on close failure and retries without a duplicate call action", async () => {

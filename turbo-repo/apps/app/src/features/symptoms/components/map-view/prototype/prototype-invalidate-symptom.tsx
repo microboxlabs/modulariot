@@ -4,6 +4,7 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import {
   guardedInvalidateSymptom,
+  isCaseClosedError,
   type EngineTreatmentProgress,
 } from "./prototype-api-guard";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -79,8 +80,15 @@ export default function PrototypeInvalidateSymptom({
       setIsMenuOpen(false);
       router.push(`/${lang}/symptoms`);
       ShowNotification({ type: "success", message: t("treatment_saved") });
-    } catch {
-      ShowNotification({ type: "error", message: t("invalidate_error") });
+    } catch (error) {
+      ShowNotification({
+        type: "error",
+        message: t(
+          isCaseClosedError(error)
+            ? "treatment_case_closed"
+            : "invalidate_error"
+        ),
+      });
     } finally {
       setIsSubmitting(false);
     }

@@ -373,6 +373,22 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     }
 
     @GET
+    @Path("/trips/{trip}/symptoms")
+    @Operation(operationId = "listMapTripSymptoms", summary = "The evaluator's cases on one trip, by symptom",
+            description = "trip is a trip id or the client's service code of a trips-module trip (its feed "
+                    + "service's or a current mandate's). Each of the organization's ACTIVE symptoms, and any other "
+                    + "with a case on the trip: cases, open_cases, max_level and max_condition (the highest level "
+                    + "any case reached; null without cases), trip_id of the latest case, first_opened_at and "
+                    + "last_opened_at. TEST cases are not counted.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> tripSymptoms(@PathParam("organizationId") String organizationId,
+            @PathParam("trip") String trip) {
+        String tenant = tenantCode(organizationId);
+        return answer(() -> blocking(() -> cases.tripSymptoms(tenant, trip)));
+    }
+
+    @GET
     @Path("/trips/{tripId}/positions")
     @Operation(operationId = "listMapTripPositions", summary = "The asset's positions during a trip, oldest first",
             description = "At most 20000, sampled evenly over the trip. A UUID is a trips-module trip: the truck's "

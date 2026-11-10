@@ -533,6 +533,39 @@ public class EngineCaseService {
         keys.forEach(k -> items.addObject().put("key", k).put("value", values.getOrDefault(k, 0L)));
     }
 
+    /**
+     * The task form's symptom card for one trip: each ACTIVE symptom of the organization, and any other with a
+     * case there, with the cases it opened on the trip. {@code trip} is a trip id or the client's service code.
+     * {@code max_condition} is null without cases.
+     *
+     * @throws IllegalArgumentException when {@code trip} is blank
+     */
+    public JsonNode tripSymptoms(String tenantCode, String trip) {
+        if (trip == null || trip.isBlank()) {
+            throw new IllegalArgumentException("A trip id or service code is required");
+        }
+        String given = trip.trim();
+        ObjectNode out = JSON.objectNode();
+        out.put("trip", given);
+        ArrayNode symptoms = out.putArray("symptoms");
+        for (EngineCaseStore.TripSymptom s : store.tripSymptoms(tenantCode, given)) {
+            ObjectNode row = symptoms.addObject();
+            row.put("definition_id", s.definitionId() == null ? null : s.definitionId().toString());
+            row.put("symptom_key", s.symptomKey());
+            row.put("name", s.name());
+            row.put("family", s.family());
+            row.put("icon", s.icon());
+            row.put("cases", s.cases());
+            row.put("open_cases", s.openCases());
+            row.put("max_level", s.maxLevel());
+            row.put("max_condition", s.cases() > 0 && s.maxLevel() > 0 ? condition(s.maxLevel()) : null);
+            row.put("trip_id", s.tripId());
+            row.put("first_opened_at", s.firstAt() == null ? null : s.firstAt().toString());
+            row.put("last_opened_at", s.lastAt() == null ? null : s.lastAt().toString());
+        }
+        return out;
+    }
+
     public boolean hasOpenCases(String tenantCode) {
         return !store.open(tenantCode).isEmpty();
     }

@@ -21,6 +21,7 @@ import {
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import { useMyTasksInfinite } from "../../hooks/useMyTasksInfinite";
 import ModalTooltip from "../../../shipping/components/modal-tooltip";
+import { useRememberKanbanView } from "@/features/shipping/hooks/use-remember-kanban-view";
 //import { useSearchParams } from "next/navigation";
 
 export default function MyTasks({
@@ -34,6 +35,7 @@ export default function MyTasks({
 }) {
   const searchParams = useSearchParams();
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  useRememberKanbanView();
 
   const filters = useMemo(() => {
     return searchParams

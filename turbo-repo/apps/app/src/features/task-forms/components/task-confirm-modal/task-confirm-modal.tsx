@@ -54,6 +54,30 @@ import {
 } from "../../services/form.service.types";
 import { ReviewSummary } from "../task-actions/review-items";
 import { rejectionReasonsFrom } from "./review-rejection-reasons";
+import { kanbanReturnHref } from "@/features/shipping/services/kanban-return";
+
+/** The board of the task's process: shipping, delivery or planning. */
+function boardPathForTask(taskType: string | undefined): string {
+  const name = taskType?.replace("wfship2:", "").replace("Task", "");
+  if (
+    SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(
+      name as ShippingCoordinatorProcessTaskV2
+    )
+  ) {
+    return "/shipping";
+  }
+  if (
+    DELIVERY_COORDINATOR_PROCESS_TASKS.includes(name as DeliveryProcessTask)
+  ) {
+    return "/delivery";
+  }
+  if (
+    PLANNING_COORDINATOR_PROCESS_TASKS.includes(name as PlanningProcessTask)
+  ) {
+    return "/planning";
+  }
+  return "/shipping";
+}
 
 export default function TaskConfirmModal({
   openModal,
@@ -186,36 +210,10 @@ export default function TaskConfirmModal({
       if (response.success) {
         setIsProcessing(false);
         setOpenModal(false);
-        if (
-          taskType &&
-          SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(
-            taskType
-              ?.replace("wfship2:", "")
-              .replace("Task", "") as ShippingCoordinatorProcessTaskV2
-          )
-        ) {
-          router.push(`/shipping`);
-        } else if (
-          taskType &&
-          DELIVERY_COORDINATOR_PROCESS_TASKS.includes(
-            taskType
-              ?.replace("wfship2:", "")
-              .replace("Task", "") as DeliveryProcessTask
-          )
-        ) {
-          router.push(`/delivery`);
-        } else if (
-          taskType &&
-          PLANNING_COORDINATOR_PROCESS_TASKS.includes(
-            taskType
-              ?.replace("wfship2:", "")
-              .replace("Task", "") as PlanningProcessTask
-          )
-        ) {
-          router.push(`/planning`);
-        } else {
-          router.push(`/shipping`);
-        }
+        // Back to the Kanban view the task was opened from, in this page's
+        // language. Without the locale the proxy redirects, and picks the
+        // language from Accept-Language.
+        router.push(kanbanReturnHref(lang, boardPathForTask(taskType)));
         return;
       }
       setIsProcessing(false);

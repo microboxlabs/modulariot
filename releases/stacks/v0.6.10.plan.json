@@ -1,0 +1,52 @@
+{
+  "stack_version": "0.6.10",
+  "stack_tag": "miot-stack@v0.6.10",
+  "milestone": "MIOT-0.6.10",
+  "pull_requests": [
+    {
+      "number": 2589,
+      "title": "fix(task-forms): stop the gallery render loop that blocked navigation",
+      "source_issues": [
+        {
+          "number": 2588,
+          "title": "Task page: navigation never leaves the page when the task has no files"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/media-source.test.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/media-source.tsx"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.10",
+      "tag": "app@v0.6.10"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.6.8",
+      "version": "0.6.10",
+      "tag": "docs@v0.6.10"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.6.8",
+      "version": "0.6.10",
+      "tag": "web@v0.6.10"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.48",
+      "version": "0.5.48",
+      "tag": "modulith@v0.5.48"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

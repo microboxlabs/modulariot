@@ -1,0 +1,54 @@
+# 🔔 Release Notes v1.32.7 — ModularIoT
+
+### Fecha: 10/11/2026
+
+**Objetivo**: Mejorar la experiencia de coordinación en tareas y casos, y corregir problemas de navegación, visualización y migración de membresías. Esta versión incluye cambios del milestone privado y las integraciones OSS del milestone MIOT-0.6.7.
+
+## 🚀 Evolutivos
+
+- **📍 Registrar gestión en Otras opciones** *(Integración OSS — MIOT-0.6.7)*
+  - **Punto clave**: En casos del engine, la opción «Registrar gestión» ahora está dentro del menú «Otras opciones» en lugar de mostrarse como botón independiente.
+  - **Alcance**: La opción sigue disponible únicamente para casos del engine; no aparece en casos legacy.
+
+- **📍 Síntomas presentes en el viaje** *(Integración OSS — MIOT-0.6.7)*
+  - **Punto clave**: La tarjeta del formulario de tareas muestra los casos del engine asociados al viaje cuando `MIOT_SYMPTOMS_LEGACY_ENABLED=false`, en vez de mostrar `00` para cada síntoma.
+
+## 🐛 Correcciones
+
+- **🐛 Migración de membresías nativas con muchos roles predeterminados** *(Integración OSS — MIOT-0.6.7)*
+  - **Impacto**: La migración podía quedarse bloqueada al procesar muchos roles legacy, dejando la transacción abierta y reteniendo el bloqueo de importación.
+  - **Solución**: Agrupa la persistencia de los roles predeterminados, omite bindings cuyo principal no sea un UUID y aplica un timeout por organización configurable con `miot.iam.native-migration.timeout` (5 minutos por defecto). Si se supera, la organización falla para que pueda reintentarse en la siguiente ejecución.
+
+- **🐛 Navegación y llamadas administrativas en la página de tareas Kanban** *(Integración OSS — MIOT-0.6.7)*
+  - **Impacto**: Al confirmar una tarea, la navegación no regresaba correctamente al tablero; además, los enlaces laterales podían perder el locale y los operadores disparaban llamadas reservadas para administradores.
+  - **Solución**: Regresa al tablero conservando la vista y los filtros, incorpora el locale en los enlaces y evita esas llamadas para operadores.
+
+- **🐛 Menú desplegable recortado dentro de tarjetas** *(Integración OSS — MIOT-0.6.7)*
+  - **Impacto**: El menú de `SelectableDropdown` podía quedar recortado dentro de tarjetas con desplazamiento.
+  - **Solución**: Renderiza el menú en el `document.body` con Floating UI, permite que cambie de posición cuando falta espacio y mantiene la navegación por teclado.
+
+## 📊 Beneficios
+
+- Menos bloqueos durante la migración de membresías con muchos roles.
+- Reintentos posibles cuando una organización supera el tiempo límite de migración.
+- Una experiencia más consistente al confirmar tareas y volver al tablero.
+- Menús desplegables accesibles incluso dentro de contenedores con desplazamiento.
+- Información de síntomas del viaje alineada con los casos del engine.
+- Opciones de gestión ubicadas de forma más ordenada y limitadas a los casos correspondientes.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.7`
+- App: `app@v0.6.7` — actualizado.
+- Docs: `docs@v0.6.6` — sin cambios.
+- Web: `web@v0.6.6` — sin cambios.
+- Modulith: `modulith@v0.5.46` — actualizado.
+- Harness: `harness@v0.1.15` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build dentro de la aplicación y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.32.7 reúne mejoras de interfaz para tareas y casos con correcciones operativas en la migración de membresías. Las integraciones del milestone MIOT-0.6.7 aportan ajustes concretos a la navegación, la visualización y el comportamiento para operadores.
+
+El timeout de migración permite que las organizaciones que no completan el proceso puedan reintentarse, mientras que los cambios en la app hacen más clara y consistente la gestión diaria de tareas y casos.

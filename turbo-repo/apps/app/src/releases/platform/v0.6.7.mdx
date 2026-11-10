@@ -1,0 +1,54 @@
+# 🔔 Release Notes v0.6.7 — ModularIoT
+
+### Fecha: 10/11/2026
+
+**Objetivo**: Esta versión mejora la experiencia de gestión de tareas y casos, y corrige problemas en la migración de membresías, la navegación y los controles de la aplicación. Incluye únicamente cambios de la plataforma incluidos en el hito OSS MIOT-0.6.7.
+
+## 🚀 Evolutivos
+
+- **📍 Registrar gestión en Otras opciones**
+  - **Punto clave**: La opción para registrar una gestión ahora está dentro del menú «Otras opciones» en casos del motor.
+  - **Detalle técnico**: La opción sigue disponible únicamente para casos del motor; no aparece en casos legacy.
+
+- **📍 Casos del motor en la tarjeta de síntomas del viaje**
+  - **Punto clave**: La tarjeta «Síntomas presentes en el viaje» muestra los casos del motor asociados al viaje cuando `MIOT_SYMPTOMS_LEGACY_ENABLED=false`.
+
+## 🐛 Correcciones
+
+- **🐛 Migración de membresías nativas**
+  - **Impacto**: La migración podía bloquearse en organizaciones con muchas asignaciones de roles predeterminadas, manteniendo bloqueada la importación.
+  - **Solución**: Las asignaciones se procesan con una sola operación `persistAll`; se omiten las que no tienen un principal UUID y se aplica un tiempo límite configurable, de cinco minutos por defecto, para permitir reintentos.
+
+- **🐛 Navegación y permisos en tareas Kanban**
+  - **Impacto**: Al confirmar una tarea no se volvía al tablero; los enlaces de la barra lateral no conservaban el idioma de la página y los operadores podían activar llamadas administrativas.
+  - **Solución**: Se vuelve al tablero conservando la vista y los filtros, se incluyen las rutas localizadas y se evitan las llamadas administrativas para operadores.
+
+- **🐛 Menú desplegable recortado en tarjetas**
+  - **Impacto**: El menú de `SelectableDropdown` podía quedar recortado dentro de tarjetas con desplazamiento.
+  - **Solución**: El menú se muestra en el cuerpo del documento, se ajusta cuando el espacio es limitado y mantiene la navegación por teclado.
+
+## 📊 Beneficios
+
+- Menos riesgo de bloqueos durante la migración de membresías y posibilidad de reintentar organizaciones que excedan el tiempo límite.
+- Mejor continuidad del trabajo en Kanban al regresar al tablero con la vista y los filtros intactos.
+- Navegación coherente con el idioma de la página.
+- Menos llamadas administrativas innecesarias para operadores.
+- Menús desplegables accesibles incluso dentro de tarjetas con desplazamiento.
+- Más contexto de los casos del motor en la tarjeta de síntomas del viaje.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.7`.
+- Aplicación: `app@v0.6.7` — actualizado.
+- Documentación: `docs@v0.6.6` — sin cambios.
+- Web: `web@v0.6.6` — sin cambios.
+- Modulith: `modulith@v0.5.46` — actualizado.
+- Harness: `harness@v0.1.15` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 0.6.7 reúne mejoras de uso para tareas y casos con correcciones operativas en la migración de membresías. También refina el comportamiento de navegación y menús para que la aplicación responda mejor a los roles y al contexto de cada página.
+
+El alcance corresponde exclusivamente al hito OSS MIOT-0.6.7 e incluye actualizaciones de la aplicación y Modulith.

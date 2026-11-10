@@ -80,6 +80,14 @@ MIOT_COMPONENT_INTEGRATIONS_ENABLED=true
 
 Only the schemas for enabled DB-backed components are created by Flyway. Starting with `./start.sh integrations` creates `miot_core` and `miot_integrations`. The gateway component requires no database.
 
+Places requires a separate opt-in and stays off even when `miot.component.all.enabled=true`.
+Its beans and endpoints use `@IfBuildProperty`, so a Places-enabled artifact must be built with
+`-Dmiot.component.places.enabled=true`; changing a runtime flag cannot add excluded beans.
+Standard CI images leave Places disabled. Set `MIOT_COMPONENT_PLACES_ENABLED=true` when running
+an explicitly enabled artifact so `FlywayMigrator` includes `db/migration/places`.
+Synchronization to the GPS database additionally requires `MIOT_PLACES_SYNC_ENABLED=true` and
+a configured GPS datasource; it stays off by default.
+
 ## Database
 
 Each component owns its schema. Migrations run via Flyway at startup, filtered by active components:
@@ -102,6 +110,7 @@ Migration version ranges are reserved per component so subset deployments can in
 | Symptoms | `miot_symptoms` (also reads StreamHub `prod_iot_gps`) | `V0.8.x` up to `V0.8.5`, then `V0.12.x` |
 | Fleet | `miot_fleet` (reads StreamHub `prod_iot_gps` for signals and trips) | `V0.9.x` |
 | Trips | `miot_trips` | `V0.10.x` |
+| Places | `miot_places` | `V0.13.x` |
 
 These migrations sit outside their component's range. They are applied, so they keep their versions; do not reuse them:
 

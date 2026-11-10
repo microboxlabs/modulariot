@@ -4,8 +4,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import TaskConfirmModal from "./task-confirm-modal";
 import {
   OUTCOME_PREPARE_SERVICE_V2,
+  OUTCOME_TO_CONFIRM_ARRIVAL_V2,
+  OUTCOME_TO_CONFIRM_DELIVERY_V2,
+  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
+  TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK,
   TYPE_WFSHIP2_MISSION_CONTROL_TASK,
 } from "../../services/form.service";
+import { rememberKanbanView } from "@/features/shipping/services/kanban-return";
 import type { RejectedItem } from "../task-bento-form/bento-review-context";
 
 const { taskNextAction, push } = vi.hoisted(() => ({
@@ -108,5 +113,102 @@ describe("TaskConfirmModal, sending a service back for control", () => {
 
     expect(screen.getByText("Posibles motivos:")).toBeInTheDocument();
     expect(screen.getByRole("textbox")).toBeInTheDocument();
+  });
+});
+
+describe("TaskConfirmModal, after the move", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+  });
+
+  function renderContinue(
+    props: {
+      taskType?: typeof TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK;
+      outcome?: typeof OUTCOME_TO_CONFIRM_DELIVERY_V2;
+      lang?: string;
+    } = {}
+  ) {
+    const setOpenModal = vi.fn();
+    render(
+      <TaskConfirmModal
+        openModal
+        setOpenModal={setOpenModal}
+        commentsFieldEnabled={false}
+        taskId="2984416"
+        taskType={TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK}
+        outcome={OUTCOME_TO_CONFIRM_ARRIVAL_V2}
+        outcomeLabel="Confirmar Cierre"
+        dict={dict}
+        lang="es"
+        {...props}
+      />
+    );
+    return { setOpenModal };
+  }
+
+  const confirm = () =>
+    userEvent.click(
+      screen.getByRole("button", { name: "Confirmar mover a Confirmar Cierre" })
+    );
+
+  it("returns to the task's board in the page's locale", async () => {
+    taskNextAction.mockResolvedValue({ success: true });
+    renderContinue();
+
+    await confirm();
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/es/shipping"));
+  });
+
+  it("returns to a delivery task's board", async () => {
+    taskNextAction.mockResolvedValue({ success: true });
+    renderContinue({
+      taskType: TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
+      outcome: OUTCOME_TO_CONFIRM_DELIVERY_V2,
+      lang: "en",
+    });
+
+    await confirm();
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/en/delivery"));
+  });
+
+  it("returns to the Kanban view the task was opened from, filters included", async () => {
+    rememberKanbanView("/es/finished?serviceType=CARGA");
+    taskNextAction.mockResolvedValue({ success: true });
+    renderContinue({ lang: "en" });
+
+    await confirm();
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/en/finished?serviceType=CARGA")
+    );
+  });
+
+  it("stays on the form when the move fails", async () => {
+    taskNextAction.mockResolvedValue({ success: false });
+    const { setOpenModal } = renderContinue();
+
+    await confirm();
+
+    await waitFor(() => expect(taskNextAction).toHaveBeenCalled());
+    expect(push).not.toHaveBeenCalled();
+    expect(setOpenModal).not.toHaveBeenCalledWith(false);
+  });
+
+  it("stays on the form when the request throws", async () => {
+    taskNextAction.mockRejectedValue(
+      Object.assign(new Error("Bad Gateway"), {
+        info: { error: { message: "Bad Gateway" } },
+      })
+    );
+    const { setOpenModal } = renderContinue();
+
+    await confirm();
+
+    await waitFor(() => expect(taskNextAction).toHaveBeenCalled());
+    expect(push).not.toHaveBeenCalled();
+    expect(setOpenModal).not.toHaveBeenCalledWith(false);
   });
 });

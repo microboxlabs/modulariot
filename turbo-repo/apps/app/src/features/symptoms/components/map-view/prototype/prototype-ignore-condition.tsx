@@ -154,6 +154,7 @@ export default function PrototypeIgnoreCondition({
         <span className={fieldLabel}>{t("ignore_reason")} *</span>
         <SelectableDropdown
           fieldKey="ignore_reason"
+          ariaLabel={t("ignore_reason")}
           dict={dict}
           value={motivoId}
           onSelect={(o) => setMotivoId(o.id)}

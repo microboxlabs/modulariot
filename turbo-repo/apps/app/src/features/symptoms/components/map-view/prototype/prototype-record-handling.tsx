@@ -141,6 +141,7 @@ export default function PrototypeRecordHandling({
             <span className={fieldLabel}>{t("handling_outcome")} *</span>
             <SelectableDropdown
               fieldKey={HANDLING_OUTCOME_FIELD}
+              ariaLabel={t("handling_outcome")}
               dict={dict}
               value={outcomeId}
               onSelect={(o) => setOutcomeId(o.id)}

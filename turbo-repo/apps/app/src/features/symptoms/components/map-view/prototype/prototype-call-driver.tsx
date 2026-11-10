@@ -511,6 +511,7 @@ export default function PrototypeCallDriver({
         <div className="min-w-0 flex-1">
           <SelectableDropdown
             fieldKey="who_to_call"
+            ariaLabel={t("proto_section_who")}
             dict={dict}
             value={effectiveCallTargetId}
             onSelect={(o) => {
@@ -565,6 +566,7 @@ export default function PrototypeCallDriver({
         <span className={fieldLabel}>{t("call_result")}</span>
         <OptionsDropdown
           options={resultOptions}
+          ariaLabel={t("call_result")}
           value={resultadoId}
           onSelect={(o) => {
             setResultadoId(o.id);

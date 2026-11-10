@@ -97,6 +97,7 @@ export default function PrototypeInvalidateSymptom({
       <span className={fieldLabel}>{t("invalidate_motivo")} *</span>
       <SelectableDropdown
         fieldKey="invalidate_reason"
+        ariaLabel={t("invalidate_motivo")}
         dict={dict}
         value={motivoId}
         onSelect={(o) => setMotivoId(o.id)}

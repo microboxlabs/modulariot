@@ -24,6 +24,7 @@ describe("SelectableDropdown clear contract", () => {
     render(
       <SelectableDropdown
         fieldKey="demo"
+        ariaLabel="Demo"
         dict={{}}
         value="one"
         onSelect={onSelect}

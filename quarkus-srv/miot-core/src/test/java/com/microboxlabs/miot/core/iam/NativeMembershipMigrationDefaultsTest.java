@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.core.iam;
 
 import static io.restassured.RestAssured.given;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
@@ -24,6 +25,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -204,16 +206,13 @@ class NativeMembershipMigrationDefaultsTest {
                 + "BEGIN PERFORM pg_sleep(0.03); RETURN NEW; END $$");
         exec("CREATE TRIGGER slow_default_binding BEFORE INSERT ON miot_iam.iam_role_binding "
                 + "FOR EACH ROW EXECUTE FUNCTION miot_iam.slow_default_binding()");
-        long started = System.nanoTime();
         given().config(BOUNDED).header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
                 .when().post(MIGRATE).then().statusCode(200)
                 .body("find { it.organization == '" + ORG + "' }.error", containsString("Not done after"));
-        // Wait until the whole flush would have finished, had it gone on after the rollback.
-        long flushNanos = 449L * 30_000_000L;
-        long left = flushNanos - (System.nanoTime() - started);
-        if (left > 0) {
-            Thread.sleep(left / 1_000_000L + 2_000L);
-        }
+        // Until no connection is still inserting a binding, had the flush gone on after the rollback.
+        await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofMillis(200)).until(() -> "0".equals(query(
+                "SELECT count(*) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND state = 'active' "
+                        + "AND query ILIKE 'insert into %iam_role_binding%'")));
         assertEquals("0", query("SELECT count(*) FROM miot_iam.iam_role_binding WHERE created_by = '"
                 + NativeMembershipMigration.ACTOR + "'"));
         assertPending();

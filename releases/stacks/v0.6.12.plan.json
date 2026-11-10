@@ -1,0 +1,81 @@
+{
+  "stack_version": "0.6.12",
+  "stack_tag": "miot-stack@v0.6.12",
+  "milestone": "MIOT-0.6.12",
+  "pull_requests": [
+    {
+      "number": 2594,
+      "title": "fix(symptoms): finish a treatment after the engine closed its case",
+      "source_issues": [
+        {
+          "number": 2593,
+          "title": "bug(symptoms): Finalizar fails with 409 when the engine closed the case during the treatment"
+        }
+      ]
+    },
+    {
+      "number": 2596,
+      "title": "fix(symptoms): keep the case panel forms usable on short screens",
+      "source_issues": [
+        {
+          "number": 2595,
+          "title": "bug: call results form unusable on small laptop screens"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-symptoms/docs/control-tower-api.md",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerTreatmentsResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/TreatmentService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerTreatmentsResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgTreatmentStoresTest.java",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/lugares-layout.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/prototype-call-center-flow.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/prototype-call-center-flow.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-call-driver.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-call-driver.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-form-kit.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-general-map.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-ignore-condition.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-inline-form.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-invalidate-symptom.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-record-handling.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.12",
+      "tag": "app@v0.6.12"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.6.10",
+      "version": "0.6.12",
+      "tag": "docs@v0.6.12"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.6.10",
+      "version": "0.6.12",
+      "tag": "web@v0.6.12"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.49",
+      "version": "0.5.50",
+      "tag": "modulith@v0.5.50"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

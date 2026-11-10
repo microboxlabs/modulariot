@@ -1,0 +1,41 @@
+# 🔔 Release Notes v0.6.12 — ModularIoT
+
+### Fecha: 10/11/2026
+
+**Objetivo**: Mejorar la experiencia de atención de síntomas en Control Tower, con formularios más accesibles y un cierre de tratamiento más robusto cuando el motor cierra un caso durante la atención.
+
+## 🐛 Correcciones
+
+- **🐛 Formularios de resultados de llamada en pantallas pequeñas**
+  - **Impacto**: En paneles de baja altura, los campos podían solaparse y los botones de acción quedar fuera del área visible, sin posibilidad de desplazamiento.
+  - **Solución**: Se mejoró la distribución del formulario para evitar solapamientos, permitir el desplazamiento y mantener accesibles las acciones. La nota de llamada dispone de más espacio y el panel conserva un ancho mínimo usable.
+
+- **🐛 Finalización de tratamientos cuando el motor cierra el caso**
+  - **Impacto**: Si el motor cerraba un caso durante un tratamiento abierto por un operador, al finalizarlo se recibía un error 409 y el tratamiento podía quedar abierto.
+  - **Solución**: Se permite reanudar el tratamiento abierto del operador y completar su acción y cierre, sin permitir iniciar tratamientos nuevos en casos cerrados. Si el caso se cierra durante una operación, el panel informa la situación y conserva el formulario.
+
+## 📊 Beneficios
+
+- Formularios de síntomas más utilizables en pantallas de menor altura.
+- Acciones de guardado y finalización accesibles sin que el panel las recorte.
+- Menos solapamientos entre campos y etiquetas.
+- Mayor continuidad operativa cuando el motor cierra un caso durante la atención.
+- Mejor comunicación de errores sin perder el contenido del formulario.
+- Se mantiene el rechazo al inicio de tratamientos nuevos en casos cerrados.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.6.12`
+- **App**: `app@v0.6.12` — con cambios.
+- **Docs**: `docs@v0.6.12` — con cambios.
+- **Web**: `web@v0.6.12` — con cambios.
+- **Modulith**: `modulith@v0.5.50` — con cambios.
+- **Harness**: `harness@v0.1.15` — sin cambios.
+
+Los digest exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión mejora la atención de síntomas tanto en equipos con espacio de pantalla limitado como en situaciones donde el estado del caso cambia mientras el operador trabaja.
+
+Los ajustes facilitan completar los formularios y cerrar tratamientos abiertos, manteniendo las reglas para casos ya cerrados por el motor.

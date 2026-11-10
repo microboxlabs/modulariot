@@ -21,18 +21,23 @@ export type TripSymptoms =
   | { source: "legacy"; rows: Record<string, unknown>[] }
   | { source: "engine"; trip: string; symptoms: EngineTripSymptom[] };
 
-/** The route's body as {@link TripSymptoms}. A JSON array is the legacy answer. */
+/**
+ * The route's body as {@link TripSymptoms}. An object with a `symptoms` array
+ * is the engine's answer. Anything else is the legacy answer: an array, or
+ * `null` or `{}` for a trip without rows.
+ */
 export function parseTripSymptoms(body: unknown): TripSymptoms {
   if (Array.isArray(body)) {
     return { source: "legacy", rows: body as Record<string, unknown>[] };
   }
   const value = (body ?? {}) as { trip?: unknown; symptoms?: unknown };
+  if (!Array.isArray(value.symptoms)) {
+    return { source: "legacy", rows: [] };
+  }
   return {
     source: "engine",
     trip: typeof value.trip === "string" ? value.trip : "",
-    symptoms: Array.isArray(value.symptoms)
-      ? (value.symptoms as EngineTripSymptom[])
-      : [],
+    symptoms: value.symptoms as EngineTripSymptom[],
   };
 }
 

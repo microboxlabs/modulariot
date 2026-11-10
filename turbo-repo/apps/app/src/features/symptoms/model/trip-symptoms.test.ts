@@ -31,17 +31,22 @@ describe("parseTripSymptoms", () => {
     });
   });
 
-  it("reads an object as the engine answer", () => {
+  it("reads an object with symptoms as the engine answer", () => {
     expect(parseTripSymptoms({ trip: "SVC-1", symptoms: [symptom] })).toEqual({
       source: "engine",
       trip: "SVC-1",
       symptoms: [symptom],
     });
-    expect(parseTripSymptoms({})).toEqual({
+    expect(parseTripSymptoms({ trip: "", symptoms: [] })).toEqual({
       source: "engine",
       trip: "",
       symptoms: [],
     });
+  });
+
+  it("reads null or an object without symptoms as a legacy trip without rows", () => {
+    expect(parseTripSymptoms(null)).toEqual({ source: "legacy", rows: [] });
+    expect(parseTripSymptoms({})).toEqual({ source: "legacy", rows: [] });
   });
 });
 

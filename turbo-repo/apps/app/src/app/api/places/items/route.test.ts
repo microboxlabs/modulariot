@@ -4,13 +4,13 @@ import { NextResponse } from "next/server";
 vi.mock("server-only", () => ({}));
 
 const resolveTenantScopeMock = vi.fn();
-const forwardToQuarkusMock = vi.fn();
+const forwardMock = vi.fn();
 
 vi.mock("@/app/api/utils/tenant-scope", () => ({
   resolveTenantScope: (...args: unknown[]) => resolveTenantScopeMock(...args),
 }));
-vi.mock("@/app/api/utils/quarkus-proxy", () => ({
-  forwardToQuarkus: (...args: unknown[]) => forwardToQuarkusMock(...args),
+vi.mock("@/app/api/utils/streamhub-modulith-proxy", () => ({
+  forwardToStreamhubModulith: (...args: unknown[]) => forwardMock(...args),
 }));
 vi.mock("@/lib/logger", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -75,7 +75,7 @@ const post = (json: unknown) =>
 describe("/api/places/items", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    forwardToQuarkusMock.mockReset();
+    forwardMock.mockReset();
     resolveTenantScopeMock.mockResolvedValue({
       resolved: true,
       scope: { activeOrg: { slug: "acme corp" } },
@@ -83,7 +83,7 @@ describe("/api/places/items", () => {
   });
 
   it("lists the organization's places and routes apart", async () => {
-    forwardToQuarkusMock.mockResolvedValue(
+    forwardMock.mockResolvedValue(
       NextResponse.json([
         place(),
         place({ id: "t-1", kind: "route", name: "Ruta 68", geojson: line }),
@@ -91,8 +91,9 @@ describe("/api/places/items", () => {
     );
     const { GET } = await import("./route");
     const res = await GET();
-    expect(forwardToQuarkusMock).toHaveBeenCalledWith(
-      "/api/v1/orgs/acme%20corp/places/items?size=2000&page=0"
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20corp/places/items?size=2000&page=0",
+      { sessionOnly: true }
     );
     const json = await res.json();
     expect(json.lugares.map((l: { place_id: string }) => l.place_id)).toEqual([
@@ -105,30 +106,26 @@ describe("/api/places/items", () => {
   });
 
   it("fails clearly when the modulith answers an unexpected shape", async () => {
-    forwardToQuarkusMock.mockResolvedValue(
-      NextResponse.json({ not: "a list" })
-    );
+    forwardMock.mockResolvedValue(NextResponse.json({ not: "a list" }));
     const { GET } = await import("./route");
     expect((await GET()).status).toBe(502);
   });
 
   it("forwards a valid new place to the active organization", async () => {
-    forwardToQuarkusMock.mockResolvedValue(
-      NextResponse.json(place(), { status: 201 })
-    );
+    forwardMock.mockResolvedValue(NextResponse.json(place(), { status: 201 }));
     const { POST } = await import("./route");
     const res = await POST(post(body));
     expect(res.status).toBe(201);
-    expect(forwardToQuarkusMock).toHaveBeenCalledWith(
+    expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme%20corp/places/items",
-      { method: "POST", body }
+      { method: "POST", body, sessionOnly: true }
     );
   });
 
   it("rejects a body that is not a place without calling the modulith", async () => {
     const { POST } = await import("./route");
     expect((await POST(post({ name: "Sin forma" }))).status).toBe(400);
-    expect(forwardToQuarkusMock).not.toHaveBeenCalled();
+    expect(forwardMock).not.toHaveBeenCalled();
   });
 
   it("needs a session and an organization", async () => {
@@ -139,7 +136,7 @@ describe("/api/places/items", () => {
     const { GET, POST } = await import("./route");
     expect((await GET()).status).toBe(401);
     expect((await POST(post(body))).status).toBe(401);
-    expect(forwardToQuarkusMock).not.toHaveBeenCalled();
+    expect(forwardMock).not.toHaveBeenCalled();
   });
 });
 
@@ -147,7 +144,7 @@ describe("/api/places/items/[id]", () => {
   const params = Promise.resolve({ id: "p 1" });
 
   beforeEach(() => {
-    forwardToQuarkusMock.mockReset();
+    forwardMock.mockReset();
     resolveTenantScopeMock.mockResolvedValue({
       resolved: true,
       scope: { activeOrg: { slug: "acme" } },
@@ -155,7 +152,7 @@ describe("/api/places/items/[id]", () => {
   });
 
   it("replaces by id and deletes by External ID in the active organization", async () => {
-    forwardToQuarkusMock.mockResolvedValue(NextResponse.json(place()));
+    forwardMock.mockResolvedValue(NextResponse.json(place()));
     const { PUT } = await import("./[id]/route");
     const { DELETE } = await import("./route");
     await PUT(
@@ -168,15 +165,15 @@ describe("/api/places/items/[id]", () => {
     await DELETE(
       new Request("http://localhost/app/api/places/items?code=PL%2F01")
     );
-    expect(forwardToQuarkusMock).toHaveBeenNthCalledWith(
+    expect(forwardMock).toHaveBeenNthCalledWith(
       1,
       "/api/v1/orgs/acme/places/items/p%201",
-      { method: "PUT", body }
+      { method: "PUT", body, sessionOnly: true }
     );
-    expect(forwardToQuarkusMock).toHaveBeenNthCalledWith(
+    expect(forwardMock).toHaveBeenNthCalledWith(
       2,
       "/api/v1/orgs/acme/places/items?code=PL%2F01",
-      { method: "DELETE" }
+      { method: "DELETE", sessionOnly: true }
     );
   });
 
@@ -186,7 +183,7 @@ describe("/api/places/items/[id]", () => {
       new Request("http://localhost/app/api/places/items?code=%20")
     );
     expect(res.status).toBe(400);
-    expect(forwardToQuarkusMock).not.toHaveBeenCalled();
+    expect(forwardMock).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid replacement", async () => {
@@ -196,6 +193,6 @@ describe("/api/places/items/[id]", () => {
       { params }
     );
     expect(res.status).toBe(400);
-    expect(forwardToQuarkusMock).not.toHaveBeenCalled();
+    expect(forwardMock).not.toHaveBeenCalled();
   });
 });

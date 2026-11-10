@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { forwardToQuarkus } from "@/app/api/utils/quarkus-proxy";
+import { forwardToStreamhubModulith } from "@/app/api/utils/streamhub-modulith-proxy";
 import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
 import {
   guardadosDesdePlaces,
@@ -16,8 +16,9 @@ const PAGE_SIZE = 2000;
 const placesSchema = z.array(placeViewSchema);
 
 async function leerPagina(org: string, page: number) {
-  const upstream = await forwardToQuarkus(
-    `/api/v1/orgs/${org}/places/items?size=${PAGE_SIZE}&page=${page}`
+  const upstream = await forwardToStreamhubModulith(
+    `/api/v1/orgs/${org}/places/items?size=${PAGE_SIZE}&page=${page}`,
+    { sessionOnly: true }
   );
   if (!upstream.ok) return upstream;
   const parsed = placesSchema.safeParse(
@@ -72,9 +73,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid place" }, { status: 400 });
   }
   const org = encodeURIComponent(scope.scope.activeOrg.slug);
-  return forwardToQuarkus(`/api/v1/orgs/${org}/places/items`, {
+  return forwardToStreamhubModulith(`/api/v1/orgs/${org}/places/items`, {
     method: "POST",
     body: body.data,
+    sessionOnly: true,
   });
 }
 
@@ -92,8 +94,8 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Missing code" }, { status: 400 });
   }
   const org = encodeURIComponent(scope.scope.activeOrg.slug);
-  return forwardToQuarkus(
+  return forwardToStreamhubModulith(
     `/api/v1/orgs/${org}/places/items?code=${encodeURIComponent(code)}`,
-    { method: "DELETE" }
+    { method: "DELETE", sessionOnly: true }
   );
 }

@@ -4,13 +4,13 @@ import { NextResponse } from "next/server";
 vi.mock("server-only", () => ({}));
 
 const resolveTenantScopeMock = vi.fn();
-const forwardToQuarkusMock = vi.fn();
+const forwardMock = vi.fn();
 
 vi.mock("@/app/api/utils/tenant-scope", () => ({
   resolveTenantScope: (...args: unknown[]) => resolveTenantScopeMock(...args),
 }));
-vi.mock("@/app/api/utils/quarkus-proxy", () => ({
-  forwardToQuarkus: (...args: unknown[]) => forwardToQuarkusMock(...args),
+vi.mock("@/app/api/utils/streamhub-modulith-proxy", () => ({
+  forwardToStreamhubModulith: (...args: unknown[]) => forwardMock(...args),
 }));
 vi.mock("@/lib/logger", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -39,7 +39,7 @@ const geocerca = (over: Record<string, unknown> = {}) => ({
 describe("GET /api/places/geofences", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    forwardToQuarkusMock.mockReset();
+    forwardMock.mockReset();
     resolveTenantScopeMock.mockResolvedValue({
       resolved: true,
       scope: { activeOrg: { slug: "acme corp" } },
@@ -47,7 +47,7 @@ describe("GET /api/places/geofences", () => {
   });
 
   it("returns the active organization's geofences as places", async () => {
-    forwardToQuarkusMock.mockResolvedValue(
+    forwardMock.mockResolvedValue(
       NextResponse.json([
         geocerca(),
         // no usable shape: left out
@@ -56,8 +56,9 @@ describe("GET /api/places/geofences", () => {
     );
     const { GET } = await import("./route");
     const res = await GET();
-    expect(forwardToQuarkusMock).toHaveBeenCalledWith(
-      "/api/v1/orgs/acme%20corp/places/geofences?size=2000&page=0"
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20corp/places/geofences?size=2000&page=0",
+      { sessionOnly: true }
     );
     const body = await res.json();
     expect(body).toHaveLength(1);
@@ -81,11 +82,11 @@ describe("GET /api/places/geofences", () => {
     });
     const { GET } = await import("./route");
     expect((await GET()).status).toBe(401);
-    expect(forwardToQuarkusMock).not.toHaveBeenCalled();
+    expect(forwardMock).not.toHaveBeenCalled();
   });
 
   it("passes the modulith's errors through", async () => {
-    forwardToQuarkusMock.mockResolvedValue(
+    forwardMock.mockResolvedValue(
       NextResponse.json({ error: "forbidden" }, { status: 403 })
     );
     const { GET } = await import("./route");
@@ -93,7 +94,7 @@ describe("GET /api/places/geofences", () => {
   });
 
   it("passes through that the GPS database is not configured", async () => {
-    forwardToQuarkusMock.mockResolvedValue(
+    forwardMock.mockResolvedValue(
       NextResponse.json(
         { error: "The GPS database is not configured" },
         { status: 503 }
@@ -104,15 +105,13 @@ describe("GET /api/places/geofences", () => {
   });
 
   it("fails clearly when the modulith answers an unexpected shape", async () => {
-    forwardToQuarkusMock.mockResolvedValue(
-      NextResponse.json({ not: "a list" })
-    );
+    forwardMock.mockResolvedValue(NextResponse.json({ not: "a list" }));
     const { GET } = await import("./route");
     expect((await GET()).status).toBe(502);
   });
 
   it("loads the catalog past the first 2000 geofences", async () => {
-    forwardToQuarkusMock
+    forwardMock
       .mockResolvedValueOnce(
         NextResponse.json(
           Array.from({ length: 2000 }, (_, id) => geocerca({ id }))
@@ -124,14 +123,15 @@ describe("GET /api/places/geofences", () => {
     const body = await res.json();
     expect(body).toHaveLength(2001);
     expect(body.at(-1).place_id).toBe("streamhub-2000");
-    expect(forwardToQuarkusMock).toHaveBeenNthCalledWith(
+    expect(forwardMock).toHaveBeenNthCalledWith(
       2,
-      "/api/v1/orgs/acme%20corp/places/geofences?size=2000&page=1"
+      "/api/v1/orgs/acme%20corp/places/geofences?size=2000&page=1",
+      { sessionOnly: true }
     );
   });
 
   it("does not present a partial catalog when a later page fails", async () => {
-    forwardToQuarkusMock
+    forwardMock
       .mockResolvedValueOnce(
         NextResponse.json(
           Array.from({ length: 2000 }, (_, id) => geocerca({ id }))

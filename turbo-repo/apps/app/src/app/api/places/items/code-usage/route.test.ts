@@ -4,13 +4,13 @@ import { NextResponse } from "next/server";
 vi.mock("server-only", () => ({}));
 
 const resolveTenantScopeMock = vi.fn();
-const forwardToQuarkusMock = vi.fn();
+const forwardMock = vi.fn();
 
 vi.mock("@/app/api/utils/tenant-scope", () => ({
   resolveTenantScope: (...args: unknown[]) => resolveTenantScopeMock(...args),
 }));
-vi.mock("@/app/api/utils/quarkus-proxy", () => ({
-  forwardToQuarkus: (...args: unknown[]) => forwardToQuarkusMock(...args),
+vi.mock("@/app/api/utils/streamhub-modulith-proxy", () => ({
+  forwardToStreamhubModulith: (...args: unknown[]) => forwardMock(...args),
 }));
 
 import { GET } from "./route";
@@ -25,21 +25,22 @@ describe("GET /app/api/places/items/code-usage", () => {
       resolved: true,
       scope: { activeOrg: { slug: "acme" } },
     });
-    forwardToQuarkusMock.mockResolvedValue(NextResponse.json({ inUse: false }));
+    forwardMock.mockResolvedValue(NextResponse.json({ inUse: false }));
   });
 
   it("asks the modulith for the active organization, with the code encoded", async () => {
     const res = await GET(pedir("?code=SCL%2001"));
     expect(res.status).toBe(200);
-    expect(forwardToQuarkusMock).toHaveBeenCalledWith(
-      "/api/v1/orgs/acme/places/items/code-usage?code=SCL%2001"
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme/places/items/code-usage?code=SCL%2001",
+      { sessionOnly: true }
     );
   });
 
   it("needs a code", async () => {
     const res = await GET(pedir("?code=%20"));
     expect(res.status).toBe(400);
-    expect(forwardToQuarkusMock).not.toHaveBeenCalled();
+    expect(forwardMock).not.toHaveBeenCalled();
   });
 
   it("answers with the scope's refusal when there is no organization", async () => {
@@ -49,6 +50,6 @@ describe("GET /app/api/places/items/code-usage", () => {
     });
     const res = await GET(pedir("?code=SCL"));
     expect(res.status).toBe(403);
-    expect(forwardToQuarkusMock).not.toHaveBeenCalled();
+    expect(forwardMock).not.toHaveBeenCalled();
   });
 });

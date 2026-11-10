@@ -25,7 +25,7 @@ public class PlaceSyncRetry {
     @Inject
     public PlaceSyncRetry(PlaceService places,
             @ConfigProperty(name = "miot.component.places.enabled", defaultValue = "false") boolean componentEnabled,
-            @ConfigProperty(name = "miot.places.sync.enabled", defaultValue = "false") boolean syncEnabled) {
+            @ConfigProperty(name = "miot.places.sync.enabled", defaultValue = "true") boolean syncEnabled) {
         this.places = places;
         this.enabled = componentEnabled && syncEnabled;
     }

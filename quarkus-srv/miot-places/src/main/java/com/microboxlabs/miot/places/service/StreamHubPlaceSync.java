@@ -19,8 +19,9 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * (with its address); a delete removes the row for good. A route has none.
  *
  * <p>A row miot-trips keeps for a location ({@code properties.created_by = 'miot-trips'}) is never replaced or
- * removed: saving a place over one fails, and the place stays pending. Off while {@code miot.places.sync.enabled} is
- * false or the GPS database is not configured; what is written meanwhile stays pending.
+ * removed: saving a place over one fails, and the place stays pending. On with the places component; off while
+ * {@code miot.places.sync.enabled} is false (in dev by default) or the GPS database is not configured; what is
+ * written meanwhile stays pending.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.places.enabled", stringValue = "true")
@@ -47,7 +48,7 @@ public class StreamHubPlaceSync implements PlaceSync {
 
     @Inject
     public StreamHubPlaceSync(GpsDatabase gps,
-            @ConfigProperty(name = "miot.places.sync.enabled", defaultValue = "false") boolean enabled,
+            @ConfigProperty(name = "miot.places.sync.enabled", defaultValue = "true") boolean enabled,
             @ConfigProperty(name = "miot.component.places.enabled", defaultValue = "false") boolean componentEnabled) {
         this.gps = gps;
         this.enabled = enabled && componentEnabled;

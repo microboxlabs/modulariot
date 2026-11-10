@@ -115,10 +115,20 @@ class EngineSplitConfigTest {
     }
 
     @Test
-    void placesSyncRequiresExplicitOptInEvenOnTheAllComponentsApiPod() throws IOException {
-        off(config(API_POD), "miot.places.sync.enabled");
-        on(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true", "MIOT_PLACES_SYNC_ENABLED", "true")),
+    void placesSyncFollowsThePlacesComponentOutsideDev() throws IOException {
+        on(config(API_POD), "miot.places.sync.enabled");
+        on(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true"), "prod"),
                 "miot.component.places.enabled", "miot.places.sync.enabled");
+        off(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true", "MIOT_PLACES_SYNC_ENABLED", "false"), "prod"),
+                "miot.places.sync.enabled");
+        off(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "false"), "prod"), "miot.places.sync.enabled");
+    }
+
+    @Test
+    void placesSyncIsOptInInDevWhereTheGpsDatabaseCanBeProduction() throws IOException {
+        off(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true"), "dev"), "miot.places.sync.enabled");
+        on(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true", "MIOT_PLACES_SYNC_ENABLED", "true"), "dev"),
+                "miot.places.sync.enabled");
     }
 
     @Test

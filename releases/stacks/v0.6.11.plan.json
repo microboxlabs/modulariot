@@ -1,0 +1,82 @@
+{
+  "stack_version": "0.6.11",
+  "stack_tag": "miot-stack@v0.6.11",
+  "milestone": "MIOT-0.6.11",
+  "pull_requests": [
+    {
+      "number": 2587,
+      "title": "feat(conversations): external events and Teams cards",
+      "source_issues": []
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-conversational/docs/external-events.md",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/ConversationEventJob.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/ConversationEventsDeclareJob.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/ConnectionChannel.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/ConvTemplate.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/EventCatalog.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/ExternalEventType.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/ExternalEvents.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleSimulator.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RulesEngine.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RulesService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/StepMessages.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/TeamsCard.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/TemplateBump.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/TemplatesService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/ExternalEventStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/PgExternalEventStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/PgRunStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/PgTemplateStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/RunStore.java",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.10__external_events_and_teams_cards.sql",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/ExternalEventsTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/InMemoryExternalEvents.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/InMemoryRules.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/PlatformTemplatesTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/RulesFixture.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/TeamsCardTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/store/PgRuleStoresTest.java",
+    "turbo-repo/apps/app/src/features/conversations/conversations-types.ts",
+    "turbo-repo/apps/app/src/features/conversations/template-editor.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-editor.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-model.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/template-model.ts",
+    "turbo-repo/apps/app/src/features/conversations/template-previews.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-previews.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.11",
+      "tag": "app@v0.6.11"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.6.10",
+      "version": "0.6.10",
+      "tag": "docs@v0.6.10"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.6.10",
+      "version": "0.6.10",
+      "tag": "web@v0.6.10"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.48",
+      "version": "0.5.49",
+      "tag": "modulith@v0.5.49"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

@@ -641,6 +641,90 @@ class OrgControlTowerMapResourceTest {
         return out;
     }
 
+    private static final UUID SIGNAL_LOSS = UUID.fromString("0f7a3c1e-1111-4a2b-9c3d-000000000001");
+    private static final UUID SPEEDING = UUID.fromString("0f7a3c1e-1111-4a2b-9c3d-000000000002");
+    private static final UUID RETIRED = UUID.fromString("0f7a3c1e-1111-4a2b-9c3d-000000000003");
+    private static final UUID UNUSED_OFF = UUID.fromString("0f7a3c1e-1111-4a2b-9c3d-000000000004");
+
+    private static EngineCase ofSymptom(long id, UUID definition, String tripId, String tripCode, int level,
+            Instant opened, Instant closed) {
+        return new EngineCase(id, definition, "1.0.0", "x", "family", "AB12", opened, level, tripId, null, null,
+                null, closed, 0, null, 0L, tripCode);
+    }
+
+    /** Trip "SVC-100" (trips-module trip DEPARTED): two signal-loss cases, one retired symptom's case. */
+    private void tripCases() {
+        engineCases.definitions.put(SPEEDING, new com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases.Definition(
+                "speeding", "Exceso de velocidad", "driving_safety", "SPEED LIMIT STANDARD", "ACTIVE"));
+        engineCases.definitions.put(SIGNAL_LOSS, new com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases
+                .Definition("signal-loss", "Pérdida de señal", "signal_continuity", "LOST SIGNAL", "ACTIVE"));
+        engineCases.definitions.put(RETIRED, new com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases.Definition(
+                "retired", "Antiguo", null, null, "OFF"));
+        engineCases.definitions.put(UNUSED_OFF, new com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases
+                .Definition("unused", "Sin uso", null, null, "OFF"));
+        Instant first = Instant.parse("2026-10-26T08:00:00Z");
+        Instant second = Instant.parse("2026-10-26T10:00:00Z");
+        engineCases.add(ofSymptom(1, SIGNAL_LOSS, DEPARTED.toString(), "SVC-100", 1, first, second)
+                .withLevel(null, null, null, List.of(new EngineCase.LevelStep(first, 1, null, null),
+                        new EngineCase.LevelStep(first.plusSeconds(600), 3, null, null))));
+        engineCases.add(ofSymptom(2, SIGNAL_LOSS, DEPARTED.toString(), "SVC-100", 2, second, null));
+        engineCases.add(ofSymptom(3, RETIRED, DEPARTED.toString(), "SVC-100", 1, first, null));
+        engineCases.add(ofSymptom(4, SIGNAL_LOSS, PLANNED.toString(), "SVC-200", 4, first, null));
+        engineCases.add(ofSymptom(5, SPEEDING, DEPARTED.toString(), "SVC-100", 4, first, null).withTest(true));
+    }
+
+    @Test
+    void engineOnlyATripsSymptomsCountItsCasesByDefinitionWithTheHighestLevel() {
+        tripCases();
+        var subject = engineOnly();
+
+        Response answer = call(subject.tripSymptoms(ORG, " SVC-100 "));
+
+        assertEquals(200, answer.getStatus());
+        JsonNode body = (JsonNode) answer.getEntity();
+        assertEquals("SVC-100", body.get("trip").asText());
+        JsonNode rows = body.get("symptoms");
+        assertEquals(3, rows.size(), "the ACTIVE symptoms and the retired one with a case");
+        assertEquals("Antiguo", rows.get(0).get("name").asText());
+        JsonNode speeding = rows.get(1);
+        assertEquals("Exceso de velocidad", speeding.get("name").asText());
+        assertEquals(0, speeding.get("cases").asInt(), "a TEST case is not counted");
+        assertEquals(0, speeding.get("max_level").asInt());
+        assertTrue(speeding.get("max_condition").isNull());
+        assertEquals("SPEED LIMIT STANDARD", speeding.get("icon").asText());
+        JsonNode signal = rows.get(2);
+        assertEquals(SIGNAL_LOSS.toString(), signal.get("definition_id").asText());
+        assertEquals("signal-loss", signal.get("symptom_key").asText());
+        assertEquals(2, signal.get("cases").asInt());
+        assertEquals(1, signal.get("open_cases").asInt());
+        assertEquals(3, signal.get("max_level").asInt(), "the level the closed case reached before it closed");
+        assertEquals("CRITICAL CONDITION", signal.get("max_condition").asText());
+        assertEquals(DEPARTED.toString(), signal.get("trip_id").asText());
+        assertEquals("2026-10-26T08:00:00Z", signal.get("first_opened_at").asText());
+        assertEquals("2026-10-26T10:00:00Z", signal.get("last_opened_at").asText());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void aTripsSymptomsByTripIdAnswerWithLegacyOnToo() {
+        tripCases();
+
+        JsonNode rows = ((JsonNode) call(resource.tripSymptoms(ORG, PLANNED.toString())).getEntity()).get("symptoms");
+
+        assertEquals(2, rows.size());
+        assertEquals(1, rows.get(1).get("cases").asInt());
+        assertEquals("CODE BLACK", rows.get(1).get("max_condition").asText());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void aTripsSymptomsNeedATripAndTheCallersOrganization() {
+        assertEquals(400, call(engineOnly().tripSymptoms(ORG, " ")).getStatus());
+        WebApplicationException e = assertThrows(WebApplicationException.class,
+                () -> engineOnly().tripSymptoms("org-b", "SVC-100"));
+        assertEquals(403, e.getResponse().getStatus());
+    }
+
     @Test
     void engineOnlyTheTripFiltersMatchTheCasesLiveTrip() {
         casesOnTrips();

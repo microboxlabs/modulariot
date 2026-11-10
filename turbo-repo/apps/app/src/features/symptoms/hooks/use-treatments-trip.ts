@@ -1,11 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  parseTripSymptoms,
+  type TripSymptoms,
+} from "@/features/symptoms/model/trip-symptoms";
 
+/**
+ * The symptoms of a trip, by its service code: the GPS database's rows, or the
+ * symptom engine's cases by symptom when the installation shows only those.
+ */
 export function useTreatmentsTrip(id?: string) {
-  const [treatmentsTripData, setTreatmentsTripData] = useState<any | null>(
-    null
-  );
+  const [tripSymptoms, setTripSymptoms] = useState<TripSymptoms | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -13,12 +19,13 @@ export function useTreatmentsTrip(id?: string) {
     async function fetchTreatmentTrip() {
       try {
         setIsLoading(true);
-        const response = await fetch(`/app/api/symptoms/trip?id=${id}`);
+        const response = await fetch(
+          `/app/api/symptoms/trip?id=${encodeURIComponent(id ?? "")}`
+        );
 
         if (!response.ok) throw new Error("Failed to fetch treatment trip");
 
-        const data = await response.json();
-        setTreatmentsTripData(data);
+        setTripSymptoms(parseTripSymptoms(await response.json()));
       } catch (err) {
         setError(
           err instanceof Error
@@ -33,5 +40,5 @@ export function useTreatmentsTrip(id?: string) {
     fetchTreatmentTrip();
   }, [id]);
 
-  return { treatmentsTripData, isLoading, error };
+  return { tripSymptoms, isLoading, error };
 }

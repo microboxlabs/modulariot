@@ -1,0 +1,51 @@
+# 🔔 Release Notes v1.32.4 — ModularIoT
+
+### Fecha: 09/11/2026
+
+**Objetivo**: Incorporar las mejoras y correcciones OSS coordinadas en el milestone MIOT-0.6.4. Esta entrega fortalece el seguimiento de casos asociados a viajes y facilita la administración de equipos.
+
+## 🚀 Evolutivos
+
+- **📍 Filtros en Configuración › Equipo** — Integración OSS del milestone MIOT-0.6.4.
+  - **Punto clave**: Permite filtrar integrantes por nombre o correo, rol base, rol de módulo, estado, origen y equipo; muestra el total y los resultados visibles, con acciones para limpiar filtros.
+  - **Detalle técnico**: Invitaciones, equipos y claves API incorporan búsqueda por texto. Roles permite buscar por claves de permisos, módulos y etiquetas traducidas. Los filtros se aplican en el navegador con respuestas de API existentes.
+
+## 🐛 Correcciones
+
+- **🐛 Conservación del código de viaje y cierre de casos al finalizarlo** — Integración OSS del milestone MIOT-0.6.4.
+  - **Impacto**: Los casos podían perder el código de viaje al desaparecer la proyección activa y permanecer abiertos tras el fin del viaje.
+  - **Solución**: El caso conserva el código de mandato vigente o el código externo del servicio de feeds. Al finalizar el viaje, se cierran los casos abiertos de sus síntomas con `trip_ended`. `lifecycle.after_trip_end` define cómo procesar aperturas posteriores: `ignore`, `open_and_keep` u `open_and_close`.
+
+- **🐛 Cierre de casos por pérdida de señal cuando cambia el camión** — Integración OSS del milestone MIOT-0.6.4.
+  - **Impacto**: Los casos `trip_check` podían quedar abiertos en el vehículo reemplazado.
+  - **Solución**: Se cierran con `closed_by = asset_changed`. Las filas y el encabezado muestran la patente actual del viaje, y la aplicación indica “Viaje ahora en &lt;patente&gt;” cuando difiere de la patente del caso.
+
+- **🐛 Regreso a la lista de síntomas después de aplicar un tratamiento** — Integración OSS del milestone MIOT-0.6.4.
+  - **Impacto**: Después de aplicar un tratamiento, el operador permanecía en la cronología del caso.
+  - **Solución**: La aplicación vuelve a la lista de síntomas. La consulta del panel se limpia en la misma operación que lo cierra, para conservar la navegación del formulario.
+
+## 📊 Beneficios
+
+- Facilita encontrar y administrar integrantes, invitaciones, equipos, claves API y roles.
+- Mantiene la referencia del viaje en los casos aunque desaparezca la proyección activa.
+- Evita casos de pérdida de señal abiertos en vehículos que ya no están asignados al viaje.
+- Mejora la visibilidad de la patente actual cuando cambia el vehículo durante un viaje.
+- Devuelve al operador a la lista de síntomas después de aplicar un tratamiento.
+- Permite configurar cómo se gestionan las aperturas de síntomas posteriores al fin del viaje.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.4`
+- App: `app@v0.6.4` — con cambios.
+- Docs: `docs@v0.6.3` — sin cambios.
+- Web: `web@v0.6.3` — sin cambios.
+- Modulith: `modulith@v0.5.43` — con cambios.
+- Harness: `harness@v0.1.15` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build de la aplicación y en el recurso de publicación `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta entrega integra los cambios OSS del milestone MIOT-0.6.4 en la versión 1.32.4 y el stack 0.6.4. Las mejoras abarcan tanto la gestión diaria de equipos como el ciclo de vida y la consulta de casos vinculados a viajes.
+
+La conservación del contexto del viaje, el cierre de casos ante cambios de vehículo o finalizaciones y una navegación más clara ayudan a mantener información operativa coherente para los equipos.

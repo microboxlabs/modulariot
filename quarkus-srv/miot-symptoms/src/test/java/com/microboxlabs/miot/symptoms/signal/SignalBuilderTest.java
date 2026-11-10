@@ -306,4 +306,129 @@ class SignalBuilderTest {
         assertEquals(GpsSignal.DriverStatus.DEACTIVATED,
                 senderTrip(build(refs(List.of(row), List.of()), frame("ABCD12", 70, false))).driver().status());
     }
+
+    @Test
+    void eachClientGetsTheRoadLimitAndItsOwnLimitAtThePosition() {
+        Share share = new Share("ABCD12", "other-1", true, null, null);
+        ReferenceCache refs = refs(List.of(), List.of(share));
+        RoadNetwork roads = RoadNetwork.of(List.of(RoadNetworkTest.way(42, "primary", 70, 60, 80, -33.45)));
+        roads.ensure(-70.66, -33.45).await().indefinitely();
+        SpeedZones own = new SpeedZones();
+        own.load(List.of(SpeedZones.zone("other-1", 5, new SpeedZones.Limits(40, null, null, null, null), """
+                {"type":"Polygon","coordinates":[[[-70.7,-33.5],[-70.6,-33.5],[-70.6,-33.4],[-70.7,-33.4],[-70.7,-33.5]]]}
+                """)));
+        SignalBuilder builder = new SignalBuilder(refs, ZoneId.of("America/Santiago"), new Zones(), roads, own,
+                new Bearings(java.time.Duration.ofMinutes(10)));
+
+        GpsSignal s = builder.build(EnvelopedMessage.fromJson(frame("ABCD12", 70, false))).orElseThrow();
+
+        assertNull(s.road(), "the evaluator gives each organization its own");
+        assertEquals(new GpsSignal.Road(60.0, null, 42L, "primary", null), s.roads().get(SENDER));
+        assertEquals(new GpsSignal.Road(60.0, 40.0, 42L, "primary", 5), s.roads().get("other-1"));
+    }
+
+    @Test
+    void noRoadsWhenNoLimitIsKnown() {
+        SignalBuilder builder = new SignalBuilder(refs(List.of(), List.of()), ZoneId.of("America/Santiago"),
+                new Zones(), RoadNetwork.of(List.of()), new SpeedZones(), new Bearings(java.time.Duration.ofMinutes(10)));
+        assertNull(builder.build(EnvelopedMessage.fromJson(frame("ABCD12", 70, false))).orElseThrow().roads());
+    }
+
+    @Test
+    void aHeadingFilterRequiresAReadingAndAcceptsAnExplicitZero() throws Exception {
+        SpeedZones own = new SpeedZones();
+        own.load(List.of(SpeedZones.zone(SENDER, 5, new SpeedZones.Limits(40, null, null, null, 0), """
+                {"type":"Polygon","coordinates":[[[-70.7,-33.5],[-70.6,-33.5],[-70.6,-33.4],[-70.7,-33.4],[-70.7,-33.5]]]}
+                """)));
+        SignalBuilder builder = new SignalBuilder(refs(List.of(), List.of()), ZoneId.of("America/Santiago"),
+                new Zones(), null, own, new Bearings(java.time.Duration.ofMinutes(10)));
+        String missing = frame("ABCD12", 70, false);
+
+        assertNull(builder.build(EnvelopedMessage.fromJson(missing)).orElseThrow().roads());
+        String publishedMissing = SignalStream.JSON.writeValueAsString(EnvelopedMessage.fromJson(missing));
+        assertNull(builder.build(EnvelopedMessage.fromJson(publishedMissing)).orElseThrow().roads(),
+                "the tracking publisher must preserve the missing reading");
+        String north = missing.replace("\"speed\":70.0", "\"speed\":70.0,\"heading\":0");
+        assertEquals(new GpsSignal.Road(null, 40.0, null, null, 5),
+                builder.build(EnvelopedMessage.fromJson(north)).orElseThrow().roads().get(SENDER));
+        String publishedNorth = SignalStream.JSON.writeValueAsString(EnvelopedMessage.fromJson(north));
+        assertEquals(40.0, builder.build(EnvelopedMessage.fromJson(publishedNorth)).orElseThrow()
+                .roads().get(SENDER).maxspeedCustom());
+    }
+
+    @Test
+    void invalidCoordinatesNeverAcquireLimits() {
+        SignalBuilder builder = new SignalBuilder(refs(List.of(), List.of()), ZoneId.of("America/Santiago"));
+        String invalid = frame("ABCD12", 70, false).replace("-33.45", "91");
+
+        GpsSignal signal = builder.build(EnvelopedMessage.fromJson(invalid)).orElseThrow();
+
+        assertFalse(SignalBuilder.hasPosition(signal.frame()));
+        assertNull(signal.roads());
+        assertNull(signal.geos());
+    }
+
+    /** The trip row (origin 32, destination 17, estimated arrival 11:45) and a route cell where the frame is. */
+    private static GpsSignal.Trip etaTrip(JsonObject row, int remainingSeconds, String json) {
+        RouteEtas etas = new RouteEtas();
+        etas.load(List.of(new RouteEtas.Cell(32, 17, RouteEtas.token(-70.66, -33.45), remainingSeconds)));
+        SignalBuilder builder = new SignalBuilder(refs(List.of(ReferenceCache.trip(row)), List.of()),
+                ZoneId.of("America/Santiago"), new Zones(), null, new SpeedZones(),
+                new Bearings(java.time.Duration.ofMinutes(10)), etas);
+        return senderTrip(builder.build(EnvelopedMessage.fromJson(json)).orElseThrow());
+    }
+
+    @Test
+    void etaDeviationIsPositiveWhenThePredictedArrivalIsLate() {
+        GpsSignal.Trip t = etaTrip(new JsonObject(ROW), 7200, frame("ABCD12", 70, false));
+
+        assertEquals(135.0, t.etaDeviationMin(), "12:00 plus 2 h of route is 14:00, 135 min after 11:45");
+    }
+
+    @Test
+    void etaDeviationIsNegativeWhenThePredictedArrivalIsEarly() {
+        JsonObject row = new JsonObject(ROW).put("estimated_arrival_time", "2026-10-21T16:00:00+00:00");
+
+        GpsSignal.Trip t = etaTrip(row, 1800, frame("ABCD12", 0, false));
+
+        assertEquals(-210.0, t.etaDeviationMin(), "12:30 predicted, 16:00 estimated");
+    }
+
+    @Test
+    void etaDeviationKeepsTenthsOfAMinuteAndZeroIsAKnownPrediction() {
+        JsonObject row = new JsonObject(ROW).put("estimated_arrival_time", "2026-10-21T13:00:00+00:00");
+        String json = frame("ABCD12", 70, false);
+
+        assertEquals(0.1, etaTrip(row, 3607, json).etaDeviationMin());
+        assertEquals(-0.1, etaTrip(row, 3593, json).etaDeviationMin());
+        assertEquals(0.0, etaTrip(row, 3600, json).etaDeviationMin());
+        assertEquals(-60.0, etaTrip(row, 0, json).etaDeviationMin(), "zero remaining time is known");
+    }
+
+    @Test
+    void etaDeviationIsMissingWithoutWhatThePredictionNeeds() {
+        assertNull(etaTrip(new JsonObject(ROW).put("estimated_arrival_time", null), 3600,
+                frame("ABCD12", 70, false)).etaDeviationMin(), "no estimated arrival");
+        assertNull(etaTrip(new JsonObject(ROW).put("origin_geofence_id", null), 3600,
+                frame("ABCD12", 70, false)).etaDeviationMin(), "no origin");
+        assertNull(etaTrip(new JsonObject(ROW).put("destination_geofence_id", null), 3600,
+                frame("ABCD12", 70, false)).etaDeviationMin(), "no destination");
+        assertNull(etaTrip(new JsonObject(ROW).put("origin_geofence_id", 25), 3600,
+                frame("ABCD12", 70, false)).etaDeviationMin(), "a route without history");
+        assertNull(etaTrip(new JsonObject(ROW), 3600, frame("ABCD12", 70, false).replace("-33.45", "-33.20"))
+                .etaDeviationMin(), "off the cells the route's trips crossed");
+        assertNull(etaTrip(new JsonObject(ROW), 3600, frame("ABCD12", 70, false).replace("-33.45", "91"))
+                .etaDeviationMin(), "no position");
+    }
+
+    @Test
+    void anUnknownEtaDeviationIsOmittedFromTheSignalJson() {
+        JsonObject envelope = new JsonObject(frame("ABCD12", 70, false));
+        envelope.getJsonObject("payload").remove("gps");
+        GpsSignal.Trip withoutGps = etaTrip(new JsonObject(ROW), 3600, envelope.encode());
+
+        assertFalse(SignalStream.JSON.valueToTree(withoutGps).has("eta_deviation_min"));
+        GpsSignal.Trip known = etaTrip(new JsonObject(ROW), 7200, frame("ABCD12", 70, false));
+        assertEquals(135.0, SignalStream.JSON.valueToTree(known).get("eta_deviation_min").asDouble());
+    }
 }

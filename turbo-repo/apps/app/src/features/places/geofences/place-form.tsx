@@ -18,16 +18,20 @@ import InnerGeofenceFields from "./inner-geofence-fields";
 import PolyBaseFields, { pistaPoligono, SizeInput } from "./poly-base-fields";
 import GeomIconBar from "./geom-icon-bar";
 import {
+  AvisoCodigoEnUso,
+  AvisoCodigoFijo,
+  IconoEstadoCodigo,
+  inputConIconoCls,
   Field,
   FloatingWindow,
   FormFooter,
   inputCls,
   inputErrorCls,
+  inputFijoCls,
 } from "../ui/form-ui";
 import GeofenceColorPicker from "./geofence-color-picker";
 import {
   colorDeFormLugar,
-  type Categoria,
   type FormLugar,
   type LatLon,
   type PasoLugar,
@@ -42,13 +46,20 @@ import {
   type GeomKind,
 } from "./geofence-editor";
 import type { Sugerencia } from "../data/geocoding";
-import { faltantesPadre } from "./inner-geofences";
+import { conCodigoPadre, faltantesPadre } from "./inner-geofences";
+import { faltaExternalId } from "./place-validation";
 import VersionBadge from "../versioning/version-badge";
+import type { EstadoCodigo } from "../hooks/use-codigo-en-uso";
+import { usePlacesT } from "../i18n/places-i18n";
+
+/** El punto del lugar, solo si quedó ubicado desde la búsqueda. */
+function puntoUbicado({ ubicadoEn, lat, lon }: FormLugar): LatLon | null {
+  return ubicadoEn && lat != null && lon != null ? [lat, lon] : null;
+}
 
 export default function PlaceForm({
   form,
   setForm,
-  cats,
   guardando,
   msg,
   paso = "geocerca",
@@ -62,14 +73,26 @@ export default function PlaceForm({
   onUbicar,
   dict,
   version,
+  codigoFijo = false,
+  estadoCodigo = null,
+  estadosInteriores,
+  codigoFijoInterior,
 }: Readonly<{
   /** Diccionario completo (control de la lista de categorías). */
   dict?: I18nRecord;
   /** Versión vigente del lugar que se edita. */
   version?: string | null;
+  /** Ya guardado con su External ID: no se cambia (es su llave con StreamHub). */
+  codigoFijo?: boolean;
+  /** Si el External ID escrito ya está en uso. */
+  /** Si el External ID escrito está libre, en uso o se está revisando. */
+  estadoCodigo?: EstadoCodigo | null;
+  /** El estado del External ID de cada geocerca interior, por su id. */
+  estadosInteriores?: Readonly<Record<string, EstadoCodigo>>;
+  /** Interior guardada con su External ID: ese no se cambia. */
+  codigoFijoInterior?: (id: string) => boolean;
   form: FormLugar;
   setForm: Dispatch<SetStateAction<FormLugar>>;
-  cats: Categoria[];
   guardando: boolean;
   msg: string | null;
   paso?: PasoLugar;
@@ -82,8 +105,9 @@ export default function PlaceForm({
   cerca?: () => LatLon | null;
   onUbicar?: (punto: LatLon, radioM: number) => void;
 }>) {
+  const t = usePlacesT();
   // la búsqueda va en el formulario: así vuelve con el borrador al recargar
-  const { busqueda, ubicadoEn } = form;
+  const { busqueda } = form;
   const [intento, setIntento] = useState(false);
 
   const set = <K extends keyof FormLugar>(key: K, value: FormLugar[K]) =>
@@ -102,6 +126,13 @@ export default function PlaceForm({
     setForm((f) => aplicarFormaBase({ ...f, rectVinculado }));
 
   const cambiarRadio = (radius_m: number) => set("radius_m", radius_m);
+
+  // las interiores con el código propuesto lo siguen
+  const cambiarCodigo = (codigo: string) =>
+    setForm((f) => conCodigoPadre(f, codigo));
+
+  const cambiarCategorias = (categorias: string[], lista: string | null) =>
+    setForm((f) => ({ ...f, categorias, categorias_lista: lista }));
 
   const cambiarBusqueda = (texto: string) =>
     setForm((f) => ({ ...f, busqueda: texto, ubicadoEn: null }));
@@ -123,6 +154,8 @@ export default function PlaceForm({
 
   const sinPunto = () => null;
   const faltan = intento ? faltantesPadre(form) : null;
+  const faltaCodigo = intento && faltaExternalId(form);
+  const codigoEnUso = estadoCodigo?.estado === "en-uso";
 
   const intentarContinuar = () => {
     setIntento(true);
@@ -138,10 +171,12 @@ export default function PlaceForm({
     "transition-opacity duration-200 ease-out motion-reduce:duration-0",
     visible ? "opacity-100" : "pointer-events-none opacity-0"
   );
-  const geocercaTitle = form.place_id ? "Editar lugar" : "Crear lugar";
+  const geocercaTitle = form.place_id
+    ? t("form.edit_place")
+    : t("map.create_place");
   const interioresTitle = form.name.trim()
-    ? `Interiores · ${form.name}`
-    : "Geocercas interiores";
+    ? t("form.inners_of", { nombre: form.name })
+    : t("form.inners_title");
 
   return (
     <FloatingWindow
@@ -160,20 +195,17 @@ export default function PlaceForm({
             <div className="space-y-1.5 border-b border-sky-100 bg-sky-50 px-4 py-2.5 dark:border-sky-900/40 dark:bg-sky-950/40">
               <div className="flex items-start gap-1.5 text-[11px] leading-snug text-sky-900 dark:text-sky-100">
                 <HiOutlineSearch className="mt-0.5 h-3.5 w-3.5 flex-none" />
-                <span>Posicionar geocerca</span>
+                <span>{t("form.position_geofence")}</span>
               </div>
               <AddressInput
-                label="Ubicar en el mapa"
+                label={t("form.locate_on_map")}
                 value={{
                   texto: busqueda,
-                  punto:
-                    ubicadoEn && form.lat != null && form.lon != null
-                      ? [form.lat, form.lon]
-                      : null,
+                  punto: puntoUbicado(form),
                 }}
                 token={token}
                 cerca={cerca ?? sinPunto}
-                placeholder="Buscar dirección o Plus Code…"
+                placeholder={t("form.search_address")}
                 invalido={!!faltan?.ubicacion}
                 onTexto={cambiarBusqueda}
                 onElegir={ubicarDesdeBusqueda}
@@ -191,9 +223,9 @@ export default function PlaceForm({
             <FormFooter
               msg={msg}
               guardando={guardando}
-              saveLabel="Guardar e interiores"
+              saveLabel={t("form.save_and_inners")}
               saveCls="bg-blue-600 hover:bg-blue-700"
-              altLabel="Guardar y salir"
+              altLabel={t("form.save_and_exit")}
               onAlt={intentarGuardar}
               onSave={intentarContinuar}
             />
@@ -202,9 +234,9 @@ export default function PlaceForm({
             <FormFooter
               msg={msg}
               guardando={guardando}
-              saveLabel="Guardar y salir"
+              saveLabel={t("form.save_and_exit")}
               saveCls="bg-blue-600 hover:bg-blue-700"
-              altLabel="Atrás"
+              altLabel={t("form.back")}
               onAlt={onBack}
               onSave={intentarGuardar}
             />
@@ -222,7 +254,7 @@ export default function PlaceForm({
             <div className="shrink-0 space-y-3">
               {geomKindDe(form) === "circle" && (
                 <SizeInput
-                  label="Radio"
+                  label={t("form.radius")}
                   value={form.radius_m}
                   min={RADIO_MIN}
                   max={RADIO_MAX}
@@ -248,14 +280,14 @@ export default function PlaceForm({
                       : "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200"
                   )}
                 >
-                  {pistaPoligono(form.polyBase, form.lat != null)}
+                  {pistaPoligono(t, form.polyBase, form.lat != null)}
                 </p>
               )}
 
-              <Field label="Nombre *">
+              <Field label={t("form.name_required")}>
                 <div className="flex items-center gap-1">
                   <GeofenceColorPicker
-                    color={colorDeFormLugar(form, cats)}
+                    color={colorDeFormLugar(form)}
                     onChange={setColor}
                   />
                   <IconPicker
@@ -265,7 +297,7 @@ export default function PlaceForm({
                   />
                   <input
                     className={twMerge(inputCls, faltan?.name && inputErrorCls)}
-                    placeholder="Ej: Planta Quilicura"
+                    placeholder={t("form.name_placeholder")}
                     aria-invalid={!!faltan?.name}
                     value={form.name}
                     onChange={(e) => set("name", e.target.value)}
@@ -273,42 +305,60 @@ export default function PlaceForm({
                 </div>
               </Field>
 
-              <Field label="Categorías">
-                <CampoCategorias
-                  fieldKey={CAMPO_CATEGORIAS}
-                  label="Categorías"
-                  value={form.categorias}
-                  onChange={(c) => set("categorias", c)}
-                  dict={dict ?? {}}
-                />
+              <Field
+                label={t("form.external_id_required")}
+                aside={codigoFijo ? <AvisoCodigoFijo /> : undefined}
+              >
+                <div className="relative">
+                  <input
+                    aria-label={t("form.external_id")}
+                    className={twMerge(
+                      inputCls,
+                      inputConIconoCls,
+                      (faltaCodigo || codigoEnUso) && inputErrorCls,
+                      codigoFijo && inputFijoCls
+                    )}
+                    placeholder={t("form.code_placeholder")}
+                    aria-invalid={faltaCodigo || codigoEnUso}
+                    readOnly={codigoFijo}
+                    value={form.external_id}
+                    onChange={(e) => cambiarCodigo(e.target.value)}
+                  />
+                  <IconoEstadoCodigo estado={estadoCodigo} />
+                </div>
+                {estadoCodigo?.estado === "en-uso" && (
+                  <AvisoCodigoEnUso aviso={estadoCodigo.aviso} />
+                )}
               </Field>
 
-              <Field label="External ID">
-                <input
-                  className={inputCls}
-                  placeholder="Opcional"
-                  value={form.external_id}
-                  onChange={(e) => set("external_id", e.target.value)}
+              <Field label={t("common.categories")}>
+                <CampoCategorias
+                  fieldKey={CAMPO_CATEGORIAS}
+                  label={t("common.categories")}
+                  value={form.categorias}
+                  listaGuardada={form.categorias_lista}
+                  onChange={cambiarCategorias}
+                  dict={dict ?? {}}
                 />
               </Field>
             </div>
 
             <div className="shrink-0 space-y-2 border-t border-gray-100 pt-3 dark:border-gray-700">
               <div className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
-                Vigencia
+                {t("form.validity")}
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Field label="Desde">
+                <Field label={t("form.from")}>
                   <DateField
-                    label="Vigente desde"
+                    label={t("form.valid_from")}
                     value={form.active_from}
                     maxDate={form.active_until || undefined}
                     onChange={(v) => set("active_from", v)}
                   />
                 </Field>
-                <Field label="Hasta">
+                <Field label={t("form.until")}>
                   <DateField
-                    label="Vigente hasta"
+                    label={t("form.valid_until")}
                     value={form.active_until}
                     minDate={form.active_from || undefined}
                     onChange={(v) => set("active_until", v)}
@@ -323,6 +373,8 @@ export default function PlaceForm({
             form={form}
             setForm={setForm}
             mostrarErrores={intento}
+            estados={estadosInteriores}
+            codigoFijo={codigoFijoInterior}
           />
         }
       />

@@ -70,6 +70,13 @@ export function filtrarTrayectos(
   const q = busca.trim().toLowerCase();
   if (!q) return trayectos;
   return trayectos.filter((t) =>
-    coincide(q, t.name, t.external_id, t.parent_name, t.kind)
+    coincide(
+      q,
+      t.name,
+      t.external_id,
+      t.parent_name,
+      t.kind,
+      t.categorias_nombres
+    )
   );
 }

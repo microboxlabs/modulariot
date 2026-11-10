@@ -58,6 +58,29 @@ class RedisEpisodesTest {
     }
 
     @Test
+    void staleCleanupDistinguishesAMismatchFromAnAbsentEpisode() {
+        String tenant = "tenant-a";
+        UUID id = UUID.randomUUID();
+        Instant at = Instant.parse("2026-10-22T03:00:00Z");
+        Episode previous = new Episode(id, "1.0.0", ASSET, at, at, null, Map.of(), at, at, 1, 10);
+        Episode changed = new Episode(id, "1.0.0", ASSET, at, at, null, Map.of(), at.plusSeconds(1), at, 2, 20);
+        RedisEpisodes repository = new RedisEpisodes(redis, Duration.ofDays(7));
+        AssetEpisodes state = repository.load(tenant, ASSET);
+        state.save(tenant, changed);
+        repository.save(state);
+        List<String> staleArgs = List.of(RedisEpisodes.FORGET_STALE, "1", RedisEpisodes.key(tenant, ASSET),
+                "ep:" + id, RedisEpisodes.write(previous), "60");
+        assertEquals(0L, redis.eval(staleArgs).await().atMost(WAIT).toLong());
+        assertEquals(changed, repository.load(tenant, ASSET).find(tenant, ASSET, id).orElseThrow());
+
+        repository.forgetStale(tenant, ASSET, id, SymptomState.ACTIVE, at);
+
+        assertTrue(repository.load(tenant, ASSET).find(tenant, ASSET, id).isEmpty());
+        assertEquals(1L, redis.eval(List.of(RedisEpisodes.FORGET_STALE, "1", RedisEpisodes.key(tenant, ASSET),
+                "ep:" + id, "", "60")).await().atMost(WAIT).toLong());
+    }
+
+    @Test
     void forgettingACaseDropsItsEpisodeAcrossReplicasAndPreservesTheWatermark() {
         EpisodeRepository first = new RedisEpisodes(redis, Duration.ofDays(7));
         EpisodeRepository second = new RedisEpisodes(redis, Duration.ofDays(7));
@@ -131,6 +154,39 @@ class RedisEpisodesTest {
         redis.del(List.of(RedisEpisodes.key("tenant-b", ASSET))).await().atMost(WAIT);
         resumed.save(resumed.load("tenant-b", ASSET));
         assertTrue(resumed.tenantsWithEpisodes(ASSET).isEmpty());
+    }
+
+    @Test
+    void aTripCloseRejectsAnEpisodeWhoseOpeningHasNotBeenSavedYet() {
+        EpisodeRepositoryConcurrencyTest.assertTripCloseProtectsSnapshot(
+                new RedisEpisodes(redis, Duration.ofDays(7)), new RedisEpisodes(redis, Duration.ofDays(7)), FORGET_ASSET);
+    }
+
+    @Test
+    void closingPreservesTheConditionTimersAndAnAlreadyNormalCondition() {
+        var first = new RedisEpisodes(redis, Duration.ofDays(7));
+        var second = new RedisEpisodes(redis, Duration.ofDays(7));
+        Instant at = Instant.parse("2026-10-22T03:00:00Z");
+        for (boolean normal : List.of(false, true)) {
+            UUID id = UUID.randomUUID();
+            Instant normalSince = normal ? at.plusSeconds(10) : null;
+            Episode open = new Episode(id, "1.0.0", CLOSE_ASSET, at, normal ? null : at, normalSince,
+                    normal ? Map.of() : Map.of(1, at), at.plusSeconds(20), at, 1, 10).withCaseFrame("trip-test", Map.of());
+            AssetEpisodes state = first.load("tenant-a", CLOSE_ASSET);
+            state.save("tenant-a", open);
+            first.save(state);
+            Episode marker = new OperatorClose("trip-test", at.plusSeconds(30), 1, true).marker(id, CLOSE_ASSET);
+            first.operatorClose("tenant-a", CLOSE_ASSET, id, marker);
+            second.operatorClose("tenant-a", CLOSE_ASSET, id, marker);
+            Episode kept = first.load("tenant-a", CLOSE_ASSET).find("tenant-a", CLOSE_ASSET, id).orElseThrow();
+            assertEquals(at, kept.candidateSince());
+            assertEquals(normal ? null : at, kept.conditionSince());
+            assertEquals(normalSince, kept.normalSince());
+            assertEquals(normal ? Map.of() : Map.of(1, at), kept.levelSince());
+            assertEquals("1.0.0", kept.version());
+            assertEquals(normal ? null : Integer.MAX_VALUE, kept.reopenAbove());
+            assertEquals(false, kept.open());
+        }
     }
 
     @Test

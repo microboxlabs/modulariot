@@ -10,6 +10,7 @@ import {
   type Pagina,
 } from "./badge-layout";
 import type { LatLon } from "../places.types";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
 
 // Badges de nombres de las geocercas sobre el mapa (deck.gl IconLayer).
 //
@@ -269,30 +270,37 @@ export function contarCluster(miembros: ItemNombre[]): ConteoCluster {
 export const claveCluster = (c: ConteoCluster, tema: TemaChip) =>
   `cluster|${c.geocercas}|${c.trayectos}|${tema}`;
 
-const plural = (n: number, uno: string, varios: string) =>
-  `${n} ${n === 1 ? uno : varios}`;
-
 /** Cada tipo del cluster con su icono: "2 geocercas", "1 trayecto". */
 export function partesCluster(
-  c: ConteoCluster
+  c: ConteoCluster,
+  textos: TextosLugares = textosLugares()
 ): { icono: string; texto: string }[] {
   const partes: { icono: string; texto: string }[] = [];
   if (c.geocercas > 0)
     partes.push({
       icono: "pin",
-      texto: plural(c.geocercas, "geocerca", "geocercas"),
+      texto: textos(
+        c.geocercas === 1 ? "map.geofences_one" : "map.geofences_many",
+        { n: c.geocercas }
+      ),
     });
   if (c.trayectos > 0)
     partes.push({
       icono: "ruta",
-      texto: plural(c.trayectos, "trayecto", "trayectos"),
+      texto: textos(
+        c.trayectos === 1 ? "catalog.routes_one" : "catalog.routes_many",
+        { n: c.trayectos }
+      ),
     });
   return partes;
 }
 
 /** Texto del cluster en una línea (pruebas, lectores): "2 geocercas · 1 trayecto". */
-export const textoCluster = (c: ConteoCluster) =>
-  partesCluster(c)
+export const textoCluster = (
+  c: ConteoCluster,
+  textos: TextosLugares = textosLugares()
+) =>
+  partesCluster(c, textos)
     .map((p) => p.texto)
     .join(" · ");
 
@@ -310,8 +318,13 @@ export function altoCluster(filas: number): number {
  * Cluster: lugares que se pisarían, como un badge con cuántos son de cada
  * tipo, en columna: una fila por tipo, cada una con su icono.
  */
-export function chipCluster(c: ConteoCluster, tema: TemaChip = "noche"): Chip {
-  const key = claveCluster(c, tema);
+export function chipCluster(
+  c: ConteoCluster,
+  tema: TemaChip = "noche",
+  textos: TextosLugares = textosLugares()
+): Chip {
+  // el texto va en la clave: en otro idioma es otra imagen
+  const key = `${claveCluster(c, tema)}|${textoCluster(c, textos)}`;
   const hit = chipCache.get(key);
   if (hit) return hit;
 
@@ -321,7 +334,7 @@ export function chipCluster(c: ConteoCluster, tema: TemaChip = "noche"): Chip {
     return chipSinCanvas(key, PAD_R * 2, altoCluster(partesCluster(c).length));
 
   ctx.font = font;
-  const partes = partesCluster(c);
+  const partes = partesCluster(c, textos);
   const anchoTexto = Math.max(
     ...partes.map((p) => ctx.measureText(p.texto).width)
   );
@@ -373,9 +386,9 @@ export type BadgeMapa = { item: ItemNombre; miembros: ItemNombre[] };
 
 const esCluster = (b: BadgeMapa) => b.miembros.length > 1;
 
-function chipDe(b: BadgeMapa, tema: TemaChip): Chip {
+function chipDe(b: BadgeMapa, tema: TemaChip, textos: TextosLugares): Chip {
   return esCluster(b)
-    ? chipCluster(contarCluster(b.miembros), tema)
+    ? chipCluster(contarCluster(b.miembros), tema, textos)
     : chipEtiqueta(b.item, tema);
 }
 
@@ -463,15 +476,21 @@ function dibujarAtlas(pagina: Pagina, chips: Map<string, Chip>): Atlas {
 }
 
 /** Atlas con sus badges: cada página va en su propia capa. */
-function paginasDeBadges(badges: BadgeMapa[], tema: TemaChip) {
+function paginasDeBadges(
+  badges: BadgeMapa[],
+  tema: TemaChip,
+  textos: TextosLugares
+) {
   const chips = new Map<string, Chip>();
   for (const b of badges) {
-    const chip = chipDe(b, tema);
+    const chip = chipDe(b, tema, textos);
     chips.set(chip.key, chip);
   }
   return empaquetarChips([...chips.values()]).map((pagina) => ({
     atlas: dibujarAtlas(pagina, chips),
-    badges: badges.filter((b) => chipDe(b, tema).key in pagina.posiciones),
+    badges: badges.filter(
+      (b) => chipDe(b, tema, textos).key in pagina.posiciones
+    ),
   }));
 }
 
@@ -516,6 +535,8 @@ export type OpcionesNombres = {
     badge: BadgeMapa | null,
     pos: { x: number; y: number }
   ) => void;
+  /** Los textos de los clusters ("2 geocercas"), en el idioma de la página. */
+  textos?: TextosLugares;
   /**
    * Clic en un cluster: acercar solo lo justo para que se abra (no ir a una
    * de sus geocercas). Recibe el centro de sus miembros y ese zoom.
@@ -538,6 +559,7 @@ export function capasNombresGeocercas(
     resaltadoAnim = SIN_RESALTADO,
     onHoverBadge,
     onAcercar,
+    textos = textosLugares(),
   }: OpcionesNombres = {}
 ): LayersList {
   const tema = temaChipMapa(mapStyle);
@@ -555,7 +577,7 @@ export function capasNombresGeocercas(
     prioridadChip
   ).map((miembros) => ({ item: miembros[0]!, miembros }));
 
-  const capas: LayersList = paginasDeBadges(badges, tema).map(
+  const capas: LayersList = paginasDeBadges(badges, tema, textos).map(
     ({ atlas, badges: data }, i) =>
       new IconLayer<BadgeMapa>({
         ...PROPS_COMUNES,
@@ -563,9 +585,9 @@ export function capasNombresGeocercas(
         data,
         iconAtlas: atlasDeck(atlas.canvas),
         iconMapping: atlas.mapping,
-        getIcon: (b) => chipDe(b, tema).key,
+        getIcon: (b) => chipDe(b, tema, textos).key,
         getPosition: (b) => [b.item.ancla[1], b.item.ancla[0]],
-        getSize: (b) => chipDe(b, tema).size,
+        getSize: (b) => chipDe(b, tema, textos).size,
         getPixelOffset: (b) => offsetBadge(b, tema),
         // clic en un cluster: se acerca hasta que se abre; en un lugar, va a él
         onClick: ({ object }) => {
@@ -579,7 +601,7 @@ export function capasNombresGeocercas(
           onHoverBadge?.(object ?? null, { x, y });
         },
         updateTriggers: {
-          getIcon: [data, tema],
+          getIcon: [data, tema, textos],
           getPosition: data,
           getSize: data,
           getPixelOffset: data,

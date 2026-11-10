@@ -7,15 +7,19 @@ import type {
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
 import {
   calledInCase,
+  callsInCase,
+  withCaseCalls,
   skippedInCase,
   contextOfTreatment,
   callPlan,
   fillScript,
   matchesTarget,
   driverIds,
+  emptyReason,
   stepAt,
   stepConditions,
 } from "./call-plan";
+import { summarizeWho } from "@/features/symptoms/control-tower/step-who";
 import type { CallTarget } from "./call-targets";
 
 const target = (
@@ -91,8 +95,13 @@ describe("callPlan", () => {
     ]);
     expect(plan.groups[0]!.summary).toEqual({
       role: "Conductor",
+      roles: ["Conductor"],
       driver: true,
       carrier: false,
+      carrierSelf: false,
+      company: null,
+      tags: [],
+      places: [],
       driverField: "either",
     });
     expect(ids(plan.others)).toEqual(["oc", "gs-norte", "torre", "torre2"]);
@@ -171,6 +180,126 @@ describe("calledInCase", () => {
     expect(calledInCase(treatments).has("ana")).toBe(false);
     expect(calledInCase(undefined).size).toBe(0);
   });
+});
+
+describe("callsInCase", () => {
+  const withPhone = (id: string, phone: string) => ({
+    ...target(id, "Gerente"),
+    phone,
+  });
+
+  it("counts answered and unanswered calls of this case's treatments only", () => {
+    const caseA = [
+      {
+        actions: [
+          action({ contactId: "gs", answered: true }),
+          action({
+            contactId: "gs",
+            answered: false,
+            performedAt: "2026-11-03T10:05:00Z",
+          }),
+          action({ contactId: "gs", answered: null, durationSeconds: 12 }),
+          action({ kind: "NOTE", contactId: "gs" }),
+        ],
+      },
+    ] as TowerTreatment[];
+    const calls = callsInCase(caseA);
+    expect(calls.get("gs")).toEqual({
+      lastCallAt: new Date("2026-11-03T10:05:00Z"),
+      accepted: 1,
+      denied: 1,
+    });
+    // Case B has its own treatments: nobody was called there.
+    expect(callsInCase([] as TowerTreatment[]).has("gs")).toBe(false);
+  });
+
+  it("matches an older call without a contact id by phone, never by role", () => {
+    const targets = [
+      withPhone("gs", "+56 9 1234 5678"),
+      withPhone("oc", "+56 9 8765 4321"),
+    ];
+    const treatments = [
+      {
+        actions: [
+          action({ contactPhone: "912345678", answered: false }),
+          action({ contactRole: "Gerente" }),
+        ],
+      },
+    ] as TowerTreatment[];
+    const calls = callsInCase(treatments, targets);
+    expect([...calls.keys()]).toEqual(["gs"]);
+    expect(calls.get("gs")?.denied).toBe(1);
+  });
+
+  it("gives every target zero calls when the case has none", () => {
+    const [t] = withCaseCalls(
+      [
+        {
+          ...target("gs", "Gerente"),
+          history: { lastCallAt: null, accepted: 2, denied: 1 },
+        },
+      ],
+      new Map()
+    );
+    expect(t.stats).toEqual({ lastCallAt: null, accepted: 0, denied: 0 });
+    expect(t.history?.accepted).toBe(2);
+  });
+
+  it("does not assign a phone-only call to contacts sharing the number", () => {
+    const targets = [
+      withPhone("gs", "+56 9 1234 5678"),
+      withPhone("oc", "912345678"),
+    ];
+    const treatments = [
+      { actions: [action({ contactPhone: "+56912345678" })] },
+    ] as TowerTreatment[];
+    expect(callsInCase(treatments, targets).size).toBe(0);
+  });
+
+  it("keeps country codes when matching numbers with the same last nine digits", () => {
+    const targets = [
+      withPhone("us", "+12025550101"),
+      withPhone("gb", "+442025550101"),
+    ];
+    const treatments = [
+      { actions: [action({ contactPhone: "+12025550101" })] },
+    ] as TowerTreatment[];
+    expect([...callsInCase(treatments, targets).keys()]).toEqual(["us"]);
+  });
+
+  it("uses a stable id even when contacts share a phone", () => {
+    const targets = [
+      withPhone("gs", "+56912345678"),
+      withPhone("oc", "+56912345678"),
+    ];
+    const treatments = [
+      { actions: [action({ contactId: "gs", contactPhone: "+56912345678" })] },
+    ] as TowerTreatment[];
+    expect([...callsInCase(treatments, targets).keys()]).toEqual(["gs"]);
+  });
+
+  it.each([0, 12])(
+    "marks a pending call with duration %s as called without guessing its outcome",
+    (durationSeconds) => {
+      const treatments = [
+        {
+          actions: [
+            action({
+              contactId: "gs",
+              answered: null,
+              durationSeconds,
+              details: { telephony: { status: "PENDING" } },
+            }),
+          ],
+        },
+      ] as TowerTreatment[];
+      expect(callsInCase(treatments).get("gs")).toEqual({
+        lastCallAt: new Date("2026-11-03T10:00:00Z"),
+        accepted: 0,
+        denied: 0,
+      });
+    }
+  );
 });
 
 describe("matchesTarget", () => {
@@ -302,5 +431,96 @@ describe("skippedInCase", () => {
         3
       )
     ).toBe(1);
+  });
+});
+
+describe("emptyReason", () => {
+  const group = (who: string) => ({ who, summary: summarizeWho(who) });
+  const book = [{ role: "Transportista" }, { role: "Despachador" }];
+  const CARRIER_SELF =
+    "contact.role == 'Transportista' && contact.nationalId == event.data.carrierRut";
+
+  it("says nobody has the role when no contact of the book has it", () => {
+    expect(emptyReason(group("contact.role == 'Supervisor'"), book)).toEqual({
+      kind: "noRole",
+    });
+    expect(
+      emptyReason(group("contact.role == 'X' && foo(contact)"), book)
+    ).toEqual({ kind: "noRole" });
+  });
+
+  it("says no contact with the role matches when some have it", () => {
+    expect(emptyReason(group(CARRIER_SELF), book)).toEqual({
+      kind: "noMatch",
+      roles: ["Transportista"],
+      trip: true,
+    });
+    expect(
+      emptyReason(
+        group("contact.role == ' transportista ' && contact.company == 'Uno'"),
+        book
+      )
+    ).toEqual({ kind: "noMatch", roles: ["transportista"], trip: false });
+  });
+
+  it("shows the server's problem with the condition first", () => {
+    expect(
+      emptyReason(group(CARRIER_SELF), book, " undeclared field ")
+    ).toEqual({
+      kind: "problem",
+      problem: "undeclared field",
+    });
+  });
+
+  it("checks every accepted role, including later alternatives", () => {
+    expect(
+      emptyReason(
+        group(
+          "contact.role == 'Supervisor' || contact.role == 'Jefe de turno'"
+        ),
+        [{ role: "Jefe de turno" }]
+      )
+    ).toEqual({
+      kind: "noMatch",
+      roles: ["Supervisor", "Jefe de turno"],
+      trip: false,
+    });
+  });
+
+  it.each([
+    "!(contact.role == 'Supervisor') && contact.company == 'Empresa Uno'",
+    `contact.position == "contact.role == 'Supervisor'"`,
+    "contact.role == 'Supervisor' || contact.position == 'Despachador'",
+  ])("does not assert a missing role for %s", (who) => {
+    expect(emptyReason(group(who), book).kind).toBe("noMatch");
+  });
+
+  it("does not confuse an event.data literal with a trip reference", () => {
+    expect(
+      emptyReason(
+        group(
+          "contact.role == 'Despachador' && contact.company == 'event.data analytics'"
+        ),
+        book
+      )
+    ).toEqual({
+      kind: "noMatch",
+      roles: ["Despachador"],
+      trip: false,
+    });
+  });
+
+  it("keeps the driver and carrier messages", () => {
+    expect(
+      emptyReason(group("contact.nationalId == event.data.driverRut"), [])
+    ).toEqual({ kind: "driver" });
+    expect(
+      emptyReason(
+        group(
+          "contact.role == 'Gerente' && contact.companyRut == event.data.carrierRut"
+        ),
+        []
+      )
+    ).toEqual({ kind: "carrier", role: "Gerente" });
   });
 });

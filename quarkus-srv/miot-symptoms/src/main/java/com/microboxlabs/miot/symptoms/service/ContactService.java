@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.service;
 
 import com.microboxlabs.miot.core.event.ContactConditions;
+import com.microboxlabs.miot.core.event.TextKey;
 import com.microboxlabs.miot.core.tax.NationalIds;
 import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.Contact;
@@ -102,7 +103,11 @@ public class ContactService {
         return new TripContactsView(data, evaluator.match(tenantCode, given, data), problems);
     }
 
-    /** {@code event.data} for a trip: driverRut, secondDriverRut and carrierRut, normalized, when the trip has them. */
+    /**
+     * {@code event.data} for a trip, each field only when the trip has it: driverRut, secondDriverRut and carrierRut
+     * normalized, with their id types; origin and destination as the trip names them, originKey and destinationKey
+     * as {@link TextKey} (compare them with {@code contact.tagKeys}), and originId and destinationId, the geofences.
+     */
     static Map<String, Object> tripData(TripPeople trip) {
         Map<String, Object> data = new LinkedHashMap<>();
         putRut(data, "driverRut", trip.driverRut());
@@ -111,7 +116,19 @@ public class ContactService {
         putType(data, "driverIdType", driverIdType(trip.driverRut(), trip.carrierRut()));
         putType(data, "secondDriverIdType", driverIdType(trip.secondDriverRut(), trip.carrierRut()));
         putType(data, "carrierIdType", DriverContactSync.companyTaxIdType(trip.carrierRut()));
+        putPlace(data, "origin", trip.route().origin(), trip.route().originId());
+        putPlace(data, "destination", trip.route().destination(), trip.route().destinationId());
         return data;
+    }
+
+    private static void putPlace(Map<String, Object> data, String key, String label, Integer geofenceId) {
+        if (label != null && !TextKey.of(label).isEmpty()) {
+            data.put(key, label);
+            data.put(key + "Key", TextKey.of(label));
+        }
+        if (geofenceId != null) {
+            data.put(key + "Id", geofenceId);
+        }
     }
 
     private static String driverIdType(String id, String carrier) {

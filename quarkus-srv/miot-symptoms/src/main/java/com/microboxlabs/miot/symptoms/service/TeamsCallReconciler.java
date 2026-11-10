@@ -16,6 +16,8 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,12 +26,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Fills the duration and the result of the operator's Teams calls from the Microsoft Graph PSTN call
- * records. A record matches a CALL action only when all of these agree: the Microsoft user is the
+ * Fills the duration and the result of the operator's Teams calls from the Microsoft Graph call records,
+ * PSTN and Direct Routing alike. A record matches a CALL action only when all of these agree: the Microsoft user is the
  * operator, the callee is the number called, it started inside the call's window, and, when the line has
- * a default caller id, the caller is that number. No match, or more than one, leaves the action pending:
+ * a default caller id, the caller is that number; the record must also be an outbound call. No match, or more than one, leaves the action pending:
  * Graph publishes records late, and a record of another operator must never be taken by number and time
- * alone. After {@link #GIVE_UP} without a record the action is marked NOT_FOUND.
+ * alone. After {@link #GIVE_UP} without a record the action is marked NOT_FOUND. The operator's own request and
+ * {@link TeamsCallReconcileJob} both run it.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -38,10 +41,13 @@ public class TeamsCallReconciler {
     static final Duration LOOKBACK = Duration.ofDays(7);
     static final Duration SLACK = Duration.ofMinutes(5);
     static final Duration GIVE_UP = Duration.ofHours(48);
+    static final int MAX_REPORT_LOOKUPS = 16;
 
     public static final String PENDING = "PENDING";
     public static final String RECORDED = "RECORDED";
     public static final String NOT_FOUND = "NOT_FOUND";
+    private static final String STATUS = "status";
+    private static final String REASON = "reason";
 
     /** {@code pending}: actions still waiting for their record after this run. */
     public record Result(int checked, int recorded, int pending) {
@@ -68,11 +74,16 @@ public class TeamsCallReconciler {
      * @throws TelephonyUnavailableException when the organization has no ready Teams Phone line, or Graph refuses
      */
     public Result reconcile(String tenantCode, String operator) {
+        return reconcileOperators(tenantCode, List.of(operator));
+    }
+
+    /** One complete Graph lookup shared by the organization's pending operators. */
+    Result reconcileOperators(String tenantCode, List<String> operators) {
         Instant now = clock.instant();
-        List<TreatmentAction> pending = treatments
-                .pendingTelephonyCalls(tenantCode, operator, OffsetDateTime.ofInstant(now.minus(LOOKBACK),
-                        ZoneOffset.UTC))
-                .stream().filter(a -> "TEAMS_PHONE".equals(telephony(a).get("provider"))).toList();
+        OffsetDateTime since = OffsetDateTime.ofInstant(now.minus(LOOKBACK), ZoneOffset.UTC);
+        List<TreatmentAction> pending = operators.stream().distinct()
+                .flatMap(operator -> treatments.pendingTelephonyCalls(tenantCode, operator, since).stream())
+                .filter(a -> "TEAMS_PHONE".equals(telephony(a).get("provider"))).toList();
         if (pending.isEmpty()) {
             return new Result(0, 0, 0);
         }
@@ -86,50 +97,115 @@ public class TeamsCallReconciler {
         if (to.isAfter(now)) {
             to = now;
         }
-        List<PstnCall> records = telephony.pstnCalls(tenantCode, line.connectionId(), from, to);
+        List<PstnCall> records = new ReportScan().read(tenantCode, line.connectionId(), from, to);
         Set<String> taken = new HashSet<>(treatments.recordedTelephonyRecordIds(tenantCode, line.connectionId()));
+        Lookup lookup = new Lookup(line, records, pending, taken);
         int recorded = 0;
         int stillPending = 0;
         for (TreatmentAction action : pending) {
-            List<PstnCall> matches = records.stream()
-                    .filter(r -> key(r) != null && !taken.contains(key(r))
-                            && matches(action, r, operator, line.callerNumber(), line.connectionId()))
-                    .toList();
-            Map<String, Object> t = new LinkedHashMap<>(telephony(action));
-            t.putIfAbsent("connectionId", line.connectionId());
-            t.put("lastCheckedAt", now.toString());
-            t.put("attempts", attempts(t) + 1);
-            boolean ambiguous = matches.size() > 1 || (matches.size() == 1 && pending.stream()
-                    .filter(a -> matches(a, matches.get(0), operator, line.callerNumber(), line.connectionId()))
-                    .limit(2).count() > 1);
-            if (matches.size() == 1 && !ambiguous) {
-                PstnCall r = matches.get(0);
-                t.put("status", RECORDED);
-                t.remove("reason");
-                t.put("recordId", key(r));
-                t.put("callId", r.callId());
-                t.put("durationSeconds", r.durationSeconds());
-                if (save(tenantCode, action, r.durationSeconds() > 0, r.durationSeconds(), t)) {
-                    taken.add(key(r));
-                    audit.log(tenantCode, operator, "treatment.call_recorded", "treatment", action.treatmentId(), null,
-                            Map.of("actionId", action.id(), "durationSeconds", r.durationSeconds()));
-                    recorded++;
-                }
-                continue;
-            }
-            if (ambiguous) {
-                t.put("reason", "AMBIGUOUS");
-            } else {
-                t.remove("reason");
-            }
-            if (Duration.between(endedAt(action), now).compareTo(GIVE_UP) > 0) {
-                t.put("status", NOT_FOUND);
-            }
-            if (save(tenantCode, action, null, null, t) && PENDING.equals(t.get("status"))) {
-                stillPending++;
-            }
+            Result result = reconcileAction(tenantCode, now, lookup, action);
+            recorded += result.recorded();
+            stillPending += result.pending();
         }
         return new Result(pending.size(), recorded, stillPending);
+    }
+
+    /** Split only a page-limit failure; every subwindow must complete before any record is assigned. */
+    private final class ReportScan {
+        private int remaining = MAX_REPORT_LOOKUPS;
+
+        List<PstnCall> read(String tenantCode, String connectionId, Instant from, Instant to) {
+            remaining--;
+            try {
+                return telephony.pstnCalls(tenantCode, connectionId, from, to);
+            } catch (TelephonyUnavailableException tooLarge) {
+                if (!TelephonyUnavailableException.CALL_RECORDS_PAGE_LIMIT.equals(tooLarge.code())) {
+                    throw tooLarge;
+                }
+                Instant middle = from.plus(Duration.between(from, to).dividedBy(2)).truncatedTo(ChronoUnit.SECONDS);
+                if (remaining < 2 || !middle.isAfter(from) || !middle.isBefore(to)) {
+                    throw tooLarge;
+                }
+                List<PstnCall> calls = new ArrayList<>(read(tenantCode, connectionId, from, middle));
+                // A left-hand split may have consumed the remaining budget.
+                if (remaining == 0) {
+                    throw tooLarge;
+                }
+                calls.addAll(read(tenantCode, connectionId, middle, to));
+                return distinctRecords(calls);
+            }
+        }
+    }
+
+    private record RecordKey(PstnCall.Report report, String id) {
+    }
+
+    /** PSTN includes both time bounds, so split responses may repeat the same report row. */
+    private static List<PstnCall> distinctRecords(List<PstnCall> calls) {
+        Map<RecordKey, PstnCall> distinct = new LinkedHashMap<>();
+        for (PstnCall call : calls) {
+            String id = key(call);
+            if (id != null) {
+                distinct.put(new RecordKey(call.report(), id), call);
+            }
+        }
+        return List.copyOf(distinct.values());
+    }
+
+    private record Lookup(TelephonyLine line, List<PstnCall> records, List<TreatmentAction> pending, Set<String> taken) {
+    }
+
+    private Result reconcileAction(String tenantCode, Instant now, Lookup lookup, TreatmentAction action) {
+        TelephonyLine line = lookup.line();
+        String operator = action.performedBy();
+        List<PstnCall> matches = lookup.records().stream()
+                .filter(r -> key(r) != null && !lookup.taken().contains(key(r))
+                        && matches(action, r, operator, line.callerNumber(), line.connectionId()))
+                .toList();
+        Map<String, Object> t = new LinkedHashMap<>(telephony(action));
+        t.putIfAbsent("connectionId", line.connectionId());
+        t.put("lastCheckedAt", now.toString());
+        t.put("attempts", attempts(t) + 1);
+        boolean ambiguous = ambiguous(matches, lookup);
+        if (matches.size() == 1 && !ambiguous) {
+            return recordCall(tenantCode, lookup, action, matches.get(0), t);
+        }
+        if (ambiguous) {
+            t.put(REASON, "AMBIGUOUS");
+        } else {
+            t.remove(REASON);
+        }
+        if (Duration.between(endedAt(action), now).compareTo(GIVE_UP) > 0) {
+            t.put(STATUS, NOT_FOUND);
+        }
+        boolean pending = save(tenantCode, action, null, null, t) && PENDING.equals(t.get(STATUS));
+        return new Result(1, 0, pending ? 1 : 0);
+    }
+
+    private static boolean ambiguous(List<PstnCall> matches, Lookup lookup) {
+        return matches.size() > 1 || (matches.size() == 1 && lookup.pending().stream()
+                .filter(a -> matches(a, matches.get(0), a.performedBy(), lookup.line().callerNumber(),
+                        lookup.line().connectionId()))
+                .limit(2).count() > 1);
+    }
+
+    private Result recordCall(String tenantCode, Lookup lookup, TreatmentAction action, PstnCall call,
+            Map<String, Object> t) {
+        t.put(STATUS, RECORDED);
+        t.remove(REASON);
+        t.put("recordId", key(call));
+        t.put("callId", call.callId());
+        t.put("durationSeconds", call.durationSeconds());
+        if (call.report() != null) {
+            t.put("report", call.report().name());
+        }
+        if (!save(tenantCode, action, call.connected(), call.durationSeconds(), t)) {
+            return new Result(1, 0, 0);
+        }
+        lookup.taken().add(key(call));
+        audit.log(tenantCode, action.performedBy(), "treatment.call_recorded", "treatment", action.treatmentId(), null,
+                Map.of("actionId", action.id(), "durationSeconds", call.durationSeconds()));
+        return new Result(1, 1, 0);
     }
 
     static boolean matches(TreatmentAction action, PstnCall r, String operator, String lineCaller, String connectionId) {
@@ -137,7 +213,7 @@ public class TeamsCallReconciler {
         if (originalConnection != null && !connectionId.equals(originalConnection)) {
             return false;
         }
-        if (r.callType() == null || !r.callType().endsWith("_out")) {
+        if (!r.outbound()) {
             return false;
         }
         String callee = digits(telephony(action).get("calleeNumber"));

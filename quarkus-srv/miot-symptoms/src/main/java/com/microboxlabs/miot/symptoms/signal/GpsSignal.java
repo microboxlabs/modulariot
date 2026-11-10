@@ -40,20 +40,28 @@ public record GpsSignal(
         @Schema(hidden = true) @JsonProperty("received_at") Instant receivedAt,
         @Schema(hidden = true) List<String> clients,
         @Schema(hidden = true) String sender,
+        @Schema(hidden = true, description = "Device event identity; absent on GPS frames")
+        @JsonProperty("event_id") String eventId,
         @Schema(hidden = true) Map<String, Trip> trips,
         Trip trip,
         Vehicle vehicle,
         Road road,
+        @Schema(hidden = true) Map<String, Road> roads,
         Geo geo,
         @Schema(hidden = true) Map<String, Geo> geos,
         @Schema(title = "Hora local") @JsonProperty("local_hour") Integer localHour,
-        @Schema(title = "Minutos del día", description = "Minutes since local midnight, with the seconds as a "
-                + "fraction: 01:30:30 is 90.5", extensions = @Extension(name = "x-unit", value = "min"))
+        @Schema(title = "Minutos del día", description = "Minutos desde la medianoche local, con los segundos "
+                + "como fracción: 01:30:30 es 90,5", extensions = @Extension(name = "x-unit", value = "min"))
         @JsonProperty("local_minutes") Double localMinutes,
         Derived derived,
         @Schema(extensions = @Extension(name = "x-origin", value = "DEVICE")) AssetTrackingData frame) {
 
     public static final String SCHEMA_ID = "miot.gps.signal@1";
+    /**
+     * A signal that carries only device events received outside the GPS frames ({@code DeviceEvents}): no position,
+     * no sensors. The evaluator runs on it only the symptoms that read device events.
+     */
+    public static final String EVENTS_SCHEMA_ID = "miot.gps.signal.events@1";
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -87,11 +95,12 @@ public record GpsSignal(
             @Schema(title = "Patente del remolque", extensions = @Extension(name = "x-origin", value = "TRIP"))
             @JsonProperty("trailer_plate") String trailerPlate,
             @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) Driver driver,
-            @Schema(title = "Desvío de la llegada prevista", description = "Predicted arrival (now plus the "
-                    + "remaining time the route's history predicts) minus the estimated arrival; negative when early",
+            @Schema(title = "Desvío de la llegada prevista", description = "Llegada prevista (hora de la trama más el "
+                    + "percentil 75 del tiempo de los viajes anteriores de la ruta desde la celda actual hasta el destino) "
+                    + "menos la llegada estimada del viaje; positivo si va atrasado, negativo si va adelantado; "
+                    + "vacío sin llegada estimada, origen, destino o posición, o fuera de las celdas conocidas de la ruta",
                     extensions = { @Extension(name = "x-unit", value = "min"),
-                            @Extension(name = "x-origin", value = "CALCULATED"),
-                            @Extension(name = "x-engine", value = "false") })
+                            @Extension(name = "x-origin", value = "TRIP") })
             @JsonProperty("eta_deviation_min") Double etaDeviationMin) {
 
         public Trip(Boolean active, Boolean doubleDriver, String id, String code, String type, String status,
@@ -174,42 +183,82 @@ public record GpsSignal(
     @JsonIgnoreProperties(ignoreUnknown = true)
     @RegisterForReflection
     public record Road(
-            @Schema(title = "Límite de la vía", extensions = {
+            @Schema(title = "Límite de la vía", description = "Límite OSM de la vía más cercana a menos de 11 m "
+                    + "(la principal antes que un enlace), para la categoría de peso del vehículo (pesado si no se "
+                    + "conoce); sin dato si no hay vía cerca o la vía no tiene límite", extensions = {
                     @Extension(name = "x-unit", value = "km/h"), @Extension(name = "x-origin", value = "ROAD_NETWORK") })
             @JsonProperty("maxspeed_osm") Double maxspeedOsm,
-            @Schema(title = "Límite propio", extensions = @Extension(name = "x-unit", value = "km/h"))
-            @JsonProperty("maxspeed_custom") Double maxspeedCustom) {
+            @Schema(title = "Límite propio", description = "Límite que fija la organización para la zona, en el "
+                    + "sentido de avance; sin dato fuera de sus zonas",
+                    extensions = @Extension(name = "x-unit", value = "km/h"))
+            @JsonProperty("maxspeed_custom") Double maxspeedCustom,
+            @Schema(title = "Vía OSM", description = "Id OSM de la vía de la que sale el límite de la vía",
+                    extensions = @Extension(name = "x-origin", value = "ROAD_NETWORK"))
+            @JsonProperty("osm_way_id") Long osmWayId,
+            @Schema(title = "Tipo de vía", description = "Clase OSM de esa vía: motorway, trunk, primary, "
+                    + "residential…", extensions = @Extension(name = "x-origin", value = "ROAD_NETWORK"))
+            @JsonProperty("road_class") String roadClass,
+            @Schema(title = "Zona de límite propio", description = "Zona de la organización de la que sale el "
+                    + "límite propio", extensions = @Extension(name = "x-origin", value = "TENANT_SETTINGS"))
+            @JsonProperty("custom_zone_id") Integer customZoneId,
+            @Schema(title = "Nombre de la zona de límite propio", description = "Nombre de esa zona en la tabla de "
+                    + "la organización; sin dato si no lo tiene", extensions = @Extension(name = "x-origin",
+                    value = "TENANT_SETTINGS"))
+            @JsonProperty("custom_zone_name") String customZoneName) {
+
+        public Road(Double maxspeedOsm, Double maxspeedCustom) {
+            this(maxspeedOsm, maxspeedCustom, null, null, null, null);
+        }
+
+        public Road(Double maxspeedOsm, Double maxspeedCustom, Long osmWayId, String roadClass,
+                Integer customZoneId) {
+            this(maxspeedOsm, maxspeedCustom, osmWayId, roadClass, customZoneId, null);
+        }
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     @RegisterForReflection
     public record Geo(
-            @Schema(title = "En zona autorizada", description = "Inside at least one authorized zone",
+            @Schema(title = "En zona autorizada", description = "Dentro de al menos una zona autorizada",
                     extensions = @Extension(name = "x-origin", value = "ZONES"))
             @JsonProperty("authorized_zone") Boolean authorizedZone,
-            @Schema(title = "Zona", extensions = {
+            @Schema(title = "Zona", description = "Nombre de la zona en la que está: primero una de riesgo, luego "
+                    + "una autorizada", extensions = {
                     @Extension(name = "x-type", value = "zone"), @Extension(name = "x-origin", value = "ZONES") })
             String zone,
-            @Schema(title = "En zona de riesgo", description = "Inside at least one risk zone",
+            @Schema(title = "En zona de riesgo", description = "Dentro de al menos una zona de riesgo",
                     extensions = @Extension(name = "x-origin", value = "ZONES"))
             @JsonProperty("risk_zone") Boolean riskZone,
-            @Schema(title = "Fuera de zona autorizada", description = "In no zone, or inside a zone that is not "
-                    + "authorized, even where an authorized zone overlaps it",
+            @Schema(title = "Fuera de zona autorizada", description = "En ninguna zona, o dentro de una zona no "
+                    + "autorizada aunque se cruce con una autorizada",
                     extensions = @Extension(name = "x-origin", value = "ZONES"))
-            @JsonProperty("outside_authorized") Boolean outsideAuthorized) {
+            @JsonProperty("outside_authorized") Boolean outsideAuthorized,
+            @Schema(title = "Zona de riesgo con horario", description = "La zona de riesgo tiene su propio horario "
+                    + "de riesgo",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @JsonProperty("risk_scheduled") Boolean riskScheduled,
+            @Schema(title = "En horario de riesgo", description = "La hora local está dentro del horario de la zona "
+                    + "de riesgo; sin dato si la zona no tiene horario",
+                    extensions = @Extension(name = "x-origin", value = "ZONES"))
+            @JsonProperty("in_risk_schedule") Boolean inRiskSchedule) {
 
         public Geo(Boolean authorizedZone, String zone) {
             this(authorizedZone, zone, null, null);
+        }
+
+        public Geo(Boolean authorizedZone, String zone, Boolean riskZone, Boolean outsideAuthorized) {
+            this(authorizedZone, zone, riskZone, outsideAuthorized, null, null);
         }
     }
 
     /**
      * One of the frame's {@code events} as rules read it, under {@value #FRAME_EVENTS}. The type is open text:
      * each GPS provider sends its own codes. A missing value reads as an empty text, so a rule needs no
-     * {@code has()}.
+     * {@code has()}. {@code code} is the producer's code for the event, sent by the device-events endpoint; GPS
+     * frames have none.
      */
-    @Schema(title = "Eventos del GPS", description = "The device events the frame carries")
+    @Schema(title = "Eventos del GPS", description = "Los eventos del equipo que trae la trama")
     @JsonIgnoreProperties(ignoreUnknown = true)
     @RegisterForReflection
     public record FrameEvent(
@@ -217,7 +266,8 @@ public record GpsSignal(
             @Schema(title = "Severidad del evento") String severity,
             @Schema(title = "Descripción del evento") String description,
             @Schema(title = "Hora del evento", extensions = @Extension(name = "x-type", value = "time"))
-            String timestamp) {
+            String timestamp,
+            @Schema(title = "Código del evento") String code) {
 
         public static final String FRAME_EVENTS = "signal.frame.events";
 
@@ -227,6 +277,7 @@ public record GpsSignal(
             severity = severity == null ? "" : severity;
             description = description == null ? "" : description;
             timestamp = timestamp == null ? "" : timestamp;
+            code = code == null ? "" : code;
         }
 
         /** The frame's events as rules read them; empty when the frame has none. */
@@ -252,12 +303,12 @@ public record GpsSignal(
 
         static FrameEvent of(Map<?, ?> event) {
             return new FrameEvent(text(event.get("event_type")), text(event.get("severity")),
-                    text(event.get("description")), text(event.get("timestamp")));
+                    text(event.get("description")), text(event.get("timestamp")), text(event.get("code")));
         }
 
         public Map<String, Object> asMap() {
             return Map.of("event_type", eventType, "severity", severity, "description", description,
-                    "timestamp", timestamp);
+                    "timestamp", timestamp, "code", code);
         }
 
         private static String text(Object value) {
@@ -275,11 +326,11 @@ public record GpsSignal(
                     @Extension(name = "x-unit", value = "km/h"), @Extension(name = "x-origin", value = "CALCULATED"),
                     @Extension(name = "x-engine", value = "false") })
             @JsonProperty("speed_avg_5m") Double speedAvg5m,
-            @Schema(title = "Alimentación del GPS desconectada", description = "The frame carries a device event "
-                    + "of external power disconnected", extensions = @Extension(name = "x-origin", value = "DEVICE"))
+            @Schema(title = "Alimentación del GPS desconectada", description = "La trama trae un evento del equipo "
+                    + "de alimentación externa desconectada", extensions = @Extension(name = "x-origin", value = "DEVICE"))
             @JsonProperty("power_disconnected") Boolean powerDisconnected,
-            @Schema(title = "Inhibición de señal (jamming)", description = "The frame carries a device event of "
-                    + "GNSS or GSM jamming", extensions = @Extension(name = "x-origin", value = "DEVICE"))
+            @Schema(title = "Inhibición de señal (jamming)", description = "La trama trae un evento del equipo de "
+                    + "inhibición GNSS o GSM", extensions = @Extension(name = "x-origin", value = "DEVICE"))
             Boolean jamming) {
 
         public Derived(Boolean moving, Double speedAvg5m) {

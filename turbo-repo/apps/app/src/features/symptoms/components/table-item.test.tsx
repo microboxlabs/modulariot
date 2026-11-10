@@ -53,11 +53,11 @@ const row: TableItemType = {
   recurrence_events: null,
 };
 
-function renderRow(data: TableItemType) {
+function renderRow(data: TableItemType, compact = false) {
   return render(
     <Table>
       <TableBody>
-        <TableItem data={data} dict={dict} />
+        <TableItem data={data} dict={dict} compact={compact} />
       </TableBody>
     </Table>
   );
@@ -91,6 +91,28 @@ describe("symptoms trip column", () => {
     expect(
       screen.getByRole("link", { name: "vehicle-demo" }).getAttribute("href")
     ).toContain("tripId=12345");
+  });
+});
+
+describe("symptoms truck change", () => {
+  it.each([false, true])(
+    "shows the current trip plate and keeps links on the case truck (compact=%s)",
+    (compact) => {
+      renderRow({ ...row, tripPlateNow: "TRUCK2" }, compact);
+
+      expect(screen.getByText("Viaje ahora en TRUCK2")).toBeInTheDocument();
+      for (const link of screen.getAllByRole("link")) {
+        expect(link).toHaveAttribute(
+          "href",
+          `/symptoms/map-view/-1?tripId=${tripId}&assetId=vehicle-demo`
+        );
+      }
+    }
+  );
+
+  it("omits the truck change message without a current trip plate", () => {
+    renderRow(row);
+    expect(screen.queryByText(/Viaje ahora en/)).not.toBeInTheDocument();
   });
 });
 

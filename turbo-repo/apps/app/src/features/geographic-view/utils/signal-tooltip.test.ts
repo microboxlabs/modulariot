@@ -55,6 +55,8 @@ describe("current popup signal", () => {
   it("updates the summary from the current description while retaining its selection", () => {
     const captured = {
       elements: [0, 1],
+      appCount: 1,
+      gpsCount: 1,
       description: { signal_lag: "00:05:00" },
     };
     const current = {
@@ -63,6 +65,8 @@ describe("current popup signal", () => {
     };
     expect(pulseWithSignal(captured, "V1", offline, es, current)).toEqual({
       elements: [0, 1],
+      appCount: 1,
+      gpsCount: 1,
       description: current,
     });
     expect(captured.description.signal_lag).toBe("00:05:00");
@@ -100,5 +104,52 @@ describe("current popup signal", () => {
         { assetid: "V1", timestamp: AT, signal: offline },
       ])?.properties.signal
     ).toBe(offline);
+  });
+});
+
+describe("engine-off popup label", () => {
+  const engine = { timestamp: AT, label: "Motor apagado" };
+
+  it("labels the newest frame while the signal arrives", () => {
+    expect(
+      pulseWithSignal(
+        selected,
+        "V1",
+        { state: "online" },
+        es,
+        undefined,
+        engine
+      )
+    ).toMatchObject({
+      properties: { signal_label: null, engine_label: "Motor apagado" },
+    });
+  });
+
+  it("gives way to lost signal", () => {
+    expect(
+      pulseWithSignal(selected, "V1", offline, es, undefined, engine)
+    ).toMatchObject({ properties: { engine_label: null } });
+  });
+
+  it("leaves other frames and assets without it", () => {
+    const older = { timestamp: "2026-01-01T01:00:00Z", label: "Motor apagado" };
+    expect(
+      pulseWithSignal(selected, "V1", null, es, undefined, older)
+    ).toMatchObject({ properties: { engine_label: null } });
+    expect(
+      pulseWithSignal(selected, "V2", null, es, undefined, engine)
+    ).toMatchObject({ properties: { engine_label: null } });
+  });
+
+  it("reads the live asset's current engine state", () => {
+    const captured = {
+      properties: { asset_id: "V1", engine_off: false },
+    } as MapPositionProperties;
+    expect(
+      pinWithSignal(captured, [
+        { assetid: "V1", timestamp: AT, signal: null, engine_off: true },
+      ])?.properties.engine_off
+    ).toBe(true);
+    expect(pinWithSignal(captured, [])?.properties.engine_off).toBe(false);
   });
 });

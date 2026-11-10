@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/lang/en.json";
 import type { ReactNode } from "react";
 import type { IntegrationConnection } from "../integration-config.types";
-import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
 const state = vi.hoisted(() => ({
   replace: vi.fn(),
   owner: false,
@@ -15,15 +14,14 @@ const state = vi.hoisted(() => ({
   connect: vi.fn(),
   success: vi.fn(),
   failure: vi.fn(),
-  ask: vi.fn(),
-  save: vi.fn(),
-  telephony: { preferred: null as string | null, active: null, lines: [] },
-  saveTelephony: vi.fn(),
-  revalidateTelephony: vi.fn(),
-  testInstance: vi.fn(),
+  useTelephony: vi.fn(),
   params: new URLSearchParams(
     "section=bigquery&source=demo-old&query=demo-plan"
   ),
+}));
+vi.mock("@/features/symptoms/control-tower/telephony-api", () => ({
+  useTelephony: state.useTelephony,
+  saveTelephony: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: state.replace }),
@@ -41,8 +39,6 @@ vi.mock("../use-integration-config", () => ({
     templates: [],
     connections: state.connections,
     removeConnection: state.remove,
-    saveConnection: state.save,
-    testInstance: state.testInstance,
     credentials: [],
     isLoading: false,
     error: null,
@@ -103,49 +99,13 @@ vi.mock("@/features/settings-admin/platform/org-service-account", () => ({
   connectManagedBigQuery: state.connect,
 }));
 vi.mock("sonner", () => ({
-  toast: Object.assign(state.ask, {
+  toast: {
     loading: vi.fn(() => "pending"),
     success: state.success,
     error: state.failure,
-    dismiss: vi.fn(),
-  }),
+  },
 }));
-vi.mock("@/features/symptoms/control-tower/telephony-api", () => ({
-  useTelephony: () => ({
-    data: state.telephony,
-    error: undefined,
-    mutate: state.revalidateTelephony,
-  }),
-  saveTelephony: state.saveTelephony,
-}));
-vi.mock("./org-telephony-choice", () => ({
-  OrgTelephonyChoice: () => <p>Organization telephony</p>,
-}));
-vi.mock("./connection-form-modal", () => ({
-  ConnectionFormModal: ({
-    onSave,
-    onTest,
-  }: {
-    onSave: (create: Record<string, unknown>) => Promise<unknown>;
-    onTest: (id: string) => Promise<unknown>;
-  }) => (
-    <>
-      <button onClick={() => void onTest("m1")}>Test Teams Phone</button>
-      <button
-        onClick={() =>
-          void onSave({
-            name: "Mintral Teams",
-            baseUrl: "https://graph.microsoft.com",
-            credentialProfileId: "c1",
-            providerType: "TEAMS_PHONE",
-          })
-        }
-      >
-        Create Teams Phone
-      </button>
-    </>
-  ),
-}));
+vi.mock("./connection-form-modal", () => ({ ConnectionFormModal: () => null }));
 vi.mock("./integration-delete-dialog", () => ({
   IntegrationDeleteDialog: ({
     show,
@@ -187,8 +147,6 @@ beforeEach(() => {
   state.connections = [];
   state.remove.mockResolvedValue(undefined);
   state.removeManaged.mockResolvedValue(undefined);
-  state.revalidateTelephony.mockResolvedValue(undefined);
-  state.testInstance.mockResolvedValue({ success: true });
   state.params = new URLSearchParams(
     "section=bigquery&source=demo-old&query=demo-plan"
   );
@@ -339,9 +297,9 @@ describe("managed geocoding deletion scope", () => {
   );
 });
 
-describe("organization telephony", () => {
-  const t = en.pages.integrationConnections.telephonyChoice;
-  const renderPage = () =>
+describe("telephony lives in Ajustes › Síntomas", () => {
+  it("the connections section has no telephony selector nor usage", () => {
+    state.params = new URLSearchParams("section=connections");
     render(
       <IntegrationConfigPageContent
         dict={en.pages.integrationConnections}
@@ -350,65 +308,12 @@ describe("organization telephony", () => {
         lang="en"
       />
     );
-
-  beforeEach(() => {
-    state.params = new URLSearchParams();
-    state.slug = "mintral";
-    state.save.mockResolvedValue({ id: "m1", providerType: "TEAMS_PHONE" });
-    state.saveTelephony.mockResolvedValue(undefined);
-  });
-
-  it("shows the selector on the connections section", () => {
-    renderPage();
-    expect(screen.getByText("Organization telephony")).toBeInTheDocument();
-  });
-
-  it("asks to use a new Teams Phone connection when the organization has not chosen", async () => {
-    state.telephony = { preferred: null, active: null, lines: [] };
-    renderPage();
-    fireEvent.click(screen.getByText("Create Teams Phone"));
-    await waitFor(() => expect(state.ask).toHaveBeenCalled());
-    expect(state.revalidateTelephony).toHaveBeenCalled();
-    const [message, options] = state.ask.mock.calls[0] as [
-      string,
-      { action: { label: string; onClick: () => void } },
-    ];
-    expect(message).toBe(t.askTeams.replace("{name}", "Mintral Teams"));
-    expect(options.action.label).toBe(t.askTeamsAction);
-    options.action.onClick();
-    expect(state.saveTelephony).toHaveBeenCalledWith("TEAMS_PHONE");
-    await waitFor(() => expect(state.success).toHaveBeenCalledWith(t.saved));
-  });
-
-  it("does not ask when the organization already chose", async () => {
-    state.telephony = { preferred: "TELNYX", active: null, lines: [] };
-    renderPage();
-    fireEvent.click(screen.getByText("Create Teams Phone"));
-    await waitFor(() => expect(state.save).toHaveBeenCalled());
-    expect(state.ask).not.toHaveBeenCalled();
-  });
-
-  it.each([true, false])(
-    "refreshes telephony after a saved connection test (success: %s)",
-    async (success) => {
-      state.testInstance.mockResolvedValueOnce({ success });
-      renderPage();
-      fireEvent.click(screen.getByText("Test Teams Phone"));
-      await waitFor(() => expect(state.revalidateTelephony).toHaveBeenCalled());
-    }
-  );
-
-  it("explains the required permission when choosing the new connection is forbidden", async () => {
-    state.telephony = { preferred: null, active: null, lines: [] };
-    state.saveTelephony.mockRejectedValueOnce(
-      new ControlTowerError("forbidden", 403)
-    );
-    renderPage();
-    fireEvent.click(screen.getByText("Create Teams Phone"));
-    await waitFor(() => expect(state.ask).toHaveBeenCalled());
-    state.ask.mock.calls[0][1].action.onClick();
-    await waitFor(() =>
-      expect(state.failure).toHaveBeenCalledWith(t.forbidden)
+    const t = en.pages.userSettings.telephony;
+    expect(screen.queryByText(t.choice.title)).toBeNull();
+    expect(screen.queryByText(t.usage.title)).toBeNull();
+    expect(state.useTelephony).not.toHaveBeenCalled();
+    expect(en.pages.integrationConnections).not.toHaveProperty(
+      "telephonyChoice"
     );
   });
 });

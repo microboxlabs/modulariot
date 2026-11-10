@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.redis.client.RedisAPI;
 import io.vertx.mutiny.redis.client.Response;
 import java.io.IOException;
@@ -19,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /**
  * Episodes in Redis: one hash per organization and vehicle,
@@ -58,7 +61,16 @@ public class RedisEpisodes implements EpisodeRepository {
 
     @Override
     public Set<String> tenantsWithEpisodes(String assetId) {
-        Response all = redis.smembers(tenantsKey(assetId)).await().atMost(TIMEOUT);
+        return tenants(redis.smembers(tenantsKey(assetId)).await().atMost(TIMEOUT));
+    }
+
+    @Override
+    public Supplier<Set<String>> readTenantsWithEpisodes(String assetId) {
+        CompletableFuture<Response> sent = redis.smembers(tenantsKey(assetId)).subscribeAsCompletionStage();
+        return () -> tenants(Uni.createFrom().completionStage(sent).await().atMost(TIMEOUT));
+    }
+
+    private static Set<String> tenants(Response all) {
         Set<String> tenants = new HashSet<>();
         if (all != null) {
             all.forEach(value -> tenants.add(value.toString()));
@@ -68,7 +80,11 @@ public class RedisEpisodes implements EpisodeRepository {
 
     @Override
     public AssetEpisodes load(String tenantCode, String assetId) {
-        Response all = redis.hgetall(key(tenantCode, assetId)).await().atMost(TIMEOUT);
+        return episodes(tenantCode, assetId, redis.hgetall(key(tenantCode, assetId)).await().atMost(TIMEOUT));
+    }
+
+    /** The episodes, watermarks and close revision of the vehicle's hash, parsed on the caller's thread. */
+    static AssetEpisodes episodes(String tenantCode, String assetId, Response all) {
         Map<UUID, Episode> episodes = new HashMap<>();
         Map<String, Instant> watermarks = new HashMap<>();
         long closeRevision = 0;
@@ -107,6 +123,13 @@ public class RedisEpisodes implements EpisodeRepository {
             end
             return 1
             """;
+
+    @Override
+    public Uni<Void> validate(AssetEpisodes snapshot) {
+        return redis.hget(key(snapshot.tenantCode(), snapshot.assetId()), CLOSE_REVISION)
+                .invoke(value -> snapshot.requireRevision(value == null ? 0 : value.toLong()))
+                .replaceWithVoid();
+    }
 
     /** Writes what changed since {@link #load}, and resets the expiry. */
     @Override
@@ -150,7 +173,21 @@ public class RedisEpisodes implements EpisodeRepository {
             if ARGV[4] == '' then
                 redis.call('HDEL', KEYS[1], ARGV[3])
             else
-                redis.call('HSET', KEYS[1], ARGV[3], ARGV[4])
+                local marker = cjson.decode(ARGV[4])
+                local previous = redis.call('HGET', KEYS[1], ARGV[3])
+                if previous then
+                    local old = cjson.decode(previous)
+                    if old.tripId == marker.closedOnTrip or old.closedOnTrip == marker.closedOnTrip then
+                        for _, field in ipairs({'version', 'candidateSince', 'conditionSince', 'normalSince',
+                                                'levelSince', 'lastSignalAt'}) do
+                            marker[field] = old[field]
+                        end
+                        if old.normalSince and old.normalSince ~= cjson.null and next(old.levelSince) == nil then
+                            marker.reopenAbove = nil
+                        end
+                    end
+                end
+                redis.call('HSET', KEYS[1], ARGV[3], cjson.encode(marker))
             end
             redis.call('EXPIRE', KEYS[1], ARGV[1])
             local has_episodes = false
@@ -173,10 +210,13 @@ public class RedisEpisodes implements EpisodeRepository {
                 marker == null ? "" : write(marker))).await().atMost(TIMEOUT);
     }
 
-    private static final String FORGET_STALE = """
-            if redis.call('HGET', KEYS[1], ARGV[1]) == ARGV[2] then
+    static final String FORGET_STALE = """
+            local current = redis.call('HGET', KEYS[1], ARGV[1])
+            if current == ARGV[2] or (not current and ARGV[2] == '') then
                 redis.call('HINCRBY', KEYS[1], 'close:revision', 1)
-                return redis.call('HDEL', KEYS[1], ARGV[1])
+                redis.call('EXPIRE', KEYS[1], ARGV[3])
+                redis.call('HDEL', KEYS[1], ARGV[1])
+                return 1
             end
             return 0
             """;
@@ -185,16 +225,25 @@ public class RedisEpisodes implements EpisodeRepository {
     public void forgetStale(String tenantCode, String assetId, UUID definitionId,
             SymptomState state, Instant openedAt) {
         String field = EPISODE + definitionId;
-        Response value = redis.hget(key(tenantCode, assetId), field).await().atMost(TIMEOUT);
-        if (value == null) {
-            return;
+        for (int attempt = 0; attempt < 8; attempt++) {
+            Response value = redis.hget(key(tenantCode, assetId), field).await().atMost(TIMEOUT);
+            String snapshot = value == null ? "" : value.toString();
+            Episode e = value == null ? null : read(snapshot);
+            if (!canForget(e, state, openedAt)) {
+                return;
+            }
+            Response result = redis.eval(List.of(FORGET_STALE, "1", key(tenantCode, assetId), field, snapshot,
+                    Long.toString(ttl.toSeconds()))).await().atMost(TIMEOUT);
+            if (result.toLong() == 1) {
+                return;
+            }
         }
-        String snapshot = value.toString();
-        Episode e = read(snapshot);
-        if (e.closedOnTrip() == null && (e.state() == null || e.state() == state)
-                && (e.openedAt() == null || !e.openedAt().isAfter(openedAt))) {
-            redis.eval(List.of(FORGET_STALE, "1", key(tenantCode, assetId), field, snapshot)).await().atMost(TIMEOUT);
-        }
+        throw new ConcurrentModificationException("Episode changed repeatedly during case cleanup");
+    }
+
+    private static boolean canForget(Episode e, SymptomState state, Instant openedAt) {
+        return e == null || (e.closedOnTrip() == null && (e.state() == null || e.state() == state)
+                && (e.openedAt() == null || !e.openedAt().isAfter(openedAt)));
     }
 
     static String write(Episode e) {

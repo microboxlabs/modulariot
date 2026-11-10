@@ -4,6 +4,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 
 import com.microboxlabs.miot.core.auth.PlatformTestProfile;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
@@ -13,6 +14,8 @@ import io.restassured.specification.RequestSpecification;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -160,5 +163,14 @@ class PlatformRolesResourceTest {
         as(PlatformTestProfile.OWNER_EMAIL).when().get(ROLE_PATH)
                 .then().statusCode(200)
                 .body("assigneeIds", contains(PlatformTestProfile.OWNER_EMAIL));
+    }
+
+    @Test
+    void hundredsOfAssigneesAreFlushedTogether() {
+        String assignees = IntStream.range(0, 500).mapToObj(i -> "\"assignee" + i + "@example.test\"")
+                .collect(Collectors.joining(",", "[", "]"));
+        setAssignees(assignees);
+        as(PlatformTestProfile.OWNER_EMAIL).when().get(ROLE_PATH)
+                .then().statusCode(200).body("assigneeIds", hasSize(500));
     }
 }

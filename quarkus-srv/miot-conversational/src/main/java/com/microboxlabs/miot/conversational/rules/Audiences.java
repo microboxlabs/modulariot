@@ -4,6 +4,7 @@ import com.microboxlabs.miot.conversational.rules.RuleSpec.Audience;
 import com.microboxlabs.miot.core.event.ContactDirectory;
 import com.microboxlabs.miot.core.event.Participant;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
+import com.microboxlabs.miot.core.event.TextKey;
 import com.microboxlabs.miot.core.tax.NationalIds;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -116,7 +117,8 @@ public final class Audiences {
     }
 
     /**
-     * The contact as {@code contact} in a condition; a missing text is empty and missing tags an empty list. The
+     * The contact as {@code contact} in a condition; a missing text is empty and missing tags an empty list.
+     * {@code tagKeys} are the tags as {@link TextKey}: lower case, without accents and with single spaces. The
      * national id and company RUT are normalized, as the trip's RUTs in {@code event.data} are, so the stored format
      * does not matter.
      */
@@ -126,7 +128,9 @@ public final class Audiences {
         m.put("name", text(c.name()));
         m.put("role", text(c.role()));
         m.put("roleKey", text(c.role()).trim().toLowerCase(java.util.Locale.ROOT));
-        m.put("tags", c.tags() == null ? List.of() : c.tags());
+        List<String> tags = c.tags() == null ? List.of() : c.tags();
+        m.put("tags", tags);
+        m.put("tagKeys", tags.stream().map(TextKey::of).filter(k -> !k.isEmpty()).distinct().toList());
         m.put("company", text(c.company()));
         m.put("companyRut", text(NationalIds.normalize(c.companyRut())));
         m.put("position", text(c.position()));

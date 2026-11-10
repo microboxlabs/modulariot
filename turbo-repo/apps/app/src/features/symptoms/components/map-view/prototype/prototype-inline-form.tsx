@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { HiChevronLeft } from "react-icons/hi";
+import { HiChevronLeft, HiOutlineClipboardCheck } from "react-icons/hi";
 import { ToggleSwitch } from "flowbite-react";
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -22,9 +22,11 @@ import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
 import { startPendingTreatment } from "./prototype-api-guard";
 import PrototypeIgnoreCondition from "./prototype-ignore-condition";
 import PrototypeInvalidateSymptom from "./prototype-invalidate-symptom";
+import PrototypeRecordHandling from "./prototype-record-handling";
 import { TiDelete } from "react-icons/ti";
 import { MdBlock } from "react-icons/md";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
+import { useOptionalCallSession } from "./call-center/call-session";
 
 /** Panel header title per call-center debug-flow step — overrides the menu's
  *  static title while that flow is on screen. */
@@ -44,7 +46,7 @@ const CALL_FLOW_TITLE_KEYS: Record<CallCenterReportedStep, string> = {
  * the panel grows and swaps its content in place rather than opening a dialog.
  */
 export default function PrototypeInlineForm({
-  setIsMenuOpen,
+  setIsMenuOpen: setPanelOpen,
   isMenuOpen,
   dict,
   selectedOption,
@@ -68,6 +70,18 @@ export default function PrototypeInlineForm({
 }>) {
   const { data: session } = useSession();
   const userEmail = session?.user?.email ?? "";
+
+  // Closing the panel (a treatment saved, or the operator left) ends the
+  // case's call in the call session once it is over; a live call stays.
+  const callSession = useOptionalCallSession();
+  const caseId =
+    treatmentData?.symptom_info?.id == null
+      ? null
+      : String(treatmentData.symptom_info.id);
+  const setIsMenuOpen = (open: boolean) => {
+    if (!open) callSession?.clearIfOver(caseId);
+    setPanelOpen(open);
+  };
 
   const [fieldEditorMode, setFieldEditorMode] = useFieldEditorMode();
 
@@ -147,15 +161,18 @@ export default function PrototypeInlineForm({
   }, [selectedOption]);
 
   // The native "leave site?" prompt covers what in-app back-button locking
-  // can't: a reload (F5), closing the tab, or typing a new URL.
+  // can't: a reload (F5), closing the tab, or typing a new URL. A live call
+  // survives a reload in the call session (a browser call warns there), so
+  // only the unsaved results form warns here.
+  const warnOnLeave = isCallDriverDebugFlow && callFlowStep === "form";
   useEffect(() => {
-    if (!backLocked) return;
+    if (!warnOnLeave) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [backLocked]);
+  }, [warnOnLeave]);
 
   const handleCallFlowStepChange = (step: CallCenterReportedStep) => {
     setCallFlowStep(step);
@@ -324,6 +341,21 @@ export default function PrototypeInlineForm({
         />
       ),
       icon: <MdBlock className="h-7 w-7" />,
+    },
+    record_handling: {
+      title: (dict.symptoms as I18nRecord).record_handling,
+      // Engine-only: the treatment opens at save, never as a pending GPS record.
+      preactions: undefined,
+      component: (
+        <PrototypeRecordHandling
+          dict={dict}
+          treatmentData={treatmentData}
+          treatmentRequest={treatmentRequest}
+          setTreatmentRequest={setTreatmentRequest}
+          setIsMenuOpen={setIsMenuOpen}
+        />
+      ),
+      icon: <HiOutlineClipboardCheck className="h-7 w-7" />,
     },
   };
 

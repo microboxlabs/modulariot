@@ -1,31 +1,45 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { Layer, PickingInfo } from "@deck.gl/core";
 import { ScatterplotLayer } from "deck.gl";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import type { ConditionsAgg } from "@/features/symptoms/types/timeline";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { MapPosition } from "../types/map";
 import { PulsePinLayer } from "./layers/pulse";
 import MapVisualizationTrip from "./map-visualization-trip";
 
-const mapState = vi.hoisted(() => ({ layers: [] as Layer[] }));
+const mapState = vi.hoisted(() => ({
+  layers: [] as Layer[],
+  flyTo: vi.fn(),
+  fitBounds: vi.fn(),
+}));
 
 // lo pesado (mapa, barra, panel, datos) queda fuera: se prueba el marco
 const signalNow = vi.hoisted(() => ({ value: null as unknown }));
 beforeEach(() => {
   signalNow.value = null;
+  mapState.flyTo.mockClear();
+  mapState.fitBounds.mockClear();
 });
 vi.mock("@/features/map-visualization/map-visualization", () => ({
   default: ({
     children,
     rounded,
     layers = [],
+    mapRef,
   }: {
     children?: ReactNode;
     rounded?: boolean | "left";
     layers?: Layer[];
+    mapRef: { current: object | null };
   }) => {
     mapState.layers = layers;
+    mapRef.current = {
+      flyTo: mapState.flyTo,
+      fitBounds: mapState.fitBounds,
+      easeTo: vi.fn(),
+    };
     return (
       <div data-testid="mapa" data-rounded={String(rounded)}>
         {children}
@@ -50,18 +64,21 @@ vi.mock("./tool-bar/tool-bar", () => ({
     geofences_mode?: {
       geofencesMode: string;
       setGeofencesMode: (m: "all" | "trip" | "none") => void;
+      modes?: readonly ("all" | "trip" | "none")[];
     };
   }) => (
     <div data-testid="modo-geocercas" data-modo={geofences_mode?.geofencesMode}>
-      {(["all", "trip", "none"] as const).map((m) => (
-        <button
-          key={m}
-          type="button"
-          onClick={() => geofences_mode?.setGeofencesMode(m)}
-        >
-          {`modo-${m}`}
-        </button>
-      ))}
+      {(geofences_mode?.modes ?? (["all", "trip", "none"] as const)).map(
+        (m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => geofences_mode?.setGeofencesMode(m)}
+          >
+            {`modo-${m}`}
+          </button>
+        )
+      )}
     </div>
   ),
 }));
@@ -69,8 +86,11 @@ vi.mock("./places-overlay/places-floating-overlay", () => ({
   default: ({ externas }: { externas?: { titulo: string } }) =>
     externas ? <span data-testid="externas">{externas.titulo}</span> : null,
 }));
+// ver Lugares (places:view) se apaga por test; editar, siempre
+const permisoVer = vi.hoisted(() => ({ activo: true }));
 vi.mock("../profiles/places-permission", () => ({
   usePermisoEditorLugares: () => true,
+  usePermisoVerLugares: () => permisoVer.activo,
 }));
 vi.mock("@/features/places", async () => ({
   ...(await vi.importActual<object>("@/features/places/panel")),
@@ -202,6 +222,23 @@ describe("MapVisualizationTrip controls", () => {
     expect(screen.queryByTestId("capas-lugares")).toBeNull();
   });
 
+  it("without places:view offers no Lugares and no places geofences, only the trip's", () => {
+    permisoVer.activo = false;
+    try {
+      renderViaje({ positions: [] });
+      expect(
+        screen.queryByRole("button", { name: "Lugares de interés" })
+      ).toBeNull();
+      expect(screen.queryByRole("button", { name: "modo-all" })).toBeNull();
+      expect(
+        screen.getByRole("button", { name: "modo-trip" })
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId("capas-lugares")).toBeNull();
+    } finally {
+      permisoVer.activo = true;
+    }
+  });
+
   it("shows the places geofences while the editor is open, whatever the mode", () => {
     renderViaje({ positions: [] });
     fireEvent.click(screen.getByRole("button", { name: "modo-none" }));
@@ -319,6 +356,47 @@ describe("case map frames", () => {
     expect(screen.getByText("Compromised condition")).toBeInTheDocument();
   });
 
+  it("pairs each speed change with its rule speed and leaves other frames alone", () => {
+    render(
+      <MapVisualizationTrip
+        {...props}
+        positions={positions.map((p) => ({ ...p, speed: 83.6 }))}
+        caseSpans={[
+          {
+            ...caseSpans[0],
+            steps: [
+              {
+                at: positions[1].timestamp,
+                icu_code: 2,
+                speed: 84,
+                speed_limit: 60,
+              },
+              {
+                at: positions[2].timestamp,
+                icu_code: 4,
+                speed: 84,
+                speed_limit: 50,
+              },
+            ],
+          },
+        ]}
+      />
+    );
+    const frames = pulseLayer().props.data.features;
+    expect(
+      frames.map(
+        (f: { properties: { speed: number; speed_limit: number | null } }) => ({
+          speed: f.properties.speed,
+          limit: f.properties.speed_limit,
+        })
+      )
+    ).toEqual([
+      { speed: 83.6, limit: null },
+      { speed: 84, limit: 60 },
+      { speed: 84, limit: 50 },
+    ]);
+  });
+
   it("refreshes an open summary without resetting a selected frame or reopening a dismissed popup", () => {
     const location = (signal_lag: string) => ({
       type: "FeatureCollection",
@@ -369,6 +447,182 @@ describe("case map frames", () => {
       />
     );
     expect(container.querySelector(".tooltip")).toBeNull();
+  });
+
+  it("rings an engine case's frames inside its window on the whole trip, and a clicked frame alone", () => {
+    const opening = {
+      type: "FeatureCollection",
+      description: {},
+      features: [positions[1]].map((frame) => ({
+        type: "Feature",
+        geometry: "Point",
+        longitude: frame.longitude,
+        latitude: frame.latitude,
+        properties: { speed: frame.speed, timestamp: frame.timestamp },
+        status: "demo",
+      })),
+    };
+    const caseWindow = {
+      from: "2026-01-01T10:00:00Z",
+      to: "2026-01-01T10:15:00Z",
+    };
+    render(
+      <MapVisualizationTrip
+        {...props}
+        filteredLocationData={opening}
+        caseWindow={caseWindow}
+      />
+    );
+    const layer = pulseLayer();
+    expect(layer.props.data.features).toHaveLength(3);
+    expect(layer.props.selectedPulse).toEqual([1, 2]);
+    const selected = layer
+      .renderLayers()
+      .find((item) => item.id === "pulse-selected-background-layer");
+    expect(selected?.props.data).toEqual(layer.props.data.features.slice(1));
+    expect(markerColor(selected, layer.props.data.features[1])).toEqual([
+      255, 255, 255, 255,
+    ]);
+
+    act(() => {
+      layer.props.onClick(
+        { object: layer.props.data.features[2] } as PickingInfo,
+        {}
+      );
+    });
+    expect(pulseLayer().props.selectedPulse).toEqual([2]);
+  });
+
+  it("keeps a clicked first pulse when the timeline clears and restores the case on reselection", () => {
+    const condition = { symptom_id: -12 } as ConditionsAgg;
+    function TimelineSelection() {
+      const [selected, setSelected] = useState<ConditionsAgg | null>(condition);
+      return (
+        <>
+          <button onClick={() => setSelected(condition)}>
+            Select timeline
+          </button>
+          <MapVisualizationTrip
+            {...props}
+            caseWindow={{ from: caseSpans[0].start, to: caseSpans[0].end }}
+            selectedTreatmentIndex={selected}
+            setSelectedTreatmentIndex={setSelected}
+            setSelectedTreatment={() => {}}
+          />
+        </>
+      );
+    }
+    render(<TimelineSelection />);
+    expect(pulseLayer().props.selectedPulse).toEqual([1, 2]);
+    act(() => {
+      const layer = pulseLayer();
+      layer.props.onClick(
+        { object: layer.props.data.features[0] } as PickingInfo,
+        {}
+      );
+    });
+    expect(pulseLayer().props.selectedPulse).toEqual([0]);
+    expect(screen.queryByText("Compromised condition")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Select timeline" }));
+    expect(pulseLayer().props.selectedPulse).toEqual([1, 2]);
+  });
+
+  it("does not match an earlier pulse by coordinates when the case window has no sampled pulses", () => {
+    const { rerender } = render(
+      <MapVisualizationTrip
+        {...props}
+        filteredLocationData={{
+          type: "FeatureCollection",
+          description: {},
+          features: [
+            {
+              type: "Feature",
+              geometry: "Point",
+              status: "demo",
+              longitude: positions[0].longitude,
+              latitude: positions[0].latitude,
+              properties: { timestamp: positions[0].timestamp, speed: 0 },
+            },
+          ],
+        }}
+      />
+    );
+    expect(pulseLayer().props.selectedPulse).toEqual([0]);
+    rerender(
+      <MapVisualizationTrip
+        {...props}
+        caseWindow={{
+          from: "2026-01-01T10:01:00Z",
+          to: "2026-01-01T10:02:00Z",
+        }}
+        filteredLocationData={{
+          type: "FeatureCollection",
+          description: {},
+          features: [
+            {
+              type: "Feature",
+              geometry: "Point",
+              status: "demo",
+              longitude: positions[0].longitude,
+              latitude: positions[0].latitude,
+              properties: { timestamp: "2026-01-01T10:01:00Z", speed: 0 },
+            },
+          ],
+        }}
+      />
+    );
+    expect(pulseLayer().props.selectedPulse).toEqual([]);
+  });
+
+  it("resets tilt and rotation when the arriving case window focuses a single pulse", () => {
+    const { rerender } = render(<MapVisualizationTrip {...props} />);
+    expect(mapState.fitBounds).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ pitch: 45, bearing: 45 })
+    );
+    rerender(
+      <MapVisualizationTrip
+        {...props}
+        caseWindow={{
+          from: positions[1].timestamp,
+          to: positions[1].timestamp,
+        }}
+      />
+    );
+    expect(mapState.flyTo).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        center: [positions[1].longitude, positions[1].latitude],
+        pitch: 0,
+        bearing: 0,
+      })
+    );
+  });
+
+  it("renders the full 20000-point selection on a long track", () => {
+    const longTrack = Array.from({ length: 20000 }, (_, i) => ({
+      ...positions[0],
+      timestamp: new Date(
+        Date.parse("2026-01-01T00:00:00Z") + i * 1000
+      ).toISOString(),
+    }));
+    render(
+      <MapVisualizationTrip
+        {...props}
+        positions={longTrack}
+        caseWindow={{
+          from: longTrack[0].timestamp,
+          to: longTrack.at(-1)!.timestamp,
+        }}
+      />
+    );
+    const layer = pulseLayer();
+    expect(layer.props.selectedPulse).toHaveLength(20000);
+    expect(
+      layer
+        .renderLayers()
+        .find((item) => item.id === "pulse-selected-background-layer")?.props
+        .data
+    ).toHaveLength(20000);
   });
 
   it("rings the selected symptom's frames and keeps late frames amber inside and outside the case", () => {
@@ -487,6 +741,7 @@ describe("MapVisualizationTrip signal state", () => {
       signal_offline: "Sin señal",
       signal_offline_minutes: "Sin señal · hace {n} min",
       signal_offline_hours: "Sin señal · hace {n} h",
+      engine_off: "Motor apagado",
     },
   } as unknown as I18nRecord;
 
@@ -494,6 +749,7 @@ describe("MapVisualizationTrip signal state", () => {
     id: string;
     props: {
       offline?: boolean;
+      engineOff?: boolean;
       label?: string | null;
       data?: {
         features?: {
@@ -509,7 +765,7 @@ describe("MapVisualizationTrip signal state", () => {
   const layer = (id: string) =>
     (mapState.layers as Drawn[]).find((l) => l.id === id);
 
-  function show(signal: unknown) {
+  function show(signal: unknown, reportedEngine?: boolean) {
     signalNow.value = signal;
     render(
       <MapVisualizationTrip
@@ -517,7 +773,12 @@ describe("MapVisualizationTrip signal state", () => {
         positions={frames as never}
         isLoading={false}
         error={null}
-        filteredLocationData={null}
+        filteredLocationData={{
+          type: "FeatureCollection",
+          features: [],
+          description: { last_reported_engine_status: reportedEngine },
+        }}
+        reportedEngineStatus={reportedEngine}
         dict={withLabels}
         selectedTreatmentIndex={null}
       />
@@ -556,5 +817,30 @@ describe("MapVisualizationTrip signal state", () => {
       last_frame_at: "2026-11-03T11:55:00Z",
     });
     expect(layer("PinLayer")?.props.offline).toBe(false);
+  });
+
+  it("uses the case's reported engine status when its frames have none", () => {
+    show({ state: "online" }, false);
+    expect(layer("PinLayer")?.props).toMatchObject({
+      engineOff: true,
+      offline: false,
+      label: "Motor apagado",
+    });
+  });
+
+  it("lets lost signal win over the case's reported engine-off status", () => {
+    show(
+      {
+        state: "offline",
+        offline_since: new Date(Date.now() - 12 * 60_000).toISOString(),
+        last_frame_at: frames[1].timestamp,
+      },
+      false
+    );
+    expect(layer("PinLayer")?.props).toMatchObject({
+      engineOff: false,
+      offline: true,
+      label: "Sin señal · hace 12 min",
+    });
   });
 });

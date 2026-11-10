@@ -11,34 +11,49 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 /**
  * {@code trip_check}: a check of a vehicle on a trip, under the CEL root {@code check}. The lost-signal detector
  * writes one when the vehicle's deadline expires, then every minute while it stays silent, and one when its
- * signal returns. {@code trip} is the trip as the vehicle's newest signal carried it.
+ * signal returns. The duty tracker writes one on each frame, with the driving, rest and duty minutes; only the
+ * symptoms that read those minutes run on it, and only those do not run on the detector's checks. {@code trip}
+ * is the trip as the vehicle's newest signal carried it. {@code geo} is the organization's zones at the frame that
+ * triggered a duty check; the detector's checks have none.
  *
  * <p>The rule editor's fields for the source are read from these annotations ({@link SignalFields}), as for
  * {@link GpsSignal}.
  */
 @Schema(title = "Revisión periódica del viaje", extensions = {
-        @Extension(name = "x-cadence", value = "Cuando vence el plazo de señal del vehículo, cada minuto mientras sigue sin señal y cuando vuelve") })
+        @Extension(name = "x-cadence", value = "Cuando vence el plazo de señal del vehículo, cada minuto mientras "
+                + "sigue sin señal y cuando vuelve; en cada pulso GPS para los minutos de conducción, descanso y jornada") })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @RegisterForReflection
 public record TripCheck(
-        @Schema(title = "Minutos conduciendo seguido", extensions = {
-                @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED"),
-                @Extension(name = "x-engine", value = "false") })
+        @Schema(title = "Minutos conduciendo seguido", description = "Conducción neta del viaje: el tiempo en "
+                + "movimiento menos lo que devuelven las detenciones de 24 min o más (2,5 veces su duración, nunca más "
+                + "de lo conducido); en movimiento es más de 2,78 m/s entre dos señales", extensions = {
+                @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED") })
         @JsonProperty("driving_minutes") Double drivingMinutes,
-        @Schema(title = "Minutos de descanso", extensions = {
-                @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED"),
-                @Extension(name = "x-engine", value = "false") })
+        @Schema(title = "Minutos de descanso", description = "Duración de la detención en curso, desde su primera "
+                + "señal detenida del ciclo de jornada; 0 en movimiento. Al completar 8 h termina el ciclo y la siguiente "
+                + "señal reinicia el contador", extensions = {
+                @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED") })
         @JsonProperty("resting_minutes") Double restingMinutes,
-        @Schema(title = "Minutos de jornada sin descanso largo", description = "Minutes on the trip since the "
-                + "driver's last rest of 8 h, or since the trip started", extensions = {
-                @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED"),
-                @Extension(name = "x-engine", value = "false") })
+        @Schema(title = "Minutos de jornada sin descanso largo", description = "Minutos de viaje desde el primer "
+                + "movimiento después del último descanso de 8 h, o desde que empezó el viaje", extensions = {
+                @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED") })
         @JsonProperty("duty_minutes") Double dutyMinutes,
         @Schema(title = "Minutos sin señal", extensions = {
                 @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "CALCULATED") })
         @JsonProperty("signal_lost_minutes") Double signalLostMinutes,
         @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) GpsSignal.Trip trip,
-        @Schema(extensions = @Extension(name = "x-origin", value = "CALCULATED")) Loss loss) {
+        @Schema(extensions = @Extension(name = "x-origin", value = "CALCULATED")) Loss loss,
+        @Schema(title = "Zona de la trama", description = "Las zonas de la organización en la trama que generó la "
+                + "revisión, como en la señal GPS; no viene en las revisiones que el detector de pérdida de señal hace "
+                + "con su reloj. Leer solo geo no selecciona las revisiones por trama: la regla también debe leer "
+                + "minutos de conducción, descanso o jornada. Léala con check.?geo.?authorized_zone.orValue(false)",
+                extensions = @Extension(name = "x-origin", value = "ZONES")) GpsSignal.Geo geo) {
+
+    public TripCheck(Double drivingMinutes, Double restingMinutes, Double dutyMinutes, Double signalLostMinutes,
+            GpsSignal.Trip trip, Loss loss) {
+        this(drivingMinutes, restingMinutes, dutyMinutes, signalLostMinutes, trip, loss, null);
+    }
 
     public static final String KEY = "trip_check";
     public static final String ROOT = "check";
@@ -47,33 +62,33 @@ public record TripCheck(
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @RegisterForReflection
     public record Loss(
-            @Schema(title = "Segundos sin señal", description = "Since the newest frame was taken",
+            @Schema(title = "Segundos sin señal", description = "Desde que se tomó la última trama",
                     extensions = @Extension(name = "x-unit", value = "s"))
             @JsonProperty("silence_s") Double silenceS,
-            @Schema(title = "Silencio esperado", description = "The vehicle's expected gap plus its sender's delivery delay",
+            @Schema(title = "Silencio esperado", description = "Intervalo normal del vehículo más la demora de entrega de su emisor",
                     extensions = @Extension(name = "x-unit", value = "s"))
             @JsonProperty("expected_s") Double expectedS,
-            @Schema(title = "Silencio sobre lo esperado", description = "silence_s / expected_s")
+            @Schema(title = "Silencio sobre lo esperado", description = "Segundos sin señal divididos por el silencio esperado")
             Double ratio,
             Last last,
-            @Schema(title = "Emisor", description = "The client that sends the vehicle's frames") String sender,
+            @Schema(title = "Emisor", description = "El cliente que envía las tramas del vehículo") String sender,
             @Schema(title = "Volvió la señal") Boolean returned,
-            @Schema(title = "Volvió con relleno", description = "Frames from inside the silence arrived after it")
+            @Schema(title = "Volvió con relleno", description = "Llegaron después tramas tomadas durante el silencio")
             Boolean backfill,
-            @Schema(title = "Zona de baja cobertura", description = "The shadow map says frames arrive delayed or "
-                    + "go missing in the last position's cell")
+            @Schema(title = "Zona de baja cobertura", description = "El mapa de sombra dice que en la celda de la "
+                    + "última posición las tramas llegan tarde o se pierden")
             @JsonProperty("low_coverage_zone") Boolean lowCoverageZone,
-            @Schema(title = "Proporción sin cobertura", description = "The cell's share of delayed and missing "
-                    + "frames, for the sender or the other senders; absent when nobody decided the cell")
+            @Schema(title = "Proporción sin cobertura", description = "Parte de tramas atrasadas o perdidas en la "
+                    + "celda, del emisor o de los demás; vacío si nadie la ha medido")
             @JsonProperty("coverage_share") Double coverageShare,
-            @Schema(title = "Fuente de cobertura", description = "Who decided the cell: sender, consensus or none",
+            @Schema(title = "Fuente de cobertura", description = "Quién midió la celda: sender (el emisor), consensus (los demás) o none",
                     enumeration = {"sender", "consensus", "none"})
             @JsonProperty("coverage_source") String coverageSource,
-            @Schema(title = "Pérdida en grupo", description = "Many of the sender's vehicles are lost at once, "
-                    + "against its usual count")
+            @Schema(title = "Pérdida en grupo", description = "Muchos vehículos del emisor sin señal a la vez, "
+                    + "frente a lo habitual")
             @JsonProperty("cohort_outage") Boolean cohortOutage,
-            @Schema(title = "Unidades cercanas reportando", description = "Vehicles that reported in the last "
-                    + "10 min within 10 km of the last position")
+            @Schema(title = "Unidades cercanas reportando", description = "Vehículos que reportaron en los últimos "
+                    + "10 min a menos de 10 km de la última posición")
             @JsonProperty("nearby_reporting") Double nearbyReporting) {
     }
 
@@ -94,9 +109,9 @@ public record TripCheck(
     }
 
     /**
-     * Two checks with the source's whole shape: a vehicle lost at speed, and one whose signal came back. They keep
-     * synthetic driving, resting and duty minutes so the continuous-driving and resting templates still preview in
-     * the editor.
+     * Two checks with the source's whole shape: a vehicle lost at speed, and one whose signal came back, with
+     * synthetic driving, resting and duty minutes so the continuous-driving and resting templates preview in the
+     * editor.
      */
     public static List<Map<String, Object>> samples() {
         GpsSignal.Trip trip = new GpsSignal.Trip(true, false, "T-1", null, "v", "in_transit", 240.0, -15.0, null,

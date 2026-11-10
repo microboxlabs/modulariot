@@ -12,6 +12,8 @@ import java.util.function.Supplier;
 /**
  * The check of a vehicle whose deadline expired: the vehicle is lost from its newest frame on and checked again
  * every {@code recheck}, until a newer frame arrives, its trip ends, or it stays silent past {@code maxSilence}.
+ * Each check first reads whether the vehicle's trips ended ({@link TripChecks#endedTrips}): an ended trip's cases
+ * close and the trip is not checked.
  * Each check runs the organizations' {@code trip_check} versions ({@link TripChecks}). A return waits up to
  * {@code returnGrace} for backfill, then is checked once with {@code check.loss.returned}. A lost check also
  * reads the shadow map ({@link ShadowMap}, built in memory from the coverage job's rows) at the last position, the sender's lost vehicles against its usual count, and the
@@ -54,10 +56,14 @@ public class MarkLost implements LossTicker.DueCheck {
     Outcome run(String assetId, Instant now) {
         LossStore.Vehicle v = store.vehicle(assetId);
         CheckState c = v.check() == null ? CheckState.NONE : v.check();
+        // A trip that ended is checked no more, even when no frame said so.
+        TripChecks.Ended ended = trips.endedTrips(assetId, v, c, now);
+        v = ended.vehicle();
+        c = ended.check();
         Instant seen = v.deadline();
         String sender = v.watch() == null ? null : v.watch().sender();
         if (v.profile() == null || v.watch() == null || v.watch().trips().isEmpty()) {
-            // Off every trip: the loss ends; the cases it opened stay until an operator closes them.
+            // Off every trip: the loss ends; the cases it opened stay until an operator closes them or their trip ends.
             store.checked(assetId, seen, c.cases().isEmpty() ? CheckState.NONE : new CheckState(null, now, c.cases()),
                     null);
             leaves(sender, assetId, c, now);

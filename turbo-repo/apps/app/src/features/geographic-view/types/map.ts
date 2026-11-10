@@ -41,6 +41,8 @@ export interface MapPosition {
   signal?: SignalState | null;
   /** Offline by `signal`: the pin is drawn gray. */
   lost_signal?: boolean;
+  /** The frame reports the engine off: the pin is drawn gray with its normal face. */
+  engine_off?: boolean;
   trip_id: string;
   symptoms: Symptom[];
   associate_symptoms: Symptom[];
@@ -77,6 +79,8 @@ export interface MapPosition {
   movement_status: string | null;
   symptom_condition: string | null;
   speed_limit_condition: number | null;
+  signal_description?: string | null;
+  signal_detail?: "app" | "gps" | "unknown" | null;
 }
 
 export interface PulsePropsInfo {
@@ -102,6 +106,8 @@ export interface PulseProps {
     status: string;
     color: string;
     icu_code: number;
+    signal_description?: string | null;
+  signal_detail?: "app" | "gps" | "unknown" | null;
   };
   geometry: {
     type: string;
@@ -111,7 +117,10 @@ export interface PulseProps {
 
 export interface MapPositionProperties {
   properties: {
+    speed_limit_source?: string | null;
+    speed_limit_zone?: string | null;
     lost_signal?: boolean;
+    engine_off?: boolean;
     signal?: SignalState | null;
     associate_symptoms: any;
     symptoms_condition: boolean;

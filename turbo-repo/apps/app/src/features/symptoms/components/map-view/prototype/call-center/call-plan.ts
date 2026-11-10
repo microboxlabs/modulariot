@@ -10,6 +10,9 @@ import type {
   TowerTreatment,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import {
+  hasAnyRole,
+  referencesTrip,
+  rolesOf,
   summarizeWho,
   whoOf,
   type WhoSummary,
@@ -17,7 +20,7 @@ import {
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
 import { fillScriptText } from "@/features/symptoms/maintainer/script-fill";
 import { SKIP_TO_STEP } from "../prototype-api-guard";
-import { type CallTarget, targetIdOfAction } from "./call-targets";
+import { tripPhoneE164, type CallStats, type CallTarget } from "./call-targets";
 
 export interface CallGroup {
   index: number;
@@ -80,27 +83,92 @@ function skipMatchesCase(
   return Date.parse(action.performedAt) >= since;
 }
 
+const NO_CALLS: CallStats = { lastCallAt: null, accepted: 0, denied: 0 };
+
+/** Match the same full number, reading legacy national numbers as Chilean. */
+function phoneKey(phone: string | null | undefined): string {
+  return tripPhoneE164(phone) ?? "";
+}
+
+function targetPhones(t: CallTarget): string[] {
+  return [t.phone, t.channels?.phone, t.channels?.whatsapp]
+    .map(phoneKey)
+    .filter(Boolean);
+}
+
+function targetsByPhone(targets: readonly CallTarget[]): Map<string, string[]> {
+  const byPhone = new Map<string, string[]>();
+  for (const t of targets) {
+    if (!t.contactId) continue;
+    for (const key of targetPhones(t)) {
+      const ids = byPhone.get(key) ?? [];
+      if (!ids.includes(t.id)) ids.push(t.id);
+      byPhone.set(key, ids);
+    }
+  }
+  return byPhone;
+}
+
 /**
- * When each contact was last called in the case, by stable contact id.
- * A legacy role-only call cannot identify a driver assigned later.
+ * The calls made to each contact in this case, by contact id. `treatments`
+ * must be the case's own treatments. A CALL action names its contact by id;
+ * an older one without an id matches a unique contact by phone. A legacy
+ * role-only call cannot identify a driver assigned later, so it counts for
+ * nobody.
  */
-export function calledInCase(
-  treatments: readonly TowerTreatment[] | undefined
-): Map<string, Date> {
-  const out = new Map<string, Date>();
-  const mark = (id: string, at: Date) => {
-    const previous = out.get(id);
-    if (!previous || previous < at) out.set(id, at);
+export function callsInCase(
+  treatments: readonly TowerTreatment[] | undefined,
+  targets: readonly CallTarget[] = []
+): Map<string, CallStats> {
+  const out = new Map<string, CallStats>();
+  // Most cases have no legacy phone-only calls; don't parse the whole book then.
+  let byPhone: Map<string, string[]> | undefined;
+  const mark = (id: string, action: TowerAction) => {
+    const at = new Date(action.performedAt);
+    const previous = out.get(id) ?? NO_CALLS;
+    out.set(id, {
+      lastCallAt:
+        previous.lastCallAt && previous.lastCallAt >= at
+          ? previous.lastCallAt
+          : at,
+      accepted: previous.accepted + (action.answered === true ? 1 : 0),
+      denied: previous.denied + (action.answered === false ? 1 : 0),
+    });
   };
   for (const t of treatments ?? []) {
     for (const action of t.actions) {
-      const id = targetIdOfAction(action);
-      if (!id || !action.contactId) continue;
-      const at = new Date(action.performedAt);
-      mark(id, at);
+      if (action.kind !== "CALL") continue;
+      if (action.contactId) {
+        mark(action.contactId, action);
+        continue;
+      }
+      const key = phoneKey(action.contactPhone);
+      if (!key) continue;
+      byPhone ??= targetsByPhone(targets);
+      const ids = byPhone.get(key) ?? [];
+      if (ids.length === 1) mark(ids[0], action);
     }
   }
   return out;
+}
+
+/** When each contact was last called in this case, by contact id. */
+export function calledInCase(
+  treatments: readonly TowerTreatment[] | undefined,
+  targets: readonly CallTarget[] = []
+): Map<string, Date> {
+  const out = new Map<string, Date>();
+  for (const [id, calls] of callsInCase(treatments, targets))
+    if (calls.lastCallAt) out.set(id, calls.lastCallAt);
+  return out;
+}
+
+/** The targets with `stats` set to their calls in this case; zero calls when none. */
+export function withCaseCalls(
+  targets: readonly CallTarget[],
+  calls: ReadonlyMap<string, CallStats>
+): CallTarget[] {
+  return targets.map((t) => ({ ...t, stats: calls.get(t.id) ?? NO_CALLS }));
 }
 
 function calledLast(
@@ -146,8 +214,15 @@ export function callPlan(
   const groups = steps.map((step, index) => {
     const who = whoOf(step);
     const summary = who ? summarizeWho(who) : null;
-    if (summary?.role && !summary.driver && !step.who?.trim())
-      summary.role = step.role?.trim() || summary.role;
+    if (
+      summary?.role &&
+      !summary.driver &&
+      !step.who?.trim() &&
+      step.role?.trim()
+    ) {
+      summary.role = step.role.trim();
+      summary.roles = [summary.role];
+    }
     const ids = new Set(matches[index] ?? []);
     const members = targets.filter((t) => ids.has(t.id));
     for (const t of members) grouped.add(t.id);
@@ -164,6 +239,36 @@ export function callPlan(
     called
   );
   return { groups, others };
+}
+
+/** Why a step lists nobody, in the order the panel checks. */
+export type EmptyReason =
+  /** The server could not evaluate the condition. */
+  | { kind: "problem"; problem: string }
+  | { kind: "driver" }
+  | { kind: "carrier"; role: string | null }
+  /** No active contact of the book has any of the step's roles. */
+  | { kind: "noRole" }
+  /** Contacts have the role, but none meets the rest of the condition. */
+  | { kind: "noMatch"; roles: string[]; trip: boolean };
+
+/**
+ * Why a step lists nobody. `book` is the book's active contacts and
+ * `problem` the server's problem with the step's condition, if any.
+ */
+export function emptyReason(
+  group: Pick<CallGroup, "who" | "summary">,
+  book: readonly Pick<CallTarget, "role">[],
+  problem?: string | null
+): EmptyReason {
+  if (problem?.trim()) return { kind: "problem", problem: problem.trim() };
+  if (group.summary?.driver) return { kind: "driver" };
+  if (group.summary?.carrier)
+    return { kind: "carrier", role: group.summary.role };
+  const roles = rolesOf(group.who, group.summary);
+  if (roles.length > 0 && !book.some((t) => hasAnyRole(t.role, roles)))
+    return { kind: "noRole" };
+  return { kind: "noMatch", roles, trip: referencesTrip(group.who) };
 }
 
 /** Matches name, role or, for a query with digits, the phone. */

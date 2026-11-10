@@ -1,3 +1,5 @@
+import enDictionary from "@/lang/en.json";
+import { textosLugares } from "../i18n/places-i18n";
 import { describe, expect, it, vi } from "vitest";
 import {
   capasNombresGeocercas,
@@ -212,7 +214,14 @@ describe("place name deck layer", () => {
     });
     const chip = chipCluster({ geocercas: 5, trayectos: 0 }, "noche");
     expect(chip.size).toBe(24);
-    expect(chip.key).toBe("cluster|5|0|noche");
+    // the text is part of the key: another language is another image
+    expect(chip.key).toBe("cluster|5|0|noche|5 geocercas");
+    const enIngles = chipCluster(
+      { geocercas: 5, trayectos: 0 },
+      "noche",
+      textosLugares(enDictionary)
+    );
+    expect(enIngles.key).toBe("cluster|5|0|noche|5 geofences");
     // geofences and routes together: one row each, stacked in a column
     const mixto = chipCluster({ geocercas: 2, trayectos: 1 }, "noche");
     expect(mixto.size).toBe(altoCluster(2));
@@ -222,7 +231,7 @@ describe("place name deck layer", () => {
     const vecino = { ...padre, id: "park-2" };
     const [capa] = capas([padre, vecino], "n", "dark", 4);
     const cluster = capa!.props.data[0]!;
-    expect(capa!.props.getIcon(cluster)).toBe("cluster|2|0|noche");
+    expect(capa!.props.getIcon(cluster)).toBe("cluster|2|0|noche|2 geocercas");
     expect(capa!.props.getPixelOffset(cluster)).toEqual([0, -18]);
   });
 

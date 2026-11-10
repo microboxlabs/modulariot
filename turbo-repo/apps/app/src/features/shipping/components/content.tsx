@@ -11,6 +11,7 @@ import { KanbanBoard, KanbanPageData, Task } from "../types/common.types";
 import { LaneColumn } from "./lane/lane-column";
 import { useLaneViewState } from "../hooks/use-lane-view-state";
 import { useReviewBindings } from "../hooks/use-review-bindings";
+import { useRememberKanbanView } from "../hooks/use-remember-kanban-view";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { tr } from "@/features/i18n/tr.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -44,11 +45,13 @@ export default function PageContent({
   const { getLaneState, updateLaneState } = useLaneViewState();
   const { activeOrg } = useOrgScopes();
   const {
+    canConfigure: canConfigureReview,
     targets: reviewTargets,
     bindingsForBoard,
     saving: reviewSaving,
     save: saveReviewBinding,
-  } = useReviewBindings(activeOrg?.slug ?? null);
+  } = useReviewBindings(activeOrg);
+  useRememberKanbanView();
   // The review-integration config UI has its own i18n subtree, shared across all
   // boards, rather than being duplicated into each board's kanban block.
   const reviewDict =
@@ -247,6 +250,7 @@ export default function PageContent({
                   isLoading={isLoading}
                   dict={dictionary.base}
                   reviewDict={reviewDict}
+                  canConfigureReview={canConfigureReview}
                   reviewBindings={bindingsForBoard(board.title)}
                   reviewTargets={reviewTargets}
                   reviewSaving={reviewSaving}

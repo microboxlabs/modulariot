@@ -61,12 +61,25 @@ The browser gets a token and dials with `@telnyx/webrtc`. Each operator has one 
 
 ## Teams calls
 
-The button opens `msteams:/l/call/0/0?users=4:+<E164>`. When no app opens, it opens the same path on `https://teams.microsoft.com`. The CALL action is saved with the timed duration and `details.telephony.status: PENDING`. The app calls `POST /reconcile` 2 and 10 minutes later.
+The button opens `msteams:/l/call/0/0?users=4:+<E164>`. When no app opens, it opens the same path on `https://teams.microsoft.com`. The CALL action is saved with the timed duration and `details.telephony.status: PENDING`.
 
-The reconcile reads Graph `getPstnCalls` for the window of the operator's pending calls from the last 7 days. A record fills the action only when all of these match:
+The reconcile runs:
+
+- when the app calls `POST /reconcile`, 2 and 10 minutes after the call is saved;
+- every 5 minutes on the server, for each operator with pending Teams calls in an organization with a ready Teams Phone line.
+
+It reads both Graph call reports for the window of the operator's pending calls from the last 7 days:
+
+| Report | Graph function | Outbound call types |
+| --- | --- | --- |
+| PSTN (Calling Plans, Operator Connect) | `getPstnCalls` | ending in `_out`, e.g. `user_out` |
+| Direct Routing | `getDirectRoutingCalls` | starting with `ByotOut` (`ByotOut`, `ByotOutUserForwarding`, ...) or `dr_out` |
+
+A record fills the action only when all of these match:
 
 | Check | Rule |
 | --- | --- |
+| Direction | an outbound call type of its report |
 | Operator | the record's `userPrincipalName` equals the operator's sign-in email, ignoring case |
 | Callee | same digits as the number called |
 | Time | the record started between 5 minutes before the call started and 5 minutes after it ended |
@@ -74,12 +87,42 @@ The reconcile reads Graph `getPstnCalls` for the window of the operator's pendin
 
 | Result | Action |
 | --- | --- |
-| One match | `durationSeconds` and `answered` (duration > 0) from the record; `status: RECORDED` |
+| One match | `durationSeconds` and `answered` from the record; `status: RECORDED`, `report: PSTN` or `DIRECT_ROUTING` |
 | No match | stays `PENDING`; Graph publishes records late |
 | More than one match | stays `PENDING` with `reason: AMBIGUOUS` |
 | No match 48 hours after the call | `status: NOT_FOUND` |
 
-A 404 or an empty list from Graph is treated as pending.
+A record is assigned to one action only.
+
+The scheduled run shares one complete Graph lookup per organization across its pending operators. A failed lookup
+is not retried for each operator. Each run considers at most 500 callers; Graph requests, including both reports
+and their pages, are serialized and paced at no more than four per second per replica. Each report has a five-page
+limit and an incomplete scan fails without assigning records. The advisory lock covers the entire scheduled run.
+Graph requests use a fair, interruptible queue so interactive requests cannot be starved by the background run.
+Caller selection rotates after the last selected caller, including skipped organizations and failed lookups, so a
+full batch cannot indefinitely exclude later callers. This cursor is held by each scheduler replica and resets on restart.
+When a shared report exceeds the page limit, reconciliation bisects its time window, at most 16 lookups per
+organization. All subwindows must complete before matching, preserving ambiguity checks across split boundaries.
+PSTN's inclusive end bound can repeat a row at a split boundary; completed results are deduplicated by report and
+record identity, while distinct rows and reports remain separate candidates.
+Authentication failures and other provider errors are not split or retried. Missing Direct Routing answer timestamps
+fall back to `inviteDateTime` for matching; connected duration still uses the answer timestamp.
+
+| Field | PSTN row | Direct Routing row |
+| --- | --- | --- |
+| `recordId` | `id` | `id` |
+| `callId` | `callId` | `correlationId` |
+| `durationSeconds` | `duration` | `endDateTime` − `startDateTime` when `successfulCall`; 0 when not. Its `duration` counts from the invite, ringing included. |
+| `answered` | `duration` > 0 | `successfulCall` |
+
+A 404 or an empty list from Graph is treated as pending. Any other error from either report fails the reconcile, and the actions stay pending.
+
+The connection test reads both reports for the last hour and says how many calls each returned, e.g. `PSTN: 0, Direct Routing: 3`. A count with `+` has more pages.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MIOT_SYMPTOMS_TEAMS_RECONCILE_ENABLED` | the symptoms component switch | Turns the server reconcile on or off. |
+| `MIOT_SYMPTOMS_TEAMS_RECONCILE_EVERY` | `5m` | How often it runs. One replica runs it at a time. |
 
 ## Managed line: usage and billing
 
@@ -116,8 +159,79 @@ Provider contracts: [parked credential connections](https://developers.telnyx.co
 | Plan and minutes | Settings › Plataforma › Telefonía; `GET/PUT /api/v1/platform/telephony-plan` |
 | Organization's month | `GET /api/v1/orgs/{organizationId}/telephony-usage` |
 
-Prices are per billed minute: Chile mobile (`+56 9` and 8 digits), Chile landline (any other `+56`), other destinations, WhatsApp call. WhatsApp templates are priced each. A template is recorded when it is sent through the platform's WhatsApp account for an organization. A WhatsApp call is recorded from the `calls` webhook, once WhatsApp calling is on.
+Prices are per billed minute: Chile mobile (`+56 9` and 8 digits), Chile landline (any other `+56`), other destinations, WhatsApp call. WhatsApp templates are priced each. A template is recorded when it is sent through the platform's WhatsApp account for an organization. A WhatsApp call is recorded from its Telnyx WhatsApp leg (see [WhatsApp calls](#whatsapp-calls)).
 
 ## Calls back to the shared number
 
 An incoming call to the shared number belongs to the organization of the latest managed call to that caller in the last 24 hours, else to the platform's voicemail or notice. The webhook makes this decision and logs it (`InboundRouter`). Answering and transferring the call needs a Telnyx Call Control application. That is not built.
+
+## WhatsApp calls
+
+The business number has WhatsApp voice calls and SIP on at Meta, pointed at the SIP subdomain of a Telnyx Call Control application. All WhatsApp calls are SIP between Meta and Telnyx; Meta's calling webhooks are not used. The application's webhook is the managed line's: `https://<modulith>/webhooks/telnyx/{connectionId}`.
+
+Only the managed line reaches WhatsApp: the WhatsApp application is in the platform's Telnyx account. An organization with its own TELNYX line keeps the wa.me chat.
+
+### Configuration
+
+WhatsApp calling is off while any required key is missing. The WhatsApp button then opens the chat.
+
+| Key | Required | Value |
+| --- | --- | --- |
+| `miot.integrations.whatsapp-calling.connection-id` | yes | id of the WhatsApp Call Control application, e.g. `<call-control-app-id>` |
+| `miot.integrations.whatsapp-calling.sip-host` | yes | Meta's SIP host for the business number, e.g. `<meta-sip-host>` |
+| `miot.integrations.whatsapp-calling.business-number` | yes | the business number, E.164, e.g. `+<business-digits>` |
+| `miot.integrations.whatsapp-calling.sip-username` | yes | Meta's SIP user: the business digits without `+` |
+| `miot.integrations.whatsapp-calling.sip-password` | yes, secret | Meta's SIP user password; set it from a secret |
+| `miot.integrations.whatsapp-calling.media-encryption` | yes | `DTLS`, or `SRTP` when the number uses SDES |
+| `miot.integrations.whatsapp-calling.ring-timeout` | no (`45s`) | how long a contact's call rings in the tower |
+| `miot.integrations.whatsapp-calling.unanswered-message` | no | text spoken to a caller nobody answers |
+| `miot.integrations.whatsapp-calling.ring-check` | no (`5s`) | how often ringing calls are checked for the timeout |
+
+As environment variables: `MIOT_INTEGRATIONS_WHATSAPP_CALLING_CONNECTION_ID`, and so on.
+
+### Operator calls a contact
+
+1. The app asks `POST /webrtc-token {calleeNumber, caseRef, channel: "WHATSAPP"}`. The server refuses with 409 `whatsapp_no_permission` when the contact has not allowed calls, and `whatsapp_calling_unavailable` when WhatsApp calling is off for the line. A `WHATSAPP_CALL` row reserves a channel.
+2. The browser dials as for a PSTN call. Its leg is parked and admitted (see above).
+3. On admission the server sends `POST /v2/calls` on the WhatsApp application: `to` `sip:+<contact digits>@wa.meta.vc:5061;transport=tls`, `from` `sip:+<business digits>@<sip-host>`, SIP auth, TLS, the media encryption, OPUS, `link_to` the parked leg.
+4. When WhatsApp answers, the server bridges the parked leg and the WhatsApp leg.
+5. When either leg hangs up, the server hangs up the other. The WhatsApp leg's answer and hangup confirm the row.
+
+A SIP 403 ("No Approved Call Permission Found") is kept for the row. The app reads it with `GET /calls/{callRef}` (`{failure: "whatsapp_no_permission"}`) and shows "el conductor no ha aceptado las llamadas".
+
+The app checks the permission with `GET /api/v1/orgs/{organizationId}/conversations/whatsapp-call-permissions?phone=...&managed=true` before a SIP call. Its permission request uses `POST .../whatsapp-call-permissions/requests?managed=true`. Both use the platform's WhatsApp sender, even when the organization uses its own messaging account; the request stays in the organization's message pool and metering. The platform connection's `phone_number_id` must identify the configured SIP `business-number`. A permission for an organization's different sender is never used for the SIP call. A known denial, expired grant or pending request disables the button. When no permission has been recorded, or the sender cannot be resolved, Meta decides with its SIP response. Unsupported non-null call channels are rejected rather than falling back to a PSTN call.
+
+Both managed permission endpoints return 403 before accessing shared permission state or sending a template unless the organization has a ready managed Telnyx line and WhatsApp calling is configured. Normal sender mode does not require managed calling.
+
+### Contact calls the tower
+
+1. `call.initiated`, direction incoming, on the WhatsApp application: the server reads the caller from `from`.
+2. The caller's organization is the one organization whose contact book has an active contact with that phone or WhatsApp number (trip drivers are synced into the book). When no contact matches, use the organization of the latest managed call to that number in 24 hours. A match in several organizations is ambiguous: it goes to the platform notice and never falls back to the ledger. The case is the latest open treatment with a call to that contact.
+3. A known caller's call rings (it is not answered) and is listed in `GET /whatsapp-calls` for the organization's operators. The app shows it with "Contestar" for operators with `controltower:case.treat`; viewers can see the notification. Poll failures retry, and cached callers and setup are scoped to the active organization. Answering is unavailable during an organization switch.
+4. "Contestar" asks `POST /whatsapp-calls/{id}/answer`, a login with a reservation. 409 `whatsapp_call_taken` when another operator took it or it ended. The browser dials; on admission the server answers the WhatsApp leg and bridges it to the operator's leg.
+5. An unknown caller, or a call nobody takes within `ring-timeout`, is answered, hears `unanswered-message`, and is hung up. A claim whose browser never dials expires after the same timeout, retires its reservation, and follows this unanswered-call flow. A late browser leg cannot consume that expired reservation.
+6. The server ends admitted inbound calls one minute before the two-hour reservation hold. An admitted inbound call still occupies a channel past the hold while teardown is retrying. Successful provider teardown frees capacity; only the WhatsApp leg's webhook confirms billable seconds. Transient counterpart-hangup failures propagate for webhook retry, and the scheduled deadline sweep retries overdue inbound teardown.
+
+The scheduled sweep isolates failures per call: a failed notice or teardown does not prevent later calls from expiring, and active-call cleanup still runs if ringing-call cleanup fails.
+7. When an inbound browser call ends, the call bar offers dismissal so the operator can take another call. Recording a case CALL action remains outside this inbound flow.
+
+| Endpoint (under `/control-tower/telephony`) | Permission | Result |
+| --- | --- | --- |
+| `GET /calls/{callRef}` | `controltower:view` | `{failure}`: why the provider ended the call before it connected, or null |
+| `GET /whatsapp-calls` | `controltower:view` | ringing calls: `id`, `callerNumber`, `callerName`, `caseRef`, `since` |
+| `POST /whatsapp-calls/{id}/answer` | `controltower:case.treat` | `{token, callerNumber, expiresAt, callRef}` |
+
+`GET /telephony` answers `whatsAppCalling: true` when the active line is the managed one and the configuration is complete. Its separate `whatsAppIncoming` flag allows inbound answering on the ready managed Telnyx line while outbound voice uses Teams. An organization's own Telnyx line cannot answer these managed WhatsApp calls. Answer requests forward the individual operator's session even when the app's proxy otherwise uses M2M authentication.
+
+### Metering
+
+WhatsApp calls are `WHATSAPP_CALL` rows in `telephony_usage`, confirmed by the WhatsApp leg's webhook, rounded up to a whole minute.
+
+| Destination type | Price |
+| --- | --- |
+| `WHATSAPP_CALL` (operator calls) | the plan's WhatsApp call price per minute |
+| `WHATSAPP_INBOUND` (contact calls) | 0: free on Meta's side; minutes are shown |
+
+WhatsApp minutes do not count against the voice quota. The detail-record reconcile skips the operator's parked leg of a WhatsApp call. Before expiring stale reservations it attempts to recover missing WhatsApp hangup webhooks from the known WhatsApp leg's Call Control detail record in the three-day provider lookback. It verifies the saved leg and application and updates the same ledger row; retries and later webhooks cannot create another charge. Inbound recovered minutes retain their free destination type.
+
+Migration `V0.6.42` adds `telephony_whatsapp_legs` (the WhatsApp leg and Meta's refusal per row) and `whatsapp_inbound_calls`.

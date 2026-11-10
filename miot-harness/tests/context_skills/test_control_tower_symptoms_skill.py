@@ -43,7 +43,7 @@ def test_the_skill_loads_and_names_the_symptom_tools() -> None:
     skill = loaded.skill
     assert isinstance(skill, PlaybookSkill)
     assert skill.mcp is not None
-    assert skill.mcp.url == "${MIOT_HARNESS_MODULITH_URL}/api/v1/mcp"
+    assert skill.mcp.url == "${MIOT_HARNESS_SYMPTOMS_URL}/api/v1/mcp"
     assert skill.mcp.tools == _TOOLS
     assert not offers(skill.mcp, "selectables_list")
     for tool in _TOOLS:
@@ -54,6 +54,7 @@ def test_boot_offers_the_skill_when_the_modulith_is_configured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("MIOT_HARNESS_MODULITH_URL", "http://modulith:8180")
+    monkeypatch.delenv("MIOT_HARNESS_SYMPTOMS_URL", raising=False)
     registry = build_default_registry()
 
     result = boot_context_skills(

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.catalog.service;
 
 import com.microboxlabs.miot.core.api.HarnessClient;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleVariables;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.RuleDescription;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
@@ -53,20 +54,9 @@ public class RuleDescriptionService {
             "levels.3", "levels.4", "lifecycle.open", "lifecycle.close", LEVELS, LIFECYCLE, OVERVIEW);
     private static final Pattern LOCALE = Pattern.compile("[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?");
 
-    private static final Map<String, String> LEVEL_LABELS = Map.of(
-            "measure", "valor medido",
-            "held_s", "segundos que lleva la condición",
-            "open_s", "segundos desde que se abrió el caso");
+    private static final Map<String, String> LEVEL_LABELS = RuleVariables.labels(RuleVariables.LEVEL, DEFAULT_LOCALE);
 
-    private static final Map<String, String> CASE_LABELS = Map.of(
-            "case.off_trip_s", "segundos fuera de un viaje",
-            "case.condition_s", "segundos con la condición presente",
-            "case.normal_s", "segundos desde que volvió a la normalidad",
-            "case.age_h", "horas desde que se abrió el caso",
-            "case.level", "nivel del caso",
-            "case.closed_by_operator", "el operador cerró el caso",
-            "case.closed_on_trip", "el operador ya cerró un caso de este síntoma en el viaje",
-            "case.closed_on_trip_s", "segundos desde que el operador cerró un caso de este síntoma en el viaje");
+    private static final Map<String, String> CASE_LABELS = RuleVariables.labels(RuleVariables.CASE, DEFAULT_LOCALE);
 
     /** Who is asking, forwarded to the Harness as on the chat proxy. */
     public record Caller(String authorization, String tenantClientId, String userEmail) {

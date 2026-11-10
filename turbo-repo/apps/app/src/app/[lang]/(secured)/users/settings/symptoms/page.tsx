@@ -1,4 +1,5 @@
 import "server-only";
+import { Suspense } from "react";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { RouteGuard } from "@/features/auth/components/route-guard";
@@ -6,7 +7,7 @@ import { ActiveSymptomScope } from "@/features/symptoms/maintainer/symptom-scope
 import { isHarnessUiEnabled } from "@/features/layout/utils/utils";
 import SymptomCatalog from "@/features/symptoms/maintainer/symptom-catalog";
 
-/** Settings › Síntomas: the organization's symptoms on the Control Tower API. */
+/** Settings › Síntomas: the catalog and the Torre de Control settings, each a section of the menu. */
 export default async function SymptomsSettingsPage({ params }: ParamsWithLang) {
   const { lang } = await params;
   const [, dictionary] = await getDictionary(lang);
@@ -16,12 +17,14 @@ export default async function SymptomsSettingsPage({ params }: ParamsWithLang) {
   return (
     <RouteGuard path="/users/settings/symptoms">
       <ActiveSymptomScope>
-        <SymptomCatalog
-          dict={userSettings}
-          rootDict={dictionary as I18nRecord}
-          lang={lang}
-          harnessEnabled={isHarnessUiEnabled()}
-        />
+        <Suspense>
+          <SymptomCatalog
+            dict={userSettings}
+            rootDict={dictionary as I18nRecord}
+            lang={lang}
+            harnessEnabled={isHarnessUiEnabled()}
+          />
+        </Suspense>
       </ActiveSymptomScope>
     </RouteGuard>
   );

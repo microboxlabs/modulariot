@@ -6,6 +6,14 @@ import SymptomIcon from "@/features/symptoms/components/symtom-icon";
 import ConditionIcon from "@/features/symptoms/components/condition-icon";
 import { useTreatmentsTrip } from "@/features/symptoms/hooks/use-treatments-trip";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import {
+  engineSymptomConditions,
+  engineSymptomIcon,
+  engineSymptomListHref,
+  type EngineTripSymptom,
+} from "@/features/symptoms/model/trip-symptoms";
 
 // Symptom data structure
 interface SymptomData {
@@ -15,6 +23,8 @@ interface SymptomData {
   label: string;
   count: number;
   conditions: string[];
+  /** The symptom list filtered to these cases; engine symptoms with cases only. */
+  href?: string | null;
 }
 
 function getSymptom(symptoms: any[], id: string) {
@@ -55,8 +65,12 @@ const SymptomCard = ({
 }) => {
   const conditions = symptom.conditions.filter(Boolean);
 
-  return (
-    <div className="flex items-center gap-2 py-1 px-1.5 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+  const row = (
+    <div
+      className={`flex items-center gap-2 py-1 px-1.5 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 ${
+        symptom.href ? "hover:bg-gray-50 dark:hover:bg-gray-700" : ""
+      }`}
+    >
       <div className="text-gray-600 dark:text-gray-400 dark:bg-gray-300 rounded-md p-0.5 shrink-0">
         <SymptomIcon
           type={symptom.icon}
@@ -98,7 +112,31 @@ const SymptomCard = ({
       )}
     </div>
   );
+
+  return symptom.href ? (
+    <Link href={symptom.href} data-testid={`symptom-link-${symptom.key}`}>
+      {row}
+    </Link>
+  ) : (
+    row
+  );
 };
+
+/** One row per engine symptom, with its cases on the trip. */
+function engineRows(
+  symptoms: EngineTripSymptom[],
+  lang: string
+): SymptomData[] {
+  return symptoms.map((s) => ({
+    id: s.definition_id,
+    key: s.definition_id,
+    icon: engineSymptomIcon(s),
+    label: s.name,
+    count: s.cases,
+    conditions: engineSymptomConditions(s),
+    href: engineSymptomListHref(lang, s),
+  }));
+}
 
 export default function SymptomsCard({
   dict,
@@ -109,17 +147,53 @@ export default function SymptomsCard({
   readonly task: TaskResponse;
   readonly reactive?: boolean;
 }) {
-  const {
-    treatmentsTripData: symptoms,
-    isLoading,
-    error,
-  } = useTreatmentsTrip(task.mintral_serviceCode);
+  const { lang } = useParams<{ lang: string }>();
+  const { tripSymptoms, isLoading, error } = useTreatmentsTrip(
+    task.mintral_serviceCode
+  );
   if (error) {
     return <div>Error: {error.message}</div>;
   }
 
-  // Define all symptoms with their icons and default values
-  const allSymptoms: SymptomData[] = [
+  const allSymptoms: SymptomData[] =
+    tripSymptoms?.source === "engine"
+      ? engineRows(tripSymptoms.symptoms, lang)
+      : legacyRows(
+          tripSymptoms?.source === "legacy" ? tripSymptoms.rows : [],
+          dict
+        );
+
+  return (
+    <CustomCard
+      title={(dict.bento as I18nRecord).symptoms_present_in_the_trip as string}
+      subtitle={null}
+    >
+      <div
+        className={`grid gap-1.5 ${
+          reactive
+            ? "grid-cols-1 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2"
+            : "grid-cols-2 md:grid-cols-3 max-md:[&>*:last-child:nth-child(odd)]:col-span-2 md:[&>*:last-child:nth-child(3n+1)]:col-span-3 md:[&>*:last-child:nth-child(3n+2)]:col-span-2"
+        }`}
+      >
+        {allSymptoms.map((symptom) => (
+          <SymptomCard
+            key={symptom.key}
+            symptom={symptom}
+            dict={dict}
+            loading={isLoading}
+          />
+        ))}
+      </div>
+    </CustomCard>
+  );
+}
+
+/** The GPS database's rule names, each with its count and conditions on the trip. */
+function legacyRows(
+  symptoms: Record<string, unknown>[],
+  dict: I18nRecord
+): SymptomData[] {
+  return [
     {
       key: "driver_change",
       icon: "DOUBLE DRIVER ROTATION CHECK",
@@ -258,28 +332,4 @@ export default function SymptomsCard({
       ],
     },
   ];
-
-  return (
-    <CustomCard
-      title={(dict.bento as I18nRecord).symptoms_present_in_the_trip as string}
-      subtitle={null}
-    >
-      <div
-        className={`grid gap-1.5 ${
-          reactive
-            ? "grid-cols-1 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2"
-            : "grid-cols-2 md:grid-cols-3 max-md:[&>*:last-child:nth-child(odd)]:col-span-2 md:[&>*:last-child:nth-child(3n+1)]:col-span-3 md:[&>*:last-child:nth-child(3n+2)]:col-span-2"
-        }`}
-      >
-        {allSymptoms.map((symptom) => (
-          <SymptomCard
-            key={symptom.key}
-            symptom={symptom}
-            dict={dict}
-            loading={isLoading}
-          />
-        ))}
-      </div>
-    </CustomCard>
-  );
 }

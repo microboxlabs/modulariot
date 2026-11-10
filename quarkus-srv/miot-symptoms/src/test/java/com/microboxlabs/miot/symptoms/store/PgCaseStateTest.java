@@ -24,13 +24,17 @@ import com.microboxlabs.miot.symptoms.cases.HoldStore;
 import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.domain.ActionKind;
+import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
 import com.microboxlabs.miot.symptoms.dto.CloseTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.OpenTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
+import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
+import com.microboxlabs.miot.symptoms.evaluator.RedisEpisodes;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
+import com.microboxlabs.miot.symptoms.evaluator.TransitionLog.Appended;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog.Place;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog.Recorded;
 import com.microboxlabs.miot.symptoms.service.AuditService;
@@ -39,10 +43,13 @@ import com.microboxlabs.miot.symptoms.service.TreatmentService;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
+import io.vertx.mutiny.redis.client.Redis;
+import io.vertx.mutiny.redis.client.RedisAPI;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
+import io.vertx.redis.client.RedisOptions;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -53,12 +60,16 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
@@ -138,7 +149,7 @@ class PgCaseStateTest {
 
     @BeforeEach
     void definition() {
-        run("TRUNCATE miot_symptoms.signal_transitions");
+        run("TRUNCATE miot_symptoms.trip_end_effects, miot_symptoms.signal_transitions");
         speeding = UUID.randomUUID();
         pool.preparedQuery("""
                 INSERT INTO miot_symptoms.symptom_definition
@@ -159,6 +170,36 @@ class PgCaseStateTest {
 
     private long open(SymptomState state, int seconds) {
         return append(Kind.OPENED, state, seconds, 4).get(0).caseId();
+    }
+
+    private void speedVersion(String version, String expression) {
+        pool.preparedQuery("""
+                INSERT INTO miot_symptoms.symptom_version
+                    (definition_id, tenant_code, version, status, spec, created_by)
+                VALUES ($1, $2, $3, 'PUBLISHED', jsonb_build_object('measure',
+                    jsonb_build_object('expression', $4::text), 'levels', '[]'::jsonb), 'test')""")
+                .execute(Tuple.of(speeding, TENANT, version, expression)).await().atMost(WAIT);
+    }
+
+    @Test
+    void speedEvidenceUsesEachTransitionsVersionAndReachesTheLivePin() {
+        setState(SymptomState.ACTIVE);
+        speedVersion("1.0.0", "signal.frame.gps.speed - signal.road.maxspeed_osm");
+        speedVersion("2.0.0", "double(int(signal.frame.gps.speed + 0.5)) - signal.road.maxspeed_custom");
+        Place opening = new Place(null, 0.0, 0.0, 68.25, null);
+        long id = log.append(TENANT, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE,
+                TRUCK, T0, 2, 0, 18.25)), opening).getFirst().caseId();
+        Map<String, Object> kept = Map.of("speed_limit", Map.of("kmh", 50, "source", "custom",
+                "road_kmh", 80, "custom_kmh", 50, "zone_name", "Tramo de prueba"));
+        log.append(TENANT, List.of(new Transition(Kind.LEVEL_CHANGED, speeding, "2.0.0", SymptomState.ACTIVE,
+                TRUCK, T0.plusSeconds(60), 4, 2, 34)), new Place(null, 0.0, 0.0, 83.6, null), kept);
+
+        List<EngineCase.LevelStep> steps = cases.find(TENANT, id).orElseThrow().levels();
+        assertEquals(68.25, steps.get(0).speedKmh());
+        assertEquals(new EngineCase.SpeedLimit(50, "road", null), steps.get(0).speedLimit());
+        assertEquals(84.0, steps.get(1).speedKmh());
+        assertEquals(new EngineCase.SpeedLimit(50, "custom", "Tramo de prueba"), steps.get(1).speedLimit());
+        assertEquals(steps.get(1), cases.openLevels(TENANT).getFirst().speedStep());
     }
 
     private OrgControlTowerTreatmentsResource treatments() {
@@ -237,6 +278,102 @@ class PgCaseStateTest {
                 .await().atMost(WAIT).iterator().next();
         assertEquals("TEST", row.getString("state"));
         assertEquals("ops@example.com", row.getString("closed_by"));
+    }
+
+    @Test
+    void theOperatorsCloseIsReadBackUntilTheNextCaseOpens() {
+        setState(SymptomState.ACTIVE);
+        Place onTrip = new Place("T-1", -33.4, -70.6, 80.0, null);
+        long caseId = log.append(TENANT, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE,
+                TRUCK, T0, 4, 0, 5)), onTrip).get(0).caseId();
+        assertEquals(Optional.empty(), log.lastOperatorClose(TENANT, TRUCK, speeding), "the case is open");
+
+        caseService.close(TENANT, -caseId, "ops@example.com", true);
+
+        assertEquals(Optional.of(new OperatorClose("T-1", T0.plusSeconds(600), 4, true)),
+                log.lastOperatorClose(TENANT, TRUCK, speeding));
+        log.append(TENANT, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE, TRUCK,
+                T0.plusSeconds(900), 1, 0, 5)), onTrip);
+        assertEquals(Optional.empty(), log.lastOperatorClose(TENANT, TRUCK, speeding), "a newer case opened");
+    }
+
+    @Test
+    void theCloseUsesTheLevelUnderTheCaseLock() {
+        setState(SymptomState.ACTIVE);
+        long caseId = append(Kind.OPENED, SymptomState.ACTIVE, 0, 1).getFirst().caseId();
+        append(Kind.LEVEL_CHANGED, SymptomState.ACTIVE, 30, 4);
+        OperatorClose stale = new OperatorClose(null, T0.plusSeconds(60), 1, false);
+        List<OperatorClose> markers = new ArrayList<>();
+
+        assertTrue(cases.close(TENANT, caseId, "operator", stale.at(), stale, markers::add));
+        assertEquals(List.of(new OperatorClose(null, stale.at(), 4, false)), markers);
+        assertEquals(Optional.of(markers.getFirst()), log.lastOperatorClose(TENANT, TRUCK, speeding));
+        assertFalse(cases.close(TENANT, caseId, "operator", stale.at(), stale, markers::add));
+        assertEquals(1, markers.size(), "a repeated close must not replace a newer episode");
+    }
+
+    @Test
+    @EnabledIfSystemProperty(named = "miot.symptoms.test.redis-url", matches = ".+")
+    void interleavedReplicasValidateBeforeWritingAndWaitForTheCloseToCommit() throws Exception {
+        setState(SymptomState.ACTIVE);
+        long caseId = append(Kind.OPENED, SymptomState.ACTIVE, 0, 1).getFirst().caseId();
+        var client = Redis.createClient(vertx,
+                new RedisOptions()
+                        .setConnectionString(System.getProperty("miot.symptoms.test.redis-url")));
+        var repository = new RedisEpisodes(
+                RedisAPI.api(client), Duration.ofDays(7));
+        var before = repository.load(TENANT, TRUCK);
+        var installed = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        OperatorClose how = new OperatorClose("trip-test", T0.plusSeconds(60), 1, false);
+        CompletableFuture<Boolean> closing = CompletableFuture.supplyAsync(() -> cases.close(TENANT, caseId,
+                "operator", how.at(), how, locked -> {
+                    repository.operatorClose(TENANT, TRUCK, speeding, locked.marker(speeding, TRUCK));
+                    installed.countDown();
+                    try {
+                        assertTrue(release.await(5, TimeUnit.SECONDS));
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException(e);
+                    }
+                }));
+        try {
+            assertTrue(installed.await(5, TimeUnit.SECONDS));
+            var after = repository.load(TENANT, TRUCK);
+            List<Transition> next = List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE,
+                    TRUCK, T0.plusSeconds(90), 2, 0, 5));
+            CompletableFuture<?> staleWrite = CompletableFuture.supplyAsync(() -> log.appendEvaluated(
+                    TENANT, next, PLACE, null, () -> repository.validate(before)));
+            CompletableFuture<Appended> freshWrite =
+                    CompletableFuture.supplyAsync(() -> log.appendEvaluated(
+                            TENANT, next, PLACE, null, () -> repository.validate(after)));
+            CompletableFuture<?> treatmentOpen = CompletableFuture.supplyAsync(() ->
+                    new PgTreatmentStore(() -> pool).insert(new Treatment(null, TENANT, -caseId, TRUCK, null,
+                            TreatmentType.CALL, null, "operator", null, null, null, null, null, null)));
+            release.countDown();
+            assertTrue(closing.get(5, TimeUnit.SECONDS));
+            var rejected = assertThrows(ExecutionException.class,
+                    () -> staleWrite.get(5, TimeUnit.SECONDS));
+            assertTrue(rejected.getCause() instanceof ConcurrentModificationException);
+            var treatmentRejected = assertThrows(ExecutionException.class,
+                    () -> treatmentOpen.get(5, TimeUnit.SECONDS));
+            assertTrue(treatmentRejected.getCause() instanceof IllegalStateException);
+            long reopened = freshWrite.get(5, TimeUnit.SECONDS).recorded().getFirst().caseId();
+            assertNull(cases.find(TENANT, reopened).orElseThrow().closedAt(),
+                    "the operator's close must commit before an above-level opening");
+        } finally {
+            release.countDown();
+            closing.get(5, TimeUnit.SECONDS);
+            client.close();
+        }
+    }
+
+    @Test
+    void aCaseTheEngineClosesIsNotAnOperatorsClose() {
+        setState(SymptomState.ACTIVE);
+        append(Kind.OPENED, SymptomState.ACTIVE, 0, 2);
+        append(Kind.CLOSED, SymptomState.ACTIVE, 60, 2);
+        assertEquals(Optional.empty(), log.lastOperatorClose(TENANT, TRUCK, speeding));
     }
 
     @Test
@@ -340,6 +477,22 @@ class PgCaseStateTest {
                 .execute(Tuple.of(speeding)).await().atMost(WAIT).iterator().next();
         assertEquals(3, row.getInteger("level"));
         assertEquals(3, row.getInteger("previous_level"));
+    }
+
+    @Test
+    void sameTimeDeviceEventsEscalateOncePerEventId() {
+        Transition opening = new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.TEST, TRUCK, T0, 2, 0, 1);
+        Transition escalation = new Transition(Kind.LEVEL_CHANGED, speeding, "1.0.0", SymptomState.TEST,
+                TRUCK, T0, 4, 2, 2);
+        Map<String, Object> first = Map.of("event_id", "cam-105");
+        Map<String, Object> second = Map.of("event_id", "cam-109");
+        long id = log.append(TENANT, List.of(opening), PLACE, first).getFirst().caseId();
+        assertEquals(1, log.append(TENANT, List.of(escalation), PLACE, second).size());
+        assertTrue(log.append(TENANT, List.of(escalation), PLACE, second).isEmpty());
+        assertEquals(4, cases.find(TENANT, id).orElseThrow().level());
+        assertEquals(1, append(Kind.LEVEL_CHANGED, SymptomState.TEST, 0, 3).size(),
+                "a GPS frame keeps its separate timestamp identity");
+        assertTrue(append(Kind.LEVEL_CHANGED, SymptomState.TEST, 0, 3).isEmpty());
     }
 
     @Test

@@ -3,7 +3,20 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Dropdown, DropdownItem } from "flowbite-react";
+import {
+  autoUpdate,
+  flip,
+  FloatingFocusManager,
+  FloatingPortal,
+  offset,
+  size,
+  useClick,
+  useDismiss,
+  useFloating,
+  useInteractions,
+  useListNavigation,
+  useRole,
+} from "@floating-ui/react";
 import {
   HiOutlineCog,
   HiOutlineSearch,
@@ -293,12 +306,24 @@ export const dropdownTriggerBaseClass =
 export const dropdownDefaultBorderClass =
   "border-gray-300 dark:border-gray-600";
 
+const MENU_MAX_HEIGHT = 240;
+const MENU_VIEWPORT_PADDING = 8;
+
+const menuItemClass =
+  "flex w-full items-center gap-2 px-4 py-2 text-left text-xs text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 dark:hover:bg-gray-600 dark:hover:text-white dark:focus:bg-gray-600 dark:focus:text-white";
+
 /**
- * A Flowbite dropdown (not a native `<select>`) over an explicit list of
- * options. `SelectableDropdown` below is the common case — options sourced
- * from a bound selectable — but a field that needs a filtered/derived list
- * (e.g. "escalate to", which excludes whoever was already called) renders
- * this directly.
+ * A dropdown (not a native `<select>`) over an explicit list of options.
+ * `SelectableDropdown` below is the common case — options sourced from a
+ * bound selectable — but a field that needs a filtered/derived list (e.g.
+ * "escalate to", which excludes whoever was already called) renders this
+ * directly.
+ *
+ * The menu is portaled to `<body>` and positioned with `@floating-ui/react`.
+ * The cards it sits in scroll (`overflow-y-auto`), and an inline menu is
+ * clipped by them. `flip` opens it upward when there is no room below,
+ * `size` keeps it inside the viewport and as wide as the trigger, and
+ * `autoUpdate` keeps it on the trigger when the panel scrolls.
  */
 export function OptionsDropdown({
   options,
@@ -310,6 +335,7 @@ export function OptionsDropdown({
   triggerBorderClassName = dropdownDefaultBorderClass,
   clearLabel,
   onClear,
+  ariaLabel,
 }: Readonly<{
   options: FormOption[];
   value: string;
@@ -317,6 +343,9 @@ export function OptionsDropdown({
   placeholder: string;
   emptyLabel: string;
   className?: string;
+  /** Accessible name of the trigger. A `combobox` does not take its name
+   *  from its text, and the field labels next to it are plain text. */
+  ariaLabel: string;
   /** With `onClear`, the menu opens with this item to empty the field (only
    *  while something is picked). Off by default. */
   clearLabel?: string;
@@ -326,59 +355,136 @@ export function OptionsDropdown({
    *  utilities at once. */
   triggerBorderClassName?: string;
 }>) {
-  const selected = options.find((o) => o.id === value) ?? null;
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const listRef = useRef<Array<HTMLElement | null>>([]);
+  const disabled = options.length === 0;
+  const showClear = Boolean(clearLabel && onClear && value);
+  const selectedIndex = options.findIndex((o) => o.id === value);
+  const selected = selectedIndex >= 0 ? options[selectedIndex] : null;
+  // The clear item, when shown, is index 0 of the navigable list.
+  const offsetIndex = showClear ? 1 : 0;
+
+  const { refs, floatingStyles, context } = useFloating({
+    open,
+    onOpenChange: setOpen,
+    placement: "bottom-start",
+    whileElementsMounted: autoUpdate,
+    middleware: [
+      offset(4),
+      flip({ padding: MENU_VIEWPORT_PADDING }),
+      size({
+        padding: MENU_VIEWPORT_PADDING,
+        apply({ rects, availableHeight, elements }) {
+          Object.assign(elements.floating.style, {
+            width: `${rects.reference.width}px`,
+            maxHeight: `${Math.max(
+              0,
+              Math.min(MENU_MAX_HEIGHT, availableHeight)
+            )}px`,
+          });
+        },
+      }),
+    ],
+  });
+
+  const click = useClick(context, { enabled: !disabled });
+  const dismiss = useDismiss(context);
+  const role = useRole(context, { role: "listbox" });
+  const listNavigation = useListNavigation(context, {
+    listRef,
+    activeIndex,
+    selectedIndex: selectedIndex >= 0 ? selectedIndex + offsetIndex : null,
+    onNavigate: setActiveIndex,
+    loop: true,
+  });
+  const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions(
+    [click, dismiss, role, listNavigation]
+  );
+
+  const choose = (action: () => void) => {
+    action();
+    setOpen(false);
+  };
+
   return (
-    // `relative` makes this the containing block for the floating panel below,
-    // so its `w-full` (in the theme override) matches this wrapper's width —
-    // i.e. the trigger's width — instead of whatever positioned ancestor it'd
-    // otherwise inherit from (which is what made the menu render wider).
-    <div className={`relative w-full ${className ?? ""}`}>
-      <Dropdown
-        label={false}
-        placement="bottom-start"
-        disabled={options.length === 0}
-        theme={{
-          floating: {
-            base: "z-30 max-h-60 w-full overflow-y-auto rounded-lg",
-            content: "py-1 text-xs",
-          },
-        }}
-        renderTrigger={() => (
-          <button
-            type="button"
-            disabled={options.length === 0}
-            className={`${dropdownTriggerBaseClass} ${triggerBorderClassName}`}
-          >
-            <span className="truncate">
-              {selected ? selected.name : placeholder}
-            </span>
-            <HiChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-          </button>
-        )}
+    <div className={`w-full ${className ?? ""}`}>
+      <button
+        ref={refs.setReference}
+        type="button"
+        disabled={disabled}
+        aria-label={ariaLabel}
+        className={`${dropdownTriggerBaseClass} ${triggerBorderClassName}`}
+        {...getReferenceProps()}
       >
-        {clearLabel && onClear && value && (
-          <DropdownItem
-            onClick={onClear}
-            icon={HiX}
-            className="border-b border-rose-100 bg-rose-50 font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-300 dark:hover:bg-rose-900/40"
-          >
-            {clearLabel}
-          </DropdownItem>
-        )}
-        {options.length === 0 ? (
-          <DropdownItem disabled>{emptyLabel}</DropdownItem>
-        ) : (
-          options.map((o) => (
-            <DropdownItem
-              key={o.id}
-              onClick={() => onSelect(o)}
-              className={o.id === value ? "bg-gray-100 dark:bg-gray-600" : ""}
+        <span className="truncate">
+          {selected ? selected.name : placeholder}
+        </span>
+        <HiChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+      </button>
+      {open && (
+        <FloatingPortal>
+          <FloatingFocusManager context={context} modal={false}>
+            <div
+              ref={refs.setFloating}
+              style={floatingStyles}
+              className="z-[9999] overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg focus:outline-none dark:border-gray-600 dark:bg-gray-700"
+              {...getFloatingProps()}
             >
-              {o.name}
-            </DropdownItem>
-          ))
-        )}
-      </Dropdown>
+              {showClear && (
+                // A native <option> only works inside a <select>; this is
+                // the ARIA listbox pattern, so S6819 does not apply.
+                <button // NOSONAR (typescript:S6819)
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  tabIndex={activeIndex === 0 ? 0 : -1}
+                  ref={(node) => {
+                    listRef.current[0] = node;
+                  }}
+                  className={`${menuItemClass} border-b border-rose-100 bg-rose-50 font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-300 dark:hover:bg-rose-900/40`}
+                  {...getItemProps({
+                    onClick: () => choose(() => onClear?.()),
+                  })}
+                >
+                  <HiX className="h-4 w-4 shrink-0" />
+                  {clearLabel}
+                </button>
+              )}
+              {options.length === 0 ? (
+                <p className="px-4 py-2 text-xs text-gray-400 dark:text-gray-500">
+                  {emptyLabel}
+                </p>
+              ) : (
+                options.map((o, i) => {
+                  const index = i + offsetIndex;
+                  const isSelected = o.id === value;
+                  return (
+                    <button // NOSONAR (typescript:S6819)
+                      key={o.id}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      tabIndex={activeIndex === index ? 0 : -1}
+                      ref={(node) => {
+                        listRef.current[index] = node;
+                      }}
+                      className={`${menuItemClass} ${
+                        isSelected ? "bg-gray-100 dark:bg-gray-600" : ""
+                      }`}
+                      {...getItemProps({
+                        onClick: () => choose(() => onSelect(o)),
+                      })}
+                    >
+                      {o.name}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </FloatingFocusManager>
+        </FloatingPortal>
+      )}
     </div>
   );
 }
@@ -404,12 +510,15 @@ export function SelectableDropdown({
   triggerBorderClassName,
   clearLabel,
   onClear,
+  ariaLabel,
 }: Readonly<{
   fieldKey: string;
   dict: I18nRecord;
   value: string;
   onSelect: (option: FormOption) => void;
   placeholder?: string;
+  /** Accessible name of the single-pick trigger (see `OptionsDropdown`). */
+  ariaLabel: string;
   /** Adds a "clear" entry inside the dropdown (single or multiple), which
    *  calls `onClear`. Off by default. */
   clearLabel?: string;
@@ -464,6 +573,7 @@ export function SelectableDropdown({
       onSelect={onSelect}
       placeholder={placeholder ?? unassignedLabel}
       emptyLabel={unassignedLabel}
+      ariaLabel={ariaLabel}
       {...(triggerBorderClassName ? { triggerBorderClassName } : {})}
       {...(clearLabel && onClear ? { clearLabel, onClear } : {})}
     />
@@ -506,10 +616,10 @@ export function FieldCard({
   borderClassName?: string;
   /** A `grow` card's body scrolls (`overflow-y-auto`) by default so its
    *  content never pushes the bento layout taller than the panel. Pass
-   *  `false` for a card containing a Flowbite `Dropdown` (or anything else
-   *  floating-ui-positioned but not portaled) — `overflow-y-auto` clips that
-   *  floating panel to this card's bounds instead of letting it show past
-   *  the edge, since it isn't rendered outside this DOM subtree. */
+   *  `false` for a card containing a floating panel that is not portaled
+   *  (e.g. a Flowbite `Dropdown`) — `overflow-y-auto` clips that panel to
+   *  this card's bounds. `OptionsDropdown` and `SelectableDropdown` portal
+   *  their menu, so they don't need it. */
   scrollBody?: boolean;
   children: React.ReactNode;
 }>) {

@@ -104,4 +104,25 @@ class BookContactConditionsTest {
                 List.of("contact.nationalId == event.data.driverRut"), Map.of("driverRut", "1000005K")));
     }
 
+    @Test
+    void findsTheCoordinatorOfTheTripsOriginByTag() {
+        BookContactConditions cats = new BookContactConditions(tenant -> List.of(
+                new Entry("norte", "Norte", "CAT", List.of("Planta Norte", "Bodega Este"), null, null, null, false,
+                        null, "+12025550101"),
+                new Entry("sur", "Sur", "cat", List.of("  planta  NORTE "), null, null, null, false, null,
+                        "+12025550102"),
+                new Entry("acento", "Acento", "CAT", List.of("Peñón"), null, null, null, false, null,
+                        "+12025550103"),
+                new Entry("otro", "Otro", "Supervisor", List.of("Planta Norte"), null, null, null, false, null,
+                        "+12025550104")));
+        Map<String, Object> trip = Map.of("origin", "Planta Norte", "originKey", "planta norte");
+
+        assertEquals(List.of(List.of("norte"), List.of("norte", "sur"), List.of("acento"), List.of()),
+                cats.match("t", List.of(
+                        "contact.role == 'CAT' && event.data.origin in contact.tags",
+                        "contact.roleKey == 'cat' && event.data.originKey in contact.tagKeys",
+                        "contact.roleKey == 'cat' && 'penon' in contact.tagKeys",
+                        "contact.roleKey == 'cat' && has(event.data.destinationKey)"
+                                + " && event.data.destinationKey in contact.tagKeys"), trip));
+    }
 }

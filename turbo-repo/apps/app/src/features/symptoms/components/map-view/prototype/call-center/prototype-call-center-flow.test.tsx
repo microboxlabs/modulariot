@@ -1,12 +1,23 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import PrototypeCallCenterFlow, {
   type CallSnapshot,
 } from "./prototype-call-center-flow";
 import type { CallScript } from "./call-center-menu";
 import type { CallTarget } from "./call-targets";
+import {
+  CallSessionProvider,
+  useCallSession,
+  type CallSession,
+} from "./call-session";
+import { act } from "@testing-library/react";
+import type { ReactElement } from "react";
+
+const render = (ui: ReactElement) =>
+  rtlRender(ui, { wrapper: CallSessionProvider });
+beforeEach(() => sessionStorage.clear());
 
 const target = vi.hoisted<CallTarget>(() => ({
   id: "contact-test",
@@ -47,6 +58,7 @@ vi.mock("./call-dialing-step", () => ({
     onCancel,
     onConfirm,
     line,
+    sessionKey,
   }: {
     reason: string;
     channels?: { whatsapp?: string } | null;
@@ -54,12 +66,14 @@ vi.mock("./call-dialing-step", () => ({
     onCancel: () => void;
     onConfirm: (seconds: number, method: "phone" | "whatsapp") => void;
     line?: { provider: string } | null;
+    sessionKey?: string;
   }) => (
     <>
       <p>{reason}</p>
       <p>{channels?.whatsapp}</p>
       <p>{goal}</p>
       <span data-testid="phone-provider">{line?.provider ?? "manual"}</span>
+      <span data-testid="session-key">{sessionKey}</span>
       <button onClick={onCancel}>Cancel call</button>
       <button onClick={() => onConfirm(1, "phone")}>Confirm call</button>
       <button onClick={() => onConfirm(1, "whatsapp")}>Confirm WhatsApp</button>
@@ -67,13 +81,23 @@ vi.mock("./call-dialing-step", () => ({
   ),
 }));
 vi.mock("../prototype-call-driver", () => ({
-  default: ({ onMakeAnotherCall }: { onMakeAnotherCall: () => void }) => (
-    <button onClick={onMakeAnotherCall}>Another call</button>
+  default: ({
+    onMakeAnotherCall,
+    initialCallTargetPhone,
+  }: {
+    onMakeAnotherCall: () => void;
+    initialCallTargetPhone?: string;
+  }) => (
+    <>
+      <span data-testid="result-phone">{initialCallTargetPhone}</span>
+      <button onClick={onMakeAnotherCall}>Another call</button>
+    </>
   ),
 }));
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   contactsKey: "contacts",
-  treatmentsKey: () => "treatments",
+  revalidateCase: vi.fn(),
+  ControlTowerError: class extends Error {},
 }));
 vi.mock("swr", () => ({ mutate: vi.fn() }));
 const telephony = vi.hoisted(() => ({
@@ -92,6 +116,10 @@ const telephony = vi.hoisted(() => ({
 }));
 vi.mock("@/features/symptoms/control-tower/telephony-api", () => ({
   useTelephony: () => telephony,
+  fetchWebRtcToken: vi.fn(),
+  reportCallEnded: vi.fn().mockResolvedValue(undefined),
+  QUOTA_EXHAUSTED: "telephony_quota_exhausted",
+  CHANNELS_BUSY: "telephony_channels_busy",
 }));
 
 const request: TreatmentsRequest = {
@@ -180,5 +208,87 @@ describe("call step scripts", () => {
     fireEvent.click(screen.getByText("Another call"));
     fireEvent.click(screen.getByText("Other contact"));
     expect(screen.getByText("Default message")).toBeTruthy();
+  });
+});
+
+describe("the call session", () => {
+  let session: CallSession | null = null;
+  function Probe() {
+    session = useCallSession();
+    return null;
+  }
+  function Host({ show }: Readonly<{ show: boolean }>) {
+    return (
+      <>
+        <Probe />
+        {show && <Flow />}
+      </>
+    );
+  }
+  const startCall = () =>
+    act(() => {
+      session?.startManual({
+        key: ":contact-test",
+        context: {
+          caseId: null,
+          target,
+          script: { message: "Step message", goal: "Step goal" },
+          defaultMessage: "Default message",
+          message: "Step message",
+        },
+        contactName: target.personName,
+        contactRole: target.role,
+        method: "phone",
+      });
+    });
+
+  const startIncoming = () =>
+    act(() => {
+      session?.startManual({
+        key: "wa-in:incoming-1",
+        context: { caseId: null },
+        contactName: "Incoming contact",
+        contactRole: "",
+        method: "whatsapp",
+        calleeNumber: "+12025550103",
+      });
+    });
+
+  it("adopts an incoming session's key when opening its case", () => {
+    const view = render(<Host show={false} />);
+    startIncoming();
+    view.rerender(<Host show />);
+    expect(screen.getByTestId("session-key")).toHaveTextContent(
+      "wa-in:incoming-1"
+    );
+  });
+
+  it("preserves the incoming caller number when restoring a completed call", () => {
+    const view = render(<Host show={false} />);
+    startIncoming();
+    act(() => session?.confirm());
+    view.rerender(<Host show />);
+    expect(screen.getByTestId("result-phone")).toHaveTextContent(
+      "+12025550103"
+    );
+  });
+
+  it("reopens the dialing step of the case's open call", () => {
+    const view = render(<Host show={false} />);
+    startCall();
+    view.rerender(<Host show />);
+    expect(screen.getByText("Step message")).toBeTruthy();
+    expect(screen.getByText("Step goal")).toBeTruthy();
+    expect(screen.queryByText("Step contact")).toBeNull();
+  });
+
+  it("opens the results form for a call that ended elsewhere", () => {
+    const view = render(<Host show={false} />);
+    startCall();
+    act(() => session?.confirm());
+    view.rerender(<Host show />);
+    expect(screen.getByText("Another call")).toBeTruthy();
+    fireEvent.click(screen.getByText("Another call"));
+    expect(session?.call).toBeNull();
   });
 });

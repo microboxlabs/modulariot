@@ -1,0 +1,35 @@
+# 🔔 Release Notes v1.32.8 — ModularIoT
+
+### Fecha: 10/11/2026
+
+**Objetivo**: Esta versión incorpora el alcance del milestone privado Release 1.32.8 y la integración OSS del milestone MIOT-0.6.8. Se enfoca en corregir el agotamiento de conexiones del pooler durante el arranque de Modulith.
+
+## 🐛 Correcciones
+
+- **🐛 Integración OSS MIOT-0.6.8: agotamiento del pooler al iniciar Modulith**
+  - **Impacto**: Las consultas de readiness y las migraciones podían competir por conexiones del pooler en modo sesión. Esto podía hacer que readiness agotara el tiempo de espera e impedir que finalizara una actualización progresiva.
+  - **Solución**: Se corrige el problema de agotamiento de conexiones durante el arranque.
+
+## 📊 Beneficios
+
+- Mayor confiabilidad del arranque de los pods de Modulith.
+- Menor riesgo de que readiness falle por falta de conexiones disponibles.
+- Actualizaciones progresivas menos propensas a quedar bloqueadas por este problema.
+- La corrección queda asociada al milestone de integración OSS MIOT-0.6.8.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.8`
+- App: `app@v0.6.8` — actualizado.
+- Docs: `docs@v0.6.8` — actualizado.
+- Web: `web@v0.6.8` — actualizado.
+- Modulith: `modulith@v0.5.47` — actualizado.
+- Harness: `harness@v0.1.15` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.32.8 incorpora una corrección operativa para el arranque de Modulith, donde la competencia por conexiones podía afectar la readiness y las actualizaciones progresivas.
+
+El cambio corresponde a la integración OSS del milestone MIOT-0.6.8 y forma parte del alcance coordinado de esta versión del stack.

@@ -48,7 +48,13 @@ public class InMemoryEngineCases implements EngineCaseStore {
      */
     public final Map<UUID, Set<Integer>> operatorLevels = new HashMap<>();
 
+    /** Stored per-case decisions override the version fallback. */
+    public final Map<Long, Boolean> operatorRequired = new HashMap<>();
+
     private boolean needsOperator(EngineCase c) {
+        if (operatorRequired.containsKey(c.id())) {
+            return operatorRequired.get(c.id());
+        }
         Set<Integer> levels = operatorLevels.get(c.definitionId());
         return levels == null || levels.contains(c.level());
     }
@@ -145,7 +151,39 @@ public class InMemoryEngineCases implements EngineCaseStore {
             throw new IllegalStateException("database down");
         }
         return cases.stream().filter(c -> c.closedAt() == null)
-                .map(c -> new OpenLevel(c.assetId(), c.name(), c.level())).toList();
+                .map(c -> new OpenLevel(c.assetId(), c.name(), c.level(),
+                        c.levels().isEmpty() ? null : c.levels().get(c.levels().size() - 1))).toList();
+    }
+
+    /** The organization's symptoms, for {@link #tripSymptoms}. */
+    public final Map<UUID, Definition> definitions = new java.util.LinkedHashMap<>();
+
+    public record Definition(String key, String name, String family, String icon, String state) {
+    }
+
+    /** A trip matches by the case's trip id, or by its trip code as the trips module's service code. */
+    @Override
+    public List<TripSymptom> tripSymptoms(String tenantCode, String trip) {
+        Map<UUID, List<EngineCase>> byDefinition = cases.stream().filter(c -> !c.test())
+                .filter(c -> trip.equals(c.tripId()) || trip.equals(c.tripCode()))
+                .collect(Collectors.groupingBy(EngineCase::definitionId));
+        List<TripSymptom> out = new ArrayList<>();
+        definitions.forEach((id, d) -> {
+            List<EngineCase> found = byDefinition.getOrDefault(id, List.of());
+            if (!"ACTIVE".equals(d.state()) && found.isEmpty()) {
+                return;
+            }
+            int max = found.stream().mapToInt(c -> Math.max(c.level(), c.levels().stream()
+                    .mapToInt(EngineCase.LevelStep::level).max().orElse(0))).max().orElse(0);
+            EngineCase latest = found.stream().max(Comparator.comparing(EngineCase::openedAt)).orElse(null);
+            out.add(new TripSymptom(id, d.key(), d.name(), d.family(), d.icon(), found.size(),
+                    found.stream().filter(c -> c.closedAt() == null).count(), max,
+                    latest == null ? null : latest.tripId(),
+                    found.stream().map(EngineCase::openedAt).min(Comparator.naturalOrder()).orElse(null),
+                    latest == null ? null : latest.openedAt()));
+        });
+        out.sort(Comparator.comparing((TripSymptom t) -> t.name().toLowerCase(java.util.Locale.ROOT)));
+        return out;
     }
 
     @Override
@@ -159,8 +197,9 @@ public class InMemoryEngineCases implements EngineCaseStore {
             throw new IllegalStateException("database down");
         }
         return opened(from, to).collect(Collectors.groupingBy(c -> List.of(c.definitionId(), c.level()),
-                Collectors.counting())).entrySet().stream()
-                .map(e -> new LevelCount((UUID) e.getKey().get(0), (Integer) e.getKey().get(1), e.getValue()))
+                Collectors.toList())).entrySet().stream()
+                .map(e -> new LevelCount((UUID) e.getKey().get(0), (Integer) e.getKey().get(1), e.getValue().size(),
+                        e.getValue().stream().filter(c -> !needsOperator(c)).count()))
                 .toList();
     }
 

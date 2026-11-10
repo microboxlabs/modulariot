@@ -10,14 +10,20 @@ export type GeofencesMode = "all" | "trip" | "none";
 
 export const GEOFENCES_MODES: GeofencesMode[] = ["all", "trip", "none"];
 
+/** Sin permiso para ver Lugares: solo las geocercas del viaje, o ninguna. */
+export const GEOFENCES_MODES_DEL_VIAJE: GeofencesMode[] = ["trip", "none"];
+
 export default function GeofencesModeSelector({
   mode,
   setMode,
   dictionary,
+  modes = GEOFENCES_MODES,
 }: Readonly<{
   mode: GeofencesMode;
   setMode: (mode: GeofencesMode) => void;
   dictionary: I18nRecord;
+  /** Las opciones que se ofrecen (por defecto, todas). */
+  modes?: readonly GeofencesMode[];
 }>) {
   return (
     <div
@@ -25,7 +31,7 @@ export default function GeofencesModeSelector({
       aria-label={tr("symptoms.geofences", dictionary)}
       className="flex flex-col gap-1"
     >
-      {GEOFENCES_MODES.map((opcion) => (
+      {modes.map((opcion) => (
         <button
           key={opcion}
           type="button"

@@ -77,6 +77,23 @@ public interface TreatmentStore {
         throw new UnsupportedOperationException("pendingTelephonyCalls");
     }
 
+    /** Who placed a call: the organization and the operator. */
+    record Caller(String tenantCode, String performedBy) {
+    }
+
+    /**
+     * Every organization and operator with a Teams CALL action since {@code since} whose telephony record is
+     * still pending, at most {@code limit}.
+     */
+    default List<Caller> pendingTeamsCallers(OffsetDateTime since, int limit) {
+        return pendingTeamsCallers(since, limit, null);
+    }
+
+    /** Starts after the previous batch's last caller, wrapping around in the same bounded query. */
+    default List<Caller> pendingTeamsCallers(OffsetDateTime since, int limit, Caller after) {
+        throw new UnsupportedOperationException("pendingTeamsCallers");
+    }
+
     /**
      * Fills a pending CALL action with what the provider recorded. Null {@code answered} means unknown;
      * null {@code durationSeconds} keeps the timed duration. Details replace the stored details.

@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleVariables;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.signal.EventTypes;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
@@ -70,6 +71,20 @@ public class OrgDataSourcesResource extends ControlTowerResourceSupport {
     public Uni<Response> get(@PathParam("organizationId") String organizationId, @PathParam("key") String key) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(sources.get(tenant, key)).build());
+    }
+
+    @GET
+    @Path("/rule-variables")
+    @Operation(operationId = "listRuleVariables",
+            summary = "The variables a rule reads besides its source (case.* in lifecycle rules, measure, held_s"
+                    + " and open_s in level rules), with type, unit and meaning in the locale (es or en)")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> ruleVariables(@PathParam("organizationId") String organizationId,
+            @QueryParam("locale") String locale) {
+        return work(() -> Response.ok(Map.of(
+                "case", RuleVariables.CASE.stream().map(v -> v.field(locale)).toList(),
+                "level", RuleVariables.LEVEL.stream().map(v -> v.field(locale)).toList())).build());
     }
 
     @GET

@@ -11,7 +11,8 @@ import {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useServiceAccounts } from "./team-api";
-import { formatDate } from "./team-members-tab";
+import { filterServiceAccounts } from "./team-filters";
+import { formatDate, NoMatches } from "./team-members-tab";
 import { activeKeyCount, labelOf, lastKeyUse } from "./team-model";
 import type { CatalogRole, ServiceAccount } from "./team.types";
 
@@ -88,16 +89,19 @@ function AccountRow({ account, href, roles, lang, d }: AccountRowProps) {
 }
 
 interface TeamKeysTabProps {
+  /** Search over account names, descriptions and key names and ids. */
+  readonly query?: string;
   readonly roles: CatalogRole[];
   readonly lang: string;
   readonly d: I18nRecord;
 }
 
 /** Service accounts, for calls made without a person. Each opens its own page. */
-export function TeamKeysTab({ roles, lang, d }: TeamKeysTabProps) {
+export function TeamKeysTab({ query = "", roles, lang, d }: TeamKeysTabProps) {
   const accounts = useServiceAccounts(true);
   const base = `/${lang}/users/settings/team/service-accounts`;
-  const list = accounts.data ?? [];
+  const all = accounts.data ?? [];
+  const list = filterServiceAccounts(all, query);
 
   return (
     <div className="flex flex-col gap-3">
@@ -113,7 +117,8 @@ export function TeamKeysTab({ roles, lang, d }: TeamKeysTabProps) {
       </div>
       {accounts.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
       {accounts.isLoading && <Spinner className="mx-auto" />}
-      {accounts.data && list.length === 0 && (
+      {all.length > 0 && list.length === 0 && <NoMatches d={d} />}
+      {accounts.data && all.length === 0 && (
         <p className="py-10 text-center text-sm text-gray-500">
           {tr("noAccounts", d)}
         </p>

@@ -9,10 +9,13 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.signal.GpsSignal;
+import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 
@@ -31,6 +34,12 @@ import java.util.UUID;
  *                  frame may still open its case
  * @param lifecycleOnEvents its close or note rule reads a device event, so a late frame may still close or note
  *                  its open case
+ * @param reads     the field paths its rules read
+ * @param speedLimitSource the limit read by a recognized speed-excess measure, or null
+ * @param operators which levels send their case to the operators, by ICU; empty when unknown, as for rules
+ *                  compiled without a spec
+ * @param routingReads activation, measure, level and lifecycle reads that select the source producer; operator
+ *                     conditions consume the selected signal without changing when a case is evaluated
  */
 public record CompiledSymptom(
         UUID definitionId,
@@ -45,7 +54,56 @@ public record CompiledSymptom(
         PreparedRule note,
         boolean levelDown,
         boolean opensOnEvents,
-        boolean lifecycleOnEvents) {
+        boolean lifecycleOnEvents,
+        Set<String> reads,
+        String speedLimitSource,
+        Map<Integer, Operator> operators,
+        Set<String> routingReads,
+        String afterTripEnd) {
+
+    /**
+     * A level's {@code response.operator} and its {@code operatorWhen}.
+     *
+     * @param when null: the flag alone decides
+     */
+    public record Operator(boolean required, PreparedRule when) {
+
+        public static final Operator NONE = new Operator(false, null);
+    }
+
+    /** Rules whose source routing uses the same reads as their evaluation. */
+    @SuppressWarnings("java:S107")
+    public CompiledSymptom(UUID definitionId, String version, SymptomState state, String sourceKey,
+            PreparedRule activation, PreparedRule measure, Map<Integer, PreparedRule> levels, PreparedRule open,
+            PreparedRule close, PreparedRule note, boolean levelDown, boolean opensOnEvents,
+            boolean lifecycleOnEvents, Set<String> reads, String speedLimitSource, Map<Integer, Operator> operators) {
+        this(definitionId, version, state, sourceKey, activation, measure, levels, open, close, note, levelDown,
+                opensOnEvents, lifecycleOnEvents, reads, speedLimitSource, operators, reads, SymptomSpec.Lifecycle.IGNORE);
+    }
+
+    /** Existing callers without operator rules retain their after-trip policy. */
+    @SuppressWarnings("java:S107")
+    public CompiledSymptom(UUID definitionId, String version, SymptomState state, String sourceKey,
+            PreparedRule activation, PreparedRule measure, Map<Integer, PreparedRule> levels, PreparedRule open,
+            PreparedRule close, PreparedRule note, boolean levelDown, boolean opensOnEvents,
+            boolean lifecycleOnEvents, Set<String> reads, String speedLimitSource, String afterTripEnd) {
+        this(definitionId, version, state, sourceKey, activation, measure, levels, open, close, note, levelDown,
+                opensOnEvents, lifecycleOnEvents, reads, speedLimitSource, Map.of(), reads, afterTripEnd);
+    }
+
+    public boolean allowsAfterTripEnd() {
+        return SymptomSpec.Lifecycle.KEEP.equals(afterTripEnd) || SymptomSpec.Lifecycle.OPEN_AND_CLOSE.equals(afterTripEnd);
+    }
+
+    /** Without the levels' operator rules: the case store reads them from the spec. */
+    @SuppressWarnings("java:S107")
+    public CompiledSymptom(UUID definitionId, String version, SymptomState state, String sourceKey,
+            PreparedRule activation, PreparedRule measure, Map<Integer, PreparedRule> levels, PreparedRule open,
+            PreparedRule close, PreparedRule note, boolean levelDown, boolean opensOnEvents,
+            boolean lifecycleOnEvents, Set<String> reads, String speedLimitSource) {
+        this(definitionId, version, state, sourceKey, activation, measure, levels, open, close, note, levelDown,
+                opensOnEvents, lifecycleOnEvents, reads, speedLimitSource, Map.of());
+    }
 
     /**
      * Device events: a device stores them while it cannot reach the network and delivers them late, often after
@@ -61,7 +119,31 @@ public record CompiledSymptom(
             PreparedRule activation, PreparedRule measure, Map<Integer, PreparedRule> levels, PreparedRule open,
             PreparedRule close, boolean levelDown, boolean eventDriven) {
         this(definitionId, version, state, sourceKey, activation, measure, levels, open, close, null, levelDown,
-                eventDriven, false);
+                eventDriven, false, Set.of(), null);
+    }
+
+    /** Without the fields its rules read. */
+    @SuppressWarnings("java:S107")
+    public CompiledSymptom(UUID definitionId, String version, SymptomState state, String sourceKey,
+            PreparedRule activation, PreparedRule measure, Map<Integer, PreparedRule> levels, PreparedRule open,
+            PreparedRule close, PreparedRule note, boolean levelDown, boolean opensOnEvents,
+            boolean lifecycleOnEvents) {
+        this(definitionId, version, state, sourceKey, activation, measure, levels, open, close, note, levelDown,
+                opensOnEvents, lifecycleOnEvents, Set.of(), null);
+    }
+
+    /** One of its rules reads the field, or a field under it. */
+    public boolean reads(String path) {
+        return readsPath(reads, path);
+    }
+
+    /** Reads that drive evaluation or reset its source, excluding the operator-only decision. */
+    public boolean readsForRouting(String path) {
+        return readsPath(routingReads, path);
+    }
+
+    private static boolean readsPath(Set<String> paths, String path) {
+        return paths.stream().anyMatch(p -> p.equals(path) || p.startsWith(path + "."));
     }
 
     /** Any of its rules reads a device event: a late frame still runs it. */
@@ -72,7 +154,7 @@ public record CompiledSymptom(
     /** The same rules under another state, as when the symptom is switched between test and active. */
     public CompiledSymptom withState(SymptomState next) {
         return new CompiledSymptom(definitionId, version, next, sourceKey, activation, measure, levels, open,
-                close, note, levelDown, opensOnEvents, lifecycleOnEvents);
+                close, note, levelDown, opensOnEvents, lifecycleOnEvents, reads, speedLimitSource, operators, routingReads, afterTripEnd);
     }
 
     public static CompiledSymptom compile(UUID definitionId, String version, SymptomState state, SymptomSpec spec,
@@ -87,13 +169,20 @@ public record CompiledSymptom(
         RuleSchema levelSchema = schema.withExtras(RuleSchema.LEVEL_VARIABLES);
         RuleSchema lifecycle = RuleSchema.lifecycle(source);
         Map<Integer, PreparedRule> levels = new TreeMap<>();
+        Map<Integer, Operator> operators = new TreeMap<>();
         List<String> opening = new ArrayList<>();
+        List<String> operatorRules = new ArrayList<>();
         opening.add(spec.activation());
         opening.add(spec.lifecycle().open());
-        for (Level l : spec.levels() == null ? List.<Level>of() : spec.levels()) {
-            if (l.applies()) {
-                levels.put(l.icu(), RuleLanguage.prepare(levelSchema, l.when()));
-                opening.add(l.when());
+        List<Level> applying = spec.levels() == null ? List.of()
+                : spec.levels().stream().filter(Level::applies).toList();
+        for (Level l : applying) {
+            levels.put(l.icu(), RuleLanguage.prepare(levelSchema, l.when()));
+            opening.add(l.when());
+            Operator operator = operator(schema, l.response());
+            operators.putIfAbsent(l.icu(), operator);
+            if (operator.required()) {
+                operatorRules.add(l.response().operatorWhen());
             }
         }
         PreparedRule measure = spec.measure() == null || spec.measure().expression() == null ? null
@@ -102,6 +191,12 @@ public record CompiledSymptom(
             opening.add(spec.measure().expression());
         }
         String note = spec.lifecycle().note();
+        Set<String> reads = new LinkedHashSet<>();
+        opening.forEach(r -> reads.addAll(paths(r)));
+        reads.addAll(paths(spec.lifecycle().close()));
+        reads.addAll(paths(note));
+        Set<String> routing = Set.copyOf(reads);
+        operatorRules.forEach(r -> reads.addAll(paths(r)));
         return new CompiledSymptom(definitionId, version, state, source.key(),
                 RuleLanguage.prepare(schema, spec.activation()),
                 measure, Collections.unmodifiableMap(levels),
@@ -109,7 +204,21 @@ public record CompiledSymptom(
                 RuleLanguage.prepare(lifecycle, spec.lifecycle().close()),
                 note == null ? null : RuleLanguage.prepare(lifecycle, note), spec.lifecycle().levelDown(),
                 opening.stream().anyMatch(CompiledSymptom::readsEvents),
-                readsEvents(spec.lifecycle().close()) || readsEvents(note));
+                readsEvents(spec.lifecycle().close()) || readsEvents(note), Set.copyOf(reads),
+                EngineCase.SpeedLimit.source(spec.measure() == null ? null : spec.measure().expression()),
+                Collections.unmodifiableMap(operators), routing, spec.lifecycle().effectiveAfterTripEnd());
+    }
+
+    private static Operator operator(RuleSchema schema, SymptomSpec.Response response) {
+        if (response == null || !response.operator()) {
+            return Operator.NONE;
+        }
+        String when = response.operatorWhen();
+        return new Operator(true, when == null ? null : RuleLanguage.prepareOperatorCondition(schema, when));
+    }
+
+    private static Set<String> paths(String rule) {
+        return rule == null ? Set.of() : RuleText.fieldPaths(rule);
     }
 
     /** Whether the rule reads a device event field, optional selectors ({@code .?}) included. */

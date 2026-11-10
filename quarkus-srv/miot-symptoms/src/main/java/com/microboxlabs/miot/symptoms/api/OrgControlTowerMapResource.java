@@ -327,8 +327,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @Operation(operationId = "listMapSymptomPositions",
             summary = "The vehicle's positions around one of the evaluator's cases",
             description = "From an hour before the case opened, or from the vehicle's previous case when nearer, until "
-                    + "the case closed or now; oldest first, at most 20000. Only for the evaluator's cases (negative "
-                    + "ids): a symptom with a trip reads the trip's positions. 404 when the case is not the "
+                    + "the case closed or now; a case on a trips-module trip reads the whole trip, as the trip's "
+                    + "positions do (at most its last 7 days). Oldest first, at most 20000, sampled evenly. Only for the evaluator's cases "
+                    + "(negative ids): a GPS database symptom with a trip reads the trip's positions. 404 when the case is not the "
                     + "organization's. Each position has received_at, when it reached the platform, and delay_s, "
                     + "the seconds after its GPS time (null without an arrival time).")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
@@ -346,7 +347,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         long id = Long.parseLong(symptomId.trim());
         return answer(() -> Uni.createFrom().item(() -> cases.signalWindow(tenant, id))
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
-                .flatMap(w -> treatments.assetPositions(clientIds(), w.assetId(), w.from(), w.to())));
+                .flatMap(w -> w.onTrip()
+                        ? treatments.tripAssetPositions(clientIds(), w.assetId(), w.from(), w.to())
+                        : treatments.assetPositions(clientIds(), w.assetId(), w.from(), w.to())));
     }
 
     @GET
@@ -367,6 +370,22 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
                 ? (JsonNode) JsonNodeFactory.instance.arrayNode()
                 : tripGeofences.get().geofences(tenant, moduleTrip.get()))
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool()));
+    }
+
+    @GET
+    @Path("/trips/{trip}/symptoms")
+    @Operation(operationId = "listMapTripSymptoms", summary = "The evaluator's cases on one trip, by symptom",
+            description = "trip is a trip id or the client's service code of a trips-module trip (its feed "
+                    + "service's or a current mandate's). Each of the organization's ACTIVE symptoms, and any other "
+                    + "with a case on the trip: cases, open_cases, max_level and max_condition (the highest level "
+                    + "any case reached; null without cases), trip_id of the latest case, first_opened_at and "
+                    + "last_opened_at. TEST cases are not counted.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> tripSymptoms(@PathParam("organizationId") String organizationId,
+            @PathParam("trip") String trip) {
+        String tenant = tenantCode(organizationId);
+        return answer(() -> blocking(() -> cases.tripSymptoms(tenant, trip)));
     }
 
     @GET

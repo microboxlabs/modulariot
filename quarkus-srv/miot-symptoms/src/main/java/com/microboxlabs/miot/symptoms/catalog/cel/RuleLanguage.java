@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import dev.cel.bundle.Cel;
 import dev.cel.bundle.CelFactory;
+import dev.cel.common.CelErrorCode;
 import dev.cel.common.CelIssue;
 import dev.cel.common.CelOptions;
 import dev.cel.common.CelValidationException;
@@ -20,13 +21,16 @@ import dev.cel.extensions.CelOptionalLibrary;
 import dev.cel.parser.CelStandardMacro;
 import dev.cel.runtime.CelEvaluationException;
 import dev.cel.runtime.CelRuntime;
+import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 /**
@@ -106,6 +110,15 @@ public final class RuleLanguage {
 
     /** Compiles a rule once, to run it on many samples. */
     public static PreparedRule prepare(RuleSchema schema, String expression) {
+        return prepare(schema, expression, false);
+    }
+
+    /** An operator condition treats an absent source value as false, without failing the evaluation. */
+    public static PreparedRule prepareOperatorCondition(RuleSchema schema, String expression) {
+        return prepare(schema, expression, true);
+    }
+
+    private static PreparedRule prepare(RuleSchema schema, String expression, boolean missingIsFalse) {
         Cel cel = cel(schema);
         CelValidationResult result = compile(cel, expression == null ? "" : expression).result();
         if (result.hasError()) {
@@ -116,8 +129,11 @@ public final class RuleLanguage {
             CelRuntime.Program program = cel.createProgram(result.getAst());
             return variables -> {
                 try {
-                    return RuleResult.of(program.eval(withConstants(doubles(variables))));
+                    return RuleResult.of(program.eval(withConstants(variables)));
                 } catch (CelEvaluationException e) {
+                    if (missingIsFalse && e.getErrorCode() == CelErrorCode.ATTRIBUTE_NOT_FOUND) {
+                        return RuleResult.of(false);
+                    }
                     return RuleResult.failed(RuleMessages.plain(e.getMessage()).spanish());
                 }
             };
@@ -133,17 +149,28 @@ public final class RuleLanguage {
         RuleResult run(Map<String, Object> variables);
     }
 
+    /**
+     * The values as the rules read them, every number a double: converted once, so the rules of a signal do not
+     * each convert it again. Values already converted are kept as they are.
+     */
+    public static Map<String, Object> converted(Map<String, Object> values) {
+        return doubles(values);
+    }
+
     /** Every number the schema declares is a double, so samples with whole numbers are converted. */
-    @SuppressWarnings("unchecked")
     static Map<String, Object> doubles(Map<String, Object> values) {
+        if (values instanceof Converted c) {
+            return c;
+        }
         Map<String, Object> out = new LinkedHashMap<>();
         values.forEach((k, v) -> out.put(k, doubleValue(v)));
-        return out;
+        return new Converted(out);
     }
 
     @SuppressWarnings("unchecked")
     private static Object doubleValue(Object v) {
         return switch (v) {
+            case Converted c -> c;
             case Map<?, ?> m -> doubles((Map<String, Object>) m);
             case List<?> l -> l.stream().map(RuleLanguage::doubleValue).toList();
             case Double d -> d;
@@ -152,10 +179,56 @@ public final class RuleLanguage {
         };
     }
 
+    /** The constants and the variables, converted ({@link #doubles}) unless they already are. */
     private static Map<String, Object> withConstants(Map<String, Object> variables) {
         Map<String, Object> out = new LinkedHashMap<>(CONSTANTS);
-        out.putAll(variables);
+        variables.forEach((k, v) -> out.put(k, doubleValue(v)));
         return out;
+    }
+
+    /** A map converted by {@link #doubles}, read-only, so it is not converted again. */
+    private static final class Converted extends AbstractMap<String, Object> {
+
+        private final Map<String, Object> entries;
+
+        Converted(Map<String, Object> values) {
+            this.entries = values;
+        }
+
+        @Override
+        public Set<Entry<String, Object>> entrySet() {
+            return Collections.unmodifiableMap(entries).entrySet();
+        }
+
+        @Override
+        public Object get(Object key) {
+            return entries.get(key);
+        }
+
+        @Override
+        public boolean containsKey(Object key) {
+            return entries.containsKey(key);
+        }
+
+        @Override
+        public int size() {
+            return entries.size();
+        }
+
+        @Override
+        public void forEach(BiConsumer<? super String, ? super Object> action) {
+            entries.forEach(action);
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return super.equals(other);
+        }
+
+        @Override
+        public int hashCode() {
+            return super.hashCode();
+        }
     }
 
     /** The compiled rule and the text CEL saw. */

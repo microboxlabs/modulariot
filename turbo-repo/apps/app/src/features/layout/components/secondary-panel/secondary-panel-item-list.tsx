@@ -11,6 +11,7 @@ import { trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
 import { pathNameWithoutLanguage } from "../../utils/utils";
+import { useLocalizedHref } from "../../hooks/use-localized-href";
 
 interface SecondaryPanelItemListProps {
   items: SidebarItem[];
@@ -37,6 +38,7 @@ function PanelChildItem({
   totals: Record<string, number | string>;
   onNavigate?: () => void;
 }>) {
+  const localize = useLocalizedHref();
   const translatedLabel = trDynamic(item.label, dict);
   const itemTotal = item.totals?.[item.label] ?? totals[item.label];
   const showBadge = itemTotal !== undefined && typeof itemTotal === "number";
@@ -44,7 +46,7 @@ function PanelChildItem({
   return (
     <li>
       <Link
-        href={item.href ?? "#"}
+        href={localize(item.href ?? "#")}
         onClick={onNavigate}
         className={twMerge(
           "flex items-center gap-2 px-4 py-2 text-sm transition-colors",

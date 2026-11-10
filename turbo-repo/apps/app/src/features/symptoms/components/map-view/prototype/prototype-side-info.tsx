@@ -18,6 +18,7 @@ import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import PrototypeInlineForm from "./prototype-inline-form";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import SymptomForm from "../../blurrable-stepped-menu/symptom-form";
+import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
 
 /** Menus the previous full-screen modal still implements. */
 const PAST_FORM_OPTIONS = new Set<SelectedOption>([
@@ -72,7 +73,6 @@ export default function PrototypeSideInfo({
     treatmentData?.symptom_info?.icu_code.toString() ?? "4"
   );
 
-
   if (error) {
     return (
       <div className="flex flex-col gap-5 p-5 h-full">
@@ -84,6 +84,7 @@ export default function PrototypeSideInfo({
   }
 
   const formReady = !!treatments_templates && !loading;
+  const engineCase = isEngineCaseId(treatmentData?.symptom_info?.id);
   const showPastModal =
     pastFormsEnabled && PAST_FORM_OPTIONS.has(selectedOption);
 
@@ -106,7 +107,7 @@ export default function PrototypeSideInfo({
 
       {/* Inline morphed form — replaces the timeline + action buttons in place.
           Fades in after the parent's width transition (~500ms) has mostly run. */}
-      {isFormOpen && formReady && !pastFormsEnabled && (
+      {isFormOpen && formReady && !showPastModal && (
         <div
           className="absolute inset-0 z-20 animate-fade-in-opacity"
           style={{ animationDelay: "250ms", opacity: 0 }}
@@ -125,8 +126,9 @@ export default function PrototypeSideInfo({
       )}
 
       {/* Timeline view — hidden while the inline form is open. The past
-          modal overlays the page, so the timeline stays put. */}
-      {(!isFormOpen || pastFormsEnabled) && (
+          modal overlays the page, so the timeline stays put. "Registrar
+          gestión" has no past modal and always opens inline. */}
+      {(!isFormOpen || showPastModal) && (
         <>
           <div className="flex flex-col h-full overflow-y-auto pb-20 gap-1">
             <div className="border border-gray-300 dark:border-gray-700 flex flex-row items-center justify-between gap-2 rounded-md transition-all duration-200">
@@ -178,6 +180,7 @@ export default function PrototypeSideInfo({
               <ButtonGroup className="w-full">
                 <BlurrableDropdown
                   dict={dict}
+                  recordHandling={engineCase}
                   onSelect={(option) => {
                     setSelectedOption(option);
                     setIsFormOpen(true);

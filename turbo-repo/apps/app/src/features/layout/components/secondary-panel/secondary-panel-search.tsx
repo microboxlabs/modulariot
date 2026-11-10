@@ -4,6 +4,7 @@ import { HiPlus, HiSearch } from "react-icons/hi";
 import Link from "next/link";
 import { twMerge } from "tailwind-merge";
 import type { SidebarCreateAction } from "../../types/common.types";
+import { useLocalizedHref } from "../../hooks/use-localized-href";
 
 interface SecondaryPanelSearchProps {
   value: string;
@@ -18,6 +19,7 @@ export default function SecondaryPanelSearch({
   placeholder,
   createAction,
 }: Readonly<SecondaryPanelSearchProps>) {
+  const localize = useLocalizedHref();
   return (
     <div className="flex items-center gap-2 px-2 py-2">
       <div className="relative flex-1">
@@ -39,7 +41,7 @@ export default function SecondaryPanelSearch({
       </div>
       {createAction && (
         <Link
-          href={createAction.href}
+          href={localize(createAction.href)}
           aria-label={createAction.label}
           className={twMerge(
             "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",

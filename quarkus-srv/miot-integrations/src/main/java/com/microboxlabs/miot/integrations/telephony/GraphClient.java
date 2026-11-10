@@ -6,11 +6,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -25,6 +28,9 @@ public class GraphClient {
 
     private final TelephonyHttp http;
     private final URI baseUrl;
+    static final Duration REQUEST_INTERVAL = Duration.ofMillis(250);
+    private long lastRequestAt;
+    private final ReentrantLock pacing = new ReentrantLock(true);
 
     @Inject
     public GraphClient(
@@ -48,14 +54,28 @@ public class GraphClient {
     }
 
     /**
-     * {@code GET /v1.0/communications/callRecords/getPstnCalls(fromDateTime=..,toDateTime=..)}. Needs the
-     * application permission CallRecords.Read.All.
+     * {@code GET /v1.0/communications/callRecords/getPstnCalls(fromDateTime=..,toDateTime=..)}: Calling Plans and
+     * Operator Connect calls. Needs the application permission CallRecords.Read.All.
      *
      * @param auth the request headers of the app token, e.g. {@code Authorization}
      */
     public HttpResponse<String> pstnCalls(Map<String, String> auth, Instant from, Instant to)
             throws IOException, InterruptedException {
-        String path = "/v1.0/communications/callRecords/getPstnCalls(fromDateTime="
+        return callRecords("getPstnCalls", auth, from, to);
+    }
+
+    /**
+     * {@code GET /v1.0/communications/callRecords/getDirectRoutingCalls(fromDateTime=..,toDateTime=..)}: calls
+     * through the organization's own carrier. Same permission as {@link #pstnCalls}.
+     */
+    public HttpResponse<String> directRoutingCalls(Map<String, String> auth, Instant from, Instant to)
+            throws IOException, InterruptedException {
+        return callRecords("getDirectRoutingCalls", auth, from, to);
+    }
+
+    private HttpResponse<String> callRecords(String function, Map<String, String> auth, Instant from, Instant to)
+            throws IOException, InterruptedException {
+        String path = "/v1.0/communications/callRecords/" + function + "(fromDateTime="
                 + UTC.format(from.truncatedTo(ChronoUnit.SECONDS)) + ",toDateTime="
                 + UTC.format(to.truncatedTo(ChronoUnit.SECONDS)) + ")";
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(trim(baseUrl.toString()) + path))
@@ -63,7 +83,7 @@ public class GraphClient {
                 .header("Accept", "application/json")
                 .GET();
         auth.forEach(request::header);
-        return http.send(request.build());
+        return send(request.build());
     }
 
     /**
@@ -81,7 +101,24 @@ public class GraphClient {
         HttpRequest.Builder request = HttpRequest.newBuilder(uri).timeout(TelephonyHttp.TIMEOUT)
                 .header("Accept", "application/json").GET();
         auth.forEach(request::header);
-        return http.send(request.build());
+        return send(request.build());
+    }
+
+    /** Bound aggregate Graph traffic across organizations, operators and report pages on this replica. */
+    private HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {
+        pacing.lockInterruptibly();
+        try {
+            if (lastRequestAt != 0) {
+                long pause = REQUEST_INTERVAL.toNanos() - (System.nanoTime() - lastRequestAt);
+                if (pause > 0) {
+                    TimeUnit.NANOSECONDS.sleep(pause);
+                }
+            }
+            lastRequestAt = System.nanoTime();
+            return http.send(request);
+        } finally {
+            pacing.unlock();
+        }
     }
 
     private static String trim(String value) {

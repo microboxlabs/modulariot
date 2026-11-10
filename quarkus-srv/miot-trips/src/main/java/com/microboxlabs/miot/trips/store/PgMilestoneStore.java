@@ -94,7 +94,8 @@ public class PgMilestoneStore implements MilestoneStore {
                         .addOffsetDateTime(m.confirmedAt()).addString(m.confirmedBy()).addString(m.channel())
                         .addString(m.note()).addString(m.updatedBy()))
                 .stream().map(PgMilestoneStore::milestone).findFirst().orElseThrow();
-        if ("departure".equals(m.milestone())) {
+        // The signal builder reads the confirmed departure (the trip's start) and arrival (destination visited).
+        if ("departure".equals(m.milestone()) || "arrival".equals(m.milestone())) {
             TripLiveChannel.changed(pool.get(), m.tenantCode(), m.tripId());
         }
         return saved;

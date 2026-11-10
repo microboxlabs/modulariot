@@ -27,6 +27,7 @@ import java.util.UUID;
  *                    tower then
  * @param levelAt     when it reached its current level (its latest level change, else its opening), or null when
  *                    not read
+ * @param levelResponse the response from this definition and the version that decided its current level, or null
  * @param test        its symptom was in TEST when it opened: it is in no list or count, but can be treated and closed
  */
 public record EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
@@ -34,7 +35,20 @@ public record EngineCase(long id, UUID definitionId, String version, String name
         Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode,
         JsonNode openingContext, JsonNode levelContext, String levelRule, List<LevelStep> levels,
         TripDetails trip, JsonNode closingContext, Ignored ignored, Instant returnedAt, Instant levelAt,
-        boolean test) {
+        boolean test, JsonNode levelResponse) {
+
+    /** Existing cases without their published response loaded. */
+    @SuppressWarnings("java:S107")
+    public EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
+            Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
+            Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode,
+            JsonNode openingContext, JsonNode levelContext, String levelRule, List<LevelStep> levels,
+            TripDetails trip, JsonNode closingContext, Ignored ignored, Instant returnedAt, Instant levelAt,
+            boolean test) {
+        this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
+                speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext, levelContext,
+                levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, test, null);
+    }
 
     /**
      * A hold on the case: since when, until when (null until the trip ends), what it covers and who set it.
@@ -45,12 +59,92 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             String by) {
     }
 
-    /** Names from the case's live trip; each null when the trip does not have it. */
-    public record TripDetails(String driver, String carrier, String origin, String destination) {
+    /**
+     * Names from the case's live trip; each null when the trip does not have it.
+     *
+     * @param assetId the vehicle the trip is on now, which differs from the case's after a truck change
+     */
+    public record TripDetails(String driver, String carrier, String origin, String destination, String assetId) {
+        public TripDetails(String driver, String carrier, String origin, String destination) {
+            this(driver, carrier, origin, destination, null);
+        }
     }
 
-    /** The case reached {@code level} at {@code at}. */
-    public record LevelStep(Instant at, int level) {
+    /**
+     * The case reached {@code level} at {@code at}. A speed case's change also has the speed and the limit it was
+     * compared with; both null for any other symptom.
+     *
+     * @param speedKmh   the frame's speed, rounded as the speed rules round it
+     * @param speedLimit null when the change kept no limit and none can be derived
+     */
+    public record LevelStep(Instant at, int level, Double speedKmh, SpeedLimit speedLimit) {
+
+        public LevelStep(Instant at, int level) {
+            this(at, level, null, null);
+        }
+    }
+
+    /**
+     * The limit a speed rule compared the speed with.
+     *
+     * @param source {@code road} (the road network's limit) or {@code custom} (the organization's own)
+     * @param zone   the own limit's zone name, or null
+     */
+    public record SpeedLimit(double kmh, String source, String zone) {
+
+        public static final String CUSTOM = "custom";
+        public static final String ROAD = "road";
+
+        /**
+         * The limit of a change of a symptom whose measure reads {@code source}'s limit: the one its context kept
+         * ({@code speed_limit}), else the speed minus the measure, as the speed templates measure the excess. Null
+         * without a source, or when neither gives a positive limit.
+         */
+        public static SpeedLimit of(String source, JsonNode kept, Double speedKmh, Double measure) {
+            if (source == null) {
+                return null;
+            }
+            if (kept != null && kept.isObject()) {
+                boolean custom = CUSTOM.equals(source);
+                JsonNode kmh = kept.path(custom ? "custom_kmh" : "road_kmh");
+                if (kmh.isNumber() && kmh.asDouble() > 0) {
+                    JsonNode zone = kept.path("zone_name");
+                    return new SpeedLimit(kmh.asDouble(), source, custom && zone.isTextual() ? zone.asText() : null);
+                }
+            }
+            if (speedKmh == null || measure == null) {
+                return null;
+            }
+            double derived = speedKmh - measure;
+            return derived > 0 ? new SpeedLimit(derived, source, null) : null;
+        }
+
+        /**
+         * Recognizes the speed templates' excess measures only. Other arithmetic, conditional or combined
+         * measures cannot safely derive an applied limit from the speed and measure.
+         */
+        public static String source(String measureExpression) {
+            String expression = compact(measureExpression);
+            for (String speed : List.of("signal.frame.gps.speed", "signal.gps.speed_kmh",
+                    "double(int(signal.frame.gps.speed+0.5))")) {
+                if (expression.equals(speed + "-signal.road.maxspeed_custom")) {
+                    return CUSTOM;
+                }
+                if (expression.equals(speed + "-signal.road.maxspeed_osm")) {
+                    return ROAD;
+                }
+            }
+            return null;
+        }
+
+        /** Match the rounding of the version that computed the measure; older templates used raw speed. */
+        public static double ruleSpeed(String expression, double speed) {
+            return compact(expression).startsWith("double(int(") ? Math.round(speed) : speed;
+        }
+
+        private static String compact(String expression) {
+            return expression == null ? "" : expression.replaceAll("\\s+", "");
+        }
     }
 
     public EngineCase {
@@ -99,37 +193,43 @@ public record EngineCase(long id, UUID definitionId, String version, String name
     public EngineCase withLevel(JsonNode opening, JsonNode context, String rule, List<LevelStep> steps) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, opening, context, rule, steps,
-                trip, closingContext, ignored, returnedAt, levelAt, test);
+                trip, closingContext, ignored, returnedAt, levelAt, test, levelResponse);
     }
 
     public EngineCase withTrip(TripDetails details) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, details, closingContext, ignored, returnedAt, levelAt, test);
+                levelContext, levelRule, levels, details, closingContext, ignored, returnedAt, levelAt, test, levelResponse);
     }
 
     public EngineCase withClosing(JsonNode context) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, trip, context, ignored, returnedAt, levelAt, test);
+                levelContext, levelRule, levels, trip, context, ignored, returnedAt, levelAt, test, levelResponse);
     }
 
     public EngineCase withHold(Ignored hold, Instant returned) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, trip, closingContext, hold, returned, levelAt, test);
+                levelContext, levelRule, levels, trip, closingContext, hold, returned, levelAt, test, levelResponse);
     }
 
     public EngineCase withLevelAt(Instant at) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, at, test);
+                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, at, test, levelResponse);
     }
 
     public EngineCase withTest(boolean inTest) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, inTest);
+                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, inTest, levelResponse);
+    }
+
+    public EngineCase withLevelResponse(JsonNode response) {
+        return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
+                longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
+                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, test, response);
     }
 
     /** When its current level's SLA started: it reached the level, or came back from a hold after that. */

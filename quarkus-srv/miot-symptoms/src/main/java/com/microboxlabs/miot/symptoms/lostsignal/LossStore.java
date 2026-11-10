@@ -110,6 +110,19 @@ public interface LossStore {
     void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile, Schedule schedule,
             Mark mark, Reporting reporting);
 
+    /**
+     * As {@link #save(String, VehicleProfile, String, SenderProfile, Schedule, Mark, Reporting)}, sent without
+     * waiting: the returned task waits for the write and throws when it failed. A store over the network lets the
+     * caller work meanwhile.
+     */
+    @SuppressWarnings("java:S107") // The arguments of save.
+    default Runnable send(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
+            Schedule schedule, Mark mark, Reporting reporting) {
+        save(assetId, vehicle, sender, senderProfile, schedule, mark, reporting);
+        return () -> {
+        };
+    }
+
     /** The vehicles whose deadline is at or before {@code now}, earliest first. */
     List<String> due(Instant now, int limit);
 

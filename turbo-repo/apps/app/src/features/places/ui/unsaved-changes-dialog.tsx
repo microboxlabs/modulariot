@@ -5,6 +5,7 @@
 import { Button } from "flowbite-react";
 import { HiOutlineExclamation } from "react-icons/hi";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import { usePlacesT } from "../i18n/places-i18n";
 
 export default function UnsavedChangesDialog({
   abierto,
@@ -15,12 +16,13 @@ export default function UnsavedChangesDialog({
   onSalir: () => void;
   onSeguir: () => void;
 }>) {
+  const t = usePlacesT();
   if (!abierto) return null;
   return (
     <AbsoluteModal
       selected={abierto}
       setSelected={onSeguir}
-      ariaLabel="Cambios sin guardar"
+      ariaLabel={t("unsaved.title")}
       maxWidth="28rem"
       className="w-full rounded-2xl border border-gray-200 bg-white text-left text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-800 dark:text-white"
     >
@@ -30,18 +32,18 @@ export default function UnsavedChangesDialog({
             <HiOutlineExclamation className="h-5 w-5" />
           </span>
           <div>
-            <h2 className="text-lg font-semibold">Cambios sin guardar</h2>
+            <h2 className="text-lg font-semibold">{t("unsaved.title")}</h2>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-              Tienes cambios sin guardar. Si sales ahora, se perderán.
+              {t("unsaved.body")}
             </p>
           </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2 border-t border-gray-200 px-6 py-3 dark:border-gray-700">
           <Button color="alternative" onClick={onSeguir}>
-            Seguir editando
+            {t("unsaved.keep_editing")}
           </Button>
           <Button color="red" onClick={onSalir}>
-            Salir sin guardar
+            {t("unsaved.leave")}
           </Button>
         </div>
       </div>

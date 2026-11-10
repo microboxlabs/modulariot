@@ -5,23 +5,35 @@ import { Badge } from "flowbite-react";
 import { HiCheck } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { filterPermissions } from "./team-filters";
+import { NoMatches } from "./team-members-tab";
 import { groupByModule, labelOf, matrixColumns } from "./team-model";
 import type { AccessCatalog, BaseRole } from "./team.types";
 
 interface TeamRolesTabProps {
   readonly catalog: AccessCatalog;
+  readonly query?: string;
   readonly lang: string;
   readonly d: I18nRecord;
 }
 
 /** Read-only matrix: permissions (grouped by module) × base and module roles. */
-export function TeamRolesTab({ catalog, lang, d }: TeamRolesTabProps) {
+export function TeamRolesTab({
+  catalog,
+  query = "",
+  lang,
+  d,
+}: TeamRolesTabProps) {
   const baseLabels: Record<BaseRole, string> = {
     OWNER: tr("baseOWNER", d),
     ADMIN: tr("baseADMIN", d),
     MEMBER: tr("baseMEMBER", d),
   };
   const columns = matrixColumns(catalog, lang, baseLabels);
+  const permissions = filterPermissions(catalog.permissions, query);
+  if (catalog.permissions.length > 0 && permissions.length === 0) {
+    return <NoMatches d={d} />;
+  }
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -45,7 +57,7 @@ export function TeamRolesTab({ catalog, lang, d }: TeamRolesTabProps) {
             </tr>
           </thead>
           <tbody>
-            {groupByModule(catalog.permissions).map((group) => (
+            {groupByModule(permissions).map((group) => (
               <Fragment key={group.module}>
                 <tr className="bg-gray-50/60 dark:bg-gray-800/60">
                   <td

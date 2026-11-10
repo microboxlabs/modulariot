@@ -136,7 +136,7 @@ query($owner:String!, $name:String!, $number:Int!) {
       author { login }
       labels(first:50) { nodes { name } }
       files(first:100) { pageInfo { hasNextPage } nodes { path additions deletions } }
-      commits(last:1) { nodes { commit { oid pushedDate
+      commits(last:1) { nodes { commit { oid pushedDate committedDate
         statusCheckRollup { state contexts(first:100) { totalCount pageInfo { hasNextPage } nodes {
           __typename
           ... on CheckRun { name conclusion status detailsUrl }
@@ -154,7 +154,7 @@ query($owner:String!, $name:String!, $number:Int!) {
         ... on Bot { login id }
         ... on Team { slug }
       } } }
-      comments(last:100) { nodes { databaseId author { login } authorAssociation body createdAt } }
+      comments(last:100) { nodes { databaseId author { login } authorAssociation body createdAt updatedAt } }
     }
   }
 }
@@ -389,7 +389,8 @@ def copilot_state(pr):
 
 
 CR_ACTIONABLE = re.compile(r"Actionable comments posted:\s*(\d+)")
-CR_OFF = re.compile(r"rate limited|reviews are disabled|review skipped", re.I)
+CR_OFF = re.compile(r"rate limited|reviews are disabled|review skipped|"
+                    r"disabled on base", re.I)
 CR_RESETS = re.compile(r"Next included review available in ([^\n<*]+?)\.")
 
 
@@ -405,28 +406,90 @@ def coderabbit_reset(pr):
 
 
 CR_PING = re.compile(r"@coderabbitai\s+(?:full\s+)?review", re.I)
+
+
+def pings(pr):
+    """`@coderabbitai review` comments from people; CodeRabbit's own tips quote the command."""
+    return [c for c in ((pr.get("comments") or {}).get("nodes") or [])
+            if bot_login((c.get("author") or {}).get("login")) != CODERABBIT_BOT
+            and CR_PING.search(c.get("body") or "")]
+
+
 CR_DECLINED = re.compile(r"Action not completed|Already reviewed the last commit", re.I)
+
+
+def cr_comments(pr):
+    return [c for c in ((pr.get("comments") or {}).get("nodes") or [])
+            if bot_login((c.get("author") or {}).get("login")) == CODERABBIT_BOT]
 
 
 def coderabbit_declined(pr):
     """CodeRabbit answers a ping it will not act on; that reply is a terminal state."""
-    for c in reversed(((pr.get("comments") or {}).get("nodes") or [])):
+    for c in reversed(cr_comments(pr)):
         body = c.get("body") or ""
-        if bot_login((c.get("author") or {}).get("login")) != CODERABBIT_BOT:
-            continue
         if CR_DECLINED.search(body):
-            return ("CodeRabbit declined the incremental review - "
-                    "it already reviewed that commit; ask for `@coderabbitai full review`")
+            return ("CodeRabbit declined: it says it already reviewed this PR - "
+                    "continue without it")
         if CR_ACTIONABLE.search(body) or CR_OFF.search(body):
             return None
     return None
 
 
+def coderabbit_off(pr):
+    """The reason CodeRabbit is off on this PR right now, from its own comments.
+
+    CodeRabbit edits its summary comment in place to say it is rate limited, so a
+    comment counts when it was written or edited after CodeRabbit's last review.
+    """
+    rev = latest_review(pr, CODERABBIT_BOT)
+    since = (rev or {}).get("submittedAt") or ""
+    for c in reversed(cr_comments(pr)):
+        when = max(c.get("createdAt") or "", c.get("updatedAt") or "")
+        if when <= since:
+            continue
+        m = CR_OFF.search(c.get("body") or "")
+        if m:
+            return "CodeRabbit says: %s" % m.group(0).lower()
+    return None
+
+
+def head_time(pr):
+    nodes = ((pr.get("commits") or {}).get("nodes") or [])
+    commit = (nodes[-1].get("commit") or {}) if nodes else {}
+    return commit.get("pushedDate") or commit.get("committedDate") or ""
+
+
+def coderabbit_pinged_head(pr):
+    """True when someone already asked CodeRabbit to review the current head."""
+    since = head_time(pr)
+    return any((c.get("createdAt") or "") >= since for c in pings(pr))
+
+
+def coderabbit_skip(pr, full=False):
+    """Why `request` must not ping CodeRabbit, or None when a ping is allowed.
+
+    A ping on a rate-limited PR can be billed, and an automatic `full review`
+    after "already reviewed" is how one PR got three pings in 20 minutes. Only a
+    person passing --full can ask again after a decline or on the same head.
+    """
+    crb = coderabbit_state(pr)
+    off = coderabbit_off(pr) or crb.get("note")
+    if off:
+        return off
+    if not full:
+        declined = coderabbit_declined(pr)
+        if declined:
+            return declined
+        if crb.get("fresh"):
+            return "CodeRabbit already reviewed head %s" % pr["headRefOid"][:8]
+        if coderabbit_pinged_head(pr):
+            return "CodeRabbit was already asked to review head %s" % pr["headRefOid"][:8]
+    return None
+
+
 def coderabbit_pending(pr, reviewed_at):
     """True when a `@coderabbitai review` ping is newer than CodeRabbit's last review."""
-    for c in reversed(((pr.get("comments") or {}).get("nodes") or [])):
-        if not CR_PING.search(c.get("body") or ""):
-            continue
+    for c in reversed(pings(pr)):
         return not reviewed_at or (c.get("createdAt") or "") > reviewed_at
     return False
 
@@ -436,7 +499,11 @@ def coderabbit_state(pr):
     ctx = [c for c in check_contexts(pr) if (c["name"] or "").lower().startswith("coderabbit")]
     has_history = bool(latest_review(pr, CODERABBIT_BOT)) or bool(ctx)
     if not has_history:
-        if coderabbit_pending(pr, None) and not coderabbit_declined(pr):
+        said_off = coderabbit_declined(pr) or coderabbit_off(pr)
+        if said_off:
+            return {"provider": "coderabbit", "available": False, "fresh": False,
+                    "verdict": None, "off": True, "reason": said_off}
+        if coderabbit_pending(pr, None):
             return {"provider": "coderabbit", "available": True, "fresh": False, "verdict": None,
                     "pending": True, "reason": None}
         return {"provider": "coderabbit", "available": False, "fresh": False,
@@ -452,13 +519,14 @@ def coderabbit_state(pr):
         if m:
             actionable = int(m.group(1))
     declined = coderabbit_declined(pr)
-    if (off or declined) and not fresh:
-        reason = declined or off["description"]
+    said_off = coderabbit_off(pr)
+    if (off or declined or said_off) and not fresh:
+        reason = declined or said_off or off["description"]
         resets = coderabbit_reset(pr)
         if resets and not declined:
             reason = "%s (next review in %s)" % (reason, resets)
         return {"provider": "coderabbit", "available": False, "fresh": False, "verdict": None,
-                "reason": reason, "resetsIn": resets, "reviewedSha": sha}
+                "off": True, "reason": reason, "resetsIn": resets, "reviewedSha": sha}
     verdict = None
     if fresh and actionable is not None:
         verdict = "clean" if actionable == 0 else "changes"
@@ -485,16 +553,95 @@ def sonar_keys(pr, repo_root=None):
             if k not in keys:
                 keys.append(k)
     if not keys and repo_root:
-        for dirpath, dirnames, filenames in os.walk(repo_root):
-            dirnames[:] = [d for d in dirnames if d not in (".git", "node_modules", "target", "dist", ".venv")]
-            if "sonar-project.properties" in filenames:
-                with open(os.path.join(dirpath, "sonar-project.properties")) as fh:
-                    for line in fh:
-                        if line.strip().startswith("sonar.projectKey="):
-                            k = line.split("=", 1)[1].strip()
-                            if k and k not in keys:
-                                keys.append(k)
+        # No Sonar check on the PR (a stacked PR gets no CI): fall back to the projects the
+        # repo declares, keeping only those whose sources the PR touches.
+        projects = declared_sonar_projects(repo_root)
+        paths = changed_paths(pr)
+        for key, roots in projects:
+            if (paths is None or any(covers(r, p) for r in roots for p in paths)) and key not in keys:
+                keys.append(key)
     return keys
+
+
+SONAR_WORKFLOW_KEY = re.compile(r"-Dsonar\.projectKey=([^\s\"']+)")
+WORKING_DIRECTORY = re.compile(r"^\s*working-directory:\s*([^\s#]+)")
+STEP_START = re.compile(r"^\s*-\s")
+
+
+def declared_sonar_projects(repo_root):
+    """(key, source roots) from every sonar-project.properties and every workflow that
+    passes -Dsonar.projectKey (the Maven scanner has no properties file). Roots are
+    repo-relative; '' means the whole repo."""
+    found = []
+    for dirpath, dirnames, filenames in os.walk(repo_root):
+        dirnames[:] = [d for d in dirnames if d not in (".git", "node_modules", "target", "dist", ".venv")]
+        if "sonar-project.properties" not in filenames:
+            continue
+        base = os.path.relpath(dirpath, repo_root)
+        base = "" if base == "." else base
+        key, project_base, sources, tests = None, ".", [], []
+        with open(os.path.join(dirpath, "sonar-project.properties")) as fh:
+            for line in fh:
+                line = line.strip()
+                if line.startswith("sonar.projectKey="):
+                    key = line.split("=", 1)[1].strip()
+                elif line.startswith("sonar.projectBaseDir="):
+                    project_base = line.split("=", 1)[1].strip()
+                elif line.startswith("sonar.sources="):
+                    sources = [s.strip() for s in line.split("=", 1)[1].split(",") if s.strip()]
+                elif line.startswith("sonar.tests="):
+                    tests = [s.strip() for s in line.split("=", 1)[1].split(",") if s.strip()]
+        if key:
+            base = os.path.join(base, project_base)
+            roots = [os.path.normpath(os.path.join(base, s)) for s in (sources or ["."]) + tests]
+            found.append((key, ["" if r == "." else r.replace(os.sep, "/") for r in roots]))
+    workflows = os.path.join(repo_root, ".github", "workflows")
+    if os.path.isdir(workflows):
+        for name in sorted(os.listdir(workflows)):
+            if not name.endswith((".yml", ".yaml")):
+                continue
+            with open(os.path.join(workflows, name)) as fh:
+                lines = fh.read().splitlines()
+            for i, line in enumerate(lines):
+                if line.lstrip().startswith("#"):
+                    continue
+                m = SONAR_WORKFLOW_KEY.search(line)
+                if m:
+                    found.append((m.group(1), [step_working_directory(lines, i)]))
+    return found
+
+
+def step_working_directory(lines, i):
+    """The working-directory of the workflow step that holds line i, or '' if it has none."""
+    start = i
+    while start > 0 and not STEP_START.match(lines[start]):
+        start -= 1
+    step_indent = len(lines[start]) - len(lines[start].lstrip())
+    end = i + 1
+    while end < len(lines):
+        content = lines[end].lstrip()
+        if content and not content.startswith("#") and len(lines[end]) - len(content) <= step_indent:
+            break
+        end += 1
+    for line in lines[start:end]:
+        m = WORKING_DIRECTORY.match(line)
+        if m:
+            root = os.path.normpath(m.group(1).strip("'\""))
+            return "" if root == "." else root.replace(os.sep, "/")
+    return ""
+
+
+def changed_paths(pr):
+    """The PR's changed files, or None when the list is incomplete (then every project counts)."""
+    conn = pr.get("files") or {}
+    if (conn.get("pageInfo") or {}).get("hasNextPage"):
+        return None
+    paths = [n.get("path") for n in conn.get("nodes") or [] if n.get("path")]
+    return paths or None
+
+
+def covers(root, path):
+    return root == "" or path == root or path.startswith(root + "/")
 
 
 def sonar_get(host, token, path, params):
@@ -524,6 +671,9 @@ def sonar_state(pr, settings, repo_root, skip=False):
                 "reason": "not queried on this path"}
     keys = sonar_keys(pr, repo_root)
     if not keys:
+        if repo_root and declared_sonar_projects(repo_root) and changed_paths(pr) is not None:
+            return {"provider": "sonar", "available": True, "fresh": True, "verdict": "clean",
+                    "projects": [], "reason": "PR touches no declared SonarCloud project"}
         return {"provider": "sonar", "available": False, "verdict": None,
                 "reason": "no SonarCloud check or sonar-project.properties found"}
     token = os.environ.get(settings["sonarTokenEnv"], "")
@@ -684,7 +834,7 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, de
         """
         if not st.get("available"):
             reason = st.get("reason") or "unavailable"
-            if required and not CR_OFF.search(reason):
+            if required and not st.get("off") and not CR_OFF.search(reason):
                 blockers.append("%s is unavailable and required: %s" % (key, reason))
             else:
                 warnings.append("%s unavailable: %s" % (key, reason))
@@ -719,7 +869,7 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, de
 
     copilot_cap = settings.get("maxCopilotRounds", 1)
     judge("copilot", cop, required=require_copilot,
-          capped=bool(copilot_cap) and cop.get("rounds", 0) >= copilot_cap)
+          capped=cop.get("rounds", 0) >= copilot_cap)
     judge("coderabbit", crb, required=settings.get("requireCodeRabbit", True))
     judge("sonar", son, required=settings.get("requireSonar", True) and not skip_sonar)
 
@@ -919,18 +1069,20 @@ def copilot_bot_id(pr):
 
 
 def cmd_request(args, ctx):
-    pr, owner, name = ctx["pr"], ctx["owner"], ctx["name"]
+    pr, owner, name, settings = ctx["pr"], ctx["owner"], ctx["name"], ctx["settings"]
     done = []
     if args.copilot:
-        cap = ctx["settings"].get("maxCopilotRounds", 1)
+        cap = settings.get("maxCopilotRounds", 1)
         rounds = copilot_rounds(pr)
-        if cap and rounds >= cap:
-            done.append({
-                "provider": "copilot", "ok": False, "skipped": True,
-                "reason": "round cap spent (%d of %d) - triage what it already said, "
-                          "then hand over; raise maxCopilotRounds to ask again"
-                          % (rounds, cap),
-            })
+        if cap <= 0:
+            reason = "maxCopilotRounds is 0 for this org - Copilot is off; use codex-review-pr"
+        elif rounds >= cap:
+            reason = ("round cap spent (%d of %d) - triage what it already said, "
+                      "then hand over; raise maxCopilotRounds to ask again" % (rounds, cap))
+        else:
+            reason = None
+        if reason:
+            done.append({"provider": "copilot", "ok": False, "skipped": True, "reason": reason})
             args.copilot = False
     if args.copilot:
         bot = copilot_bot_id(pr)
@@ -943,12 +1095,20 @@ def cmd_request(args, ctx):
         done.append({"provider": "copilot", "ok": ok, "botId": bot,
                      "error": None if ok else (err or out).strip()[:300]})
     if args.coderabbit:
-        declined = coderabbit_declined(pr) if not args.full else None
-        body = "@coderabbitai full review" if (args.full or declined) else "@coderabbitai review"
-        out, rc, err = gh(["api", "-X", "POST",
-                           "repos/%s/%s/issues/%d/comments" % (owner, name, pr["number"]),
-                           "-f", "body=%s" % body], check=False)
-        done.append({"provider": "coderabbit", "ok": rc == 0, "error": None if rc == 0 else err.strip()[:300]})
+        if not settings.get("requestCodeRabbit", True):
+            reason = "requestCodeRabbit is false for this org"
+        else:
+            reason = coderabbit_skip(pr, full=args.full)
+        if reason:
+            done.append({"provider": "coderabbit", "ok": False, "skipped": True, "reason": reason})
+        else:
+            # Never escalate on our own: `full review` only when a person passed --full.
+            body = "@coderabbitai full review" if args.full else "@coderabbitai review"
+            out, rc, err = gh(["api", "-X", "POST",
+                               "repos/%s/%s/issues/%d/comments" % (owner, name, pr["number"]),
+                               "-f", "body=%s" % body], check=False)
+            done.append({"provider": "coderabbit", "ok": rc == 0, "body": body,
+                         "error": None if rc == 0 else err.strip()[:300]})
     print(json.dumps({"head": pr["headRefOid"], "requested": done}, indent=2))
 
 
@@ -1245,7 +1405,8 @@ def main():
     p = sub.add_parser("request", help="request or re-request reviews on the current head")
     p.add_argument("--copilot", action="store_true")
     p.add_argument("--coderabbit", action="store_true")
-    p.add_argument("--full", action="store_true", help="CodeRabbit: full review instead of incremental")
+    p.add_argument("--full", action="store_true",
+                   help="CodeRabbit: full review; only when a person asks for it")
     p.add_argument("--all", action="store_true")
 
     p = sub.add_parser("reply", help="reply inside a review thread")
@@ -1283,11 +1444,9 @@ def main():
     if args.cmd == "request":
         ctx = build_ctx(args, need_state=False)
         if args.all or not (args.copilot or args.coderabbit):
-            args.copilot = True
-            # Requesting is cheap; skip only when CodeRabbit itself said it is off.
-            # "No history" is the first request, not a reason to never send one.
-            crb = coderabbit_state(ctx["pr"])
-            args.coderabbit = not (crb.get("note") or CR_OFF.search(crb.get("reason") or ""))
+            # cmd_request decides what to skip: org settings, rate limits, declines
+            # and a ping already sent for this head.
+            args.copilot = args.coderabbit = True
         cmd_request(args, ctx)
         return 0
 

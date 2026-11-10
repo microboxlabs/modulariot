@@ -17,4 +17,12 @@ public interface EpisodeStore {
     Optional<Instant> watermark(String tenantCode, String assetId, String sourceKey);
 
     void setWatermark(String tenantCode, String assetId, String sourceKey, Instant at);
+
+    /**
+     * The operator's close of the symptom's last case on the vehicle, when that case is the newest one and an
+     * operator closed it; read when no episode is kept, as after a restart.
+     */
+    default Optional<OperatorClose> lastOperatorClose(String tenantCode, String assetId, UUID definitionId) {
+        return Optional.empty();
+    }
 }

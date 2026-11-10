@@ -1,8 +1,10 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
 import java.time.Instant;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -19,10 +21,12 @@ public class AssetEpisodes implements EpisodeStore {
     private final String assetId;
     private final long closeRevision;
     private final Map<UUID, Episode> episodes;
+    private final Map<UUID, Episode> loaded;
     private final Map<String, Instant> watermarks;
     private final Set<UUID> saved = new HashSet<>();
     private final Set<UUID> deleted = new HashSet<>();
     private final Set<String> marked = new HashSet<>();
+    private TransitionLog log;
 
     public AssetEpisodes(String tenantCode, String assetId, Map<UUID, Episode> episodes,
             Map<String, Instant> watermarks) {
@@ -35,6 +39,7 @@ public class AssetEpisodes implements EpisodeStore {
         this.assetId = assetId;
         this.closeRevision = closeRevision;
         this.episodes = new HashMap<>(episodes);
+        this.loaded = new HashMap<>(episodes);
         this.watermarks = new HashMap<>(watermarks);
     }
 
@@ -64,6 +69,48 @@ public class AssetEpisodes implements EpisodeStore {
         saved.remove(definitionId);
     }
 
+    /** The symptom's episode as it was loaded, before any change to this snapshot. */
+    public Optional<Episode> loaded(UUID definitionId) {
+        return Optional.ofNullable(loaded.get(definitionId));
+    }
+
+    /**
+     * Recovers only this producer's legacy cases. Metadata joins the snapshot without marking a write:
+     * the evaluator saves it only when it actually advances that case, preserving other producers' updates.
+     */
+    public void restoreCases(TransitionLog log, List<CompiledSymptom> symptoms) {
+        this.log = log;
+        for (CompiledSymptom symptom : symptoms) {
+            Episode e = loaded.get(symptom.definitionId());
+            if (e != null && e.open() && e.tripId() == null && e.lastContext() == null) {
+                TransitionLog.Opening opening = log.opening(tenantCode, e);
+                Episode restored = e.withCaseFrame(opening.tripId(), opening.context());
+                loaded.put(e.definitionId(), restored);
+                episodes.put(e.definitionId(), restored);
+            }
+        }
+    }
+
+    /** Read from the log given to {@link #restoreCases}; empty before it. */
+    @Override
+    public Optional<OperatorClose> lastOperatorClose(String tenant, String asset, UUID definitionId) {
+        return log != null && mine(tenant, asset) ? log.lastOperatorClose(tenant, asset, definitionId)
+                : Optional.empty();
+    }
+
+    /** Keeps the latest applied context on each open case's own trip in the existing episode write. */
+    public void keepContext(String trip, Map<String, Object> context, Instant at, List<CompiledSymptom> symptoms) {
+        if (trip == null) {
+            return;
+        }
+        for (CompiledSymptom s : symptoms) {
+            Episode e = episodes.get(s.definitionId());
+            if (e != null && e.open() && at.equals(e.lastSignalAt()) && trip.equals(e.tripId())) {
+                save(tenantCode, e.withCaseFrame(trip, context));
+            }
+        }
+    }
+
     @Override
     public Optional<Instant> watermark(String tenant, String asset, String sourceKey) {
         return mine(tenant, asset) ? Optional.ofNullable(watermarks.get(sourceKey)) : Optional.empty();
@@ -88,6 +135,13 @@ public class AssetEpisodes implements EpisodeStore {
     /** The operator-close revision captured with this snapshot. */
     long closeRevision() {
         return closeRevision;
+    }
+
+    /** A close invalidates both the episode writes and the transitions derived from this snapshot. */
+    public void requireRevision(long current) {
+        if (current != closeRevision) {
+            throw new ConcurrentModificationException("An operator closed a case after the episodes were loaded");
+        }
     }
 
     boolean hasEpisodes() {

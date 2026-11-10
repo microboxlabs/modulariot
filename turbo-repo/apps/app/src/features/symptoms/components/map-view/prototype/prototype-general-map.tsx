@@ -10,7 +10,8 @@ import MapVisualizationTrip, {
 } from "@/features/geographic-view/components/map-visualization-trip";
 import type { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
 import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
-import { chipText } from "./header-chip";
+import { caseWindowOf } from "@/features/symptoms/model/case-window";
+import { chipText, plateTag } from "./header-chip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../../hooks/use-treatments-general";
 import { useEffect, useMemo, useState } from "react";
@@ -27,6 +28,7 @@ import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import { lugaresLayout } from "../lugares-layout";
 import { caseSpans as spansOf } from "@/features/symptoms/model/level-reason";
+import { useOptionalCallSession } from "./call-center/call-session";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -36,6 +38,7 @@ const MENU_OPTIONS: SelectedOption[] = [
   "copilot",
   "ignore_condition",
   "invalidate_symptom",
+  "record_handling",
 ];
 
 function isSelectedOption(value: string | null): value is SelectedOption {
@@ -126,10 +129,9 @@ export default function PrototypeGeneralMap({
   const [callFlowStep, setCallFlowStep] =
     useState<CallCenterReportedStep | null>(null);
 
-  useEffect(() => {
-    if (pastFormsEnabled) return;
+  const replaceMenuQuery = (open: boolean) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (isFormOpen) {
+    if (open) {
       params.set("open", "1");
       params.set("menu", selectedOption);
     } else {
@@ -140,8 +142,37 @@ export default function PrototypeGeneralMap({
     router.replace(query ? `${pathname}?${query}` : pathname, {
       scroll: false,
     });
+  };
+
+  useEffect(() => {
+    if (pastFormsEnabled || !isFormOpen) return;
+    replaceMenuQuery(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFormOpen, selectedOption]);
+
+  // Clears the query in the same call that closes the panel, before a form's
+  // save pushes the symptom list: the router keeps only the latest navigation,
+  // so a replace from an effect would discard that push.
+  const setPanelOpen = (open: boolean) => {
+    setIsFormOpen(open);
+    if (!open && !pastFormsEnabled) replaceMenuQuery(false);
+  };
+
+  // The call bar asks to see its call: open the call panel when the call is this case's.
+  const callSession = useOptionalCallSession();
+  const focusTick = callSession?.focusTick ?? 0;
+  const callCaseId = callSession?.call?.context.caseId ?? null;
+  const thisCaseId =
+    treatmentData?.symptom_info?.id == null
+      ? null
+      : String(treatmentData.symptom_info.id);
+  useEffect(() => {
+    if (focusTick === 0 || pastFormsEnabled) return;
+    if (callCaseId === null || callCaseId !== thisCaseId) return;
+    setSelectedOption("call_driver");
+    setIsFormOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTick, thisCaseId]);
 
   // The call flow stays narrow (1/3) through contacts/dialing/whatsapp — the
   // map is the more useful half of the screen until there's an actual form
@@ -188,16 +219,21 @@ export default function PrototypeGeneralMap({
     selectedTreatmentIndex?.symptom_id?.toString() ?? ""
   );
 
-  // A case without a trip keeps its opening point on the map, whichever
+  // The case's engine report and opening point stay available whichever
   // timeline entry or pulse is selected.
   const tripless = !tripId && isEngineCaseId(id);
   const { data: caseLocation } = useTreatmentsLocation(
-    "",
-    tripless ? titleCase(treatmentData?.symptom_info?.name) : "",
+    treatmentData?.trip_info?.trip_id ?? tripId ?? "",
+    titleCase(treatmentData?.symptom_info?.name),
     id
   );
   const casePoint = tripless ? firstPoint(caseLocation) : null;
   const caseSpans = useMemo(() => spansOf(treatmentData), [treatmentData]);
+  // The map draws the whole trip; the case's own pulses are highlighted.
+  const caseWindow = useMemo(
+    () => (isEngineCaseId(id) ? caseWindowOf(treatmentData) : null),
+    [id, treatmentData]
+  );
 
   useEffect(() => {
     if (errorTreatments) {
@@ -281,10 +317,11 @@ export default function PrototypeGeneralMap({
                     ),
                   },
                   {
-                    text: chipText(
+                    ...plateTag(
                       loading,
                       treatmentData?.trip_info?.asset_id ?? assetId,
-                      symptomsDict.license_plate as string
+                      treatmentData?.trip_info?.trip_asset_id,
+                      dict
                     ),
                     icon: <FaTruck className="text-gray-900 dark:text-white" />,
                   },
@@ -357,7 +394,7 @@ export default function PrototypeGeneralMap({
             setSelectedTreatment={setSelectedTreatment}
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
             isFormOpen={isFormOpen}
-            setIsFormOpen={setIsFormOpen}
+            setIsFormOpen={setPanelOpen}
             selectedOption={selectedOption}
             setSelectedOption={setSelectedOption}
             onCallFlowStepChange={setCallFlowStep}
@@ -376,15 +413,20 @@ export default function PrototypeGeneralMap({
               isLoading={isLoading}
               tripId={tripId ?? ""}
               filteredLocationData={filteredLocationData ?? null}
+              reportedEngineStatus={
+                caseLocation?.description?.last_reported_engine_status
+              }
               dict={dict}
               selectedTreatmentIndex={selectedTreatmentIndex ?? null}
               setSelectedTreatment={setSelectedTreatment}
               setSelectedTreatmentIndex={setSelectedTreatmentIndex}
               licensePlate={treatmentData?.trip_info?.asset_id ?? null}
+              showAppSignalDetailDefault={false}
               onLugaresChange={setLugaresAbierto}
               casePoint={casePoint}
               caseSpans={caseSpans}
               lostSince={treatmentData?.level_reason?.lost_since ?? null}
+              caseWindow={caseWindow}
             />
           </div>
           {/* Keeps the symptom being called about visible without flipping

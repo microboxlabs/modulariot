@@ -3,6 +3,7 @@
 import { useState, type KeyboardEvent } from "react";
 import {
   HiCheck,
+  HiOutlineLocationMarker,
   HiOutlinePencil,
   HiOutlineTrash,
   HiPlus,
@@ -11,7 +12,48 @@ import {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { SECTION_INPUT_CLASS } from "./contact-person-section";
+import type { TowerTripPlace } from "@/features/symptoms/control-tower/control-tower-api";
 import { normalizeLabel, type ContactBadge } from "./taxonomy-store";
+
+/** The most trip places listed under the input. */
+const MAX_PLACES = 8;
+
+/**
+ * The trip places that match `query` and are not a tag yet, so a tag can be
+ * written exactly as the trips name the place.
+ */
+export function placeSuggestions(
+  places: readonly TowerTripPlace[],
+  badges: readonly ContactBadge[],
+  query: string
+): TowerTripPlace[] {
+  const key = normalizeLabel(query);
+  if (!key) return [];
+  const taken = new Set(badges.map((b) => normalizeLabel(b.name)));
+  return places
+    .filter((p) => {
+      const label = normalizeLabel(p.label);
+      return label.includes(key) && !taken.has(label);
+    })
+    .sort(
+      (a, b) =>
+        Number(normalizeLabel(b.label) === key) -
+        Number(normalizeLabel(a.label) === key)
+    )
+    .slice(0, MAX_PLACES);
+}
+
+/** "Origen de 3 viajes · destino de 1", leaving out a zero. */
+export function placeDetail(place: TowerTripPlace, d: I18nRecord): string {
+  const parts: string[] = [];
+  if (place.origins > 0)
+    parts.push(tr("badgesPlaceOrigin", d, { count: String(place.origins) }));
+  if (place.destinations > 0)
+    parts.push(
+      tr("badgesPlaceDestination", d, { count: String(place.destinations) })
+    );
+  return parts.join(" · ");
+}
 
 export const BADGE_CLASS =
   "inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-300";
@@ -148,8 +190,9 @@ function BadgeSuggestion({
 /**
  * Agrupación card — badges are shared descriptors ([transportista] [norte]
  * [santiago]). Type in the input: existing badges that match show up to add
- * (and rename or delete); when none matches exactly, a "Crear" option makes
- * a new one. The contact's descriptors are listed below.
+ * (and rename or delete), then the live trips' origins and destinations that
+ * are not a badge yet; when none matches exactly, a "Crear" option makes a
+ * new one from the typed text. The contact's descriptors are listed below.
  */
 export default function ContactBadgesSection({
   selectedIds,
@@ -158,6 +201,7 @@ export default function ContactBadgesSection({
   onCreate,
   onRename,
   onDelete,
+  places = [],
   d,
 }: Readonly<{
   selectedIds: readonly string[];
@@ -166,6 +210,8 @@ export default function ContactBadgesSection({
   onCreate: (name: string) => ContactBadge;
   onRename: (id: string, name: string) => boolean;
   onDelete: (id: string) => void;
+  /** The live trips' places, offered as new tags. */
+  places?: readonly TowerTripPlace[];
   d: I18nRecord;
 }>) {
   const [query, setQuery] = useState("");
@@ -174,6 +220,8 @@ export default function ContactBadgesSection({
   const matches = key
     ? badges.filter((b) => normalizeLabel(b.name).includes(key))
     : [];
+  const placeMatches = placeSuggestions(places, badges, query);
+  const exactPlace = places.find((p) => normalizeLabel(p.label) === key);
   const selected = badges.filter((b) => selectedIds.includes(b.id));
 
   const toggle = (id: string) =>
@@ -191,7 +239,7 @@ export default function ContactBadgesSection({
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== "Enter" || !key) return;
     e.preventDefault();
-    add(exact ?? onCreate(query));
+    add(exact ?? onCreate(exactPlace?.label ?? query));
   };
 
   const handleDelete = (id: string) => {
@@ -222,7 +270,22 @@ export default function ContactBadgesSection({
                 d={d}
               />
             ))}
-            {!exact && (
+            {placeMatches.map((p) => (
+              <li key={`place-${p.label}`}>
+                <button
+                  type="button"
+                  onClick={() => add(onCreate(p.label))}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700/50"
+                >
+                  <HiOutlineLocationMarker className="h-4 w-4 shrink-0 text-gray-400" />
+                  <span className="truncate">{p.label}</span>
+                  <span className="ml-auto shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                    {placeDetail(p, d)}
+                  </span>
+                </button>
+              </li>
+            ))}
+            {!exact && !exactPlace && (
               <li>
                 <button
                   type="button"

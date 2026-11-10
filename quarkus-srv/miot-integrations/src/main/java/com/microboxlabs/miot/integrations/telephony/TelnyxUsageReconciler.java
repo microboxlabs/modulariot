@@ -50,14 +50,16 @@ public class TelnyxUsageReconciler {
     private final ObjectMapper json;
     private final Clock clock;
     private final boolean enabled;
+    private WhatsAppUsageRecovery whatsAppRecovery;
 
     @Inject
     public TelnyxUsageReconciler(IntegrationConnectionRepository repository, IntegrationConnectionResolver resolver,
             TelnyxClient client, TelephonyUsageStore usage, ObjectMapper json,
             @ConfigProperty(name = "miot.integrations.telephony.reconcile.enabled", defaultValue = "true")
-            boolean enabled) {
+            boolean enabled, WhatsAppUsageRecovery whatsAppRecovery) {
         this(tenant -> repository.findActiveByProvider(tenant, ProviderType.TELNYX), resolver::resolve, client, usage,
                 json, Clock.systemUTC(), enabled);
+        this.whatsAppRecovery = whatsAppRecovery;
     }
 
     public TelnyxUsageReconciler(Function<String, IntegrationConnection> managedConnection,
@@ -90,19 +92,28 @@ public class TelnyxUsageReconciler {
 
     public Result run() {
         Instant now = clock.instant();
-        int expired = usage.expireStarted(now.minus(IntegrationsTelephony.HOLD));
         IntegrationConnection connection = managedConnection.apply(PlatformScope.TENANT);
         if (connection == null || connection.status() != ConnectionStatus.ACTIVE
                 || !client.serves(connection.baseUrl())) {
-            return new Result(0, 0, 0, 0, expired);
+            return expiredOnly(now);
         }
         ResolvedConnection resolved = resolver.apply(PlatformScope.TENANT, connection);
         String apiKey = resolved.secretString(TelephonyKeys.TOKEN);
         String sipConnectionId = resolved.metadataString(TelephonyKeys.SIP_CONNECTION_ID);
         if (apiKey == null || sipConnectionId == null) {
-            return new Result(0, 0, 0, 0, expired);
+            return expiredOnly(now);
         }
-        return usage.locked("reconcile:" + connection.id(), () -> scan(connection, apiKey, sipConnectionId, now, expired));
+        return usage.locked("reconcile:" + connection.id(), () -> {
+            int recovered = whatsAppRecovery == null ? 0 : whatsAppRecovery.recover(connection.id(), apiKey, now);
+            int expired = usage.expireStarted(now.minus(IntegrationsTelephony.HOLD));
+            Result result = scan(connection, apiKey, sipConnectionId, now, expired);
+            return new Result(result.records(), result.confirmed() + recovered, result.created(), result.skipped(),
+                    result.expired(), result.incomplete(), result.nextPage());
+        });
+    }
+
+    private Result expiredOnly(Instant now) {
+        return new Result(0, 0, 0, 0, usage.expireStarted(now.minus(IntegrationsTelephony.HOLD)));
     }
 
     private Result scan(IntegrationConnection connection, String apiKey, String sipConnectionId, Instant now, int expired) {
@@ -182,7 +193,7 @@ public class TelnyxUsageReconciler {
         String callControlId = text(cdr, "call_control_id") != null ? text(cdr, "call_control_id")
                 : (text(cdr, "id") == null ? null : "cdr:" + text(cdr, "id"));
         String tenant = usage.tenantOfSip(text(cdr, "auth_username"), text(cdr, "connection_id")).orElse(null);
-        if (callControlId == null || tenant == null) {
+        if (callControlId == null || tenant == null || whatsAppOperatorLeg(callControlId)) {
             return Applied.SKIPPED;
         }
         return usage.locked(connectionId, () -> applyLocked(connectionId, cdr, now, callControlId, tenant));
@@ -219,6 +230,12 @@ public class TelnyxUsageReconciler {
         row = row.providerData(callControlId, callee, started, answered, row.caseRef());
         usage.update(row.confirmed(seconds, cost, currency, UsageRow.SOURCE_DETAIL_RECORD, ended, now));
         return Applied.CONFIRMED;
+    }
+
+    /** A WhatsApp call's operator leg: the ledger row is the WhatsApp leg's, priced per WhatsApp minute. */
+    private boolean whatsAppOperatorLeg(String callControlId) {
+        return usage.admissionByParkedCall(callControlId).flatMap(a -> usage.find(a.callRef()))
+                .map(r -> UsageRow.WHATSAPP_CALL.equals(r.channel())).orElse(false);
     }
 
     private static String plus(String number) {

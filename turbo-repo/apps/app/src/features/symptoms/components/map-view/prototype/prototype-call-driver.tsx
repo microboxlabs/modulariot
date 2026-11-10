@@ -12,7 +12,7 @@ import {
 } from "./prototype-api-guard";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
@@ -38,7 +38,9 @@ import {
   CALL_METHOD_LABEL_KEYS,
   type CallMethod,
 } from "./call-center/call-method";
-import CallStatsBadges from "./call-center/call-stats-badges";
+import CallStatsBadges, {
+  callStatsTitle,
+} from "./call-center/call-stats-badges";
 import {
   telephonyDetails,
   type TelephonyCallResult,
@@ -230,7 +232,7 @@ export default function PrototypeCallDriver({
   initialCallTargetPhone?: string;
   /** The contact book id of the person called; absent for the driver or an unsaved number. */
   initialCallTargetContactId?: string;
-  /** The called contact's counts from the book. */
+  /** The called contact's counts in the current case. */
   initialCallTargetStats?: CallStats | null;
   /** Debug call-center flow: which channel the call went through. */
   callMethodUsed?: CallMethod;
@@ -346,6 +348,7 @@ export default function PrototypeCallDriver({
   ]);
 
   const router = useRouter();
+  const { lang } = useParams<{ lang: string }>();
 
   // Shared by both "Finalizar Tratamiento" and "Guardar y hacer otra
   // llamada" — the only difference between them is what happens after the
@@ -412,7 +415,7 @@ export default function PrototypeCallDriver({
         ShowNotification({ type: "success", message: t("treatment_saved") });
       }
       setIsMenuOpen(false);
-      router.push("/symptoms");
+      router.push(`/${lang}/symptoms`);
     } catch {
       ShowNotification({ type: "error", message: t("treatment_save_error") });
     } finally {
@@ -491,6 +494,7 @@ export default function PrototypeCallDriver({
           <CallStatsBadges
             accepted={calledStats.accepted}
             denied={calledStats.denied}
+            title={callStatsTitle(calledStats, null, dict)}
           />
         )}
         {callMethodUsed && CalledMethodIcon && (
@@ -507,6 +511,7 @@ export default function PrototypeCallDriver({
         <div className="min-w-0 flex-1">
           <SelectableDropdown
             fieldKey="who_to_call"
+            ariaLabel={t("proto_section_who")}
             dict={dict}
             value={effectiveCallTargetId}
             onSelect={(o) => {
@@ -561,6 +566,7 @@ export default function PrototypeCallDriver({
         <span className={fieldLabel}>{t("call_result")}</span>
         <OptionsDropdown
           options={resultOptions}
+          ariaLabel={t("call_result")}
           value={resultadoId}
           onSelect={(o) => {
             setResultadoId(o.id);

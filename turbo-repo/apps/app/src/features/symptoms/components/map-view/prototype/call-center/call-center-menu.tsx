@@ -23,6 +23,9 @@ import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   DRIVER_ROLE,
+  rolesIn,
+  rolesOf,
+  type TripPlace,
   type WhoSummary,
 } from "@/features/symptoms/control-tower/step-who";
 import {
@@ -52,15 +55,19 @@ import {
   PlainSection,
 } from "../prototype-form-kit";
 import {
-  calledInCase,
   type CallGroup,
+  callsInCase,
   callPlan,
   contextOfTreatment,
+  type EmptyReason,
+  emptyReason,
   matchesTarget,
   skippedInCase,
   stepAt,
   stepConditions,
+  withCaseCalls,
 } from "./call-plan";
+import { callStatsTitle } from "./call-stats-badges";
 import { guardedSkipStep } from "../prototype-api-guard";
 import {
   ALL_CALL_METHODS,
@@ -105,9 +112,13 @@ function clock(seconds: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+function rolesText(roles: readonly string[], d: I18nRecord) {
+  return roles.join(` ${tr("or", d)} `);
+}
+
 /**
- * A step's heading: "Conductor del viaje", "<Rol> · <empresa transportista>",
- * the role, or the condition itself when the clauses cannot say it.
+ * A step's heading: the trip's driver, "<Rol> · <empresa>", the roles, or a
+ * generic title. Never the condition itself; that is in the tooltip.
  */
 function targetText(
   who: string,
@@ -116,52 +127,125 @@ function targetText(
   d: I18nRecord
 ) {
   if (!who.trim()) return tr("anyone", d);
-  if (!summary) return who;
-  if (summary.driver) return tr("driver", d);
-  if (summary.carrier)
+  const roles = summary ? summary.roles : rolesIn(who);
+  const role = roles.length > 0 ? rolesText(roles, d) : null;
+  if (summary?.driver)
+    return summary.driverField === "second"
+      ? tr("secondDriver", d)
+      : tr("driver", d);
+  if (summary?.carrier || summary?.carrierSelf)
     return tr("groupCarrier", d, {
-      role: summary.role ?? tr("anyRole", d),
+      role: role ?? tr("anyRole", d),
       company: carrierName?.trim() || tr("tripCarrier", d),
     });
-  return summary.role ?? who;
+  if (summary?.company)
+    return tr("groupCarrier", d, {
+      role: role ?? tr("anyRole", d),
+      company: summary.company,
+    });
+  if (summary?.places.length) {
+    const place = placesText(summary.places, d);
+    return role
+      ? tr("groupTripPlace", d, { role, place })
+      : tr("contactsTripPlace", d, { place });
+  }
+  return role ?? tr("matchingContacts", d);
+}
+
+/** "origen del viaje", "destino del viaje" or both. */
+function placesText(places: readonly TripPlace[], d: I18nRecord) {
+  if (places.length > 1) return tr("tripOriginAndDestination", d);
+  return places[0] === "origin"
+    ? tr("tripOrigin", d)
+    : tr("tripDestination", d);
 }
 
 /** What an empty step says. */
-function notInBookText(summary: WhoSummary | null, d: I18nRecord) {
-  if (summary?.driver) return tr("driverNotInBook", d);
-  if (summary?.carrier)
-    return summary.role
-      ? tr("carrierRoleNotInBook", d, { role: summary.role })
-      : tr("carrierNotInBook", d);
-  return tr("noContacts", d);
+function emptyText(reason: EmptyReason, d: I18nRecord) {
+  switch (reason.kind) {
+    case "problem":
+      return tr("conditionProblem", d, { problem: reason.problem });
+    case "driver":
+      return tr("driverNotInBook", d);
+    case "noRole":
+      return tr("noContacts", d);
+    case "carrier":
+      return reason.role
+        ? tr("carrierRoleNotInBook", d, { role: reason.role })
+        : tr("carrierNotInBook", d);
+    case "noMatch": {
+      if (reason.roles.length === 0)
+        return reason.trip ? tr("noneForTrip", d) : tr("noneMatch", d);
+      const role = rolesText(reason.roles, d);
+      return reason.trip
+        ? tr("roleNotForTrip", d, { role })
+        : tr("roleNoMatch", d, { role });
+    }
+  }
 }
 
-/** The role and RUTs a contact created from an empty trip step starts with. */
+const isRuc = (id: string | undefined) => /^\d{11}$/.test(id ?? "");
+
+/** Pick the driver identifier named by the step, including legacy either-driver steps. */
+function driverId(
+  summary: WhoSummary | null,
+  trip: TowerTripContacts | undefined
+) {
+  if (summary?.driverField === "second") return trip?.data.secondDriverRut;
+  if (summary?.driverField === "either")
+    return trip?.data.driverRut ?? trip?.data.secondDriverRut;
+  return trip?.data.driverRut;
+}
+
+/** Literal and trip-place tags a contact created from an empty step starts with. */
+function presetTags(
+  summary: WhoSummary | null,
+  trip: TowerTripContacts | undefined
+): string[] | undefined {
+  if (!summary) return undefined;
+  const places = summary.places.flatMap((p) => trip?.data[p] ?? []);
+  return [...summary.tags, ...places];
+}
+
+/** The role, RUTs and company a contact created from an empty step starts with. */
 function presetFor(
+  who: string,
   summary: WhoSummary | null,
   trip: TowerTripContacts | undefined,
   carrierName: string | undefined
 ): NewContactPreset | undefined {
-  const tripDriverRut =
-    trip?.data.driverRut ??
-    (summary?.driverField === "either"
-      ? trip?.data.secondDriverRut
-      : undefined);
-  const driverRut = tripDriverRut ? normalizeRut(tripDriverRut) : "";
-  const carrierRut = normalizeRut(trip?.data.carrierRut ?? "");
+  const carrierRut = normalizeRut(trip?.data.carrierRut ?? "") || undefined;
+  const company = summary?.company ?? (carrierName?.trim() || undefined);
+  const preset: NewContactPreset = {
+    role: rolesOf(who, summary)[0] ?? "",
+    company: summary?.company ?? undefined,
+    tags: presetTags(summary, trip),
+  };
+  const driverRut = normalizeRut(driverId(summary, trip) ?? "");
   if (summary?.driver && driverRut)
     return {
-      role: DRIVER_ROLE,
+      ...preset,
+      role: preset.role || DRIVER_ROLE,
       nationalId: driverRut,
-      nationalIdType: /^\d{11}$/.test(carrierRut) ? "DNI" : "RUT",
+      nationalIdType: isRuc(carrierRut) ? "DNI" : "RUT",
+    };
+  if (summary?.carrierSelf && carrierRut)
+    return {
+      ...preset,
+      nationalId: carrierRut,
+      nationalIdType: isRuc(carrierRut) ? "OTRO" : "RUT",
+      companyRut: carrierRut,
+      companyTaxIdType: isRuc(carrierRut) ? "RUC" : "RUT",
+      company,
     };
   if (summary?.carrier && carrierRut)
     return {
-      role: summary.role ?? "",
+      ...preset,
       companyRut: carrierRut,
-      companyTaxIdType: /^\d{11}$/.test(carrierRut) ? "RUC" : "RUT",
-      company: carrierName?.trim() || undefined,
+      companyTaxIdType: isRuc(carrierRut) ? "RUC" : "RUT",
+      company,
     };
+  if (preset.role || preset.company || preset.tags?.length) return preset;
   return undefined;
 }
 
@@ -258,20 +342,14 @@ function TargetRow({
       setSavingTripPhone(false);
     }
   };
-  const stats = calledAt
-    ? {
-        lastCallAt: calledAt,
-        accepted: target.stats?.accepted ?? 0,
-        denied: target.stats?.denied ?? 0,
-      }
-    : target.stats;
   return (
     <>
       <ContactRow
         personName={target.personName}
         roleLabel={target.role}
         phone={phone}
-        stats={stats}
+        stats={target.stats}
+        statsTitle={callStatsTitle(target.stats, target.history, dict)}
         recentlyCalled={!!calledAt}
         justCalledLabel={tr("symptoms.call_center_just_called", dict)}
         ariaLabel={`${tr("symptoms.call_center_call_button", dict)} ${target.personName}`}
@@ -372,6 +450,7 @@ function StepGroup({
   scriptContext,
   labels,
   trip,
+  book,
   canSkip,
   canEditContacts,
   dict,
@@ -395,6 +474,8 @@ function StepGroup({
   labels: FieldLabels;
   /** The server's answer for the steps' conditions, with the trip's RUTs. */
   trip: TowerTripContacts | undefined;
+  /** The book's active contacts, to tell "nobody has the role" from "nobody matches". */
+  book: readonly CallTarget[];
   canSkip: boolean;
   canEditContacts: boolean;
   dict: I18nRecord;
@@ -407,9 +488,13 @@ function StepGroup({
   const carrierName = treatmentData?.trip_info?.carrier;
   const tripPhone = tripPhoneE164(treatmentData?.trip_info?.driver_contact);
   const driverRut = trip?.data.driverRut;
-  const preset = presetFor(group.summary, trip, carrierName);
-  const script = callScript(group.step, scriptContext, labels);
   const { step, index } = group;
+  const empty = emptyReason(group, book, trip?.problems?.[index]);
+  const preset =
+    empty.kind === "problem"
+      ? undefined
+      : presetFor(group.who, group.summary, trip, carrierName);
+  const script = callScript(group.step, scriptContext, labels);
   const isDue = index === due;
   const [skipping, setSkipping] = useState(false);
   const [reason, setReason] = useState("");
@@ -440,7 +525,7 @@ function StepGroup({
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current text-[10px]">
           {index + 1}
         </span>
-        <span className="min-w-0 flex-1 truncate">
+        <span className="min-w-0 flex-1 truncate" title={group.who}>
           {targetText(group.who, group.summary, carrierName, d)}
         </span>
         <span>{channelLabel(step.channel, d)}</span>
@@ -493,9 +578,7 @@ function StepGroup({
       {group.targets.length === 0 && !loading && (
         <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
           <p className="min-w-0 flex-1">
-            {lookupFailed
-              ? tr("tripLookupError", d)
-              : notInBookText(group.summary, d)}
+            {lookupFailed ? tr("tripLookupError", d) : emptyText(empty, d)}
           </p>
           {preset && !lookupFailed && (
             <button
@@ -709,6 +792,24 @@ function newTarget(
   };
 }
 
+/** Read engine steps from the same published response as its case SLA; names serve legacy headers. */
+function useCallResponse(treatmentData: TreatmentsGeneralResponseItem | null) {
+  const symptom = treatmentData?.symptom_info;
+  const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
+  const caseLevel = treatmentData?.level_response;
+  const useCaseLevel = caseId !== null && caseLevel !== undefined;
+  const legacy = useLevelResponse(
+    useCaseLevel ? null : (symptom?.name ?? null),
+    useCaseLevel ? null : (symptom?.icu_code ?? null)
+  );
+  return {
+    ...legacy,
+    data: useCaseLevel ? caseLevel : legacy.data,
+    error: useCaseLevel ? undefined : legacy.error,
+    caseId,
+  };
+}
+
 export default function CallCenterMenu({
   dict,
   treatmentData,
@@ -730,7 +831,8 @@ export default function CallCenterMenu({
     data: level,
     error: levelError,
     mutate: refreshLevel,
-  } = useLevelResponse(symptom?.name ?? null, symptom?.icu_code ?? null);
+    caseId,
+  } = useCallResponse(treatmentData);
   const {
     targets,
     addContact,
@@ -741,8 +843,6 @@ export default function CallCenterMenu({
   const { can } = useControlTowerAccess();
   const canEditContacts = can("controltower:contact.write");
   const levelFailed = Boolean(levelError && levelError.status !== 404);
-  // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
-  const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
   const { data: treatments, mutate: refreshTreatments } =
     useSymptomTreatments(caseId);
   const { data: caseContext } = useCaseContext(caseId);
@@ -776,14 +876,35 @@ export default function CallCenterMenu({
     },
     []
   );
-  const selectTarget: OnCall = (target, script) => {
+  const calls = useMemo(
+    () => callsInCase(treatments, targets),
+    [treatments, targets]
+  );
+  const caseTargets = useMemo(
+    () => withCaseCalls(targets, calls),
+    [targets, calls]
+  );
+  // The dialing step and results form show the same per-case counts as the list.
+  const selectTarget: OnCall = (picked, script) => {
     callVersion.current += 1;
+    const target = picked.contactId
+      ? withCaseCalls([picked], calls)[0]
+      : picked;
     if (script) onCall(target, script);
     else onCall(target);
   };
 
   const response = level?.level.response;
-  const steps = response?.operator ? (response.steps ?? NO_STEPS) : NO_STEPS;
+  const caseSla = symptom?.sla_minutes;
+  const slaMinutes =
+    caseId !== null && caseSla !== undefined
+      ? (caseSla ?? 0)
+      : (response?.slaMinutes ?? 0);
+  const needsOperator =
+    caseId !== null && caseSla !== undefined
+      ? slaMinutes > 0
+      : Boolean(response?.operator);
+  const steps = needsOperator ? (response?.steps ?? NO_STEPS) : NO_STEPS;
   const conditions = useMemo(() => stepConditions(steps), [steps]);
   const {
     data: tripView,
@@ -792,10 +913,14 @@ export default function CallCenterMenu({
     error: tripError,
   } = useTripContacts(symptom?.id, conditions);
   const matches = tripView?.matches;
-  const called = useMemo(() => calledInCase(treatments), [treatments]);
+  const called = useMemo(() => {
+    const out = new Map<string, Date>();
+    for (const [id, c] of calls) if (c.lastCallAt) out.set(id, c.lastCallAt);
+    return out;
+  }, [calls]);
   const plan = useMemo(
-    () => callPlan(steps, targets, called, matches),
-    [steps, targets, called, matches]
+    () => callPlan(steps, caseTargets, called, matches),
+    [steps, caseTargets, called, matches]
   );
   const savedSkip = useMemo(
     () => skippedInCase(treatments, since, symptom?.icu_code),
@@ -812,7 +937,7 @@ export default function CallCenterMenu({
   const stepEnd = steps
     .slice(0, due + 1)
     .reduce((sum, s) => sum + (s.budgetMinutes ?? 0) * 60, 0);
-  const sla = (response?.slaMinutes ?? 0) * 60;
+  const sla = slaMinutes * 60;
 
   const handleNewNumber = async (
     { phone, name, preset, script }: NewCallDraft,
@@ -980,6 +1105,7 @@ export default function CallCenterMenu({
                 key={`${skipScope}:step-${group.index}`}
                 group={group}
                 trip={tripView}
+                book={targets}
                 onNewNumber={setAddDraft}
                 due={due}
                 elapsed={elapsed}

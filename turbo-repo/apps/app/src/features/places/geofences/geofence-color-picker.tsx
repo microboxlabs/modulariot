@@ -1,6 +1,7 @@
 "use client";
 
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
+import { usePlacesT } from "../i18n/places-i18n";
 
 function hexSinHash(color: string): string {
   return color.replace(/^#/, "");
@@ -9,12 +10,13 @@ function hexSinHash(color: string): string {
 export default function GeofenceColorPicker({
   color,
   onChange,
-  title = "Color de la geocerca",
+  title,
 }: Readonly<{
   color: string;
   onChange?: (color: string) => void;
   title?: string;
 }>) {
+  const t = usePlacesT();
   if (!onChange) {
     return (
       <span
@@ -29,7 +31,7 @@ export default function GeofenceColorPicker({
     <AdvancedColorPicker
       value={hexSinHash(color)}
       onChange={elegir}
-      title={title}
+      title={title ?? t("form.geofence_color")}
       className="!h-9 !w-9 !min-h-9 !min-w-9 !p-0 !px-0 !py-0 shrink-0 aspect-square"
     />
   );

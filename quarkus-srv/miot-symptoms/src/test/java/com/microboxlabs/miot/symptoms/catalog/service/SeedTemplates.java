@@ -34,9 +34,10 @@ public final class SeedTemplates {
             "/db/migration/symptoms/V0.12.17__event_symptom_templates.sql",
             "/db/migration/symptoms/V0.12.18__speed_templates_escalation.sql",
             "/db/migration/symptoms/V0.12.19__zone_and_hour_templates.sql",
-            "/db/migration/symptoms/V0.12.20__driving_and_rest_templates.sql");
+            "/db/migration/symptoms/V0.12.20__driving_and_rest_templates.sql",
+            "/db/migration/symptoms/V0.12.22__device_events.sql");
 
-    private static final String TEXT = "'((?:[^']|'')*)'";
+    private static final String TEXT = "'((?:[^']|'')*+)'";
     private static final Pattern ROW = Pattern.compile("\\(" + TEXT + ", " + TEXT + ", " + TEXT + ", (NULL|"
             + TEXT + "), " + TEXT + ",\\s*" + TEXT + ",\\s*" + TEXT + "\\)", Pattern.DOTALL);
     /** The rewrites of V0.9.4__signal_without_gps_part.sql, then V0.9.5__panic_rule_optional_read.sql, in order. */
@@ -113,6 +114,21 @@ public final class SeedTemplates {
                 out.replaceAll(t -> t.key().equals(key) ? new SymptomTemplate(t.key(), t.name(), t.family(), t.icon(),
                         description, version, spec) : t);
             }
+        }
+        Matcher policies = Pattern.compile("\\('([^']+)', '(open_and_keep|open_and_close)'\\)")
+                .matcher(read("/db/migration/symptoms/V0.12.26__after_trip_end_policy.sql"));
+        while (policies.find()) {
+            String key = policies.group(1);
+            String policy = policies.group(2);
+            out.replaceAll(t -> {
+                if (!t.key().equals(key)) return t;
+                SymptomSpec s = t.spec();
+                var l = s.lifecycle();
+                SymptomSpec updated = new SymptomSpec(s.source(), s.activation(), s.measure(), s.levels(),
+                        new SymptomSpec.Lifecycle(l.open(), l.close(), l.levelDown(), l.note(), policy),
+                        s.recurrence(), s.family(), s.state());
+                return new SymptomTemplate(t.key(), t.name(), t.family(), t.icon(), t.description(), t.version(), updated);
+            });
         }
         return List.copyOf(out);
     }

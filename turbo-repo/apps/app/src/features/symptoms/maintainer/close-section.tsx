@@ -27,9 +27,14 @@ import {
 } from "./close-form";
 import { moveRow } from "./condition-form";
 import { Problems } from "./rule-problems";
-import SampleTree from "./sample-tree";
+import SampleTree, { type FieldInfos } from "./sample-tree";
 import { PillNumber, PillSelect } from "./ui/pill";
 import Select from "./ui/select";
+import type { SymptomSpec } from "./maintainer-api";
+
+type AfterTripEnd = NonNullable<
+  NonNullable<SymptomSpec["lifecycle"]>["after_trip_end"]
+>;
 
 /**
  * The symptom's close and note rules, the same at every level: shown under
@@ -39,11 +44,15 @@ import Select from "./ui/select";
 export interface LifecycleRules {
   close: string;
   note: string;
+  afterTripEnd?: AfterTripEnd;
+  onAfterTripEnd?: (policy: AfterTripEnd) => void;
   fields: CelField[];
   closeProblems: CelProblem[];
   noteProblems: CelProblem[];
   /** The rule's sample case moments, for the { } mode's tree. */
   samples?: { sample: Record<string, unknown>; label: string }[];
+  /** What the tree says about each field of the case moments. */
+  sampleFields?: FieldInfos;
   onChange: (rules: { close: string; note: string | null }) => void;
 }
 
@@ -407,56 +416,77 @@ export function CloseRules({
     rules.onChange({ close, note: rules.note || null });
   const setNote = (note: string) =>
     rules.onChange({ close: rules.close, note: note || null });
+  const policySelect = (
+    <label className="flex flex-col gap-2 text-sm text-gray-700 dark:text-gray-300">
+      {tr("afterTripEndLabel", d)}
+      <Select
+        value={rules.afterTripEnd ?? "ignore"}
+        disabled={readOnly}
+        onChange={(event) =>
+          rules.onAfterTripEnd?.(event.target.value as AfterTripEnd)
+        }
+      >
+        <option value="ignore">{tr("afterTripEndIgnore", d)}</option>
+        <option value="open_and_keep">{tr("afterTripEndKeep", d)}</option>
+        <option value="open_and_close">{tr("afterTripEndClose", d)}</option>
+      </Select>
+    </label>
+  );
 
   if (mode === "expr")
     return (
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        {samples.length > 0 ? (
-          <SampleTree
-            samples={samples.map((s) => s.sample)}
-            labels={samples.map((s) => s.label)}
-            index={Math.min(index, samples.length - 1)}
-            readOnly={readOnly}
-            d={d}
-            onIndex={setIndex}
-          />
-        ) : (
-          // Holds the tree's column until the first preview comes, so the editors keep their width.
-          <div
-            aria-hidden
-            className="min-h-40 animate-pulse rounded-lg border border-gray-200 bg-gray-50 lg:min-h-80 dark:border-gray-700 dark:bg-gray-800/40"
-          />
-        )}
-        <div className="flex min-w-0 flex-col gap-2">
-          <SectionLabel text={tr("closesCelLabel", d)} d={d} />
-          <CelEditor
-            singleLine
-            readOnly={readOnly}
-            ariaLabel={tr("closesCelLabel", d)}
-            value={rules.close}
-            fields={rules.fields}
-            problems={rules.closeProblems}
-            onChange={setClose}
-          />
-          <Problems items={rules.closeProblems} />
-          <SectionLabel text={tr("notesCelLabel", d)} d={d} />
-          <CelEditor
-            singleLine
-            readOnly={readOnly}
-            ariaLabel={tr("notesCelLabel", d)}
-            placeholder={tr("notesCelPlaceholder", d)}
-            value={rules.note}
-            fields={rules.fields}
-            problems={rules.noteProblems}
-            onChange={setNote}
-          />
-          <Problems items={rules.noteProblems} />
+      <div className="flex flex-col gap-4">
+        {policySelect}
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          {samples.length > 0 ? (
+            <SampleTree
+              samples={samples.map((s) => s.sample)}
+              labels={samples.map((s) => s.label)}
+              index={Math.min(index, samples.length - 1)}
+              fields={rules.sampleFields}
+              readOnly={readOnly}
+              d={d}
+              onIndex={setIndex}
+            />
+          ) : (
+            // Holds the tree's column until the first preview comes, so the editors keep their width.
+            <div
+              aria-hidden
+              className="min-h-40 animate-pulse rounded-lg border border-gray-200 bg-gray-50 lg:min-h-80 dark:border-gray-700 dark:bg-gray-800/40"
+            />
+          )}
+          <div className="flex min-w-0 flex-col gap-2">
+            <SectionLabel text={tr("closesCelLabel", d)} d={d} />
+            <CelEditor
+              singleLine
+              readOnly={readOnly}
+              ariaLabel={tr("closesCelLabel", d)}
+              value={rules.close}
+              fields={rules.fields}
+              problems={rules.closeProblems}
+              onChange={setClose}
+            />
+            <Problems items={rules.closeProblems} />
+            <SectionLabel text={tr("notesCelLabel", d)} d={d} />
+            <CelEditor
+              singleLine
+              readOnly={readOnly}
+              ariaLabel={tr("notesCelLabel", d)}
+              placeholder={tr("notesCelPlaceholder", d)}
+              value={rules.note}
+              fields={rules.fields}
+              problems={rules.noteProblems}
+              onChange={setNote}
+            />
+            <Problems items={rules.noteProblems} />
+          </div>
         </div>
       </div>
     );
 
   return (
     <div className="flex flex-col gap-4">
+      {policySelect}
       <div className="flex flex-col gap-2">
         <SectionLabel text={tr("closeAutoTitle", d)} d={d} />
         {closeRows ? (
@@ -524,14 +554,28 @@ function entryText(e: CaseTimelineEntry, d: I18nRecord): string {
         .filter(Boolean)
         .join(" · ");
     case "CLOSED":
-      return tr("timeline.CLOSED", d);
+      return closeReason(e) === TRIP_ENDED
+        ? tr("timeline.CLOSED_TRIP_ENDED", d)
+        : tr("timeline.CLOSED", d);
   }
+}
+
+/** The platform closed the case because its trip ended. */
+const TRIP_ENDED = "trip_ended";
+
+/** The reason a system close keeps in its context; null for a close rule's. */
+function closeReason(e: CaseTimelineEntry): string | null {
+  const ctx = e.context;
+  if (ctx == null || typeof ctx !== "object") return null;
+  const reason = (ctx as Record<string, unknown>).reason;
+  return typeof reason === "string" ? reason : null;
 }
 
 /** Which rule wrote an entry, when one did. */
 function ruleOf(e: CaseTimelineEntry, d: I18nRecord): string | null {
   if (e.kind === "NOTED") return tr("fromNoteRule", d);
-  if (e.kind === "CLOSED" && e.context != null) return tr("fromCloseRule", d);
+  if (e.kind === "CLOSED" && e.context != null && closeReason(e) !== TRIP_ENDED)
+    return tr("fromCloseRule", d);
   return null;
 }
 

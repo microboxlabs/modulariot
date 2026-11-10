@@ -22,6 +22,7 @@ import {
   type IconKey,
 } from "@/features/common/components/icon-picker-dropdown/icon-registry";
 import { useRegistryIcon } from "@/features/common/components/icon-picker-dropdown/use-registry-icon";
+import { usePlacesT } from "../i18n/places-i18n";
 
 /** Ids viejos del picker de lugares → claves del registro del dashboard. */
 export const LEGACY_A_REGISTRY: Record<string, string> = {
@@ -109,13 +110,14 @@ export function IconPicker({
   fallback: string;
   onChange: (id: string) => void;
 }>) {
+  const t = usePlacesT();
   return (
     <IconPickerDropdown
       value={claveIcono(value, fallback)}
       onChange={onChange}
-      title="Elegir icono"
-      searchPlaceholder="Buscar iconos…"
-      emptyMessage="Sin iconos"
+      title={t("form.icon_choose")}
+      searchPlaceholder={t("form.icon_search")}
+      emptyMessage={t("form.icon_none")}
       className="h-9 w-9 min-h-9 min-w-9 shrink-0 p-0 aspect-square"
     />
   );

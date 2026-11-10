@@ -102,12 +102,8 @@ public class PlatformRoleService {
 
     private Uni<Void> persistAssignments(
             String roleCode, Set<String> assigneeIds, String caller) {
-        Uni<Void> chain = Uni.createFrom().voidItem();
-        for (String personId : assigneeIds) {
-            chain = chain.flatMap(ignored -> new PlatformRoleAssignment(
-                    roleCode, personId, caller).persist().replaceWithVoid());
-        }
-        return chain;
+        return Panache.getSession().flatMap(session -> session.persistAll(assigneeIds.stream()
+                .map(personId -> new PlatformRoleAssignment(roleCode, personId, caller)).toArray()));
     }
 
     private Uni<PlatformRoleDto> loadDto(PlatformRoleDefinition role) {

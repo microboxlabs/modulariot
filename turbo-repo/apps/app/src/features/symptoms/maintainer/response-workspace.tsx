@@ -15,7 +15,8 @@ import type {
   SymptomSpec,
 } from "./maintainer-api";
 import { problemsFor } from "./rule-problems";
-import { caseFields } from "./symptom-rule-sections";
+import { celFieldInfos } from "./sample-tree";
+import { useRuleVariableFields } from "./symptom-rule-sections";
 import { ICU_LEVELS } from "./symptom-labels";
 import { CHANGED_DOT } from "./ui/changed";
 import { LevelIcon } from "./ui/level-icon";
@@ -23,10 +24,15 @@ import { FIELD } from "./ui/response-block";
 import Select from "./ui/select";
 
 const responseSection = (icu: number) => `levels.${icu}.response`;
+const operatorWhenSection = (icu: number) =>
+  `${responseSection(icu)}.operatorWhen`;
 
 function errorCount(findings: Finding[] | undefined, icu: number): number {
   return (findings ?? []).filter(
-    (f) => f.section === responseSection(icu) && f.severity === "ERROR"
+    (f) =>
+      (f.section === responseSection(icu) ||
+        f.section === operatorWhenSection(icu)) &&
+      f.severity === "ERROR"
   ).length;
 }
 
@@ -47,9 +53,12 @@ export function firstResponseLevel(
 
 function summaryText(response: LevelResponse, d: I18nRecord): string {
   if (!response.operator) return tr("noOperator", d);
-  const sla = tr("operatorSla", d, {
+  const base = tr("operatorSla", d, {
     minutes: String(response.slaMinutes ?? ""),
   });
+  const sla = response.operatorWhen
+    ? `${base} · ${tr("operatorConditional", d)}`
+    : base;
   const steps = response.steps?.length ?? 0;
   if (steps === 0) return sla;
   const count =
@@ -193,6 +202,7 @@ export default function ResponseWorkspace({
   onChange: (spec: SymptomSpec) => void;
 }>) {
   const level = levelOf(spec, icu);
+  const caseVariables = useRuleVariableFields().case;
   const response = level.response ?? EMPTY_RESPONSE;
   const name = trDynamic(`levelName${icu}`, d);
   const setResponse = (next: LevelResponse) =>
@@ -204,16 +214,21 @@ export default function ResponseWorkspace({
   const [shownPreview, setShownPreview] = useState(preview);
   if (preview?.cases !== undefined && preview !== shownPreview)
     setShownPreview(preview);
+  const rulesFields = [...caseVariables, ...sourceFields];
   const rules: LifecycleRules = {
     close: lifecycle.close ?? "",
     note: lifecycle.note ?? "",
-    fields: [...caseFields(d), ...sourceFields],
+    afterTripEnd: lifecycle.after_trip_end ?? "ignore",
+    onAfterTripEnd: (after_trip_end) =>
+      onChange({ ...spec, lifecycle: { ...lifecycle, after_trip_end } }),
+    fields: rulesFields,
     closeProblems: problemsFor(findings, "lifecycle.close", d),
     noteProblems: problemsFor(findings, "lifecycle.note", d),
     samples: (shownPreview?.cases ?? []).map((c) => ({
       sample: c.sample,
       label: trDynamic(`caseScenario_${c.scenario}`, d),
     })),
+    sampleFields: celFieldInfos(rulesFields),
     onChange: ({ close, note }) =>
       onChange({ ...spec, lifecycle: { ...lifecycle, close, note } }),
   };
@@ -277,6 +292,10 @@ export default function ResponseWorkspace({
             )}
             symptom={symptom && { ...symptom, icu }}
             rules={rules}
+            operatorCondition={{
+              fields: sourceFields,
+              problems: problemsFor(findings, operatorWhenSection(icu), d),
+            }}
             audience={audience}
             readOnly={readOnly}
             d={d}

@@ -15,7 +15,6 @@ import type { Feature, FeatureCollection, Polygon, LineString } from "geojson";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { useSession } from "next-auth/react";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
-import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
 import { anclaLugar, itemsDesdeFC, type ItemNombre } from "../map/place-labels";
 import type { BadgeMapa } from "../map/place-name-layer";
 import { radioLugarM } from "../map/geofence-lod";
@@ -53,8 +52,8 @@ import { ajustarRutaAMaximo } from "../routes/simplify-route";
 import {
   COLOR_KEY,
   FORM_VACIO,
+  PARENT_KEY,
   TRAY_VACIO,
-  type Categoria,
   type FormLugar,
   type FormTrayecto,
   type InnerGeofence,
@@ -65,11 +64,11 @@ import {
   type Lugar,
   type Trayecto,
   categoriasDeLugar,
+  listaDeLugar,
   colorDeFormLugar,
   colorDeLugar,
   iconoDeLugar,
   metadataAFilas,
-  metadataParaGuardar,
 } from "../places.types";
 import {
   actualizarInner,
@@ -82,14 +81,12 @@ import {
   lugarHijoDesdeInner,
   mensajePadreIncompleto,
   parentPlaceId,
-  payloadInner,
   puntoDentroDelPadre,
 } from "../geofences/inner-geofences";
 import {
   fusionarPorId,
   isLocalId,
   lugarDesdeForm,
-  newLocalId,
   trayectoDesdeForm,
   useLocalPlaces,
 } from "../data/local-store";
@@ -127,16 +124,13 @@ import {
   type FilaConUid,
 } from "../import-export/import-conflicts";
 import {
+  VERSION_INICIAL,
   cambiosLugar,
   cambiosTrayecto,
-  nextVersion,
   type CambioVersion,
+  type TipoVersionado,
   type VersionBump,
 } from "../versioning/versioning";
-import {
-  useVersionesPlaces,
-  type TipoVersionado,
-} from "../versioning/versions-store";
 import type { VersionPendiente } from "../versioning/version-dialog";
 import { resumenSeleccion } from "../catalog/list-selection";
 import { enSerie } from "../data/en-serie";
@@ -149,15 +143,35 @@ import {
   type Borrador,
 } from "../data/draft-store";
 import { cambioLugar, cambioTrayecto } from "../data/form-changes";
+import { esDeStreamhub } from "../data/streamhub-geofences";
 import {
-  LUGARES_EN_LOCAL,
-  URL_GEOCERCAS,
-  esDeStreamhub,
-} from "../data/streamhub-geofences";
-import { errorLugar } from "../geofences/place-validation";
-import { errorTrayecto } from "../routes/trayecto-validation";
+  URL_LUGARES_GUARDADOS,
+  conMetadataGuardada,
+  requestDesdeGeocerca,
+  requestDesdeLugar,
+  requestDesdeTrayecto,
+  type Guardados,
+  type InteriorGuardable,
+  type PlaceRequest,
+  type VersionRequest,
+} from "../data/saved-places";
+import {
+  borrarPlace,
+  guardarPlace,
+  type Escritura,
+} from "../data/saved-places-api";
+import { errorLugar, faltaExternalId } from "../geofences/place-validation";
+import { bloqueaCodigo, useCodigoEnUso } from "./use-codigo-en-uso";
+import { useCodigosInteriores } from "./use-codigos-interiores";
+import { useNombresDeCategoria } from "./use-nombres-categorias";
+import {
+  errorTrayecto,
+  faltaExternalIdTrayecto,
+} from "../routes/trayecto-validation";
+import { textosLugares, type TextosLugares } from "../i18n/places-i18n";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-/** Versión elegida en el diálogo, que se anota al guardar bien. */
+/** Versión elegida en el diálogo, que viaja con la edición. */
 type NuevaVersion = {
   tipo: TipoVersionado;
   id: string;
@@ -166,6 +180,31 @@ type NuevaVersion = {
   descripcion: string;
   cambios: CambioVersion[];
 };
+
+const aVersionRequest = (v: NuevaVersion): VersionRequest => ({
+  bump: v.bump,
+  reason: v.descripcion,
+  changes: v.cambios.map((c) => c.texto),
+});
+
+/** Editado sin saber cómo estaba al abrirlo: el diálogo igual pide su versión. */
+const edicionSinOriginal = (t: TextosLugares): CambioVersion => ({
+  texto: t("workspace.data_edited"),
+  bump: "PATCH",
+});
+
+/** Una edición sin diálogo (importación, quitar una interior de la lista). */
+const versionAutomatica = (
+  bump: VersionBump,
+  reason: string,
+  cambio: string
+): VersionRequest => ({ bump, reason, changes: [cambio] });
+
+/** Al reemplazar con un archivo: cambia la forma (MAYOR) o solo sus datos (PARCHE). */
+function bumpDeReemplazo(antes: PlaceRequest, despues: PlaceRequest) {
+  const forma = (r: PlaceRequest) => JSON.stringify(r.geojson.geometry);
+  return forma(antes) === forma(despues) ? "PATCH" : "MAJOR";
+}
 
 const fetcher = (url: string) =>
   fetch(url).then((r) => {
@@ -179,77 +218,61 @@ function placesReadKey(
   endpoint: string
 ): [string, string] | null {
   if (!enabled || !scope) return null;
-  return [
-    endpoint.startsWith("/") ? endpoint : `/app/api/atc/rpc/${endpoint}`,
-    scope,
-  ];
+  return [endpoint, scope];
 }
-// Como post, pero null cuando el backend no responde (red caída o HTTP != 2xx):
-// el llamador cae al respaldo local.
-const tryPost = async (fn: string, body: Record<string, unknown>) => {
-  try {
-    const r = await fetch(`/app/api/atc/rpc/${fn}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    return r.ok ? await r.json() : null;
-  } catch {
-    return null;
-  }
-};
 // Resultado de un borrado en el servidor; null = el servidor no respondió.
 function mensajeBorrado(
+  t: TextosLugares,
   res: { ok?: boolean; detalle?: string; error?: string } | null,
-  que: "Lugar" | "Trayecto",
+  que: "lugar" | "trayecto",
   habiaCopiaLocal: boolean
 ): string {
+  if (res === null && !habiaCopiaLocal) return t("workspace.delete_no_server");
   if (res === null)
-    return habiaCopiaLocal
-      ? `${que} quitado de este navegador; el servidor no respondió, puede volver a aparecer.`
-      : "No se pudo eliminar: el servidor no respondió.";
-  if (res.ok === false) return `No eliminado — ${res.detalle ?? res.error}`;
-  return `${que} eliminado.`;
+    return t(
+      que === "lugar"
+        ? "workspace.place_removed_locally"
+        : "workspace.route_removed_locally"
+    );
+  if (res.ok === false)
+    return t("workspace.not_deleted", {
+      error: res.detalle ?? res.error ?? "",
+    });
+  return t(
+    que === "lugar" ? "workspace.place_deleted" : "workspace.route_deleted"
+  );
 }
 
 /** Resultado de borrar como toast: éxito, aviso (solo local) o error. */
 const borradoOk = (res: { ok?: boolean } | null): boolean =>
   res !== null && res.ok !== false;
 
-function avisarBorradoLote(total: number, fallidos: number) {
+/** Escritura en miot-places hecha (null = el servidor no respondió). */
+const escrituraOk = (res: Escritura | null): boolean => res?.ok === true;
+
+function avisarBorradoLote(t: TextosLugares, total: number, fallidos: number) {
   if (fallidos === 0) {
     toast.success(
-      total === 1 ? "1 elemento eliminado." : `${total} elementos eliminados.`
+      total === 1
+        ? t("workspace.deleted_one")
+        : t("workspace.deleted_many", { n: total })
     );
     return;
   }
   const ok = total - fallidos;
-  toast.error(
-    `${ok} de ${total} eliminados; ${fallidos} no se pudieron eliminar en el servidor.`
-  );
+  toast.error(t("workspace.deleted_partial", { ok, total, fallidos }));
 }
 
 function avisarBorrado(
+  t: TextosLugares,
   res: { ok?: boolean; detalle?: string; error?: string } | null,
-  que: "Lugar" | "Trayecto",
+  que: "lugar" | "trayecto",
   habiaCopiaLocal: boolean
 ) {
-  const texto = mensajeBorrado(res, que, habiaCopiaLocal);
+  const texto = mensajeBorrado(t, res, que, habiaCopiaLocal);
   if (res !== null && res.ok !== false) toast.success(texto);
   else if (res === null && habiaCopiaLocal) toast.warning(texto);
   else toast.error(texto);
-}
-
-/** Resultado de guardar como toast (no como texto sobre las tarjetas). */
-function avisarGuardado(ok: boolean, okMsg: string) {
-  if (!ok) {
-    toast.error(
-      "No se pudo guardar localmente (almacenamiento lleno o bloqueado)."
-    );
-    return;
-  }
-  if (okMsg === MSG_LOCAL) toast.warning(okMsg);
-  else toast.success(okMsg);
 }
 
 /** Colores de borde bien distintos entre sí (gestor de conflictos). */
@@ -265,11 +288,6 @@ const PALETA_IMPORT = [
   "#C026D3",
   "#0D9488",
 ];
-
-const MSG_LOCAL =
-  "Servidor no disponible — guardado localmente en este navegador.";
-
-type Cuota = { usadas: number; limite: number };
 
 function circuloPoly(
   lat: number,
@@ -292,6 +310,10 @@ const MAX_ZOOM_CREAR = 15;
 const ZOOM_DIRECCION = 16;
 // Tope al crear un círculo: el radio de 20 m cabe entero (nivel edificio).
 const MAX_ZOOM_CIRCULO = 22;
+// Al ir a una geocerca: qué parte del mapa ocupa (a lo ancho y a lo alto) y
+// hasta dónde acerca una muy chica.
+const PARTE_DE_LA_VISTA = 0.6;
+const MAX_ZOOM_IR = 19;
 
 // El tipo guardado manda: un círculo puede venir del servidor con su
 // polígono proyectado y no debe abrirse como polígono de 48 vértices.
@@ -312,7 +334,11 @@ function cajaCirculo(
   ];
 }
 
-function fcLugares(lugares: Lugar[], propios: boolean): FeatureCollection {
+function fcLugares(
+  lugares: Lugar[],
+  propios: boolean,
+  t: TextosLugares
+): FeatureCollection {
   const features: Feature[] = [];
   for (const l of lugares) {
     if (!l.center && !l.polygon) continue;
@@ -322,7 +348,7 @@ function fcLugares(lugares: Lugar[], propios: boolean): FeatureCollection {
     features.push({
       type: "Feature",
       properties: {
-        name: l.name.trim() || "Lugar",
+        name: l.name.trim() || t("map.unnamed_place"),
         color: colorDeLugar(l, propios ? "#1C64F2" : "#6B7280"),
         place_id: l.place_id,
         inner: Boolean(parentPlaceId(l)),
@@ -330,7 +356,10 @@ function fcLugares(lugares: Lugar[], propios: boolean): FeatureCollection {
         radius_m: radioLugarM(l),
         icon: iconoDeLugar(l) ?? "",
       },
-      geometry: { type: "Polygon", coordinates: [ring] } as Polygon,
+      geometry: {
+        type: "Polygon",
+        coordinates: [ring, ...(l.polygon_holes ?? []).map(anilloGeoJSON)],
+      } as Polygon,
     });
   }
   return { type: "FeatureCollection", features };
@@ -406,9 +435,6 @@ async function ajustarACalles(
   };
 }
 
-const MSG_IMPORT_VACIO =
-  "El archivo no tiene filas válidas (CSV, KML o GeoJSON con puntos o polígonos).";
-
 // Mapbox simplifica GeoJSON al alejar el zoom (tolerance 0.375 por defecto):
 // círculos chicos y polígonos detallados pierden vértices y dejan de coincidir
 // con la geocerca real. 0 = dibujar siempre los vértices exactos.
@@ -416,7 +442,6 @@ export const GEOJSON_EXACTO = 0;
 
 const IMP_VACIO = {
   lotes: [] as LoteImport[],
-  catDef: "",
   resultado: null as string | null,
   /** Gestor de conflictos: decisión por fila (uid) y filas marcadas. */
   decisiones: {} as Record<string, DecisionImport>,
@@ -438,7 +463,7 @@ function sinUid(f: FilaImport): FilaImport {
 /** Forma que se está dibujando: la geocerca o una de sus interiores. */
 type FormaPrevia = Pick<
   InnerGeofence,
-  "geom" | "lat" | "lon" | "radius_m" | "vertices" | "cerrado"
+  "geom" | "lat" | "lon" | "radius_m" | "vertices" | "cerrado" | "polygon_holes"
 >;
 
 /**
@@ -469,6 +494,8 @@ function featurePrevia(
   }
   const geom = geometriaDibujo(forma.vertices, forma.cerrado);
   if (!geom) return null;
+  if (geom.type === "Polygon")
+    geom.coordinates.push(...(forma.polygon_holes ?? []).map(anilloGeoJSON));
   const center: LatLon | null =
     forma.lat != null && forma.lon != null ? [forma.lat, forma.lon] : null;
   return {
@@ -504,7 +531,6 @@ function conClicEnForma(f: FormLugar, p: LatLon): FormLugar {
 type DestinoImport = "servidor" | "local" | "rechazada";
 
 type ConteoImport = { creadas: number; locales: number; rechazadas: number };
-const CONTEO_VACIO: ConteoImport = { creadas: 0, locales: 0, rechazadas: 0 };
 
 function contarDestinos(ds: DestinoImport[]): ConteoImport {
   const n = (d: DestinoImport) => ds.filter((x) => x === d).length;
@@ -516,18 +542,23 @@ function contarDestinos(ds: DestinoImport[]): ConteoImport {
 }
 
 /** "Importadas 3 · actualizadas 1 · rechazadas 0" (solo lo que pasó). */
-export function textoResultadoImport(r: {
-  creadas: number;
-  actualizadas: number;
-  reemplazadas: number;
-  locales: number;
-  rechazadas: number;
-}): string {
-  const partes = [`Importadas ${r.creadas}`];
-  if (r.actualizadas) partes.push(`actualizadas ${r.actualizadas}`);
-  if (r.reemplazadas) partes.push(`reemplazadas ${r.reemplazadas}`);
-  if (r.locales) partes.push(`locales ${r.locales}`);
-  partes.push(`rechazadas ${r.rechazadas}`);
+export function textoResultadoImport(
+  r: {
+    creadas: number;
+    actualizadas: number;
+    reemplazadas: number;
+    locales: number;
+    rechazadas: number;
+  },
+  t: TextosLugares = textosLugares()
+): string {
+  const partes = [t("import.result_created", { n: r.creadas })];
+  if (r.actualizadas)
+    partes.push(t("import.result_updated", { n: r.actualizadas }));
+  if (r.reemplazadas)
+    partes.push(t("import.result_replaced", { n: r.reemplazadas }));
+  if (r.locales) partes.push(t("import.result_local", { n: r.locales }));
+  partes.push(t("import.result_rejected", { n: r.rechazadas }));
   return partes.join(" · ");
 }
 
@@ -552,14 +583,17 @@ export function usePlacesWorkspace(
     puedeEditar?: boolean;
     /** Dónde se guarda el borrador del formulario abierto (uno por mapa). */
     ambito?: AmbitoBorrador;
+    /** El diccionario de la página: los textos de Lugares en su idioma. */
+    dict?: I18nRecord;
   }
 ) {
+  const dict = options?.dict;
+  const tx = useMemo(() => textosLugares(dict), [dict]);
   const enabled = options?.enabled ?? true;
   const puedeEditar = options?.puedeEditar ?? true;
   const ambito = options?.ambito ?? "geografico";
   const runtimeConfig = useRuntimeConfig();
   const MAPBOX_TOKEN = runtimeConfig?.MAPBOX_API_KEY;
-  const { carrierMode } = useCarrierMode();
   const { activeOrg } = useOrgScopes();
   const { data: session } = useSession();
   const storageScope =
@@ -637,7 +671,6 @@ export function usePlacesWorkspace(
   // Invalidate late Directions results when the route or identity changes.
   const rutaSeq = useRef(0);
   // versionado: cómo estaba el elemento al abrirlo, para listar qué cambió
-  const versiones = useVersionesPlaces(storageScope);
   const formOriginal = useRef<FormLugar | null>(null);
   const trayOriginal = useRef<FormTrayecto | null>(null);
   // cómo estaba el formulario al abrirse (nuevo o editado): ¿hay cambios?
@@ -649,45 +682,117 @@ export function usePlacesWorkspace(
     (VersionPendiente & { tipo: TipoVersionado; id: string }) | null
   >(null);
 
-  // geocercas: de StreamHub (antes fn_pt4_places); trayectos, categorías y
-  // cuotas siguen en PT4
-  const { data: propios, mutate: refP } = useSWR<Lugar[]>(
-    placesReadKey(enabled, storageScope, URL_GEOCERCAS),
-    scopedFetcher
-  );
-  const { data: globales } = useSWR<Lugar[]>(
-    placesReadKey(enabled && carrierMode, storageScope, "fn_pt4_places_global"),
-    scopedFetcher
-  );
-  const { data: trayectos, mutate: refT } = useSWR<Trayecto[]>(
-    placesReadKey(enabled, storageScope, "fn_pt4_trayectos"),
-    scopedFetcher
-  );
-  const { data: cats } = useSWR<Categoria[]>(
-    placesReadKey(enabled, storageScope, "fn_pt4_categorias"),
-    scopedFetcher
-  );
-  const { data: cuotas, mutate: refQ } = useSWR<{
-    lugares: Cuota;
-    trayectos: Cuota;
-  }>(
-    placesReadKey(enabled && carrierMode, storageScope, "fn_pt4_quota_status"),
+  // solo lo de Lugares (miot-places: geocercas, interiores y trayectos); las
+  // geocercas de StreamHub se están pasando a Lugares y ya no se muestran
+  const { data: guardados, mutate: refG } = useSWR<Guardados>(
+    placesReadKey(enabled, storageScope, URL_LUGARES_GUARDADOS),
     scopedFetcher
   );
   const local = useLocalPlaces(storageScope);
-  // StreamHub is read-only; newly created places stay in this browser.
+  /** Guarda sin perder los tipos de la metadata guardada (ver conMetadataGuardada). */
+  const guardarConTipos = (id: string | null, body: PlaceRequest) =>
+    guardarPlace(id, conMetadataGuardada(id, body, guardados?.metadatos));
+  const lugaresGuardados = useMemo(() => guardados?.lugares ?? [], [guardados]);
+  const trayectosGuardados = useMemo(
+    () => guardados?.trayectos ?? [],
+    [guardados]
+  );
+  const { lugares: propios, trayectos } = useNombresDeCategoria(
+    lugaresGuardados,
+    trayectosGuardados
+  );
+  /** Ids de lo guardado en miot-places: se editan y borran ahí. */
+  const idsGuardados = useMemo(
+    () =>
+      new Set([
+        ...(guardados?.lugares ?? []).map((l) => l.place_id),
+        ...(guardados?.trayectos ?? []).map((t) => t.trayecto_id),
+      ]),
+    [guardados]
+  );
+  /** La versión vigente en el servidor de una geocerca o un trayecto. */
+  const versionDe = useCallback(
+    (tipo: TipoVersionado, id: string | null | undefined) => {
+      if (!id) return null;
+      if (tipo === "lugar")
+        return (
+          guardados?.lugares.find((l) => l.place_id === id)?.version ?? null
+        );
+      return (
+        guardados?.trayectos.find((t) => t.trayecto_id === id)?.version ?? null
+      );
+    },
+    [guardados]
+  );
+  /**
+   * El External ID guardado en el servidor de una geocerca: una vez puesto no
+   * cambia (es su llave con StreamHub).
+   */
+  const codigoDeLugar = useCallback(
+    (id: string | null | undefined) =>
+      guardados?.lugares.find((l) => l.place_id === id)?.external_id ?? null,
+    [guardados]
+  );
+  // StreamHub is read-only; what is saved offline stays in this browser.
   const todosLugares = useMemo(
-    () => fusionarPorId(propios ?? [], local.lugares, (l) => l.place_id),
+    () => fusionarPorId(propios, local.lugares, (l) => l.place_id),
     [propios, local.lugares]
   );
+  // si el External ID escrito está libre: mientras se revisa o si está en uso,
+  // el formulario no sigue adelante
+  const estadoCodigoLugar = useCodigoEnUso({
+    scope: storageScope,
+    codigo: form.external_id,
+    propioId: form.place_id,
+    activo: modo === "lugar" && !codigoDeLugar(form.place_id),
+    t: tx,
+  });
+  const estadoCodigoTrayecto = useCodigoEnUso({
+    scope: storageScope,
+    codigo: tray.external_id,
+    propioId: tray.id,
+    activo: modo === "trayecto",
+    t: tx,
+  });
+  const codigoInteriorFijo = useCallback(
+    (id: string) => !!codigoDeLugar(id),
+    [codigoDeLugar]
+  );
+  const padreDeInteriores = useMemo(
+    () => ({ codigo: form.external_id, nombre: form.name }),
+    [form.external_id, form.name]
+  );
+  // las interiores guardadas que esta edición quita: se borran antes de guardar
+  // las nuevas, así que sus códigos quedan libres para ellas
+  const interioresQuitadas = useMemo(() => {
+    const padre = form.place_id;
+    if (!padre) return new Set<string>();
+    const quedan = new Set(form.inners.map((i) => i.id));
+    return new Set(
+      (guardados?.lugares ?? [])
+        .filter((l) => l.metadata?.[PARENT_KEY] === padre)
+        .map((l) => l.place_id)
+        .filter((id) => !quedan.has(id))
+    );
+  }, [guardados, form.place_id, form.inners]);
+  const estadosCodigoInteriores = useCodigosInteriores({
+    scope: storageScope,
+    inners: form.inners,
+    padre: padreDeInteriores,
+    fija: codigoInteriorFijo,
+    quitadas: interioresQuitadas,
+    activo: modo === "lugar",
+    t: tx,
+  });
+  /** Revisando o en uso: no se sigue; el campo ya dice por qué. */
+  const interioresBloquean = () =>
+    Object.values(estadosCodigoInteriores).some(bloqueaCodigo);
   const todosTrayectos = useMemo(
-    () => fusionarPorId(trayectos ?? [], local.trayectos, (t) => t.trayecto_id),
+    () => fusionarPorId(trayectos, local.trayectos, (t) => t.trayecto_id),
     [trayectos, local.trayectos]
   );
   const refrescarTodo = () => {
-    void refP();
-    void refT();
-    void refQ();
+    void refG();
   };
 
   const lugares = useMemo(
@@ -778,7 +883,8 @@ export function usePlacesWorkspace(
           ? idsConflictoImp.has(l.place_id)
           : !idsOcultosMapa.has(l.place_id)
       ),
-      true
+      true,
+      tx
     );
     if (!importando) return fc;
     // importando: el color de borde propio de cada uno (ver coloresImport)
@@ -795,16 +901,13 @@ export function usePlacesWorkspace(
       })),
     };
   }, [
+    tx,
     todosLugares,
     idsOcultosMapa,
     importando,
     idsConflictoImp,
     coloresImport,
   ]);
-  const fcGlobales = useMemo(
-    () => fcLugares(importando ? [] : (globales ?? []), false),
-    [globales, importando]
-  );
   const fcTray = useMemo(
     () =>
       fcLineas(
@@ -829,11 +932,11 @@ export function usePlacesWorkspace(
   const nombresImport = useMemo(() => {
     if (!importando) return null;
     const guardados = [
-      ...itemsDesdeFC(fcPropios, todosLugares),
-      ...itemsDesdeFC(fcTray),
+      ...itemsDesdeFC(fcPropios, todosLugares, tx),
+      ...itemsDesdeFC(fcTray, [], tx),
     ].map((i) => ({ ...i, abajo: true }));
-    return [...itemsDesdeFC(fcImport), ...guardados];
-  }, [importando, fcImport, fcPropios, fcTray, todosLugares]);
+    return [...itemsDesdeFC(fcImport, [], tx), ...guardados];
+  }, [importando, fcImport, fcPropios, fcTray, todosLugares, tx]);
 
   const FC_VACIA: FeatureCollection = {
     type: "FeatureCollection",
@@ -860,8 +963,8 @@ export function usePlacesWorkspace(
     const padreId = form.place_id || "preview-padre";
     const padre = featurePrevia(form, {
       inner: false,
-      color: colorDeFormLugar(form, cats ?? []),
-      name: form.name.trim() || "Nuevo lugar",
+      color: colorDeFormLugar(form),
+      name: form.name.trim() || tx("workspace.new_place"),
       place_id: padreId,
       parent_id: null,
       icon: form.icon,
@@ -870,7 +973,7 @@ export function usePlacesWorkspace(
       featurePrevia(inner, {
         inner: true,
         color: colorInner(inner),
-        name: inner.name.trim() || "Interior",
+        name: inner.name.trim() || tx("map.unnamed_inner"),
         place_id: inner.id,
         parent_id: padreId,
         icon: "",
@@ -882,12 +985,14 @@ export function usePlacesWorkspace(
     return features.length ? { type: "FeatureCollection", features } : FC_VACIA;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    tx,
     modo,
     form.geom,
     form.lat,
     form.lon,
     form.radius_m,
     form.vertices,
+    form.polygon_holes,
     form.cerrado,
     form.color,
     form.category_id,
@@ -895,7 +1000,6 @@ export function usePlacesWorkspace(
     form.icon,
     form.place_id,
     form.inners,
-    cats,
   ]);
   const prevTrayRawFC = useMemo(
     () => {
@@ -945,7 +1049,7 @@ export function usePlacesWorkspace(
     []
   );
 
-  /** Lugar del badge si es propio (los globales de carrier son de solo lectura). */
+  /** Lugar del badge si se puede editar (los de StreamHub no). */
   const lugarEditableDe = (item: ItemNombre | null): Lugar | null => {
     const l = item?.vistaPrevia ? undefined : item?.lugar;
     // las geocercas de StreamHub no tienen menú de configurar/eliminar
@@ -979,7 +1083,7 @@ export function usePlacesWorkspace(
     const inner = innerEnEdicion(form);
     if (!inner) return;
     if (!puntoDentroDelPadre(form, p)) {
-      setMsg("La geocerca interior debe quedar dentro del lugar.");
+      setMsg(tx("workspace.inner_inside_place"));
       return;
     }
     setMsg(null);
@@ -1184,7 +1288,8 @@ export function usePlacesWorkspace(
   };
 
   const continuarAInteriores = () => {
-    if (mensajePadreIncompleto(form)) return;
+    if (mensajePadreIncompleto(form) || faltaExternalId(form)) return;
+    if (bloqueaCodigo(estadoCodigoLugar)) return;
     setMsg(null);
     setPasoLugar("interiores");
   };
@@ -1326,12 +1431,13 @@ export function usePlacesWorkspace(
     // la forma a la vista (el mapa recién cargado está en su vista inicial)
     cuandoHayaMapa(() => encuadrarBorrador(b));
     const nombre = (b.tipo === "lugar" ? b.form.name : b.tray.name).trim();
-    const que = b.tipo === "lugar" ? "del lugar" : "del trayecto";
+    const sinNombre =
+      b.tipo === "lugar"
+        ? "workspace.recovered_place"
+        : "workspace.recovered_route";
     toast.info(
-      nombre
-        ? `Se recuperó la edición de «${nombre}» sin guardar.`
-        : `Se recuperó la edición ${que} sin guardar.`,
-      { action: { label: "Descartar", onClick: cerrarForm } }
+      nombre ? tx("workspace.recovered_named", { nombre }) : tx(sinNombre),
+      { action: { label: tx("workspace.discard"), onClick: cerrarForm } }
     );
     return true;
   };
@@ -1357,14 +1463,31 @@ export function usePlacesWorkspace(
   };
 
   // Clic en el nombre de la lista: ir al lugar (con zoom de ciudad).
+  /**
+   * Ir a una geocerca: el zoom depende de su tamaño. Ella y sus interiores
+   * quedan enteras en la vista, ocupando una parte (no todo el mapa).
+   */
   const irALugar = (l: Lugar) => {
-    const p = anclaLugar(l);
-    if (p)
-      mapRef.current?.flyTo({
-        center: [p[1], p[0]],
-        zoom: 13,
-        duration: 400,
+    const map = mapRef.current;
+    const hijos = todosLugares.filter((x) => parentPlaceId(x) === l.place_id);
+    const pts = [l, ...hijos].flatMap((x) => {
+      const forma = formaDeLugar(x);
+      return forma ? contorno(forma) : [];
+    });
+    if (map && pts.length > 0) {
+      const el = map.getContainer();
+      const libre = (1 - PARTE_DE_LA_VISTA) / 2;
+      const x = el.clientWidth * libre;
+      const y = el.clientHeight * libre;
+      encuadrarCaja(map, cajaDePuntos(pts), {
+        margen: { top: y, bottom: y, left: x, right: x },
+        maxZoom: MAX_ZOOM_IR,
+        duration: 600,
       });
+      return;
+    }
+    const p = anclaLugar(l);
+    if (p) map?.flyTo({ center: [p[1], p[0]], zoom: 13, duration: 400 });
   };
 
   // Clic en el nombre de un trayecto: ir a él en el mapa.
@@ -1394,6 +1517,7 @@ export function usePlacesWorkspace(
       category_id:
         destino.category_id != null ? String(destino.category_id) : "",
       categorias: categoriasDeLugar(destino),
+      categorias_lista: listaDeLugar(destino),
       address: destino.address ?? "",
       external_id: destino.external_id ?? "",
       radius_m: destino.radius_m ?? 250,
@@ -1402,6 +1526,7 @@ export function usePlacesWorkspace(
       geom: esPoligono(destino) ? "polygon" : "circle",
       cerrado: esPoligono(destino),
       vertices: esPoligono(destino) ? (destino.polygon ?? []) : [],
+      polygon_holes: destino.polygon_holes ?? [],
       icon: iconoDeLugar(destino),
       color: destino.metadata?.[COLOR_KEY] ?? "",
       metadata: metadataAFilas(destino.metadata),
@@ -1416,42 +1541,62 @@ export function usePlacesWorkspace(
     centrarEnVista(anclaLugar(l));
   };
 
+  /** El id en miot-places de lo que se edita; null si se guarda como nuevo. */
+  const idGuardado = (id: string | null | undefined) =>
+    id && idsGuardados.has(id) ? id : null;
+
+  /**
+   * El External ID con que miot-places tiene guardado un lugar o trayecto: se
+   * borra por él. El del servidor, no el de una edición local sin guardar.
+   */
+  const codigoGuardado = (id: string): string | null =>
+    guardados?.lugares.find((l) => l.place_id === id)?.external_id ??
+    guardados?.trayectos.find((t) => t.trayecto_id === id)?.external_id ??
+    null;
+
   const guardarLugar = async () => {
     // algo mal (forma, medidas, vigencia, interiores): no se guarda
-    const error = errorLugar(form);
+    const error = errorLugar(form, tx);
     if (error) {
       setMsg(error);
       return;
     }
+    if (bloqueaCodigo(estadoCodigoLugar) || interioresBloquean()) return;
     const orig = formOriginal.current;
-    if (
-      orig &&
-      pedirVersion("lugar", form.place_id, form.name, cambiosLugar(orig, form))
-    )
+    const id = idGuardado(form.place_id);
+    // toda edición es una versión: sin cambios no hay nada que guardar
+    if (id) {
+      const cambios = orig
+        ? cambiosLugar(orig, form, tx)
+        : [edicionSinOriginal(tx)];
+      pedirVersion("lugar", id, form.name, cambios);
       return;
+    }
     await persistirLugar(null);
   };
 
-  /**
-   * Editado con cambios: antes de guardar, el diálogo de versión. Devuelve si
-   * lo abrió (el guardado sigue desde confirmarVersion).
-   */
+  /** Editado: el diálogo de versión antes de guardar (sigue en confirmarVersion). */
   const pedirVersion = (
     tipo: TipoVersionado,
-    id: string | null,
+    id: string,
     nombre: string,
     cambios: CambioVersion[]
-  ): boolean => {
-    if (!id || cambios.length === 0) return false;
+  ) => {
+    if (cambios.length === 0) {
+      toast.info(tx("workspace.no_changes"));
+      return;
+    }
     setVersionPendiente({
       tipo,
       id,
       nombre,
-      que: tipo === "lugar" ? "la geocerca" : "el trayecto",
-      actual: versiones.versionDe(tipo, id) ?? "",
+      que:
+        tipo === "lugar"
+          ? tx("versioning.the_geofence")
+          : tx("versioning.the_route"),
+      actual: versionDe(tipo, id) ?? VERSION_INICIAL,
       cambios,
     });
-    return true;
   };
 
   const confirmarVersion = (bump: VersionBump, descripcion: string) => {
@@ -1471,85 +1616,41 @@ export function usePlacesWorkspace(
   };
   const cancelarVersion = () => setVersionPendiente(null);
 
-  const anotarVersion = (v: NuevaVersion | null) => {
-    if (!v) return;
-    versiones.registrar(v.tipo, v.id, {
-      version: nextVersion(v.actual, v.bump),
-      bump: v.bump,
-      descripcion: v.descripcion,
-      cambios: v.cambios.map((c) => c.texto),
-    });
-  };
+  /** Las interiores del formulario, con su id si ya están guardadas. */
+  const interioresDe = (padre: Lugar): InteriorGuardable[] =>
+    innersParaGuardar(form.inners).map((inner) => ({
+      lugar: lugarHijoDesdeInner(inner, padre),
+      id: idGuardado(inner.id),
+    }));
 
+  /**
+   * La geocerca con todas sus interiores, en una sola escritura: se guarda
+   * entera o nada. Editada, va con su versión.
+   */
   const persistirLugar = async (version: NuevaVersion | null) => {
-    const innersOk = innersParaGuardar(form.inners);
-    // de prueba en el navegador: PT4 ya no se lee y StreamHub no se escribe
-    if (LUGARES_EN_LOCAL || isLocalId(form.place_id)) {
-      guardarLugarLocal(
-        form.place_id ?? newLocalId(),
-        form.place_id
-          ? "Lugar de prueba actualizado."
-          : "Lugar de prueba guardado en este navegador.",
-        version
-      );
-      return;
-    }
     setGuardando(true);
     setMsg(null);
-    const metadata = metadataParaGuardar(form);
-    const base = {
-      p_name: form.name,
-      p_geometry_type: form.geom,
-      p_category_id: form.category_id ? Number(form.category_id) : null,
-      p_address: form.address || null,
-      p_lat: form.lat,
-      p_lon: form.lon,
-      p_radius_m: form.radius_m,
-      p_vertices: form.geom === "polygon" ? form.vertices : null,
-      p_metadata: metadata,
-      p_external_id: form.external_id || null,
-      p_actor: "app-settings",
-    };
-    const res = form.place_id
-      ? await tryPost("fn_pt4_update_place", {
-          p_place_id: form.place_id,
-          ...base,
-        })
-      : await tryPost("fn_pt4_create_place", base);
-    if (res === null) {
-      setGuardando(false);
-      guardarLugarLocal(form.place_id ?? newLocalId(), MSG_LOCAL, version);
-      return;
-    }
-    if (res?.ok === false) {
-      setGuardando(false);
-      toast.error(`No guardado — ${res?.detalle ?? res?.error}`);
-      return;
-    }
-    const pid = form.place_id ?? res?.place_id;
-    if (pid && (form.active_from || form.active_until)) {
-      const validity = await tryPost("fn_pt4_set_validity", {
-        p_place_id: pid,
-        p_active_from: form.active_from || null,
-        p_active_until: form.active_until || null,
-        p_actor: "app-settings",
-      });
-      if (!borradoOk(validity)) {
-        conservarGuardadoParcial(pid);
-        return;
-      }
-    }
-    if (pid && !(await persistirHijosServidor(pid, innersOk))) {
-      conservarGuardadoParcial(pid);
-      return;
-    }
-    anotarVersion(version);
+    // un lugar de prueba de este navegador se sube como nuevo
+    const id = version ? idGuardado(form.place_id) : null;
+    const padre = lugarDesdeForm(form, [], id ?? "");
+    const res = await guardarConTipos(id, {
+      ...requestDesdeGeocerca(padre, interioresDe(padre)),
+      version: version ? aVersionRequest(version) : undefined,
+    });
     setGuardando(false);
+    if (res === null) {
+      toast.error(tx("workspace.save_no_server"));
+      return;
+    }
+    if (!res.ok) {
+      toast.error(tx("workspace.not_saved", { error: res.error }));
+      return;
+    }
+    // la copia de este navegador (de prueba o sin servidor) ya está arriba
+    if (form.place_id) quitarCopiasLocales(form.place_id);
     setMsg(null);
     toast.success(
-      form.place_id
-        ? "Lugar actualizado."
-        : "Lugar creado y proyectado a geocercas."
+      id ? tx("workspace.place_updated") : tx("workspace.place_saved")
     );
     setForm({ ...FORM_VACIO });
     setPasoLugar("geocerca");
@@ -1557,72 +1658,55 @@ export function usePlacesWorkspace(
     refrescarTodo();
   };
 
-  const conservarGuardadoParcial = (placeId: string) => {
-    setGuardando(false);
-    setForm((current) => ({ ...current, place_id: placeId }));
-    toast.error(
-      "Lugar guardado parcialmente. No se guardaron todos los cambios; conserva la edición para reintentar."
-    );
-    refrescarTodo();
-  };
-
-  const persistirHijosLocal = (parent: ReturnType<typeof lugarDesdeForm>) => {
-    const innersOk = innersParaGuardar(form.inners);
-    const keep = new Set(innersOk.map((i) => i.id));
-    for (const id of idsHijosDe(parent.place_id, todosLugares)) {
-      if (!keep.has(id)) local.deleteLugar(id);
-    }
-    for (const inner of innersOk) {
-      local.saveLugar(lugarHijoDesdeInner(inner, parent));
+  /** Quita de este navegador la copia del lugar y de sus interiores. */
+  const quitarCopiasLocales = (placeId: string) => {
+    for (const id of [placeId, ...idsHijosDe(placeId, local.lugares)]) {
+      local.deleteLugar(id);
     }
   };
 
-  const persistirHijosServidor = async (
-    parentId: string,
-    innersOk: ReturnType<typeof innersParaGuardar>
-  ) => {
-    const keep = new Set(innersOk.map((i) => i.id));
-    const quitadas = idsHijosDe(parentId, todosLugares).filter(
-      (id) => !keep.has(id)
+  /**
+   * Quita interiores guardadas editando su geocerca: es una versión MENOR de
+   * ella, como quitarlas en el formulario.
+   */
+  const quitarInteriores = async (
+    padreId: string,
+    quitar: string[]
+  ): Promise<Escritura | null> => {
+    const padre = todosLugares.find((p) => p.place_id === padreId);
+    if (!padre || !idGuardado(padreId)) {
+      return { ok: false, error: tx("workspace.parent_not_saved") };
+    }
+    const fuera = new Set(quitar);
+    const quedan = todosLugares.filter(
+      (x) =>
+        parentPlaceId(x) === padreId &&
+        !fuera.has(x.place_id) &&
+        idGuardado(x.place_id)
     );
-    const deleted = await enSerie(quitadas, async (id) => {
-      const response = await tryPost("fn_pt4_delete_place", {
-        p_place_id: id,
-        p_actor: "app-settings",
-      });
-      if (borradoOk(response)) local.deleteLugar(id);
-      return response;
+    const cambios = todosLugares
+      .filter((x) => fuera.has(x.place_id))
+      .map((x) => tx("workspace.inner_removed", { nombre: x.name }));
+    return guardarConTipos(padreId, {
+      ...requestDesdeGeocerca(
+        padre,
+        quedan.map((h) => ({ lugar: h, id: h.place_id }))
+      ),
+      version: {
+        bump: "MINOR",
+        reason: tx("workspace.deleted_from_list"),
+        changes: cambios,
+      },
     });
-    if (!deleted.every(borradoOk)) return false;
-    const saved = await enSerie(innersOk, (inner) => {
-      const body = payloadInner(inner, parentId, form);
-      return isLocalId(inner.id)
-        ? tryPost("fn_pt4_create_place", body)
-        : tryPost("fn_pt4_update_place", { p_place_id: inner.id, ...body });
-    });
-    return saved.every(borradoOk);
-  };
-
-  const guardarLugarLocal = (
-    placeId: string,
-    okMsg: string,
-    version: NuevaVersion | null = null
-  ) => {
-    const parent = lugarDesdeForm(form, cats ?? [], placeId);
-    const ok = local.saveLugar(parent);
-    setMsg(null);
-    avisarGuardado(ok, okMsg);
-    if (!ok) return;
-    anotarVersion(version);
-    persistirHijosLocal(parent);
-    setForm({ ...FORM_VACIO });
-    setPasoLugar("geocerca");
-    setModo("ver");
   };
 
   const borrarLugar = (l: Lugar) => {
     if (!puedeEditar || esDeStreamhub(l.place_id)) return;
-    confirmar("Eliminar lugar", l.name, () => void eliminarLugar(l));
+    confirmar(
+      tx("workspace.delete_place"),
+      l.name,
+      () => void eliminarLugar(l)
+    );
   };
 
   /** silencioso: en lote, sin aviso por elemento ni refresco (lo hace el lote). */
@@ -1642,24 +1726,18 @@ export function usePlacesWorkspace(
     for (const id of [...hijos, l.place_id]) local.deleteLugar(id);
     if (isLocalId(l.place_id)) {
       setMsg(null);
-      if (!silencioso) toast.success("Lugar local eliminado.");
+      if (!silencioso) toast.success(tx("workspace.local_place_deleted"));
       return true;
     }
-    await enSerie(
-      hijos.filter((id) => !isLocalId(id)),
-      (id) =>
-        tryPost("fn_pt4_delete_place", {
-          p_place_id: id,
-          p_actor: "app-settings",
-        })
-    );
-    const res = await tryPost("fn_pt4_delete_place", {
-      p_place_id: l.place_id,
-      p_actor: "app-settings",
-    });
+    // en el servidor, la geocerca se lleva sus interiores; una interior se
+    // quita editando su geocerca (es una versión de ella)
+    const padreId = parentPlaceId(l);
+    const res = padreId
+      ? await quitarInteriores(padreId, [l.place_id])
+      : await borrarPlace(codigoGuardado(l.place_id), tx);
     setMsg(null);
     if (silencioso) return borradoOk(res);
-    avisarBorrado(res, "Lugar", habiaCopiaLocal);
+    avisarBorrado(tx, res, "lugar", habiaCopiaLocal);
     refrescarTodo();
     return borradoOk(res);
   };
@@ -1681,6 +1759,8 @@ export function usePlacesWorkspace(
       width_m: t.width_m ?? 30,
       external_id: t.external_id ?? "",
       categorias: t.categorias ?? [],
+      categorias_lista: t.categorias_lista ?? null,
+      categorias_puntos_lista: t.categorias_puntos_lista ?? null,
       pts,
       ajustado: !!t.ajustado,
       vias: [],
@@ -1741,7 +1821,7 @@ export function usePlacesWorkspace(
     if (seq !== rutaSeq.current) return;
     setGuardando(false);
     if (!aj) {
-      setMsg("No se encontró ruta por calles; queda la línea recta.");
+      setMsg(tx("workspace.no_street_route"));
       encuadrarRuta(pts);
       return;
     }
@@ -1800,12 +1880,13 @@ export function usePlacesWorkspace(
   /**
    * Botón guardar del formulario, como un stepper: lleva a la pestaña donde
    * falta algo. Sin origen y destino, al trayecto; desde el trayecto, a la
-   * información; sin nombre, se queda ahí (el formulario marca el campo).
+   * información; sin nombre o External ID, se queda ahí (el formulario marca el
+   * campo).
    */
   const guardarOContinuarTrayecto = () => {
     if (!puntosRecorrido(tray)) {
       cambiarPasoTrayecto("recorrido");
-      setMsg("Ubica al menos el origen (A) y el destino (B).");
+      setMsg(tx("workspace.place_origin_destination"));
       return;
     }
     if (pasoTrayecto === "recorrido") {
@@ -1813,7 +1894,11 @@ export function usePlacesWorkspace(
       return;
     }
     if (!tray.name.trim()) {
-      setMsg("Falta el nombre del trayecto.");
+      setMsg(tx("workspace.route_name_missing"));
+      return;
+    }
+    if (faltaExternalIdTrayecto(tray)) {
+      setMsg(tx("validation.code_missing"));
       return;
     }
     void guardarTrayecto();
@@ -1863,75 +1948,62 @@ export function usePlacesWorkspace(
 
   const guardarTrayecto = async () => {
     // algo mal (recorrido, nombre, ancho): no se guarda
-    const error = errorTrayecto(tray);
+    const error = errorTrayecto(tray, tx);
     if (error) {
       setMsg(error);
       return;
     }
+    if (bloqueaCodigo(estadoCodigoTrayecto)) return;
     const orig = trayOriginal.current;
-    if (
-      orig &&
-      pedirVersion("trayecto", tray.id, tray.name, cambiosTrayecto(orig, tray))
-    )
+    const id = idGuardado(tray.id);
+    // toda edición es una versión: sin cambios no hay nada que guardar
+    if (id) {
+      const cambios = orig
+        ? cambiosTrayecto(orig, tray, tx)
+        : [edicionSinOriginal(tx)];
+      pedirVersion("trayecto", id, tray.name, cambios);
       return;
+    }
     await persistirTrayecto(null);
   };
 
   const persistirTrayecto = async (version: NuevaVersion | null) => {
-    if (isLocalId(tray.id)) {
-      guardarTrayectoLocal(tray.id!, "Trayecto local actualizado.", version);
-      return;
-    }
     setGuardando(true);
-    const res = await tryPost("fn_pt4_save_trayecto", {
-      p_name: tray.name,
-      p_kind: tray.kind,
-      p_width_m: tray.width_m,
-      p_trayecto_id: tray.id,
-      p_external_id: tray.external_id || null,
-      p_points: tray.ajustado && trayPathAjustado ? trayPathAjustado : tray.pts,
-      p_waypoints: tray.pts,
-      p_ajustado: tray.ajustado,
-      p_actor: "app-settings",
+    // uno de prueba de este navegador o uno anterior (PT4) se guarda como nuevo
+    const id = version ? idGuardado(tray.id) : null;
+    const res = await guardarConTipos(id, {
+      ...requestDesdeTrayecto(
+        trayectoDesdeForm(tray, trayPathAjustado, id ?? "")
+      ),
+      version: version ? aVersionRequest(version) : undefined,
     });
     setGuardando(false);
     if (res === null) {
-      guardarTrayectoLocal(tray.id ?? newLocalId(), MSG_LOCAL, version);
+      toast.error(tx("workspace.save_no_server"));
       return;
     }
-    if (res?.ok === false) {
-      toast.error(`No guardado — ${res?.detalle ?? res?.error}`);
+    if (!res.ok) {
+      toast.error(tx("workspace.not_saved", { error: res.error }));
       return;
     }
-    anotarVersion(version);
+    if (tray.id) local.deleteTrayecto(tray.id);
     setMsg(null);
-    toast.success(tray.id ? "Trayecto actualizado." : "Trayecto guardado.");
+    toast.success(
+      id ? tx("workspace.route_updated") : tx("workspace.route_saved")
+    );
     setTray({ ...TRAY_VACIO });
     setTrayPathAjustado(null);
     setModo("ver");
     refrescarTodo();
   };
 
-  const guardarTrayectoLocal = (
-    trayectoId: string,
-    okMsg: string,
-    version: NuevaVersion | null = null
-  ) => {
-    const ok = local.saveTrayecto(
-      trayectoDesdeForm(tray, trayPathAjustado, trayectoId)
-    );
-    setMsg(null);
-    avisarGuardado(ok, okMsg);
-    if (!ok) return;
-    anotarVersion(version);
-    setTray({ ...TRAY_VACIO });
-    setTrayPathAjustado(null);
-    setModo("ver");
-  };
-
   const borrarTrayecto = (t: Trayecto) => {
     if (!puedeEditar) return;
-    confirmar("Eliminar trayecto", t.name, () => void eliminarTrayecto(t));
+    confirmar(
+      tx("workspace.delete_route"),
+      t.name,
+      () => void eliminarTrayecto(t)
+    );
   };
 
   const eliminarTrayecto = async (t: Trayecto, silencioso = false) => {
@@ -1942,16 +2014,13 @@ export function usePlacesWorkspace(
     local.deleteTrayecto(t.trayecto_id);
     if (isLocalId(t.trayecto_id)) {
       setMsg(null);
-      if (!silencioso) toast.success("Trayecto local eliminado.");
+      if (!silencioso) toast.success(tx("workspace.local_route_deleted"));
       return true;
     }
-    const res = await tryPost("fn_pt4_delete_trayecto", {
-      p_trayecto_id: t.trayecto_id,
-      p_actor: "app-settings",
-    });
+    const res = await borrarPlace(codigoGuardado(t.trayecto_id), tx);
     setMsg(null);
     if (silencioso) return borradoOk(res);
-    avisarBorrado(res, "Trayecto", habiaCopiaLocal);
+    avisarBorrado(tx, res, "trayecto", habiaCopiaLocal);
     refrescarTodo();
     return borradoOk(res);
   };
@@ -1961,6 +2030,36 @@ export function usePlacesWorkspace(
    * aviso. Los interiores cuyo lugar también se borra no van aparte: se
    * borran con él.
    */
+  /** Las interiores guardadas aparte: se quitan editando su geocerca. */
+  const separarInteriores = (ls: Lugar[]) => {
+    const esInterior = (l: Lugar) =>
+      Boolean(parentPlaceId(l)) && !isLocalId(l.place_id);
+    return {
+      interiores: ls.filter(esInterior),
+      resto: ls.filter((l) => !esInterior(l)),
+    };
+  };
+
+  /**
+   * Interiores de un lote: una edición (una versión) por geocerca, con todas
+   * las suyas, para que la segunda no choque con la primera.
+   */
+  const eliminarInterioresEnLote = async (
+    interiores: Lugar[]
+  ): Promise<boolean[]> => {
+    const porPadre = new Map<string, string[]>();
+    for (const l of interiores) {
+      const padre = parentPlaceId(l) ?? "";
+      porPadre.set(padre, [...(porPadre.get(padre) ?? []), l.place_id]);
+    }
+    const resultados = await enSerie([...porPadre], async ([padre, ids]) => {
+      const ok = borradoOk(await quitarInteriores(padre, ids));
+      if (ok) for (const id of ids) local.deleteLugar(id);
+      return ids.map(() => ok);
+    });
+    return resultados.flat();
+  };
+
   const borrarSeleccion = (
     lugaresSel: Lugar[],
     trayectosSel: Trayecto[],
@@ -1970,7 +2069,7 @@ export function usePlacesWorkspace(
     // las de StreamHub no se eliminan desde aquí: quedan fuera de la selección
     const editables = lugaresSel.filter((l) => !esDeStreamhub(l.place_id));
     if (editables.length < lugaresSel.length) {
-      toast.info("Las geocercas de StreamHub no se eliminan desde aquí.");
+      toast.info(tx("workspace.streamhub_not_deleted"));
     }
     const ids = new Set(editables.map((l) => l.place_id));
     const sueltos = editables.filter((l) => {
@@ -1980,13 +2079,17 @@ export function usePlacesWorkspace(
     const total = sueltos.length + trayectosSel.length;
     if (total === 0) return;
     confirmar(
-      `Eliminar ${total} elemento${total === 1 ? "" : "s"}`,
-      resumenSeleccion(sueltos.length, trayectosSel.length),
+      total === 1
+        ? tx("workspace.delete_items_one")
+        : tx("workspace.delete_items_many", { n: total }),
+      resumenSeleccion(sueltos.length, trayectosSel.length, tx),
       () =>
         void (async () => {
-          const okLugares = await enSerie(sueltos, (l) =>
-            eliminarLugar(l, true)
-          );
+          const { interiores, resto } = separarInteriores(sueltos);
+          const okLugares = [
+            ...(await enSerie(resto, (l) => eliminarLugar(l, true))),
+            ...(await eliminarInterioresEnLote(interiores)),
+          ];
           const okTrayectos = await enSerie(trayectosSel, (t) =>
             eliminarTrayecto(t, true)
           );
@@ -1995,7 +2098,7 @@ export function usePlacesWorkspace(
           ).length;
           refrescarTodo();
           alTerminar?.();
-          avisarBorradoLote(total, fallidos);
+          avisarBorradoLote(tx, total, fallidos);
         })()
     );
   };
@@ -2007,10 +2110,10 @@ export function usePlacesWorkspace(
     try {
       leidos = await enSerie(files, async (file) => ({
         file,
-        ...(await parsearArchivoLugares(file)),
+        ...(await parsearArchivoLugares(file, tx)),
       }));
     } catch {
-      setMsg("No se pudo leer el archivo.");
+      setMsg(tx("workspace.file_unreadable"));
       return;
     }
     const vacio = leidos.some((l) => l.filas.length === 0);
@@ -2022,7 +2125,7 @@ export function usePlacesWorkspace(
         filas: conUid(filas, file.name),
       }));
     if (!nuevos.length) {
-      if (vacio) setMsg(MSG_IMPORT_VACIO);
+      if (vacio) setMsg(tx("workspace.import_empty"));
       return;
     }
     setImp((s) => {
@@ -2031,17 +2134,6 @@ export function usePlacesWorkspace(
       );
       return { ...s, lotes: [...keep, ...nuevos], resultado: null };
     });
-  };
-
-  const guardarFilaLocal = (fila: FilaImport) => {
-    const catId = imp.catDef ? Number(imp.catDef) : null;
-    const lugar = lugarDesdeFilaImport(
-      fila,
-      cats ?? [],
-      newLocalId(),
-      Number.isFinite(catId) ? catId : null
-    );
-    return local.saveLugar(lugar);
   };
 
   /** Trayecto de una fila importada (nuevo o reemplazando a `trayectoId`). */
@@ -2057,30 +2149,40 @@ export function usePlacesWorkspace(
     external_id: fila.external_id ?? null,
     tipos_puntos: fila.tipos_puntos ?? null,
     categorias_puntos: fila.categorias_puntos ?? null,
+    categorias_puntos_lista: fila.categorias_puntos_selectable ?? null,
   });
 
-  /** Guarda un trayecto importado; sin servidor queda en el respaldo local. */
+  /** Guarda un trayecto importado; sin servidor, queda rechazado. */
   const guardarTrayectoImport = async (
     fila: FilaImport,
     trayectoId: string | null
-  ): Promise<"servidor" | "local" | "rechazada"> => {
-    const t = trayectoDeFila(fila, trayectoId ?? newLocalId());
-    if (trayectoId && isLocalId(trayectoId)) {
-      return local.saveTrayecto(t) ? "local" : "rechazada";
-    }
-    const res = await tryPost("fn_pt4_save_trayecto", {
-      p_name: t.name,
-      p_kind: t.kind,
-      p_width_m: t.width_m,
-      p_trayecto_id: trayectoId,
-      p_external_id: t.external_id,
-      p_points: t.points,
-      p_waypoints: t.waypoints ?? t.points,
-      p_ajustado: t.ajustado,
-      p_actor: "app-settings",
+  ): Promise<DestinoImport> => {
+    const id = idGuardado(trayectoId);
+    const antes = id ? trayectos.find((t) => t.trayecto_id === id) : undefined;
+    if (antes?.categorias?.length && !antes.categorias_lista?.trim())
+      return "rechazada";
+    // el archivo no trae ícono ni categorías: al reemplazar, quedan los guardados
+    const body = requestDesdeTrayecto({
+      ...trayectoDeFila(fila, id ?? ""),
+      icon: antes?.icon ?? null,
+      categorias: antes?.categorias ?? null,
+      categorias_lista: antes?.categorias_lista ?? null,
+      external_id: fila.external_id || antes?.external_id || null,
     });
-    if (res === null) return local.saveTrayecto(t) ? "local" : "rechazada";
-    return res?.ok === false ? "rechazada" : "servidor";
+    const res = await guardarConTipos(id, {
+      ...body,
+      version: antes
+        ? versionAutomatica(
+            bumpDeReemplazo(requestDesdeTrayecto(antes), body),
+            tx("workspace.updated_by_import"),
+            tx("workspace.replaced_with_file")
+          )
+        : undefined,
+    });
+    if (!escrituraOk(res)) return "rechazada";
+    // uno de prueba de este navegador ya está en el servidor
+    if (trayectoId && isLocalId(trayectoId)) local.deleteTrayecto(trayectoId);
+    return "servidor";
   };
 
   // ── Gestor de conflictos del import ──
@@ -2186,126 +2288,125 @@ export function usePlacesWorkspace(
     const radio = poly
       ? null
       : (fila.radius_m ?? l.radius_m ?? FORM_VACIO.radius_m);
+    // un código guardado no cambia: el archivo no lo reemplaza
+    const codigo = codigoDeLugar(l.place_id) || fila.external_id;
     const nuevo: Lugar = {
       ...l,
       name: fila.name,
       address: fila.address ?? l.address,
-      external_id: fila.external_id || l.external_id,
+      external_id: codigo || l.external_id,
       geometry_type: poly ? "polygon" : "circle",
       center: [fila.lat, fila.lon],
       polygon: poly ? (fila.vertices ?? []) : null,
       radius_m: radio,
     };
-    if (isLocalId(l.place_id)) return local.saveLugar(nuevo);
-    const res = await tryPost("fn_pt4_update_place", {
-      p_place_id: l.place_id,
-      p_name: nuevo.name,
-      p_geometry_type: nuevo.geometry_type,
-      p_category_id: l.category_id,
-      p_address: nuevo.address || null,
-      p_lat: fila.lat,
-      p_lon: fila.lon,
-      p_radius_m: radio,
-      p_vertices: nuevo.polygon,
-      p_metadata: l.metadata,
-      p_external_id: nuevo.external_id || null,
-      p_actor: "app-settings",
-    });
-    if (res === null) return local.saveLugar(nuevo);
-    return res?.ok !== false;
+    const res = await guardarReemplazo(l, nuevo);
+    if (!escrituraOk(res)) return false;
+    // uno de prueba de este navegador ya está en el servidor
+    if (isLocalId(l.place_id)) quitarCopiasLocales(l.place_id);
+    return true;
   };
+
+  /**
+   * Guarda lo que trae el archivo en lugar de `l`: nuevo si no estaba guardado;
+   * si no, una versión de la geocerca (o de la geocerca de la interior).
+   */
+  const guardarReemplazo = async (
+    l: Lugar,
+    nuevo: Lugar
+  ): Promise<Escritura | null> => {
+    if (categoriasDeLugar(nuevo).length && !listaDeLugar(nuevo)?.trim())
+      return { ok: false, error: tx("validation.category_list_missing") };
+    const id = idGuardado(l.place_id);
+    const padreId = parentPlaceId(nuevo);
+    if (padreId) return reemplazarInterior(padreId, id, nuevo, l);
+    if (!id) return guardarConTipos(null, requestDesdeLugar(nuevo, null));
+    return guardarConTipos(id, {
+      ...requestDesdeGeocerca(nuevo, interioresGuardadasDe(id)),
+      version: versionAutomatica(
+        bumpDeReemplazo(
+          requestDesdeLugar(l, null),
+          requestDesdeLugar(nuevo, null)
+        ),
+        tx("workspace.updated_by_import"),
+        tx("workspace.replaced_with_file")
+      ),
+    });
+  };
+
+  /** Una interior del archivo: una versión de su geocerca, que la agrega o reemplaza. */
+  const reemplazarInterior = async (
+    padreId: string,
+    id: string | null,
+    nuevo: Lugar,
+    antes: Lugar
+  ): Promise<Escritura | null> => {
+    const padre = todosLugares.find((p) => p.place_id === padreId);
+    if (!padre || !idGuardado(padreId)) {
+      return { ok: false, error: tx("workspace.parent_not_saved") };
+    }
+    const guardadas = interioresGuardadasDe(padreId);
+    const interiores = id
+      ? guardadas.map((h) => (h.id === id ? { lugar: nuevo, id } : h))
+      : [...guardadas, { lugar: nuevo, id: null }];
+    const version = id
+      ? versionAutomatica(
+          bumpDeReemplazo(
+            requestDesdeLugar(antes, null),
+            requestDesdeLugar(nuevo, null)
+          ),
+          tx("workspace.updated_by_import"),
+          tx("workspace.inner_replaced_with_file", { nombre: nuevo.name })
+        )
+      : versionAutomatica(
+          "MINOR",
+          tx("workspace.added_by_import"),
+          tx("workspace.inner_added", { nombre: nuevo.name })
+        );
+    return guardarConTipos(padreId, {
+      ...requestDesdeGeocerca(padre, interiores),
+      version,
+    });
+  };
+
+  /** Las interiores guardadas de una geocerca, como van en su escritura. */
+  const interioresGuardadasDe = (padreId: string): InteriorGuardable[] =>
+    todosLugares
+      .filter((x) => parentPlaceId(x) === padreId && idGuardado(x.place_id))
+      .map((h) => ({ lugar: h, id: h.place_id }));
 
   /** Otro lugar guardado que la fila nueva reemplaza (con sus interiores). */
   const quitarReemplazado = async (l: Lugar): Promise<boolean> => {
     if (esDeStreamhub(l.place_id)) return false;
     const ids = [...idsHijosDe(l.place_id, todosLugares), l.place_id];
     for (const id of ids) local.deleteLugar(id);
-    const resultados = await enSerie(
-      ids.filter((id) => !isLocalId(id)),
-      (id) =>
-        tryPost("fn_pt4_delete_place", {
-          p_place_id: id,
-          p_actor: "app-settings",
-        })
-    );
-    return resultados.every(borradoOk);
+    if (isLocalId(l.place_id)) return true;
+    // en el servidor, la geocerca se lleva sus interiores; una interior se
+    // quita editando su geocerca
+    const padreId = parentPlaceId(l);
+    const res = padreId
+      ? await quitarInteriores(padreId, [l.place_id])
+      : await borrarPlace(codigoGuardado(l.place_id), tx);
+    return escrituraOk(res);
   };
 
-  /** Una fila guardada sola: en el servidor, local si no responde, o rechazada. */
-  const destinoDeFila = (
-    res: { ok?: boolean } | null,
-    fila: FilaImport
-  ): DestinoImport => {
-    if (res === null) return guardarFilaLocal(fila) ? "local" : "rechazada";
-    return res?.ok === false ? "rechazada" : "servidor";
-  };
-
-  /** Puntos (círculos) en una sola llamada; sin servidor, uno a uno en local. */
-  const importarPuntos = async (
-    puntos: FilaImport[],
-    lotes: LoteImport[]
-  ): Promise<ConteoImport> => {
-    if (puntos.length === 0) return CONTEO_VACIO;
-    if (LUGARES_EN_LOCAL)
-      return contarDestinos(puntos.map((f) => destinoDeFila(null, f)));
-    const formatos = [...new Set(lotes.map((l) => l.formato))];
-    const res = await tryPost("fn_pt4_import_places", {
-      p_filename: lotes.map((l) => l.filename).join(", "),
-      p_format: formatos.length === 1 ? (formatos[0] ?? "mixto") : "mixto",
-      p_rows: puntos,
-      p_defaults: {
-        radius_m: FORM_VACIO.radius_m,
-        category_id: imp.catDef ? Number(imp.catDef) : null,
-      },
-      p_actor: "app-settings",
-    });
-    if (res === null)
-      return contarDestinos(puntos.map((f) => destinoDeFila(null, f)));
-    if (res?.ok === false)
-      return { ...CONTEO_VACIO, rechazadas: puntos.length };
-    return {
-      ...CONTEO_VACIO,
-      creadas: Number(res?.creadas ?? puntos.length),
-      rechazadas: Number(res?.rechazadas ?? 0),
-    };
-  };
-
-  const crearPoligonoImport = async (
-    fila: FilaImport
-  ): Promise<DestinoImport> => {
-    if (LUGARES_EN_LOCAL) return destinoDeFila(null, fila);
-    const catId = imp.catDef ? Number(imp.catDef) : null;
-    const res = await tryPost("fn_pt4_create_place", {
-      p_name: fila.name,
-      p_geometry_type: "polygon",
-      p_category_id: Number.isFinite(catId) ? catId : null,
-      p_address: fila.address || null,
-      p_lat: fila.lat,
-      p_lon: fila.lon,
-      p_radius_m: null,
-      p_vertices: fila.vertices,
-      p_metadata: null,
-      p_external_id: fila.external_id || null,
-      p_actor: "app-settings",
-    });
-    return destinoDeFila(res, fila);
+  /** Una geocerca importada, nueva: en el servidor o rechazada. */
+  const crearLugarImport = async (fila: FilaImport): Promise<DestinoImport> => {
+    const lugar = lugarDesdeFilaImport(fila, [], "", null);
+    const res = await guardarConTipos(null, requestDesdeLugar(lugar, null));
+    return escrituraOk(res) ? "servidor" : "rechazada";
   };
 
   const confirmarImport = async () => {
     setGuardando(true);
-    const lotes = imp.lotes ?? [];
     const plan = planImport(filasImp, conflictosImp, imp.decisiones);
     const filas = plan.crear.map(sinUid);
     const lineas = filas.filter(filaEsLinea);
     const geocercas = filas.filter((f) => !filaEsLinea(f));
-    // en este orden, una cosa a la vez: puntos, polígonos, trayectos nuevos,
+    // en este orden, una cosa a la vez: geocercas y trayectos nuevos,
     // trayectos y lugares que se actualizan y, al final, los reemplazados
-    const deLosPuntos = await importarPuntos(
-      geocercas.filter((f) => !filaEsPoligono(f)),
-      lotes
-    );
     const nuevos = contarDestinos([
-      ...(await enSerie(geocercas.filter(filaEsPoligono), crearPoligonoImport)),
+      ...(await enSerie(geocercas, crearLugarImport)),
       ...(await enSerie(lineas, (f) => guardarTrayectoImport(f, null))),
     ]);
     const traysActualizados = await enSerie(
@@ -2325,17 +2426,19 @@ export function usePlacesWorkspace(
     setHoverImportUid(null);
     setImp((s) => ({
       ...s,
-      resultado: textoResultadoImport({
-        creadas: deLosPuntos.creadas + nuevos.creadas,
-        actualizadas: cuenta(trayOk) + cuenta(lugaresActualizados),
-        reemplazadas: cuenta(reemplazos),
-        locales: deLosPuntos.locales + nuevos.locales,
-        rechazadas:
-          deLosPuntos.rechazadas +
-          nuevos.rechazadas +
-          (trayOk.length - cuenta(trayOk)) +
-          (lugaresActualizados.length - cuenta(lugaresActualizados)),
-      }),
+      resultado: textoResultadoImport(
+        {
+          creadas: nuevos.creadas,
+          actualizadas: cuenta(trayOk) + cuenta(lugaresActualizados),
+          reemplazadas: cuenta(reemplazos),
+          locales: nuevos.locales,
+          rechazadas:
+            nuevos.rechazadas +
+            (trayOk.length - cuenta(trayOk)) +
+            (lugaresActualizados.length - cuenta(lugaresActualizados)),
+        },
+        tx
+      ),
       lotes: [],
       decisiones: {},
       seleccion: [],
@@ -2352,19 +2455,17 @@ export function usePlacesWorkspace(
       setImp({ ...IMP_VACIO });
       setModo("ver");
     } else {
-      setImp((s) => ({
-        ...IMP_VACIO,
-        catDef: s.catDef ?? IMP_VACIO.catDef,
-      }));
+      setImp({ ...IMP_VACIO });
       setModo("import");
     }
     setMsg(null);
   };
 
   return {
+    /** Los textos de Lugares en el idioma de la página. */
+    t: tx,
     storageScope,
     MAPBOX_TOKEN,
-    carrierMode,
     mapStyle,
     setMapStyle,
     busca,
@@ -2403,10 +2504,7 @@ export function usePlacesWorkspace(
     confirmar,
     guardando,
     propios,
-    globales,
     trayectos,
-    cats,
-    cuotas,
     local,
     todosLugares,
     todosTrayectos,
@@ -2414,7 +2512,6 @@ export function usePlacesWorkspace(
     editandoLugarId,
     editandoTrayId,
     fcPropios,
-    fcGlobales,
     fcTray,
     prevLugarFC,
     prevTrayRawFC,
@@ -2458,8 +2555,12 @@ export function usePlacesWorkspace(
     versionPendiente,
     confirmarVersion,
     cancelarVersion,
-    versionDe: versiones.versionDe,
-    historialDe: versiones.historialDe,
+    versionDe,
+    codigoDeLugar,
+    estadoCodigoLugar,
+    estadoCodigoTrayecto,
+    estadosCodigoInteriores,
+    codigoInteriorFijo,
     borrarLugar,
     editarTrayecto,
     centroMapa,

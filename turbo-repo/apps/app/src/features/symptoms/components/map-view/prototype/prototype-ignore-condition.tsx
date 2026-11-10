@@ -17,7 +17,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Select, Textarea } from "flowbite-react";
 import { useRef, useState } from "react";
 import { TiDelete } from "react-icons/ti";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -80,6 +80,7 @@ export default function PrototypeIgnoreCondition({
   const submitting = useRef(false);
   const engineProgress = useRef<EngineTreatmentProgress>({});
   const router = useRouter();
+  const { lang } = useParams<{ lang: string }>();
   const t = (k: string) => tr(`symptoms.${k}`, dict);
 
   const { options: motivoOptions } = useSelectableOptions("ignore_reason");
@@ -131,7 +132,7 @@ export default function PrototypeIgnoreCondition({
           : { progress: engineProgress.current }
       );
       setIsMenuOpen(false);
-      router.push("/symptoms");
+      router.push(`/${lang}/symptoms`);
       ShowNotification({ type: "success", message: t("treatment_saved") });
     } catch {
       ShowNotification({ type: "error", message: t("treatment_save_error") });
@@ -153,6 +154,7 @@ export default function PrototypeIgnoreCondition({
         <span className={fieldLabel}>{t("ignore_reason")} *</span>
         <SelectableDropdown
           fieldKey="ignore_reason"
+          ariaLabel={t("ignore_reason")}
           dict={dict}
           value={motivoId}
           onSelect={(o) => setMotivoId(o.id)}

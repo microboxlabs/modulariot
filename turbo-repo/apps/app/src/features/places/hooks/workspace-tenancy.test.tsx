@@ -41,6 +41,7 @@ import { guardarBorrador } from "../data/draft-store";
 import { usePlacesEnMapa } from "./use-places-en-mapa";
 vi.mock("../map/place-name-layer", () => ({ capasNombresGeocercas: () => [] }));
 import { usePlacesWorkspace } from "./use-places-workspace";
+import type { FilaImport } from "../import-export/import-places";
 
 /** El External ID se revisa tras dejar de escribir; hasta entonces no se guarda. */
 const esperarCodigos = (result: {
@@ -57,6 +58,130 @@ beforeEach(() => {
   state.user = "demo-user-a";
   state.token = "";
   state.swr.mockReset().mockReturnValue({ data: undefined, mutate: vi.fn() });
+});
+
+describe("Places batch import", () => {
+  const parent: Lugar = {
+    place_id: "11111111-1111-1111-1111-111111111111",
+    name: "Demo parent",
+    address: null,
+    category: null,
+    category_id: null,
+    geometry_type: "circle",
+    color: null,
+    center: [10, 10],
+    polygon: null,
+    radius_m: 20,
+    metadata: {},
+    external_id: "DEMO-PARENT",
+    active_from: null,
+    active_until: null,
+  };
+  const first: Lugar = {
+    ...parent,
+    place_id: "22222222-2222-2222-2222-222222222222",
+    name: "First inner",
+    center: [0, 0],
+    external_id: "DEMO-FIRST",
+    metadata: { [PARENT_KEY]: parent.place_id },
+  };
+  const second: Lugar = {
+    ...first,
+    place_id: "33333333-3333-3333-3333-333333333333",
+    name: "Second inner",
+    center: [1, 1],
+    external_id: "DEMO-SECOND",
+  };
+  const row = (name: string, coordinate: number): FilaImport => ({
+    uid: name,
+    name,
+    lat: coordinate,
+    lon: coordinate,
+    geometry_type: "circle",
+    radius_m: 20,
+  });
+  const importRows = (
+    result: { current: ReturnType<typeof usePlacesWorkspace> },
+    filas: FilaImport[]
+  ) =>
+    act(() =>
+      result.current.setImp((s) => ({
+        ...s,
+        lotes: [{ filename: "demo.csv", formato: "csv", filas }],
+        decisiones: Object.fromEntries(
+          filas.map((f) => [f.uid!, "nuevo" as const])
+        ),
+      }))
+    );
+
+  it("preserves an earlier inner edit when another row updates the same parent", async () => {
+    const initial = {
+      lugares: [parent, first, second],
+      trayectos: [],
+      metadatos: {},
+    };
+    let current = structuredClone(initial);
+    state.swr.mockImplementation((key: readonly string[] | null) => ({
+      data: key?.[0] === "/app/api/places/items" ? initial : undefined,
+      mutate: async () => current,
+    }));
+    const fetch = vi.fn().mockImplementation(async (_url, init) => {
+      const body = JSON.parse(init.body);
+      current = {
+        ...current,
+        lugares: [
+          parent,
+          ...body.inners.map((inner: { id: string; name: string }) => ({
+            ...(inner.id === first.place_id ? first : second),
+            name: inner.name,
+          })),
+        ],
+      };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ id: parent.place_id }),
+      };
+    });
+    vi.stubGlobal("fetch", fetch);
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    importRows(result, [row("First imported", 0), row("Second imported", 1)]);
+    await act(async () => {
+      await result.current.confirmarImport();
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(
+      JSON.parse(fetch.mock.calls[1]![1].body).inners.map(
+        (inner: { name: string }) => inner.name
+      )
+    ).toEqual(["First imported", "Second imported"]);
+    expect(result.current.guardando).toBe(false);
+  });
+
+  it("never deletes a conflicting place after a rejected replacement", async () => {
+    const a = { ...first, metadata: {} };
+    const b = { ...second, center: [0, 0] as LatLon, metadata: {} };
+    const data = { lugares: [a, b], trayectos: [], metadatos: {} };
+    state.swr.mockImplementation((key: readonly string[] | null) => ({
+      data: key?.[0] === "/app/api/places/items" ? data : undefined,
+      mutate: async () => data,
+    }));
+    const fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: "Conflict" }),
+    });
+    vi.stubGlobal("fetch", fetch);
+    const { result } = renderHook(() => usePlacesWorkspace({ current: null }));
+    importRows(result, [row("Replacement", 0)]);
+    await act(async () => {
+      await result.current.confirmarImport();
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0]![1].method).toBe("PUT");
+    expect(result.current.imp.resultado).toContain("rechazadas");
+    expect(result.current.guardando).toBe(false);
+  });
 });
 
 describe("Places workspace identity", () => {

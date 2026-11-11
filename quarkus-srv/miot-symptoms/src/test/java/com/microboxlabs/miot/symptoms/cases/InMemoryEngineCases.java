@@ -96,6 +96,18 @@ public class InMemoryEngineCases implements EngineCaseStore {
                 .limit(PAGE).toList();
     }
 
+    /** The vehicle of each trip that departed and has not ended, by trip id; its fields are in {@link #trips}. */
+    public final Map<String, String> onTrip = new HashMap<>();
+
+    @Override
+    public long vehiclesOnTrip(String tenantCode, CaseFilter f) {
+        return onTrip.entrySet().stream()
+                .filter(e -> f.tripId() == null || f.tripId().equals(e.getKey()))
+                .filter(e -> f.assetId() == null || e.getValue().toLowerCase().contains(f.assetId().toLowerCase()))
+                .filter(e -> !f.byTrip() || matchesTrip(trips.get(e.getKey()), f))
+                .map(Map.Entry::getValue).distinct().count();
+    }
+
     private static boolean matchesTrip(Trip t, CaseFilter f) {
         if (t == null) {
             return false;

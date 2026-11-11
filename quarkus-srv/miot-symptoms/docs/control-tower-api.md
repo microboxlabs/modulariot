@@ -222,6 +222,7 @@ other `method` is a 400.
 | `getMapSummary` | `GET /map/summary` | Service, fleet and symptom totals shown beside the map |
 | `listMapSymptoms` | `GET /map/symptoms?p_*` | One page of symptoms with `total_rows`, `total_pages`, `page`, `page_size` and `symptom_name_list`. Filters: `p_asset_id`, `p_trip_id`, `p_driver_id`, `p_carrier_id`, `p_origin`, `p_destination`, `p_symptom_name`, `p_icu_code`, `p_page`, `p_page_size`, `p_start_date_historic`, `p_end_date_historic`. Any other is a 400 |
 | `countSymptomConditions` | `GET /map/conditions?from&to` | Symptom counts by condition name. Active symptoms, or with `from` and `to` (ISO-8601, both or neither) those created in that range |
+| `countMapCases` | `GET /map/case-counts?p_*` | The evaluator's cases the list shows, by condition (`conditions`, the keys of `/map/conditions`), and `vehicles_on_trip`: the vehicles on a trips-module trip that departed and has not ended. Takes the list's filters; `p_icu_code` and paging are ignored. Without dates the open cases (`Under Treatment` while one has an open treatment); with dates the cases active in the range, by level. `vehicles_on_trip` uses only the trip filters (trip, vehicle, driver, carrier, origin, destination). Reads no GPS database data, with either value of the legacy setting |
 | `listMapTripSymptoms` | `GET /map/trips/{trip}/symptoms` | The evaluator's cases on one trip, by symptom (below). Reads no GPS database data, with either value of the legacy setting |
 
 `{trip}` is a trip id as cases store it, or the client's service code of a trips-module trip: its feed service's
@@ -386,7 +387,7 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 
 The Next app reaches these through `/app/api/control-tower/*`, and the map
 endpoints through `/app/api/map`, `/app/api/map/resume`,
-`/app/api/symptoms/dashboard` and `/app/api/symptoms/table`. The core
+`/app/api/symptoms/dashboard`, `/app/api/symptoms/table` and `/app/api/symptoms/counts`. The core
 selectables through `/app/api/selectables/*`. Both resolve the active
 organization server-side and forward the user's session token.
 

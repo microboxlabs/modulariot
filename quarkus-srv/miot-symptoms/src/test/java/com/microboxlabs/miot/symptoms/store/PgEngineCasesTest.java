@@ -30,6 +30,43 @@ class PgEngineCasesTest {
     }
 
     @Test
+    void missingTripTablesCountNoCasesByTripAndNoVehiclesOnATrip() {
+        PgEngineCases cases = new PgEngineCases(() -> {
+            throw new PgException("relation does not exist", "ERROR", "42P01", null);
+        });
+
+        assertTrue(cases.matchingCounts("tenant-demo", TRIP_FILTER).isEmpty());
+        assertEquals(0, cases.vehiclesOnTrip("tenant-demo", CaseFilter.OPEN));
+        PgException missing = assertThrows(PgException.class,
+                () -> cases.matchingCounts("tenant-demo", CaseFilter.OPEN));
+        assertEquals("42P01", missing.getSqlState(), "without a trip filter the cases table is missing");
+    }
+
+    @Test
+    void anEmptyDriverOrCarrierMatchesNothing() {
+        PgEngineCases cases = new PgEngineCases(() -> {
+            throw new IllegalStateException("not queried");
+        });
+        CaseFilter noDriver = new CaseFilter(null, null, null, null, null, null, "-.", null, null, null);
+
+        assertTrue(cases.matchingCounts("tenant-demo", noDriver).isEmpty());
+        assertEquals(0, cases.vehiclesOnTrip("tenant-demo", noDriver));
+    }
+
+    @Test
+    void countsPropagateOtherDatabaseFailures() {
+        PgException timeout = new PgException("statement timeout", "ERROR", "57014", null);
+        PgEngineCases cases = new PgEngineCases(() -> {
+            throw timeout;
+        });
+
+        assertSame(timeout, assertThrows(PgException.class,
+                () -> cases.matchingCounts("tenant-demo", TRIP_FILTER)));
+        assertSame(timeout, assertThrows(PgException.class,
+                () -> cases.vehiclesOnTrip("tenant-demo", CaseFilter.OPEN)));
+    }
+
+    @Test
     void tripFiltersPropagateDatabaseFailures() {
         for (RuntimeException failure : List.of(new IllegalStateException("database unavailable"),
                 new PgException("statement timeout", "ERROR", "57014", null),

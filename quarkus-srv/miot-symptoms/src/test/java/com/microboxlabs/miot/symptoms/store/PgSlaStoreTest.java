@@ -101,6 +101,20 @@ class PgSlaStoreTest {
                 CREATE TABLE IF NOT EXISTS miot_fleet.carrier (
                     id uuid PRIMARY KEY, tenant_code text NOT NULL, rut text, legal_name text)
                 """).execute().await().atMost(WAIT);
+        pool.query("ALTER TABLE miot_trips.trip_live ADD COLUMN IF NOT EXISTS end_time timestamptz")
+                .execute().await().atMost(WAIT);
+        pool.query("""
+                CREATE TABLE IF NOT EXISTS miot_trips.trip_milestone (
+                    trip_id uuid NOT NULL, tenant_code text NOT NULL, milestone text NOT NULL, status text NOT NULL)
+                """).execute().await().atMost(WAIT);
+        pool.query("ALTER TABLE miot_trips.trip_milestone ADD COLUMN IF NOT EXISTS confirmed_at timestamptz")
+                .execute().await().atMost(WAIT);
+        pool.query("""
+                CREATE TABLE IF NOT EXISTS miot_trips.stage (
+                    tenant_code text NOT NULL, subject_type text NOT NULL, subject_id uuid NOT NULL,
+                    stage_type text NOT NULL, actual_start timestamptz, version_of uuid,
+                    is_active boolean NOT NULL DEFAULT true)
+                """).execute().await().atMost(WAIT);
         for (String file : MIGRATIONS) {
             try (InputStream in = PgSlaStoreTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
@@ -512,6 +526,75 @@ class PgSlaStoreTest {
         assertEquals(List.of(a), ids(cases.list(tenant,
                 byTrip(null, "76111111-1", null, null).withOpenTreatment())));
         assertTrue(cases.list(tenant, byTrip(null, "77222222-2", null, null).withOpenTreatment()).isEmpty());
+    }
+
+    @Test
+    void countsTheMatchingCasesAndTheVehiclesOnADepartedTrip() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        UUID carrier = UUID.randomUUID();
+        PgIds.query(pool, "INSERT INTO miot_fleet.carrier (id, tenant_code, rut, legal_name) VALUES ($1, $2, $3, 'A')",
+                Tuple.of(carrier, tenant, "76.111.111-1"));
+        Instant now = Instant.now();
+        UUID confirmed = liveTrip(tenant, "12.345.678-9", null, carrier, "Planta Norte", "Puerto Sur");
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.trip_milestone (trip_id, tenant_code, milestone, status, confirmed_at)
+                VALUES ($1, $2, 'departure', 'confirmed', $3)
+                """, Tuple.of(confirmed, tenant, now.minusSeconds(3600).atOffset(java.time.ZoneOffset.UTC)));
+        UUID inTransit = vehicleTrip(tenant, "DEMO02", null);
+        UUID planned = vehicleTrip(tenant, "DEMO03", null);
+        UUID ended = vehicleTrip(tenant, "DEMO04", now.minusSeconds(60));
+        for (UUID trip : List.of(inTransit, ended)) {
+            PgIds.query(pool, """
+                    INSERT INTO miot_trips.stage (tenant_code, subject_type, subject_id, stage_type, actual_start)
+                    VALUES ($1, 'trip', $2, 'transit', $3)
+                    """, Tuple.of(tenant, trip, now.minusSeconds(1800).atOffset(java.time.ZoneOffset.UTC)));
+        }
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.stage (tenant_code, subject_type, subject_id, stage_type, actual_start)
+                VALUES ($1, 'trip', $2, 'transit', $3)
+                """, Tuple.of(tenant, planned, now.plusSeconds(3600).atOffset(java.time.ZoneOffset.UTC)));
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertEquals(2, cases.vehiclesOnTrip(tenant, EngineCaseStore.CaseFilter.OPEN), "departed and not ended");
+        assertEquals(1, cases.vehiclesOnTrip(tenant, byTrip(null, "76111111-1", null, null)));
+        assertEquals(1, cases.vehiclesOnTrip(tenant, byTrip(null, null, "planta norte", null)));
+        assertEquals(1, cases.vehiclesOnTrip(tenant,
+                new EngineCaseStore.CaseFilter(null, "demo02", null, null, null, null)));
+        assertEquals(1, cases.vehiclesOnTrip(tenant,
+                new EngineCaseStore.CaseFilter(inTransit.toString(), null, null, null, null, null)));
+        assertEquals(0, cases.vehiclesOnTrip("other-" + tenant, EngineCaseStore.CaseFilter.OPEN));
+
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 3, 0)),
+                new TransitionLog.Place(confirmed.toString(), null, null, null, null));
+        long b = log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE,
+                "DEMO02", t0.plusSeconds(10), 3, 0, 30)), new TransitionLog.Place(inTransit.toString(), null, null,
+                        null, null)).get(0).caseId();
+        log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE, "DEMO03",
+                t0.plusSeconds(20), 1, 0, 30)), new TransitionLog.Place(null, null, null, null, null));
+        PgIds.query(pool, "INSERT INTO miot_symptoms.treatment (tenant_code, symptom_id, type) VALUES ($1, $2, 'CALL')",
+                Tuple.of(tenant, -b));
+
+        assertEquals(java.util.Set.of(new EngineCaseStore.OpenCount(3, false, 1),
+                new EngineCaseStore.OpenCount(3, true, 1)),
+                java.util.Set.copyOf(cases.matchingCounts(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator())),
+                "the inbox leaves out the level without an operator");
+        assertEquals(java.util.Set.of(new EngineCaseStore.OpenCount(3, false, 1),
+                new EngineCaseStore.OpenCount(3, true, 1), new EngineCaseStore.OpenCount(1, false, 1)),
+                java.util.Set.copyOf(cases.matchingCounts(tenant, EngineCaseStore.CaseFilter.OPEN)));
+        assertEquals(List.of(new EngineCaseStore.OpenCount(3, false, 1)),
+                cases.matchingCounts(tenant, byTrip(null, "76111111-1", null, null)), "the carrier's trip");
+        assertTrue(cases.matchingCounts("other-" + tenant, EngineCaseStore.CaseFilter.OPEN).isEmpty());
+    }
+
+    private static UUID vehicleTrip(String tenant, String asset, Instant endTime) {
+        UUID trip = UUID.randomUUID();
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id, end_time) VALUES ($1, $2, $3, $4)
+                """, Tuple.tuple().addUUID(trip).addString(tenant).addString(asset)
+                .addOffsetDateTime(endTime == null ? null : endTime.atOffset(java.time.ZoneOffset.UTC)));
+        return trip;
     }
 
     @Test

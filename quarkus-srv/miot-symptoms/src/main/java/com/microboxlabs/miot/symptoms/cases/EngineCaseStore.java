@@ -3,9 +3,11 @@ package com.microboxlabs.miot.symptoms.cases;
 import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /** The evaluator's cases: open ones, one by id, the operator's close, and the close after a state change. */
 public interface EngineCaseStore {
@@ -23,6 +25,25 @@ public interface EngineCaseStore {
 
     /** The open cases no hold covers, counted by level and by whether they have an open treatment. */
     List<OpenCount> openCounts(String tenantCode);
+
+    /**
+     * The cases {@link #list} matches, counted by current level and by whether they have an open treatment, without
+     * the list's page limit.
+     */
+    default List<OpenCount> matchingCounts(String tenantCode, CaseFilter filter) {
+        Map<Map.Entry<Integer, Boolean>, Long> counts = list(tenantCode, filter).stream()
+                .collect(Collectors.groupingBy(c -> Map.entry(c.level(), c.treatments() > 0), Collectors.counting()));
+        return counts.entrySet().stream()
+                .map(e -> new OpenCount(e.getKey().getKey(), e.getKey().getValue(), e.getValue())).toList();
+    }
+
+    /**
+     * The vehicles on a trips-module trip now: it departed and has not ended. Of the filter, only the trip's fields
+     * apply: trip, vehicle, driver, carrier, origin and destination. 0 without the trips module.
+     */
+    default long vehiclesOnTrip(String tenantCode, CaseFilter filter) {
+        return 0;
+    }
 
     record TowerCounts(List<OpenCount> active, long ignored) { }
 

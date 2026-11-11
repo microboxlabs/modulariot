@@ -23,7 +23,7 @@ import {
   setBaseRole,
   setRoles,
   useAccessCatalog,
-  useMyAccess,
+  useTeamAccess,
   useTeam,
 } from "./team-api";
 import {
@@ -61,9 +61,9 @@ export default function MemberAccessPage({
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
   const router = useRouter();
   const { data: session } = useSession();
-  const { can } = useMyAccess();
+  const { can } = useTeamAccess();
   const team = useTeam();
-  const { data: catalog } = useAccessCatalog();
+  const { data: catalog, error: catalogError } = useAccessCatalog();
 
   const member = team.data?.members.find((m) => m.userId === userId);
   const teamPath = `/${lang}/users/settings/team`;
@@ -75,10 +75,12 @@ export default function MemberAccessPage({
       backHref={teamPath}
       backLabel={tr("backToTeam", d)}
     >
-      {(team.isLoading || !catalog) && !team.error && (
+      {(team.isLoading || !catalog) && !team.error && !catalogError && (
         <Spinner className="mx-auto" />
       )}
-      {team.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
+      {(team.error || catalogError) && (
+        <Alert color="gray">{tr("loadFailed", d)}</Alert>
+      )}
       {team.data && catalog && !member && (
         <div className={`${CARD} p-10 text-center`}>
           <p className="text-sm text-gray-500 dark:text-gray-400">

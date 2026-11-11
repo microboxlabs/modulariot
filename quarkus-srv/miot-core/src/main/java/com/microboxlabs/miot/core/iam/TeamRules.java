@@ -64,13 +64,14 @@ public final class TeamRules {
     /** {@link #checkGrant(Access, Collection, AccessRegistry)} over the organization's module and custom roles. */
     public static void checkGrant(Access actor, Collection<String> roleKeys, OrgRoles roles) {
         AccessRegistry registry = roles.registry();
+        boolean administrator = actor.member() && actor.baseRole().atLeast(BaseRole.ADMIN);
         for (String key : roleKeys) {
             Set<String> permissions = roles.permissions(key)
                     .orElseThrow(() -> new IllegalArgumentException("Unknown role: " + key));
             for (String permission : permissions) {
                 boolean explicitOnly = registry.permissions().stream()
                         .anyMatch(p -> p.key().equals(permission) && p.explicitOnly());
-                if (!explicitOnly && !actor.can(permission)) {
+                if (!actor.can(permission) && !(explicitOnly && administrator)) {
                     throw new SecurityException("You cannot grant " + key + ": it gives " + permission);
                 }
             }

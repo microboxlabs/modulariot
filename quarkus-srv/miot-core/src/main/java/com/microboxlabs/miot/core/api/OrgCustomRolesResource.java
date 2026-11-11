@@ -64,6 +64,15 @@ public class OrgCustomRolesResource {
         return IamResponses.ok(() -> roles.list(organizationId));
     }
 
+    @GET
+    @Path("/management")
+    @Operation(operationId = "customRoleManagementAccess", summary = "Whether the caller manages roles of the root organization")
+    @PermissionsAllowed(value = CoreAccessCatalog.MEMBERS_READ, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> management(@PathParam(ORG) String organizationId,
+            @HeaderParam(IamIdentityAugmentor.DEV_EMAIL_HEADER) String devEmail) {
+        return IamResponses.ok(() -> roles.managementAccess(organizationId, caller(devEmail)));
+    }
+
     @POST
     @Operation(operationId = "createCustomRole",
             summary = "Create a custom role from catalog permissions. Owner or Admin only")

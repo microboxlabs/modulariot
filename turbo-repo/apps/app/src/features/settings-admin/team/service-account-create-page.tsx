@@ -22,7 +22,11 @@ import {
   SectionTitle,
 } from "./module-access";
 import { SecretOnce } from "./secret-once";
-import { createServiceAccount, useAccessCatalog } from "./team-api";
+import {
+  createServiceAccount,
+  useAccessCatalog,
+  useTeamAccess,
+} from "./team-api";
 import {
   catalogModules,
   customRolesOf,
@@ -45,6 +49,8 @@ export default function ServiceAccountCreatePage({
 }: ServiceAccountCreatePageProps) {
   const d = dict?.team as I18nRecord;
   const { data: catalog, error } = useAccessCatalog();
+  const { access, accessError, can } = useTeamAccess();
+  const allowed = can("apikeys:manage");
   const keysPath = `/${lang}/users/settings/team?tab=keys`;
   const [created, setCreated] = useState<CreatedServiceAccount | null>(null);
 
@@ -55,9 +61,14 @@ export default function ServiceAccountCreatePage({
       backHref={keysPath}
       backLabel={tr("backToKeys", d)}
     >
-      {!catalog && !error && <Spinner className="mx-auto" />}
-      {error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
-      {catalog && !created && (
+      {((!catalog && !error) || (!access && !accessError)) && (
+        <Spinner className="mx-auto" />
+      )}
+      {(error || accessError) && (
+        <Alert color="gray">{tr("loadFailed", d)}</Alert>
+      )}
+      {access && !allowed && <Alert color="gray">{tr("noAccess", d)}</Alert>}
+      {catalog && access && allowed && !created && (
         <CreateForm
           catalog={catalog}
           keysPath={keysPath}

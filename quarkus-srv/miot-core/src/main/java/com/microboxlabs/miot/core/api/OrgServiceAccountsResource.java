@@ -62,8 +62,9 @@ public class OrgServiceAccountsResource {
     @GET
     @Operation(operationId = "listServiceAccounts", summary = "Service accounts with their roles and keys")
     @PermissionsAllowed(value = CoreAccessCatalog.APIKEYS_MANAGE, permission = OrgPermission.class, params = ORG)
-    public Uni<Response> list(@PathParam(ORG) String organizationId) {
-        return IamResponses.ok(() -> keys.list(organizationId));
+    public Uni<Response> list(@PathParam(ORG) String organizationId,
+            @HeaderParam(IamIdentityAugmentor.DEV_EMAIL_HEADER) String devEmail) {
+        return IamResponses.ok(() -> keys.list(organizationId, caller(devEmail)));
     }
 
     @POST

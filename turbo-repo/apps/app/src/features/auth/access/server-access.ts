@@ -10,18 +10,12 @@ import { quarkusAuthHeaders } from "@/app/api/utils/quarkus-proxy";
 import { PLATFORM_OWNER_ROLE } from "@/features/settings-admin/platform/platform.types";
 import { decideAccess, describeRule, type AccessRule } from "./access-control";
 
-const CACHE_TTL_MS = 30_000;
-const permissionCache = new Map<
-  string,
-  { permissions: string[]; expiresAt: number }
->();
-
 async function fetchPermissions(org: string): Promise<string[]> {
   const headers = await quarkusAuthHeaders();
   if (!headers) throw new Error("No session");
   const res = await fetch(
     `${modulithHost()}/api/v1/orgs/${encodeURIComponent(org)}/me/access`,
-    { headers, signal: AbortSignal.timeout(10_000) }
+    { headers, cache: "no-store", signal: AbortSignal.timeout(10_000) }
   );
   if (!res.ok) throw new Error(`GET me/access → ${res.status}`);
   const body = (await res.json()) as { permissions?: string[] };
@@ -30,24 +24,12 @@ async function fetchPermissions(org: string): Promise<string[]> {
 
 /** The caller's permissions in the active organization; `null` when they cannot be loaded. */
 async function loadPermissions(session: Session): Promise<string[] | null> {
+  if (!session.user) return null;
   const scope = await resolveTenantScope();
   if (!scope.resolved) return null;
   const org = scope.scope.activeOrg.slug;
-  const email = session.user?.email?.trim().toLowerCase();
-  const cacheKey = email ? `${email}:${org}` : null;
-  const cached = cacheKey ? permissionCache.get(cacheKey) : undefined;
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.permissions;
-  }
   try {
-    const permissions = await fetchPermissions(org);
-    if (cacheKey) {
-      permissionCache.set(cacheKey, {
-        permissions,
-        expiresAt: Date.now() + CACHE_TTL_MS,
-      });
-    }
-    return permissions;
+    return await fetchPermissions(org);
   } catch (err) {
     logger.error({ err, org }, "Failed to load the caller's permissions");
     return null;

@@ -29,7 +29,8 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
  * The only place that decides what a caller may do in an organization. The org filter, the permission checks on
- * endpoints, MCP tools and the role APIs all ask it. Within a request the decision is computed once.
+ * endpoints, MCP tools and the role APIs all ask it. Read decisions can be cached within a request; grants
+ * re-evaluate authority after acquiring the custom-role lock.
  */
 @ApplicationScoped
 public class AccessEvaluator {
@@ -190,7 +191,23 @@ public class AccessEvaluator {
             return roles(rootOrganizationId);
         }
         return Organization.<Organization>findById(rootOrganizationId, LockModeType.PESSIMISTIC_READ)
-                .flatMap(locked -> roles(rootOrganizationId));
+                .flatMap(locked -> IamCustomRole.findByOrganization(rootOrganizationId).flatMap(rows -> rows.isEmpty()
+                        ? Uni.createFrom().item(OrgRoles.system(registry))
+                        : Panache.getSession().flatMap(session -> session.refreshAll(rows.toArray()))
+                                .map(ignored -> OrgRoles.of(registry, rows))));
+    }
+
+    public record Grant(Access access, OrgRoles roles) {
+    }
+
+    /** Re-checks custom-role authority after the shared lock and role refresh, including the mutation permission. */
+    public Uni<Grant> grant(Organization root, Caller actor, Collection<String> roleKeys, String permission) {
+        return rolesForGrant(root.id, roleKeys).flatMap(roles -> evaluate(root, actor).map(access -> {
+            if (!access.can(permission)) {
+                throw new SecurityException("Permission required in the root organization: " + permission);
+            }
+            return new Grant(access, roles);
+        }));
     }
 
     /** The memberships after a join through the caller's email domain; empty when the domain gives none. */

@@ -122,9 +122,9 @@ describe("CustomRolesSection", () => {
     renderSection(false);
     const row = screen.getByRole("row", { name: /Supervisor/ });
     expect(within(row).getByText("Personalizado")).toBeInTheDocument();
-    expect(within(row).getByText("1 permisos")).toBeInTheDocument();
+    expect(within(row).getByText("Permisos: 1")).toBeInTheDocument();
     expect(
-      within(row).getByText("3 miembros · 2 equipos · 1 cuentas de servicio")
+      within(row).getByText("Miembros: 3 · Equipos: 2 · Cuentas de servicio: 1")
     ).toBeInTheDocument();
   });
 
@@ -160,7 +160,7 @@ describe("CustomRolesSection", () => {
     const dialog = await screen.findByRole("dialog");
     expect(
       within(dialog).getByText(
-        "Supervisor se elimina. Lo pierden 3 miembros, 2 equipos y 1 cuentas de servicio."
+        "Al eliminar Supervisor, estos titulares pierden el rol. Miembros: 3; equipos: 2; cuentas de servicio: 1."
       )
     ).toBeInTheDocument();
     expect(api.deleteCustomRole).not.toHaveBeenCalled();
@@ -204,7 +204,7 @@ describe("CustomRolesSection", () => {
     await userEvent.click(
       within(dialog).getByLabelText(/Atender escalamientos/)
     );
-    expect(within(dialog).getByText("2 permisos")).toBeInTheDocument();
+    expect(within(dialog).getByText("Permisos: 2")).toBeInTheDocument();
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Crear" })
     );
@@ -245,7 +245,7 @@ describe("CustomRolesSection", () => {
     await userEvent.click(
       within(coordination).getByLabelText("Coordinación de envíos")
     );
-    expect(within(dialog).getByText("3 permisos")).toBeInTheDocument();
+    expect(within(dialog).getByText("Permisos: 3")).toBeInTheDocument();
 
     await userEvent.type(
       within(dialog).getByLabelText("Buscar permisos o módulos"),

@@ -89,7 +89,7 @@ A team is a named set of members. A role bound to a team applies to each of its 
 
 ## Custom roles
 
-An organization's Owner or Admin creates, edits and deletes custom roles in Settings › Team › Roles. A custom role belongs to the top-level organization. Its sub-accounts use it too.
+The top-level organization's Owner or Admin creates, edits and deletes custom roles in Settings › Team › Roles. A custom role belongs to the top-level organization. Its sub-accounts use it too.
 
 | Field | Rule |
 |---|---|
@@ -105,7 +105,7 @@ The platform scope (`_platform`) has no custom roles.
 | List | Any member (`members:read`) |
 | Create, edit, delete | Owner or Admin, checked on the base role. A member who holds `members:update` through a role cannot. |
 | Add a permission to a role | The caller must hold it. Explicit-only permissions are exempt. So an Admin cannot add `owners:manage`. |
-| Bind a custom role | Same rules and endpoints as a module role |
+| Bind a custom role | Same root-scoped rules and endpoints as a module role. A delegated Member must hold every permission it grants; only Owner/Admin may grant explicit-only permissions without holding them |
 
 Editing a role's permissions applies to its holders on their next request. Deleting a role deletes its bindings in the same transaction and removes it from pending invitations. The response says how many bindings were removed and how many members, teams and service accounts held them.
 
@@ -118,16 +118,28 @@ Changes write `custom-role.created`, `custom-role.updated` and `custom-role.dele
 | `AccessEvaluator` | Loads the custom roles among the caller's bindings and adds their permissions. `@PermissionsAllowed` with `OrgPermission`, `McpCaller.permitted`, `GET .../me/access` and the module access endpoints (control tower, trips) all read this decision. |
 | App route and menu gates | Read `GET .../me/access`, so they follow |
 | Granting (`TeamRules.checkGrant`) | Members, teams, invitations, bindings and service accounts accept custom role keys of the organization |
-| `GET`, `PUT /api/v1/orgs/{org}/roles/{roleCode}` | Accepts a custom role key of the organization, for users and M2M clients. `PUT` needs the right to grant the role |
+| `GET`, `PUT /api/v1/orgs/{org}/roles/{roleCode}` | Accepts custom roles for people. M2M custom assignments return 400; their module roles remain supported. `PUT` checks root authority and preserves team/service-account bindings |
 | `GET .../permissions/{code}/me`, `POST .../authorization/check`, Harness learning routes | `HARNESS_TRAINER` and the content auto-approve check pass for any role that gives `harness:train` or `content:review.autoapprove` |
 | Harness | Does not read roles. It calls the modulith, which checks permissions as above. |
-| Alfresco group mappings (`iam_group_role`) and the projection outbox | Module roles only. The outbox stores group membership changes, not permissions. A custom role is never projected to an Alfresco group, so it gives no BPM candidate group. |
+| Alfresco group mappings (`iam_group_role`) and the projection outbox | Module roles only. The outbox stores group membership changes, not permissions. A custom role is never projected to an Alfresco group, so it gives no BPM candidate group. Tasks still need the corresponding mapped module role until the follow-up is complete. |
 | Token role mappings (`iam_token_role`) | Module roles and base roles only |
 | Legacy-default roles | Module roles only |
 
-A custom role gives only permissions the running modulith declares. A bound key whose role no longer exists gives nothing.
+A custom role gives only permissions the running modulith declares. A bound key whose role no longer exists gives nothing. Server app gates read current permissions without a cross-request cache, so a revoked permission stops authorizing on the next check.
 
-Creating, editing and deleting a custom role lock the top-level organization's row. Binding a custom role takes a shared lock on the same row, so a role is not deleted between the check and the insert. A new role deletes any binding left with its key, so it starts with no holders.
+Team mutations and service-account management use root permissions, even through a sub-account URL. The UI reads `GET .../team/custom-roles/management` for the root access and custom-role management affordances. A sub-account-only Admin cannot change root roles, bindings or keys.
+
+Creating, editing and deleting a custom role lock the top-level organization's row. Binding a custom role takes a shared lock on the same row, so a role is not deleted between the check and the insert. Bound custom roles and grant authority are refreshed after the shared lock. A new role deletes any binding left with its key, so it starts with no holders.
+
+### Operational limits of the initial release
+
+[Issue #2620](https://github.com/microboxlabs/modulariot/issues/2620) tracks the remaining work and acceptance criteria:
+
+- OAuth M2M clients cannot receive custom roles yet. The API rejects those assignments instead of silently combining them with legacy write defaults. API-key service accounts do support custom roles.
+- BPM task candidates still need mapped module roles as described above. Review the total permissions of those additional roles.
+- After changing organizations in one tab, reload the other tabs before managing access. Cross-tab synchronization of the active organization and its cached data is pending.
+
+These limits were accepted by the owner for the initial release. They do not waive authorization checks or the CI and Sonar gates.
 
 ## Coordination roles
 

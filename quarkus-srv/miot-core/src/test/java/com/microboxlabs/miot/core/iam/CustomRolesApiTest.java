@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.core.iam;
 
 import static io.restassured.RestAssured.given;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
@@ -22,6 +23,11 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -144,6 +150,199 @@ class CustomRolesApiTest {
     }
 
     @Test
+    void anEditWaitingForTheLockCannotRestoreTheActorsRevokedPermission()
+            throws SQLException, InterruptedException, ExecutionException, TimeoutException {
+        var role = create(OWNER, ROLES, "Gestor anterior", CoreAccessCatalog.OWNERS_MANAGE, GEOGRAPHIC)
+                .statusCode(201).extract();
+        String id = role.path("id");
+        bind(OWNER, "USER", userId(ADMIN), role.path("key"), null).statusCode(201);
+        CompletableFuture<io.restassured.response.Response> change = null;
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try (var lock = c.prepareStatement("SELECT id FROM miot_core.organizations WHERE slug = ? FOR UPDATE");
+                    var update = c.prepareStatement(
+                            "UPDATE miot_iam.iam_custom_role SET permission_keys = ? WHERE id = ?::uuid")) {
+                lock.setString(1, ORG);
+                try (var rows = lock.executeQuery()) {
+                    rows.next();
+                }
+                update.setString(1, GEOGRAPHIC);
+                update.setString(2, id);
+                update.executeUpdate();
+                change = CompletableFuture.supplyAsync(() -> given().header("Authorization", bearer(ADMIN))
+                        .contentType("application/json").body(Map.of("label", Map.of("es", "Gestor anterior"),
+                                "permissions", List.of(CoreAccessCatalog.OWNERS_MANAGE, GEOGRAPHIC)))
+                        .when().put(ROLES + "/" + id));
+                await().atMost(Duration.ofSeconds(15)).until(() -> count(
+                        "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                                + "AND wait_event_type = 'Lock' AND query LIKE '%organizations%'") > 0);
+                c.commit();
+            } finally {
+                c.rollback();
+            }
+        } finally {
+            if (change != null) {
+                assertEquals(403, change.get(30, TimeUnit.SECONDS).statusCode());
+            }
+        }
+        given().header("Authorization", bearer(OWNER)).when().get(ROLES).then().statusCode(200)
+                .body("[0].permissions", contains(GEOGRAPHIC));
+    }
+
+    @Test
+    void aGrantWaitingForTheLockCannotUseARevokedPermission()
+            throws SQLException, InterruptedException, ExecutionException, TimeoutException {
+        String ana = userId(ANA);
+        var manager = create(OWNER, ROLES, "Gestor limitado", CoreAccessCatalog.MEMBERS_UPDATE, GEOGRAPHIC)
+                .statusCode(201).extract();
+        String managerId = manager.path("id");
+        bind(OWNER, "USER", ana, manager.path("key"), null).statusCode(201);
+        String wanted = create(OWNER, ROLES, "Mapa", GEOGRAPHIC).statusCode(201).extract().path("key");
+        CompletableFuture<io.restassured.response.Response> change = null;
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try (var lock = c.prepareStatement("SELECT id FROM miot_core.organizations WHERE slug = ? FOR UPDATE");
+                    var update = c.prepareStatement(
+                            "UPDATE miot_iam.iam_custom_role SET permission_keys = ? WHERE id = ?::uuid")) {
+                lock.setString(1, ORG);
+                try (var rows = lock.executeQuery()) {
+                    rows.next();
+                }
+                update.setString(1, CoreAccessCatalog.MEMBERS_UPDATE);
+                update.setString(2, managerId);
+                update.executeUpdate();
+                change = CompletableFuture.supplyAsync(() -> given().header("Authorization", bearer(ANA))
+                        .contentType("application/json").body(Map.of("principalKind", "USER", "principalId", ana,
+                                "role", wanted)).when().post(BASE + "/bindings"));
+                await().atMost(Duration.ofSeconds(15)).until(() -> count(
+                        "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                                + "AND wait_event_type = 'Lock' AND query LIKE '%organizations%'") > 0);
+                c.commit();
+            } finally {
+                c.rollback();
+            }
+        } finally {
+            if (change != null) {
+                assertEquals(403, change.get(30, TimeUnit.SECONDS).statusCode());
+            }
+        }
+        given().header("Authorization", bearer(ANA)).when().get(ACCESS).then().statusCode(200)
+                .body("permissions", not(hasItem(GEOGRAPHIC)));
+    }
+
+    @Test
+    void aSubAccountAdministratorCannotChangeRootRolesOrServiceAccounts() throws SQLException {
+        String childAdmin = "child.admin@roles.test";
+        exec("INSERT INTO miot_iam.iam_user (email) VALUES ('" + childAdmin + "') ON CONFLICT DO NOTHING");
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role) "
+                + "SELECT o.id, u.id, 'ADMIN' FROM miot_core.organizations o, miot_iam.iam_user u "
+                + "WHERE o.slug = '" + SUB + "' AND u.email = '" + childAdmin + "'");
+        String childBase = "/api/v1/orgs/" + SUB + "/team";
+        given().header("Authorization", bearer(childAdmin)).when().get(childBase + "/custom-roles/management")
+                .then().statusCode(200).body("canManage", is(false));
+        given().header("Authorization", bearer(OWNER)).when().get(childBase + "/custom-roles/management")
+                .then().statusCode(200).body("canManage", is(true));
+        String roleId = create(OWNER, ROLES, "Mapa raíz", GEOGRAPHIC).statusCode(201).extract().path("id");
+        create(childAdmin, childBase + "/custom-roles", "No permitido", GEOGRAPHIC).statusCode(403);
+        given().header("Authorization", bearer(childAdmin)).contentType("application/json")
+                .body(Map.of("label", Map.of("es", "No permitido"), "permissions", List.of(GEOGRAPHIC)))
+                .when().put(childBase + "/custom-roles/" + roleId).then().statusCode(403);
+        given().header("Authorization", bearer(childAdmin)).when()
+                .delete(childBase + "/custom-roles/" + roleId).then().statusCode(403);
+
+        var account = given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("name", "Integrador raíz", "roles", List.of())).when().post(BASE + "/service-accounts")
+                .then().statusCode(201).extract();
+        String accountId = account.path("serviceAccount.id");
+        String keyId = account.path("serviceAccount.keys[0].id");
+        String accounts = childBase + "/service-accounts";
+        given().header("Authorization", bearer(childAdmin)).when().get(accounts).then().statusCode(403);
+        given().header("Authorization", bearer(childAdmin)).contentType("application/json")
+                .body(Map.of("name", "No permitido", "roles", List.of(CoreAccessCatalog.HARNESS_TRAINER)))
+                .when().post(accounts).then().statusCode(403);
+        given().header("Authorization", bearer(childAdmin)).contentType("application/json")
+                .body(Map.of("roles", List.of())).when().put(accounts + "/" + accountId + "/roles")
+                .then().statusCode(403);
+        given().header("Authorization", bearer(childAdmin)).contentType("application/json")
+                .body("{\"credentialRef\":null}").when().put(accounts + "/" + accountId + "/token-credential")
+                .then().statusCode(403);
+        given().header("Authorization", bearer(childAdmin)).contentType("application/json")
+                .body(Map.of("name", "No permitido")).when().post(accounts + "/" + accountId + "/keys")
+                .then().statusCode(403);
+        given().header("Authorization", bearer(childAdmin)).when()
+                .delete(accounts + "/" + accountId + "/keys/" + keyId).then().statusCode(403);
+        given().header("Authorization", bearer(childAdmin)).when().delete(accounts + "/" + accountId)
+                .then().statusCode(403);
+        given().header("Authorization", bearer(OWNER)).when().get(ROLES).then().statusCode(200)
+                .body("[0].label.es", is("Mapa raíz"));
+    }
+
+    @Test
+    void childPermissionsCannotBeGrantedAsRootBindings() throws SQLException {
+        String ana = userId(ANA);
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role) "
+                + "SELECT id, '" + ana + "', 'ADMIN' FROM miot_core.organizations WHERE slug = '" + SUB + "'");
+        String manager = create(OWNER, ROLES, "Gestor raíz", CoreAccessCatalog.MEMBERS_UPDATE,
+                CoreAccessCatalog.TEAMS_MANAGE, CoreAccessCatalog.APIKEYS_MANAGE)
+                .statusCode(201).extract().path("key");
+        bind(OWNER, "USER", ana, manager, null).statusCode(201);
+        String geographic = create(OWNER, ROLES, "Mapa raíz", GEOGRAPHIC).statusCode(201).extract().path("key");
+        String childBase = "/api/v1/orgs/" + SUB + "/team";
+        given().header("Authorization", bearer(ANA)).contentType("application/json")
+                .body(Map.of("principalKind", "USER", "principalId", ana, "role", geographic))
+                .when().post(childBase + "/bindings").then().statusCode(403);
+        given().header("Authorization", bearer(ANA)).contentType("application/json")
+                .body(Map.of("roles", List.of(manager, geographic))).when().put(childBase + "/members/" + ana + "/roles")
+                .then().statusCode(403);
+        given().header("Authorization", bearer(ANA)).contentType("application/json")
+                .body(Map.of("name", "No permitido", "roles", List.of(geographic)))
+                .when().post(childBase + "/service-accounts").then().statusCode(403);
+        String team = given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("name", "Mapa raíz")).when().post(BASE + "/teams")
+                .then().statusCode(201).extract().path("id");
+        bind(OWNER, "TEAM", team, geographic, null).statusCode(201);
+        given().header("Authorization", bearer(ANA)).contentType("application/json")
+                .body(Map.of("roles", List.of(geographic))).when().put(childBase + "/teams/" + team + "/roles")
+                .then().statusCode(403);
+        given().header("Authorization", bearer(ANA)).contentType("application/json")
+                .body(Map.of("userIds", List.of(ana))).when().put(childBase + "/teams/" + team + "/members")
+                .then().statusCode(403);
+        given().header("Authorization", bearer(ANA)).when().get(ACCESS).then().statusCode(200)
+                .body("permissions", not(hasItem(GEOGRAPHIC)));
+    }
+
+    @Test
+    void replacingPersonHoldersPreservesTeamsAndServiceAccounts() {
+        String key = create(OWNER, ROLES, "Mapa", GEOGRAPHIC).statusCode(201).extract().path("key");
+        String team = given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("name", "Equipo mapa")).when().post(BASE + "/teams")
+                .then().statusCode(201).extract().path("id");
+        bind(OWNER, "TEAM", team, key, null).statusCode(201);
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("name", "Integrador mapa", "roles", List.of(key))).when().post(BASE + "/service-accounts")
+                .then().statusCode(201);
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("assigneeIds", List.of(ANA))).when().put("/api/v1/orgs/" + ORG + "/roles/" + key)
+                .then().statusCode(200);
+        given().header("Authorization", bearer(OWNER)).when().get(ROLES).then().statusCode(200)
+                .body("[0].holders.members", is(1)).body("[0].holders.teams", is(1))
+                .body("[0].holders.serviceAccounts", is(1));
+    }
+
+    @Test
+    void expiredBindingsAreDeletedButDoNotCountAsHolders() throws SQLException {
+        var role = create(OWNER, ROLES, "Mapa", GEOGRAPHIC).statusCode(201).extract();
+        String key = role.path("key");
+        bind(OWNER, "USER", userId(ANA), key, null).statusCode(201);
+        exec("UPDATE miot_iam.iam_role_binding SET expires_at = now() - interval '1 day' WHERE role_key = '"
+                + key + "'");
+        given().header("Authorization", bearer(OWNER)).when().get(ROLES).then().statusCode(200)
+                .body("[0].holders.members", is(0));
+        given().header("Authorization", bearer(OWNER)).when().delete(ROLES + "/" + role.path("id"))
+                .then().statusCode(200).body("holders.members", is(0)).body("removedBindings", is(1));
+    }
+
+    @Test
     void aBoundCustomRoleGivesItsPermissionsToMembersTeamsAndServiceAccounts() {
         String ana = userId(ANA);
         String key = create(OWNER, ROLES, "Invitador", CoreAccessCatalog.MEMBERS_INVITE, GEOGRAPHIC)
@@ -197,11 +396,11 @@ class CustomRolesApiTest {
         given().header("Authorization", "Bearer " + secret).when().get(ACCESS).then().statusCode(200)
                 .body("permissions", hasItem(GEOGRAPHIC));
 
-        // An M2M client, through the role holders API.
+        // M2M clients retain module roles until explicit-mode resolution is supported.
         given().header("Authorization", bearer(OWNER)).contentType("application/json")
                 .body(Map.of("assigneeIds", List.of("some-client")))
                 .when().put("/api/v1/orgs/" + ORG + "/roles/" + key)
-                .then().statusCode(200).body("assigneeIds", contains("some-client"));
+                .then().statusCode(400);
         given().header("Authorization", bearer(OWNER)).contentType("application/json")
                 .body(Map.of("assigneeIds", List.of("some-client")))
                 .when().put("/api/v1/orgs/" + ORG + "/roles/custom:missing").then().statusCode(400);
@@ -228,6 +427,36 @@ class CustomRolesApiTest {
                 .then().statusCode(200).body("permissions", hasItem(GEOGRAPHIC));
         given().header("Authorization", bearer(ANA)).when().get(ACCESS)
                 .then().statusCode(200).body("permissions", not(hasItem(GEOGRAPHIC)));
+    }
+
+    @Test
+    void foreignRolesCannotBeReadEditedDeletedOrAssignedThroughOtherEndpoints() {
+        String foreignPath = "/api/v1/orgs/" + OTHER + "/team/custom-roles";
+        var foreign = create(OWNER, foreignPath, "Ajeno", GEOGRAPHIC).statusCode(201).extract();
+        String id = foreign.path("id");
+        String key = foreign.path("key");
+        given().header("Authorization", bearer(ADMIN)).when().get(foreignPath).then().statusCode(403);
+        given().header("Authorization", bearer(OWNER)).when().get(ROLES).then().statusCode(200).body("$", empty());
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("label", Map.of("es", "Cambiado"), "permissions", List.of(GEOGRAPHIC)))
+                .when().put(ROLES + "/" + id).then().statusCode(404);
+        given().header("Authorization", bearer(OWNER)).when().delete(ROLES + "/" + id)
+                .then().statusCode(404);
+        given().header("Authorization", bearer(ADMIN)).when().delete(foreignPath + "/" + id)
+                .then().statusCode(403);
+        given().header("Authorization", bearer(OWNER)).when().get(foreignPath)
+                .then().statusCode(200).body("key", contains(key));
+
+        String ana = userId(ANA);
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("roles", List.of(key))).when().put(BASE + "/members/" + ana + "/roles")
+                .then().statusCode(400);
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("name", "Foreign", "roles", List.of(key))).when().post(BASE + "/service-accounts")
+                .then().statusCode(400);
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("assigneeIds", List.of(ANA))).when().put("/api/v1/orgs/" + ORG + "/roles/" + key)
+                .then().statusCode(400);
     }
 
     @Test

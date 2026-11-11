@@ -19,6 +19,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import org.hibernate.reactive.mutiny.Mutiny;
 
 /**
  * The custom roles of an organization: named sets of catalog permissions that its Owner or Admin defines. They
@@ -67,8 +68,18 @@ public class CustomRoles {
     }
 
     public Uni<List<RoleView>> list(String slug) {
-        return Panache.withSession(() -> organization(slug).flatMap(org -> evaluator.root(org))
+        return Panache.withSession(() -> organization(slug).flatMap(evaluator::root)
                 .flatMap(root -> IamCustomRole.findByOrganization(root.id).flatMap(roles -> views(root.id, roles))));
+    }
+
+    public record ManagementAccess(boolean canManage, Access access) {
+    }
+
+    /** The UI asks about the root role rather than mistaking a sub-account Admin for a root Admin. */
+    public Uni<ManagementAccess> managementAccess(String slug, Caller actor) {
+        return Panache.withSession(() -> organization(slug).flatMap(evaluator::root)
+                .flatMap(root -> evaluator.evaluate(root, actor))
+                .map(access -> new ManagementAccess(access.member() && access.baseRole().atLeast(BaseRole.ADMIN), access)));
     }
 
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
@@ -160,12 +171,15 @@ public class CustomRoles {
      * changes cannot both take a name or a key.
      */
     private <T> Uni<T> managed(String slug, Caller actor, Change<T> change) {
-        return organization(slug).flatMap(org -> evaluator.evaluate(org, actor).flatMap(access -> {
-            CustomRoleRules.checkManage(access);
-            return evaluator.root(org)
-                    .flatMap(root -> Organization.<Organization>findById(root.id, LockModeType.PESSIMISTIC_WRITE))
-                    .flatMap(root -> change.apply(root, access));
-        }));
+        return organization(slug).flatMap(org -> evaluator.root(org)
+                .flatMap(root -> Organization.<Organization>findById(root.id, LockModeType.PESSIMISTIC_WRITE))
+                // Request authorization may have loaded roles before waiting for this lock. Discard that snapshot
+                // before evaluating the actor and comparing changes against the current role permissions.
+                .flatMap(root -> Panache.getSession().invoke(Mutiny.Session::clear).replaceWith(root))
+                .flatMap(root -> evaluator.evaluate(root, actor).flatMap(access -> {
+                    CustomRoleRules.checkManage(access);
+                    return change.apply(root, access);
+                })));
     }
 
     private Fields fields(RoleRequest request) {
@@ -249,8 +263,11 @@ public class CustomRoles {
     }
 
     static Holders holders(List<IamRoleBinding> bindings) {
-        return new Holders(distinct(bindings, IamRoleBinding.USER), distinct(bindings, IamRoleBinding.TEAM),
-                distinct(bindings, IamRoleBinding.SERVICE_ACCOUNT), distinct(bindings, IamRoleBinding.CLIENT));
+        Instant now = Instant.now();
+        List<IamRoleBinding> active = bindings.stream()
+                .filter(b -> b.expiresAt == null || b.expiresAt.isAfter(now)).toList();
+        return new Holders(distinct(active, IamRoleBinding.USER), distinct(active, IamRoleBinding.TEAM),
+                distinct(active, IamRoleBinding.SERVICE_ACCOUNT), distinct(active, IamRoleBinding.CLIENT));
     }
 
     private static int distinct(List<IamRoleBinding> bindings, String kind) {

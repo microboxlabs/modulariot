@@ -31,7 +31,7 @@ import {
   invite,
   pendingInvitationEmails,
   useAccessCatalog,
-  useMyAccess,
+  useTeamAccess,
 } from "./team-api";
 import {
   BASE_ROLES,
@@ -72,7 +72,7 @@ export default function InviteMembersPage({
   lang,
 }: InviteMembersPageProps) {
   const d = dict?.team as I18nRecord;
-  const { access, accessError, can } = useMyAccess();
+  const { access, accessError, can } = useTeamAccess();
   const { data: catalog, error } = useAccessCatalog();
   const teamPath = `/${lang}/users/settings/team`;
   const [links, setLinks] = useState<InviteLink[] | null>(null);

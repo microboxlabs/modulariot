@@ -107,6 +107,7 @@ const data = vi.hoisted(() => {
     invitations,
     accounts,
     canManageKeys: true,
+    catalogError: null as Error | null,
   };
 });
 
@@ -121,7 +122,7 @@ vi.mock("@/features/common/components/Breadcrumb/Breadcrumb", () => ({
   Breadcrumb: () => null,
 }));
 vi.mock("./team-api", () => ({
-  useMyAccess: () => ({
+  useTeamAccess: () => ({
     can: (permission: string) =>
       permission !== "apikeys:manage" || data.canManageKeys,
   }),
@@ -133,8 +134,17 @@ vi.mock("./team-api", () => ({
   useTeams: () => ({ data: data.teams, mutate: vi.fn() }),
   useServiceAccounts: () => ({ data: data.accounts, mutate: vi.fn() }),
   useCustomRoles: () => ({ data: [] }),
+  useCustomRoleManagement: () => ({ data: { canManage: true } }),
   useAccessCatalog: () => ({
-    data: { baseRoles: [], permissions: data.permissions, roles: data.roles },
+    data: data.catalogError
+      ? undefined
+      : { baseRoles: [], permissions: data.permissions, roles: data.roles },
+    moduleCatalog: {
+      baseRoles: [],
+      permissions: data.permissions,
+      roles: data.roles,
+    },
+    error: data.catalogError,
   }),
   removeMember: vi.fn(),
   resendInvitation: vi.fn(),
@@ -171,9 +181,21 @@ async function pick(badge: string, option: string) {
 beforeEach(() => {
   data.members[1].source = "NATIVE";
   data.canManageKeys = true;
+  data.catalogError = null;
 });
 
 describe("TeamPageContent members filters", () => {
+  it("keeps the read-only module matrix and reports a custom-role loading failure", async () => {
+    data.catalogError = new Error("custom roles unavailable");
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Roles" }));
+    expect(
+      screen.getByText(en.pages.userSettings.team.loadFailed)
+    ).toBeInTheDocument();
+    expect(screen.getByText("Read tower")).toBeInTheDocument();
+    expect(screen.getByText("Read trips")).toBeInTheDocument();
+  });
+
   it("lists every member with the total count", () => {
     renderPage();
     expect(shownNames()).toEqual([

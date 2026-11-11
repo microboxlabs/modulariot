@@ -125,8 +125,8 @@ public class ApiKeyService {
         });
     }
 
-    public Uni<List<ServiceAccountView>> list(String slug) {
-        return Panache.withSession(() -> root(slug).flatMap(root -> IamServiceAccount.findByOrganization(root.id)
+    public Uni<List<ServiceAccountView>> list(String slug, Caller actor) {
+        return Panache.withSession(() -> root(slug, actor).flatMap(root -> IamServiceAccount.findByOrganization(root.id)
                 .flatMap(accounts -> views(root.id, accounts))));
     }
 
@@ -136,9 +136,9 @@ public class ApiKeyService {
         }
         Set<String> roles = new TreeSet<>(request.roles() == null ? List.of() : request.roles());
         Duration ttl = ttl(request.expiresInDays());
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> access(slug, actor).flatMap(access ->
-                evaluator.rolesForGrant(root.id, roles).flatMap(orgRoles -> {
-            TeamRules.checkGrant(access, roles, orgRoles);
+        return Panache.withTransaction(() -> root(slug, actor).flatMap(root -> access(root.slug, actor).flatMap(access ->
+                evaluator.grant(root, actor, roles, CoreAccessCatalog.APIKEYS_MANAGE).flatMap(grant -> {
+            TeamRules.checkGrant(grant.access(), roles, grant.roles());
             IamServiceAccount account = new IamServiceAccount();
             account.id = UUID.randomUUID();
             account.organizationId = root.id;
@@ -156,7 +156,7 @@ public class ApiKeyService {
     }
 
     public Uni<Void> delete(String slug, Caller actor, UUID accountId) {
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> account(root.id, accountId)
+        return Panache.withTransaction(() -> root(slug, actor).flatMap(root -> account(root.id, accountId)
                 .flatMap(account -> IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 "
                                 + "and principalId = ?3", root.id, IamRoleBinding.SERVICE_ACCOUNT, account.id.toString())
                         .flatMap(ignored -> account.delete())
@@ -166,10 +166,10 @@ public class ApiKeyService {
 
     public Uni<ServiceAccountView> setRoles(String slug, Caller actor, UUID accountId, List<String> requested) {
         Set<String> roles = new TreeSet<>(requested == null ? List.of() : requested);
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> access(slug, actor).flatMap(access ->
-                account(root.id, accountId).flatMap(account -> evaluator.rolesForGrant(root.id, roles)
-                        .flatMap(orgRoles -> {
-                    TeamRules.checkGrant(access, roles, orgRoles);
+        return Panache.withTransaction(() -> root(slug, actor).flatMap(root -> access(root.slug, actor).flatMap(access ->
+                account(root.id, accountId).flatMap(account -> evaluator.grant(root, actor, roles, CoreAccessCatalog.APIKEYS_MANAGE)
+                        .flatMap(grant -> {
+                    TeamRules.checkGrant(grant.access(), roles, grant.roles());
                     return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 and principalId = ?3 "
                                     + "and scopeKind = ?4", root.id, IamRoleBinding.SERVICE_ACCOUNT,
                                     account.id.toString(), IamRoleBinding.ORGANIZATION)
@@ -189,7 +189,7 @@ public class ApiKeyService {
         if (ref != null && !ref.matches("[A-Za-z0-9._:-]{1,255}")) {
             throw new IllegalArgumentException("Invalid credential reference");
         }
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> account(root.id, accountId)
+        return Panache.withTransaction(() -> root(slug, actor).flatMap(root -> account(root.id, accountId)
                 .flatMap(account -> {
                     account.tokenCredentialRef = ref;
                     tokens.forget(account.id);
@@ -203,8 +203,8 @@ public class ApiKeyService {
     public Uni<CreatedKey> createKey(String slug, Caller actor, UUID accountId, CreateKeyRequest request) {
         Duration ttl = ttl(request == null ? null : request.expiresInDays());
         String name = request == null || request.name() == null ? null : request.name().trim();
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> account(root.id, accountId)
-                .flatMap(account -> requireGrantable(slug, actor, root.id, account)
+        return Panache.withTransaction(() -> root(slug, actor).flatMap(root -> account(root.id, accountId)
+                .flatMap(account -> requireGrantable(root.slug, actor, root.id, account)
                         .flatMap(checked -> newKey(account.id, name, ttl, actor.name()))
                         .flatMap(created -> directory.audit(root.id, actor.name(), "api-key.created",
                                 account.name, Map.of("keyId", created.key().keyId())).replaceWith(created)))));
@@ -216,13 +216,13 @@ public class ApiKeyService {
                         List.of(account.id.toString()))
                 .flatMap(bindings -> {
                     Set<String> held = TeamRules.unexpired(bindings);
-                    return access(slug, actor).flatMap(access -> evaluator.rolesForGrant(rootId, held)
-                            .invoke(orgRoles -> TeamRules.checkGrantBound(access, held, orgRoles)));
+                    return root(slug).flatMap(root -> evaluator.grant(root, actor, held, CoreAccessCatalog.APIKEYS_MANAGE))
+                            .invoke(grant -> TeamRules.checkGrantBound(grant.access(), held, grant.roles()));
                 }).replaceWithVoid();
     }
 
     public Uni<Void> revokeKey(String slug, Caller actor, UUID accountId, UUID keyId) {
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> account(root.id, accountId)
+        return Panache.withTransaction(() -> root(slug, actor).flatMap(root -> account(root.id, accountId)
                 .flatMap(account -> IamApiKey.<IamApiKey>findById(keyId).flatMap(key -> {
                     if (key == null || !key.serviceAccountId.equals(account.id)) {
                         throw new NoSuchElementException("API key not found");
@@ -287,6 +287,16 @@ public class ApiKeyService {
 
     private Uni<Access> access(String slug, Caller actor) {
         return evaluator.evaluate(slug, actor);
+    }
+
+    /** Accounts and keys belong to the root, even when the endpoint is reached through a sub-account. */
+    private Uni<Organization> root(String slug, Caller actor) {
+        return root(slug).flatMap(root -> evaluator.evaluate(root, actor).map(access -> {
+            if (!access.can(CoreAccessCatalog.APIKEYS_MANAGE)) {
+                throw new SecurityException("API key management permission required in the root organization");
+            }
+            return root;
+        }));
     }
 
     private static Uni<Organization> root(String slug) {

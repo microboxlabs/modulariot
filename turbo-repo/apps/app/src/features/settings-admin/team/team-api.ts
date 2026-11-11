@@ -79,6 +79,23 @@ export function useCustomRoles() {
   });
 }
 
+/** Management applies to the root organization even when a sub-account is active. */
+export function useCustomRoleManagement() {
+  return useSWR<{ canManage: boolean; access: MyAccess }>(
+    `${customRolesKey}/management`,
+    getJson
+  );
+}
+
+/** Team records and bindings belong to the root, so their affordances use root permissions. */
+export function useTeamAccess() {
+  const { data, error } = useCustomRoleManagement();
+  const access = data?.access;
+  const can = (permission: string) =>
+    access?.permissions.includes(permission) ?? false;
+  return { access, accessError: error, can };
+}
+
 /**
  * The module roles and permissions of the modulith, plus the active
  * organization's custom roles, so every role picker offers both.
@@ -92,12 +109,17 @@ export function useAccessCatalog() {
   // roles would save a member's roles without the custom ones they hold.
   const data = useMemo(
     () =>
-      catalog.data && custom.data
+      catalog.data && custom.data && !custom.error
         ? withCustomRoles(catalog.data, custom.data)
         : undefined,
-    [catalog.data, custom.data]
+    [catalog.data, custom.data, custom.error]
   );
-  return { ...catalog, data, error: catalog.error ?? custom.error };
+  return {
+    ...catalog,
+    data,
+    moduleCatalog: catalog.data,
+    error: catalog.error ?? custom.error,
+  };
 }
 
 export function createCustomRole(request: CustomRoleRequest) {
@@ -121,14 +143,15 @@ export function deleteCustomRole(id: string) {
 
 /** Reloads members, teams, bindings, service accounts and custom roles after a role changed. */
 export function refreshTeamData() {
-  return mutate((key) => typeof key === "string" && key.startsWith(TEAM));
+  return mutate(
+    (key) =>
+      typeof key === "string" && (key.startsWith(TEAM) || key === MY_ACCESS)
+  );
 }
 
 /** The caller's permissions in the active organization. */
 export function useMyAccess() {
-  const { data, error } = useSWR<MyAccess>(MY_ACCESS, getJson, {
-    revalidateOnFocus: false,
-  });
+  const { data, error } = useSWR<MyAccess>(MY_ACCESS, getJson);
   const can = (permission: string) =>
     data?.permissions.includes(permission) ?? false;
   return { access: data, accessError: error, can };

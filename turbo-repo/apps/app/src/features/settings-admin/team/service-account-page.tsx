@@ -61,7 +61,7 @@ export default function ServiceAccountPage({
   const router = useRouter();
   const accounts = useServiceAccounts(true);
   const team = useTeam();
-  const { data: catalog } = useAccessCatalog();
+  const { data: catalog, error: catalogError } = useAccessCatalog();
   const keysPath = `/${lang}/users/settings/team?tab=keys`;
   const account = accounts.data?.find((a) => a.id === accountId);
 
@@ -72,10 +72,12 @@ export default function ServiceAccountPage({
       backHref={keysPath}
       backLabel={tr("backToKeys", d)}
     >
-      {(accounts.isLoading || !catalog) && !accounts.error && (
+      {(accounts.isLoading || !catalog) && !accounts.error && !catalogError && (
         <Spinner className="mx-auto" />
       )}
-      {accounts.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
+      {(accounts.error || catalogError) && (
+        <Alert color="gray">{tr("loadFailed", d)}</Alert>
+      )}
       {accounts.data && catalog && !account && (
         <div className={`${CARD} p-10 text-center`}>
           <p className="text-sm text-gray-500 dark:text-gray-400">

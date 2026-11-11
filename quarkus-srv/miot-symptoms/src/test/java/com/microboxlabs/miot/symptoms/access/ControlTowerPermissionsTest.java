@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.iam.AccessRegistry;
 import com.microboxlabs.miot.core.iam.AccessRules;
 import com.microboxlabs.miot.core.iam.BaseRole;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
+import com.microboxlabs.miot.core.iam.CoordinatorAccessCatalog;
 import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerAuditResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerContactsResource;
@@ -65,8 +67,8 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerContactsResource.update", CONTACT_WRITE),
             Map.entry("OrgControlTowerContactsResource.delete", CONTACT_DELETE),
             Map.entry("OrgControlTowerDeviceEventsResource.send", EVENT_SEND),
-            Map.entry("OrgControlTowerMapResource.positions", VIEW),
-            Map.entry("OrgControlTowerMapResource.summary", VIEW),
+            Map.entry("OrgControlTowerMapResource.positions", VIEW + " | " + CoordinatorAccessCatalog.GEOGRAPHIC_VIEW),
+            Map.entry("OrgControlTowerMapResource.summary", VIEW + " | " + CoordinatorAccessCatalog.GEOGRAPHIC_VIEW),
             Map.entry("OrgControlTowerMapResource.conditions", VIEW),
             Map.entry("OrgControlTowerMapResource.symptoms", VIEW),
             Map.entry("OrgControlTowerMapResource.symptom", VIEW),
@@ -142,6 +144,25 @@ class ControlTowerPermissionsTest {
             }
         }
         assertEquals(EXPECTED, actual);
+    }
+
+    @Test
+    void reviewerCanReadMapPositionsAndSummaryWithoutControlTowerWrites() throws NoSuchMethodException {
+        AccessRegistry registry = new AccessRegistry(List.of(new CoreAccessCatalog(), new CoordinatorAccessCatalog(),
+                new ControlTowerAccessCatalog()));
+        Set<String> reviewer = grant(registry, CoordinatorAccessCatalog.REVIEWER);
+        for (String endpoint : List.of("positions", "summary")) {
+            PermissionsAllowed policy = OrgControlTowerMapResource.class.getMethod(endpoint, String.class)
+                    .getAnnotation(PermissionsAllowed.class);
+            assertTrue(java.util.Arrays.stream(policy.value()).anyMatch(reviewer::contains), endpoint);
+        }
+        assertFalse(reviewer.contains(TREAT));
+        assertFalse(reviewer.contains(CONTACT_WRITE));
+        assertFalse(reviewer.contains(CoordinatorAccessCatalog.TASK_COMPLETE));
+        PermissionsAllowed contacts = java.util.Arrays.stream(OrgControlTowerContactsResource.class.getDeclaredMethods())
+                .filter(method -> method.getName().equals("list")).findFirst().orElseThrow()
+                .getAnnotation(PermissionsAllowed.class);
+        assertFalse(java.util.Arrays.stream(contacts.value()).anyMatch(reviewer::contains));
     }
 
     @Test

@@ -52,10 +52,11 @@ class CustomRoleRulesTest {
             String key = CustomRoleRules.key(role.key(), List.of());
             assertTrue(registry.role(key).isEmpty(), key);
         }
+        Set<String> empty = Set.of();
+        Map<String, Set<String>> systemKey = Map.of(CoordinatorAccessCatalog.REVIEWER, empty);
         assertThrows(IllegalArgumentException.class,
-                () -> RoleDef.of("custom:x", "coordination", "x", "x", Set.of()));
-        assertThrows(IllegalArgumentException.class,
-                () -> new OrgRoles(registry, Map.of(CoordinatorAccessCatalog.REVIEWER, Set.of())));
+                () -> RoleDef.of("custom:x", "coordination", "x", "x", empty));
+        assertThrows(IllegalArgumentException.class, () -> new OrgRoles(registry, systemKey));
     }
 
     @Test
@@ -64,8 +65,8 @@ class CustomRoleRulesTest {
                 CustomRoleRules.permissions(
                         List.of(CoreAccessCatalog.AUDIT_READ, " " + CoordinatorAccessCatalog.GEOGRAPHIC_VIEW,
                                 CoreAccessCatalog.AUDIT_READ), registry));
-        assertThrows(IllegalArgumentException.class,
-                () -> CustomRoleRules.permissions(List.of("platform:owners.manage"), registry));
+        List<String> platform = List.of("platform:owners.manage");
+        assertThrows(IllegalArgumentException.class, () -> CustomRoleRules.permissions(platform, registry));
         assertThrows(IllegalArgumentException.class, () -> CustomRoleRules.permissions(List.of(), registry));
         assertThrows(IllegalArgumentException.class, () -> CustomRoleRules.permissions(null, registry));
     }
@@ -74,18 +75,22 @@ class CustomRoleRulesTest {
     void namesAreRequiredAndBounded() {
         assertEquals("Revisor", CustomRoleRules.name(" Revisor ", "label.es"));
         assertThrows(IllegalArgumentException.class, () -> CustomRoleRules.name(" ", "label.es"));
-        assertThrows(IllegalArgumentException.class, () -> CustomRoleRules.name("x".repeat(81), "label.es"));
+        String longName = "x".repeat(81);
+        assertThrows(IllegalArgumentException.class, () -> CustomRoleRules.name(longName, "label.es"));
         assertNull(CustomRoleRules.description("  ", "description.es"));
+        String longDescription = "x".repeat(501);
         assertThrows(IllegalArgumentException.class,
-                () -> CustomRoleRules.description("x".repeat(501), "description.es"));
+                () -> CustomRoleRules.description(longDescription, "description.es"));
     }
 
     @Test
     void onlyOwnersAndAdminsManageCustomRoles() {
         assertDoesNotThrow(() -> CustomRoleRules.checkManage(access(BaseRole.OWNER)));
         assertDoesNotThrow(() -> CustomRoleRules.checkManage(access(BaseRole.ADMIN)));
-        assertThrows(SecurityException.class, () -> CustomRoleRules.checkManage(access(BaseRole.MEMBER)));
-        assertThrows(SecurityException.class, () -> CustomRoleRules.checkManage(Access.none(1L, "org")));
+        Access member = access(BaseRole.MEMBER);
+        Access outsider = Access.none(1L, "org");
+        assertThrows(SecurityException.class, () -> CustomRoleRules.checkManage(member));
+        assertThrows(SecurityException.class, () -> CustomRoleRules.checkManage(outsider));
         // A member holding every permission through roles is still not an administrator.
         Access loaded = new Access(1L, "org", BaseRole.MEMBER, Set.of(), registry.permissionsOf(BaseRole.OWNER));
         assertThrows(SecurityException.class, () -> CustomRoleRules.checkManage(loaded));
@@ -96,8 +101,8 @@ class CustomRoleRulesTest {
         Access admin = access(BaseRole.ADMIN);
         assertDoesNotThrow(() -> CustomRoleRules.checkAdded(admin,
                 Set.of(CoreAccessCatalog.MEMBERS_INVITE, CoordinatorAccessCatalog.STAGE_ESCALATION), registry));
-        assertThrows(SecurityException.class,
-                () -> CustomRoleRules.checkAdded(admin, Set.of(CoreAccessCatalog.OWNERS_MANAGE), registry));
+        Set<String> ownerOnly = Set.of(CoreAccessCatalog.OWNERS_MANAGE);
+        assertThrows(SecurityException.class, () -> CustomRoleRules.checkAdded(admin, ownerOnly, registry));
         assertDoesNotThrow(() -> CustomRoleRules.checkAdded(access(BaseRole.OWNER),
                 Set.of(CoreAccessCatalog.OWNERS_MANAGE), registry));
     }
@@ -130,9 +135,22 @@ class CustomRoleRulesTest {
     void grantingACustomRoleFollowsTheModuleRoleRule() {
         OrgRoles roles = new OrgRoles(registry, Map.of(CUSTOM, Set.of(CoreAccessCatalog.OWNERS_MANAGE)));
         assertDoesNotThrow(() -> TeamRules.checkGrant(access(BaseRole.OWNER), List.of(CUSTOM), roles));
-        assertThrows(SecurityException.class,
-                () -> TeamRules.checkGrant(access(BaseRole.ADMIN), List.of(CUSTOM), roles));
-        assertThrows(IllegalArgumentException.class,
-                () -> TeamRules.checkGrant(access(BaseRole.OWNER), List.of("custom:other"), roles));
+        Access admin = access(BaseRole.ADMIN);
+        Access owner = access(BaseRole.OWNER);
+        List<String> held = List.of(CUSTOM);
+        List<String> foreign = List.of("custom:other");
+        assertThrows(SecurityException.class, () -> TeamRules.checkGrant(admin, held, roles));
+        assertThrows(IllegalArgumentException.class, () -> TeamRules.checkGrant(owner, foreign, roles));
     }
+    @Test
+    void aDelegatedMemberCannotGrantExplicitPermissionsTheyDoNotHold() {
+        Access member = new Access(1L, "org", BaseRole.MEMBER, Set.of(), Set.of(CoreAccessCatalog.MEMBERS_UPDATE));
+        List<String> roles = List.of(CoreAccessCatalog.CONTENT_REVIEW_AUTO_APPROVER);
+        assertThrows(SecurityException.class, () -> TeamRules.checkGrant(member, roles, registry));
+        Access holder = new Access(1L, "org", BaseRole.MEMBER, Set.of(),
+                Set.of(CoreAccessCatalog.MEMBERS_UPDATE, CoreAccessCatalog.CONTENT_AUTO_APPROVE));
+        assertDoesNotThrow(() -> TeamRules.checkGrant(holder, roles, registry));
+        assertDoesNotThrow(() -> TeamRules.checkGrant(access(BaseRole.ADMIN), roles, registry));
+    }
+
 }

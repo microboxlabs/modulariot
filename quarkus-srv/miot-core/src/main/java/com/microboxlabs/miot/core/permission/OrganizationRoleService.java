@@ -119,17 +119,18 @@ public class OrganizationRoleService {
         if (!OrgRoles.isCustom(role)) {
             return Uni.createFrom().voidItem();
         }
-        return evaluator.evaluate(org, Caller.user(actor))
-                .flatMap(access -> evaluator.rolesForGrant(root(org), List.of(role)).map(orgRoles -> {
+        return evaluator.root(org).flatMap(root -> evaluator.grant(root, Caller.user(actor), List.of(role),
+                        com.microboxlabs.miot.core.iam.CoreAccessCatalog.MEMBERS_UPDATE))
+                .invoke(grant -> {
                     try {
-                        TeamRules.checkGrant(access, List.of(role), orgRoles);
+                        TeamRules.checkGrant(grant.access(), List.of(role), grant.roles());
                     } catch (SecurityException e) {
                         throw new ForbiddenException(e.getMessage());
                     } catch (IllegalArgumentException e) {
                         throw new BadRequestException("Unknown organization role: " + role);
                     }
-                    return null;
-                }));
+                }).onFailure(SecurityException.class).transform(e -> new ForbiddenException(e.getMessage()))
+                .replaceWithVoid();
     }
 
     /**
@@ -165,7 +166,7 @@ public class OrganizationRoleService {
         if (personId == null || personId.isBlank()) {
             return forbidden();
         }
-        return evaluator.evaluate(organization, Caller.user(personId))
+        return evaluator.root(organization).flatMap(root -> evaluator.evaluate(root, Caller.user(personId)))
                 .flatMap(access -> access.member() && access.baseRole().atLeast(needed)
                         ? Uni.createFrom().voidItem()
                         : forbidden());
@@ -247,6 +248,9 @@ public class OrganizationRoleService {
             if (personId != null && !personId.isBlank()) {
                 normalized.add(personId.trim());
             }
+        }
+        if (OrgRoles.isCustom(roleCode) && normalized.stream().anyMatch(id -> !IamDirectory.isEmail(id))) {
+            throw new BadRequestException("Custom roles cannot be assigned to M2M clients yet; use module roles");
         }
         if (normalized.isEmpty() && OWNER_ROLE_CODE.equals(roleCode)) {
             throw new BadRequestException("An organization must have at least one owner");

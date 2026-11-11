@@ -28,7 +28,7 @@ import {
   setTeamMembers,
   setTeamRoles,
   useAccessCatalog,
-  useMyAccess,
+  useTeamAccess,
   useTeam,
   useTeams,
 } from "./team-api";
@@ -66,7 +66,7 @@ export default function TeamAccessPage({
 }: TeamAccessPageProps) {
   const d = dict?.team as I18nRecord;
   const router = useRouter();
-  const { can } = useMyAccess();
+  const { can } = useTeamAccess();
   const teams = useTeams(true);
   const org = useTeam();
   const { data: catalog, error: catalogError } = useAccessCatalog();

@@ -21,6 +21,11 @@ public interface EngineCaseStore {
     /** The most recent cases that match, at most a page of them. */
     List<EngineCase> list(String tenantCode, CaseFilter filter);
 
+    /** One page, with totals and names over every matching case, before paging. */
+    CasePage page(String tenantCode, CaseFilter filter, int page, int size);
+
+    record CasePage(List<EngineCase> cases, long total, List<String> names) { }
+
     /** The open cases no hold covers, counted by level and by whether they have an open treatment. */
     List<OpenCount> openCounts(String tenantCode);
 

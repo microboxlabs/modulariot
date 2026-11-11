@@ -6,6 +6,8 @@ import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.OperatorScope;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -36,6 +38,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -71,7 +74,13 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final boolean legacy;
     private final Instance<SignalStates> signals;
     private final Clock clock;
+    private static final String GPS_UNAVAILABLE = "GPS data is not available";
     private static final String OPERATOR = "operator";
+    private static final String TOTAL_ROWS = "total_rows";
+    private static final String PAGE_SIZE = "page_size";
+    private static final String GPS_PAGE_SIZE = "p_page_size";
+    private static final String GPS_PAGE = "p_page";
+    private static final String SYMPTOM_NAMES = "symptom_name_list";
 
     @Inject
     public OrgControlTowerMapResource(
@@ -196,7 +205,12 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             }
             Uni<JsonNode> gps = map.conditions(tenantContext.getClientId(), from, to);
             if (notBlank(from) || notBlank(to)) {
-                return gps;
+                if (scope == null) {
+                    return gps;
+                }
+                return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
+                        .emitOn(Infrastructure.getDefaultWorkerPool())
+                        .map(counts -> historicalCounts(counts, cases.caseCounts(tenant, from, to, scope)));
             }
             // As in the symptom list: the open cases count even when the GPS database cannot be read.
             return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
@@ -204,7 +218,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
                     .map(counts -> {
                         JsonNode out = cases.withOpenCaseCounts(tenant, counts, scope);
                         if (counts == null && out.isEmpty()) {
-                            throw new ControlTowerMapService.UnavailableException("GPS data is not available");
+                            throw new ControlTowerMapService.UnavailableException(GPS_UNAVAILABLE);
                         }
                         return out;
                     });
@@ -241,6 +255,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
                 // Every GPS database symptom goes to the operators.
                 return casesOnly(tenant, filters, scope);
             }
+            if (scope != null) {
+                return scopedSymptoms(tenant, filters, scope);
+            }
             Uni<JsonNode> gps = map.symptoms(tenantContext.getClientId(), filters);
             if (!EngineCaseService.showsCases(filters)) {
                 return gps;
@@ -251,7 +268,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
                     .map(page -> {
                         JsonNode out = cases.withCases(tenant, filters, page, scope);
                         if (page == null && out.path("data").isEmpty()) {
-                            throw new ControlTowerMapService.UnavailableException("GPS data is not available");
+                            throw new ControlTowerMapService.UnavailableException(GPS_UNAVAILABLE);
                         }
                         return out;
                     });
@@ -261,6 +278,82 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private Uni<JsonNode> casesOnly(String tenant, Map<String, String> filters, OperatorScope scope) {
         Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
         return blocking(() -> cases.casesPage(tenant, checked, scope));
+    }
+
+    private static JsonNode historicalCounts(JsonNode gps, JsonNode engine) {
+        if (gps == null && engine.isEmpty()) {
+            throw new ControlTowerMapService.UnavailableException(GPS_UNAVAILABLE);
+        }
+        ObjectNode out = gps == null ? JsonNodeFactory.instance.objectNode() : (ObjectNode) gps.deepCopy();
+        engine.properties().forEach(e -> out.put(e.getKey(), out.path(e.getKey()).asLong() + e.getValue().asLong()));
+        return out;
+    }
+
+    /** Explicit scopes page the engine-first union; the omitted parameter keeps the legacy contract. */
+    private Uni<JsonNode> scopedSymptoms(String tenant, Map<String, String> filters, OperatorScope scope) {
+        Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
+        String client = tenantContext.getClientId();
+        return blocking(() -> cases.casesPage(tenant, checked, scope)).chain(engine -> {
+            int size = engine.path(PAGE_SIZE).asInt();
+            long offset = gpsOffset(engine);
+            Map<String, String> gpsFilters = new LinkedHashMap<>(checked);
+            gpsFilters.put(GPS_PAGE_SIZE, Integer.toString(size));
+            gpsFilters.put(GPS_PAGE, Long.toString(offset / size + 1));
+            return map.symptoms(client, gpsFilters)
+                    .onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
+                    .chain(gps -> completePage(client, gpsFilters, engine, gps));
+        });
+    }
+
+    private static long gpsOffset(JsonNode engine) {
+        long offset = (engine.path("page").asLong() - 1) * engine.path(PAGE_SIZE).asInt();
+        return Math.max(0, offset - engine.path(TOTAL_ROWS).asLong());
+    }
+
+    private Uni<JsonNode> completePage(String client, Map<String, String> filters, JsonNode engine, JsonNode gps) {
+        if (gps == null) {
+            if (engine.path(TOTAL_ROWS).asLong() == 0) {
+                throw new ControlTowerMapService.UnavailableException(GPS_UNAVAILABLE);
+            }
+            return Uni.createFrom().item(engine);
+        }
+        int size = engine.path(PAGE_SIZE).asInt();
+        long offset = gpsOffset(engine);
+        int needed = size - engine.path("data").size();
+        boolean crossesPage = offset % size + needed > gps.path("data").size();
+        if (crossesPage && (offset / size + 1) * size < gps.path(TOTAL_ROWS).asLong()) {
+            Map<String, String> next = new LinkedHashMap<>(filters);
+            next.put(GPS_PAGE, Long.toString(offset / size + 2));
+            return map.symptoms(client, next).map(rest -> combinedPage(engine, gps, rest));
+        }
+        return Uni.createFrom().item(combinedPage(engine, gps, null));
+    }
+
+    private static JsonNode combinedPage(JsonNode engine, JsonNode gps, JsonNode rest) {
+        ObjectNode out = engine.deepCopy();
+        ArrayNode rows = (ArrayNode) out.path("data");
+        int size = out.path(PAGE_SIZE).asInt();
+        appendRows(rows, gps.path("data"), gpsOffset(engine) % size, size);
+        if (rest != null) {
+            appendRows(rows, rest.path("data"), 0, size);
+        }
+        long total = engine.path(TOTAL_ROWS).asLong() + gps.path(TOTAL_ROWS).asLong();
+        out.put(TOTAL_ROWS, total);
+        out.put("total_pages", Math.max(1, Math.ceilDiv(total, size)));
+        var names = new LinkedHashSet<String>();
+        engine.path(SYMPTOM_NAMES).forEach(n -> names.add(n.asText()));
+        gps.path(SYMPTOM_NAMES).forEach(n -> names.add(n.asText()));
+        ArrayNode choices = out.putArray(SYMPTOM_NAMES);
+        names.forEach(choices::add);
+        return out;
+    }
+
+    private static void appendRows(ArrayNode target, JsonNode source, long skip, int size) {
+        for (JsonNode row : source) {
+            if (skip-- <= 0 && target.size() < size) {
+                target.add(row);
+            }
+        }
     }
 
     @GET

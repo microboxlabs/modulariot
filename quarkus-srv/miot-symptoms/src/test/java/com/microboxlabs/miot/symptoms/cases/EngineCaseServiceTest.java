@@ -141,6 +141,22 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void explicitOperatorPagesAndTotalsAreNotCappedAtTwoHundred() {
+        for (int i = 1; i <= 215; i++) {
+            store.add(panic(i, "DEMO" + i));
+        }
+        JsonNode page = service.casesPage(TENANT, Map.of("p_page", "17", "p_page_size", "13"),
+                EngineCaseStore.OperatorScope.REQUIRED);
+        assertEquals(215, page.path("total_rows").asInt());
+        assertEquals(17, page.path("total_pages").asInt());
+        assertEquals(7, page.path("data").size());
+        assertEquals(-209, page.path("data").get(0).path("id").asInt());
+        assertEquals(service.caseCounts(TENANT, null, null).path("Code Black").asLong(),
+                page.path("total_rows").asLong());
+        assertEquals(200, service.casesPage(TENANT, Map.of()).path("total_rows").asInt());
+    }
+
+    @Test
     void theOperatorFilterReadsRequiredNoneOrAll() {
         assertEquals(EngineCaseStore.OperatorScope.REQUIRED, EngineCaseStore.OperatorScope.parse(" Required "));
         assertEquals(EngineCaseStore.OperatorScope.NONE, EngineCaseStore.OperatorScope.parse("none"));

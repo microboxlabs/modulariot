@@ -80,6 +80,18 @@ public class InMemoryEngineCases implements EngineCaseStore {
 
     @Override
     public List<EngineCase> list(String tenantCode, CaseFilter f) {
+        return matching(f).limit(PAGE).toList();
+    }
+
+    @Override
+    public CasePage page(String tenantCode, CaseFilter f, int page, int size) {
+        Stream<EngineCase> matches = matching(f);
+        List<EngineCase> found = (f.openOnly() ? matches.sorted(EngineCaseService.INBOX_ORDER) : matches).toList();
+        return new CasePage(found.stream().skip((long) (page - 1) * size).limit(size).toList(), found.size(),
+                found.stream().map(EngineCase::name).distinct().toList());
+    }
+
+    private Stream<EngineCase> matching(CaseFilter f) {
         return cases.stream()
                 .filter(c -> f.openOnly() ? c.closedAt() == null
                         : (f.from() == null || c.closedAt() == null || !c.closedAt().isBefore(f.from()))
@@ -94,7 +106,7 @@ public class InMemoryEngineCases implements EngineCaseStore {
                 .filter(c -> !f.withoutOperatorOnly() || !needsOperator(c))
                 .filter(c -> !f.byTrip() || matchesTrip(trips.get(c.tripId()), f))
                 .sorted(Comparator.comparing(EngineCase::openedAt).reversed())
-                .limit(PAGE).map(c -> c.withOperatorRequired(needsOperator(c))).toList();
+                .map(c -> c.withOperatorRequired(needsOperator(c)));
     }
 
     private static boolean matchesTrip(Trip t, CaseFilter f) {

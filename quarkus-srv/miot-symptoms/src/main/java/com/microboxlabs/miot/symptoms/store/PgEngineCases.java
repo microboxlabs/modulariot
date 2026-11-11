@@ -612,11 +612,7 @@ public class PgEngineCases implements EngineCaseStore {
     @Override
     public List<EngineCase> list(String tenantCode, CaseFilter f) {
         List<EngineCase> out = new ArrayList<>();
-        Tuple args = Tuple.tuple().addString(tenantCode).addString(f.tripId())
-                .addString(f.assetId()).addString(f.symptomName())
-                .addOffsetDateTime(f.from() == null ? null : utc(f.from()))
-                .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level())
-                .addBoolean(f.underTreatmentOnly()).addBoolean(f.ignoredOnly()).addBoolean(needsOperator(f));
+        Tuple args = arguments(tenantCode, f);
         if (!f.byTrip()) {
             cases(MATCHING, args).forEach(r -> out.add(engineCase(r)));
             return out;
@@ -638,6 +634,61 @@ public class PgEngineCases implements EngineCaseStore {
             LOG.debug("Engine cases not filtered by trip: trips unavailable", e);
         }
         return out;
+    }
+
+    private static Tuple arguments(String tenantCode, CaseFilter f) {
+        return Tuple.tuple().addString(tenantCode).addString(f.tripId())
+                .addString(f.assetId()).addString(f.symptomName())
+                .addOffsetDateTime(f.from() == null ? null : utc(f.from()))
+                .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level())
+                .addBoolean(f.underTreatmentOnly()).addBoolean(f.ignoredOnly()).addBoolean(needsOperator(f));
+    }
+
+    @Override
+    public CasePage page(String tenantCode, CaseFilter f, int page, int size) {
+        Tuple args = arguments(tenantCode, f);
+        String driver = plain(f.driverId());
+        String carrier = plain(f.carrierId());
+        if ("".equals(driver) || "".equals(carrier)) {
+            return new CasePage(List.of(), 0, List.of());
+        }
+        if (f.byTrip()) {
+            args.addString(driver).addString(carrier).addString(f.carrierId() == null ? null : f.carrierId().trim())
+                    .addString(lower(f.origin())).addString(lower(f.destination()));
+        }
+        int sizeParameter = args.size() + 1;
+        args.addInteger(size).addLong((long) (page - 1) * size);
+        String matching = (f.byTrip() ? MATCHING_BY_TRIP : MATCHING).replace(" LIMIT 200", "");
+        // Totals, names and rows share one snapshot, including when the requested page is empty.
+        String query = "WITH matching AS MATERIALIZED (" + matching + ") "
+                + "SELECT p.*, totals.total_rows, totals.symptom_names FROM "
+                + "(SELECT count(*) AS total_rows, COALESCE(array_agg(DISTINCT name), ARRAY[]::text[]) "
+                + "AS symptom_names FROM matching) totals LEFT JOIN LATERAL "
+                + "(SELECT * FROM matching m ORDER BY " + INBOX_ORDER.replace("z.", "m.") + ", m.at DESC"
+                + ", m.id DESC"
+                + " LIMIT $" + sizeParameter + " OFFSET $" + (sizeParameter + 1) + ") p ON true";
+        List<EngineCase> out = new ArrayList<>();
+        long total = 0;
+        List<String> names = List.of();
+        try {
+            for (Row r : cases(query, args)) {
+                total = r.getLong("total_rows");
+                names = List.of(r.getArrayOfStrings("symptom_names"));
+                if (r.getLong("id") != null) {
+                    out.add(engineCase(r));
+                }
+            }
+        } catch (PgException e) {
+            if (!f.byTrip() || !"42P01".equals(e.getSqlState())) {
+                throw e;
+            }
+            LOG.debug("Engine cases not filtered by trip: trips unavailable", e);
+        }
+        if (!f.openOnly()) {
+            out.sort(Comparator.comparing(EngineCase::openedAt).reversed()
+                    .thenComparing(Comparator.comparingLong(EngineCase::id).reversed()));
+        }
+        return new CasePage(out, total, names);
     }
 
     /** {@link CaseFilter}'s operator filters as the queries read them: null keeps every case. */

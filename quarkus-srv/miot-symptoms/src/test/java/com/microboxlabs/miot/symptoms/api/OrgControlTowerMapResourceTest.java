@@ -79,6 +79,16 @@ class OrgControlTowerMapResourceTest {
         public Uni<JsonNode> symptoms(String authorization, Map<String, String> filters) {
             gpsCalls.add("symptoms");
             sentFilters.add(filters);
+            if (gpsRows != null) {
+                int size = Integer.parseInt(filters.getOrDefault("p_page_size", "10"));
+                int number = Integer.parseInt(filters.getOrDefault("p_page", "1"));
+                var rows = JSON.createArrayNode();
+                gpsRows.stream().skip((long) (number - 1) * size).limit(size).forEach(rows::add);
+                var out = JSON.createObjectNode().put("total_rows", gpsRows.size());
+                out.set("data", rows);
+                out.putArray("symptom_name_list").add("GPS symptom");
+                return Uni.createFrom().item(out);
+            }
             JsonNode page = JSON.createObjectNode().put("total_rows", 1).set("data",
                     JSON.createArrayNode().add(JSON.createObjectNode().put("asset_id", "AB12")));
             return Uni.createFrom().item(page);
@@ -86,6 +96,7 @@ class OrgControlTowerMapResourceTest {
     };
 
     private final List<Map<String, String>> sentFilters = new ArrayList<>();
+    private List<JsonNode> gpsRows;
     private final List<String> gpsCalls = new ArrayList<>();
 
     private static final class Roles extends OrganizationRoleService {
@@ -839,6 +850,65 @@ class OrgControlTowerMapResourceTest {
         assertEquals(2, all.get("Code Black").asInt(), "the GPS database's and the case's");
         assertEquals(1, all.get("Under Observation").asInt());
         assertEquals(400, call(resource.symptoms(ORG, query("operator=some"))).getStatus());
+    }
+
+    @Test
+    void explicitLegacyScopesPaginateTheEngineAndGpsTogether() {
+        for (int i = 1; i <= 12; i++) {
+            engineCases.add(openCase(i, 4));
+        }
+        engineCases.add(openCase(13, 1));
+        engineCases.operatorRequired.put(13L, false);
+        gpsRows = new ArrayList<>();
+        for (int i = 101; i <= 117; i++) {
+            gpsRows.add(JSON.createObjectNode().put("id", i));
+        }
+        for (String scope : List.of("required", "all")) {
+            var subject = resource(Optional.of("http://gps.example"));
+            int engineTotal = scope.equals("required") ? 12 : 13;
+            List<Long> seen = new ArrayList<>();
+            for (int page = 1; page <= 4; page++) {
+                JsonNode result = (JsonNode) call(subject.symptoms(ORG,
+                        query("operator=" + scope + "&p_page_size=10&p_page=" + page))).getEntity();
+                assertEquals(engineTotal + 17, result.path("total_rows").asInt());
+                assertEquals(3, result.path("total_pages").asInt());
+                assertEquals(engineTotal, result.path("engine_cases").asInt());
+                assertEquals(page, result.path("page").asInt());
+                assertTrue(result.path("data").size() <= 10);
+                assertTrue(result.path("symptom_name_list").toString().contains("GPS symptom"));
+                result.path("data").forEach(row -> seen.add(row.path("id").asLong()));
+            }
+            assertEquals(engineTotal + 17, seen.size());
+            assertEquals(seen.size(), seen.stream().distinct().count());
+            assertTrue(seen.subList(0, engineTotal).stream().allMatch(id -> id < 0));
+            assertEquals(101L, seen.get(engineTotal));
+            assertEquals(117L, seen.getLast());
+        }
+        assertTrue(sentFilters.stream().noneMatch(f -> f.containsKey("operator")));
+        gpsRows.clear();
+        JsonNode engineOnly = (JsonNode) call(resource(Optional.of("http://gps.example")).symptoms(ORG,
+                query("operator=all&p_page_size=10&p_page=2"))).getEntity();
+        assertEquals(13, engineOnly.path("total_rows").asInt());
+        assertEquals(3, engineOnly.path("data").size());
+        JsonNode fallback = (JsonNode) call(resource(Optional.empty()).symptoms(ORG,
+                query("operator=all&p_page_size=10&p_page=5"))).getEntity();
+        assertEquals(13, fallback.path("total_rows").asInt());
+        assertEquals(0, fallback.path("data").size());
+    }
+
+    @Test
+    void explicitLegacyHistoricalCountsIncludeTheScopedCases() {
+        engineCases.add(openCase(1, 4));
+        engineCases.add(openCase(2, 1));
+        engineCases.operatorRequired.put(2L, false);
+        for (String scope : List.of("required", "all")) {
+            JsonNode counts = (JsonNode) call(resource.conditions(ORG, "2026-01-01", "2099-01-01", scope)).getEntity();
+            assertEquals(3, counts.path("Stable").asInt());
+            assertEquals(1, counts.path("Code Black").asInt());
+            assertEquals(scope.equals("all") ? 1 : 0, counts.path("Under Observation").asInt());
+        }
+        JsonNode unchanged = (JsonNode) call(resource.conditions(ORG, "2026-01-01", "2099-01-01", null)).getEntity();
+        assertFalse(unchanged.has("Code Black"));
     }
 
     @Test

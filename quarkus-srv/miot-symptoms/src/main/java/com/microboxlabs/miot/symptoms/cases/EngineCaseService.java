@@ -432,21 +432,34 @@ public class EngineCaseService {
         if (Integer.valueOf(6).equals(filter.level())) {
             filter = filter.withOpenTreatment();
         }
-        List<EngineCase> found = listed(tenantCode, filter, operator);
         int size = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
         int page = Math.max(1, number(filters.get(PAGE), 1));
-        int pages = Math.max(1, Math.ceilDiv(found.size(), size));
+        EngineCaseStore.CasePage result;
+        if (operator == null) {
+            // Preserve the bounded list contract for callers that omit operator.
+            List<EngineCase> found = listed(tenantCode, filter, null);
+            result = new EngineCaseStore.CasePage(
+                    found.stream().skip((long) (page - 1) * size).limit(size).toList(), found.size(),
+                    found.stream().map(EngineCase::name).distinct().toList());
+        } else {
+            result = store.page(tenantCode, filter.operator(operator), page, size);
+        }
+        long pages = Math.max(1, Math.ceilDiv(result.total(), size));
         ArrayNode rows = JSON.arrayNode();
-        found.stream().skip((long) (page - 1) * size).limit(size).forEach(c -> rows.add(row(c)));
+        var ordered = result.cases().stream();
+        if (filter.openOnly()) {
+            ordered = ordered.sorted(INBOX_ORDER);
+        }
+        ordered.forEach(c -> rows.add(row(c)));
         ObjectNode out = JSON.objectNode();
         out.set("data", rows);
         out.put("page", page);
         out.put("page_size", size);
-        out.put("total_rows", found.size());
+        out.put("total_rows", result.total());
         out.put("total_pages", pages);
-        out.put("engine_cases", found.size());
+        out.put("engine_cases", result.total());
         ArrayNode names = out.putArray(SYMPTOM_NAMES);
-        found.stream().map(EngineCase::name).distinct().forEach(names::add);
+        result.names().forEach(names::add);
         return out;
     }
 

@@ -485,6 +485,10 @@ class PgSlaStoreTest {
         PgEngineCases cases = new PgEngineCases(() -> pool);
 
         assertEquals(List.of(a), ids(cases.list(tenant, byTrip("12345678-9", null, null, null))), "first driver");
+        var filteredPage = cases.page(tenant, byTrip("12345678-9", null, null, null)
+                .operator(EngineCaseStore.OperatorScope.REQUIRED), 1, 13);
+        assertEquals(List.of(a), ids(filteredPage.cases()));
+        assertEquals(1, filteredPage.total());
         assertEquals(List.of(a), ids(cases.list(tenant, byTrip("9.876.543-K", null, null, null))), "second driver");
         assertEquals(List.of(a), ids(cases.list(tenant, byTrip(null, "76111111-1", null, null))), "carrier RUT");
         assertEquals(List.of(b), ids(cases.list(tenant, byTrip(null, "77.222.222-2", null, null))));
@@ -496,6 +500,7 @@ class PgSlaStoreTest {
         assertTrue(cases.list(tenant, byTrip("12345678-9", "77222222-2", null, null)).isEmpty());
         assertTrue(cases.list(tenant, byTrip(null, "78333333-3", null, null)).isEmpty());
         assertTrue(cases.list(tenant, byTrip("--", null, null, null)).isEmpty(), "nothing left to compare");
+        assertEquals(0, cases.page(tenant, byTrip("--", null, null, null), 1, 13).total());
         assertTrue(cases.list("other-" + tenant, byTrip(null, "76111111-1", null, null)).isEmpty());
 
         List<EngineCase> all = cases.list(tenant, EngineCaseStore.CaseFilter.OPEN);
@@ -611,6 +616,49 @@ class PgSlaStoreTest {
     private static long openCount(PgEngineCases cases, String tenant, EngineCaseStore.OperatorScope operator) {
         return cases.towerCounts(tenant, operator).active().stream().mapToLong(EngineCaseStore.OpenCount::count)
                 .sum();
+    }
+
+    @Test
+    void operatorPagesCountAllMatchesAndReachCasesBeyondTwoHundred() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID definition = symptom(tenant);
+        Instant at = Instant.parse("2026-10-22T03:00:00Z");
+        List<Transition> transitions = new ArrayList<>();
+        for (int i = 0; i < 215; i++) {
+            transitions.add(new Transition(Kind.OPENED, definition, "1.0.0", SymptomState.ACTIVE, "demo-" + i,
+                    at.plusSeconds(i / 5), 3, 0, 30, null, null, i >= 205));
+        }
+        log.append(tenant, transitions, new TransitionLog.Place(null, null, null, null, null));
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+        for (var scope : EngineCaseStore.OperatorScope.values()) {
+            var filter = EngineCaseStore.CaseFilter.OPEN.operator(scope);
+            long expected = openCount(cases, tenant, scope);
+            var first = cases.page(tenant, filter, 1, 13);
+            assertEquals(expected, first.total());
+            assertEquals(List.of("Exceso de velocidad"), first.names());
+            List<Long> seen = new ArrayList<>();
+            for (int page = 1; page <= Math.ceilDiv(expected, 13); page++) {
+                var result = cases.page(tenant, filter, page, 13);
+                assertEquals(expected, result.total());
+                seen.addAll(ids(result.cases()));
+                assertTrue(result.cases().stream().allMatch(c -> scope == EngineCaseStore.OperatorScope.ALL
+                        || c.operatorRequired() == (scope == EngineCaseStore.OperatorScope.REQUIRED)));
+            }
+            assertEquals(expected, seen.stream().distinct().count());
+            var empty = cases.page(tenant, filter, 100, 13);
+            assertTrue(empty.cases().isEmpty());
+            assertEquals(expected, empty.total());
+            assertEquals(first.names(), empty.names());
+        }
+        assertEquals(200, cases.list(tenant, EngineCaseStore.CaseFilter.OPEN).size(), "legacy cap is unchanged");
+        var historic = new EngineCaseStore.CaseFilter(null, null, null, null, at.minusSeconds(1), at.plusSeconds(500))
+                .operator(EngineCaseStore.OperatorScope.NONE);
+        var historicPage = cases.page(tenant, historic, 1, 13);
+        assertEquals(205, historicPage.total());
+        assertEquals("demo-204", historicPage.cases().getFirst().assetId());
+        var nextHistoric = cases.page(tenant, historic, 2, 13);
+        assertTrue(ids(historicPage.cases()).stream().noneMatch(ids(nextHistoric.cases())::contains));
+        assertEquals(0, cases.page("other-" + tenant, EngineCaseStore.CaseFilter.OPEN, 1, 13).total());
     }
 
     private static List<Long> ids(List<com.microboxlabs.miot.symptoms.cases.EngineCase> found) {
@@ -789,9 +837,22 @@ class PgSlaStoreTest {
         PgEngineCases cases = new PgEngineCases(() -> pool);
 
         assertEquals(List.of(caseId), ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator())));
+        assertTrue(cases.page(tenant, EngineCaseStore.CaseFilter.OPEN
+                .operator(EngineCaseStore.OperatorScope.NONE), 1, 13).cases().isEmpty());
+        assertEquals(1, openCount(cases, tenant, EngineCaseStore.OperatorScope.REQUIRED));
         assertEquals(15, cases.find(tenant, caseId).orElseThrow().slaMinutes());
         assertEquals(List.of(caseId), due(t0.minusSeconds(3600), t0.plusSeconds(3600), tenant).stream()
                 .map(d -> d.engineCase().id()).toList());
+
+        log.append(tenant, List.of(new Transition(Kind.LEVEL_CHANGED, speeding, "1.0.0", SymptomState.ACTIVE,
+                "DEMO01", t0.plusSeconds(120), 1, 3, 30, null, null, false)), place);
+        var without = cases.page(tenant, EngineCaseStore.CaseFilter.OPEN
+                .operator(EngineCaseStore.OperatorScope.NONE), 1, 13);
+        assertEquals(List.of(caseId), ids(without.cases()));
+        assertEquals(Boolean.FALSE, without.cases().getFirst().operatorRequired());
+        assertEquals(0, openCount(cases, tenant, EngineCaseStore.OperatorScope.REQUIRED));
+        assertEquals(1, openCount(cases, tenant, EngineCaseStore.OperatorScope.NONE));
+        assertEquals(1, cases.openedCounts(tenant, t0.minusSeconds(1), t0.plusSeconds(1)).getFirst().withoutOperator());
     }
 
     @Test

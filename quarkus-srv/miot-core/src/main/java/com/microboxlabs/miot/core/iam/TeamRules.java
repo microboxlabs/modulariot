@@ -38,10 +38,16 @@ public final class TeamRules {
      * which an administrator grants without holding them.
      */
     public static void checkGrant(Access actor, Collection<String> roleKeys, AccessRegistry registry) {
+        checkGrant(actor, roleKeys, OrgRoles.system(registry));
+    }
+
+    /** {@link #checkGrant(Access, Collection, AccessRegistry)} over the organization's module and custom roles. */
+    public static void checkGrant(Access actor, Collection<String> roleKeys, OrgRoles roles) {
+        AccessRegistry registry = roles.registry();
         for (String key : roleKeys) {
-            RoleDef role = registry.role(key)
+            Set<String> permissions = roles.permissions(key)
                     .orElseThrow(() -> new IllegalArgumentException("Unknown role: " + key));
-            for (String permission : role.permissions()) {
+            for (String permission : permissions) {
                 boolean explicitOnly = registry.permissions().stream()
                         .anyMatch(p -> p.key().equals(permission) && p.explicitOnly());
                 if (!explicitOnly && !actor.can(permission)) {
@@ -53,9 +59,13 @@ public final class TeamRules {
 
     /** The base role to invite with, checked like a change from nothing. */
     public static void checkInvite(Access actor, BaseRole baseRole, Set<String> roleKeys, AccessRegistry registry) {
+        checkInvite(actor, baseRole, roleKeys, OrgRoles.system(registry));
+    }
+
+    public static void checkInvite(Access actor, BaseRole baseRole, Set<String> roleKeys, OrgRoles roles) {
         if (baseRole == BaseRole.OWNER && !actor.can(CoreAccessCatalog.OWNERS_MANAGE)) {
             throw new SecurityException("Only an owner invites owners");
         }
-        checkGrant(actor, roleKeys, registry);
+        checkGrant(actor, roleKeys, roles);
     }
 }

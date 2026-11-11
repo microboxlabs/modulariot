@@ -188,8 +188,8 @@ public class TeamsService {
     public Uni<TeamView> setRoles(String slug, Caller actor, UUID teamId, TeamRolesRequest request) {
         Set<String> wanted = new TreeSet<>(request == null || request.roles() == null ? List.of() : request.roles());
         return Panache.withTransaction(() -> root(slug).flatMap(root -> evaluator.evaluate(slug, actor)
-                .flatMap(access -> team(root.id, teamId).flatMap(team -> {
-                    TeamRules.checkGrant(access, wanted, evaluator.registry());
+                .flatMap(access -> team(root.id, teamId).flatMap(team -> evaluator.roles(root.id).flatMap(orgRoles -> {
+                    TeamRules.checkGrant(access, wanted, orgRoles);
                     return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 and principalId = ?3 "
                                     + "and scopeKind = ?4", root.id, IamRoleBinding.TEAM, team.id.toString(),
                                     IamRoleBinding.ORGANIZATION)
@@ -206,7 +206,7 @@ public class TeamsService {
                             .flatMap(ignored -> directory.audit(root.id, actor.name(), "team.roles", team.name,
                                     Map.of("roles", List.copyOf(wanted))))
                             .flatMap(ignored -> view(root.id, team));
-                }))));
+                })))));
     }
 
     // --- bindings ---
@@ -231,12 +231,12 @@ public class TeamsService {
         String kind = principalKind(request);
         UUID principal = uuid(request.principalId());
         return Panache.withTransaction(() -> root(slug).flatMap(root -> evaluator.evaluate(slug, actor)
-                .flatMap(access -> {
-                    TeamRules.checkGrant(access, List.of(request.role()), evaluator.registry());
+                .flatMap(access -> evaluator.roles(root.id).flatMap(orgRoles -> {
+                    TeamRules.checkGrant(access, List.of(request.role()), orgRoles);
                     return principalExists(root.id, kind, principal)
                             .flatMap(ignored -> subAccount(root, request.subAccount()))
                             .flatMap(sub -> saveBinding(root, kind, principal, request, sub, actor.name()));
-                })));
+                }))));
     }
 
     /** The request's principal kind, upper-cased; the request must name a principal and a role. */

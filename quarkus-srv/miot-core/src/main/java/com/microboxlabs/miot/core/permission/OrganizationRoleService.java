@@ -9,6 +9,8 @@ import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.BaseRole;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.IamDirectory;
+import com.microboxlabs.miot.core.iam.OrgRoles;
+import com.microboxlabs.miot.core.iam.model.IamCustomRole;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
@@ -24,7 +26,8 @@ import java.util.Set;
 
 /**
  * The organization role API over IAM: {@value #OWNER_ROLE_CODE} is the Owner base role, every other code is a
- * module role from the {@link com.microboxlabs.miot.core.iam.AccessRegistry}. "Owner access" means the Owner or
+ * module role from the {@link com.microboxlabs.miot.core.iam.AccessRegistry} or one of the organization's custom
+ * roles ({@code custom:<slug>}). "Owner access" means the Owner or
  * Admin base role; replacing the owners needs Owner.
  */
 @ApplicationScoped
@@ -138,7 +141,21 @@ public class OrganizationRoleService {
     private Uni<Void> write(Long organizationId, String role, Set<String> assignees, String actor) {
         return OWNER_ROLE_CODE.equals(role)
                 ? directory.setOwners(organizationId, assignees, actor)
-                : directory.setHolders(organizationId, role, assignees, actor);
+                : requireCustomRole(organizationId, role)
+                        .flatMap(ignored -> directory.setHolders(organizationId, role, assignees, actor));
+    }
+
+    /** A custom role key must be one of the top-level organization's own roles. */
+    private static Uni<Void> requireCustomRole(Long organizationId, String role) {
+        if (!OrgRoles.isCustom(role)) {
+            return Uni.createFrom().voidItem();
+        }
+        return IamCustomRole.findByKeys(organizationId, List.of(role)).map(rows -> {
+            if (rows.isEmpty()) {
+                throw new BadRequestException("Unknown organization role: " + role);
+            }
+            return null;
+        });
     }
 
     /**
@@ -147,7 +164,9 @@ public class OrganizationRoleService {
      */
     private Uni<OrganizationRoleDto> load(Long organizationId, String role, boolean withBootstrapOwner) {
         if (!OWNER_ROLE_CODE.equals(role)) {
-            return directory.holders(organizationId, role).map(ids -> new OrganizationRoleDto(role, ids));
+            return requireCustomRole(organizationId, role)
+                    .flatMap(ignored -> directory.holders(organizationId, role))
+                    .map(ids -> new OrganizationRoleDto(role, ids));
         }
         String caller = organizationContext.getUserEmail();
         return directory.owners(organizationId).map(owners -> new OrganizationRoleDto(role,
@@ -155,7 +174,7 @@ public class OrganizationRoleService {
     }
 
     private String knownRole(String roleCode) {
-        if (roleCode == null || (!OWNER_ROLE_CODE.equals(roleCode)
+        if (roleCode == null || (!OWNER_ROLE_CODE.equals(roleCode) && !OrgRoles.isCustom(roleCode)
                 && evaluator.registry().role(roleCode).isEmpty())) {
             throw new BadRequestException("Unknown organization role: " + roleCode);
         }

@@ -135,11 +135,12 @@ public class TeamService {
     public Uni<MemberView> setRoles(String slug, Caller actor, UUID userId, RolesRequest request) {
         Set<String> wanted = new TreeSet<>(request == null || request.roles() == null ? List.of() : request.roles());
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
-                evaluator.evaluate(org, actor).flatMap(access -> membership(root.id, userId).flatMap(m -> {
-                    TeamRules.checkGrant(access, wanted, evaluator.registry());
-                    return replaceRoles(root.id, userId, wanted, actor.name())
-                            .flatMap(ignored -> view(root.id, m));
-                })))));
+                evaluator.evaluate(org, actor).flatMap(access -> membership(root.id, userId).flatMap(m ->
+                        evaluator.roles(root.id).flatMap(orgRoles -> {
+                            TeamRules.checkGrant(access, wanted, orgRoles);
+                            return replaceRoles(root.id, userId, wanted, actor.name())
+                                    .flatMap(ignored -> view(root.id, m));
+                        }))))));
     }
 
     public Uni<Void> remove(String slug, Caller actor, UUID userId) {
@@ -202,8 +203,8 @@ public class TeamService {
             emails.add(normalized);
         }
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
-                evaluator.evaluate(org, actor).flatMap(access -> {
-                    TeamRules.checkInvite(access, base, roles, evaluator.registry());
+                evaluator.evaluate(org, actor).flatMap(access -> evaluator.roles(root.id).flatMap(orgRoles -> {
+                    TeamRules.checkInvite(access, base, roles, orgRoles);
                     Uni<List<CreatedInvitation>> chain = Uni.createFrom().item(new ArrayList<>());
                     for (String email : emails) {
                         chain = chain.flatMap(list -> inviteOne(root, email, base, roles, ttl, actor.name())
@@ -213,7 +214,7 @@ public class TeamService {
                                 }));
                     }
                     return chain.map(list -> new Invited(root, list));
-                }))))
+                })))))
                 .flatMap(invited -> mail.deliverAll(invited.root(), invited.created(), actor.name(), request.lang()));
     }
 

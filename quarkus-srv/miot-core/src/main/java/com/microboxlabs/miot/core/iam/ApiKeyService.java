@@ -136,8 +136,9 @@ public class ApiKeyService {
         }
         Set<String> roles = new TreeSet<>(request.roles() == null ? List.of() : request.roles());
         Duration ttl = ttl(request.expiresInDays());
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> access(slug, actor).flatMap(access -> {
-            TeamRules.checkGrant(access, roles, evaluator.registry());
+        return Panache.withTransaction(() -> root(slug).flatMap(root -> access(slug, actor).flatMap(access ->
+                evaluator.roles(root.id).flatMap(orgRoles -> {
+            TeamRules.checkGrant(access, roles, orgRoles);
             IamServiceAccount account = new IamServiceAccount();
             account.id = UUID.randomUUID();
             account.organizationId = root.id;
@@ -151,7 +152,7 @@ public class ApiKeyService {
                                     account.name, Map.of("roles", List.copyOf(roles)))
                             .flatMap(ignored -> view(root.id, account))
                             .map(view -> new CreatedServiceAccount(view, created.secret())));
-        })));
+        }))));
     }
 
     public Uni<Void> delete(String slug, Caller actor, UUID accountId) {
@@ -166,8 +167,8 @@ public class ApiKeyService {
     public Uni<ServiceAccountView> setRoles(String slug, Caller actor, UUID accountId, List<String> requested) {
         Set<String> roles = new TreeSet<>(requested == null ? List.of() : requested);
         return Panache.withTransaction(() -> root(slug).flatMap(root -> access(slug, actor).flatMap(access ->
-                account(root.id, accountId).flatMap(account -> {
-                    TeamRules.checkGrant(access, roles, evaluator.registry());
+                account(root.id, accountId).flatMap(account -> evaluator.roles(root.id).flatMap(orgRoles -> {
+                    TeamRules.checkGrant(access, roles, orgRoles);
                     return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 and principalId = ?3 "
                                     + "and scopeKind = ?4", root.id, IamRoleBinding.SERVICE_ACCOUNT,
                                     account.id.toString(), IamRoleBinding.ORGANIZATION)
@@ -175,7 +176,7 @@ public class ApiKeyService {
                             .flatMap(ignored -> directory.audit(root.id, actor.name(), "service-account.roles",
                                     account.name, Map.of("roles", List.copyOf(roles))))
                             .flatMap(ignored -> view(root.id, account));
-                }))));
+                })))));
     }
 
     /** Links the credential whose token the account's API keys are exchanged for, or unlinks it. */

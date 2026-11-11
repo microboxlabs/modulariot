@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.PlatformScope;
 import io.quarkus.security.identity.SecurityIdentity;
+import com.microboxlabs.miot.core.iam.model.IamCustomRole;
 import com.microboxlabs.miot.core.iam.model.IamMembership;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.iam.model.IamTeamMember;
@@ -109,16 +110,16 @@ public class AccessEvaluator {
 
     private Uni<Access> clientAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
         return IamRoleBinding.findFor(scope, IamRoleBinding.CLIENT, List.of(caller.clientId()))
-                .map(bindings -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                        null, caller.clientId().equals(org.tenantClientId), covered(bindings, org, root)), registry));
+                .flatMap(bindings -> resolve(org, root, caller, new AccessRules.Facts(
+                        null, caller.clientId().equals(org.tenantClientId), covered(bindings, org, root))));
     }
 
     private Uni<Access> serviceAccountAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
         boolean own = scope.contains(caller.serviceAccountOrganizationId());
         return IamRoleBinding.findFor(scope, IamRoleBinding.SERVICE_ACCOUNT,
                         List.of(caller.serviceAccountId().toString()))
-                .map(bindings -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                        own ? BaseRole.MEMBER : null, false, covered(bindings, org, root)), registry));
+                .flatMap(bindings -> resolve(org, root, caller, new AccessRules.Facts(
+                        own ? BaseRole.MEMBER : null, false, covered(bindings, org, root))));
     }
 
     private Uni<Access> userAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
@@ -155,8 +156,25 @@ public class AccessEvaluator {
             BaseRole base) {
         return bindingsOf(user, scope)
                 .flatMap(bindings -> platform.isPlatformOwner(caller.email())
-                        .map(owner -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                                base, false, covered(bindings, org, root), Boolean.TRUE.equals(owner)), registry)));
+                        .flatMap(owner -> resolve(org, root, caller, new AccessRules.Facts(
+                                base, false, covered(bindings, org, root), Boolean.TRUE.equals(owner)))));
+    }
+
+    /** Applies {@link AccessRules} after loading the top-level organization's custom roles among the bound ones. */
+    private Uni<Access> resolve(Organization org, Organization root, Caller caller, AccessRules.Facts facts) {
+        List<String> customKeys = facts.boundRoles().stream().filter(OrgRoles::isCustom).toList();
+        return IamCustomRole.findByKeys(root.id, customKeys)
+                .map(rows -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
+                        facts.membershipRole(), facts.tenantClient(), facts.boundRoles(), facts.platformOwner(),
+                        OrgRoles.permissionsByKey(rows)), registry));
+    }
+
+    /**
+     * The roles the top-level organization can bind: the module roles plus its custom roles. Needs an open
+     * session.
+     */
+    public Uni<OrgRoles> roles(Long rootOrganizationId) {
+        return IamCustomRole.findByOrganization(rootOrganizationId).map(rows -> OrgRoles.of(registry, rows));
     }
 
     /** The memberships after a join through the caller's email domain; empty when the domain gives none. */

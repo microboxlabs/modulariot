@@ -350,10 +350,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
 
     private Uni<JsonNode> completePage(String client, Map<String, String> filters, JsonNode engine, JsonNode gps) {
         if (gps == null) {
-            if (engine.path(TOTAL_ROWS).asLong() == 0) {
-                throw new ControlTowerMapService.UnavailableException(GPS_UNAVAILABLE);
-            }
-            return Uni.createFrom().item(engine);
+            return Uni.createFrom().item(engineFallback(engine));
         }
         int size = engine.path(PAGE_SIZE).asInt();
         long offset = gpsOffset(engine);
@@ -362,9 +359,18 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         if (crossesPage && (offset / size + 1) * size < gps.path(TOTAL_ROWS).asLong()) {
             Map<String, String> next = new LinkedHashMap<>(filters);
             next.put(GPS_PAGE, Long.toString(offset / size + 2));
-            return map.symptoms(client, next).map(rest -> combinedPage(engine, gps, rest));
+            return map.symptoms(client, next)
+                    .onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
+                    .map(rest -> rest == null ? engineFallback(engine) : combinedPage(engine, gps, rest));
         }
         return Uni.createFrom().item(combinedPage(engine, gps, null));
+    }
+
+    private static JsonNode engineFallback(JsonNode engine) {
+        if (engine.path(TOTAL_ROWS).asLong() == 0) {
+            throw new ControlTowerMapService.UnavailableException(GPS_UNAVAILABLE);
+        }
+        return engine;
     }
 
     private static JsonNode combinedPage(JsonNode engine, JsonNode gps, JsonNode rest) {

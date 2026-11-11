@@ -79,6 +79,9 @@ class OrgControlTowerMapResourceTest {
         public Uni<JsonNode> symptoms(String authorization, Map<String, String> filters) {
             gpsCalls.add("symptoms");
             sentFilters.add(filters);
+            if (failedGpsPage != null && failedGpsPage.equals(filters.get("p_page"))) {
+                return Uni.createFrom().failure(new IllegalStateException("GPS page unavailable"));
+            }
             String condition = filters.get("p_icu_code");
             if (condition != null && condition.equals(failedGpsCondition)) {
                 return Uni.createFrom().failure(new IllegalStateException("GPS unavailable"));
@@ -109,6 +112,7 @@ class OrgControlTowerMapResourceTest {
     private List<JsonNode> gpsRows;
     private Map<String, Long> gpsConditionCounts;
     private String failedGpsCondition;
+    private String failedGpsPage;
     private final List<String> gpsCalls = new ArrayList<>();
 
     private static final class Roles extends OrganizationRoleService {
@@ -883,6 +887,29 @@ class OrgControlTowerMapResourceTest {
         }
         assertEquals(400, call(subject.caseCounts(ORG, query("operator=invalid"))).getStatus());
         assertTrue(gpsCalls.isEmpty());
+    }
+
+    @Test
+    void aFailureOnTheSecondGpsPageKeepsTheEngineFallbackWithoutPartialGpsRows() {
+        for (int id = 1; id <= 12; id++) {
+            engineCases.add(openCase(id, 4));
+        }
+        gpsRows = new ArrayList<>();
+        for (int id = 101; id <= 117; id++) {
+            gpsRows.add(JSON.createObjectNode().put("id", id));
+        }
+        failedGpsPage = "2";
+        for (String scope : List.of("required", "all")) {
+            Response response = call(resource(Optional.of("http://gps.example")).symptoms(ORG,
+                    query("operator=" + scope + "&p_page_size=10&p_page=3")));
+            assertEquals(200, response.getStatus(), "a second GPS failure also keeps the engine fallback");
+            JsonNode page = (JsonNode) response.getEntity();
+            assertEquals(12, page.path("total_rows").asInt(), "only the complete engine total survives");
+            assertEquals(3, page.path("page").asInt());
+            assertEquals(10, page.path("page_size").asInt());
+            assertEquals(0, page.path("data").size(), "discard the first GPS page's partial rows");
+        }
+        assertTrue(sentFilters.stream().anyMatch(f -> "2".equals(f.get("p_page"))));
     }
 
     @Test

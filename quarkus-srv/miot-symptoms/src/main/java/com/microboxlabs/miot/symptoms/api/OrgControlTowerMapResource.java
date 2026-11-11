@@ -203,6 +203,29 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     }
 
     @GET
+    @Path("/case-counts")
+    @Operation(operationId = "countMapCases",
+            summary = "The evaluator's cases by condition and the vehicles on a trip, for the list's filters",
+            description = "Takes the symptom list's query parameters (see listMapSymptoms); p_icu_code and paging "
+                    + "are ignored, any other parameter is a 400. conditions: the cases the list shows, by the GPS "
+                    + "database's condition keys; without dates the open cases (Under Treatment while one has an "
+                    + "open treatment, held cases separately as Ignored), with dates the cases active in the range "
+                    + "by level. vehicles_on_trip: the "
+                    + "vehicles on a trips-module trip that departed and has not ended, filtered by trip, vehicle, "
+                    + "driver, carrier, origin and destination.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> caseCounts(@PathParam("organizationId") String organizationId, @Context UriInfo uri) {
+        String tenant = tenantCode(organizationId);
+        Map<String, String> filters = new LinkedHashMap<>();
+        uri.getQueryParameters().forEach((name, values) -> filters.put(name, values.isEmpty() ? null : values.get(0)));
+        return answer(() -> {
+            Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
+            return blocking(() -> cases.filteredCounts(tenant, checked));
+        });
+    }
+
+    @GET
     @Path("/symptoms")
     @Operation(operationId = "listMapSymptoms", summary = "One page of the organization's symptoms, with totals",
             description = "Query parameters are the GPS database function's: p_asset_id, p_trip_id, p_driver_id, "

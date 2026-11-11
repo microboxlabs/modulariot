@@ -54,9 +54,12 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String ASSET_ID = "asset_id";
     private static final String TRIP_ID = "trip_id";
     private static final String LEVEL = "level";
+    private static final String CURRENT_LEVEL = "current_level";
     private static final String DEFINITION_ID = "definition_id";
     private static final String MEASURE = "measure";
     private static final String SPEED_KMH = "speed_kmh";
+    private static final String UNDER_TREATMENT = "under_treatment";
+    private static final String UNDEFINED_TABLE = "42P01";
 
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.state, o.asset_id, o.at, o.level, o.trip_id,
@@ -158,7 +161,7 @@ public class PgEngineCases implements EngineCaseStore {
      * {@link CaseFilter}: $2 trip, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only, $9
      * ignored only, $10 operator only. Without dates and $9, the open cases no hold covers.
      */
-    private static final String MATCHING = "SELECT * FROM (" + WITH_SLA.formatted(SELECT.formatted(CASES + """
+    private static final String MATCHING_ROWS = "SELECT * FROM (" + WITH_SLA.formatted(SELECT.formatted(CASES + """
                AND ($2::text IS NULL OR o.trip_id = $2)
                AND ($3::text IS NULL OR o.asset_id ILIKE '%' || $3 || '%')
                AND ($4::text IS NULL OR lower(d.name) = lower($4))
@@ -169,8 +172,8 @@ public class PgEngineCases implements EngineCaseStore {
             + " AND (NOT $8::boolean OR z.treatments > 0)"
             + " AND (NOT $10::boolean OR z.needs_operator)"
             + " AND CASE WHEN $9::boolean THEN z.hold_id IS NOT NULL AND z.closed_id IS NULL"
-            + " WHEN $5::timestamptz IS NULL AND $6::timestamptz IS NULL THEN z.hold_id IS NULL ELSE true END"
-            + " ORDER BY " + INBOX_ORDER + ", z.at DESC LIMIT 200";
+            + " WHEN $5::timestamptz IS NULL AND $6::timestamptz IS NULL THEN z.hold_id IS NULL ELSE true END";
+    private static final String MATCHING = MATCHING_ROWS + " ORDER BY " + INBOX_ORDER + ", z.at DESC LIMIT 200";
     /** The case's trip id as a UUID; null for a legacy trip id, which the trips module does not know. */
     private static final String TRIP_UUID = """
             CASE WHEN %1$s.trip_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
@@ -180,12 +183,11 @@ public class PgEngineCases implements EngineCaseStore {
     /** A RUT or id without dots, dashes or spaces, upper case; the parameter comes normalized the same way. */
     private static final String PLAIN = "upper(regexp_replace(%s, '[^0-9A-Za-z]', '', 'g'))";
     /**
-     * {@link #MATCHING} that also filters by the case's live trip: $11 either driver's RUT, $12 the carrier's RUT,
+     * What {@link #MATCHING_BY_TRIP} adds to {@link #MATCHING}, the case's live trip: $11 either driver's RUT, $12 the carrier's RUT,
      * $13 the carrier's id, $14 the origin name, $15 the destination name; each normalized as {@link #PLAIN} or
      * trimmed and lower case. A case without a live trip matches none.
      */
-    private static final String MATCHING_BY_TRIP = MATCHING.replace("AND ($6::timestamptz IS NULL OR o.at < $6)",
-            "AND ($6::timestamptz IS NULL OR o.at < $6)\n" + """
+    private static final String BY_TRIP = """
                AND EXISTS (SELECT 1 FROM miot_trips.trip_live t
                     LEFT JOIN miot_fleet.carrier fc ON fc.tenant_code = t.tenant_code AND fc.id::text = t.carrier_id
                    WHERE %s
@@ -194,7 +196,44 @@ public class PgEngineCases implements EngineCaseStore {
                      AND ($14::text IS NULL OR lower(btrim(t.origin_geofence_label)) = $14)
                      AND ($15::text IS NULL OR lower(btrim(t.destination_geofence_label)) = $15))
             """.formatted(LIVE_TRIP.formatted("o"), PLAIN.formatted("t.driver_id"),
-                    PLAIN.formatted("t.second_driver_id"), PLAIN.formatted("fc.rut")));
+                    PLAIN.formatted("t.second_driver_id"), PLAIN.formatted("fc.rut"));
+    private static final String MATCHING_BY_TRIP = byTrip(MATCHING);
+    /** The rows {@link #MATCHING} or {@link #MATCHING_BY_TRIP} keep, without the limit, counted as {@link #COUNTS}. */
+    private static final String MATCHING_COUNTS = "SELECT m.current_level, m.treatments > 0 AS under_treatment,"
+            + " count(*) AS n FROM (%s) m GROUP BY 1, 2";
+    /**
+     * The vehicles on a trips-module trip now: departed (its confirmed departure, else its first transit or stop)
+     * and not ended, as the signal's {@code trip.active}. $2 trip, $3 part of the vehicle id, $4 either driver's
+     * RUT, $5 the carrier's RUT, $6 the carrier's id, $7 the origin name, $8 the destination name, normalized as in
+     * {@link #MATCHING_BY_TRIP}.
+     */
+    private static final String ON_TRIP = """
+            SELECT count(DISTINCT tl.asset_id) AS n
+              FROM miot_trips.trip_live tl
+              LEFT JOIN miot_fleet.carrier fc ON fc.tenant_code = tl.tenant_code AND fc.id::text = tl.carrier_id
+             WHERE tl.tenant_code = $1 AND tl.asset_id IS NOT NULL AND tl.end_time IS NULL
+               AND coalesce((SELECT m.confirmed_at FROM miot_trips.trip_milestone m
+                              WHERE m.tenant_code = tl.tenant_code AND m.trip_id = tl.trip_id
+                                AND m.milestone = 'departure' AND m.status = 'confirmed'),
+                            (SELECT min(s.actual_start) FROM miot_trips.stage s
+                              WHERE s.tenant_code = tl.tenant_code AND s.subject_type = 'trip'
+                                AND s.subject_id = tl.trip_id AND s.stage_type IN ('transit', 'stop')
+                                AND s.version_of IS NULL AND s.is_active)) <= now()
+               AND ($2::text IS NULL OR tl.trip_id::text = $2)
+               AND ($3::text IS NULL OR tl.asset_id ILIKE '%%' || $3 || '%%')
+               AND ($4::text IS NULL OR %s = $4 OR %s = $4)
+               AND ($5::text IS NULL OR %s = $5 OR tl.carrier_id = $6)
+               AND ($7::text IS NULL OR lower(btrim(tl.origin_geofence_label)) = $7)
+               AND ($8::text IS NULL OR lower(btrim(tl.destination_geofence_label)) = $8)
+            """.formatted(PLAIN.formatted("tl.driver_id"), PLAIN.formatted("tl.second_driver_id"),
+                    PLAIN.formatted("fc.rut"));
+
+    /** {@code query} that also filters by the case's live trip, as {@link #MATCHING_BY_TRIP}. */
+    private static String byTrip(String query) {
+        return query.replace("AND ($6::timestamptz IS NULL OR o.at < $6)",
+                "AND ($6::timestamptz IS NULL OR o.at < $6)\n" + BY_TRIP);
+    }
+
     /** The open cases no hold covers. */
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL AND x.hold_id IS NULL) y"
@@ -606,14 +645,68 @@ public class PgEngineCases implements EngineCaseStore {
         return out;
     }
 
-    @Override
-    public List<EngineCase> list(String tenantCode, CaseFilter f) {
-        List<EngineCase> out = new ArrayList<>();
-        Tuple args = Tuple.tuple().addString(tenantCode).addString(f.tripId())
+    private static Tuple matching(String tenantCode, CaseFilter f) {
+        return Tuple.tuple().addString(tenantCode).addString(f.tripId())
                 .addString(f.assetId()).addString(f.symptomName())
                 .addOffsetDateTime(f.from() == null ? null : utc(f.from()))
                 .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level())
                 .addBoolean(f.underTreatmentOnly()).addBoolean(f.ignoredOnly()).addBoolean(f.operatorOnly());
+    }
+
+    @Override
+    public List<OpenCount> matchingCounts(String tenantCode, CaseFilter f) {
+        List<OpenCount> out = new ArrayList<>();
+        Tuple args = matching(tenantCode, f);
+        String rows = MATCHING_ROWS;
+        if (f.byTrip()) {
+            String driver = plain(f.driverId());
+            String carrier = plain(f.carrierId());
+            if ("".equals(driver) || "".equals(carrier)) {
+                return out;
+            }
+            args.addString(driver).addString(carrier).addString(f.carrierId() == null ? null : f.carrierId().trim())
+                    .addString(lower(f.origin())).addString(lower(f.destination()));
+            rows = byTrip(MATCHING_ROWS);
+        }
+        try {
+            PgIds.query(pool.get(), MATCHING_COUNTS.formatted(rows), args).forEach(r -> out.add(new OpenCount(
+                    r.getInteger(CURRENT_LEVEL), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
+        } catch (PgException e) {
+            // Without the trips or fleet tables no case has a live trip to match.
+            if (!f.byTrip() || !UNDEFINED_TABLE.equals(e.getSqlState())) {
+                throw e;
+            }
+            LOG.debug("Engine cases not counted by trip: trips unavailable", e);
+        }
+        return out;
+    }
+
+    @Override
+    public long vehiclesOnTrip(String tenantCode, CaseFilter f) {
+        String driver = plain(f.driverId());
+        String carrier = plain(f.carrierId());
+        if ("".equals(driver) || "".equals(carrier)) {
+            return 0;
+        }
+        Tuple args = Tuple.tuple().addString(tenantCode).addString(f.tripId()).addString(f.assetId())
+                .addString(driver).addString(carrier).addString(f.carrierId() == null ? null : f.carrierId().trim())
+                .addString(lower(f.origin())).addString(lower(f.destination()));
+        try {
+            var rows = PgIds.query(pool.get(), ON_TRIP, args).iterator();
+            return rows.hasNext() ? rows.next().getLong("n") : 0;
+        } catch (PgException e) {
+            if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
+                throw e;
+            }
+            LOG.debug("Vehicles on a trip not counted: trips unavailable", e);
+            return 0;
+        }
+    }
+
+    @Override
+    public List<EngineCase> list(String tenantCode, CaseFilter f) {
+        List<EngineCase> out = new ArrayList<>();
+        Tuple args = matching(tenantCode, f);
         if (!f.byTrip()) {
             cases(MATCHING, args).forEach(r -> out.add(engineCase(r)));
             return out;
@@ -629,7 +722,7 @@ public class PgEngineCases implements EngineCaseStore {
             cases(MATCHING_BY_TRIP, args).forEach(r -> out.add(engineCase(r)));
         } catch (PgException e) {
             // Without the trips or fleet tables no case has a live trip to match.
-            if (!"42P01".equals(e.getSqlState())) {
+            if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
             LOG.debug("Engine cases not filtered by trip: trips unavailable", e);
@@ -649,7 +742,7 @@ public class PgEngineCases implements EngineCaseStore {
     public List<OpenCount> openCounts(String tenantCode) {
         List<OpenCount> out = new ArrayList<>();
         PgIds.query(pool.get(), COUNTS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenCount(
-                r.getInteger("current_level"), r.getBoolean("under_treatment"), r.getLong("n"))));
+                r.getInteger(CURRENT_LEVEL), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
         return out;
     }
 
@@ -661,7 +754,7 @@ public class PgEngineCases implements EngineCaseStore {
             if (Boolean.TRUE.equals(r.getBoolean("ignored"))) {
                 ignored += r.getLong("n");
             } else {
-                active.add(new OpenCount(r.getInteger("current_level"), r.getBoolean("under_treatment"),
+                active.add(new OpenCount(r.getInteger(CURRENT_LEVEL), r.getBoolean(UNDER_TREATMENT),
                         r.getLong("n")));
             }
         }
@@ -685,8 +778,8 @@ public class PgEngineCases implements EngineCaseStore {
     public List<OpenLevel> openLevels(String tenantCode) {
         List<OpenLevel> out = new ArrayList<>();
         PgIds.query(pool.get(), LEVELS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenLevel(
-                r.getString(ASSET_ID), r.getString("name"), r.getInteger("current_level"),
-                speedStep(instant(r.getOffsetDateTime("speed_at")), r.getInteger("current_level"),
+                r.getString(ASSET_ID), r.getString("name"), r.getInteger(CURRENT_LEVEL),
+                speedStep(instant(r.getOffsetDateTime("speed_at")), r.getInteger(CURRENT_LEVEL),
                         r.getString("measure_expression"), r.getDouble(SPEED_KMH),
                         json(r.getString("speed_context")), r.getDouble(MEASURE)))));
         return out;
@@ -700,7 +793,7 @@ public class PgEngineCases implements EngineCaseStore {
             rows = PgIds.query(pool.get(), TRIP_SYMPTOMS.formatted(TRIP_BY_CODE), args);
         } catch (PgException e) {
             // Without the trips tables a case's trip id is the only way to find the trip.
-            if (!"42P01".equals(e.getSqlState())) {
+            if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
             LOG.debug("Trip codes not resolved: trips unavailable", e);
@@ -732,7 +825,7 @@ public class PgEngineCases implements EngineCaseStore {
     public List<LevelCount> openedCounts(String tenantCode, Instant from, Instant to) {
         List<LevelCount> out = new ArrayList<>();
         PgIds.query(pool.get(), OPENED_COUNTS, Tuple.of(tenantCode, utc(from), utc(to))).forEach(r -> out.add(
-                new LevelCount(r.getUUID(DEFINITION_ID), r.getInteger("current_level"), r.getLong("n"),
+                new LevelCount(r.getUUID(DEFINITION_ID), r.getInteger(CURRENT_LEVEL), r.getLong("n"),
                         r.getLong("without_operator"))));
         return out;
     }
@@ -950,7 +1043,7 @@ public class PgEngineCases implements EngineCaseStore {
         OffsetDateTime closed = r.getOffsetDateTime("closed_at");
         return new EngineCase(r.getLong("id"), r.getUUID(DEFINITION_ID), r.getString("version"),
                 r.getString("name"), r.getString("family"), r.getString(ASSET_ID),
-                r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString(TRIP_ID),
+                r.getOffsetDateTime("at").toInstant(), r.getInteger(CURRENT_LEVEL), r.getString(TRIP_ID),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble(SPEED_KMH),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
                 r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"), r.getString("trip_code_fallback"))).withTrip(trip(r))

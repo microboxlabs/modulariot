@@ -787,6 +787,95 @@ class OrgControlTowerMapResourceTest {
         assertEquals(List.of(), gpsCalls);
     }
 
+    private JsonNode caseCounts(OrgControlTowerMapResource subject, String q) {
+        return (JsonNode) call(subject.caseCounts(ORG, query(q))).getEntity();
+    }
+
+    @Test
+    void caseCountsAreTheListsCasesByConditionWithoutTheGpsDatabase() {
+        engineCases.add(openCase(1, "AB12", "Panico", 4));
+        engineCases.add(openCase(2, "CD34", "Senal", 2));
+        engineCases.add(openCase(3, "CD35", "Panico", 2));
+        engineCases.add(new EngineCase(4, UUID.randomUUID(), "0.1.0", "Senal", "connectivity", "EF56",
+                Instant.now(), 3, null, null, null, null, null, 1, 2, null));
+
+        for (var subject : List.of(resource(Optional.of("http://pgrest.test")), engineOnly())) {
+            JsonNode all = caseCounts(subject, "p_page=1");
+            assertEquals(1, all.at("/conditions/Code Black").asInt());
+            assertEquals(2, all.at("/conditions/Compromised condition").asInt());
+            assertEquals(1, all.at("/conditions/Under Treatment").asInt(), "a treated case counts as treated");
+            assertFalse(all.get("conditions").has("Critical condition"));
+            assertEquals(0, all.get("vehicles_on_trip").asInt());
+        }
+        var subject = engineOnly();
+        JsonNode panic = caseCounts(subject, "p_symptom_name=panico");
+        assertEquals(1, panic.at("/conditions/Code Black").asInt());
+        assertEquals(1, panic.at("/conditions/Compromised condition").asInt());
+        assertFalse(panic.get("conditions").has("Under Treatment"));
+        JsonNode plate = caseCounts(subject, "p_asset_id=cd3&p_icu_code=4&p_page=2&p_page_size=1");
+        assertEquals(2, plate.at("/conditions/Compromised condition").asInt(), "level and paging are ignored");
+        assertEquals(1, plate.get("conditions").size());
+        assertEquals(400, call(subject.caseCounts(ORG, query("p_unknown=1"))).getStatus());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void caseCountsLeaveOutTheLevelsWithoutAnOperatorUnlessDated() {
+        UUID quiet = UUID.randomUUID();
+        engineCases.operatorLevels.put(quiet, Set.of(4));
+        engineCases.add(new EngineCase(1, quiet, "0.1.0", "Senal", "connectivity", "AB12",
+                Instant.parse("2026-10-20T10:00:00Z"), 2, null, null, null, null, null, 0, null, null));
+        engineCases.add(new EngineCase(2, quiet, "0.1.0", "Senal", "connectivity", "CD34",
+                Instant.parse("2026-10-20T11:00:00Z"), 4, null, null, null, null,
+                Instant.parse("2026-10-21T11:00:00Z"), 1, null, null));
+        var subject = engineOnly();
+
+        assertEquals(0, caseCounts(subject, "p_page=1").get("conditions").size(), "the inbox: only operator levels");
+        JsonNode range = caseCounts(subject,
+                "p_start_date_historic=2026-10-01&p_end_date_historic=2026-10-31");
+        assertEquals(1, range.at("/conditions/Compromised condition").asInt());
+        assertEquals(1, range.at("/conditions/Code Black").asInt(), "the history counts by level");
+    }
+
+    @Test
+    void caseCountsHaveTheVehiclesOnATripWithTheTripFilters() {
+        casesOnTrips();
+        engineCases.onTrip.put("A", "AB1");
+        engineCases.onTrip.put("B", "AB2");
+        var subject = engineOnly();
+
+        assertEquals(2, caseCounts(subject, "p_page=1").get("vehicles_on_trip").asInt());
+        assertEquals(2, caseCounts(subject, "p_symptom_name=other").get("vehicles_on_trip").asInt(),
+                "the symptom does not filter vehicles");
+        assertEquals(0, caseCounts(subject, "p_symptom_name=other").get("conditions").size());
+        assertEquals(1, caseCounts(subject, "p_driver_id=9876543K").get("vehicles_on_trip").asInt());
+        assertEquals(1, caseCounts(subject, "p_asset_id=ab2").get("vehicles_on_trip").asInt());
+        assertEquals(1, caseCounts(subject, "p_trip_id=A").get("vehicles_on_trip").asInt());
+        assertEquals(0, caseCounts(subject, "p_origin=nowhere").get("vehicles_on_trip").asInt());
+    }
+
+    @Test
+    void filteredCardCountsKeepHoldsSeparateAndMatchTheListsHistory() {
+        engineCases.add(new EngineCase(1, UUID.randomUUID(), "0.1.0", "demo-symptom", "connectivity", "demo-asset",
+                Instant.parse("2026-09-01T10:00:00Z"), 3, null, null, null, null, null, 0, null, null));
+        engineCases.add(new EngineCase(2, UUID.randomUUID(), "0.1.0", "demo-symptom", "connectivity", "demo-asset",
+                Instant.parse("2026-10-01T10:00:00Z"), 4, null, null, null, null, null, 0, null, null));
+        engineCases.held.add(2L);
+        var subject = engineOnly();
+
+        JsonNode inbox = caseCounts(subject, "p_asset_id=demo-asset");
+        assertEquals(1, inbox.at("/conditions/Critical condition").asInt());
+        assertFalse(inbox.get("conditions").has("Code Black"));
+        assertEquals(1, inbox.at("/conditions/Ignored").asInt());
+        assertTrue(caseCounts(subject, "p_symptom_name=unmatched").get("conditions").isEmpty());
+
+        String range = "p_asset_id=demo-asset&p_start_date_historic=2026-10-01&p_end_date_historic=2026-10-02";
+        JsonNode history = caseCounts(subject, range);
+        assertEquals(1, history.at("/conditions/Critical condition").asInt(),
+                "a case opened before the range still counts while active, like the list");
+        assertEquals(2, ((JsonNode) call(subject.symptoms(ORG, query(range))).getEntity()).get("total_rows").asInt());
+    }
+
     @Test
     void engineOnlyThePositionsCarryTheHighestOpenCaseLevel() {
         response = new GpsRpcApi.RpcResponse(200, "ok", JSON.createArrayNode()

@@ -13,6 +13,7 @@ export async function forwardControlTowerMap(
     | "positions"
     | "summary"
     | "conditions"
+    | "case-counts"
     | "symptoms"
     | `symptoms/${string}`
     | `trips/${string}`

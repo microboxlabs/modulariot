@@ -12,6 +12,23 @@ export interface SymptomDashboard {
   ignored?: number;
 }
 
+/** The conditions the symptoms constellation shows, one orbiting icon each. */
+export type ConstellationCondition =
+  | "codeBlack"
+  | "critic"
+  | "compromised"
+  | "observation"
+  | "treatment"
+  | "stable";
+
+/** Open cases by condition and vehicles on a trip, for the list's filters. */
+export interface SymptomConstellationCounts {
+  conditions: Record<ConstellationCondition, number>;
+  vehiclesOnTrip: number;
+  /** Held cases for the counter card; they have no constellation icon. */
+  ignored: number;
+}
+
 /* export interface SymptomTableItem {
   id: number;
   condition: string;

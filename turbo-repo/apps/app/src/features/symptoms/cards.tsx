@@ -10,8 +10,8 @@ import CardSkeleton from "./components/card/card-skeleton";
 import CustomCard from "./components/card/custom-card";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import icuConditions from "./model/icu_condition.json";
-import { useSymptoms } from "../common/providers/client-api.provider";
-import { useSearchParams } from "next/navigation";
+import { useSymptomCounts } from "../common/providers/client-api.provider";
+import { useSymptomTableQuery } from "./hooks/use-symptom-names";
 
 export default function SymptomsCards({
   showCards,
@@ -20,13 +20,9 @@ export default function SymptomsCards({
   showCards: boolean;
   dict: I18nRecord;
 }) {
-  const searchParams = useSearchParams();
-  const date_range = {
-    from: searchParams.get("date_from") || "",
-    to: searchParams.get("date_to") || "",
-  };
-
-  const { symptoms, loading, error } = useSymptoms(date_range);
+  const query = useSymptomTableQuery(1, 13);
+  const { date_range } = query;
+  const { counts, loading, error } = useSymptomCounts(query, showCards);
 
   // Handle loading and error states
   if (loading) {
@@ -37,7 +33,7 @@ export default function SymptomsCards({
     //Todo: Show error message
   }
 
-  // Default values in case symptoms is null
+  // The cards and constellation share the list's filters and count buckets.
   const {
     codeBlack = 0,
     critic = 0,
@@ -46,8 +42,8 @@ export default function SymptomsCards({
     stable = 0,
     //remission = 0,
     compromised = 0,
-    ignored = 0,
-  } = symptoms || {};
+  } = counts?.conditions ?? {};
+  const ignored = counts?.ignored ?? 0;
 
   return (
     <div

@@ -132,9 +132,10 @@ public class CoordinatorAccessCatalog implements AccessCatalog {
                         Set.of(KANBAN_VIEW, TASK_COMPLETE, FINISHED_VIEW))
                         .describedAs("Ve el tablero de envíos y completa sus tareas.",
                                 "Sees the shipping board and completes their tasks."),
-                RoleDef.of(REVIEWER, COORDINATION, "Revisor", "Reviewer", Set.of(KANBAN_VIEW, FINISHED_VIEW))
-                        .describedAs("Revisa el tablero de envíos sin completar tareas.",
-                                "Reviews the shipping board without completing tasks."),
+                RoleDef.of(REVIEWER, COORDINATION, "Revisor", "Reviewer",
+                        Set.of(KANBAN_VIEW, FINISHED_VIEW, GEOGRAPHIC_VIEW))
+                        .describedAs("Revisa el tablero de envíos y la vista geográfica sin completar tareas.",
+                                "Reviews the shipping board and the geographic view without completing tasks."),
                 RoleDef.of(LOAD_SEARCHER, COORDINATION, "Buscador de cargas", "Load searcher", Set.of(LOADS_SEARCH))
                         .describedAs("Busca dónde está una carga.", "Looks up where a load is."),
                 RoleDef.of(COLLABORATORS_MANAGER, COLLABORATORS, "Administrador de colaboradores",

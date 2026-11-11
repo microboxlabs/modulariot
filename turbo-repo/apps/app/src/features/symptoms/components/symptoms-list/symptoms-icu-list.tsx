@@ -12,6 +12,7 @@ import maskImage from "@assets/images/mask.gif";
 import patchImage from "@assets/images/patch.gif";
 import hospitalImage from "@assets/images/hospital.svg";
 import EmptyTable from "../empty-table";
+import { useOperatorFilter } from "../../hooks/use-operator-filter";
 
 interface SymptomsIcuListProps {
   condition: string;
@@ -62,7 +63,8 @@ export default function SymptomsIcuList({
   dict,
   lang,
 }: SymptomsIcuListProps) {
-  const { icuData, isLoading, error } = useSymptomsIcu(condition);
+  const operator = useOperatorFilter();
+  const { icuData, isLoading, error } = useSymptomsIcu(condition, operator);
 
   if (isLoading) {
     return <SymptomsListSkeleton />;

@@ -9,6 +9,10 @@ import {
   serviceTypeLabel,
 } from "@/features/calendar/services/service-types";
 import type { DashboardFilterOption } from "@/features/dashboard/types/dashboard.types";
+import {
+  DEFAULT_OPERATOR_FILTER,
+  OPERATOR_PARAM,
+} from "@/features/symptoms/model/operator-filter";
 
 export type NavParam = {
   label: string;
@@ -121,18 +125,30 @@ function storytelling_params(storyDict: I18nRecord): ParamType[] {
   ];
 }
 
-const symptoms_params: ParamType[] = [
-  setParam("asset_id", "text"),
-  setParam("trip_id", "text"),
-  setParam("driver_id", "text"),
-  setParam("carrier_id", "text"),
-  setParam("origin", "text"),
-  setParam("destination", "text"),
-  setParam("date", "date_range"),
-  // Options are not static: they come from the symptom names the symptoms
-  // table aggregates into localStorage. See `useSymptomNames`.
-  setParam("symptom_name", "selector"),
-];
+function symptoms_params(searchbarDict: I18nRecord): ParamType[] {
+  return [
+    // "Todos" is the badge's own first entry, which writes `FILTER_ANY`.
+    setParam(
+      OPERATOR_PARAM,
+      "selector",
+      [
+        { value: "required", label: tr("operator_required", searchbarDict) },
+        { value: "none", label: tr("operator_none", searchbarDict) },
+      ],
+      DEFAULT_OPERATOR_FILTER
+    ),
+    setParam("asset_id", "text"),
+    setParam("trip_id", "text"),
+    setParam("driver_id", "text"),
+    setParam("carrier_id", "text"),
+    setParam("origin", "text"),
+    setParam("destination", "text"),
+    setParam("date", "date_range"),
+    // Options are not static: they come from the symptom names the symptoms
+    // table aggregates into localStorage. See `useSymptomNames`.
+    setParam("symptom_name", "selector"),
+  ];
+}
 
 function setParam(
   param: ParamType,
@@ -169,7 +185,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       size > 0,
       true
     ),
-    symptoms: getParamsFixed(symptoms_params, dict),
+    symptoms: getParamsFixed(symptoms_params(searchbarDict), dict),
     "geographic-view": getParamsFixed([setParam("licensePlate", "text")], dict),
     "collaborators-management": getParamsFixed(
       collaborators_management_params,

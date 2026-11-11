@@ -12,6 +12,10 @@ import { SymptomsTableResponse } from "./route.types";
 import { SymptomTableResponse } from "@/features/symptoms/types/symptoms";
 import { formatActiveDuration } from "@/features/symptoms/model/active-duration";
 import { tripPlateNow } from "@/features/symptoms/model/plate-change";
+import {
+  OPERATOR_PARAM,
+  parseOperatorFilter,
+} from "@/features/symptoms/model/operator-filter";
 
 // Parameter mapping configuration
 const PARAM_MAPPING = {
@@ -51,6 +55,10 @@ function buildApiParams(searchParams: URLSearchParams): URLSearchParams {
     }
   });
 
+  // Any other value is dropped, so the modulith answers its default.
+  const operator = parseOperatorFilter(searchParams.get(OPERATOR_PARAM));
+  if (operator) params.set(OPERATOR_PARAM, operator);
+
   return params;
 }
 
@@ -77,6 +85,7 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       ignored: item?.ignored ?? null,
       returnedAfterIgnoreAt: item?.returned_after_ignore_at ?? null,
       slaSince: item?.sla_since ?? null,
+      operatorRequired: item?.operator_required ?? null,
     })),
     pagination: {
       total_rows: data.total_rows,

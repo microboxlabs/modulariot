@@ -51,6 +51,36 @@ describe("GET /api/symptoms/table", () => {
     forwardMock.mockImplementation(async () => NextResponse.json(page));
   });
 
+  it.each(["required", "none", "all"])(
+    "passes operator=%s to the modulith",
+    async (operator) => {
+      await GET(new NextRequest(`http://x/t?page=1&operator=${operator}`));
+      expect(forwardMock).toHaveBeenCalledWith(
+        `/api/v1/orgs/acme/control-tower/map/symptoms?p_page=1&operator=${operator}`,
+        { method: "GET" }
+      );
+    }
+  );
+
+  it("drops an operator value the modulith does not know", async () => {
+    await GET(new NextRequest("http://x/t?page=1&operator=junk"));
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme/control-tower/map/symptoms?p_page=1",
+      { method: "GET" }
+    );
+  });
+
+  it("answers whether each case goes to the operators", async () => {
+    forwardMock.mockImplementation(async () =>
+      NextResponse.json({
+        ...page,
+        data: [{ ...page.data[0], operator_required: false }],
+      })
+    );
+    const res = await GET(new NextRequest("http://x/t?operator=none"));
+    expect((await res.json()).data[0].operatorRequired).toBe(false);
+  });
+
   it("maps the filters and reads the page through the modulith", async () => {
     const res = await GET(
       new NextRequest(

@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 
 import { SymptomsICUResponse } from "./route.type";
 import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import {
+  OPERATOR_PARAM,
+  parseOperatorFilter,
+} from "@/features/symptoms/model/operator-filter";
 
 /** At most this many cases at one level. */
 const CASES_PAGE_SIZE = 200;
@@ -21,6 +25,8 @@ export async function GET(request: Request) {
 
   const params = new URLSearchParams({ p_page_size: `${CASES_PAGE_SIZE}` });
   if (pIcuCode?.trim()) params.set("p_icu_code", pIcuCode.trim());
+  const operator = parseOperatorFilter(searchParams.get(OPERATOR_PARAM));
+  if (operator) params.set(OPERATOR_PARAM, operator);
   const response = await forwardControlTowerMap("symptoms", `?${params}`);
   if (!response.ok) return response;
   const page = (await response.json()) as SymptomsICUResponse;

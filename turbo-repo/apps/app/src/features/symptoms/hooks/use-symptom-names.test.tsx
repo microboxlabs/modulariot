@@ -43,6 +43,7 @@ const QUERY: SymptomTableQuery = {
   destination: "",
   symptom_name: "",
   date_range: { from: "", to: "" },
+  operator: "required",
 };
 
 beforeEach(() => {
@@ -69,6 +70,16 @@ describe("useSymptomTableQuery", () => {
       symptom_name: "Lost Signal",
       date_range: { from: "2026-08-26 00:00:00", to: "2026-08-26 23:59:59" },
     });
+  });
+
+  it("carries the operator filter: 'required' by default, then the stored choice, then the URL's", () => {
+    expect(renderHook(() => useSymptomTableQuery(1, 13)).result.current.operator).toBe("required");
+
+    localStorage.setItem("miot.control-tower.operator-filter", "none");
+    expect(renderHook(() => useSymptomTableQuery(1, 13)).result.current.operator).toBe("none");
+
+    mockSearchParams = new URLSearchParams("operator=all");
+    expect(renderHook(() => useSymptomTableQuery(1, 13)).result.current.operator).toBe("all");
   });
 
   it("defaults absent params to empty strings", () => {

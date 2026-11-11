@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { useSymptomsTable } from "@/features/common/providers/client-api.provider";
 import { trDynamic } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { OperatorFilter } from "../model/operator-filter";
+import { useOperatorFilter } from "./use-operator-filter";
 
 /**
  * localStorage key carrying the symptom names the symptoms table aggregated.
@@ -30,15 +32,17 @@ export interface SymptomTableQuery {
   destination: string;
   symptom_name: string;
   date_range: { from: string; to: string };
+  operator: OperatorFilter;
 }
 
-/** The symptoms table query for the current URL. */
+/** The symptoms table query for the current URL and the operator filter. */
 export function useSymptomTableQuery(
   page: number,
   pageSize: number
 ): SymptomTableQuery {
   const searchParams = useSearchParams();
   const get = (key: string) => searchParams.get(key) ?? "";
+  const operator = useOperatorFilter();
 
   return {
     page,
@@ -52,6 +56,7 @@ export function useSymptomTableQuery(
     destination: get("destination"),
     symptom_name: get("symptom_name"),
     date_range: { from: get("date_from"), to: get("date_to") },
+    operator,
   };
 }
 

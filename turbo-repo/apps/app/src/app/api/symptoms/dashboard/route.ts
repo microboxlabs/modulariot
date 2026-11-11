@@ -4,11 +4,16 @@ import {
   isoDate,
 } from "@/app/api/utils/control-tower-map";
 import { SymptomsDashboard } from "./route.type";
+import {
+  OPERATOR_PARAM,
+  parseOperatorFilter,
+} from "@/features/symptoms/model/operator-filter";
 
 /**
  * Symptom counts by condition for the active organization: active symptoms, or
  * with `from` and `to` the symptoms created in that range. The modulith
- * answers 400 when only one of them is sent.
+ * answers 400 when only one of them is sent. `operator` (required, none or
+ * all) counts the symptoms for the operators, the others, or both.
  */
 export async function GET(req: NextRequest) {
   const params = new URLSearchParams();
@@ -16,6 +21,10 @@ export async function GET(req: NextRequest) {
     const value = req.nextUrl.searchParams.get(name);
     if (value) params.set(name, isoDate(value));
   }
+  const operator = parseOperatorFilter(
+    req.nextUrl.searchParams.get(OPERATOR_PARAM)
+  );
+  if (operator) params.set(OPERATOR_PARAM, operator);
   const search = params.size ? `?${params}` : "";
 
   const response = await forwardControlTowerMap("conditions", search);

@@ -14,6 +14,7 @@ import { useSymptoms } from "../common/providers/client-api.provider";
 import { useSearchParams } from "next/navigation";
 import { Button } from "flowbite-react";
 import { FaGear } from "react-icons/fa6";
+import { useOperatorFilter } from "./hooks/use-operator-filter";
 
 export default function SymptomsCards({
   showCards,
@@ -30,7 +31,8 @@ export default function SymptomsCards({
     to: searchParams.get("date_to") || "",
   };
 
-  const { symptoms, loading, error } = useSymptoms(date_range);
+  const operator = useOperatorFilter();
+  const { symptoms, loading, error } = useSymptoms(date_range, operator);
 
   // Handle loading and error states
   if (loading) {

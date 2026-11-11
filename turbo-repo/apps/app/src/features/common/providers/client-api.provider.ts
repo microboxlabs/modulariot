@@ -23,6 +23,10 @@ import {
 } from "../../symptoms/types/symptoms";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
 import {
+  OPERATOR_PARAM,
+  type OperatorFilter,
+} from "@/features/symptoms/model/operator-filter";
+import {
   MapPosition,
   MapPositionResume,
 } from "@/features/geographic-view/types/map";
@@ -264,12 +268,19 @@ export function useVerifyDocument(documentId: string) {
   };
 }
 
-export function useSymptoms(date_range?: { from: string; to: string }) {
+export function useSymptoms(
+  date_range?: { from: string; to: string },
+  operator?: OperatorFilter
+) {
+  const params = [
+    date_range?.from && date_range?.to
+      ? `from=${date_range.from}&to=${date_range.to}`
+      : "",
+    operator ? `${OPERATOR_PARAM}=${operator}` : "",
+  ].filter(Boolean);
   const { data, error, isLoading } = useSWR<SymptomDashboard, FetcherError>(
     "/app/api/symptoms/dashboard" +
-      (date_range?.from && date_range?.to
-        ? `?from=${date_range.from}&to=${date_range.to}`
-        : ""),
+      (params.length ? `?${params.join("&")}` : ""),
     fetcher,
     {
       refreshInterval: 30000,
@@ -323,6 +334,7 @@ export function useSymptomsTable({
   destination = "",
   symptom_name = "",
   date_range,
+  operator,
 }: {
   page?: number;
   pageSize?: number;
@@ -338,6 +350,8 @@ export function useSymptomsTable({
     from: string;
     to?: string;
   };
+  /** Without it the API answers its default. */
+  operator?: OperatorFilter;
 }) {
   const { data, error, isLoading, isValidating, mutate } = useSWR<
     SymptomTableResponse,
@@ -354,7 +368,8 @@ export function useSymptomsTable({
     ${param_set(destination, "destination")}
     ${param_set(symptom_name, "symptom_name")}
     ${param_set(date_range?.from ?? null, "from")}
-    ${param_set(date_range?.to ?? null, "to")}`,
+    ${param_set(date_range?.to ?? null, "to")}
+    ${param_set(operator ?? null, OPERATOR_PARAM)}`,
     fetcher,
     {
       refreshInterval: 30000,
@@ -372,10 +387,13 @@ export function useSymptomsTable({
   };
 }
 
-export function useSymptomsIcu(condition?: string) {
-  const url = condition
-    ? `/app/api/symptoms/icu?p_icu_code=${condition}`
-    : "/app/api/symptoms/icu";
+export function useSymptomsIcu(condition?: string, operator?: OperatorFilter) {
+  const params = [
+    condition ? `p_icu_code=${condition}` : "",
+    operator ? `${OPERATOR_PARAM}=${operator}` : "",
+  ].filter(Boolean);
+  const url =
+    "/app/api/symptoms/icu" + (params.length ? `?${params.join("&")}` : "");
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<
     SymptomsICUItemResponse[],

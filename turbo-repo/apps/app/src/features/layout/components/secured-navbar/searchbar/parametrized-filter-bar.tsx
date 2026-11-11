@@ -11,6 +11,14 @@ import { useSymptomNames, toSymptomOptions } from "@/features/symptoms/hooks/use
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { NavParam } from "./navegation_params";
 import { FILTER_ANY } from "@/features/layout/services/kanban-default-filters";
+import {
+  OPERATOR_PARAM,
+  parseOperatorFilter,
+} from "@/features/symptoms/model/operator-filter";
+import {
+  storeOperatorFilter,
+  useOperatorFilter,
+} from "@/features/symptoms/hooks/use-operator-filter";
 
 /** Selector whose options are aggregated from data rather than declared statically. */
 const SYMPTOM_NAME_KEY = "symptom_name";
@@ -63,6 +71,8 @@ export default function ParametrizedFilterBar({
   );
 
   const symptomNames = useSymptomNames();
+  // In effect even when the URL does not carry it: the stored choice.
+  const operatorFilter = useOperatorFilter();
 
   const optionsFor = (p: NavParam): DashboardFilterParam["options"] => {
     if (p.param.key === SYMPTOM_NAME_KEY) return toSymptomOptions(symptomNames, dict);
@@ -100,6 +110,9 @@ export default function ParametrizedFilterBar({
       const params = new URLSearchParams(searchParams.toString());
       if (values.length) params.set(key, values.join(","));
       else params.delete(key);
+      const operator =
+        key === OPERATOR_PARAM ? parseOperatorFilter(values[0]) : undefined;
+      if (operator) storeOperatorFilter(operator);
       push(params);
     },
     [searchParams, push]
@@ -135,6 +148,7 @@ export default function ParametrizedFilterBar({
         // Dropping it would read as "not chosen yet" and land the default
         // straight back; `all` is the operator saying every value.
         params.set(key, FILTER_ANY);
+        if (key === OPERATOR_PARAM) storeOperatorFilter(FILTER_ANY);
       } else {
         params.delete(key);
       }
@@ -161,7 +175,7 @@ export default function ParametrizedFilterBar({
         if (f.type === "select") {
           const values = selectedValues(
             f,
-            searchParams.get(f.key),
+            f.key === OPERATOR_PARAM ? operatorFilter : searchParams.get(f.key),
             keysWithDefault.has(f.key)
           );
           return (

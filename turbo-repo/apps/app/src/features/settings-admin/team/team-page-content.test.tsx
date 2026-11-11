@@ -107,6 +107,8 @@ const data = vi.hoisted(() => {
     invitations,
     accounts,
     canManageKeys: true,
+    catalogError: null as Error | null,
+    accessError: null as Error | null,
   };
 });
 
@@ -121,9 +123,12 @@ vi.mock("@/features/common/components/Breadcrumb/Breadcrumb", () => ({
   Breadcrumb: () => null,
 }));
 vi.mock("./team-api", () => ({
-  useMyAccess: () => ({
+  useTeamAccess: () => ({
+    accessError: data.accessError,
+    accessLoading: false,
     can: (permission: string) =>
-      permission !== "apikeys:manage" || data.canManageKeys,
+      !data.accessError &&
+      (permission !== "apikeys:manage" || data.canManageKeys),
   }),
   useTeam: () => ({
     data: { organization: "example-organization", members: data.members },
@@ -132,8 +137,18 @@ vi.mock("./team-api", () => ({
   useInvitations: () => ({ data: data.invitations, mutate: vi.fn() }),
   useTeams: () => ({ data: data.teams, mutate: vi.fn() }),
   useServiceAccounts: () => ({ data: data.accounts, mutate: vi.fn() }),
+  useCustomRoles: () => ({ data: [] }),
+  useCustomRoleManagement: () => ({ data: { canManage: true } }),
   useAccessCatalog: () => ({
-    data: { baseRoles: [], permissions: data.permissions, roles: data.roles },
+    data: data.catalogError
+      ? undefined
+      : { baseRoles: [], permissions: data.permissions, roles: data.roles },
+    moduleCatalog: {
+      baseRoles: [],
+      permissions: data.permissions,
+      roles: data.roles,
+    },
+    error: data.catalogError,
   }),
   removeMember: vi.fn(),
   resendInvitation: vi.fn(),
@@ -170,9 +185,33 @@ async function pick(badge: string, option: string) {
 beforeEach(() => {
   data.members[1].source = "NATIVE";
   data.canManageKeys = true;
+  data.catalogError = null;
+  data.accessError = null;
 });
 
 describe("TeamPageContent members filters", () => {
+  it("reports a root-access failure and hides management actions", () => {
+    data.accessError = new Error("root access unavailable");
+    renderPage();
+    expect(
+      screen.getByText(en.pages.userSettings.team.loadFailed)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: en.pages.userSettings.team.invite })
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the read-only module matrix and reports a custom-role loading failure", async () => {
+    data.catalogError = new Error("custom roles unavailable");
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Roles" }));
+    expect(
+      screen.getByText(en.pages.userSettings.team.loadFailed)
+    ).toBeInTheDocument();
+    expect(screen.getByText("Read tower")).toBeInTheDocument();
+    expect(screen.getByText("Read trips")).toBeInTheDocument();
+  });
+
   it("lists every member with the total count", () => {
     renderPage();
     expect(shownNames()).toEqual([

@@ -13,6 +13,7 @@ import {
   DetailShell,
   EffectivePermissions,
   Meta,
+  CustomRolesCard,
   ModuleCard,
   SaveBar,
   SectionTitle,
@@ -22,12 +23,13 @@ import {
   setBaseRole,
   setRoles,
   useAccessCatalog,
-  useMyAccess,
+  useTeamAccess,
   useTeam,
 } from "./team-api";
 import {
   BASE_ROLES,
   catalogModules,
+  customRolesOf,
   effectivePermissions,
   initials,
   NON_OWNER_ROLES,
@@ -59,9 +61,9 @@ export default function MemberAccessPage({
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
   const router = useRouter();
   const { data: session } = useSession();
-  const { can } = useMyAccess();
+  const { can, accessError, accessLoading } = useTeamAccess();
   const team = useTeam();
-  const { data: catalog } = useAccessCatalog();
+  const { data: catalog, error: catalogError } = useAccessCatalog();
 
   const member = team.data?.members.find((m) => m.userId === userId);
   const teamPath = `/${lang}/users/settings/team`;
@@ -73,10 +75,13 @@ export default function MemberAccessPage({
       backHref={teamPath}
       backLabel={tr("backToTeam", d)}
     >
-      {(team.isLoading || !catalog) && !team.error && (
-        <Spinner className="mx-auto" />
+      {(team.isLoading || !catalog || accessLoading) &&
+        !team.error &&
+        !catalogError &&
+        !accessError && <Spinner className="mx-auto" />}
+      {(team.error || catalogError || accessError) && (
+        <Alert color="gray">{tr("loadFailed", d)}</Alert>
       )}
-      {team.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
       {team.data && catalog && !member && (
         <div className={`${CARD} p-10 text-center`}>
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -84,7 +89,7 @@ export default function MemberAccessPage({
           </p>
         </div>
       )}
-      {team.data && catalog && member && (
+      {team.data && catalog && member && !accessError && !accessLoading && (
         <MemberEditor
           key={member.userId}
           member={member}
@@ -221,6 +226,15 @@ function MemberEditor({
               onChange={(key) => setByModule({ ...byModule, [mod.key]: key })}
             />
           ))}
+          <CustomRolesCard
+            roles={customRolesOf(catalog)}
+            catalog={catalog}
+            selection={byModule}
+            disabled={!canUpdate || busy}
+            lang={lang}
+            d={d}
+            onChange={setByModule}
+          />
         </section>
         <aside className="lg:col-span-1">
           <EffectivePermissions

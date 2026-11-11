@@ -14,6 +14,7 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -95,7 +96,7 @@ public class TeamsService {
 
     public Uni<TeamView> create(String slug, Caller actor, TeamRequest request) {
         String name = name(request);
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> {
+        return Panache.withTransaction(() -> root(slug).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.TEAMS_MANAGE)).flatMap(root -> {
             IamTeam team = new IamTeam();
             team.id = UUID.randomUUID();
             team.organizationId = root.id;
@@ -110,7 +111,7 @@ public class TeamsService {
 
     public Uni<TeamView> update(String slug, Caller actor, UUID teamId, TeamRequest request) {
         String name = name(request);
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> team(root.id, teamId).flatMap(team -> {
+        return Panache.withTransaction(() -> root(slug).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.TEAMS_MANAGE)).flatMap(root -> team(root.id, teamId).flatMap(team -> {
             team.name = name;
             team.description = request.description();
             return team.<IamTeam>persist()
@@ -120,7 +121,7 @@ public class TeamsService {
     }
 
     public Uni<Void> delete(String slug, Caller actor, UUID teamId) {
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> team(root.id, teamId)
+        return Panache.withTransaction(() -> root(slug).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.TEAMS_MANAGE)).flatMap(root -> team(root.id, teamId)
                 .flatMap(team -> lockTeam(team.id).flatMap(lockResult -> requireUnused(team.id))
                         .flatMap(guardResult -> ProjectionQueue.teamMembers(team.id).flatMap(members -> IamRoleBinding.delete(
                                 "organizationId = ?1 and principalKind = ?2 and principalId = ?3", root.id,
@@ -151,10 +152,11 @@ public class TeamsService {
     public Uni<TeamView> setMembers(String slug, Caller actor, UUID teamId, TeamMembersRequest request) {
         Set<UUID> wanted = new LinkedHashSet<>(request == null || request.userIds() == null
                 ? List.of() : request.userIds());
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> team(root.id, teamId).flatMap(team ->
+        return Panache.withTransaction(() -> root(slug).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.TEAMS_MANAGE)).flatMap(root -> team(root.id, teamId).flatMap(team ->
                 IamMembership.findByOrganization(root.id).flatMap(memberships -> {
                     requireMembers(memberships, wanted);
-                    return ProjectionQueue.teamMembers(team.id).flatMap(before -> replaceMembers(team, wanted)
+                    return ProjectionQueue.teamMembers(team.id).flatMap(before -> requireGrantable(slug, actor,
+                                    root.id, team, before, wanted).flatMap(checked -> replaceMembers(team, wanted))
                                     .flatMap(ignored -> {
                                         Set<UUID> affected = new LinkedHashSet<>(before);
                                         affected.addAll(wanted);
@@ -164,6 +166,23 @@ public class TeamsService {
                                     Map.of("members", wanted.stream().map(UUID::toString).toList())))
                             .flatMap(ignored -> view(root.id, team));
                 }))));
+    }
+
+    /**
+     * Adding someone to a team gives them the team's roles, so the actor must be able to grant those roles. Removing
+     * members needs no such check.
+     */
+    private Uni<Void> requireGrantable(String slug, Caller actor, Long rootId, IamTeam team,
+            Collection<UUID> before, Set<UUID> wanted) {
+        if (before.containsAll(wanted)) {
+            return Uni.createFrom().voidItem();
+        }
+        return IamRoleBinding.findFor(List.of(rootId), IamRoleBinding.TEAM, List.of(team.id.toString()))
+                .flatMap(bindings -> {
+                    Set<String> held = TeamRules.unexpired(bindings);
+                    return root(slug).flatMap(root -> evaluator.grant(root, actor, CoreAccessCatalog.TEAMS_MANAGE))
+                            .invoke(grant -> TeamRules.checkGrantBound(grant.access(), held, grant.roles()));
+                }).replaceWithVoid();
     }
 
     private static void requireMembers(List<IamMembership> memberships, Set<UUID> wanted) {
@@ -187,9 +206,10 @@ public class TeamsService {
     @SuppressWarnings({"java:S1612", "java:S3252"}) // Reactive Panache: persist overloads; finders per entity.
     public Uni<TeamView> setRoles(String slug, Caller actor, UUID teamId, TeamRolesRequest request) {
         Set<String> wanted = new TreeSet<>(request == null || request.roles() == null ? List.of() : request.roles());
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> evaluator.evaluate(slug, actor)
-                .flatMap(access -> team(root.id, teamId).flatMap(team -> {
-                    TeamRules.checkGrant(access, wanted, evaluator.registry());
+        return Panache.withTransaction(() -> root(slug).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.MEMBERS_UPDATE)).flatMap(root -> evaluator.evaluate(root, actor)
+                .flatMap(access -> team(root.id, teamId).flatMap(team -> evaluator
+                        .grant(root, actor, CoreAccessCatalog.MEMBERS_UPDATE).flatMap(grant -> {
+                    TeamRules.checkGrant(grant.access(), wanted, grant.roles());
                     return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 and principalId = ?3 "
                                     + "and scopeKind = ?4", root.id, IamRoleBinding.TEAM, team.id.toString(),
                                     IamRoleBinding.ORGANIZATION)
@@ -206,7 +226,7 @@ public class TeamsService {
                             .flatMap(ignored -> directory.audit(root.id, actor.name(), "team.roles", team.name,
                                     Map.of("roles", List.copyOf(wanted))))
                             .flatMap(ignored -> view(root.id, team));
-                }))));
+                })))));
     }
 
     // --- bindings ---
@@ -230,13 +250,14 @@ public class TeamsService {
     public Uni<BindingView> bind(String slug, Caller actor, BindingRequest request) {
         String kind = principalKind(request);
         UUID principal = uuid(request.principalId());
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> evaluator.evaluate(slug, actor)
-                .flatMap(access -> {
-                    TeamRules.checkGrant(access, List.of(request.role()), evaluator.registry());
+        return Panache.withTransaction(() -> root(slug).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.MEMBERS_UPDATE)).flatMap(root -> evaluator.evaluate(root, actor)
+                .flatMap(access -> evaluator.grant(root, actor, CoreAccessCatalog.MEMBERS_UPDATE)
+                        .flatMap(grant -> {
+                    TeamRules.checkGrant(grant.access(), List.of(request.role()), grant.roles());
                     return principalExists(root.id, kind, principal)
                             .flatMap(ignored -> subAccount(root, request.subAccount()))
                             .flatMap(sub -> saveBinding(root, kind, principal, request, sub, actor.name()));
-                })));
+                }))));
     }
 
     /** The request's principal kind, upper-cased; the request must name a principal and a role. */
@@ -271,7 +292,7 @@ public class TeamsService {
     }
 
     public Uni<Void> unbind(String slug, Caller actor, UUID bindingId) {
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> IamRoleBinding.<IamRoleBinding>findById(
+        return Panache.withTransaction(() -> root(slug).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.MEMBERS_UPDATE)).flatMap(root -> IamRoleBinding.<IamRoleBinding>findById(
                 bindingId).flatMap(b -> {
                     if (b == null || !b.organizationId.equals(root.id)) {
                         throw new NoSuchElementException("Binding not found");
@@ -337,6 +358,14 @@ public class TeamsService {
             }
             return sub;
         });
+    }
+
+    private Uni<Organization> requireRoot(Organization root, Caller actor, String permission) {
+        return evaluator.evaluate(root, actor).invoke(access -> {
+            if (!access.can(permission)) {
+                throw new SecurityException("Permission required in the root organization: " + permission);
+            }
+        }).replaceWith(root);
     }
 
     private static Uni<Organization> root(String slug) {

@@ -30,6 +30,23 @@ class TeamRulesTest {
     }
 
     @Test
+    void onlyOwnersAndAdminsMakeUnmakeOrRemoveAdmins() {
+        Access member = as(BaseRole.MEMBER);
+        Access admin = as(BaseRole.ADMIN);
+        Set<String> none = Set.of();
+        assertThrows(SecurityException.class,
+                () -> TeamRules.checkBaseRoleChange(member, BaseRole.MEMBER, BaseRole.ADMIN, 1));
+        assertThrows(SecurityException.class,
+                () -> TeamRules.checkBaseRoleChange(member, BaseRole.ADMIN, BaseRole.MEMBER, 1));
+        assertThrows(SecurityException.class, () -> TeamRules.checkRemoval(member, BaseRole.ADMIN, 1));
+        assertThrows(SecurityException.class, () -> TeamRules.checkInvite(member, BaseRole.ADMIN, none, REGISTRY));
+        assertDoesNotThrow(() -> TeamRules.checkRemoval(member, BaseRole.MEMBER, 1));
+        assertDoesNotThrow(() -> TeamRules.checkInvite(member, BaseRole.MEMBER, none, REGISTRY));
+        assertDoesNotThrow(() -> TeamRules.checkBaseRoleChange(admin, BaseRole.ADMIN, BaseRole.MEMBER, 1));
+        assertDoesNotThrow(() -> TeamRules.checkRemoval(admin, BaseRole.ADMIN, 1));
+    }
+
+    @Test
     void theLastOwnerStays() {
         Access owner = as(BaseRole.OWNER);
         Access admin = as(BaseRole.ADMIN);

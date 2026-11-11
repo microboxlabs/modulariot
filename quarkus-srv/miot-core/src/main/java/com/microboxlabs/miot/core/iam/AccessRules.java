@@ -12,6 +12,7 @@ import java.util.TreeSet;
  *   <li>The organization's own M2M client is a Member; so is a service account of the organization.</li>
  *   <li>An M2M client holding no role of a module gets that module's legacy-default role.</li>
  *   <li>A platform owner is Owner of every organization, with or without a membership.</li>
+ *   <li>A bound custom role gives its own permissions; one the organization no longer has gives none.</li>
  * </ul>
  */
 public final class AccessRules {
@@ -23,12 +24,17 @@ public final class AccessRules {
      * @param tenantClient      the caller is the organization's own M2M client
      * @param boundRoles        role keys of the bindings that cover the org
      * @param platformOwner     the caller is a platform owner
+     * @param customRoles       the permission keys of the organization's custom roles among {@code boundRoles}
      */
     public record Facts(BaseRole membershipRole, boolean tenantClient, Set<String> boundRoles,
-            boolean platformOwner) {
+            boolean platformOwner, Map<String, Set<String>> customRoles) {
 
         public Facts(BaseRole membershipRole, boolean tenantClient, Set<String> boundRoles) {
             this(membershipRole, tenantClient, boundRoles, false);
+        }
+
+        public Facts(BaseRole membershipRole, boolean tenantClient, Set<String> boundRoles, boolean platformOwner) {
+            this(membershipRole, tenantClient, boundRoles, platformOwner, Map.of());
         }
     }
 
@@ -45,7 +51,8 @@ public final class AccessRules {
         if (caller.isClient()) {
             addLegacyDefaults(roles, registry);
         }
-        return new Access(organizationId, slug, base, roles, registry.permissionsOf(base, roles));
+        OrgRoles orgRoles = new OrgRoles(registry, facts.customRoles());
+        return new Access(organizationId, slug, base, roles, orgRoles.permissionsOf(base, roles));
     }
 
     static BaseRole baseRole(Caller caller, Facts facts) {

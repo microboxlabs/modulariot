@@ -15,6 +15,7 @@ import {
   DetailShell,
   EffectivePermissions,
   Meta,
+  CustomRolesCard,
   ModuleCard,
   SaveBar,
   SectionTitle,
@@ -31,6 +32,7 @@ import {
 import {
   activeKeyCount,
   catalogModules,
+  customRolesOf,
   defaultTokenNeedsGpsRole,
   effectivePermissions,
   lastKeyUse,
@@ -59,7 +61,7 @@ export default function ServiceAccountPage({
   const router = useRouter();
   const accounts = useServiceAccounts(true);
   const team = useTeam();
-  const { data: catalog } = useAccessCatalog();
+  const { data: catalog, error: catalogError } = useAccessCatalog();
   const keysPath = `/${lang}/users/settings/team?tab=keys`;
   const account = accounts.data?.find((a) => a.id === accountId);
 
@@ -70,10 +72,12 @@ export default function ServiceAccountPage({
       backHref={keysPath}
       backLabel={tr("backToKeys", d)}
     >
-      {(accounts.isLoading || !catalog) && !accounts.error && (
+      {(accounts.isLoading || !catalog) && !accounts.error && !catalogError && (
         <Spinner className="mx-auto" />
       )}
-      {accounts.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
+      {(accounts.error || catalogError) && (
+        <Alert color="gray">{tr("loadFailed", d)}</Alert>
+      )}
       {accounts.data && catalog && !account && (
         <div className={`${CARD} p-10 text-center`}>
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -196,6 +200,15 @@ function AccountEditor({
                 onChange={(key) => setByModule({ ...byModule, [mod.key]: key })}
               />
             ))}
+            <CustomRolesCard
+              roles={customRolesOf(catalog)}
+              catalog={catalog}
+              selection={byModule}
+              disabled={busy}
+              lang={lang}
+              d={d}
+              onChange={setByModule}
+            />
           </section>
           <ServiceAccountKeys
             account={account}
@@ -206,6 +219,7 @@ function AccountEditor({
           />
           <TokenCredentialSection
             account={account}
+            catalog={catalog}
             organization={organization}
             d={d}
             onChanged={onChanged}
@@ -293,6 +307,7 @@ function AccountHeader({ account, lang, d, onDelete }: AccountHeaderProps) {
 
 interface TokenCredentialSectionProps {
   readonly account: ServiceAccount;
+  readonly catalog: AccessCatalog;
   readonly organization: string | undefined;
   readonly d: I18nRecord;
   readonly onChanged: () => void;
@@ -301,6 +316,7 @@ interface TokenCredentialSectionProps {
 
 function TokenCredentialSection({
   account,
+  catalog,
   organization,
   d,
   onChanged,
@@ -317,7 +333,7 @@ function TokenCredentialSection({
     : null;
   const current = account.tokenCredentialRef;
   const linked = options?.find((c) => c.id === current);
-  const needsGpsRole = defaultTokenNeedsGpsRole(account);
+  const needsGpsRole = defaultTokenNeedsGpsRole(account, catalog);
   const [saving, setSaving] = useState(false);
 
   const change = async (ref: string | null) => {

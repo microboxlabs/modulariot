@@ -1,7 +1,14 @@
 "use client";
 
-import useSWR from "swr";
-import { getJson, sendEmpty, sendJson } from "../data/json-client";
+import { useMemo } from "react";
+import useSWR, { mutate } from "swr";
+import {
+  deleteForJson,
+  getJson,
+  sendEmpty,
+  sendJson,
+} from "../data/json-client";
+import { withCustomRoles } from "./team-model";
 import type {
   AccessCatalog,
   BaseRole,
@@ -10,6 +17,9 @@ import type {
   CreatedInvitation,
   CreatedKey,
   CreatedServiceAccount,
+  CustomRole,
+  CustomRoleDeleted,
+  CustomRoleRequest,
   Invitation,
   InviteRequest,
   KeyRequest,
@@ -29,6 +39,7 @@ export const invitationsKey = `${TEAM}/invitations`;
 const teamsKey = `${TEAM}/teams`;
 const bindingsKey = `${TEAM}/bindings`;
 const serviceAccountsKey = `${TEAM}/service-accounts`;
+const customRolesKey = `${TEAM}/custom-roles`;
 const CATALOG = "/app/api/access/catalog";
 const MY_ACCESS = "/app/api/me/access";
 
@@ -60,15 +71,87 @@ export function useServiceAccounts(enabled: boolean) {
   return useSWR<ServiceAccount[]>(enabled ? serviceAccountsKey : null, getJson);
 }
 
+/** The organization's custom roles, with how many principals hold each. */
+export function useCustomRoles() {
+  return useSWR<CustomRole[]>(customRolesKey, getJson, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+  });
+}
+
+/** Management applies to the root organization even when a sub-account is active. */
+export function useCustomRoleManagement() {
+  return useSWR<{ canManage: boolean; access: MyAccess }>(
+    `${customRolesKey}/management`,
+    getJson
+  );
+}
+
+/** Team records and bindings belong to the root, so their affordances use root permissions. */
+export function useTeamAccess() {
+  const { data, error, isLoading } = useCustomRoleManagement();
+  const access = data?.access;
+  const can = (permission: string) =>
+    !error && (access?.permissions.includes(permission) ?? false);
+  return { access, accessError: error, accessLoading: isLoading, can };
+}
+
+/**
+ * The module roles and permissions of the modulith, plus the active
+ * organization's custom roles, so every role picker offers both.
+ */
 export function useAccessCatalog() {
-  return useSWR<AccessCatalog>(CATALOG, getJson, { revalidateOnFocus: false });
+  const catalog = useSWR<AccessCatalog>(CATALOG, getJson, {
+    revalidateOnFocus: false,
+  });
+  const custom = useCustomRoles();
+  // Nothing until both are loaded: an editor that opened without the custom
+  // roles would save a member's roles without the custom ones they hold.
+  const data = useMemo(
+    () =>
+      catalog.data && custom.data && !custom.error
+        ? withCustomRoles(catalog.data, custom.data)
+        : undefined,
+    [catalog.data, custom.data, custom.error]
+  );
+  return {
+    ...catalog,
+    data,
+    moduleCatalog: catalog.data,
+    error: catalog.error ?? custom.error,
+  };
+}
+
+export function createCustomRole(request: CustomRoleRequest) {
+  return sendJson<CustomRole>("POST", customRolesKey, request);
+}
+
+export function updateCustomRole(id: string, request: CustomRoleRequest) {
+  return sendJson<CustomRole>(
+    "PUT",
+    `${customRolesKey}/${encodeURIComponent(id)}`,
+    request
+  );
+}
+
+/** Deletes the role and every binding that names it; answers what was removed. */
+export function deleteCustomRole(id: string) {
+  return deleteForJson<CustomRoleDeleted>(
+    `${customRolesKey}/${encodeURIComponent(id)}`
+  );
+}
+
+/** Reloads members, teams, bindings, service accounts and custom roles after a role changed. */
+export function refreshTeamData() {
+  return mutate(
+    (key) =>
+      typeof key === "string" && (key.startsWith(TEAM) || key === MY_ACCESS)
+  );
 }
 
 /** The caller's permissions in the active organization. */
 export function useMyAccess() {
-  const { data, error } = useSWR<MyAccess>(MY_ACCESS, getJson, {
-    revalidateOnFocus: false,
-  });
+  const { data, error } = useSWR<MyAccess>(MY_ACCESS, getJson);
   const can = (permission: string) =>
     data?.permissions.includes(permission) ?? false;
   return { access: data, accessError: error, can };

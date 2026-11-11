@@ -12,18 +12,14 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import icuConditions from "./model/icu_condition.json";
 import { useSymptoms } from "../common/providers/client-api.provider";
 import { useSearchParams } from "next/navigation";
-import { Button } from "flowbite-react";
-import { FaGear } from "react-icons/fa6";
 import { useOperatorFilter } from "./hooks/use-operator-filter";
 
 export default function SymptomsCards({
   showCards,
   dict,
-  settingsFunction,
 }: {
   showCards: boolean;
   dict: I18nRecord;
-  settingsFunction: () => void;
 }) {
   const searchParams = useSearchParams();
   const date_range = {
@@ -61,17 +57,10 @@ export default function SymptomsCards({
       ${showCards ? "max-h-[1000px] overflow-visible" : "max-h-0 overflow-hidden"}
       `}
     >
-      <div className="w-full flex flex-row justify-between">
+      <div className="w-full flex flex-row h-10">
         <h1 className="ml-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white leading-tight flex items-center">
           {(dict.symptoms as I18nRecord).symptoms as string}
         </h1>
-        <Button
-          color="alternative"
-          className="mr-5 h-10 w-10 p-0"
-          onClick={settingsFunction}
-        >
-          <FaGear className="h-4 w-4 border-blue-500" />
-        </Button>
       </div>
 
       <div className="relative pb-3 px-5 pt-2 flex flex-row md:flex-row gap-4 overflow-x-auto">

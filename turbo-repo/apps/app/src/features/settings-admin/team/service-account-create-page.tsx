@@ -17,13 +17,19 @@ import {
   CARD,
   DetailShell,
   EffectivePermissions,
+  CustomRolesCard,
   ModuleCard,
   SectionTitle,
 } from "./module-access";
 import { SecretOnce } from "./secret-once";
-import { createServiceAccount, useAccessCatalog } from "./team-api";
+import {
+  createServiceAccount,
+  useAccessCatalog,
+  useTeamAccess,
+} from "./team-api";
 import {
   catalogModules,
+  customRolesOf,
   effectivePermissions,
   expiryDays,
   MAX_KEY_DAYS,
@@ -43,6 +49,8 @@ export default function ServiceAccountCreatePage({
 }: ServiceAccountCreatePageProps) {
   const d = dict?.team as I18nRecord;
   const { data: catalog, error } = useAccessCatalog();
+  const { access, accessError, can } = useTeamAccess();
+  const allowed = can("apikeys:manage");
   const keysPath = `/${lang}/users/settings/team?tab=keys`;
   const [created, setCreated] = useState<CreatedServiceAccount | null>(null);
 
@@ -53,9 +61,14 @@ export default function ServiceAccountCreatePage({
       backHref={keysPath}
       backLabel={tr("backToKeys", d)}
     >
-      {!catalog && !error && <Spinner className="mx-auto" />}
-      {error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
-      {catalog && !created && (
+      {((!catalog && !error) || (!access && !accessError)) && (
+        <Spinner className="mx-auto" />
+      )}
+      {(error || accessError) && (
+        <Alert color="gray">{tr("loadFailed", d)}</Alert>
+      )}
+      {access && !allowed && <Alert color="gray">{tr("noAccess", d)}</Alert>}
+      {catalog && access && allowed && !created && (
         <CreateForm
           catalog={catalog}
           keysPath={keysPath}
@@ -231,6 +244,15 @@ function CreateForm({
                 onChange={(key) => setByModule({ ...byModule, [mod.key]: key })}
               />
             ))}
+            <CustomRolesCard
+              roles={customRolesOf(catalog)}
+              catalog={catalog}
+              selection={byModule}
+              disabled={busy}
+              lang={lang}
+              d={d}
+              onChange={setByModule}
+            />
           </section>
         </div>
         <aside className="lg:col-span-1">

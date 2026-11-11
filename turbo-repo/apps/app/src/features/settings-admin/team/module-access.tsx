@@ -2,10 +2,11 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Badge, Button, Radio, Spinner } from "flowbite-react";
+import { Badge, Button, Checkbox, Radio, Spinner } from "flowbite-react";
 import type { IconType } from "react-icons";
 import {
   HiArrowLeft,
+  HiOutlineAdjustments,
   HiOutlineCheck,
   HiOutlineLocationMarker,
   HiOutlinePhotograph,
@@ -17,7 +18,12 @@ import {
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { labelOf, permissionsByModule, textOf } from "./team-model";
+import {
+  labelOf,
+  permissionsByModule,
+  textOf,
+  toggleCustomRole,
+} from "./team-model";
 import type { AccessCatalog, CatalogModule, CatalogRole } from "./team.types";
 
 const MODULE_ICONS: Record<string, IconType> = {
@@ -282,6 +288,116 @@ export function ModuleCard({
   );
 }
 
+/** A permission module's name: from the catalog, else the dictionary, else its key. */
+export function moduleTitle(
+  key: string,
+  modules: readonly CatalogModule[],
+  lang: string,
+  d: I18nRecord
+): string {
+  const mod = modules.find((m) => m.key === key);
+  if (mod && textOf(mod.label, lang)) return textOf(mod.label, lang);
+  const named = d?.[`permModule_${key}`];
+  return typeof named === "string" ? named : key;
+}
+
+interface CustomRolesCardProps {
+  readonly roles: CatalogRole[];
+  readonly catalog: AccessCatalog;
+  /** The editor's selection: a chosen custom role is an entry keyed by its own key. */
+  readonly selection: Record<string, string>;
+  readonly disabled: boolean;
+  readonly lang: string;
+  readonly d: I18nRecord;
+  readonly onChange: (selection: Record<string, string>) => void;
+}
+
+/** The organization's custom roles to pick from, any number of them. Nothing when it has none. */
+export function CustomRolesCard({
+  roles,
+  catalog,
+  selection,
+  disabled,
+  lang,
+  d,
+  onChange,
+}: CustomRolesCardProps) {
+  if (roles.length === 0) return null;
+  return (
+    <div className={CARD} data-testid="custom-roles-card">
+      <div className="flex items-start gap-3 border-b border-gray-100 p-4 dark:border-gray-700">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+          <HiOutlineAdjustments className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-gray-900 dark:text-white">
+            {tr("customRolesTitle", d)}
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {tr("customRolesPickHelp", d)}
+          </p>
+        </div>
+      </div>
+      <fieldset
+        className="grid grid-cols-1 gap-2 p-4 md:grid-cols-2"
+        disabled={disabled}
+      >
+        <legend className="sr-only">{tr("customRolesTitle", d)}</legend>
+        {roles.map((role) => {
+          const selected = selection[role.key] === role.key;
+          const id = `custom-role-${role.key}`;
+          const permissions = catalog.permissions.filter((p) =>
+            role.permissions.includes(p.key)
+          );
+          return (
+            <label
+              key={role.key}
+              htmlFor={id}
+              className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors ${
+                selected
+                  ? "border-blue-600 bg-blue-50/50 ring-1 ring-blue-600 dark:border-blue-500 dark:bg-blue-900/10 dark:ring-blue-500"
+                  : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
+              } ${disabled ? "cursor-default opacity-90" : ""}`}
+            >
+              <Checkbox
+                id={id}
+                checked={selected}
+                onChange={(e) =>
+                  onChange(
+                    toggleCustomRole(selection, role.key, e.target.checked)
+                  )
+                }
+                className="mt-0.5"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {labelOf(role, lang)}
+                </p>
+                {textOf(role.description, lang) && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {textOf(role.description, lang)}
+                  </p>
+                )}
+                <ul className="mt-2 flex flex-col gap-0.5">
+                  {permissions.map((permission) => (
+                    <li
+                      key={permission.key}
+                      className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300"
+                    >
+                      <HiOutlineCheck className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                      {labelOf(permission, lang)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </label>
+          );
+        })}
+      </fieldset>
+    </div>
+  );
+}
+
 interface EffectivePermissionsProps {
   readonly permissions: Set<string>;
   readonly catalog: AccessCatalog;
@@ -299,12 +415,7 @@ export function EffectivePermissions({
   lang,
   d,
 }: EffectivePermissionsProps) {
-  const title = (key: string) => {
-    const mod = modules.find((m) => m.key === key);
-    if (mod && textOf(mod.label, lang)) return textOf(mod.label, lang);
-    const named = d?.[`permModule_${key}`];
-    return typeof named === "string" ? named : key;
-  };
+  const title = (key: string) => moduleTitle(key, modules, lang, d);
   const groups = permissionsByModule(permissions, catalog);
   return (
     <div className={`${CARD} p-4 lg:sticky lg:top-4`}>

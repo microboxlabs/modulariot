@@ -137,6 +137,19 @@ class ProjectionQueueTest {
     }
 
     @Test
+    void aCustomRoleDoesNotProjectAnUnconfiguredAlfrescoGroup() throws SQLException {
+        String key = owner().contentType("application/json")
+                .body(Map.of("label", Map.of("es", "Validador personalizado"), "permissions", List.of(
+                        CoordinatorAccessCatalog.KANBAN_VIEW, CoordinatorAccessCatalog.FINISHED_VIEW,
+                        CoordinatorAccessCatalog.STAGE_TRANSPORT_VALIDATION, CoordinatorAccessCatalog.TASK_COMPLETE)))
+                .when().post(BASE + "/team/custom-roles").then().statusCode(201).extract().path("key");
+        owner().contentType("application/json")
+                .body(Map.of("principalKind", "USER", "principalId", userId(), "role", key))
+                .when().post(BASE + "/team/bindings").then().statusCode(201);
+        assertEquals(List.of(), queued());
+    }
+
+    @Test
     void aRoleNotMappedToAProjectedGroupQueuesNothing() throws SQLException {
         owner().contentType("application/json")
                 .body("{\"principalKind\":\"USER\",\"principalId\":\"" + userId() + "\",\"role\":\""

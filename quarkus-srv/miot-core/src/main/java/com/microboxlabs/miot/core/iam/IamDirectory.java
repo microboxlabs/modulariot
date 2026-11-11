@@ -114,8 +114,9 @@ public class IamDirectory {
                 .collect(Collectors.toCollection(TreeSet::new));
         return holders(organizationId, roleKey).flatMap(before -> usersHolding(organizationId, roleKey)
                 .flatMap(previous -> IamRoleBinding
-                        .delete("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3",
-                                organizationId, roleKey, IamRoleBinding.ORGANIZATION)
+                        .delete("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3 and principalKind in ?4",
+                                organizationId, roleKey, IamRoleBinding.ORGANIZATION,
+                                List.of(IamRoleBinding.USER, IamRoleBinding.CLIENT))
                         .flatMap(ignored -> Multi.createFrom().iterable(subjects)
                                 .onItem().transformToUniAndConcatenate(subject ->
                                         bind(organizationId, roleKey, subject, actor))

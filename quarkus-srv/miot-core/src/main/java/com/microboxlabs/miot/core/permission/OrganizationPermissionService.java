@@ -107,18 +107,19 @@ public class OrganizationPermissionService {
     }
 
     /**
-     * Whether the subject holds the permission's role. A user's roles come from the evaluator (membership, scope,
-     * expiry, parent organization); an M2M client's from its bindings that apply.
+     * Whether the subject holds the permission, through its module role or any role that gives its catalog
+     * permission, such as a custom role. A user's access comes from the evaluator (membership, scope, expiry,
+     * parent organization); an M2M client's from its bindings that apply.
      */
     Uni<Boolean> isAllowed(
             Organization organization,
             OrganizationPermissionDefinition permission,
             String subjectId) {
         if (!IamDirectory.isEmail(subjectId)) {
-            return roleService.clientRoles(organization, subjectId)
-                    .map(roles -> roles.contains(permission.roleCode()));
+            return roleService.clientCan(organization, subjectId, permission.accessPermission());
         }
         return roleService.access(organization, Caller.user(subjectId))
-                .map(access -> access.roles().contains(permission.roleCode()));
+                .map(access -> access.roles().contains(permission.roleCode())
+                        || access.can(permission.accessPermission()));
     }
 }

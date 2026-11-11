@@ -93,10 +93,13 @@ class StreamHubPlaceSyncTest {
 
     @Test
     void aSavedGeofenceIsUpsertedByItsCodeAndADeletedOneRemoved() {
-        sync.saved(TENANT, "SCL", place("geofence", "SCL", "Planta", "Ruta 5", SQUARE));
+        Place original = place("geofence", "SCL", "Planta", "Ruta 5", SQUARE);
+        sync.saved(TENANT, "SCL", original);
         double first = rows().get(0).getDouble("area");
 
-        sync.saved(TENANT, "SCL", place("geofence", "SCL", "Planta Norte", null, SMALLER));
+        Place edited = new Place(original.id(), TENANT, "geofence", null, "SCL", "Planta Norte", null, null,
+                null, null, "{}", SMALLER, null, null, null, null, null, null, null);
+        sync.saved(TENANT, "SCL", edited);
 
         List<Row> rows = rows();
         assertEquals(1, rows.size(), "the same row: (client_id, client_geofence_id) is its key");
@@ -107,8 +110,8 @@ class StreamHubPlaceSyncTest {
         sync.saved(TENANT, "AND-1", place("inner_geofence", "AND-1", "Andén", null, SMALLER));
         assertEquals(2, rows().size(), "an inner geofence is a geofence of its own");
 
-        sync.deleted(TENANT, "SCL", "geofence");
-        sync.deleted(TENANT, "SCL", "geofence");
+        sync.deleted(TENANT, "SCL", edited);
+        sync.deleted(TENANT, "SCL", edited);
         assertEquals(List.of("AND-1"), rows().stream().map(r -> r.getString("client_geofence_id")).toList(),
                 "removed for good; removing it again is no failure");
     }
@@ -123,11 +126,49 @@ class StreamHubPlaceSyncTest {
     }
 
     @Test
+    void aLegacyRowCannotBeAdoptedBySavingThenDeletingTheSameCode() {
+        gpsPool.preparedQuery("INSERT INTO geofences (client_id, client_geofence_id, geofence_name)"
+                + " VALUES ($1, 'SCL', 'Legacy')").execute(Tuple.of(TENANT)).await().atMost(TIMEOUT);
+        Place source = place("geofence", "SCL", "New", null, SQUARE);
+
+        assertThrows(IllegalStateException.class, () -> sync.saved(TENANT, "SCL", source));
+        sync.deleted(TENANT, "SCL", source);
+
+        assertEquals("Legacy", rows().get(0).getString("geofence_name"));
+    }
+
+    @Test
+    void ownershipPropertiesCannotBeSuppliedByTheCaller() {
+        Place source = place("geofence", "SCL", "Example", null,
+                SQUARE.replace("\"note\":\"planta\"", "\"created_by\":\"legacy\",\"miot_place_id\":\"forged\""));
+        sync.saved(TENANT, "SCL", source);
+        String properties = rows().get(0).getString("properties");
+        assertTrue(properties.contains("\"created_by\": \"miot-places\""));
+        assertTrue(properties.contains(source.id().toString()));
+        sync.deleted(TENANT, "SCL", source);
+        assertEquals(List.of(), rows());
+    }
+
+    @Test
+    void theSameExternalCodeInTwoClientsStaysIsolated() {
+        Place first = place("geofence", "SCL", "First", null, SQUARE);
+        Place second = new Place(UUID.randomUUID(), "other-client", "geofence", null, "SCL", "Second",
+                null, null, null, null, "{}", SQUARE, null, null, null, null, null, null, null);
+        sync.saved(TENANT, "SCL", first);
+        sync.saved("other-client", "SCL", second);
+        sync.saved(TENANT, "SCL", first);
+        assertEquals(2, rows().size());
+        sync.deleted(TENANT, "SCL", first);
+        assertEquals("other-client", rows().get(0).getString("client_id"));
+    }
+
+    @Test
     void aRouteNeverReachesStreamHub() {
         String line = """
                 {"type":"Feature","geometry":{"type":"LineString","coordinates":[[-70,-33],[-69,-32]]},"properties":{}}""";
-        sync.saved(TENANT, "R68", place("route", "R68", "Ruta 68", null, line));
-        sync.deleted(TENANT, "R68", "route");
+        Place route = place("route", "R68", "Ruta 68", null, line);
+        sync.saved(TENANT, "R68", route);
+        sync.deleted(TENANT, "R68", route);
 
         assertEquals(List.of(), rows());
     }
@@ -141,7 +182,7 @@ class StreamHubPlaceSyncTest {
         Place over = place("geofence", "LOC-1", "Encima", null, SQUARE);
 
         assertThrows(IllegalStateException.class, () -> sync.saved(TENANT, "LOC-1", over));
-        sync.deleted(TENANT, "LOC-1", "geofence");
+        sync.deleted(TENANT, "LOC-1", over);
 
         assertEquals("Bodega", rows().get(0).getString("geofence_name"));
     }

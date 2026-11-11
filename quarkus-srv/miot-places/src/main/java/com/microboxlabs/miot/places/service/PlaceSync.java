@@ -18,11 +18,10 @@ public interface PlaceSync {
     void saved(String tenantCode, String externalCode, Place place);
 
     /**
-     * The place that held the code was deleted, or no longer holds it (a route's code changed). {@code kind} is
-     * {@code geofence}, {@code inner_geofence} or {@code route}. StreamHub deletes it for good; one it never had is
-     * no failure.
+     * The source place was deleted, or no longer holds the code (a route's code changed). Its ID proves ownership
+     * of the GPS row; a missing row or one owned by someone else is left alone.
      */
-    void deleted(String tenantCode, String externalCode, String kind);
+    void deleted(String tenantCode, String externalCode, Place place);
 
     /**
      * Whether a call that returns means StreamHub has it: only then is the place marked synced. While false nothing
@@ -41,7 +40,7 @@ public interface PlaceSync {
             }
 
             @Override
-            public void deleted(String tenantCode, String externalCode, String kind) {
+            public void deleted(String tenantCode, String externalCode, Place place) {
                 // nothing to remove
             }
 

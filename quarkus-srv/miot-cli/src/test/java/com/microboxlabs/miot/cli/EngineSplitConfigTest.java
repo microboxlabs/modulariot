@@ -102,7 +102,7 @@ class EngineSplitConfigTest {
     void theEngineRunsNoJobOfAnotherComponentAndServesNoApi() throws IOException {
         SmallRyeConfig c = config(ENGINE_POD);
 
-        off(c, "miot.component.fleet.enabled", "miot.component.trips.enabled",
+        off(c, "miot.component.fleet.enabled", "miot.component.trips.enabled", "miot.component.places.enabled",
                 "miot.component.integrations.enabled", "miot.component.conversational.enabled",
                 "miot.api.enabled", "miot.content.cleanup.enabled", "miot.iam.native-migration.enabled",
                 "miot.integrations.modulith-worker.enabled", "miot.integrations.job-events.live.enabled",
@@ -115,10 +115,21 @@ class EngineSplitConfigTest {
     }
 
     @Test
-    void placesSyncRequiresExplicitOptInEvenOnTheAllComponentsApiPod() throws IOException {
-        off(config(API_POD), "miot.places.sync.enabled");
-        on(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true", "MIOT_PLACES_SYNC_ENABLED", "true")),
+    void placesSyncFollowsThePlacesComponentOutsideDev() throws IOException {
+        off(config(Map.of(), "prod"), "miot.component.places.enabled", "miot.places.sync.enabled");
+        on(config(API_POD), "miot.places.sync.enabled");
+        on(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true"), "prod"),
                 "miot.component.places.enabled", "miot.places.sync.enabled");
+        off(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true", "MIOT_PLACES_SYNC_ENABLED", "false"), "prod"),
+                "miot.places.sync.enabled");
+        off(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "false"), "prod"), "miot.places.sync.enabled");
+    }
+
+    @Test
+    void placesSyncIsOptInInDevWhereTheGpsDatabaseCanBeProduction() throws IOException {
+        off(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true"), "dev"), "miot.places.sync.enabled");
+        on(config(Map.of("MIOT_COMPONENT_PLACES_ENABLED", "true", "MIOT_PLACES_SYNC_ENABLED", "true"), "dev"),
+                "miot.places.sync.enabled");
     }
 
     @Test

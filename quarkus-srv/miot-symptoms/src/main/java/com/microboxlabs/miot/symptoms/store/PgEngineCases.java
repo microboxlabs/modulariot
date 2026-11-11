@@ -52,6 +52,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final String FROM_SUBQUERY = " FROM (";
     private static final String ASSET_ID = "asset_id";
+    private static final String UNDEFINED_TABLE = "42P01";
     private static final String TRIP_ID = "trip_id";
     private static final String LEVEL = "level";
     private static final String DEFINITION_ID = "definition_id";
@@ -628,7 +629,7 @@ public class PgEngineCases implements EngineCaseStore {
             cases(MATCHING_BY_TRIP, args).forEach(r -> out.add(engineCase(r)));
         } catch (PgException e) {
             // Without the trips or fleet tables no case has a live trip to match.
-            if (!"42P01".equals(e.getSqlState())) {
+            if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
             LOG.debug("Engine cases not filtered by trip: trips unavailable", e);
@@ -679,7 +680,7 @@ public class PgEngineCases implements EngineCaseStore {
                 }
             }
         } catch (PgException e) {
-            if (!f.byTrip() || !"42P01".equals(e.getSqlState())) {
+            if (!f.byTrip() || !UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
             LOG.debug("Engine cases not filtered by trip: trips unavailable", e);
@@ -773,7 +774,7 @@ public class PgEngineCases implements EngineCaseStore {
             rows = PgIds.query(pool.get(), TRIP_SYMPTOMS.formatted(TRIP_BY_CODE), args);
         } catch (PgException e) {
             // Without the trips tables a case's trip id is the only way to find the trip.
-            if (!"42P01".equals(e.getSqlState())) {
+            if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
             LOG.debug("Trip codes not resolved: trips unavailable", e);

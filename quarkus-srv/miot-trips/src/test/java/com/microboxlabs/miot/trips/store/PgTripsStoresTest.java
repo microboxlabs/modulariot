@@ -696,6 +696,7 @@ class PgTripsStoresTest {
         assertNull(live.find(tenant, bare).orElseThrow().tripType(), "a trip without mandate has no type");
 
         for (String[] change : new String[][] {{"ote", "ote"}, {"TRASLADO", "traslado"},
+                {"A".repeat(31) + "İ", "a".repeat(31) + "i"},
                 {"Order-Type-Of-32-Characters-Max", "order-type-of-32-characters-max"}}) {
             mandates.update(new Mandate(m.id(), tenant, m.externalCode(), change[0], m.orderRef(), m.status(),
                     m.originId(), m.destinationId(), m.slaMinutes(), m.closedAt(), m.cancelReason(), m.createdAt(),

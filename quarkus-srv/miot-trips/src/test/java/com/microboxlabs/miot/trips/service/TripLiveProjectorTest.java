@@ -45,6 +45,13 @@ class TripLiveProjectorTest {
     }
 
     @Test
+    void unicodeLowercaseDoesNotExpandATypePastTheColumnWidth() {
+        UUID tripId = trip();
+        world.tripStore.linkMandate(TENANT, tripId, mandate("SVC-1", "A".repeat(31) + "İ"), 1, "primary", ACTOR);
+        assertEquals("a".repeat(31) + "i", tripType(tripId));
+    }
+
+    @Test
     void aTripWithoutMandateHasNoTripType() {
         assertNull(tripType(trip()));
     }

@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -142,7 +141,13 @@ public class TripLiveProjector {
         return linked.stream().filter(m -> PRIMARY.equals(m.role())).findFirst()
                 .or(() -> linked.stream().findFirst())
                 .map(MandateRef::orderType).map(String::strip).filter(type -> !type.isEmpty())
-                .map(type -> type.toLowerCase(Locale.ROOT)).orElse(null);
+                .map(TripLiveProjector::lowerCaseType).orElse(null);
+    }
+
+    /** Simple Unicode lowercase keeps each code point within the mandate's VARCHAR(32) width. */
+    private static String lowerCaseType(String type) {
+        return type.codePoints().map(Character::toLowerCase)
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
     }
 
     private Optional<Location> location(String tenantCode, String locationId) {

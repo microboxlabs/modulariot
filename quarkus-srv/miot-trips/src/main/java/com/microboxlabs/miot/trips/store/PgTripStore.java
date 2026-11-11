@@ -171,14 +171,14 @@ public class PgTripStore implements TripStore {
     @Override
     public List<MandateRef> mandatesOf(String tenantCode, UUID tripId) {
         return query(pool.get(), """
-                SELECT tm.mandate_id, m.external_code, m.status, tm.seq, tm.role
+                SELECT tm.mandate_id, m.external_code, m.status, tm.seq, tm.role, m.order_type
                 FROM miot_trips.trip_mandate tm JOIN miot_trips.mandate m ON m.id = tm.mandate_id
                 WHERE tm.tenant_code = $1 AND tm.trip_id = $2
                   AND tm.version_of IS NULL AND tm.is_active ORDER BY tm.seq""",
                 Tuple.of(tenantCode, tripId))
                 .stream()
                 .map(r -> new MandateRef(text(r.getUUID("mandate_id")), r.getString("external_code"),
-                        r.getString("status"), r.getInteger("seq"), r.getString("role")))
+                        r.getString("status"), r.getInteger("seq"), r.getString("role"), r.getString("order_type")))
                 .toList();
     }
 

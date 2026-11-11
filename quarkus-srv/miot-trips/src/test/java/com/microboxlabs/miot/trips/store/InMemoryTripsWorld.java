@@ -284,7 +284,7 @@ public class InMemoryTripsWorld {
                 return false;
             }
             Mandate m = mandates.get(mandateId.toString());
-            refs.add(new MandateRef(m.id(), m.externalCode(), m.status(), seq, role));
+            refs.add(new MandateRef(m.id(), m.externalCode(), m.status(), seq, role, m.orderType()));
             return true;
         }
 
@@ -306,7 +306,12 @@ public class InMemoryTripsWorld {
 
         @Override
         public List<MandateRef> mandatesOf(String tenantCode, UUID tripId) {
-            return List.copyOf(tripMandates.getOrDefault(tripId.toString(), List.of()));
+            return tripMandates.getOrDefault(tripId.toString(), List.of()).stream()
+                    .sorted(java.util.Comparator.comparingInt(MandateRef::seq))
+                    .map(r -> {
+                        Mandate m = mandates.get(r.mandateId());
+                        return new MandateRef(m.id(), m.externalCode(), m.status(), r.seq(), r.role(), m.orderType());
+                    }).toList();
         }
 
         @Override
@@ -727,7 +732,7 @@ public class InMemoryTripsWorld {
     }
 
     private static TripLiveRow row(TripLiveProjection p) {
-        return new TripLiveRow(p.tripId(), p.tenantCode(), p.mandateCodes(), p.assetId(), "v",
+        return new TripLiveRow(p.tripId(), p.tenantCode(), p.mandateCodes(), p.assetId(), p.tripType(),
                 p.originGeofenceId(), p.destinationGeofenceId(), p.originGeofenceLabel(),
                 p.destinationGeofenceLabel(), p.stopGeofenceIds(), p.status(), p.driverId(),
                 p.driverName(), p.driverContactPhone(), p.secondDriverId() != null, p.secondDriverId(),

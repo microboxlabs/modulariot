@@ -120,7 +120,8 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.25__location_resolution.sql",
             "/db/migration/trips/V0.10.26__geocode_cache.sql",
             "/db/migration/trips/V0.10.27__feed_country.sql",
-            "/db/migration/trips/V0.10.28__recent_driver_assignments.sql"};
+            "/db/migration/trips/V0.10.28__recent_driver_assignments.sql",
+            "/db/migration/trips/V0.10.30__trip_live_trip_type_width.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas and the content table. Every Pg test starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
@@ -633,7 +634,7 @@ class PgTripsStoresTest {
             listener.query("LISTEN " + TripLiveChannel.CHANNEL).execute().await().atMost(WAIT);
 
             live.upsert(new com.microboxlabs.miot.trips.domain.TripLiveProjection(tripId.toString(), tenant,
-                    "[{\"mandate_id\":\"m-1\",\"code\":\"SVC-1\"}]", "AB1234", null, null, null, null, null,
+                    "[{\"mandate_id\":\"m-1\",\"code\":\"SVC-1\"}]", "AB1234", null, null, null, null, null, null,
                     "in_transit", null, null, null, null, null, null, null, null, null, null, null, null, null,
                     null));
             live.saveMotorState(tenant, tripId, 7, true, false);
@@ -659,13 +660,62 @@ class PgTripsStoresTest {
         String tenant = tenant();
         UUID tripId = UUID.randomUUID();
         live.upsert(new com.microboxlabs.miot.trips.domain.TripLiveProjection(tripId.toString(), tenant,
-                "[{\"mandate_id\":\"m-1\",\"code\":\"SVC-1\"}]", "AB1234", null, null, null, null, null,
+                "[{\"mandate_id\":\"m-1\",\"code\":\"SVC-1\"}]", "AB1234", null, null, null, null, null, null,
                 "in_transit", null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 
         String type = pool.preparedQuery("SELECT jsonb_typeof(mandate_codes) FROM miot_trips.trip_live"
                 + " WHERE trip_id = $1").execute(io.vertx.mutiny.sqlclient.Tuple.of(tripId)).await().atMost(WAIT)
                 .iterator().next().getString(0);
         assertEquals("array", type);
+    }
+
+    @Test
+    void theHotRowsTripTypeIsTheMandatesOrderTypeAndFollowsItsChanges() {
+        String tenant = tenant();
+        Mandate m = mandates.insertOrGet(new Mandate(null, tenant, "SVC-1", "v", null, Mandate.ACTIVE,
+                null, null, null, null, null, null, ACTOR, null, ACTOR)).mandate();
+        UUID tripId = UUID.fromString(trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null,
+                null, null, null, ACTOR, null, ACTOR)).id());
+        trips.linkMandate(tenant, tripId, UUID.fromString(m.id()), 1, "primary", ACTOR);
+        UUID bare = UUID.fromString(trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null,
+                null, null, null, ACTOR, null, ACTOR)).id());
+
+        var accesses = new java.util.concurrent.atomic.AtomicInteger();
+        TripLiveProjector counted = projector(() -> {
+            accesses.incrementAndGet();
+            return pool;
+        });
+        counted.refresh(tenant, bare);
+        int withoutMandate = accesses.getAndSet(0);
+        counted.refresh(tenant, tripId);
+        assertEquals(withoutMandate, accesses.get(), "the linked mandate adds no database round trip");
+        accesses.set(0);
+        counted.refreshAll(tenant, List.of(tripId, bare, tripId));
+        assertEquals(2 * withoutMandate, accesses.get(), "bulk refresh reads each trip's links only once");
+        assertEquals("v", live.find(tenant, tripId).orElseThrow().tripType());
+        assertNull(live.find(tenant, bare).orElseThrow().tripType(), "a trip without mandate has no type");
+
+        for (String[] change : new String[][] {{"ote", "ote"}, {"TRASLADO", "traslado"},
+                {"A".repeat(31) + "İ", "a".repeat(31) + "i"},
+                {"Order-Type-Of-32-Characters-Max", "order-type-of-32-characters-max"}}) {
+            mandates.update(new Mandate(m.id(), tenant, m.externalCode(), change[0], m.orderRef(), m.status(),
+                    m.originId(), m.destinationId(), m.slaMinutes(), m.closedAt(), m.cancelReason(), m.createdAt(),
+                    m.createdBy(), m.updatedAt(), ACTOR));
+            projector.refresh(tenant, tripId);
+            assertEquals(change[1], live.find(tenant, tripId).orElseThrow().tripType());
+        }
+    }
+
+    @Test
+    void anUpsertChangesTheTripTypeOfAnExistingRow() {
+        String tenant = tenant();
+        UUID tripId = UUID.randomUUID();
+        for (String type : new String[] {"v", "otr", null}) {
+            live.upsert(new com.microboxlabs.miot.trips.domain.TripLiveProjection(tripId.toString(), tenant, null,
+                    "AB1234", type, null, null, null, null, null, "in_transit", null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null));
+            assertEquals(type, live.find(tenant, tripId).orElseThrow().tripType());
+        }
     }
 
     @Test

@@ -84,11 +84,12 @@ public class PgTripLiveStore implements TripLiveStore {
                     carrier_id, carrier_name, carrier_contact_phone, rampla_plate,
                     start_time, end_time, estimated_arrival_time, type_load,
                     origin_geofence_id, destination_geofence_id, stop_geofence_ids)
-                VALUES ($1, $2, $3::text::jsonb, $4, 'v', $5, $6, $7, $8, $9, $10, $11::text IS NOT NULL, $11, $12, $13,
+                VALUES ($1, $2, $3::text::jsonb, $4, $25, $5, $6, $7, $8, $9, $10, $11::text IS NOT NULL, $11, $12, $13,
                     $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
                 ON CONFLICT (trip_id) DO UPDATE SET
                     mandate_codes = EXCLUDED.mandate_codes,
                     asset_id = EXCLUDED.asset_id,
+                    trip_type = EXCLUDED.trip_type,
                     origin_geofence_label = EXCLUDED.origin_geofence_label,
                     destination_geofence_label = EXCLUDED.destination_geofence_label,
                     origin_geofence_id = EXCLUDED.origin_geofence_id,
@@ -123,7 +124,8 @@ public class PgTripLiveStore implements TripLiveStore {
                         .addString(p.typeLoad()).addInteger(p.originGeofenceId())
                         .addInteger(p.destinationGeofenceId())
                         .addArrayOfInteger(p.stopGeofenceIds() == null ? null
-                                : p.stopGeofenceIds().toArray(Integer[]::new)));
+                                : p.stopGeofenceIds().toArray(Integer[]::new))
+                        .addString(p.tripType()));
         TripLiveChannel.changed(pool.get(), p.tenantCode(), p.tripId());
     }
 

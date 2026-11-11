@@ -119,6 +119,20 @@ class SignalBuilderTest {
     }
 
     @Test
+    void aTripWithoutATypeKeepsNormalPriorityAndOmitsTheSignalType() {
+        Trip unknown = ReferenceCache.trip(new JsonObject("""
+                {"trip_id":"UNKNOWN","tenant_code":"sender-1","asset_id":"ABCD12","trip_type":null,
+                 "status":"in_transit","start_time":"2026-10-21T11:00:00Z","double_driver":false}
+                """));
+        assertEquals(1, unknown.priority());
+        ReferenceCache refs = refs(List.of(unknown, trip("OTE", "ote", AT.minusSeconds(60), null)), List.of());
+        GpsSignal.Trip selected = senderTrip(build(refs, frame("ABCD12", 0, false)));
+        assertEquals("UNKNOWN", selected.id());
+        assertNull(selected.type());
+        assertFalse(JsonObject.mapFrom(selected).containsKey("type"));
+    }
+
+    @Test
     void eachClientGetsItsOwnTrip() {
         Instant start = AT.minusSeconds(600);
         ReferenceCache refs = refs(List.of(

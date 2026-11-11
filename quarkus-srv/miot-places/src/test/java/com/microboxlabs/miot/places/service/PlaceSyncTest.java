@@ -12,8 +12,12 @@ import com.microboxlabs.miot.places.dto.PlaceRequest.VersionRequest;
 import com.microboxlabs.miot.places.store.InMemoryPlaceStore;
 import com.microboxlabs.miot.places.store.PlaceStore.Place;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 /** Every place a write touches reaches {@link PlaceSync} by its organization and code, once the write commits. */
@@ -49,8 +53,8 @@ class PlaceSyncTest {
         }
 
         @Override
-        public void deleted(String tenantCode, String externalCode, String kind) {
-            heard.add("deleted " + kind + " " + tenantCode + "/" + externalCode);
+        public void deleted(String tenantCode, String externalCode, Place place) {
+            heard.add("deleted " + place.kind() + " " + tenantCode + "/" + externalCode);
             if (meanwhile != null) {
                 Runnable other = meanwhile;
                 meanwhile = null;
@@ -124,15 +128,15 @@ class PlaceSyncTest {
     }
 
     @Test
-    void anOldDeleteThatOvertakesANewOwnersCopyLeavesTheNewOwnerPending() {
+    void anOldDeleteThatOvertakesANewOwnersCopyNeedsNoRepair() {
         service.create(TENANT, geofence(null, null), ACTOR);
         meanwhile = () -> service.create(TENANT, geofence(null, null), ACTOR);
 
         service.delete(TENANT, "SCL", ACTOR);
 
         UUID newOwner = store.findByCode(TENANT, "SCL").orElseThrow().id();
-        assertEquals(List.of(newOwner), store.pending(100).stream().map(p -> p.place().id()).toList());
-        assertEquals(1, service.retryPending(100));
+        assertTrue(store.find(TENANT, newOwner).isPresent());
+        assertEquals(0, service.retryPending(100));
         assertEquals(List.of(), store.pending(100));
     }
 
@@ -227,6 +231,26 @@ class PlaceSyncTest {
     }
 
     @Test
+    void aBusyReplicaLeavesBothApiWritesAndRetriesPending() {
+        boolean[] busy = {true};
+        InMemoryPlaceStore shared = new InMemoryPlaceStore() {
+            @Override
+            public <T> Optional<T> syncExclusively(Supplier<T> work) {
+                return busy[0] ? Optional.empty() : Optional.ofNullable(work.get());
+            }
+        };
+        PlaceService api = new PlaceService(shared, Transactions.none(), recorder);
+        api.create(TENANT, geofence(null, null), ACTOR);
+        assertEquals(0, api.retryPending(100));
+        assertEquals(List.of(), heard);
+        assertEquals(1, shared.pending(100).size());
+        busy[0] = false;
+        assertEquals(1, api.retryPending(100));
+        assertEquals(0, api.retryPending(100));
+        assertEquals(1, heard.size());
+    }
+
+    @Test
     void aSyncThatWorksLeavesNothingPendingButRoutesAreNeverMarked() {
         service.create(TENANT, geofence(List.of(inner(null, "AND-1")), null), ACTOR);
         service.create(TENANT, route("RUTA-1", null), ACTOR);
@@ -255,19 +279,54 @@ class PlaceSyncTest {
     }
 
     @Test
-    void aDeletionWhoseCodeIsTakenAgainIsNotRemovedFromStreamHub() {
+    void aDeletionWhoseCodeIsTakenAgainStillDeletesByItsSourceId() {
         service.create(TENANT, geofence(null, null), ACTOR);
         failing = true;
         service.delete(TENANT, "SCL", ACTOR);
         failing = false;
-        // the code it freed is a new geofence's, copied already: removing it there would remove that one
+        // The old UUID is still deleted; the GPS predicate protects the new owner's copy.
         service.create(TENANT, geofence(null, null), ACTOR);
         heard.clear();
 
         assertEquals(1, service.retryPending(100));
 
-        assertEquals(List.of(), heard);
+        assertEquals(List.of("deleted geofence acme-client/SCL"), heard);
         assertEquals(List.of(), store.pending(100));
+    }
+
+    @Test
+    void aPendingReplacementNeverHidesThePreviousOwnersFailedDelete() {
+        Map<String, UUID> gpsRows = new HashMap<>();
+        boolean[] failures = {false, false}; // saves, deletes
+        PlaceSync owned = new PlaceSync() {
+            @Override
+            public void saved(String tenant, String code, Place place) {
+                if (failures[0]) throw new IllegalStateException("GPS save failed");
+                gpsRows.put(code, place.id());
+            }
+
+            @Override
+            public void deleted(String tenant, String code, Place place) {
+                if (failures[1]) throw new IllegalStateException("GPS delete failed");
+                gpsRows.remove(code, place.id());
+            }
+        };
+        PlaceService writer = new PlaceService(store, Transactions.none(), owned);
+        Place previous = writer.create(TENANT, geofence(null, null), ACTOR).place();
+        failures[1] = true;
+        writer.delete(TENANT, "SCL", ACTOR);
+        failures[0] = true;
+        Place replacement = writer.create(TENANT, geofence(null, null), ACTOR).place();
+        assertEquals(previous.id(), gpsRows.get("SCL"));
+        failures[1] = false;
+
+        assertEquals(1, writer.retryPending(100));
+
+        assertTrue(gpsRows.isEmpty(), "the previous owner's row must be removed even while its code is reused");
+        assertEquals(List.of(replacement.id()), store.pending(100).stream().map(p -> p.place().id()).toList());
+        writer.delete(TENANT, "SCL", ACTOR);
+        assertTrue(gpsRows.isEmpty());
+        assertTrue(store.pending(100).isEmpty());
     }
 
     @Test
@@ -279,7 +338,7 @@ class PlaceSyncTest {
             }
 
             @Override
-            public void deleted(String tenantCode, String externalCode, String kind) {
+            public void deleted(String tenantCode, String externalCode, Place place) {
                 heard.add("deleted " + externalCode);
             }
 

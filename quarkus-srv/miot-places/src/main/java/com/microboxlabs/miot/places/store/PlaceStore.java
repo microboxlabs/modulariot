@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * The tenant's places in the modulith database ({@code miot_places.place}): geofences, inner geofences and routes,
@@ -98,4 +99,9 @@ public interface PlaceStore {
      * first: a code a deleted place freed may be another's now.
      */
     List<Pending> pending(int limit);
+
+    /** One sync writer across API calls, retry jobs and replicas. A busy writer leaves this work pending. */
+    default <T> Optional<T> syncExclusively(Supplier<T> work) {
+        return Optional.ofNullable(work.get());
+    }
 }

@@ -30,13 +30,28 @@ import java.util.UUID;
  * @param levelResponse the response from this definition and the version that decided its current level, or null
  * @param test        its symptom was in TEST when it opened: it is in no list or count, but can be treated and closed
  * @param operatorRequired whether its current level goes to the operators, or null when not read
+ * @param treatment   its treatment state with the episodes behind it, or null when not read
  */
 public record EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
         Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
         Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode,
         JsonNode openingContext, JsonNode levelContext, String levelRule, List<LevelStep> levels,
         TripDetails trip, JsonNode closingContext, Ignored ignored, Instant returnedAt, Instant levelAt,
-        boolean test, JsonNode levelResponse, Boolean operatorRequired) {
+        boolean test, JsonNode levelResponse, Boolean operatorRequired, CaseTreatment treatment) {
+
+    /** Cases read without their treatments' details. */
+    @SuppressWarnings("java:S107")
+    public EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
+            Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
+            Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode,
+            JsonNode openingContext, JsonNode levelContext, String levelRule, List<LevelStep> levels,
+            TripDetails trip, JsonNode closingContext, Ignored ignored, Instant returnedAt, Instant levelAt,
+            boolean test, JsonNode levelResponse, Boolean operatorRequired) {
+        this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
+                speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext, levelContext,
+                levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, test, levelResponse,
+                operatorRequired, null);
+    }
 
     /** Cases read without their current level's operator decision. */
     @SuppressWarnings("java:S107")
@@ -165,6 +180,82 @@ public record EngineCase(long id, UUID definitionId, String version, String name
         levels = levels == null ? List.of() : List.copyOf(levels);
     }
 
+    /**
+     * What the operators did about a case. {@code IN_TREATMENT}: it is open and has an OPEN treatment.
+     * {@code TREATED}: it has a CLOSED treatment, whether the case is open or closed; a case that came back to the
+     * tower from an "Ignorar condición" hold is the exception, it waits for an operator again. {@code UNTREATED}:
+     * any other case. Cancelled treatments do not count.
+     */
+    public enum TreatmentState {
+        UNTREATED, IN_TREATMENT, TREATED;
+
+        /** The value in the API and in the database queries. */
+        public String wire() {
+            return name().toLowerCase(java.util.Locale.ROOT);
+        }
+
+        /**
+         * {@code untreated}, {@code in_treatment} or {@code treated}, ignoring case; null for null or blank.
+         *
+         * @throws IllegalArgumentException for any other value
+         */
+        public static TreatmentState parse(String value) {
+            if (value == null || value.isBlank()) {
+                return null;
+            }
+            return switch (value.trim().toLowerCase(java.util.Locale.ROOT)) {
+                case "untreated" -> UNTREATED;
+                case "in_treatment" -> IN_TREATMENT;
+                case "treated" -> TREATED;
+                default -> throw new IllegalArgumentException(
+                        "treatment must be untreated, in_treatment or treated");
+            };
+        }
+    }
+
+    /**
+     * A case's treatment state and the episodes behind it.
+     *
+     * @param open its OPEN treatments, oldest first
+     * @param last its latest CLOSED treatment, or null
+     */
+    public record CaseTreatment(TreatmentState state, List<Episode> open, Episode last) {
+
+        public CaseTreatment {
+            open = open == null ? List.of() : List.copyOf(open);
+        }
+
+        /**
+         * The episode the state is about: for a case in treatment, {@code actor}'s own open one, else the oldest
+         * open one; otherwise the latest closed one. Null without any.
+         */
+        public Episode shown(String actor) {
+            if (state == TreatmentState.IN_TREATMENT && !open.isEmpty()) {
+                return open.stream().filter(e -> actor != null && actor.equals(e.openedBy())).findFirst()
+                        .orElse(open.get(0));
+            }
+            return last;
+        }
+
+        /** Whether {@code actor} has an OPEN treatment on the case, which opening one again resumes. */
+        public boolean openBy(String actor) {
+            return actor != null && open.stream().anyMatch(e -> actor.equals(e.openedBy()));
+        }
+    }
+
+    /**
+     * One treatment of a case.
+     *
+     * @param type         the form it was opened from: CALL, IGNORE_CONDITION or INVALIDATE_SYMPTOM
+     * @param outcome      how a closed one handled the case, from its last deciding action: {@code call},
+     *                     {@code handling} ("Registrar gestión"), {@code ignore} or {@code invalidate}; null when
+     *                     it has none
+     * @param outcomeLabel that action's outcome, as the operator chose it
+     */
+    public record Episode(String id, String type, String openedBy, Instant openedAt, String closedBy,
+            Instant closedAt, String resolution, String outcome, String outcomeLabel) {
+    }
+
     @SuppressWarnings("java:S107")
     public EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
             Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
@@ -208,54 +299,74 @@ public record EngineCase(long id, UUID definitionId, String version, String name
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, opening, context, rule, steps,
                 trip, closingContext, ignored, returnedAt, levelAt, test, levelResponse,
-                operatorRequired);
+                operatorRequired, treatment);
     }
 
     public EngineCase withTrip(TripDetails details) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
                 levelContext, levelRule, levels, details, closingContext, ignored, returnedAt, levelAt, test, levelResponse,
-                operatorRequired);
+                operatorRequired, treatment);
     }
 
     public EngineCase withClosing(JsonNode context) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
                 levelContext, levelRule, levels, trip, context, ignored, returnedAt, levelAt, test, levelResponse,
-                operatorRequired);
+                operatorRequired, treatment);
     }
 
     public EngineCase withHold(Ignored hold, Instant returned) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
                 levelContext, levelRule, levels, trip, closingContext, hold, returned, levelAt, test, levelResponse,
-                operatorRequired);
+                operatorRequired, treatment);
     }
 
     public EngineCase withLevelAt(Instant at) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
                 levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, at, test, levelResponse,
-                operatorRequired);
+                operatorRequired, treatment);
     }
 
     public EngineCase withTest(boolean inTest) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, inTest, levelResponse, operatorRequired);
+                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, inTest, levelResponse, operatorRequired,
+                treatment);
     }
 
     public EngineCase withLevelResponse(JsonNode response) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, test, response, operatorRequired);
+                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, test, response, operatorRequired,
+                treatment);
     }
 
     public EngineCase withOperatorRequired(Boolean required) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
                 levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, test, levelResponse,
-                required);
+                required, treatment);
+    }
+
+    public EngineCase withTreatment(CaseTreatment read) {
+        return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
+                longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
+                levelContext, levelRule, levels, trip, closingContext, ignored, returnedAt, levelAt, test, levelResponse,
+                operatorRequired, read);
+    }
+
+    /**
+     * Its treatment state: the one read with it, else in treatment while it is open with an open treatment, else
+     * untreated.
+     */
+    public TreatmentState treatmentState() {
+        if (treatment != null) {
+            return treatment.state();
+        }
+        return closedAt == null && treatments > 0 ? TreatmentState.IN_TREATMENT : TreatmentState.UNTREATED;
     }
 
     /** When its current level's SLA started: it reached the level, or came back from a hold after that. */

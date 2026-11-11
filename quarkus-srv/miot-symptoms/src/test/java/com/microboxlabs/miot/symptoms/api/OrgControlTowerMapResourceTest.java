@@ -1065,6 +1065,54 @@ class OrgControlTowerMapResourceTest {
         assertEquals(400, call(resource.symptoms(ORG, query("operator=some"))).getStatus());
     }
 
+    private static EngineCase treating(EngineCase c, String operator) {
+        return new EngineCase(c.id(), c.definitionId(), c.version(), c.name(), c.family(), c.assetId(),
+                c.openedAt(), c.level(), c.tripId(), null, null, null, null, 1, 2, null)
+                .withTreatment(new EngineCase.CaseTreatment(EngineCase.TreatmentState.IN_TREATMENT,
+                        List.of(new EngineCase.Episode("t-1", "CALL", operator, c.openedAt().plusSeconds(1), null,
+                                null, null, null, null)), null));
+    }
+
+    @Test
+    void engineOnlyTheTreatmentFilterAppliesToTheListAndTheCounts() {
+        engineCases.add(openCase(1, "AB12", "Pérdida de señal", 3));
+        engineCases.add(treating(openCase(2, "CD34", "Pérdida de señal", 4), "other@example.com"));
+        var subject = engineOnly();
+
+        assertEquals(List.of(-2L, -1L), listed(subject, "p_page=1"), "without it every case is listed");
+        assertEquals(List.of(-1L), listed(subject, "treatment=untreated"));
+        assertEquals(List.of(-2L), listed(subject, "treatment=in_treatment&operator=all"));
+        assertEquals(List.of(), listed(subject, "treatment=treated"));
+        assertEquals(400, call(subject.symptoms(ORG, query("treatment=done"))).getStatus());
+        assertEquals(400, call(subject.caseCounts(ORG, query("treatment=done"))).getStatus());
+
+        JsonNode row = ((JsonNode) call(subject.symptoms(ORG, query("treatment=in_treatment"))).getEntity())
+                .get("data").get(0);
+        assertEquals("in_treatment", row.get("treatment_state").asText());
+        assertEquals("other@example.com", row.get("treatment").get("opened_by").asText());
+        assertFalse(row.get("treatment").get("mine").asBoolean());
+
+        JsonNode counts = caseCounts(subject, "treatment=in_treatment");
+        assertEquals(1, counts.get("conditions").get("Under Treatment").asInt());
+        assertFalse(counts.get("conditions").has("Critical condition"));
+        assertEquals(1, counts.get("treatment_states").get("untreated").asInt());
+        assertEquals(1, counts.get("treatment_states").get("in_treatment").asInt());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void theTreatmentFilterLeavesTheGpsDatabaseSymptomsOut() {
+        engineCases.add(openCase(5, 3));
+        engineCases.add(treating(openCase(6, 4), "other@example.com"));
+
+        assertEquals(List.of(-6L), listed(resource, "treatment=in_treatment"));
+        assertEquals(List.of(-6L), listed(resource, "treatment=in_treatment&operator=all"));
+        assertEquals(1, caseCounts(resource, "treatment=in_treatment&operator=all").get("conditions")
+                .get("Under Treatment").asInt());
+        assertEquals(List.of(), gpsCalls, "a GPS database symptom has no treatment state");
+        assertTrue(sentFilters.stream().noneMatch(f -> f.containsKey("treatment")));
+    }
+
     @Test
     void explicitLegacyScopesPaginateTheEngineAndGpsTogether() {
         for (int i = 1; i <= 12; i++) {

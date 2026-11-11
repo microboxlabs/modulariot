@@ -105,6 +105,7 @@ public class InMemoryEngineCases implements EngineCaseStore {
                 .filter(c -> f.symptomName() == null || f.symptomName().equalsIgnoreCase(c.name()))
                 .filter(c -> f.level() == null || f.level() == c.level())
                 .filter(c -> !f.underTreatmentOnly() || c.treatments() > 0)
+                .filter(c -> f.treatment() == null || c.treatmentState() == f.treatment())
                 .filter(c -> !f.operatorOnly() || needsOperator(c))
                 .filter(c -> !f.withoutOperatorOnly() || !needsOperator(c))
                 .filter(c -> f.ignoredOnly() ? held.contains(c.id()) && c.closedAt() == null

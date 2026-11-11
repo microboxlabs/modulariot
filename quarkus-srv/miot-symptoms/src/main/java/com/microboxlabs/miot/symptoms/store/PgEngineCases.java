@@ -30,8 +30,10 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -65,8 +67,11 @@ public class PgEngineCases implements EngineCaseStore {
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.state, o.asset_id, o.at, o.level, o.trip_id,
                    o.latitude, o.longitude, o.speed_kmh, o.operator_required, d.name, d.family,
                    closed.id AS closed_id, closed.at AS closed_at,
-                   (SELECT count(*) FROM miot_symptoms.treatment t
-                     WHERE t.tenant_code = o.tenant_code AND t.symptom_id = -o.id AND t.status = 'OPEN') AS treatments,
+                   ot.n AS treatments,
+                   CASE WHEN closed.id IS NULL AND ot.n > 0 THEN 'in_treatment'
+                        WHEN done.id IS NOT NULL AND NOT (closed.id IS NULL
+                             AND COALESCE(done.resolution, '') = 'returned_after_ignore') THEN 'treated'
+                        ELSE 'untreated' END AS treatment_state,
                    CASE WHEN o.trip_id IS NOT NULL THEN
                      (SELECT count(*) FROM miot_symptoms.signal_transitions r
                        WHERE r.tenant_code = o.tenant_code AND r.definition_id = o.definition_id
@@ -80,10 +85,41 @@ public class PgEngineCases implements EngineCaseStore {
                      WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
                        AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id
                      ORDER BY c.id LIMIT 1) closed ON true
+              LEFT JOIN LATERAL (SELECT count(*) AS n FROM miot_symptoms.treatment t
+                     WHERE t.tenant_code = o.tenant_code AND t.symptom_id = -o.id AND t.status = 'OPEN') ot ON true
+              LEFT JOIN LATERAL (SELECT t.id, t.resolution FROM miot_symptoms.treatment t
+                     WHERE t.tenant_code = o.tenant_code AND t.symptom_id = -o.id AND t.status = 'CLOSED'
+                     ORDER BY t.closed_at DESC NULLS LAST, t.opened_at DESC, t.id LIMIT 1) done ON true
               LEFT JOIN LATERAL (%s) hold ON true
               LEFT JOIN LATERAL (%s) ret ON true
              WHERE o.tenant_code = $1 AND o.kind = 'OPENED' AND o.state = 'ACTIVE'
             """.formatted(HoldSql.active("o"), HoldSql.returned("o", "closed.at"));
+
+    /**
+     * The treatments behind a returned case row {@code c}'s {@code treatment_state}: {@code open_treatments}, its
+     * OPEN ones oldest first, and {@code last_treatment}, its latest CLOSED one with the action that decided it
+     * (the last call, ignore, invalidation or handling record).
+     */
+    private static final String TREATMENT_COLUMNS = """
+                   (SELECT json_agg(json_build_object('id', t.id, 'type', t.type, 'opened_by', t.opened_by,
+                           'opened_at', t.opened_at) ORDER BY t.opened_at, t.id)::text
+                      FROM miot_symptoms.treatment t
+                     WHERE t.tenant_code = c.tenant_code AND t.symptom_id = -c.id AND t.status = 'OPEN')
+                       AS open_treatments,
+                   (SELECT json_build_object('id', t.id, 'type', t.type, 'opened_by', t.opened_by,
+                           'opened_at', t.opened_at, 'closed_by', t.closed_by, 'closed_at', t.closed_at,
+                           'resolution', t.resolution, 'outcome',
+                           (SELECT json_build_object('kind', a.kind, 'label',
+                                   COALESCE(NULLIF(btrim(a.outcome_label), ''), NULLIF(btrim(a.outcome_key), '')))
+                              FROM miot_symptoms.treatment_action a
+                             WHERE a.treatment_id = t.id AND a.tenant_code = t.tenant_code
+                               AND (a.kind <> 'NOTE' OR NULLIF(btrim(a.outcome_label), '') IS NOT NULL
+                                    OR NULLIF(btrim(a.outcome_key), '') IS NOT NULL)
+                             ORDER BY a.seq DESC LIMIT 1))::text
+                      FROM miot_symptoms.treatment t
+                     WHERE t.tenant_code = c.tenant_code AND t.symptom_id = -c.id AND t.status = 'CLOSED'
+                     ORDER BY t.closed_at DESC NULLS LAST, t.opened_at DESC, t.id LIMIT 1) AS last_treatment,
+            """;
 
     /**
      * {@link #CASES} of both states: what the case page, its treatments, hold, resume and close read by id. A TEST
@@ -160,8 +196,8 @@ public class PgEngineCases implements EngineCaseStore {
             CASE WHEN %1$s THEN z.id END ASC""".formatted(OPEN_ONLY);
     /**
      * {@link CaseFilter}: $2 trip, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only, $9
-     * ignored only, $10 whether the level goes to the operators (null for any). Without dates and $9, the open
-     * cases no hold covers.
+     * ignored only, $10 whether the level goes to the operators (null for any), $11 the treatment state (null for
+     * any). Without dates and $9, the open cases no hold covers.
      */
     private static final String MATCHING_ROWS = "SELECT * FROM (" + WITH_SLA.formatted(SELECT.formatted(CASES + """
                AND ($2::text IS NULL OR o.trip_id = $2)
@@ -173,6 +209,7 @@ public class PgEngineCases implements EngineCaseStore {
             + " AND ($5::timestamptz IS NULL OR z.closed_at IS NULL OR z.closed_at >= $5)"
             + " AND (NOT $8::boolean OR z.treatments > 0)"
             + " AND ($10::boolean IS NULL OR z.needs_operator = $10::boolean)"
+            + " AND ($11::text IS NULL OR z.treatment_state = $11)"
             + " AND CASE WHEN $9::boolean THEN z.hold_id IS NOT NULL AND z.closed_id IS NULL"
             + " WHEN $5::timestamptz IS NULL AND $6::timestamptz IS NULL THEN z.hold_id IS NULL ELSE true END";
     private static final String MATCHING = MATCHING_ROWS + " ORDER BY " + INBOX_ORDER + ", z.at DESC LIMIT 200";
@@ -185,24 +222,26 @@ public class PgEngineCases implements EngineCaseStore {
     /** A RUT or id without dots, dashes or spaces, upper case; the parameter comes normalized the same way. */
     private static final String PLAIN = "upper(regexp_replace(%s, '[^0-9A-Za-z]', '', 'g'))";
     /**
-     * What {@link #MATCHING_BY_TRIP} adds to {@link #MATCHING}, the case's live trip: $11 either driver's RUT, $12 the carrier's RUT,
-     * $13 the carrier's id, $14 the origin name, $15 the destination name; each normalized as {@link #PLAIN} or
+     * What {@link #MATCHING_BY_TRIP} adds to {@link #MATCHING}, the case's live trip: $12 either driver's RUT, $13 the carrier's RUT,
+     * $14 the carrier's id, $15 the origin name, $16 the destination name; each normalized as {@link #PLAIN} or
      * trimmed and lower case. A case without a live trip matches none.
      */
     private static final String BY_TRIP = """
                AND EXISTS (SELECT 1 FROM miot_trips.trip_live t
                     LEFT JOIN miot_fleet.carrier fc ON fc.tenant_code = t.tenant_code AND fc.id::text = t.carrier_id
                    WHERE %s
-                     AND ($11::text IS NULL OR %s = $11 OR %s = $11)
-                     AND ($12::text IS NULL OR %s = $12 OR t.carrier_id = $13)
-                     AND ($14::text IS NULL OR lower(btrim(t.origin_geofence_label)) = $14)
-                     AND ($15::text IS NULL OR lower(btrim(t.destination_geofence_label)) = $15))
+                     AND ($12::text IS NULL OR %s = $12 OR %s = $12)
+                     AND ($13::text IS NULL OR %s = $13 OR t.carrier_id = $14)
+                     AND ($15::text IS NULL OR lower(btrim(t.origin_geofence_label)) = $15)
+                     AND ($16::text IS NULL OR lower(btrim(t.destination_geofence_label)) = $16))
             """.formatted(LIVE_TRIP.formatted("o"), PLAIN.formatted("t.driver_id"),
                     PLAIN.formatted("t.second_driver_id"), PLAIN.formatted("fc.rut"));
     private static final String MATCHING_BY_TRIP = byTrip(MATCHING);
     /** The rows {@link #MATCHING} or {@link #MATCHING_BY_TRIP} keep, without the limit, counted as {@link #COUNTS}. */
     private static final String MATCHING_COUNTS = "SELECT m.current_level, m.treatments > 0 AS under_treatment,"
             + " count(*) AS n FROM (%s) m GROUP BY 1, 2";
+    /** The same rows, counted by treatment state. */
+    private static final String TREATMENT_COUNTS = "SELECT m.treatment_state, count(*) AS n FROM (%s) m GROUP BY 1";
     /**
      * The vehicles on a trips-module trip now: departed (its confirmed departure, else its first transit or stop)
      * and not ended, as the signal's {@code trip.active}. $2 trip, $3 part of the vehicle id, $4 either driver's
@@ -310,8 +349,8 @@ public class PgEngineCases implements EngineCaseStore {
                      LIMIT 1) AS level_response
               FROM (%s) w
             """.formatted(WITH_SLA.formatted(SELECT.formatted(TREATABLE_CASES + " AND o.id = $2")));
-    private static final String LIVE_TRIP_COLUMNS = """
-            SELECT c.*, t.mandate_codes::text AS trip_mandate_codes, t.driver_name AS trip_driver,
+    private static final String LIVE_TRIP_COLUMNS = "SELECT c.*,\n" + TREATMENT_COLUMNS + """
+                   t.mandate_codes::text AS trip_mandate_codes, t.driver_name AS trip_driver,
                    t.carrier_name AS trip_carrier, t.origin_geofence_label AS trip_origin,
                    t.destination_geofence_label AS trip_destination, t.asset_id AS trip_asset,
             """;
@@ -338,7 +377,8 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String WITH_LIVE_TRIP = LIVE_TRIP_COLUMNS
             + " NULL::text AS trip_code_fallback FROM (%s) c LEFT JOIN miot_trips.trip_live t ON "
             + LIVE_TRIP.formatted("c") + " ORDER BY c.at DESC";
-    private static final String WITHOUT_TRIP = "SELECT c.*, NULL::text AS trip_mandate_codes,"
+    private static final String WITHOUT_TRIP = "SELECT c.*,\n" + TREATMENT_COLUMNS
+            + " NULL::text AS trip_mandate_codes,"
             + " NULL::text AS trip_code_fallback,"
             + " NULL::text AS trip_driver, NULL::text AS trip_carrier, NULL::text AS trip_origin,"
             + " NULL::text AS trip_destination, NULL::text AS trip_asset FROM (%s) c ORDER BY c.at DESC";
@@ -651,21 +691,35 @@ public class PgEngineCases implements EngineCaseStore {
     @Override
     public List<OpenCount> matchingCounts(String tenantCode, CaseFilter f) {
         List<OpenCount> out = new ArrayList<>();
+        counted(MATCHING_COUNTS, tenantCode, f, r -> out.add(new OpenCount(
+                r.getInteger(CURRENT_LEVEL), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
+        return out;
+    }
+
+    @Override
+    public Map<EngineCase.TreatmentState, Long> treatmentCounts(String tenantCode, CaseFilter f) {
+        Map<EngineCase.TreatmentState, Long> out = new EnumMap<>(EngineCase.TreatmentState.class);
+        counted(TREATMENT_COUNTS, tenantCode, f, r -> out.merge(
+                EngineCase.TreatmentState.parse(r.getString("treatment_state")), r.getLong("n"), Long::sum));
+        return out;
+    }
+
+    /** Runs {@code counts} over the rows {@link #list} matches, without its limit. */
+    private void counted(String counts, String tenantCode, CaseFilter f, Consumer<Row> each) {
         Tuple args = arguments(tenantCode, f);
         String rows = MATCHING_ROWS;
         if (f.byTrip()) {
             String driver = plain(f.driverId());
             String carrier = plain(f.carrierId());
             if ("".equals(driver) || "".equals(carrier)) {
-                return out;
+                return;
             }
             args.addString(driver).addString(carrier).addString(f.carrierId() == null ? null : f.carrierId().trim())
                     .addString(lower(f.origin())).addString(lower(f.destination()));
             rows = byTrip(MATCHING_ROWS);
         }
         try {
-            PgIds.query(pool.get(), MATCHING_COUNTS.formatted(rows), args).forEach(r -> out.add(new OpenCount(
-                    r.getInteger(CURRENT_LEVEL), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
+            PgIds.query(pool.get(), counts.formatted(rows), args).forEach(each);
         } catch (PgException e) {
             // Without the trips or fleet tables no case has a live trip to match.
             if (!f.byTrip() || !UNDEFINED_TABLE.equals(e.getSqlState())) {
@@ -673,7 +727,6 @@ public class PgEngineCases implements EngineCaseStore {
             }
             LOG.debug("Engine cases not counted by trip: trips unavailable", e);
         }
-        return out;
     }
 
     @Override
@@ -730,7 +783,8 @@ public class PgEngineCases implements EngineCaseStore {
                 .addString(f.assetId()).addString(f.symptomName())
                 .addOffsetDateTime(f.from() == null ? null : utc(f.from()))
                 .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level())
-                .addBoolean(f.underTreatmentOnly()).addBoolean(f.ignoredOnly()).addBoolean(needsOperator(f));
+                .addBoolean(f.underTreatmentOnly()).addBoolean(f.ignoredOnly()).addBoolean(needsOperator(f))
+                .addString(f.treatment() == null ? null : f.treatment().wire());
     }
 
     @Override
@@ -1119,7 +1173,52 @@ public class PgEngineCases implements EngineCaseStore {
                 .withHold(hold(r), instant(r.getOffsetDateTime("returned_at")))
                 .withLevelAt(instant(r.getOffsetDateTime("level_at")))
                 .withTest("TEST".equals(r.getString("state")))
-                .withOperatorRequired(r.getBoolean("needs_operator"));
+                .withOperatorRequired(r.getBoolean("needs_operator"))
+                .withTreatment(treatment(r.getString("treatment_state"), json(r.getString("open_treatments")),
+                        json(r.getString("last_treatment"))));
+    }
+
+    /** The row's treatment state with its episodes ({@link #TREATMENT_COLUMNS}). */
+    static EngineCase.CaseTreatment treatment(String state, JsonNode open, JsonNode last) {
+        List<EngineCase.Episode> opened = new ArrayList<>();
+        if (open != null && open.isArray()) {
+            open.forEach(e -> opened.add(episode(e)));
+        }
+        return new EngineCase.CaseTreatment(EngineCase.TreatmentState.parse(state), opened,
+                last == null || !last.isObject() ? null : episode(last));
+    }
+
+    private static EngineCase.Episode episode(JsonNode e) {
+        JsonNode outcome = e.path("outcome");
+        return new EngineCase.Episode(e.path("id").asText(null), e.path("type").asText(null),
+                e.path("opened_by").asText(null), jsonInstant(e.path("opened_at")),
+                e.path("closed_by").asText(null), jsonInstant(e.path("closed_at")),
+                e.path("resolution").asText(null), outcome(outcome.path("kind").asText(null)),
+                outcome.path("label").asText(null));
+    }
+
+    /** A deciding action's kind as the API names the outcome; a NOTE is a handling record. */
+    private static String outcome(String kind) {
+        if (kind == null) {
+            return null;
+        }
+        return switch (kind) {
+            case "CALL" -> "call";
+            case "IGNORE" -> "ignore";
+            case "INVALIDATE" -> "invalidate";
+            default -> "handling";
+        };
+    }
+
+    private static Instant jsonInstant(JsonNode at) {
+        if (at == null || !at.isTextual()) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(at.asText()).toInstant();
+        } catch (java.time.format.DateTimeParseException e) {
+            return null;
+        }
     }
 
     private static EngineCase.Ignored hold(Row r) {

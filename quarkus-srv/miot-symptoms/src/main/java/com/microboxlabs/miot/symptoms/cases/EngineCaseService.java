@@ -303,11 +303,32 @@ public class EngineCaseService {
      * The store's cases for the list, in the inbox's order without dates. {@code operator} null is the default
      * ({@link #inbox}); any other value keeps the cases it names, with or without dates.
      */
-    private List<EngineCase> listed(String tenantCode, EngineCaseStore.CaseFilter filter,
-            EngineCaseStore.OperatorScope operator) {
-        EngineCaseStore.CaseFilter f = operator == null ? inbox(filter) : filter.operator(operator);
+    private List<EngineCase> listed(String tenantCode, EngineCaseStore.CaseFilter filter, Viewer viewer) {
+        EngineCaseStore.CaseFilter f = scoped(filter, viewer);
         List<EngineCase> found = store.list(tenantCode, f);
         return f.openOnly() ? found.stream().sorted(INBOX_ORDER).toList() : found;
+    }
+
+    /**
+     * What a list or count request asks beyond the list filters, and who asks.
+     *
+     * @param operator  the cases to keep by whether their level goes to the operators; null is the default
+     *                  ({@link #inbox})
+     * @param treatment the cases to keep by treatment state; null keeps every case
+     * @param actor     the caller, so a row says whether an open treatment is the caller's own; null when unknown
+     */
+    public record Viewer(EngineCaseStore.OperatorScope operator, EngineCase.TreatmentState treatment, String actor) {
+
+        public static final Viewer DEFAULT = new Viewer(null, null, null);
+
+        public static Viewer of(EngineCaseStore.OperatorScope operator) {
+            return new Viewer(operator, null, null);
+        }
+    }
+
+    private static EngineCaseStore.CaseFilter scoped(EngineCaseStore.CaseFilter filter, Viewer viewer) {
+        EngineCaseStore.CaseFilter f = viewer.operator() == null ? inbox(filter) : filter.operator(viewer.operator());
+        return f.treatment(viewer.treatment());
     }
 
     private static String text(Map<String, String> filters, String name) {
@@ -342,16 +363,21 @@ public class EngineCaseService {
      * cases that need an operator ({@link #inbox}).
      */
     public JsonNode withCases(String tenantCode, Map<String, String> filters, JsonNode page) {
-        return withCases(tenantCode, filters, page, null);
+        return withCases(tenantCode, filters, page, Viewer.DEFAULT);
     }
 
     /** As {@link #withCases(String, Map, JsonNode)}, keeping the cases {@code operator} names (null: the default). */
     public JsonNode withCases(String tenantCode, Map<String, String> filters, JsonNode page,
             EngineCaseStore.OperatorScope operator) {
-        List<EngineCase> found = listed(tenantCode, filter(filters), operator);
+        return withCases(tenantCode, filters, page, Viewer.of(operator));
+    }
+
+    /** As {@link #withCases(String, Map, JsonNode)}, for what {@code viewer} asks. */
+    public JsonNode withCases(String tenantCode, Map<String, String> filters, JsonNode page, Viewer viewer) {
+        List<EngineCase> found = listed(tenantCode, filter(filters), viewer);
         ObjectNode out = page != null && page.isObject() ? ((ObjectNode) page).deepCopy() : JSON.objectNode();
         ArrayNode rows = JSON.arrayNode();
-        found.forEach(c -> rows.add(row(c)));
+        found.forEach(c -> rows.add(row(c, viewer.actor())));
         if (out.path("data").isArray()) {
             rows.addAll((ArrayNode) out.get("data"));
         }
@@ -423,12 +449,21 @@ public class EngineCaseService {
      * @param filters already checked by {@code ControlTowerMapService.symptomFilters}
      */
     public JsonNode casesPage(String tenantCode, Map<String, String> filters) {
-        return casesPage(tenantCode, filters, null);
+        return casesPage(tenantCode, filters, Viewer.DEFAULT);
     }
 
     /** As {@link #casesPage(String, Map)}, keeping the cases {@code operator} names (null: the default). */
     public JsonNode casesPage(String tenantCode, Map<String, String> filters,
             EngineCaseStore.OperatorScope operator) {
+        return casesPage(tenantCode, filters, Viewer.of(operator));
+    }
+
+    /**
+     * As {@link #casesPage(String, Map)}, for what {@code viewer} asks. The treatment state filters before paging,
+     * so the totals count the cases in that state.
+     */
+    public JsonNode casesPage(String tenantCode, Map<String, String> filters, Viewer viewer) {
+        EngineCaseStore.OperatorScope operator = viewer.operator();
         EngineCaseStore.CaseFilter filter = filter(filters);
         if (Integer.valueOf(6).equals(filter.level())) {
             filter = filter.withOpenTreatment();
@@ -439,12 +474,12 @@ public class EngineCaseService {
         EngineCaseStore.CasePage result;
         if (operator == null) {
             // Preserve the bounded list contract for callers that omit operator.
-            List<EngineCase> found = listed(tenantCode, filter, null);
+            List<EngineCase> found = listed(tenantCode, filter, viewer);
             result = new EngineCaseStore.CasePage(
                     found.stream().skip((long) (page - 1) * size).limit(size).toList(), found.size(),
                     found.stream().map(EngineCase::name).distinct().toList());
         } else {
-            result = store.page(tenantCode, filter.operator(operator), page, size);
+            result = store.page(tenantCode, scoped(filter, viewer), page, size);
         }
         long pages = Math.max(1, Math.ceilDiv(result.total(), size));
         ArrayNode rows = JSON.arrayNode();
@@ -452,7 +487,7 @@ public class EngineCaseService {
         if (filter.openOnly()) {
             ordered = ordered.sorted(INBOX_ORDER);
         }
-        ordered.forEach(c -> rows.add(row(c)));
+        ordered.forEach(c -> rows.add(row(c, viewer.actor())));
         ObjectNode out = JSON.objectNode();
         out.set("data", rows);
         out.put("page", page);
@@ -524,17 +559,30 @@ public class EngineCaseService {
      * @param filters already checked by {@code ControlTowerMapService.symptomFilters}
      */
     public JsonNode filteredCounts(String tenantCode, Map<String, String> filters) {
-        return filteredCounts(tenantCode, filters, null);
+        return filteredCounts(tenantCode, filters, Viewer.DEFAULT);
     }
 
     /** The filtered counters with the same explicit operator scope as the list. */
     public JsonNode filteredCounts(String tenantCode, Map<String, String> filters,
             EngineCaseStore.OperatorScope operator) {
+        return filteredCounts(tenantCode, filters, Viewer.of(operator));
+    }
+
+    /**
+     * The filtered counters for what {@code viewer} asks: {@code conditions} counts the cases in the viewer's
+     * treatment state, as the list shows them. {@code treatment_states} counts the same cases by treatment state
+     * ({@code untreated}, {@code in_treatment}, {@code treated}) without that filter, so each choice shows its size.
+     */
+    public JsonNode filteredCounts(String tenantCode, Map<String, String> filters, Viewer viewer) {
         Map<String, String> unlevelled = new HashMap<>(filters);
         unlevelled.remove(LEVEL);
-        EngineCaseStore.CaseFilter filter = operator == null ? inbox(filter(unlevelled))
-                : filter(unlevelled).operator(operator);
+        EngineCaseStore.CaseFilter filter = scoped(filter(unlevelled), viewer);
         ObjectNode out = JSON.objectNode();
+        ObjectNode states = out.putObject("treatment_states");
+        Map<EngineCase.TreatmentState, Long> byState = store.treatmentCounts(tenantCode, filter.treatment(null));
+        for (EngineCase.TreatmentState state : EngineCase.TreatmentState.values()) {
+            states.put(state.wire(), byState.getOrDefault(state, 0L));
+        }
         ObjectNode conditions = out.putObject("conditions");
         for (EngineCaseStore.OpenCount c : store.matchingCounts(tenantCode, filter)) {
             String key = filter.openOnly() && c.underTreatment() ? COUNTED_UNDER_TREATMENT
@@ -663,7 +711,7 @@ public class EngineCaseService {
         return !store.open(tenantCode).isEmpty();
     }
 
-    private ObjectNode row(EngineCase c) {
+    private ObjectNode row(EngineCase c, String actor) {
         ObjectNode r = JSON.objectNode();
         r.put("id", c.symptomId());
         r.put(SYMPTOM_NAME, c.name());
@@ -691,7 +739,43 @@ public class EngineCaseService {
         r.put(DESTINATION_FIELD, trip == null ? null : trip.destination());
         r.put(TRIP_ASSET_ID, trip == null ? null : trip.assetId());
         putHold(r, c);
+        putTreatment(r, c, actor);
         return r;
+    }
+
+    /**
+     * {@code treatment_state} ({@code untreated}, {@code in_treatment} or {@code treated}) and {@code treatment}:
+     * the episode the state is about ({@link EngineCase.CaseTreatment#shown}), or null without one. {@code status}
+     * is OPEN or CLOSED; {@code outcome} how a closed one handled the case; {@code operators} who has it open now;
+     * {@code mine} whether {@code actor} is one of them.
+     */
+    private static void putTreatment(ObjectNode out, EngineCase c, String actor) {
+        out.put("treatment_state", c.treatmentState().wire());
+        EngineCase.CaseTreatment read = c.treatment();
+        EngineCase.Episode e = read == null ? null : read.shown(actor);
+        if (e == null) {
+            out.putNull("treatment");
+            return;
+        }
+        ObjectNode t = out.putObject("treatment");
+        t.put("id", e.id());
+        t.put("status", e.closedAt() == null && c.treatmentState() == EngineCase.TreatmentState.IN_TREATMENT
+                ? TreatmentStatus.OPEN.name() : TreatmentStatus.CLOSED.name());
+        t.put("type", e.type());
+        t.put("outcome", e.outcome());
+        t.put("outcome_label", e.outcomeLabel());
+        t.put("resolution", e.resolution());
+        t.put("opened_by", e.openedBy());
+        t.put("opened_at", e.openedAt() == null ? null : e.openedAt().toString());
+        t.put("closed_by", e.closedBy());
+        t.put("closed_at", e.closedAt() == null ? null : e.closedAt().toString());
+        boolean inTreatment = c.treatmentState() == EngineCase.TreatmentState.IN_TREATMENT;
+        t.put("mine", inTreatment && read.openBy(actor));
+        ArrayNode operators = t.putArray("operators");
+        if (inTreatment) {
+            read.open().stream().map(EngineCase.Episode::openedBy).filter(java.util.Objects::nonNull).distinct()
+                    .forEach(operators::add);
+        }
     }
 
     /**
@@ -860,6 +944,11 @@ public class EngineCaseService {
 
     /** The treatment page's header: the case, and its trip when it had one. */
     public JsonNode header(String tenantCode, long symptomId) {
+        return header(tenantCode, symptomId, null);
+    }
+
+    /** As {@link #header(String, long)}; {@code symptom_info.treatment.mine} is about {@code actor}. */
+    public JsonNode header(String tenantCode, long symptomId, String actor) {
         EngineCase c = find(tenantCode, symptomId);
         ObjectNode out = JSON.objectNode();
         out.set(CONDITIONS_AGG, JSON.arrayNode());
@@ -888,6 +977,8 @@ public class EngineCaseService {
         symptom.put("started_at", start);
         symptom.put("duration_sec", Duration.between(started, ended).toSeconds());
         putHold(symptom, c);
+        putTreatment(symptom, c, actor);
+        symptom.put("closed_at", c.closedAt() == null ? null : c.closedAt().toString());
         out.set("level_reason", levelReason(c));
         putMapWindow(out.putObject("map_window"), signalWindow(tenantCode, c), started, ended);
         out.set("level_response", c.levelResponse() == null ? JSON.nullNode() : c.levelResponse());

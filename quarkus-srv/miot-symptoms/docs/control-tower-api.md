@@ -220,10 +220,34 @@ other `method` is a 400.
 |---|---|---|
 | `listMapPositions` | `GET /map/positions` | Last position of each of the organization's assets, on a trip or not |
 | `getMapSummary` | `GET /map/summary` | Service, fleet and symptom totals shown beside the map |
-| `listMapSymptoms` | `GET /map/symptoms?p_*` | One page of symptoms with `total_rows`, `total_pages`, `page`, `page_size` and `symptom_name_list`. Filters: `p_asset_id`, `p_trip_id`, `p_driver_id`, `p_carrier_id`, `p_origin`, `p_destination`, `p_symptom_name`, `p_icu_code`, `p_page`, `p_page_size`, `p_start_date_historic`, `p_end_date_historic`, `operator=required`, `operator=none` or `operator=all`. Explicit operator scopes filter before paging, return exact totals and cap each page at 200 rows; omission keeps the existing default. Any other parameter is a 400 |
+| `listMapSymptoms` | `GET /map/symptoms?p_*` | One page of symptoms with `total_rows`, `total_pages`, `page`, `page_size` and `symptom_name_list`. Filters: `p_asset_id`, `p_trip_id`, `p_driver_id`, `p_carrier_id`, `p_origin`, `p_destination`, `p_symptom_name`, `p_icu_code`, `p_page`, `p_page_size`, `p_start_date_historic`, `p_end_date_historic`, `operator=required`, `operator=none` or `operator=all`. Explicit operator scopes filter before paging, return exact totals and cap each page at 200 rows; omission keeps the existing default. `treatment=untreated`, `treatment=in_treatment` or `treatment=treated` keeps the evaluator's cases in that treatment state, before paging, and leaves the GPS database's symptoms out; without it every case is listed. Each evaluator case has `treatment_state` and `treatment` (see [Treatment state](#treatment-state)). Any other parameter is a 400 |
 | `countSymptomConditions` | `GET /map/conditions?from&to&operator` | Symptom counts by condition name. `operator=required`, `operator=none` or `operator=all` selects the current-level operator decision; omission keeps the default. Active symptoms, or with `from` and `to` (ISO-8601, both or neither) those created in that range |
-| `countMapCases` | `GET /map/case-counts?p_*` | The evaluator's cases the list shows, by condition (`conditions`, the keys of `/map/conditions`), and `vehicles_on_trip`: the vehicles on a trips-module trip that departed and has not ended. Takes the list's filters, including `operator=required`, `operator=none` or `operator=all`; `p_icu_code` and paging are ignored. The operator decision comes from the latest `OPENED`/`LEVEL_CHANGED` row establishing the current level; omission keeps the existing default. Without dates the open cases (`Under Treatment` while one has an open treatment, held cases separately as `Ignored`); with dates the cases active in the range, by level. Both the constellation and counter cards use these filtered counts. `vehicles_on_trip` uses only the trip filters (trip, vehicle, driver, carrier, origin, destination). With legacy enabled and an explicit `operator=required` or `operator=all`, adds the GPS list's totals for the same filters, counting each condition with a one-row page. With `none`, or without the parameter, reads no GPS symptoms |
+| `countMapCases` | `GET /map/case-counts?p_*` | The evaluator's cases the list shows, by condition (`conditions`, the keys of `/map/conditions`), and `vehicles_on_trip`: the vehicles on a trips-module trip that departed and has not ended. Takes the list's filters, including `operator=required`, `operator=none` or `operator=all`; `p_icu_code` and paging are ignored. The operator decision comes from the latest `OPENED`/`LEVEL_CHANGED` row establishing the current level; omission keeps the existing default. Without dates the open cases (`Under Treatment` while one has an open treatment, held cases separately as `Ignored`); with dates the cases active in the range, by level. Both the constellation and counter cards use these filtered counts. `vehicles_on_trip` uses only the trip filters (trip, vehicle, driver, carrier, origin, destination). With legacy enabled and an explicit `operator=required` or `operator=all`, adds the GPS list's totals for the same filters, counting each condition with a one-row page. With `none`, or without the parameter, reads no GPS symptoms. `treatment` filters `conditions` as it filters the list, and then no GPS symptoms are read. `treatment_states` counts the same cases by `untreated`, `in_treatment` and `treated`, without the `treatment` filter |
 | `listMapTripSymptoms` | `GET /map/trips/{trip}/symptoms` | The evaluator's cases on one trip, by symptom (below). Reads no GPS database data, with either value of the legacy setting |
+
+### Treatment state
+
+Each evaluator case in `listMapSymptoms`, and `symptom_info` in `getMapSymptom`, has `treatment_state`:
+
+| Value | Meaning |
+|---|---|
+| `untreated` | No treatment counts for it. Cancelled treatments do not count. An open case that came back from an "Ignorar condición" hold (`returned_after_ignore`) is `untreated` again |
+| `in_treatment` | The case is open and has an `OPEN` treatment. A held case is in this state too; without dates it is listed under `p_icu_code=9`, not here |
+| `treated` | The case has a `CLOSED` treatment, whether the case is open or closed |
+
+`treatment` is the episode the state is about, or null: for `in_treatment` the caller's own open treatment, else the oldest open one; otherwise the latest closed one.
+
+| Field | Value |
+|---|---|
+| `id`, `type` | The treatment and the form it was opened from |
+| `status` | `OPEN` or `CLOSED` |
+| `outcome` | How a closed treatment handled the case, from its last deciding action: `call`, `handling` ("Registrar gestión"), `ignore` or `invalidate` |
+| `outcome_label`, `resolution` | That action's outcome as the operator chose it, and the treatment's resolution |
+| `opened_by`, `opened_at`, `closed_by`, `closed_at` | Who handled it and when |
+| `operators` | Who has an `OPEN` treatment on the case now |
+| `mine` | Whether the caller is one of them; opening a treatment then resumes the caller's own |
+
+Without dates the list has open cases only, so `treatment=treated` needs `p_start_date_historic` and `p_end_date_historic` to show the cases an operator closed. `symptom_info.closed_at` is when the case closed, or null.
 
 `{trip}` is a trip id as cases store it, or the client's service code of a trips-module trip: its feed service's
 `external_code` or a current mandate's. Without the trips tables only the trip id matches. The answer is

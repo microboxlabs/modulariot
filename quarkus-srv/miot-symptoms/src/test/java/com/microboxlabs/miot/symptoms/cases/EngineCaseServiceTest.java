@@ -1372,4 +1372,149 @@ class EngineCaseServiceTest {
     void writesAnEwkbPointAsPostgis() {
         assertEquals("0101000020E6100000000000000000F03F0000000000000040", EngineCaseService.ewkbPoint(1, 2));
     }
+
+    private static final Instant TAKEN = OPENED.plusSeconds(30);
+    private static final String ME = "ops@example.com";
+    private static final String OTHER = "other@example.com";
+    private static final String TREATMENT = "treatment";
+    private static final String TREATMENT_STATE = "treatment_state";
+    private static final String TREATMENT_STATES = "treatment_states";
+
+    private static EngineCase.Episode openEpisode(String id, String by) {
+        return new EngineCase.Episode(id, "CALL", by, TAKEN, null, null, null, null, null);
+    }
+
+    private static EngineCase.Episode closedEpisode(String outcome, String label) {
+        return new EngineCase.Episode("t-closed", "CALL", ME, TAKEN, ME, TAKEN.plusSeconds(20), null, outcome,
+                label);
+    }
+
+    private static EngineCaseService.Viewer viewer(EngineCase.TreatmentState state, String actor) {
+        return new EngineCaseService.Viewer(null, state, actor);
+    }
+
+    /** 21 untreated, 22 in treatment by two operators, 23 closed and treated. */
+    private void addTreatmentStates() {
+        store.add(engineCase(21, "DEMO01", 3, 0));
+        store.add(engineCase(22, "DEMO02", 3, 2).withTreatment(new EngineCase.CaseTreatment(
+                EngineCase.TreatmentState.IN_TREATMENT,
+                List.of(openEpisode("t-other", OTHER), openEpisode("t-mine", ME)), null)));
+        store.add(at(23, "DEMO03", OPENED, OPENED.plusSeconds(60)).withTreatment(new EngineCase.CaseTreatment(
+                EngineCase.TreatmentState.TREATED, List.of(), closedEpisode("invalidate", "Falsa alarma"))));
+    }
+
+    @Test
+    void eachRowCarriesItsTreatmentStateAndTheEpisodeBehindIt() {
+        addTreatmentStates();
+        Map<String, String> dates = Map.of("p_start_date_historic", "2026-10-22", "p_end_date_historic",
+                "2026-10-23");
+        JsonNode rows = service.casesPage(TENANT, dates,
+                new EngineCaseService.Viewer(EngineCaseStore.OperatorScope.ALL, null, ME)).path("data");
+        Map<Long, JsonNode> byId = new java.util.HashMap<>();
+        rows.forEach(r -> byId.put(r.path("id").asLong(), r));
+
+        JsonNode untreated = byId.get(-21L);
+        assertEquals("untreated", untreated.path(TREATMENT_STATE).asText());
+        assertTrue(untreated.path(TREATMENT).isNull());
+
+        JsonNode treating = byId.get(-22L);
+        assertEquals("in_treatment", treating.path(TREATMENT_STATE).asText());
+        assertEquals("OPEN", treating.path(TREATMENT).path("status").asText());
+        assertEquals("t-mine", treating.path(TREATMENT).path("id").asText(), "the caller's own episode first");
+        assertTrue(treating.path(TREATMENT).path("mine").asBoolean());
+        assertEquals(TAKEN.toString(), treating.path(TREATMENT).path("opened_at").asText());
+        assertEquals(2, treating.path(TREATMENT).path("operators").size());
+
+        JsonNode treated = byId.get(-23L);
+        assertEquals("treated", treated.path(TREATMENT_STATE).asText());
+        assertEquals("CLOSED", treated.path(TREATMENT).path("status").asText());
+        assertEquals("invalidate", treated.path(TREATMENT).path("outcome").asText());
+        assertEquals("Falsa alarma", treated.path(TREATMENT).path("outcome_label").asText());
+        assertEquals(ME, treated.path(TREATMENT).path("closed_by").asText());
+        assertEquals(TAKEN.plusSeconds(20).toString(), treated.path(TREATMENT).path("closed_at").asText());
+        assertFalse(treated.path(TREATMENT).path("mine").asBoolean());
+    }
+
+    @Test
+    void anotherOperatorsOpenTreatmentIsNotTheCallers() {
+        addTreatmentStates();
+        JsonNode other = service.casesPage(TENANT, Map.of("p_asset_id", "DEMO02"),
+                viewer(null, "third@example.com")).path("data").get(0).path(TREATMENT);
+        assertFalse(other.path("mine").asBoolean());
+        assertEquals(OTHER, other.path("opened_by").asText(), "the oldest open episode");
+        assertEquals(2, other.path("operators").size());
+    }
+
+    @Test
+    void theTreatmentFilterAppliesBeforePagingAndInTheCounts() {
+        addTreatmentStates();
+        store.add(engineCase(24, "DEMO04", 2, 0));
+        store.add(engineCase(25, "DEMO05", 1, 0));
+        Map<String, String> small = Map.of("p_page_size", "1");
+
+        JsonNode untreated = service.casesPage(TENANT, small, viewer(EngineCase.TreatmentState.UNTREATED, null));
+        assertEquals(3, untreated.path("total_rows").asInt());
+        assertEquals(3, untreated.path("total_pages").asInt());
+        assertEquals(List.of(-21L), ids(untreated), "the highest level first");
+        JsonNode scoped = service.casesPage(TENANT, small, new EngineCaseService.Viewer(
+                EngineCaseStore.OperatorScope.ALL, EngineCase.TreatmentState.IN_TREATMENT, null));
+        assertEquals(List.of(-22L), ids(scoped));
+        assertEquals(1, scoped.path("total_rows").asInt());
+        assertEquals(0, service.casesPage(TENANT, Map.of(), viewer(EngineCase.TreatmentState.TREATED, null))
+                .path("total_rows").asInt(), "without dates the list has open cases only");
+
+        JsonNode all = service.filteredCounts(TENANT, Map.of(), EngineCaseService.Viewer.DEFAULT);
+        assertEquals(3, all.path(TREATMENT_STATES).path("untreated").asInt());
+        assertEquals(1, all.path(TREATMENT_STATES).path("in_treatment").asInt());
+        assertEquals(0, all.path(TREATMENT_STATES).path("treated").asInt());
+        assertEquals(1, all.path("conditions").path("Under Treatment").asInt());
+
+        JsonNode treating = service.filteredCounts(TENANT, Map.of(),
+                viewer(EngineCase.TreatmentState.IN_TREATMENT, null));
+        assertEquals(1, treating.path("conditions").path("Under Treatment").asInt());
+        assertFalse(treating.path("conditions").has("Critical condition"), "the untreated case is left out");
+        assertEquals(3, treating.path(TREATMENT_STATES).path("untreated").asInt(),
+                "the states are counted without the state filter");
+
+        JsonNode history = service.filteredCounts(TENANT, Map.of("p_start_date_historic", "2026-10-22",
+                "p_end_date_historic", "2026-10-23"), viewer(EngineCase.TreatmentState.TREATED, null));
+        assertEquals(1, history.path(TREATMENT_STATES).path("treated").asInt());
+        assertEquals(1, history.path("conditions").path("Code Black").asInt());
+    }
+
+    @Test
+    void theUnderTreatmentConditionListsTheCasesWithAnOpenTreatment() {
+        addTreatmentStates();
+        JsonNode page = service.casesPage(TENANT, Map.of("p_icu_code", "6"));
+        assertEquals(List.of(-22L), ids(page));
+        assertEquals("UNDER TREATMENT", page.path("data").get(0).path("icu_condition").asText());
+        assertEquals("in_treatment", page.path("data").get(0).path(TREATMENT_STATE).asText());
+    }
+
+    @Test
+    void theHeaderSaysWhoTreatsTheCase() {
+        addTreatmentStates();
+        JsonNode mine = service.header(TENANT, -22, ME).path("symptom_info");
+        assertEquals("in_treatment", mine.path(TREATMENT_STATE).asText());
+        assertTrue(mine.path(TREATMENT).path("mine").asBoolean());
+        assertTrue(mine.path("closed_at").isNull());
+        JsonNode theirs = service.header(TENANT, -22, "third@example.com").path("symptom_info");
+        assertFalse(theirs.path(TREATMENT).path("mine").asBoolean());
+        JsonNode done = service.header(TENANT, -23).path("symptom_info");
+        assertEquals("treated", done.path(TREATMENT_STATE).asText());
+        assertEquals(OPENED.plusSeconds(60).toString(), done.path("closed_at").asText());
+    }
+
+    @Test
+    void aCaseReadWithoutItsEpisodesIsInTreatmentWhileItHasAnOpenOne() {
+        assertEquals(EngineCase.TreatmentState.IN_TREATMENT, engineCase(1, "DEMO01", 3, 1).treatmentState());
+        assertEquals(EngineCase.TreatmentState.UNTREATED, engineCase(1, "DEMO01", 3, 0).treatmentState());
+        assertEquals(EngineCase.TreatmentState.UNTREATED,
+                new EngineCase(1, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01", OPENED, 4, null,
+                        null, null, null, OPENED.plusSeconds(5), 1, 2, null).treatmentState(),
+                "a closed case is not in treatment");
+        assertEquals(EngineCase.TreatmentState.TREATED, EngineCase.TreatmentState.parse(" Treated "));
+        assertNull(EngineCase.TreatmentState.parse(" "));
+        assertThrows(IllegalArgumentException.class, () -> EngineCase.TreatmentState.parse("done"));
+    }
 }

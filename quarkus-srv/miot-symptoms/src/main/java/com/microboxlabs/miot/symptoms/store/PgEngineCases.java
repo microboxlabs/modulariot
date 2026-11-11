@@ -54,6 +54,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String ASSET_ID = "asset_id";
     private static final String TRIP_ID = "trip_id";
     private static final String LEVEL = "level";
+    private static final String CURRENT_LEVEL = "current_level";
     private static final String DEFINITION_ID = "definition_id";
     private static final String MEASURE = "measure";
     private static final String SPEED_KMH = "speed_kmh";
@@ -669,7 +670,7 @@ public class PgEngineCases implements EngineCaseStore {
         }
         try {
             PgIds.query(pool.get(), MATCHING_COUNTS.formatted(rows), args).forEach(r -> out.add(new OpenCount(
-                    r.getInteger("current_level"), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
+                    r.getInteger(CURRENT_LEVEL), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
         } catch (PgException e) {
             // Without the trips or fleet tables no case has a live trip to match.
             if (!f.byTrip() || !UNDEFINED_TABLE.equals(e.getSqlState())) {
@@ -741,7 +742,7 @@ public class PgEngineCases implements EngineCaseStore {
     public List<OpenCount> openCounts(String tenantCode) {
         List<OpenCount> out = new ArrayList<>();
         PgIds.query(pool.get(), COUNTS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenCount(
-                r.getInteger("current_level"), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
+                r.getInteger(CURRENT_LEVEL), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
         return out;
     }
 
@@ -753,7 +754,7 @@ public class PgEngineCases implements EngineCaseStore {
             if (Boolean.TRUE.equals(r.getBoolean("ignored"))) {
                 ignored += r.getLong("n");
             } else {
-                active.add(new OpenCount(r.getInteger("current_level"), r.getBoolean(UNDER_TREATMENT),
+                active.add(new OpenCount(r.getInteger(CURRENT_LEVEL), r.getBoolean(UNDER_TREATMENT),
                         r.getLong("n")));
             }
         }
@@ -777,8 +778,8 @@ public class PgEngineCases implements EngineCaseStore {
     public List<OpenLevel> openLevels(String tenantCode) {
         List<OpenLevel> out = new ArrayList<>();
         PgIds.query(pool.get(), LEVELS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenLevel(
-                r.getString(ASSET_ID), r.getString("name"), r.getInteger("current_level"),
-                speedStep(instant(r.getOffsetDateTime("speed_at")), r.getInteger("current_level"),
+                r.getString(ASSET_ID), r.getString("name"), r.getInteger(CURRENT_LEVEL),
+                speedStep(instant(r.getOffsetDateTime("speed_at")), r.getInteger(CURRENT_LEVEL),
                         r.getString("measure_expression"), r.getDouble(SPEED_KMH),
                         json(r.getString("speed_context")), r.getDouble(MEASURE)))));
         return out;
@@ -824,7 +825,7 @@ public class PgEngineCases implements EngineCaseStore {
     public List<LevelCount> openedCounts(String tenantCode, Instant from, Instant to) {
         List<LevelCount> out = new ArrayList<>();
         PgIds.query(pool.get(), OPENED_COUNTS, Tuple.of(tenantCode, utc(from), utc(to))).forEach(r -> out.add(
-                new LevelCount(r.getUUID(DEFINITION_ID), r.getInteger("current_level"), r.getLong("n"),
+                new LevelCount(r.getUUID(DEFINITION_ID), r.getInteger(CURRENT_LEVEL), r.getLong("n"),
                         r.getLong("without_operator"))));
         return out;
     }
@@ -1042,7 +1043,7 @@ public class PgEngineCases implements EngineCaseStore {
         OffsetDateTime closed = r.getOffsetDateTime("closed_at");
         return new EngineCase(r.getLong("id"), r.getUUID(DEFINITION_ID), r.getString("version"),
                 r.getString("name"), r.getString("family"), r.getString(ASSET_ID),
-                r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString(TRIP_ID),
+                r.getOffsetDateTime("at").toInstant(), r.getInteger(CURRENT_LEVEL), r.getString(TRIP_ID),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble(SPEED_KMH),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
                 r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"), r.getString("trip_code_fallback"))).withTrip(trip(r))

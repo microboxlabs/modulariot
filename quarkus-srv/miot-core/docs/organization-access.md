@@ -10,7 +10,8 @@ Who belongs to an organization and what they may do. Code: `com.microboxlabs.mio
 | Membership | A user belongs to an organization with one base role |
 | Base role | `OWNER`, `ADMIN`, `MEMBER` |
 | Module role | A named set of permissions a module declares, such as `CONTROL_TOWER_OPERATOR` |
-| Role binding | A principal (user, team, service account or M2M client) holds a module role on a scope |
+| Custom role | A named set of permissions an organization defines, with key `custom:<slug>` |
+| Role binding | A principal (user, team, service account or M2M client) holds a module or custom role on a scope |
 | Scope | The organization (includes its sub-accounts), one sub-account, or one resource |
 | Permission | One action, `module:resource.action`, such as `controltower:case.treat` |
 
@@ -83,6 +84,49 @@ Sub-accounts get no Alfresco group. Creating a top-level organization is for pla
 ## Teams
 
 A team is a named set of members. A role bound to a team applies to each of its members.
+
+## Custom roles
+
+An organization's Owner or Admin creates, edits and deletes custom roles in Settings › Team › Roles. A custom role belongs to the top-level organization. Its sub-accounts use it too.
+
+| Field | Rule |
+|---|---|
+| Key | `custom:<slug>`, made from the Spanish name when the role is created. It never changes. A taken slug gets `-2`, `-3`… Module role keys are UPPER_SNAKE, so the two never match. |
+| Name | Spanish required, English defaults to the Spanish one. 80 characters at most. Unique in the organization per language, ignoring case. |
+| Description | Optional, per language. 500 characters at most. |
+| Permissions | At least one. Each must be in the access catalog (`GET /api/v1/access/catalog`), from any module. |
+
+The platform scope (`_platform`) has no custom roles.
+
+| Action | Who |
+|---|---|
+| List | Any member (`members:read`) |
+| Create, edit, delete | Owner or Admin, checked on the base role. A member who holds `members:update` through a role cannot. |
+| Add a permission to a role | The caller must hold it. Explicit-only permissions are exempt. So an Admin cannot add `owners:manage`. |
+| Bind a custom role | Same rules and endpoints as a module role |
+
+Editing a role's permissions applies to its holders on their next request. Deleting a role deletes its bindings in the same transaction and removes it from pending invitations. The response says how many bindings were removed and how many members, teams and service accounts held them.
+
+Changes write `custom-role.created`, `custom-role.updated` and `custom-role.deleted` to `miot_iam.iam_audit_event`.
+
+### Where custom roles resolve
+
+| Place | Custom roles |
+|---|---|
+| `AccessEvaluator` | Loads the custom roles among the caller's bindings and adds their permissions. `@PermissionsAllowed` with `OrgPermission`, `McpCaller.permitted`, `GET .../me/access` and the module access endpoints (control tower, trips) all read this decision. |
+| App route and menu gates | Read `GET .../me/access`, so they follow |
+| Granting (`TeamRules.checkGrant`) | Members, teams, invitations, bindings and service accounts accept custom role keys of the organization |
+| `GET`, `PUT /api/v1/orgs/{org}/roles/{roleCode}` | Accepts a custom role key of the organization, for users and M2M clients |
+| Harness | Does not read roles. It calls the modulith, which checks permissions as above. |
+| Alfresco group mappings (`iam_group_role`) and the projection outbox | Module roles only. The outbox stores group membership changes, not permissions. A custom role is never projected to an Alfresco group, so it gives no BPM candidate group. |
+| Token role mappings (`iam_token_role`) | Module roles and base roles only |
+| Legacy-default roles | Module roles only |
+
+A custom role gives only permissions the running modulith declares. A bound key whose role no longer exists gives nothing.
+
+## Coordination roles
+
+`REVIEWER` (Revisor) gives `coordination:kanban.view`, `coordination:finished.view` and `coordination:geographic.view`. It does not complete tasks. The full list is in `CoordinatorAccessCatalog`.
 
 ## Service accounts and API keys
 
@@ -183,7 +227,7 @@ To keep the Alfresco group in step afterwards (BPM pooled tasks, document permis
 | Method and path | Who | Purpose |
 |---|---|---|
 | `GET /api/v1/orgs/{org}/me/access` | member | The caller's base role, module roles and permissions |
-| `GET /api/v1/access/catalog` | signed in | Every permission and role, with labels |
+| `GET /api/v1/access/catalog` | signed in | Every permission and module role, with labels. Custom roles are not in it |
 | `GET`, `PUT /api/v1/orgs/{org}/roles/{roleCode}` | Owner or Admin (Owner for `ORGANIZATION_OWNER`) | Who holds a role; replace them |
 | `GET`, `PATCH`, `DELETE /api/v1/orgs/{org}/team/members[/{userId}]` | `members:read`, `members:update`, `members:remove` | List members; change base role; remove |
 | `PUT /api/v1/orgs/{org}/team/members/{userId}/roles` | `members:update` | Replace a member's module roles |
@@ -193,6 +237,8 @@ To keep the Alfresco group in step afterwards (BPM pooled tasks, document permis
 | `GET`, `PUT`, `DELETE /api/v1/platform/mail-templates/invitation/{lang}`, `POST .../preview` | platform owner | The platform's invitation template |
 | `/api/v1/orgs/{org}/team/teams[/{teamId}[/members]]` | `teams:manage` (`members:read` to list) | Teams and their members |
 | `/api/v1/orgs/{org}/team/bindings[/{bindingId}]` | `members:update` (`members:read` to list) | Role bindings, optionally scoped to a sub-account |
+| `GET /api/v1/orgs/{org}/team/custom-roles` | `members:read` | Custom roles, with permissions and holder counts |
+| `POST /api/v1/orgs/{org}/team/custom-roles`, `PUT`, `DELETE .../{roleId}` | Owner or Admin | Create (`{label: {es, en}, description: {es, en}, permissions: []}`), replace, delete. `DELETE` returns `{key, removedBindings, holders}`. 400 unknown permission, 403 not allowed, 409 name taken |
 | `/api/v1/orgs/{org}/team/service-accounts[/{id}[/roles\|/keys[/{keyId}]]]` | `apikeys:manage` | Service accounts, their roles and keys |
 | `POST /api/v1/platform/orgs` | platform owner | Create a top-level organization |
 | `GET`, `PUT /api/v1/platform/orgs/{slug}/roles/{roleCode}` | platform owner | Give a new organization its first owner |

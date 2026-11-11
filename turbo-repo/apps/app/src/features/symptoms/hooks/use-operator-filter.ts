@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   DEFAULT_OPERATOR_FILTER,
@@ -55,4 +55,21 @@ export function useOperatorFilter(): OperatorFilter {
     () => DEFAULT_OPERATOR_FILTER
   );
   return parseOperatorFilter(searchParams.get(OPERATOR_PARAM)) ?? stored;
+}
+
+/** A different operator scope starts on page one, including storage events. */
+export function useOperatorPagination() {
+  const operator = useOperatorFilter();
+  const [pagination, setPagination] = useState({ operator, page: 1 });
+  if (pagination.operator !== operator) {
+    setPagination({ operator, page: 1 });
+  }
+  const setCurrentPage = useCallback(
+    (page: number) => setPagination({ operator, page }),
+    [operator]
+  );
+  return {
+    currentPage: pagination.operator === operator ? pagination.page : 1,
+    setCurrentPage,
+  };
 }

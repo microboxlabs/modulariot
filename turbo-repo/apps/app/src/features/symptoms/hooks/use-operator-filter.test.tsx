@@ -7,8 +7,12 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => mockSearchParams,
 }));
 
-const { readOperatorFilter, storeOperatorFilter, useOperatorFilter } =
-  await import("./use-operator-filter");
+const {
+  readOperatorFilter,
+  storeOperatorFilter,
+  useOperatorFilter,
+  useOperatorPagination,
+} = await import("./use-operator-filter");
 const { OPERATOR_FILTER_KEY, parseOperatorFilter } =
   await import("../model/operator-filter");
 
@@ -107,5 +111,29 @@ describe("useOperatorFilter", () => {
     const { result } = renderHook(() => useOperatorFilter());
 
     expect(result.current).toBe("none");
+  });
+});
+
+describe("useOperatorPagination", () => {
+  it("starts a new scope on page one when the URL changes", () => {
+    const { result, rerender } = renderHook(() => useOperatorPagination());
+    act(() => result.current.setCurrentPage(5));
+    expect(result.current.currentPage).toBe(5);
+
+    mockSearchParams = new URLSearchParams("operator=none");
+    rerender();
+    expect(result.current.currentPage).toBe(1);
+    act(() => result.current.setCurrentPage(2));
+    expect(result.current.currentPage).toBe(2);
+    mockSearchParams = new URLSearchParams("operator=required");
+    rerender();
+    expect(result.current.currentPage).toBe(1);
+  });
+
+  it("starts on page one when the stored scope changes", () => {
+    const { result } = renderHook(() => useOperatorPagination());
+    act(() => result.current.setCurrentPage(5));
+    act(() => storeOperatorFilter("none"));
+    expect(result.current.currentPage).toBe(1);
   });
 });

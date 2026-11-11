@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "flowbite-react";
 import { FiMaximize, FiMinimize } from "react-icons/fi";
 import TableComponent from "./components/table-component";
@@ -8,6 +7,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import UserStateCounter from "./components/user-counter";
 import { useSearchParams, useRouter } from "next/navigation";
 import { tr } from "../i18n/tr.service";
+import { useOperatorPagination } from "./hooks/use-operator-filter";
 
 export default function SymptomsTable({
   setShowCards,
@@ -18,7 +18,7 @@ export default function SymptomsTable({
   showCards: boolean;
   dict: I18nRecord;
 }) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const { currentPage, setCurrentPage } = useOperatorPagination();
 
   const searchParams = useSearchParams();
   const router = useRouter();

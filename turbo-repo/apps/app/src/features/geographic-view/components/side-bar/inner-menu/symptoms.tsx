@@ -1,10 +1,10 @@
 import { Label } from "flowbite-react";
 import TableComponent from "@/features/symptoms/components/table-component";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { useState } from "react";
+import { useOperatorPagination } from "@/features/symptoms/hooks/use-operator-filter";
 
 export default function Symptoms({ dict }: { dict: I18nRecord }) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const { currentPage, setCurrentPage } = useOperatorPagination();
 
   return (
     <div className="w-full flex flex-col gap-4">

@@ -1,0 +1,42 @@
+# 🔔 Release Notes v1.32.14 — ModularIoT
+
+### Fecha: 11/11/2026
+
+**Objetivo**: Esta versión incorpora mejoras en la gestión de síntomas según el tipo de viaje y corrige la información de tipo de viaje utilizada por el motor de síntomas. Los cambios OSS corresponden a la integración del milestone MIOT-0.6.14.
+
+## 🚀 Evolutivos
+
+- **📍 [Integración OSS · MIOT-0.6.14] Enrutamiento de casos de síntomas por tipo de viaje**
+  - **Punto clave**: Se publican versiones PATCH de los síntomas aplicables para que los casos de viajes tipo `v` lleguen a la bandeja de operadores.
+  - **Detalle técnico**: Se configura `operatorWhen` para señales GPS y verificaciones de viaje; las condiciones existentes se conservan y se combinan con la nueva condición.
+
+## 🐛 Correcciones
+
+- **🐛 [Integración OSS · MIOT-0.6.14] Tipo de viaje en `trip_live`**
+  - **Impacto**: Los viajes se identificaban incorrectamente como tipo `v`, afectando la prioridad y las reglas de síntomas.
+  - **Solución**: El tipo se obtiene del `order_type` del mandato primario, se convierte a minúsculas y se actualiza en cada refresco del viaje.
+
+## 📊 Beneficios
+
+- El motor de síntomas puede distinguir los tipos de viaje en lugar de tratar todos como `v`.
+- Los casos de viajes tipo `v` pueden llegar a la bandeja de operadores con sus pasos, SLA y escalamiento aplicables.
+- Las reglas de síntomas conservan condiciones `operatorWhen` que ya estaban configuradas.
+- La prioridad de viajes puede basarse en el tipo de viaje registrado correctamente.
+- Los cambios OSS quedan identificados con el milestone MIOT-0.6.14.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.14`
+- App: `app@v0.6.14` (con cambios)
+- Docs: `docs@v0.6.14` (con cambios)
+- Web: `web@v0.6.14` (con cambios)
+- Modulith: `modulith@v0.5.52` (con cambios)
+- Harness: `harness@v0.1.15` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión mejora la consistencia entre el tipo de viaje registrado y las decisiones del motor de síntomas. También habilita el enrutamiento de casos aplicables a operadores según su tipo de viaje.
+
+Los cambios OSS se integran desde MIOT-0.6.14 y complementan la versión 1.32.14 de ModularIoT.

@@ -1,0 +1,63 @@
+{
+  "stack_version": "0.6.14",
+  "stack_tag": "miot-stack@v0.6.14",
+  "milestone": "MIOT-0.6.14",
+  "pull_requests": [
+    {
+      "number": 2612,
+      "title": "fix(trips): project trip_live.trip_type from the mandate's order type",
+      "source_issues": [
+        {
+          "number": 2611,
+          "title": "trip_live.trip_type is always 'v'"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/cel/RuleLanguageTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/PgHistoricalDeviceTripsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/signal/SignalBuilderTest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/MandateRef.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/domain/TripLiveProjection.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/TripLiveProjector.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgTripLiveStore.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/PgTripStore.java",
+    "quarkus-srv/miot-trips/src/main/resources/db/migration/trips/V0.10.30__trip_live_trip_type_width.sql",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/TripGeofenceServiceTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/TripLiveProjectorTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/InMemoryTripsWorld.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PgTripsStoresTest.java"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.14",
+      "tag": "app@v0.6.14"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.6.12",
+      "version": "0.6.14",
+      "tag": "docs@v0.6.14"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.6.12",
+      "version": "0.6.14",
+      "tag": "web@v0.6.14"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.51",
+      "version": "0.5.52",
+      "tag": "modulith@v0.5.52"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

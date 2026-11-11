@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,6 +51,8 @@ public class InMemoryEngineCases implements EngineCaseStore {
 
     /** Stored per-case decisions override the version fallback. */
     public final Map<Long, Boolean> operatorRequired = new HashMap<>();
+    /** Cases covered by an active hold. */
+    public final Set<Long> held = new HashSet<>();
 
     private boolean needsOperator(EngineCase c) {
         if (operatorRequired.containsKey(c.id())) {
@@ -91,6 +94,8 @@ public class InMemoryEngineCases implements EngineCaseStore {
                 .filter(c -> f.level() == null || f.level() == c.level())
                 .filter(c -> !f.underTreatmentOnly() || c.treatments() > 0)
                 .filter(c -> !f.operatorOnly() || needsOperator(c))
+                .filter(c -> f.ignoredOnly() ? held.contains(c.id()) && c.closedAt() == null
+                        : !f.openOnly() || !held.contains(c.id()))
                 .filter(c -> !f.byTrip() || matchesTrip(trips.get(c.tripId()), f))
                 .sorted(Comparator.comparing(EngineCase::openedAt).reversed())
                 .limit(PAGE).toList();

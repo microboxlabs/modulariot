@@ -25,6 +25,8 @@ export type ConstellationCondition =
 export interface SymptomConstellationCounts {
   conditions: Record<ConstellationCondition, number>;
   vehiclesOnTrip: number;
+  /** Held cases for the counter card; they have no constellation icon. */
+  ignored: number;
 }
 
 /* export interface SymptomTableItem {

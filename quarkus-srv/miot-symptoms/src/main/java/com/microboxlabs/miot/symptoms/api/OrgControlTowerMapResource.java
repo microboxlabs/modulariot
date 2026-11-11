@@ -208,7 +208,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             description = "Takes the symptom list's query parameters (see listMapSymptoms); p_icu_code and paging "
                     + "are ignored, any other parameter is a 400. conditions: the cases the list shows, by the GPS "
                     + "database's condition keys; without dates the open cases (Under Treatment while one has an "
-                    + "open treatment), with dates the cases active in the range by level. vehicles_on_trip: the "
+                    + "open treatment, held cases separately as Ignored), with dates the cases active in the range "
+                    + "by level. vehicles_on_trip: the "
                     + "vehicles on a trips-module trip that departed and has not ended, filtered by trip, vehicle, "
                     + "driver, carrier, origin and destination.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,

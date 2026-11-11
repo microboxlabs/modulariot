@@ -25,6 +25,7 @@ const COUNTS = {
     stable: 0,
   },
   vehiclesOnTrip: 7,
+  ignored: 0,
 };
 
 describe("useSymptomCounts", () => {

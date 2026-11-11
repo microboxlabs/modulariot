@@ -45,6 +45,7 @@ const COUNTS = {
     stable: 0,
   },
   vehiclesOnTrip: 4,
+  ignored: 0,
 };
 
 function renderTable() {

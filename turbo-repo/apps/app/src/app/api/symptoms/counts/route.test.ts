@@ -31,6 +31,7 @@ describe("GET /api/symptoms/counts", () => {
           "Code Black": 2,
           "Compromised condition": 1,
           "Under Treatment": 3,
+          Ignored: 4,
         },
         vehicles_on_trip: 9,
       })
@@ -54,6 +55,7 @@ describe("GET /api/symptoms/counts", () => {
         stable: 0,
       },
       vehiclesOnTrip: 9,
+      ignored: 4,
     });
   });
 
@@ -75,6 +77,7 @@ describe("GET /api/symptoms/counts", () => {
     const body = await (await GET(new NextRequest("http://x/c"))).json();
 
     expect(body.vehiclesOnTrip).toBe(0);
+    expect(body.ignored).toBe(0);
     expect(Object.values(body.conditions)).toEqual([0, 0, 0, 0, 0, 0]);
   });
 

@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
       stable: counts["Stable"] ?? 0,
     },
     vehiclesOnTrip: body.vehicles_on_trip ?? 0,
+    ignored: counts["Ignored"] ?? 0,
   };
   return NextResponse.json(result);
 }

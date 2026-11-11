@@ -35,6 +35,7 @@ function counts(
       ...conditions,
     },
     vehiclesOnTrip,
+    ignored: 0,
   };
 }
 

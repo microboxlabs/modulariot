@@ -855,6 +855,28 @@ class OrgControlTowerMapResourceTest {
     }
 
     @Test
+    void filteredCardCountsKeepHoldsSeparateAndMatchTheListsHistory() {
+        engineCases.add(new EngineCase(1, UUID.randomUUID(), "0.1.0", "demo-symptom", "connectivity", "demo-asset",
+                Instant.parse("2026-09-01T10:00:00Z"), 3, null, null, null, null, null, 0, null, null));
+        engineCases.add(new EngineCase(2, UUID.randomUUID(), "0.1.0", "demo-symptom", "connectivity", "demo-asset",
+                Instant.parse("2026-10-01T10:00:00Z"), 4, null, null, null, null, null, 0, null, null));
+        engineCases.held.add(2L);
+        var subject = engineOnly();
+
+        JsonNode inbox = caseCounts(subject, "p_asset_id=demo-asset");
+        assertEquals(1, inbox.at("/conditions/Critical condition").asInt());
+        assertFalse(inbox.get("conditions").has("Code Black"));
+        assertEquals(1, inbox.at("/conditions/Ignored").asInt());
+        assertTrue(caseCounts(subject, "p_symptom_name=unmatched").get("conditions").isEmpty());
+
+        String range = "p_asset_id=demo-asset&p_start_date_historic=2026-10-01&p_end_date_historic=2026-10-02";
+        JsonNode history = caseCounts(subject, range);
+        assertEquals(1, history.at("/conditions/Critical condition").asInt(),
+                "a case opened before the range still counts while active, like the list");
+        assertEquals(2, ((JsonNode) call(subject.symptoms(ORG, query(range))).getEntity()).get("total_rows").asInt());
+    }
+
+    @Test
     void engineOnlyThePositionsCarryTheHighestOpenCaseLevel() {
         response = new GpsRpcApi.RpcResponse(200, "ok", JSON.createArrayNode()
                 .add(JSON.createObjectNode().put("assetid", "AB12").put("symptoms_condition", 1)

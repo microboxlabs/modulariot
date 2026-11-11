@@ -460,8 +460,9 @@ public class EngineCaseService {
     /**
      * The cases the list shows for {@code filters}, counted by condition, and the vehicles on a trip now.
      * {@code conditions} uses the GPS database's keys: without dates as {@link #withOpenCaseCounts} (under treatment
-     * while it has an open treatment, else at its level; held cases left out), with dates by current level. The
-     * condition filter ({@code p_icu_code}) is left out, so every condition is counted; paging is ignored.
+     * while it has an open treatment, else at its level; held cases in a separate Ignored bucket), with dates by
+     * current level. The condition filter ({@code p_icu_code}) is left out, so every condition is counted; paging
+     * is ignored.
      * {@code vehicles_on_trip} counts the vehicles on a trips-module trip that departed and has not ended, with the
      * trip filters (trip, vehicle, driver, carrier, origin, destination); dates and symptom do not apply to it.
      *
@@ -477,6 +478,11 @@ public class EngineCaseService {
             String key = filter.openOnly() && c.underTreatment() ? COUNTED_UNDER_TREATMENT
                     : COUNTED.getOrDefault(c.level(), COUNTED.get(1));
             conditions.put(key, conditions.path(key).asLong(0) + c.count());
+        }
+        long ignored = store.matchingCounts(tenantCode, filter.withIgnored()).stream()
+                .mapToLong(EngineCaseStore.OpenCount::count).sum();
+        if (ignored > 0) {
+            conditions.put(COUNTED_IGNORED, ignored);
         }
         out.put("vehicles_on_trip", store.vehiclesOnTrip(tenantCode, filter));
         return out;

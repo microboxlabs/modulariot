@@ -202,12 +202,33 @@ public class AccessEvaluator {
 
     /** Re-checks custom-role authority after the shared lock and role refresh, including the mutation permission. */
     public Uni<Grant> grant(Organization root, Caller actor, Collection<String> roleKeys, String permission) {
-        return rolesForGrant(root.id, roleKeys).flatMap(roles -> evaluate(root, actor).map(access -> {
+        return rolesForGrant(root.id, roleKeys).flatMap(roles -> refreshAuthority(root, actor)
+                .flatMap(ignored -> evaluate(root, actor)).map(access -> {
             if (!access.can(permission)) {
                 throw new SecurityException("Permission required in the root organization: " + permission);
             }
             return new Grant(access, roles);
         }));
+    }
+
+    /** Membership base roles and user status can have changed while the grant waited for its lock. */
+    private Uni<Void> refreshAuthority(Organization root, Caller actor) {
+        if (!actor.isUser()) {
+            return Uni.createFrom().voidItem();
+        }
+        return IamUser.findByEmail(actor.email()).flatMap(user -> {
+            if (user == null) {
+                return Uni.createFrom().voidItem();
+            }
+            return IamMembership.findFor(List.of(root.id), user.id).flatMap(memberships -> Panache.getSession()
+                    .flatMap(session -> {
+                        Uni<Void> refreshed = session.refresh(user);
+                        if (memberships.isEmpty()) {
+                            return refreshed;
+                        }
+                        return refreshed.flatMap(ignored -> session.refreshAll(memberships.toArray()));
+                    }));
+        });
     }
 
     /** The memberships after a join through the caller's email domain; empty when the domain gives none. */

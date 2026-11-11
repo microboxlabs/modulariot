@@ -231,6 +231,45 @@ class CustomRolesApiTest {
     }
 
     @Test
+    void aGrantWaitingForTheLockCannotReuseADemotedMembership()
+            throws SQLException, InterruptedException, ExecutionException, TimeoutException {
+        String ana = userId(ANA);
+        exec("UPDATE miot_iam.iam_membership SET base_role = 'OWNER' WHERE user_id = '" + ana + "'");
+        String wanted = create(OWNER, ROLES, "Propietarios delegados", CoreAccessCatalog.MEMBERS_UPDATE,
+                CoreAccessCatalog.OWNERS_MANAGE).statusCode(201).extract().path("key");
+        CompletableFuture<io.restassured.response.Response> change = null;
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try (var lock = c.prepareStatement("SELECT id FROM miot_core.organizations WHERE slug = ? FOR UPDATE");
+                    var update = c.prepareStatement(
+                            "UPDATE miot_iam.iam_membership SET base_role = 'MEMBER' WHERE user_id = ?::uuid")) {
+                lock.setString(1, ORG);
+                try (var rows = lock.executeQuery()) {
+                    rows.next();
+                }
+                update.setString(1, ana);
+                update.executeUpdate();
+                change = CompletableFuture.supplyAsync(() -> given().header("Authorization", bearer(ANA))
+                        .contentType("application/json").body(Map.of("principalKind", "USER", "principalId", ana,
+                                "role", wanted)).when().post(BASE + "/bindings"));
+                await().atMost(Duration.ofSeconds(15)).until(() -> count(
+                        "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                                + "AND wait_event_type = 'Lock' AND query LIKE '%organizations%'") > 0);
+                c.commit();
+            } finally {
+                c.rollback();
+            }
+        } finally {
+            if (change != null) {
+                assertEquals(403, change.get(30, TimeUnit.SECONDS).statusCode());
+            }
+        }
+        given().header("Authorization", bearer(ANA)).when().get(ACCESS).then().statusCode(200)
+                .body("baseRole", is("MEMBER"))
+                .body("permissions", not(hasItem(CoreAccessCatalog.OWNERS_MANAGE)));
+    }
+
+    @Test
     void aSubAccountAdministratorCannotChangeRootRolesOrServiceAccounts() throws SQLException {
         String childAdmin = "child.admin@roles.test";
         exec("INSERT INTO miot_iam.iam_user (email) VALUES ('" + childAdmin + "') ON CONFLICT DO NOTHING");
@@ -249,6 +288,9 @@ class CustomRolesApiTest {
                 .when().put(childBase + "/custom-roles/" + roleId).then().statusCode(403);
         given().header("Authorization", bearer(childAdmin)).when()
                 .delete(childBase + "/custom-roles/" + roleId).then().statusCode(403);
+        given().header("Authorization", bearer(childAdmin)).contentType("application/json")
+                .body(Map.of("assigneeIds", List.of(ANA)))
+                .when().put("/api/v1/orgs/" + SUB + "/roles/custom:mapa-raiz").then().statusCode(403);
 
         var account = given().header("Authorization", bearer(OWNER)).contentType("application/json")
                 .body(Map.of("name", "Integrador raíz", "roles", List.of())).when().post(BASE + "/service-accounts")

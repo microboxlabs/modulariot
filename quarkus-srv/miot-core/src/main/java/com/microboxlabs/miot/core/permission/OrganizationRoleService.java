@@ -95,7 +95,7 @@ public class OrganizationRoleService {
     public Uni<OrganizationRoleDto> get(String organizationSlug, String roleCode) {
         String role = knownRole(roleCode);
         return Panache.withSession(() -> findOrganization(organizationSlug)
-                .flatMap(org -> requireOwner(org).flatMap(ignored -> load(root(org), role, true))));
+                .flatMap(org -> requireRootBase(org, BaseRole.ADMIN).flatMap(ignored -> load(root(org), role, true))));
     }
 
     public Uni<OrganizationRoleDto> replace(String organizationSlug, String roleCode,
@@ -105,7 +105,7 @@ public class OrganizationRoleService {
         BaseRole needed = OWNER_ROLE_CODE.equals(role) ? BaseRole.OWNER : BaseRole.ADMIN;
         String actor = organizationContext.getUserEmail();
         return Panache.withTransaction(() -> findOrganization(organizationSlug)
-                .flatMap(org -> requireBase(org, needed)
+                .flatMap(org -> requireRootBase(org, needed)
                         .flatMap(ignored -> requireGrantable(org, role, actor))
                         .flatMap(ignored -> write(root(org), role, assignees, actor))
                         .flatMap(ignored -> load(root(org), role, false))));
@@ -161,12 +161,17 @@ public class OrganizationRoleService {
                         .flatMap(ignored -> load(root(org), role, false))));
     }
 
+    /** Role holders belong to the root; unrelated organization configuration keeps requireOwner's local scope. */
+    private Uni<Void> requireRootBase(Organization organization, BaseRole needed) {
+        return evaluator.root(organization).flatMap(root -> requireBase(root, needed));
+    }
+
     private Uni<Void> requireBase(Organization organization, BaseRole needed) {
         String personId = organizationContext.getUserEmail();
         if (personId == null || personId.isBlank()) {
             return forbidden();
         }
-        return evaluator.root(organization).flatMap(root -> evaluator.evaluate(root, Caller.user(personId)))
+        return evaluator.evaluate(organization, Caller.user(personId))
                 .flatMap(access -> access.member() && access.baseRole().atLeast(needed)
                         ? Uni.createFrom().voidItem()
                         : forbidden());

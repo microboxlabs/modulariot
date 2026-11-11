@@ -1,0 +1,46 @@
+# 🔔 Release Notes v1.32.13 — ModularIoT
+
+### Fecha: 11/11/2026
+
+**Objetivo**: Fortalecer la coordinación de Places y el uso del modulith en la aplicación. Esta versión integra los cambios OSS del milestone `MIOT-0.6.13`.
+
+## 🚀 Evolutivos
+
+- **📍 Sincronización segura de Places**
+  - **Punto clave**: La sincronización de Places queda habilitada por defecto para el propietario de Places cuando hay una fuente GPS configurada.
+  - **Detalle técnico**: El cambio contempla aislamiento entre tenants, seguridad al eliminar registros propios, coordinación de réplicas, gestión de fallos y permisos de despliegue. Integración OSS del milestone `MIOT-0.6.13`.
+
+- **🔌 Uso del modulith para datos de la aplicación**
+  - **Punto clave**: Se retiraron llamadas directas a StreamHub en rutas de mapas, síntomas, condiciones de tareas, tratamientos y señales, donde el modulith ya ofrece esos datos.
+  - **Detalle técnico**: Las rutas cubiertas usan el modulith en lugar de las integraciones directas con IoT API y PostgREST. Integración OSS del milestone `MIOT-0.6.13`.
+
+## 🐛 Correcciones
+
+- **🐛 Enrutamiento de Places al modulith correcto**
+  - **Impacto**: Places en el coordinador llamaba al modulith local, que no incluye Places.
+  - **Solución**: Las cuatro rutas de Places se dirigen al modulith de StreamHub usando la sesión del usuario, con fallback al modulith local para GKE. Integración OSS del milestone `MIOT-0.6.13`.
+
+## 📊 Beneficios
+
+- Sincronización de Places activada bajo una condición explícita: una fuente GPS configurada.
+- Mayor protección de los datos entre tenants y al eliminar registros sincronizados.
+- Menos dependencias directas de StreamHub en las rutas de la aplicación cubiertas por el modulith.
+- Enrutamiento de Places alineado con el servicio que ofrece esa funcionalidad.
+- Fallback local disponible para el despliegue en GKE.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.13`
+- App: `app@v0.6.13` — con cambios.
+- Docs: `docs@v0.6.12` — sin cambios.
+- Web: `web@v0.6.12` — sin cambios.
+- Modulith: `modulith@v0.5.51` — con cambios.
+- Harness: `harness@v0.1.15` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión integra mejoras del milestone OSS `MIOT-0.6.13` para hacer más segura la sincronización de Places y dirigir sus llamadas al servicio adecuado.
+
+Además, reduce el acceso directo a StreamHub en las rutas cubiertas por el modulith, simplificando el uso de datos compartidos por la aplicación.

@@ -1,0 +1,159 @@
+{
+  "stack_version": "0.6.13",
+  "stack_tag": "miot-stack@v0.6.13",
+  "milestone": "MIOT-0.6.13",
+  "pull_requests": [
+    {
+      "number": 2601,
+      "title": "feat(places): sync places to StreamHub by default",
+      "source_issues": [
+        {
+          "number": 2606,
+          "title": "feat(places): enable safe StreamHub sync by default"
+        }
+      ]
+    },
+    {
+      "number": 2602,
+      "title": "fix(app): route Places through the StreamHub modulith",
+      "source_issues": [
+        {
+          "number": 2605,
+          "title": "bug: coordinator Places calls the wrong modulith"
+        }
+      ]
+    },
+    {
+      "number": 2604,
+      "title": "refactor(app): read map and symptoms only from the modulith",
+      "source_issues": [
+        {
+          "number": 2603,
+          "title": "Retirar el acceso directo de la app a StreamHub (grupo A)"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-cli/src/test/java/com/microboxlabs/miot/cli/EngineSplitConfigTest.java",
+    "quarkus-srv/miot-cli/src/test/java/com/microboxlabs/miot/cli/PlacesWithoutGpsTest.java",
+    "quarkus-srv/miot-places/README.md",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/service/PlaceService.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/service/PlaceSync.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/service/PlaceSyncRetry.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/service/StreamHubPlaceSync.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/store/PgPlaceStore.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/store/PlaceStore.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/places/service/PlaceSyncTest.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/places/service/PlacesSyncDatabaseTest.java",
+    "quarkus-srv/miot-places/src/test/java/com/microboxlabs/miot/places/service/StreamHubPlaceSyncTest.java",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/geocoding-plan/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/telephony-usage/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/data-sharing/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/data-sharing/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/geocoding-plan/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/geocoding-plan/usage/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/geocoding-provider/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/geocoding-provider/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/geocoding-connection/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/geocoding-connection/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/telephony-plan/organizations/[tenantCode]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/telephony-plan/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/telephony-plan/usage/route.ts",
+    "turbo-repo/apps/app/src/app/api/control-tower/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/control-tower/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/fleet/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/fleet/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/map/geofences/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/geofences/route.ts",
+    "turbo-repo/apps/app/src/app/api/map/geofences/route.type.ts",
+    "turbo-repo/apps/app/src/app/api/map/historic-pulses/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/historic-pulses/route.ts",
+    "turbo-repo/apps/app/src/app/api/map/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/signal/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/trip/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/trip/route.ts",
+    "turbo-repo/apps/app/src/app/api/map/trip/route.type.ts",
+    "turbo-repo/apps/app/src/app/api/places/geofences/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/places/geofences/route.ts",
+    "turbo-repo/apps/app/src/app/api/places/items/[id]/route.ts",
+    "turbo-repo/apps/app/src/app/api/places/items/code-usage/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/places/items/code-usage/route.ts",
+    "turbo-repo/apps/app/src/app/api/places/items/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/places/items/route.ts",
+    "turbo-repo/apps/app/src/app/api/places/proxy.test.ts",
+    "turbo-repo/apps/app/src/app/api/signals/historic-signals/route.ts",
+    "turbo-repo/apps/app/src/app/api/signals/timeline/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/icu/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/icu/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/invalidate/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/trip/route.ts",
+    "turbo-repo/apps/app/src/app/api/task/conditions/route.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/general/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/general/route.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/general/route.type.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/location/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/location/route.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/location/route.type.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/route.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/route.type.ts",
+    "turbo-repo/apps/app/src/app/api/trips/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/trips/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/control-tower-map.ts",
+    "turbo-repo/apps/app/src/app/api/utils/streamhub-api-client.ts",
+    "turbo-repo/apps/app/src/app/api/utils/streamhub-modulith-proxy.test.ts",
+    "turbo-repo/apps/app/src/app/api/utils/streamhub-modulith-proxy.ts",
+    "turbo-repo/apps/app/src/features/common/providers/client-api.provider.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/pulse-source.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/pulse-source.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/menus/invalidate-symptom/invalidate-symptom.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/symptom-form.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-inline-form.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-inline-form.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-invalidate-symptom.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/hooks/use-treatments-trip.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/treatment-link.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/trip-symptoms.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/trip-symptoms.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/symptoms-card.test.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/symptoms-card.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/hooks/use-get-conditions.ts",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.13",
+      "tag": "app@v0.6.13"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.6.12",
+      "version": "0.6.12",
+      "tag": "docs@v0.6.12"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.6.12",
+      "version": "0.6.12",
+      "tag": "web@v0.6.12"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.50",
+      "version": "0.5.51",
+      "tag": "modulith@v0.5.51"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

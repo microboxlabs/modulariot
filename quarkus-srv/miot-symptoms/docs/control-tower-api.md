@@ -220,9 +220,9 @@ other `method` is a 400.
 |---|---|---|
 | `listMapPositions` | `GET /map/positions` | Last position of each of the organization's assets, on a trip or not |
 | `getMapSummary` | `GET /map/summary` | Service, fleet and symptom totals shown beside the map |
-| `listMapSymptoms` | `GET /map/symptoms?p_*` | One page of symptoms with `total_rows`, `total_pages`, `page`, `page_size` and `symptom_name_list`. Filters: `p_asset_id`, `p_trip_id`, `p_driver_id`, `p_carrier_id`, `p_origin`, `p_destination`, `p_symptom_name`, `p_icu_code`, `p_page`, `p_page_size`, `p_start_date_historic`, `p_end_date_historic`. Any other is a 400 |
-| `countSymptomConditions` | `GET /map/conditions?from&to` | Symptom counts by condition name. Active symptoms, or with `from` and `to` (ISO-8601, both or neither) those created in that range |
-| `countMapCases` | `GET /map/case-counts?p_*` | The evaluator's cases the list shows, by condition (`conditions`, the keys of `/map/conditions`), and `vehicles_on_trip`: the vehicles on a trips-module trip that departed and has not ended. Takes the list's filters; `p_icu_code` and paging are ignored. Without dates the open cases (`Under Treatment` while one has an open treatment, held cases separately as `Ignored`); with dates the cases active in the range, by level. Both the constellation and counter cards use these filtered counts. `vehicles_on_trip` uses only the trip filters (trip, vehicle, driver, carrier, origin, destination). Reads no GPS database data, with either value of the legacy setting |
+| `listMapSymptoms` | `GET /map/symptoms?p_*` | One page of symptoms with `total_rows`, `total_pages`, `page`, `page_size` and `symptom_name_list`. Filters: `p_asset_id`, `p_trip_id`, `p_driver_id`, `p_carrier_id`, `p_origin`, `p_destination`, `p_symptom_name`, `p_icu_code`, `p_page`, `p_page_size`, `p_start_date_historic`, `p_end_date_historic`, `operator=required|none|all`. Explicit operator scopes filter before paging, return exact totals and cap each page at 200 rows; omission keeps the existing default. Any other parameter is a 400 |
+| `countSymptomConditions` | `GET /map/conditions?from&to&operator` | Symptom counts by condition name. `operator=required|none|all` selects the current-level operator decision; omission keeps the default. Active symptoms, or with `from` and `to` (ISO-8601, both or neither) those created in that range |
+| `countMapCases` | `GET /map/case-counts?p_*` | The evaluator's cases the list shows, by condition (`conditions`, the keys of `/map/conditions`), and `vehicles_on_trip`: the vehicles on a trips-module trip that departed and has not ended. Takes the list's filters, including `operator=required|none|all`; `p_icu_code` and paging are ignored. The operator decision comes from the latest `OPENED`/`LEVEL_CHANGED` row establishing the current level; omission keeps the existing default. Without dates the open cases (`Under Treatment` while one has an open treatment, held cases separately as `Ignored`); with dates the cases active in the range, by level. Both the constellation and counter cards use these filtered counts. `vehicles_on_trip` uses only the trip filters (trip, vehicle, driver, carrier, origin, destination). With legacy enabled and an explicit `operator=required|all`, adds the GPS list's totals for the same filters, counting each condition with a one-row page. With `none`, or without the parameter, reads no GPS symptoms |
 | `listMapTripSymptoms` | `GET /map/trips/{trip}/symptoms` | The evaluator's cases on one trip, by symptom (below). Reads no GPS database data, with either value of the legacy setting |
 
 `{trip}` is a trip id as cases store it, or the client's service code of a trips-module trip: its feed service's
@@ -248,7 +248,7 @@ answer is kept for five seconds per organization.
 ### Legacy symptoms setting
 
 `miot.symptoms.legacy.enabled` (env `MIOT_SYMPTOMS_LEGACY_ENABLED`), default `true`. An installation setting: it
-applies to every organization of the deployment. The app reads the same env name (see below).
+applies to every organization of the deployment. The app reads the same env name (see below). Explicit operator scopes apply in either mode: `none` excludes GPS symptoms, while `required` and `all` include them when legacy is enabled.
 
 | Endpoint | `true` (default) | `false` |
 |---|---|---|

@@ -79,6 +79,16 @@ class OrgControlTowerMapResourceTest {
         public Uni<JsonNode> symptoms(String authorization, Map<String, String> filters) {
             gpsCalls.add("symptoms");
             sentFilters.add(filters);
+            String condition = filters.get("p_icu_code");
+            if (condition != null && condition.equals(failedGpsCondition)) {
+                return Uni.createFrom().failure(new IllegalStateException("GPS unavailable"));
+            }
+            if (gpsConditionCounts != null && condition != null) {
+                JsonNode page = JSON.createObjectNode()
+                        .put("total_rows", gpsConditionCounts.getOrDefault(condition, 0L))
+                        .set("data", JSON.createArrayNode());
+                return Uni.createFrom().item(page);
+            }
             if (gpsRows != null) {
                 int size = Integer.parseInt(filters.getOrDefault("p_page_size", "10"));
                 int number = Integer.parseInt(filters.getOrDefault("p_page", "1"));
@@ -97,6 +107,8 @@ class OrgControlTowerMapResourceTest {
 
     private final List<Map<String, String>> sentFilters = new ArrayList<>();
     private List<JsonNode> gpsRows;
+    private Map<String, Long> gpsConditionCounts;
+    private String failedGpsCondition;
     private final List<String> gpsCalls = new ArrayList<>();
 
     private static final class Roles extends OrganizationRoleService {
@@ -846,6 +858,91 @@ class OrgControlTowerMapResourceTest {
                 "p_start_date_historic=2026-10-01&p_end_date_historic=2026-10-31");
         assertEquals(1, range.at("/conditions/Compromised condition").asInt());
         assertEquals(1, range.at("/conditions/Code Black").asInt(), "the history counts by level");
+    }
+
+    @Test
+    void filteredCountersKeepTheExplicitOperatorScopeAndRejectInvalidValues() {
+        UUID definition = UUID.randomUUID();
+        engineCases.operatorLevels.put(definition, Set.of(4));
+        Instant opened = Instant.parse("2026-10-20T10:00:00Z");
+        engineCases.add(new EngineCase(1, definition, "0.1.0", "Senal", "connectivity", "DEMO01",
+                opened, 2, null, null, null, null, null, 0, null, null));
+        engineCases.add(new EngineCase(2, definition, "0.1.0", "Senal", "connectivity", "DEMO02",
+                opened, 4, null, null, null, null, null, 0, null, null));
+        var subject = engineOnly();
+        for (String dates : List.of("", "&p_start_date_historic=2026-10-01&p_end_date_historic=2026-10-31")) {
+            for (String scope : List.of("required", "none", "all")) {
+                String filters = "p_symptom_name=Senal&operator=" + scope + dates;
+                JsonNode counts = caseCounts(subject, filters).get("conditions");
+                assertEquals(scope.equals("none") ? 0 : 1, counts.path("Code Black").asInt());
+                assertEquals(scope.equals("required") ? 0 : 1, counts.path("Compromised condition").asInt());
+                JsonNode page = (JsonNode) call(subject.symptoms(ORG, query(filters))).getEntity();
+                assertEquals(page.path("total_rows").asInt(), counts.path("Code Black").asInt()
+                        + counts.path("Compromised condition").asInt(), "list and counters agree");
+            }
+        }
+        assertEquals(400, call(subject.caseCounts(ORG, query("operator=invalid"))).getStatus());
+        assertTrue(gpsCalls.isEmpty());
+    }
+
+    @Test
+    void explicitLegacyCountersMatchTheCombinedListAndForwardTheListFilters() {
+        engineCases.add(openCase(1, "DEMO01", "Panico", 4));
+        engineCases.add(openCase(2, "DEMO02", "Panico", 1));
+        engineCases.operatorRequired.put(2L, false);
+        gpsRows = new ArrayList<>();
+        for (int id = 101; id <= 120; id++) {
+            gpsRows.add(JSON.createObjectNode().put("id", id));
+        }
+        gpsConditionCounts = Map.of("4", 12L, "2", 5L, "6", 3L);
+        for (String scope : List.of("required", "all", "none")) {
+            var subject = resource(Optional.of("http://gps.example"));
+            String query = "p_asset_id=DEMO&p_symptom_name=Panico&operator=" + scope;
+            JsonNode counts = caseCounts(subject, query + "&p_icu_code=4&p_page=99&p_page_size=200")
+                    .get("conditions");
+            boolean withGps = !scope.equals("none");
+            assertEquals(withGps ? 13 : 0, counts.path("Code Black").asInt());
+            assertEquals(withGps ? 5 : 0, counts.path("Compromised condition").asInt());
+            assertEquals(withGps ? 3 : 0, counts.path("Under Treatment").asInt());
+            assertEquals(scope.equals("required") ? 0 : 1, counts.path("Under Observation").asInt());
+            JsonNode page = (JsonNode) call(subject.symptoms(ORG, query(query))).getEntity();
+            long total = 0;
+            for (JsonNode count : counts) {
+                total += count.asLong();
+            }
+            assertEquals(page.path("total_rows").asLong(), total);
+        }
+        for (Map<String, String> filters : sentFilters) {
+            assertEquals("DEMO", filters.get("p_asset_id"));
+            assertEquals("Panico", filters.get("p_symptom_name"));
+            assertFalse(filters.containsKey("operator"));
+            if (filters.containsKey("p_icu_code")) {
+                assertEquals("1", filters.get("p_page"));
+                assertEquals("1", filters.get("p_page_size"), "only totals are needed");
+            }
+        }
+        assertEquals(20, sentFilters.stream().filter(f -> f.containsKey("p_icu_code")).count());
+    }
+
+    @Test
+    void legacyFilteredCountersDiscardPartialGpsTotalsWhenGpsFails() {
+        engineCases.add(openCase(1, "DEMO01", "Panico", 4));
+        gpsConditionCounts = Map.of("0", 7L);
+        failedGpsCondition = "2";
+        JsonNode counts = caseCounts(resource(Optional.of("http://gps.example")), "operator=all")
+                .get("conditions");
+        assertEquals(1, counts.path("Code Black").asInt());
+        assertFalse(counts.has("Stable"), "partial GPS totals are discarded, as with the list's fallback");
+    }
+
+    @Test
+    void explicitLegacyCountersFailWithoutGpsOrCasesButNoneNeedsNoGps() {
+        var subject = resource(Optional.empty());
+        assertEquals(503, call(subject.caseCounts(ORG, query("operator=required"))).getStatus());
+        assertEquals(503, call(subject.caseCounts(ORG, query("operator=all"))).getStatus());
+        assertEquals(200, call(subject.caseCounts(ORG, query("operator=none"))).getStatus());
+        assertEquals(200, call(subject.caseCounts(ORG, query("p_page=1"))).getStatus(), "the omitted default is unchanged");
+        assertTrue(gpsCalls.isEmpty());
     }
 
     @Test

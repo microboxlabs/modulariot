@@ -240,7 +240,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
                     + "open treatment, held cases separately as Ignored), with dates the cases active in the range "
                     + "by level. vehicles_on_trip: the "
                     + "vehicles on a trips-module trip that departed and has not ended, filtered by trip, vehicle, "
-                    + "driver, carrier, origin and destination.")
+                    + "driver, carrier, origin and destination. With legacy enabled and an explicit required/all operator "
+                    + "scope, conditions also counts GPS symptoms for the same filters; none leaves them out.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> caseCounts(@PathParam("organizationId") String organizationId, @Context UriInfo uri) {
@@ -250,7 +251,19 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         String operator = filters.remove(OPERATOR);
         return answer(() -> {
             Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
-            return blocking(() -> cases.filteredCounts(tenant, checked, OperatorScope.parse(operator)));
+            OperatorScope scope = OperatorScope.parse(operator);
+            Uni<JsonNode> engine = blocking(() -> cases.filteredCounts(tenant, checked, scope));
+            if (!legacy || scope == null || scope == OperatorScope.NONE) {
+                return engine;
+            }
+            String client = tenantContext.getClientId();
+            return engine.chain(counted -> map.filteredConditions(client, checked)
+                    .onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
+                    .map(gps -> {
+                        ObjectNode out = counted.deepCopy();
+                        out.set("conditions", historicalCounts(gps, counted.path("conditions")));
+                        return out;
+                    }));
         });
     }
 

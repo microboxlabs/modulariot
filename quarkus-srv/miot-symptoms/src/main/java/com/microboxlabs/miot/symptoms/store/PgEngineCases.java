@@ -52,7 +52,6 @@ public class PgEngineCases implements EngineCaseStore {
     private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private static final String FROM_SUBQUERY = " FROM (";
     private static final String ASSET_ID = "asset_id";
-    private static final String UNDEFINED_TABLE = "42P01";
     private static final String TRIP_ID = "trip_id";
     private static final String LEVEL = "level";
     private static final String CURRENT_LEVEL = "current_level";

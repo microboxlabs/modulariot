@@ -590,6 +590,14 @@ class PgSlaStoreTest {
                 java.util.Set.copyOf(cases.matchingCounts(tenant, EngineCaseStore.CaseFilter.OPEN)));
         assertEquals(List.of(new EngineCaseStore.OpenCount(3, false, 1)),
                 cases.matchingCounts(tenant, byTrip(null, "76111111-1", null, null)), "the carrier's trip");
+        assertEquals(List.of(new EngineCaseStore.OpenCount(1, false, 1)),
+                cases.matchingCounts(tenant, EngineCaseStore.CaseFilter.OPEN.operator(
+                        EngineCaseStore.OperatorScope.NONE)), "only the level without an operator");
+        for (EngineCaseStore.OperatorScope scope : EngineCaseStore.OperatorScope.values()) {
+            EngineCaseStore.CaseFilter filter = EngineCaseStore.CaseFilter.OPEN.operator(scope);
+            assertEquals(cases.page(tenant, filter, 1, 1).total(),
+                    cases.matchingCounts(tenant, filter).stream().mapToLong(EngineCaseStore.OpenCount::count).sum());
+        }
         assertTrue(cases.matchingCounts("other-" + tenant, EngineCaseStore.CaseFilter.OPEN).isEmpty());
     }
 
@@ -718,6 +726,8 @@ class PgSlaStoreTest {
             long expected = openCount(cases, tenant, scope);
             var first = cases.page(tenant, filter, 1, 13);
             assertEquals(expected, first.total());
+            assertEquals(expected, cases.matchingCounts(tenant, filter).stream()
+                    .mapToLong(EngineCaseStore.OpenCount::count).sum(), "filtered counters are not capped to 200");
             assertEquals(List.of("Exceso de velocidad"), first.names());
             List<Long> seen = new ArrayList<>();
             for (int page = 1; page <= Math.ceilDiv(expected, 13); page++) {
@@ -923,6 +933,8 @@ class PgSlaStoreTest {
         assertTrue(cases.page(tenant, EngineCaseStore.CaseFilter.OPEN
                 .operator(EngineCaseStore.OperatorScope.NONE), 1, 13).cases().isEmpty());
         assertEquals(1, openCount(cases, tenant, EngineCaseStore.OperatorScope.REQUIRED));
+        assertEquals(List.of(new EngineCaseStore.OpenCount(3, false, 1)),
+                cases.matchingCounts(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator()));
         assertEquals(15, cases.find(tenant, caseId).orElseThrow().slaMinutes());
         assertEquals(List.of(caseId), due(t0.minusSeconds(3600), t0.plusSeconds(3600), tenant).stream()
                 .map(d -> d.engineCase().id()).toList());
@@ -934,6 +946,8 @@ class PgSlaStoreTest {
         assertEquals(List.of(caseId), ids(without.cases()));
         assertEquals(Boolean.FALSE, without.cases().getFirst().operatorRequired());
         assertEquals(0, openCount(cases, tenant, EngineCaseStore.OperatorScope.REQUIRED));
+        assertEquals(List.of(new EngineCaseStore.OpenCount(1, false, 1)),
+                cases.matchingCounts(tenant, EngineCaseStore.CaseFilter.OPEN.operator(EngineCaseStore.OperatorScope.NONE)));
         assertEquals(1, openCount(cases, tenant, EngineCaseStore.OperatorScope.NONE));
         assertEquals(1, cases.openedCounts(tenant, t0.minusSeconds(1), t0.plusSeconds(1)).getFirst().withoutOperator());
     }

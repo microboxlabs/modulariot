@@ -80,7 +80,12 @@ export default function SymptomsTable({
     : 0;
 
   if (tableData?.data.length === 0) {
-    return <EmptyTable dict={dict} counts={counts} />;
+    // Without dates the list has open cases only, and a treated case is closed.
+    const hint =
+      query.treatment === "treated" && !query.date_range.from
+        ? ((dict.symptoms as I18nRecord).treated_needs_dates as string)
+        : undefined;
+    return <EmptyTable dict={dict} counts={counts} hint={hint} />;
   }
 
   const header = !compact
@@ -93,6 +98,7 @@ export default function SymptomsTable({
         (dict.symptoms as I18nRecord).trip as string,
         (dict.symptoms as I18nRecord).driver as string,
         (dict.symptoms as I18nRecord).creation_date as string,
+        (dict.symptoms as I18nRecord).treatment_column as string,
         "",
       ]
     : [
@@ -104,12 +110,7 @@ export default function SymptomsTable({
   const content = [
     ...(tableData && tableData.data
       ? tableData.data.map((item) => (
-          <TableItem
-            key={item.id}
-            data={item}
-            dict={dict}
-            compact={compact}
-          />
+          <TableItem key={item.id} data={item} dict={dict} compact={compact} />
         ))
       : []),
   ];

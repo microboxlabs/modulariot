@@ -1,4 +1,5 @@
 import { TableItemType } from "../components/table-item.type";
+import type { TreatmentState } from "../model/treatment-state";
 
 export interface SymptomDashboard {
   codeBlack: number;
@@ -27,6 +28,8 @@ export interface SymptomConstellationCounts {
   vehiclesOnTrip: number;
   /** Held cases for the counter card; they have no constellation icon. */
   ignored: number;
+  /** The same cases by treatment state, whatever treatment state is filtered. */
+  treatmentStates?: Record<TreatmentState, number>;
 }
 
 /* export interface SymptomTableItem {

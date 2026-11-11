@@ -30,10 +30,13 @@ vi.mock("./prototype-inline-form", () => ({
   ),
 }));
 
+type SymptomInfo = TreatmentsGeneralResponseItem["symptom_info"];
+
 function renderPanel(
   selectedOption: SelectedOption,
   isFormOpen: boolean,
-  symptomId: number | null = -16
+  symptomId: number | null = -16,
+  state: Partial<SymptomInfo> = {}
 ) {
   const setSelectedOption = vi.fn();
   const setIsFormOpen = vi.fn();
@@ -48,6 +51,7 @@ function renderPanel(
             type: "test",
             icu_code: 1,
             icu_condition: "test",
+            ...state,
           },
           trip_info: {
             asset_id: "asset-test",
@@ -84,6 +88,106 @@ beforeEach(() => {
 function openOtherOptions() {
   fireEvent.click(screen.getByRole("button", { name: /Otras opciones/ }));
 }
+
+describe("the case panel by treatment state", () => {
+  const open = {
+    id: "t-1",
+    status: "OPEN" as const,
+    opened_by: "operator-a",
+    opened_at: "2026-01-01T00:05:00Z",
+    operators: ["operator-a"],
+  };
+
+  function expectNoActions() {
+    expect(screen.queryByRole("button", { name: /Llamar/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Otras opciones/ })).toBeNull();
+  }
+
+  it("says who treats the case and offers no second treatment", () => {
+    renderPanel("call_driver", false, -16, {
+      treatment_state: "in_treatment",
+      treatment: { ...open, mine: false },
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "operator-a está tratando este caso"
+    );
+    expectNoActions();
+  });
+
+  it("does not open a form from the URL on a case another operator treats", () => {
+    renderPanel("call_driver", true, -16, {
+      treatment_state: "in_treatment",
+      treatment: { ...open, mine: false },
+    });
+
+    expect(screen.queryByText(/Inline form/)).toBeNull();
+    expect(screen.getByText("Timeline")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("keeps the actions on the user's own open treatment", () => {
+    renderPanel("call_driver", false, -16, {
+      treatment_state: "in_treatment",
+      treatment: { ...open, mine: true },
+    });
+
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("button", { name: /Llamar/ })).toBeInTheDocument();
+  });
+
+  it("opens the form on the user's own open treatment", () => {
+    renderPanel("call_driver", true, -16, {
+      treatment_state: "in_treatment",
+      treatment: { ...open, mine: true },
+    });
+
+    expect(screen.getByText("Inline form call_driver")).toBeInTheDocument();
+  });
+
+  it("shows a treated, closed case read-only with how it was handled", () => {
+    renderPanel("call_driver", false, -16, {
+      closed_at: "2026-01-01T00:10:00Z",
+      treatment_state: "treated",
+      treatment: {
+        id: "t-2",
+        status: "CLOSED",
+        outcome: "invalidate",
+        closed_by: "operator-b",
+        closed_at: "2026-01-01T00:09:00Z",
+      },
+    });
+
+    const notice = screen.getByRole("status");
+    expect(notice).toHaveTextContent("Caso tratado. Solo lectura.");
+    expect(notice).toHaveTextContent("Invalidado");
+    expect(notice).toHaveTextContent("por operator-b");
+    expectNoActions();
+  });
+
+  it("shows a case that closed without a treatment read-only", () => {
+    renderPanel("call_driver", false, -16, {
+      closed_at: "2026-01-01T00:10:00Z",
+      treatment_state: "untreated",
+      treatment: null,
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Caso cerrado. Solo lectura."
+    );
+    expectNoActions();
+  });
+
+  it("keeps the actions on an open untreated case", () => {
+    renderPanel("call_driver", false, -16, {
+      treatment_state: "untreated",
+      treatment: null,
+    });
+
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("button", { name: /Llamar/ })).toBeInTheDocument();
+  });
+});
 
 describe("the case panel's actions", () => {
   it("shows only 'Otras opciones' and 'Llamar' as buttons", () => {

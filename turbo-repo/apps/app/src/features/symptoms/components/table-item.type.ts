@@ -1,5 +1,9 @@
 import type { StaticImageData } from "next/image";
 import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
+import type {
+  CaseTreatment,
+  TreatmentState,
+} from "@/features/symptoms/model/treatment-state";
 
 import blackCode from "@assets/conditions/codigo-negro.svg";
 import criticalAlert from "@assets/conditions/alerta-critica.svg";
@@ -51,6 +55,10 @@ export type TableItemType = {
   slaSince?: string | null;
   // Whether the case's current level goes to the operators; null for a GPS database symptom.
   operatorRequired?: boolean | null;
+  // What the operators did about the case; null for a GPS database symptom.
+  treatmentState?: TreatmentState | null;
+  // The treatment that state is about: the open one, else the latest closed one.
+  treatment?: CaseTreatment | null;
 };
 
 export type Condition = {

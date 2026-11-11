@@ -14,6 +14,18 @@ import { BiWorld } from "react-icons/bi";
 import { titles } from "@/features/symptoms/types/symptom-titles";
 import TagManager from "../tag-manager";
 import { useTreatmentsGeneral } from "../../hooks/use-treatments-general";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
+import {
+  caseActionOf,
+  otherOperators,
+} from "@/features/symptoms/model/treatment-state";
+
+const ACTION_LABEL = {
+  treat: "symptoms.go_to_treatment",
+  continue: "symptoms.continue_treatment",
+  view_treatment: "symptoms.view_treatment",
+  view_case: "symptoms.view_case",
+} as const;
 export default function TimedSymptoms({
   data,
   initial_state = false,
@@ -27,6 +39,18 @@ export default function TimedSymptoms({
 }) {
   const [isOpen] = useState(initial_state);
   const item = data;
+  const action = caseActionOf(
+    item.treatment_state,
+    item.treatment,
+    !!item.end_time
+  );
+  const others =
+    item.treatment_state === "in_treatment"
+      ? otherOperators(item.treatment)
+      : [];
+  const actionLabel = others.length
+    ? tr("symptoms.treating_by_other", dict, { operator: others.join(", ") })
+    : trDynamic(ACTION_LABEL[action], dict);
 
   const {
     treatmentData,
@@ -174,14 +198,17 @@ export default function TimedSymptoms({
                 style="auto"
                 content={
                   <div className="flex flex-col gap-1 text-gray-900 dark:text-gray-100">
-                    <p>
-                      {(dict.symptoms as I18nRecord).go_to_treatment as string}
-                    </p>
+                    <p>{actionLabel}</p>
                   </div>
                 }
               >
                 <Button
-                  color="blue"
+                  color={
+                    action === "treat" || action === "continue"
+                      ? "blue"
+                      : "gray"
+                  }
+                  aria-label={actionLabel}
                   as={Link}
                   href={treatmentHref(item.id, item.trip_id, item.asset_id)}
                   className="flex flex-row items-center gap-1 h-8 w-8 rounded-full"

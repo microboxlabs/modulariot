@@ -157,6 +157,152 @@ describe("symptoms row opens the treatment", () => {
   });
 });
 
+describe("symptoms treatment column and row action", () => {
+  const href = `/symptoms/map-view/-1?tripId=${tripId}&assetId=vehicle-demo`;
+  const openTreatment = {
+    id: "t-1",
+    status: "OPEN" as const,
+    opened_by: "operator-a",
+    opened_at: "2026-01-01T00:05:00Z",
+    mine: false,
+    operators: ["operator-a"],
+  };
+
+  function actionLink(name: string) {
+    return screen.getByRole("button", { name }).closest("a");
+  }
+
+  it("shows 'Sin tratar' and Tratar for an open case nobody treats", () => {
+    renderRow({ ...row, treatmentState: "untreated", treatment: null });
+
+    expect(
+      within(screen.getByTestId("treatment-state")).getByText("Sin tratar")
+    ).toBeInTheDocument();
+    expect(actionLink("Tratar")).toHaveAttribute("href", href);
+  });
+
+  it("continues the user's own open treatment with the form open", () => {
+    renderRow({
+      ...row,
+      treatmentState: "in_treatment",
+      treatment: { ...openTreatment, mine: true },
+    });
+
+    const cell = screen.getByTestId("treatment-state");
+    expect(within(cell).getByText("En tratamiento")).toBeInTheDocument();
+    expect(within(cell).getByText(/por operator-a/)).toBeInTheDocument();
+    expect(actionLink("Continuar")).toHaveAttribute(
+      "href",
+      `${href}&open=1&menu=call_driver`
+    );
+    expect(screen.queryByRole("button", { name: "Tratar" })).toBeNull();
+  });
+
+  it("does not offer a second treatment while another operator treats the case", () => {
+    renderRow({
+      ...row,
+      treatmentState: "in_treatment",
+      treatment: openTreatment,
+    });
+
+    expect(screen.queryByRole("button", { name: "Tratar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Continuar" })).toBeNull();
+    const link = actionLink("Ver tratamiento");
+    expect(link).toHaveAttribute("href", href);
+    expect(link).toHaveAttribute("title", "En tratamiento por operator-a");
+  });
+
+  it.each([
+    ["call", "Llamada"],
+    ["handling", "Gestión registrada"],
+    ["ignore", "Ignorado"],
+    ["invalidate", "Invalidado"],
+  ] as const)(
+    "shows a treated case's %s outcome, who closed it, and 'Ver tratamiento'",
+    (outcome, label) => {
+      renderRow({
+        ...row,
+        endDate: "2026-01-01T00:10:00Z",
+        treatmentState: "treated",
+        treatment: {
+          id: "t-2",
+          status: "CLOSED",
+          outcome,
+          opened_by: "operator-a",
+          closed_by: "operator-b",
+          closed_at: "2026-01-01T00:09:00Z",
+        },
+      });
+
+      const cell = screen.getByTestId("treatment-state");
+      expect(within(cell).getByText("Tratado")).toBeInTheDocument();
+      expect(within(cell).getByText(label)).toBeInTheDocument();
+      expect(within(cell).getByText(/por operator-b/)).toBeInTheDocument();
+      expect(actionLink("Ver tratamiento")).toHaveAttribute("href", href);
+      expect(screen.queryByRole("button", { name: "Tratar" })).toBeNull();
+    }
+  );
+
+  it("only shows a case that closed without a treatment", () => {
+    renderRow({
+      ...row,
+      endDate: "2026-01-01T00:10:00Z",
+      treatmentState: "untreated",
+      treatment: null,
+    });
+
+    expect(actionLink("Ver caso")).toHaveAttribute("href", href);
+    expect(screen.queryByRole("button", { name: "Tratar" })).toBeNull();
+  });
+
+  it("shows a held case as ignored by whoever set the hold, without Continuar", () => {
+    renderRow({
+      ...row,
+      treatmentState: "in_treatment",
+      treatment: { ...openTreatment, mine: true },
+      ignored: {
+        treatment_id: "t-1",
+        since: "2026-01-01T00:06:00Z",
+        until: null,
+        until_trip_end: true,
+        scope: "CASE",
+        by: "operator-c",
+      },
+    });
+
+    const cell = screen.getByTestId("treatment-state");
+    expect(within(cell).getByText("Ignorado")).toBeInTheDocument();
+    expect(within(cell).getByText(/por operator-c/)).toBeInTheDocument();
+    expect(actionLink("Ver tratamiento")).toHaveAttribute("href", href);
+  });
+
+  it("keeps a case back from a hold as 'Sin tratar' with Tratar", () => {
+    renderRow({
+      ...row,
+      treatmentState: "untreated",
+      treatment: {
+        id: "t-3",
+        status: "CLOSED",
+        outcome: "ignore",
+        resolution: "returned_after_ignore",
+        closed_by: "system",
+        closed_at: "2026-01-01T00:09:00Z",
+      },
+      returnedAfterIgnoreAt: "2026-01-01T00:09:00Z",
+    });
+
+    const cell = screen.getByTestId("treatment-state");
+    expect(within(cell).getByText("Sin tratar")).toBeInTheDocument();
+    expect(within(cell).queryByText(/por system/)).toBeNull();
+    expect(actionLink("Tratar")).toHaveAttribute("href", href);
+  });
+
+  it("shows no state for a symptom without one", () => {
+    renderRow(row);
+    expect(screen.queryByTestId("treatment-state")).toBeNull();
+  });
+});
+
 describe("symptoms SLA badge", () => {
   it("counts the SLA from the server's start, not from the opening", () => {
     vi.useFakeTimers({ toFake: ["Date"] });

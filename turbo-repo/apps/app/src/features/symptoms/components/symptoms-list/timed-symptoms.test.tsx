@@ -6,8 +6,18 @@ import type { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type"
 import dict from "@/lang/es.json";
 
 vi.mock("next/link", () => ({
-  default: ({ href, children }: { href: string; children: ReactNode }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    href,
+    children,
+    "aria-label": label,
+  }: {
+    href: string;
+    children: ReactNode;
+    "aria-label"?: string;
+  }) => (
+    <a href={href} aria-label={label}>
+      {children}
+    </a>
   ),
 }));
 vi.mock("../condition-icon", () => ({ default: () => null }));
@@ -58,6 +68,25 @@ describe("TimedSymptoms", () => {
     expect(screen.getByText("ID: SERVICE-001")).toBeTruthy();
     expect(screen.queryByText(`ID: ${tripId}`)).toBeNull();
   });
+
+  it.each([
+    [undefined, undefined, "Ir al tratamiento"],
+    ["untreated", null, "Ir al tratamiento"],
+    ["in_treatment", { id: "t", status: "OPEN", mine: true }, "Continuar"],
+    [
+      "in_treatment",
+      { id: "t", status: "OPEN", mine: false, opened_by: "operator-a" },
+      "En tratamiento por operator-a",
+    ],
+    ["treated", { id: "t", status: "CLOSED" }, "Ver tratamiento"],
+  ] as const)(
+    "labels the row's action for state %s",
+    (treatment_state, treatment, label) => {
+      renderItem({ ...item, treatment_state, treatment });
+
+      expect(screen.getByRole("link", { name: label })).toBeTruthy();
+    }
+  );
 
   it.each([undefined, null, "  "])(
     "falls back to the trip id when the code is %j",

@@ -2,6 +2,10 @@ import {
   OPERATOR_PARAM,
   parseOperatorFilter,
 } from "@/features/symptoms/model/operator-filter";
+import {
+  TREATMENT_PARAM,
+  parseTreatmentState,
+} from "@/features/symptoms/model/treatment-state";
 import type { NextResponse } from "next/server";
 import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
 import {
@@ -51,6 +55,8 @@ export function buildSymptomListParams(
 
   const operator = parseOperatorFilter(searchParams.get(OPERATOR_PARAM));
   if (operator) params.set(OPERATOR_PARAM, operator);
+  const treatment = parseTreatmentState(searchParams.get(TREATMENT_PARAM));
+  if (treatment) params.set(TREATMENT_PARAM, treatment);
 
   return params;
 }

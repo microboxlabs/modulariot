@@ -1,14 +1,21 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import SymptomsCards from "./cards";
 
 let searchParams = new URLSearchParams();
 const useCounts = vi.fn();
+const push = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParams,
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
 }));
 
 vi.mock("@/features/common/providers/client-api.provider", () => ({
@@ -27,6 +34,8 @@ const dict: I18nRecord = {
 
 beforeEach(() => {
   searchParams = new URLSearchParams();
+  push.mockReset();
+  globalThis.history.replaceState(null, "", "/");
   useCounts.mockReset();
   useCounts.mockReturnValue({
     counts: {
@@ -94,6 +103,25 @@ describe("SymptomsCards", () => {
       );
     }
   );
+
+  it("filters the list to the cases in treatment when its card is clicked", () => {
+    globalThis.history.replaceState(null, "", "/?asset_id=demo-asset");
+    render(<SymptomsCards showCards dict={dict} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Treatment/ }));
+
+    expect(push).toHaveBeenCalledWith("?asset_id=demo-asset&icu_code=6");
+  });
+
+  it("counts the cards in the list's treatment state", () => {
+    searchParams = new URLSearchParams({ treatment: "in_treatment" });
+    render(<SymptomsCards showCards dict={dict} />);
+
+    expect(useCounts).toHaveBeenCalledWith(
+      expect.objectContaining({ treatment: "in_treatment" }),
+      true
+    );
+  });
 
   it("disables its counts request while the tray is collapsed", () => {
     render(<SymptomsCards showCards={false} dict={dict} />);

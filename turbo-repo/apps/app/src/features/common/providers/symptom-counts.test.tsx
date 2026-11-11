@@ -56,6 +56,19 @@ describe("useSymptomCounts", () => {
     });
   });
 
+  it.each(["required", "none", "all"] as const)(
+    "sends the %s operator scope with the list filters",
+    async (operator) => {
+      renderHook(() => useSymptomCounts({ asset_id: "DEMO01", operator }), {
+        wrapper,
+      });
+      await waitFor(() => expect(read).toHaveBeenCalled());
+      const url = new URL(read.mock.calls[0][0], "http://x");
+      expect(url.searchParams.get("operator")).toBe(operator);
+      expect(url.searchParams.get("asset_id")).toBe("DEMO01");
+    }
+  );
+
   it("sends no filters when none is set", async () => {
     renderHook(() => useSymptomCounts({ date_range: { from: "", to: "" } }), {
       wrapper,

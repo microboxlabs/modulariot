@@ -49,6 +49,8 @@ export type TableItemType = {
   returnedAfterIgnoreAt?: string | null;
   // When the SLA of the current level started: the case reached the level, or came back from a hold.
   slaSince?: string | null;
+  // Whether the case's current level goes to the operators; null for a GPS database symptom.
+  operatorRequired?: boolean | null;
 };
 
 export type Condition = {

@@ -5,7 +5,6 @@ import { SymptomsTableResponse } from "./route.types";
 import { SymptomTableResponse } from "@/features/symptoms/types/symptoms";
 import { formatActiveDuration } from "@/features/symptoms/model/active-duration";
 import { tripPlateNow } from "@/features/symptoms/model/plate-change";
-
 function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
   return {
     data: (data?.data ?? []).map((item) => ({
@@ -29,6 +28,7 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       ignored: item?.ignored ?? null,
       returnedAfterIgnoreAt: item?.returned_after_ignore_at ?? null,
       slaSince: item?.sla_since ?? null,
+      operatorRequired: item?.operator_required ?? null,
     })),
     pagination: {
       total_rows: data.total_rows,

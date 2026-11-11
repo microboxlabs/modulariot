@@ -83,6 +83,18 @@ describe("SymptomsCards", () => {
     ).toBeInTheDocument();
   });
 
+  it.each(["required", "none", "all"])(
+    "uses the %s operator scope for the cards",
+    (operator) => {
+      searchParams = new URLSearchParams({ operator });
+      render(<SymptomsCards showCards dict={dict} />);
+      expect(useCounts).toHaveBeenCalledWith(
+        expect.objectContaining({ operator }),
+        true
+      );
+    }
+  );
+
   it("disables its counts request while the tray is collapsed", () => {
     render(<SymptomsCards showCards={false} dict={dict} />);
 

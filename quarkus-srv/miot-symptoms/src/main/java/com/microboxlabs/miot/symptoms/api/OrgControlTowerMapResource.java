@@ -2,9 +2,12 @@ package com.microboxlabs.miot.symptoms.api;
 
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.OperatorScope;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -36,6 +39,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -71,6 +75,13 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final boolean legacy;
     private final Instance<SignalStates> signals;
     private final Clock clock;
+    private static final String GPS_UNAVAILABLE = "GPS data is not available";
+    private static final String OPERATOR = "operator";
+    private static final String TOTAL_ROWS = "total_rows";
+    private static final String PAGE_SIZE = "page_size";
+    private static final String GPS_PAGE_SIZE = "p_page_size";
+    private static final String GPS_PAGE = "p_page";
+    private static final String SYMPTOM_NAMES = "symptom_name_list";
 
     @Inject
     public OrgControlTowerMapResource(
@@ -169,29 +180,46 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @Path("/conditions")
     @Operation(operationId = "countSymptomConditions", summary = "Symptom counts by condition",
             description = "Active symptoms, with the evaluator's open cases, or with from and to (ISO-8601) the "
-                    + "symptoms created in that range.")
+                    + "symptoms created in that range. operator counts the evaluator's cases whose current level "
+                    + "goes to the operators (required), those that do not (none) or both (all); without it, the "
+                    + "open cases that go to the operators, or with dates every case. With none, the GPS database's "
+                    + "symptoms are not counted. Any other value is a 400.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> conditions(
             @PathParam("organizationId") String organizationId,
             @QueryParam("from") String from,
-            @QueryParam("to") String to) {
+            @QueryParam("to") String to,
+            @QueryParam(OPERATOR) String operator) {
         String tenant = tenantCode(organizationId);
         if (!legacy) {
-            return answer(() -> blocking(() -> cases.caseCounts(tenant, from, to)));
+            return answer(() -> {
+                OperatorScope scope = OperatorScope.parse(operator);
+                return blocking(() -> cases.caseCounts(tenant, from, to, scope));
+            });
         }
         return answer(() -> {
+            OperatorScope scope = OperatorScope.parse(operator);
+            if (scope == OperatorScope.NONE) {
+                // Every GPS database symptom goes to the operators.
+                return blocking(() -> cases.caseCounts(tenant, from, to, scope));
+            }
             Uni<JsonNode> gps = map.conditions(tenantContext.getClientId(), from, to);
             if (notBlank(from) || notBlank(to)) {
-                return gps;
+                if (scope == null) {
+                    return gps;
+                }
+                return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
+                        .emitOn(Infrastructure.getDefaultWorkerPool())
+                        .map(counts -> historicalCounts(counts, cases.caseCounts(tenant, from, to, scope)));
             }
             // As in the symptom list: the open cases count even when the GPS database cannot be read.
             return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
                     .emitOn(Infrastructure.getDefaultWorkerPool())
                     .map(counts -> {
-                        JsonNode out = cases.withOpenCaseCounts(tenant, counts);
+                        JsonNode out = cases.withOpenCaseCounts(tenant, counts, scope);
                         if (counts == null && out.isEmpty()) {
-                            throw new ControlTowerMapService.UnavailableException("GPS data is not available");
+                            throw new ControlTowerMapService.UnavailableException(GPS_UNAVAILABLE);
                         }
                         return out;
                     });
@@ -206,22 +234,36 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @Path("/case-counts")
     @Operation(operationId = "countMapCases",
             summary = "The evaluator's cases by condition and the vehicles on a trip, for the list's filters",
-            description = "Takes the symptom list's query parameters (see listMapSymptoms); p_icu_code and paging "
+            description = "Takes the symptom list's query parameters, including operator (see listMapSymptoms); p_icu_code and paging "
                     + "are ignored, any other parameter is a 400. conditions: the cases the list shows, by the GPS "
                     + "database's condition keys; without dates the open cases (Under Treatment while one has an "
                     + "open treatment, held cases separately as Ignored), with dates the cases active in the range "
                     + "by level. vehicles_on_trip: the "
                     + "vehicles on a trips-module trip that departed and has not ended, filtered by trip, vehicle, "
-                    + "driver, carrier, origin and destination.")
+                    + "driver, carrier, origin and destination. With legacy enabled and an explicit required/all operator "
+                    + "scope, conditions also counts GPS symptoms for the same filters; none leaves them out.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> caseCounts(@PathParam("organizationId") String organizationId, @Context UriInfo uri) {
         String tenant = tenantCode(organizationId);
         Map<String, String> filters = new LinkedHashMap<>();
         uri.getQueryParameters().forEach((name, values) -> filters.put(name, values.isEmpty() ? null : values.get(0)));
+        String operator = filters.remove(OPERATOR);
         return answer(() -> {
             Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
-            return blocking(() -> cases.filteredCounts(tenant, checked));
+            OperatorScope scope = OperatorScope.parse(operator);
+            Uni<JsonNode> engine = blocking(() -> cases.filteredCounts(tenant, checked, scope));
+            if (!legacy || scope == null || scope == OperatorScope.NONE) {
+                return engine;
+            }
+            String client = tenantContext.getClientId();
+            return engine.chain(counted -> map.filteredConditions(client, checked)
+                    .onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
+                    .map(gps -> {
+                        ObjectNode out = counted.deepCopy();
+                        out.set("conditions", historicalCounts(gps, counted.path("conditions")));
+                        return out;
+                    }));
         });
     }
 
@@ -230,20 +272,30 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @Operation(operationId = "listMapSymptoms", summary = "One page of the organization's symptoms, with totals",
             description = "Query parameters are the GPS database function's: p_asset_id, p_trip_id, p_driver_id, "
                     + "p_carrier_id, p_origin, p_destination, p_symptom_name, p_icu_code, p_page, p_page_size, "
-                    + "p_start_date_historic, p_end_date_historic. Any other is a 400.")
+                    + "p_start_date_historic, p_end_date_historic, and operator: the evaluator's cases whose "
+                    + "current level goes to the operators (required), those that do not (none) or both (all); "
+                    + "without it, the open cases that go to the operators, or with dates every case. With none, "
+                    + "the GPS database's symptoms are left out. Each of the evaluator's cases has "
+                    + "operator_required. Any other parameter or operator value is a 400.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> symptoms(@PathParam("organizationId") String organizationId, @Context UriInfo uri) {
         String tenant = tenantCode(organizationId);
         Map<String, String> filters = new LinkedHashMap<>();
         uri.getQueryParameters().forEach((name, values) -> filters.put(name, values.isEmpty() ? null : values.get(0)));
+        String operator = filters.remove(OPERATOR);
         if (!legacy) {
-            return answer(() -> {
-                Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
-                return blocking(() -> cases.casesPage(tenant, checked));
-            });
+            return answer(() -> casesOnly(tenant, filters, OperatorScope.parse(operator)));
         }
         return answer(() -> {
+            OperatorScope scope = OperatorScope.parse(operator);
+            if (scope == OperatorScope.NONE) {
+                // Every GPS database symptom goes to the operators.
+                return casesOnly(tenant, filters, scope);
+            }
+            if (scope != null) {
+                return scopedSymptoms(tenant, filters, scope);
+            }
             Uni<JsonNode> gps = map.symptoms(tenantContext.getClientId(), filters);
             if (!EngineCaseService.showsCases(filters)) {
                 return gps;
@@ -252,13 +304,100 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
                     .emitOn(Infrastructure.getDefaultWorkerPool())
                     .map(page -> {
-                        JsonNode out = cases.withCases(tenant, filters, page);
+                        JsonNode out = cases.withCases(tenant, filters, page, scope);
                         if (page == null && out.path("data").isEmpty()) {
-                            throw new ControlTowerMapService.UnavailableException("GPS data is not available");
+                            throw new ControlTowerMapService.UnavailableException(GPS_UNAVAILABLE);
                         }
                         return out;
                     });
         });
+    }
+
+    private Uni<JsonNode> casesOnly(String tenant, Map<String, String> filters, OperatorScope scope) {
+        Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
+        return blocking(() -> cases.casesPage(tenant, checked, scope));
+    }
+
+    private static JsonNode historicalCounts(JsonNode gps, JsonNode engine) {
+        if (gps == null && engine.isEmpty()) {
+            throw new ControlTowerMapService.UnavailableException(GPS_UNAVAILABLE);
+        }
+        ObjectNode out = gps == null ? JsonNodeFactory.instance.objectNode() : (ObjectNode) gps.deepCopy();
+        engine.properties().forEach(e -> out.put(e.getKey(), out.path(e.getKey()).asLong() + e.getValue().asLong()));
+        return out;
+    }
+
+    /** Explicit scopes page the engine-first union; the omitted parameter keeps the legacy contract. */
+    private Uni<JsonNode> scopedSymptoms(String tenant, Map<String, String> filters, OperatorScope scope) {
+        Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
+        String client = tenantContext.getClientId();
+        return blocking(() -> cases.casesPage(tenant, checked, scope)).chain(engine -> {
+            int size = engine.path(PAGE_SIZE).asInt();
+            long offset = gpsOffset(engine);
+            Map<String, String> gpsFilters = new LinkedHashMap<>(checked);
+            gpsFilters.put(GPS_PAGE_SIZE, Integer.toString(size));
+            gpsFilters.put(GPS_PAGE, Long.toString(offset / size + 1));
+            return map.symptoms(client, gpsFilters)
+                    .onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
+                    .chain(gps -> completePage(client, gpsFilters, engine, gps));
+        });
+    }
+
+    private static long gpsOffset(JsonNode engine) {
+        long offset = (engine.path("page").asLong() - 1) * engine.path(PAGE_SIZE).asInt();
+        return Math.max(0, offset - engine.path(TOTAL_ROWS).asLong());
+    }
+
+    private Uni<JsonNode> completePage(String client, Map<String, String> filters, JsonNode engine, JsonNode gps) {
+        if (gps == null) {
+            return Uni.createFrom().item(engineFallback(engine));
+        }
+        int size = engine.path(PAGE_SIZE).asInt();
+        long offset = gpsOffset(engine);
+        int needed = size - engine.path("data").size();
+        boolean crossesPage = offset % size + needed > gps.path("data").size();
+        if (crossesPage && (offset / size + 1) * size < gps.path(TOTAL_ROWS).asLong()) {
+            Map<String, String> next = new LinkedHashMap<>(filters);
+            next.put(GPS_PAGE, Long.toString(offset / size + 2));
+            return map.symptoms(client, next)
+                    .onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
+                    .map(rest -> rest == null ? engineFallback(engine) : combinedPage(engine, gps, rest));
+        }
+        return Uni.createFrom().item(combinedPage(engine, gps, null));
+    }
+
+    private static JsonNode engineFallback(JsonNode engine) {
+        if (engine.path(TOTAL_ROWS).asLong() == 0) {
+            throw new ControlTowerMapService.UnavailableException(GPS_UNAVAILABLE);
+        }
+        return engine;
+    }
+
+    private static JsonNode combinedPage(JsonNode engine, JsonNode gps, JsonNode rest) {
+        ObjectNode out = engine.deepCopy();
+        ArrayNode rows = (ArrayNode) out.path("data");
+        int size = out.path(PAGE_SIZE).asInt();
+        appendRows(rows, gps.path("data"), gpsOffset(engine) % size, size);
+        if (rest != null) {
+            appendRows(rows, rest.path("data"), 0, size);
+        }
+        long total = engine.path(TOTAL_ROWS).asLong() + gps.path(TOTAL_ROWS).asLong();
+        out.put(TOTAL_ROWS, total);
+        out.put("total_pages", Math.max(1, Math.ceilDiv(total, size)));
+        var names = new LinkedHashSet<String>();
+        engine.path(SYMPTOM_NAMES).forEach(n -> names.add(n.asText()));
+        gps.path(SYMPTOM_NAMES).forEach(n -> names.add(n.asText()));
+        ArrayNode choices = out.putArray(SYMPTOM_NAMES);
+        names.forEach(choices::add);
+        return out;
+    }
+
+    private static void appendRows(ArrayNode target, JsonNode source, long skip, int size) {
+        for (JsonNode row : source) {
+            if (skip-- <= 0 && target.size() < size) {
+                target.add(row);
+            }
+        }
     }
 
     @GET

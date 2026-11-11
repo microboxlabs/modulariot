@@ -71,6 +71,25 @@ describe("GET /api/symptoms/counts", () => {
     );
   });
 
+  it.each(["required", "none", "all"])(
+    "forwards the %s operator scope to the filtered counters",
+    async (operator) => {
+      await GET(
+        new NextRequest(`http://x/c?asset_id=DEMO01&operator=${operator}`)
+      );
+      expect(forwardMock.mock.calls[0][0]).toBe(
+        `/api/v1/orgs/acme/control-tower/map/case-counts?p_asset_id=DEMO01&operator=${operator}`
+      );
+    }
+  );
+
+  it("drops an invalid operator value, preserving the API default", async () => {
+    await GET(new NextRequest("http://x/c?operator=invalid"));
+    expect(forwardMock.mock.calls[0][0]).toBe(
+      "/api/v1/orgs/acme/control-tower/map/case-counts"
+    );
+  });
+
   it("answers zero when the modulith has no counts", async () => {
     forwardMock.mockImplementation(async () => NextResponse.json({}));
 

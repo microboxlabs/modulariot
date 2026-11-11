@@ -23,6 +23,11 @@ public interface EngineCaseStore {
     /** The most recent cases that match, at most a page of them. */
     List<EngineCase> list(String tenantCode, CaseFilter filter);
 
+    /** One page, with totals and names over every matching case, before paging. */
+    CasePage page(String tenantCode, CaseFilter filter, int page, int size);
+
+    record CasePage(List<EngineCase> cases, long total, List<String> names) { }
+
     /** The open cases no hold covers, counted by level and by whether they have an open treatment. */
     List<OpenCount> openCounts(String tenantCode);
 
@@ -55,6 +60,32 @@ public interface EngineCaseStore {
         return new TowerCounts(openCounts(tenantCode), ignoredCount(tenantCode));
     }
 
+    /** {@link #towerCounts(String)} over the open cases {@code operator} keeps. */
+    default TowerCounts towerCounts(String tenantCode, OperatorScope operator) {
+        return towerCounts(tenantCode);
+    }
+
+    /** Which cases a list or a count keeps, by whether their current level goes to the operators. */
+    enum OperatorScope {
+        REQUIRED, NONE, ALL;
+
+        /**
+         * {@code required}, {@code none} or {@code all}, ignoring case; null for null or blank.
+         *
+         * @throws IllegalArgumentException for any other value
+         */
+        public static OperatorScope parse(String value) {
+            if (value == null || value.isBlank()) {
+                return null;
+            }
+            return switch (value.trim().toLowerCase(java.util.Locale.ROOT)) {
+                case "required" -> REQUIRED;
+                case "none" -> NONE;
+                case "all" -> ALL;
+                default -> throw new IllegalArgumentException("operator must be required, none or all");
+            };
+        }
+    }
 
     /** The open cases a hold covers now. */
     default long ignoredCount(String tenantCode) {
@@ -213,39 +244,47 @@ public interface EngineCaseStore {
      * evaluator decides it when the case opens or changes level ({@code response.operator} and
      * {@code operatorWhen}); for a case recorded before that, {@code response.operator: true} in the published
      * version the case runs on. A level with {@code operator: false} or no response is left out.
+     * {@code withoutOperatorOnly} keeps the other cases instead.
      */
     record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to,
             String driverId, String carrierId, String origin, String destination, boolean underTreatmentOnly,
-            boolean ignoredOnly, boolean operatorOnly) {
+            boolean ignoredOnly, boolean operatorOnly, boolean withoutOperatorOnly) {
 
         public static final CaseFilter OPEN = new CaseFilter(null, null, null, null, null, null);
 
         public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
                 Instant to) {
-            this(tripId, assetId, symptomName, level, from, to, null, null, null, null, false, false, false);
+            this(tripId, assetId, symptomName, level, from, to, null, null, null, null, false, false, false,
+                    false);
         }
 
         @SuppressWarnings("java:S107")
         public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
                 Instant to, String driverId, String carrierId, String origin, String destination) {
             this(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin, destination, false,
-                    false, false);
+                    false, false, false);
         }
 
         public CaseFilter withOpenTreatment() {
             return new CaseFilter(tripId, assetId, symptomName, null, from, to, driverId, carrierId, origin,
-                    destination, true, ignoredOnly, operatorOnly);
+                    destination, true, ignoredOnly, operatorOnly, withoutOperatorOnly);
         }
 
         public CaseFilter withIgnored() {
             return new CaseFilter(tripId, assetId, symptomName, null, from, to, driverId, carrierId, origin,
-                    destination, underTreatmentOnly, true, operatorOnly);
+                    destination, underTreatmentOnly, true, operatorOnly, withoutOperatorOnly);
         }
 
         /** Only the cases whose current level asks for an operator: the tower inbox. */
         public CaseFilter forOperator() {
+            return operator(OperatorScope.REQUIRED);
+        }
+
+        /** The cases {@code scope} keeps, whatever this filter kept by operator before. */
+        public CaseFilter operator(OperatorScope scope) {
             return new CaseFilter(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin,
-                    destination, underTreatmentOnly, ignoredOnly, true);
+                    destination, underTreatmentOnly, ignoredOnly, scope == OperatorScope.REQUIRED,
+                    scope == OperatorScope.NONE);
         }
 
         /** Whether it filters by a field of the case's trip. */

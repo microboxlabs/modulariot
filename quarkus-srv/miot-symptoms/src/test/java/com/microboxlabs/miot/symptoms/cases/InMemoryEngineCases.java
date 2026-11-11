@@ -83,6 +83,18 @@ public class InMemoryEngineCases implements EngineCaseStore {
 
     @Override
     public List<EngineCase> list(String tenantCode, CaseFilter f) {
+        return matching(f).limit(PAGE).toList();
+    }
+
+    @Override
+    public CasePage page(String tenantCode, CaseFilter f, int page, int size) {
+        Stream<EngineCase> matches = matching(f);
+        List<EngineCase> found = (f.openOnly() ? matches.sorted(EngineCaseService.INBOX_ORDER) : matches).toList();
+        return new CasePage(found.stream().skip((long) (page - 1) * size).limit(size).toList(), found.size(),
+                found.stream().map(EngineCase::name).distinct().toList());
+    }
+
+    private Stream<EngineCase> matching(CaseFilter f) {
         return cases.stream()
                 .filter(c -> f.openOnly() ? c.closedAt() == null
                         : (f.from() == null || c.closedAt() == null || !c.closedAt().isBefore(f.from()))
@@ -94,11 +106,12 @@ public class InMemoryEngineCases implements EngineCaseStore {
                 .filter(c -> f.level() == null || f.level() == c.level())
                 .filter(c -> !f.underTreatmentOnly() || c.treatments() > 0)
                 .filter(c -> !f.operatorOnly() || needsOperator(c))
+                .filter(c -> !f.withoutOperatorOnly() || !needsOperator(c))
                 .filter(c -> f.ignoredOnly() ? held.contains(c.id()) && c.closedAt() == null
                         : !f.openOnly() || !held.contains(c.id()))
                 .filter(c -> !f.byTrip() || matchesTrip(trips.get(c.tripId()), f))
                 .sorted(Comparator.comparing(EngineCase::openedAt).reversed())
-                .limit(PAGE).toList();
+                .map(c -> c.withOperatorRequired(needsOperator(c)));
     }
 
     /** The vehicle of each trip that departed and has not ended, by trip id; its fields are in {@link #trips}. */
@@ -151,15 +164,24 @@ public class InMemoryEngineCases implements EngineCaseStore {
 
     @Override
     public TowerCounts towerCounts(String tenantCode) {
+        return towerCounts(tenantCode, OperatorScope.REQUIRED);
+    }
+
+    @Override
+    public TowerCounts towerCounts(String tenantCode, OperatorScope operator) {
         if (down) {
             throw new IllegalStateException("database down");
         }
-        List<OpenCount> active = cases.stream().filter(c -> c.closedAt() == null && needsOperator(c))
+        List<EngineCase> scopedCases = cases.stream().filter(c -> c.closedAt() == null
+                        && (operator == OperatorScope.ALL || needsOperator(c) == (operator == OperatorScope.REQUIRED)))
+                .toList();
+        List<OpenCount> active = scopedCases.stream().filter(c -> !held.contains(c.id()))
                 .collect(Collectors.groupingBy(c -> List.of(c.level(), c.treatments() > 0), Collectors.counting()))
                 .entrySet().stream()
                 .map(e -> new OpenCount((Integer) e.getKey().get(0), (Boolean) e.getKey().get(1), e.getValue()))
                 .toList();
-        return new TowerCounts(active, ignoredCount(tenantCode));
+        long ignored = scopedCases.stream().filter(c -> held.contains(c.id())).count();
+        return new TowerCounts(active, ignored);
     }
 
     @Override

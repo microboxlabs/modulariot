@@ -46,4 +46,6 @@ export interface SymptomsTable {
   returned_after_ignore_at?: string | null;
   /** When the SLA of the case's current level started. */
   sla_since?: string | null;
+  /** Whether the case's current level goes to the operators; absent on GPS database symptoms. */
+  operator_required?: boolean | null;
 }

@@ -79,6 +79,29 @@ class OrgControlTowerMapResourceTest {
         public Uni<JsonNode> symptoms(String authorization, Map<String, String> filters) {
             gpsCalls.add("symptoms");
             sentFilters.add(filters);
+            if (failedGpsPage != null && failedGpsPage.equals(filters.get("p_page"))) {
+                return Uni.createFrom().failure(new IllegalStateException("GPS page unavailable"));
+            }
+            String condition = filters.get("p_icu_code");
+            if (condition != null && condition.equals(failedGpsCondition)) {
+                return Uni.createFrom().failure(new IllegalStateException("GPS unavailable"));
+            }
+            if (gpsConditionCounts != null && condition != null) {
+                JsonNode page = JSON.createObjectNode()
+                        .put("total_rows", gpsConditionCounts.getOrDefault(condition, 0L))
+                        .set("data", JSON.createArrayNode());
+                return Uni.createFrom().item(page);
+            }
+            if (gpsRows != null) {
+                int size = Integer.parseInt(filters.getOrDefault("p_page_size", "10"));
+                int number = Integer.parseInt(filters.getOrDefault("p_page", "1"));
+                var rows = JSON.createArrayNode();
+                gpsRows.stream().skip((long) (number - 1) * size).limit(size).forEach(rows::add);
+                var out = JSON.createObjectNode().put("total_rows", gpsRows.size());
+                out.set("data", rows);
+                out.putArray("symptom_name_list").add("GPS symptom");
+                return Uni.createFrom().item(out);
+            }
             JsonNode page = JSON.createObjectNode().put("total_rows", 1).set("data",
                     JSON.createArrayNode().add(JSON.createObjectNode().put("asset_id", "AB12")));
             return Uni.createFrom().item(page);
@@ -86,6 +109,10 @@ class OrgControlTowerMapResourceTest {
     };
 
     private final List<Map<String, String>> sentFilters = new ArrayList<>();
+    private List<JsonNode> gpsRows;
+    private Map<String, Long> gpsConditionCounts;
+    private String failedGpsCondition;
+    private String failedGpsPage;
     private final List<String> gpsCalls = new ArrayList<>();
 
     private static final class Roles extends OrganizationRoleService {
@@ -283,7 +310,7 @@ class OrgControlTowerMapResourceTest {
 
     @Test
     void readsAsTheOrganizationsApplication() {
-        Response counts = call(resource.conditions(ORG, null, null));
+        Response counts = call(resource.conditions(ORG, null, null, null));
         assertEquals(200, counts.getStatus());
         assertEquals(3, ((JsonNode) counts.getEntity()).get("Stable").asInt());
         assertEquals(200, call(resource.positions(ORG)).getStatus());
@@ -302,7 +329,7 @@ class OrgControlTowerMapResourceTest {
         engineCases.add(openCase(3, 4));
         engineCases.add(openCase(4, 4));
 
-        JsonNode counts = (JsonNode) call(resource.conditions(ORG, null, null)).getEntity();
+        JsonNode counts = (JsonNode) call(resource.conditions(ORG, null, null, null)).getEntity();
 
         assertEquals(3, counts.get("Code Black").asInt());
         assertEquals(3, counts.get("Stable").asInt());
@@ -312,7 +339,7 @@ class OrgControlTowerMapResourceTest {
     void theCountsOfARangeAreTheGpsDatabasesOnly() {
         engineCases.add(openCase(3, 4));
 
-        JsonNode counts = (JsonNode) call(resource.conditions(ORG, "2026-10-01", "2026-10-02")).getEntity();
+        JsonNode counts = (JsonNode) call(resource.conditions(ORG, "2026-10-01", "2026-10-02", null)).getEntity();
 
         assertFalse(counts.has("Code Black"));
     }
@@ -320,10 +347,10 @@ class OrgControlTowerMapResourceTest {
     @Test
     void theOpenCasesCountWhenTheGpsDatabaseIsDown() {
         response = new GpsRpcApi.RpcResponse(500, "Unexpected error", null);
-        assertEquals(503, call(resource.conditions(ORG, null, null)).getStatus(), "nothing to count");
+        assertEquals(503, call(resource.conditions(ORG, null, null, null)).getStatus(), "nothing to count");
 
         engineCases.add(openCase(3, 4));
-        Response counts = call(resource(Optional.empty()).conditions(ORG, null, null));
+        Response counts = call(resource(Optional.empty()).conditions(ORG, null, null, null));
 
         assertEquals(200, counts.getStatus());
         assertEquals(1, ((JsonNode) counts.getEntity()).get("Code Black").asInt());
@@ -331,7 +358,7 @@ class OrgControlTowerMapResourceTest {
 
     @Test
     void aBadRangeIs400() {
-        assertEquals(400, call(resource.conditions(ORG, "2026-10-01", null)).getStatus());
+        assertEquals(400, call(resource.conditions(ORG, "2026-10-01", null, null)).getStatus());
     }
 
     @Test
@@ -776,14 +803,14 @@ class OrgControlTowerMapResourceTest {
         engineCases.add(openCase(2, "CD34", "Pérdida de señal", 2));
         var subject = engineOnly();
 
-        JsonNode counts = (JsonNode) call(subject.conditions(ORG, null, null)).getEntity();
-        JsonNode range = (JsonNode) call(subject.conditions(ORG, "2026-01-01", "2099-01-01")).getEntity();
+        JsonNode counts = (JsonNode) call(subject.conditions(ORG, null, null, null)).getEntity();
+        JsonNode range = (JsonNode) call(subject.conditions(ORG, "2026-01-01", "2099-01-01", null)).getEntity();
 
         assertEquals(1, counts.get("Code Black").asInt());
         assertEquals(1, counts.get("Compromised condition").asInt());
         assertFalse(counts.has("Stable"));
         assertEquals(1, range.get("Code Black").asInt());
-        assertEquals(400, call(subject.conditions(ORG, "2026-10-01", null)).getStatus());
+        assertEquals(400, call(subject.conditions(ORG, "2026-10-01", null, null)).getStatus());
         assertEquals(List.of(), gpsCalls);
     }
 
@@ -838,6 +865,114 @@ class OrgControlTowerMapResourceTest {
     }
 
     @Test
+    void filteredCountersKeepTheExplicitOperatorScopeAndRejectInvalidValues() {
+        UUID definition = UUID.randomUUID();
+        engineCases.operatorLevels.put(definition, Set.of(4));
+        Instant opened = Instant.parse("2026-10-20T10:00:00Z");
+        engineCases.add(new EngineCase(1, definition, "0.1.0", "Senal", "connectivity", "DEMO01",
+                opened, 2, null, null, null, null, null, 0, null, null));
+        engineCases.add(new EngineCase(2, definition, "0.1.0", "Senal", "connectivity", "DEMO02",
+                opened, 4, null, null, null, null, null, 0, null, null));
+        var subject = engineOnly();
+        for (String dates : List.of("", "&p_start_date_historic=2026-10-01&p_end_date_historic=2026-10-31")) {
+            for (String scope : List.of("required", "none", "all")) {
+                String filters = "p_symptom_name=Senal&operator=" + scope + dates;
+                JsonNode counts = caseCounts(subject, filters).get("conditions");
+                assertEquals(scope.equals("none") ? 0 : 1, counts.path("Code Black").asInt());
+                assertEquals(scope.equals("required") ? 0 : 1, counts.path("Compromised condition").asInt());
+                JsonNode page = (JsonNode) call(subject.symptoms(ORG, query(filters))).getEntity();
+                assertEquals(page.path("total_rows").asInt(), counts.path("Code Black").asInt()
+                        + counts.path("Compromised condition").asInt(), "list and counters agree");
+            }
+        }
+        assertEquals(400, call(subject.caseCounts(ORG, query("operator=invalid"))).getStatus());
+        assertTrue(gpsCalls.isEmpty());
+    }
+
+    @Test
+    void aFailureOnTheSecondGpsPageKeepsTheEngineFallbackWithoutPartialGpsRows() {
+        for (int id = 1; id <= 12; id++) {
+            engineCases.add(openCase(id, 4));
+        }
+        gpsRows = new ArrayList<>();
+        for (int id = 101; id <= 117; id++) {
+            gpsRows.add(JSON.createObjectNode().put("id", id));
+        }
+        failedGpsPage = "2";
+        for (String scope : List.of("required", "all")) {
+            Response pageResponse = call(resource(Optional.of("http://gps.example")).symptoms(ORG,
+                    query("operator=" + scope + "&p_page_size=10&p_page=3")));
+            assertEquals(200, pageResponse.getStatus(), "a second GPS failure also keeps the engine fallback");
+            JsonNode page = (JsonNode) pageResponse.getEntity();
+            assertEquals(12, page.path("total_rows").asInt(), "only the complete engine total survives");
+            assertEquals(3, page.path("page").asInt());
+            assertEquals(10, page.path("page_size").asInt());
+            assertEquals(0, page.path("data").size(), "discard the first GPS page's partial rows");
+        }
+        assertTrue(sentFilters.stream().anyMatch(f -> "2".equals(f.get("p_page"))));
+    }
+
+    @Test
+    void explicitLegacyCountersMatchTheCombinedListAndForwardTheListFilters() {
+        engineCases.add(openCase(1, "DEMO01", "Panico", 4));
+        engineCases.add(openCase(2, "DEMO02", "Panico", 1));
+        engineCases.operatorRequired.put(2L, false);
+        gpsRows = new ArrayList<>();
+        for (int id = 101; id <= 120; id++) {
+            gpsRows.add(JSON.createObjectNode().put("id", id));
+        }
+        gpsConditionCounts = Map.of("4", 12L, "2", 5L, "6", 3L);
+        for (String scope : List.of("required", "all", "none")) {
+            var subject = resource(Optional.of("http://gps.example"));
+            String query = "p_asset_id=DEMO&p_symptom_name=Panico&operator=" + scope;
+            JsonNode counts = caseCounts(subject, query + "&p_icu_code=4&p_page=99&p_page_size=200")
+                    .get("conditions");
+            boolean withGps = !scope.equals("none");
+            assertEquals(withGps ? 13 : 0, counts.path("Code Black").asInt());
+            assertEquals(withGps ? 5 : 0, counts.path("Compromised condition").asInt());
+            assertEquals(withGps ? 3 : 0, counts.path("Under Treatment").asInt());
+            assertEquals(scope.equals("required") ? 0 : 1, counts.path("Under Observation").asInt());
+            JsonNode page = (JsonNode) call(subject.symptoms(ORG, query(query))).getEntity();
+            long total = 0;
+            for (JsonNode count : counts) {
+                total += count.asLong();
+            }
+            assertEquals(page.path("total_rows").asLong(), total);
+        }
+        for (Map<String, String> filters : sentFilters) {
+            assertEquals("DEMO", filters.get("p_asset_id"));
+            assertEquals("Panico", filters.get("p_symptom_name"));
+            assertFalse(filters.containsKey("operator"));
+            if (filters.containsKey("p_icu_code")) {
+                assertEquals("1", filters.get("p_page"));
+                assertEquals("1", filters.get("p_page_size"), "only totals are needed");
+            }
+        }
+        assertEquals(20, sentFilters.stream().filter(f -> f.containsKey("p_icu_code")).count());
+    }
+
+    @Test
+    void legacyFilteredCountersDiscardPartialGpsTotalsWhenGpsFails() {
+        engineCases.add(openCase(1, "DEMO01", "Panico", 4));
+        gpsConditionCounts = Map.of("0", 7L);
+        failedGpsCondition = "2";
+        JsonNode counts = caseCounts(resource(Optional.of("http://gps.example")), "operator=all")
+                .get("conditions");
+        assertEquals(1, counts.path("Code Black").asInt());
+        assertFalse(counts.has("Stable"), "partial GPS totals are discarded, as with the list's fallback");
+    }
+
+    @Test
+    void explicitLegacyCountersFailWithoutGpsOrCasesButNoneNeedsNoGps() {
+        var subject = resource(Optional.empty());
+        assertEquals(503, call(subject.caseCounts(ORG, query("operator=required"))).getStatus());
+        assertEquals(503, call(subject.caseCounts(ORG, query("operator=all"))).getStatus());
+        assertEquals(200, call(subject.caseCounts(ORG, query("operator=none"))).getStatus());
+        assertEquals(200, call(subject.caseCounts(ORG, query("p_page=1"))).getStatus(), "the omitted default is unchanged");
+        assertTrue(gpsCalls.isEmpty());
+    }
+
+    @Test
     void caseCountsHaveTheVehiclesOnATripWithTheTripFilters() {
         casesOnTrips();
         engineCases.onTrip.put("A", "AB1");
@@ -874,6 +1009,119 @@ class OrgControlTowerMapResourceTest {
         assertEquals(1, history.at("/conditions/Critical condition").asInt(),
                 "a case opened before the range still counts while active, like the list");
         assertEquals(2, ((JsonNode) call(subject.symptoms(ORG, query(range))).getEntity()).get("total_rows").asInt());
+    }
+
+    @Test
+    void engineOnlyTheOperatorFilterAppliesToTheListAndTheCounts() {
+        EngineCase quiet = openCase(1, "AB12", "Pérdida de señal", 1);
+        EngineCase loud = openCase(2, "CD34", "Pérdida de señal", 4);
+        engineCases.add(quiet);
+        engineCases.add(loud);
+        engineCases.operatorRequired.put(quiet.id(), false);
+        var subject = engineOnly();
+
+        assertEquals(List.of(-2L), listed(subject, "p_page=1"), "the default stays the cases for the operators");
+        assertEquals(List.of(-2L), listed(subject, "operator=required"));
+        assertEquals(List.of(-1L), listed(subject, "operator=none"));
+        assertEquals(List.of(-2L, -1L), listed(subject, "operator=all&p_page_size=10"));
+        assertEquals(400, call(subject.symptoms(ORG, query("operator=some"))).getStatus());
+
+        JsonNode none = (JsonNode) call(subject.conditions(ORG, null, null, "none")).getEntity();
+        assertEquals(1, none.get("Under Observation").asInt());
+        assertFalse(none.has("Code Black"));
+        JsonNode all = (JsonNode) call(subject.conditions(ORG, null, null, "all")).getEntity();
+        assertEquals(1, all.get("Under Observation").asInt());
+        assertEquals(1, all.get("Code Black").asInt());
+        JsonNode required = (JsonNode) call(subject.conditions(ORG, null, null, "required")).getEntity();
+        assertFalse(required.has("Under Observation"));
+        assertEquals(400, call(subject.conditions(ORG, null, null, "some")).getStatus());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    private List<Long> listed(OrgControlTowerMapResource subject, String q) {
+        List<Long> ids = new ArrayList<>();
+        ((JsonNode) call(subject.symptoms(ORG, query(q))).getEntity()).get("data")
+                .forEach(row -> ids.add(row.get("id").asLong()));
+        return ids;
+    }
+
+    @Test
+    void withoutOperatorTheGpsDatabaseSymptomsAreLeftOut() {
+        response = new GpsRpcApi.RpcResponse(200, "ok", JSON.createObjectNode().put("Code Black", 1));
+        EngineCase quiet = openCase(3, 1);
+        engineCases.add(quiet);
+        engineCases.add(openCase(4, 4));
+        engineCases.operatorRequired.put(quiet.id(), false);
+
+        assertEquals(List.of(-3L), listed(resource, "operator=none"));
+        JsonNode none = (JsonNode) call(resource.conditions(ORG, null, null, "none")).getEntity();
+        assertEquals(1, none.get("Under Observation").asInt());
+        assertFalse(none.has("Code Black"));
+        assertEquals(List.of(), gpsCalls);
+
+        JsonNode all = (JsonNode) call(resource.conditions(ORG, null, null, "all")).getEntity();
+        assertEquals(2, all.get("Code Black").asInt(), "the GPS database's and the case's");
+        assertEquals(1, all.get("Under Observation").asInt());
+        assertEquals(400, call(resource.symptoms(ORG, query("operator=some"))).getStatus());
+    }
+
+    @Test
+    void explicitLegacyScopesPaginateTheEngineAndGpsTogether() {
+        for (int i = 1; i <= 12; i++) {
+            engineCases.add(openCase(i, 4));
+        }
+        engineCases.add(openCase(13, 1));
+        engineCases.operatorRequired.put(13L, false);
+        gpsRows = new ArrayList<>();
+        for (int i = 101; i <= 117; i++) {
+            gpsRows.add(JSON.createObjectNode().put("id", i));
+        }
+        for (String scope : List.of("required", "all")) {
+            var subject = resource(Optional.of("http://gps.example"));
+            int engineTotal = scope.equals("required") ? 12 : 13;
+            List<Long> seen = new ArrayList<>();
+            for (int page = 1; page <= 4; page++) {
+                JsonNode result = (JsonNode) call(subject.symptoms(ORG,
+                        query("operator=" + scope + "&p_page_size=10&p_page=" + page))).getEntity();
+                assertEquals(engineTotal + 17, result.path("total_rows").asInt());
+                assertEquals(3, result.path("total_pages").asInt());
+                assertEquals(engineTotal, result.path("engine_cases").asInt());
+                assertEquals(page, result.path("page").asInt());
+                assertTrue(result.path("data").size() <= 10);
+                assertTrue(result.path("symptom_name_list").toString().contains("GPS symptom"));
+                result.path("data").forEach(row -> seen.add(row.path("id").asLong()));
+            }
+            assertEquals(engineTotal + 17, seen.size());
+            assertEquals(seen.size(), seen.stream().distinct().count());
+            assertTrue(seen.subList(0, engineTotal).stream().allMatch(id -> id < 0));
+            assertEquals(101L, seen.get(engineTotal));
+            assertEquals(117L, seen.getLast());
+        }
+        assertTrue(sentFilters.stream().noneMatch(f -> f.containsKey("operator")));
+        gpsRows.clear();
+        JsonNode engineOnly = (JsonNode) call(resource(Optional.of("http://gps.example")).symptoms(ORG,
+                query("operator=all&p_page_size=10&p_page=2"))).getEntity();
+        assertEquals(13, engineOnly.path("total_rows").asInt());
+        assertEquals(3, engineOnly.path("data").size());
+        JsonNode fallback = (JsonNode) call(resource(Optional.empty()).symptoms(ORG,
+                query("operator=all&p_page_size=10&p_page=5"))).getEntity();
+        assertEquals(13, fallback.path("total_rows").asInt());
+        assertEquals(0, fallback.path("data").size());
+    }
+
+    @Test
+    void explicitLegacyHistoricalCountsIncludeTheScopedCases() {
+        engineCases.add(openCase(1, 4));
+        engineCases.add(openCase(2, 1));
+        engineCases.operatorRequired.put(2L, false);
+        for (String scope : List.of("required", "all")) {
+            JsonNode counts = (JsonNode) call(resource.conditions(ORG, "2026-01-01", "2099-01-01", scope)).getEntity();
+            assertEquals(3, counts.path("Stable").asInt());
+            assertEquals(1, counts.path("Code Black").asInt());
+            assertEquals(scope.equals("all") ? 1 : 0, counts.path("Under Observation").asInt());
+        }
+        JsonNode unchanged = (JsonNode) call(resource.conditions(ORG, "2026-01-01", "2099-01-01", null)).getEntity();
+        assertFalse(unchanged.has("Code Black"));
     }
 
     @Test

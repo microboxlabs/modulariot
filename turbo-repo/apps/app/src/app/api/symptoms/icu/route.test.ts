@@ -63,6 +63,20 @@ describe("symptom routes read the engine only", () => {
     );
   });
 
+  it("passes the operator filter to the modulith and drops any other value", async () => {
+    await icu(new Request("http://x/i?p_icu_code=4&operator=none"));
+    expect(forwardMock).toHaveBeenLastCalledWith(
+      "/api/v1/orgs/acme/control-tower/map/symptoms?p_page_size=200&p_icu_code=4&operator=none",
+      { method: "GET" }
+    );
+
+    await icu(new Request("http://x/i?operator=junk"));
+    expect(forwardMock).toHaveBeenLastCalledWith(
+      "/api/v1/orgs/acme/control-tower/map/symptoms?p_page_size=200",
+      { method: "GET" }
+    );
+  });
+
   it("passes a modulith error through", async () => {
     forwardMock.mockImplementation(async () =>
       NextResponse.json({ error: "x" }, { status: 503 })

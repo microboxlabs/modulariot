@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.microboxlabs.miot.core.gps.GpsTokenSource;
 import com.microboxlabs.miot.core.iam.ServiceAccountTokenIssuer.IssuedToken;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
@@ -39,9 +40,10 @@ public class ControlTowerMapService {
 
     private static final Logger LOG = Logger.getLogger(ControlTowerMapService.class);
     static final Duration FRESH = Duration.ofSeconds(5);
+    private static final String ICU_CODE = "p_icu_code";
     private static final Set<String> SYMPTOM_TEXT_FILTERS = Set.of("p_asset_id", "p_trip_id", "p_driver_id",
             "p_carrier_id", "p_origin", "p_destination", "p_symptom_name");
-    private static final Set<String> SYMPTOM_NUMBER_FILTERS = Set.of("p_icu_code", "p_page", "p_page_size");
+    private static final Set<String> SYMPTOM_NUMBER_FILTERS = Set.of(ICU_CODE, "p_page", "p_page_size");
     private static final Set<String> SYMPTOM_DATE_FILTERS = Set.of("p_start_date_historic", "p_end_date_historic");
 
     /** The GPS data cannot be read: not configured, no token for the organization, or the database failed. */
@@ -125,6 +127,28 @@ public class ControlTowerMapService {
         Map<String, String> query = new LinkedHashMap<>(sent);
         return call(clientId, "symptoms " + cacheKey(sent), (rpc, bearer) -> rpc.symptoms(bearer, query)
                 .map(ControlTowerMapService::whole));
+    }
+
+    /** The GPS list's exact totals by condition, with the same filters and no rows loaded beyond page one. */
+    public Uni<JsonNode> filteredConditions(String clientId, Map<String, String> filters) {
+        Map<String, String> base = new LinkedHashMap<>(symptomFilters(filters));
+        base.remove(ICU_CODE);
+        base.put("p_page", "1");
+        base.put("p_page_size", "1");
+        List<String> conditions = List.of("Stable", "Under Observation", "Compromised condition",
+                "Critical condition", "Code Black", "Deteriorating condition", "Under Treatment",
+                "Recovery phase", "Remission", "Ignored");
+        Uni<JsonNode> result = Uni.createFrom().item(JsonNodeFactory.instance::objectNode);
+        for (int code = 0; code < conditions.size(); code++) {
+            Map<String, String> query = new LinkedHashMap<>(base);
+            query.put(ICU_CODE, Integer.toString(code));
+            String condition = conditions.get(code);
+            result = result.chain(counts -> symptoms(clientId, query).map(page -> {
+                ((ObjectNode) counts).put(condition, page.path("total_rows").asLong());
+                return counts;
+            }));
+        }
+        return result;
     }
 
     /**

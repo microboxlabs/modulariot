@@ -57,6 +57,8 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String DEFINITION_ID = "definition_id";
     private static final String MEASURE = "measure";
     private static final String SPEED_KMH = "speed_kmh";
+    private static final String UNDER_TREATMENT = "under_treatment";
+    private static final String UNDEFINED_TABLE = "42P01";
 
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.state, o.asset_id, o.at, o.level, o.trip_id,
@@ -667,10 +669,10 @@ public class PgEngineCases implements EngineCaseStore {
         }
         try {
             PgIds.query(pool.get(), MATCHING_COUNTS.formatted(rows), args).forEach(r -> out.add(new OpenCount(
-                    r.getInteger("current_level"), r.getBoolean("under_treatment"), r.getLong("n"))));
+                    r.getInteger("current_level"), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
         } catch (PgException e) {
             // Without the trips or fleet tables no case has a live trip to match.
-            if (!f.byTrip() || !"42P01".equals(e.getSqlState())) {
+            if (!f.byTrip() || !UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
             LOG.debug("Engine cases not counted by trip: trips unavailable", e);
@@ -692,7 +694,7 @@ public class PgEngineCases implements EngineCaseStore {
             var rows = PgIds.query(pool.get(), ON_TRIP, args).iterator();
             return rows.hasNext() ? rows.next().getLong("n") : 0;
         } catch (PgException e) {
-            if (!"42P01".equals(e.getSqlState())) {
+            if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
             LOG.debug("Vehicles on a trip not counted: trips unavailable", e);
@@ -719,7 +721,7 @@ public class PgEngineCases implements EngineCaseStore {
             cases(MATCHING_BY_TRIP, args).forEach(r -> out.add(engineCase(r)));
         } catch (PgException e) {
             // Without the trips or fleet tables no case has a live trip to match.
-            if (!"42P01".equals(e.getSqlState())) {
+            if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
             LOG.debug("Engine cases not filtered by trip: trips unavailable", e);
@@ -739,7 +741,7 @@ public class PgEngineCases implements EngineCaseStore {
     public List<OpenCount> openCounts(String tenantCode) {
         List<OpenCount> out = new ArrayList<>();
         PgIds.query(pool.get(), COUNTS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenCount(
-                r.getInteger("current_level"), r.getBoolean("under_treatment"), r.getLong("n"))));
+                r.getInteger("current_level"), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
         return out;
     }
 
@@ -751,7 +753,7 @@ public class PgEngineCases implements EngineCaseStore {
             if (Boolean.TRUE.equals(r.getBoolean("ignored"))) {
                 ignored += r.getLong("n");
             } else {
-                active.add(new OpenCount(r.getInteger("current_level"), r.getBoolean("under_treatment"),
+                active.add(new OpenCount(r.getInteger("current_level"), r.getBoolean(UNDER_TREATMENT),
                         r.getLong("n")));
             }
         }
@@ -790,7 +792,7 @@ public class PgEngineCases implements EngineCaseStore {
             rows = PgIds.query(pool.get(), TRIP_SYMPTOMS.formatted(TRIP_BY_CODE), args);
         } catch (PgException e) {
             // Without the trips tables a case's trip id is the only way to find the trip.
-            if (!"42P01".equals(e.getSqlState())) {
+            if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
             LOG.debug("Trip codes not resolved: trips unavailable", e);

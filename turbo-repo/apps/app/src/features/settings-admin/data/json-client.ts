@@ -56,6 +56,15 @@ export async function sendEmpty(method: string, url: string): Promise<void> {
   }
 }
 
+/** For a DELETE that answers with what it removed. */
+export async function deleteForJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    throw new ApiError({ status: res.status, url, message: await reason(res) });
+  }
+  return (await res.json()) as T;
+}
+
 /**
  * The upstream's own explanation, when it sent one. The modulith answers a
  * rejected write with a message worth showing ("Unsupported logo type:

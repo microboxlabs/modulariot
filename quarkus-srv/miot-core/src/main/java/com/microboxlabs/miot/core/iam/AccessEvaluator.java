@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.PlatformScope;
 import io.quarkus.security.identity.SecurityIdentity;
+import com.microboxlabs.miot.core.iam.model.IamCustomRole;
 import com.microboxlabs.miot.core.iam.model.IamMembership;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.iam.model.IamTeamMember;
@@ -16,8 +17,10 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.json.JsonValue;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -26,7 +29,8 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
  * The only place that decides what a caller may do in an organization. The org filter, the permission checks on
- * endpoints, MCP tools and the role APIs all ask it. Within a request the decision is computed once.
+ * endpoints, MCP tools and the role APIs all ask it. Read decisions can be cached within a request; grants
+ * re-evaluate authority after acquiring the custom-role lock.
  */
 @ApplicationScoped
 public class AccessEvaluator {
@@ -109,16 +113,16 @@ public class AccessEvaluator {
 
     private Uni<Access> clientAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
         return IamRoleBinding.findFor(scope, IamRoleBinding.CLIENT, List.of(caller.clientId()))
-                .map(bindings -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                        null, caller.clientId().equals(org.tenantClientId), covered(bindings, org, root)), registry));
+                .flatMap(bindings -> resolve(org, root, caller, new AccessRules.Facts(
+                        null, caller.clientId().equals(org.tenantClientId), covered(bindings, org, root))));
     }
 
     private Uni<Access> serviceAccountAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
         boolean own = scope.contains(caller.serviceAccountOrganizationId());
         return IamRoleBinding.findFor(scope, IamRoleBinding.SERVICE_ACCOUNT,
                         List.of(caller.serviceAccountId().toString()))
-                .map(bindings -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                        own ? BaseRole.MEMBER : null, false, covered(bindings, org, root)), registry));
+                .flatMap(bindings -> resolve(org, root, caller, new AccessRules.Facts(
+                        own ? BaseRole.MEMBER : null, false, covered(bindings, org, root))));
     }
 
     private Uni<Access> userAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
@@ -155,8 +159,92 @@ public class AccessEvaluator {
             BaseRole base) {
         return bindingsOf(user, scope)
                 .flatMap(bindings -> platform.isPlatformOwner(caller.email())
-                        .map(owner -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                                base, false, covered(bindings, org, root), Boolean.TRUE.equals(owner)), registry)));
+                        .flatMap(owner -> resolve(org, root, caller, new AccessRules.Facts(
+                                base, false, covered(bindings, org, root), Boolean.TRUE.equals(owner)))));
+    }
+
+    /** Applies {@link AccessRules} after loading the top-level organization's custom roles among the bound ones. */
+    private Uni<Access> resolve(Organization org, Organization root, Caller caller, AccessRules.Facts facts) {
+        List<String> customKeys = facts.boundRoles().stream().filter(OrgRoles::isCustom).toList();
+        return IamCustomRole.findByKeys(root.id, customKeys)
+                .map(rows -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
+                        facts.membershipRole(), facts.tenantClient(), facts.boundRoles(), facts.platformOwner(),
+                        OrgRoles.permissionsByKey(rows)), registry));
+    }
+
+    /**
+     * The roles the top-level organization can bind: the module roles plus its custom roles. Needs an open
+     * session.
+     */
+    public Uni<OrgRoles> roles(Long rootOrganizationId) {
+        return IamCustomRole.findByOrganization(rootOrganizationId).map(rows -> OrgRoles.of(registry, rows));
+    }
+
+    /**
+     * {@link #roles} for a transaction that binds {@code roleKeys}. When one is a custom role, it first takes a
+     * shared lock on the top-level organization's row. {@link CustomRoles} changes roles under the exclusive lock,
+     * so a role cannot be deleted between this check and the insert of its binding.
+     */
+    @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
+    public Uni<OrgRoles> rolesForGrant(Long rootOrganizationId, Collection<String> roleKeys) {
+        if (roleKeys.stream().noneMatch(OrgRoles::isCustom)) {
+            return roles(rootOrganizationId);
+        }
+        return Organization.<Organization>findById(rootOrganizationId, LockModeType.PESSIMISTIC_READ)
+                .flatMap(locked -> freshRoles(rootOrganizationId));
+    }
+
+    private Uni<OrgRoles> freshRoles(Long rootOrganizationId) {
+        return IamCustomRole.findByOrganization(rootOrganizationId).flatMap(rows -> rows.isEmpty()
+                ? Uni.createFrom().item(OrgRoles.system(registry))
+                : Panache.getSession().flatMap(session -> session.refreshAll(rows.toArray()))
+                        .map(ignored -> OrgRoles.of(registry, rows)));
+    }
+
+    /** Fresh authority for a mutation whose caller already holds the root organization lock. */
+    public Uni<Access> freshAccess(Organization root, Caller actor, String permission) {
+        return freshRoles(root.id).flatMap(ignored -> refreshAuthority(root, actor))
+                .flatMap(ignored -> evaluate(root, actor)).invoke(access -> {
+                    if (!access.can(permission)) {
+                        throw new SecurityException("Permission required in the root organization: " + permission);
+                    }
+                });
+    }
+
+    public record Grant(Access access, OrgRoles roles) {
+    }
+
+    /** Re-checks custom-role authority after the shared lock and role refresh, including the mutation permission. */
+    @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
+    public Uni<Grant> grant(Organization root, Caller actor, String permission) {
+        return Organization.<Organization>findById(root.id, LockModeType.PESSIMISTIC_READ)
+                .flatMap(locked -> freshRoles(root.id)).flatMap(roles -> refreshAuthority(root, actor)
+                .flatMap(ignored -> evaluate(root, actor)).map(access -> {
+            if (!access.can(permission)) {
+                throw new SecurityException("Permission required in the root organization: " + permission);
+            }
+            return new Grant(access, roles);
+        }));
+    }
+
+    /** Membership base roles and user status can have changed while the grant waited for its lock. */
+    private Uni<Void> refreshAuthority(Organization root, Caller actor) {
+        if (!actor.isUser()) {
+            return Uni.createFrom().voidItem();
+        }
+        return IamUser.findByEmail(actor.email()).flatMap(user -> {
+            if (user == null) {
+                return Uni.createFrom().voidItem();
+            }
+            return IamMembership.findFor(List.of(root.id), user.id).flatMap(memberships -> Panache.getSession()
+                    .flatMap(session -> {
+                        Uni<Void> refreshed = session.refresh(user);
+                        if (memberships.isEmpty()) {
+                            return refreshed;
+                        }
+                        return refreshed.flatMap(ignored -> session.refreshAll(memberships.toArray()));
+                    }));
+        });
     }
 
     /** The memberships after a join through the caller's email domain; empty when the domain gives none. */

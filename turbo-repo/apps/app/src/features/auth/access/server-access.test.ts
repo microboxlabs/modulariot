@@ -78,6 +78,23 @@ describe("server access", () => {
     );
   });
 
+  it("revokes a custom role permission on the next check for the same session", async () => {
+    const session = freshSession();
+    stubPermissions(["coordination:kanban.view"]);
+    await expect(
+      hasAccess(session as never, ACCESS_RULES.kanban)
+    ).resolves.toBe(true);
+
+    stubPermissions([]);
+    await expect(
+      hasAccess(session as never, ACCESS_RULES.kanban)
+    ).resolves.toBe(false);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/me/access"),
+      expect.objectContaining({ cache: "no-store" })
+    );
+  });
+
   it("denies without the permission", async () => {
     stubPermissions(["calendar:view"]);
 

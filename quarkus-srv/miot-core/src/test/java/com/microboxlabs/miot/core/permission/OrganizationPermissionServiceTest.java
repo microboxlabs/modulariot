@@ -9,6 +9,7 @@ import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.iam.Access;
 import com.microboxlabs.miot.core.iam.BaseRole;
 import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.model.Organization;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.ForbiddenException;
@@ -23,6 +24,7 @@ class OrganizationPermissionServiceTest {
     private static final String OWNER = "owner@example.com";
     private static final String TRAINER = "trainer@example.com";
     private static final String MEMBER = "member@example.com";
+    private static final String CUSTOM_TRAINER = "custom-trainer@example.com";
     private static final String CLIENT = "client-1";
 
     @Test
@@ -84,6 +86,17 @@ class OrganizationPermissionServiceTest {
     }
 
     @Test
+    void aCustomRoleWithTheCatalogPermissionIsAGrantToo() {
+        var service = new OrganizationPermissionService(new FakeRoleService(Map.of()), new OrganizationContext());
+        var org = new Organization();
+        assertTrue(service.isAllowed(org, OrganizationPermissionDefinition.HARNESS_TRAINER, CUSTOM_TRAINER)
+                .await().indefinitely());
+        assertFalse(service.isAllowed(org,
+                OrganizationPermissionDefinition.CONTENT_MULTIMEDIA_REVIEW_AUTO_APPROVE, CUSTOM_TRAINER)
+                .await().indefinitely());
+    }
+
+    @Test
     void aClientHoldsThePermissionThroughItsBindings() {
         var service = new OrganizationPermissionService(new FakeRoleService(Map.of()), new OrganizationContext());
         assertTrue(service.isAllowed(new Organization(), OrganizationPermissionDefinition.HARNESS_TRAINER, CLIENT)
@@ -126,8 +139,17 @@ class OrganizationPermissionServiceTest {
 
         @Override
         public Uni<Access> access(Organization organization, Caller caller) {
+            if (CUSTOM_TRAINER.equals(caller.email())) {
+                return Uni.createFrom().item(new Access(1L, "org", BaseRole.MEMBER, Set.of("custom:trainer"),
+                        Set.of(CoreAccessCatalog.HARNESS_TRAIN)));
+            }
             Set<String> held = TRAINER.equals(caller.email()) ? Set.of("HARNESS_TRAINER") : Set.of();
             return Uni.createFrom().item(new Access(1L, "org", BaseRole.MEMBER, held, Set.of()));
+        }
+
+        @Override
+        public Uni<Boolean> clientCan(Organization organization, String clientId, String permission) {
+            return Uni.createFrom().item(CLIENT.equals(clientId) && CoreAccessCatalog.HARNESS_TRAIN.equals(permission));
         }
 
         @Override

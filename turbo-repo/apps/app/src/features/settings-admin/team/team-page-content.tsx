@@ -23,8 +23,9 @@ import {
   revokeInvitation,
   setBaseRole,
   useAccessCatalog,
+  useCustomRoleManagement,
   useInvitations,
-  useMyAccess,
+  useTeamAccess,
   useServiceAccounts,
   useTeam,
   useTeams,
@@ -43,7 +44,13 @@ import {
 import { TeamInvitationsTab } from "./team-invitations-tab";
 import { TeamKeysTab } from "./team-keys-tab";
 import { TeamMembersTab } from "./team-members-tab";
-import { BASE_ROLES, inviteLinkOf, labelOf, teamActions } from "./team-model";
+import {
+  BASE_ROLES,
+  canManageCustomRoles,
+  inviteLinkOf,
+  labelOf,
+  teamActions,
+} from "./team-model";
 import { TeamRolesTab } from "./team-roles-tab";
 import { TeamTeamsTab } from "./team-teams-tab";
 import {
@@ -159,7 +166,8 @@ export default function TeamPageContent({
   const d = dict?.team as I18nRecord;
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
   const { data: session } = useSession();
-  const { can } = useMyAccess();
+  const { access, can, accessError, accessLoading } = useTeamAccess();
+  const { data: roleManagement } = useCustomRoleManagement();
   const team = useTeam();
   const { canInvite, canEditInvitationEmail, ...allowed } = teamActions(can);
   const teamsAllowed = {
@@ -169,8 +177,13 @@ export default function TeamPageContent({
   const canManageKeys = can("apikeys:manage");
 
   const invitations = useInvitations(can("members:read"));
-  const { data: catalog } = useAccessCatalog();
-  const roles = catalog?.roles ?? NO_ROLES;
+  const {
+    data: catalog,
+    moduleCatalog,
+    error: catalogError,
+  } = useAccessCatalog();
+  const rolesCatalog = catalog ?? (catalogError ? moduleCatalog : undefined);
+  const roles = rolesCatalog?.roles ?? NO_ROLES;
 
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>(() => tabOf(searchParams.get("tab")));
@@ -365,8 +378,12 @@ export default function TeamPageContent({
             {error}
           </Alert>
         )}
-        {team.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
-        {team.isLoading && <Spinner className="mx-auto" />}
+        {(team.error || catalogError || accessError) && (
+          <Alert color="gray">{tr("loadFailed", d)}</Alert>
+        )}
+        {(team.isLoading || accessLoading) && !accessError && (
+          <Spinner className="mx-auto" />
+        )}
 
         {tab === "members" && team.data && (
           <TeamMembersTab
@@ -409,10 +426,18 @@ export default function TeamPageContent({
         {tab === "keys" && canManageKeys && (
           <TeamKeysTab query={keyQuery} roles={roles} lang={lang} d={d} />
         )}
-        {tab === "roles" && catalog && (
+        {tab === "roles" && rolesCatalog && (
           <TeamRolesTab
-            catalog={catalog}
+            catalog={rolesCatalog}
             query={permissionQuery}
+            canManageRoles={
+              !!catalog &&
+              !accessError &&
+              !accessLoading &&
+              canManageCustomRoles(access) &&
+              roleManagement?.canManage === true
+            }
+            can={can}
             lang={lang}
             d={d}
           />

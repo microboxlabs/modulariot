@@ -449,6 +449,35 @@ describe("teams and API keys", () => {
     );
     expect(defaultTokenNeedsGpsRole(account([], "cred-1"))).toBe(false);
   });
+  it("does not warn when a custom role gives the GPS permission", () => {
+    const account = { roles: ["custom:gps"], tokenCredentialRef: null };
+    const withRole = (permissions: string[]) =>
+      ({
+        baseRoles: [],
+        permissions: [],
+        roles: [
+          {
+            key: "custom:gps",
+            module: "custom",
+            label: {},
+            permissions,
+            custom: true,
+          },
+        ],
+      }) as AccessCatalog;
+    expect(
+      defaultTokenNeedsGpsRole(
+        account as ServiceAccount,
+        withRole(["gps:track.write"])
+      )
+    ).toBe(false);
+    expect(
+      defaultTokenNeedsGpsRole(
+        account as ServiceAccount,
+        withRole(["gps:view"])
+      )
+    ).toBe(true);
+  });
 });
 
 describe("member access page", () => {

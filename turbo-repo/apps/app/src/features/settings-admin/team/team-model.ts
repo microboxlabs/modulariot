@@ -6,6 +6,10 @@ import type {
   CatalogPermission,
   CatalogRole,
   CreatedInvitation,
+  CustomRole,
+  CustomRoleRequest,
+  MyAccess,
+  RoleHolders,
   ServiceAccount,
   TeamMember,
 } from "./team.types";
@@ -62,6 +66,8 @@ export interface MatrixColumn {
   key: string;
   label: string;
   base: boolean;
+  /** A role the organization defined. */
+  custom: boolean;
   permissions: Set<string>;
 }
 
@@ -75,12 +81,14 @@ export function matrixColumns(
     key: role,
     label: baseLabels[role],
     base: true,
+    custom: false,
     permissions: basePermissions(role, catalog.permissions),
   }));
   const modules = catalog.roles.map((role: CatalogRole) => ({
     key: role.key,
     label: labelOf(role, lang),
     base: false,
+    custom: role.custom === true,
     permissions: new Set(role.permissions),
   }));
   return [...base, ...modules];
@@ -251,12 +259,109 @@ export const NON_OWNER_ROLES: BaseRole[] = BASE_ROLES.filter(
   (r) => r !== "OWNER"
 );
 
+/** The module custom roles are listed under. No module role belongs to it. */
+export const CUSTOM_MODULE = "custom";
+
+/** The catalog with the organization's custom roles added after the module roles. */
+export function withCustomRoles(
+  catalog: AccessCatalog,
+  custom: readonly CustomRole[]
+): AccessCatalog {
+  if (custom.length === 0) return catalog;
+  return {
+    ...catalog,
+    roles: [
+      ...catalog.roles.filter((r) => !r.custom),
+      ...custom.map((role) => ({
+        key: role.key,
+        module: CUSTOM_MODULE,
+        label: role.label,
+        description: role.description,
+        permissions: role.permissions,
+        custom: true,
+      })),
+    ],
+  };
+}
+
+export function customRolesOf(catalog: AccessCatalog): CatalogRole[] {
+  return catalog.roles.filter((r) => r.custom);
+}
+
+/** Only an Owner or Admin creates, edits or deletes custom roles; the backend checks the same. */
+export function canManageCustomRoles(
+  access: Pick<MyAccess, "baseRole"> | undefined
+): boolean {
+  return access?.baseRole === "OWNER" || access?.baseRole === "ADMIN";
+}
+
+/**
+ * Whether the caller may put the permission in a custom role: they must hold
+ * it, except explicit-only ones. One the role already has can always stay.
+ */
+export function canGivePermission(
+  permission: CatalogPermission,
+  can: (permission: string) => boolean,
+  alreadyInRole: boolean
+): boolean {
+  return alreadyInRole || permission.explicitOnly || can(permission.key);
+}
+
+/**
+ * How many members, teams and service accounts hold a custom role, and lose it
+ * when it is deleted, as text for the dictionary. M2M clients count as service accounts.
+ */
+export function holderCounts(holders: RoleHolders | undefined) {
+  return {
+    members: String(holders?.members ?? 0),
+    teams: String(holders?.teams ?? 0),
+    serviceAccounts: String(
+      (holders?.serviceAccounts ?? 0) + (holders?.clients ?? 0)
+    ),
+  };
+}
+
+export interface CustomRoleForm {
+  nameEs: string;
+  nameEn: string;
+  descriptionEs: string;
+  descriptionEn: string;
+  permissions: ReadonlySet<string>;
+}
+
+/** The form's values as the request the API takes; the English name defaults to the Spanish one. */
+export function customRoleRequest(form: CustomRoleForm): CustomRoleRequest {
+  const description: Record<string, string> = {};
+  if (form.descriptionEs.trim()) description.es = form.descriptionEs.trim();
+  if (form.descriptionEn.trim()) description.en = form.descriptionEn.trim();
+  return {
+    label: {
+      es: form.nameEs.trim(),
+      en: form.nameEn.trim() || form.nameEs.trim(),
+    },
+    description,
+    permissions: [...form.permissions].sort((a, b) => a.localeCompare(b)),
+  };
+}
+
+/** Adds or removes a custom role in an editor's selection, where each custom role is its own entry. */
+export function toggleCustomRole(
+  selection: Record<string, string>,
+  roleKey: string,
+  selected: boolean
+): Record<string, string> {
+  return { ...selection, [roleKey]: selected ? roleKey : "" };
+}
+
 /** One chosen role per module (or none) flattened to the role keys sent. */
 export function selectedRoles(byModule: Record<string, string>): string[] {
   return Object.values(byModule).filter((key) => key !== "");
 }
 
-/** The roles a member holds, one per module, for an editor that picks one. */
+/**
+ * The roles a member holds, one per module, for an editor that picks one.
+ * Custom roles are not exclusive: each is its own entry, keyed by the role.
+ */
 export function rolesByModule(
   roles: readonly string[],
   catalog: readonly CatalogRole[]
@@ -264,7 +369,7 @@ export function rolesByModule(
   const out: Record<string, string> = {};
   for (const key of roles) {
     const role = catalog.find((r) => r.key === key);
-    if (role) out[role.module] = key;
+    if (role) out[role.custom ? role.key : role.module] = key;
   }
   return out;
 }
@@ -356,7 +461,7 @@ export function expiryDays(text: string): number | undefined | null {
 export function catalogModules(catalog: AccessCatalog): CatalogModule[] {
   const out: CatalogModule[] = [...(catalog.modules ?? [])];
   for (const role of catalog.roles) {
-    if (!out.some((m) => m.key === role.module)) {
+    if (!role.custom && !out.some((m) => m.key === role.module)) {
       out.push({ key: role.module, label: {}, description: {}, ai: false });
     }
   }
@@ -426,14 +531,22 @@ export function lastKeyUse(account: ServiceAccount): string | null {
 /** The modulith's `GpsAccessCatalog.PUBLISHER`: the role the organization's application issues tokens to. */
 export const GPS_PUBLISHER_ROLE = "GPS_PUBLISHER";
 
+/** The permission that role gives, which the modulith checks before issuing the token. */
+const GPS_TRACK_WRITE = "gps:track.write";
+
 /**
  * The account uses the organization's application (no credential linked) but cannot get a token from it: that
  * application issues tokens only to accounts that may send GPS positions.
  */
-export function defaultTokenNeedsGpsRole(account: ServiceAccount): boolean {
-  return (
-    account.tokenCredentialRef === null &&
-    !account.roles.includes(GPS_PUBLISHER_ROLE)
+export function defaultTokenNeedsGpsRole(
+  account: ServiceAccount,
+  catalog?: AccessCatalog
+): boolean {
+  if (account.tokenCredentialRef !== null) return false;
+  if (account.roles.includes(GPS_PUBLISHER_ROLE)) return false;
+  // Any role that gives the permission will do, such as a custom role.
+  return !(
+    catalog && rolePermissions(account.roles, catalog).has(GPS_TRACK_WRITE)
   );
 }
 

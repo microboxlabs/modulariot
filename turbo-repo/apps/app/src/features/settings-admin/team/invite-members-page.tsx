@@ -22,6 +22,7 @@ import {
   CARD,
   DetailShell,
   EffectivePermissions,
+  CustomRolesCard,
   ModuleCard,
   SectionTitle,
 } from "./module-access";
@@ -30,11 +31,12 @@ import {
   invite,
   pendingInvitationEmails,
   useAccessCatalog,
-  useMyAccess,
+  useTeamAccess,
 } from "./team-api";
 import {
   BASE_ROLES,
   catalogModules,
+  customRolesOf,
   effectivePermissions,
   invalidEmails,
   inviteAll,
@@ -70,7 +72,7 @@ export default function InviteMembersPage({
   lang,
 }: InviteMembersPageProps) {
   const d = dict?.team as I18nRecord;
-  const { access, accessError, can } = useMyAccess();
+  const { access, accessError, can } = useTeamAccess();
   const { data: catalog, error } = useAccessCatalog();
   const teamPath = `/${lang}/users/settings/team`;
   const [links, setLinks] = useState<InviteLink[] | null>(null);
@@ -383,6 +385,15 @@ function InviteForm({
                 onChange={(key) => setByModule({ ...byModule, [mod.key]: key })}
               />
             ))}
+            <CustomRolesCard
+              roles={customRolesOf(catalog)}
+              catalog={catalog}
+              selection={byModule}
+              disabled={busy}
+              lang={lang}
+              d={d}
+              onChange={setByModule}
+            />
           </section>
         </div>
         <aside className="lg:col-span-1">

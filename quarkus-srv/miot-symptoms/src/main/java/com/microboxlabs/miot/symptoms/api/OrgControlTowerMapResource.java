@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
+import com.microboxlabs.miot.core.iam.CoordinatorAccessCatalog;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.map.ControlTowerMapService;
@@ -120,8 +121,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @Operation(operationId = "listMapPositions", summary = "Last position of each of the organization's assets",
             description = "Each position has signal: the lost-signal detector's state of its asset (state online, "
                     + "offline or unknown; offline_since, last_frame_at, silence_s, expected_s when known).")
-    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
-            params = "organizationId")
+    @PermissionsAllowed(value = {ControlTowerAccessCatalog.VIEW, CoordinatorAccessCatalog.GEOGRAPHIC_VIEW},
+            permission = OrgPermission.class, params = "organizationId")
     public Uni<Response> positions(@PathParam("organizationId") String organizationId) {
         String tenant = tenantCode(organizationId);
         return answer(() -> map.positions(tenantContext.getClientId())
@@ -154,8 +155,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @GET
     @Path("/summary")
     @Operation(operationId = "getMapSummary", summary = "Service, fleet and symptom totals shown beside the map")
-    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
-            params = "organizationId")
+    @PermissionsAllowed(value = {ControlTowerAccessCatalog.VIEW, CoordinatorAccessCatalog.GEOGRAPHIC_VIEW},
+            permission = OrgPermission.class, params = "organizationId")
     public Uni<Response> summary(@PathParam("organizationId") String organizationId) {
         String tenant = tenantCode(organizationId);
         if (!legacy) {

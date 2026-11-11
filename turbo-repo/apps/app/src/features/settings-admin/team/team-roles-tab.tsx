@@ -5,6 +5,7 @@ import { Badge } from "flowbite-react";
 import { HiCheck } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { CustomRolesSection } from "./custom-roles-section";
 import { filterPermissions } from "./team-filters";
 import { NoMatches } from "./team-members-tab";
 import { groupByModule, labelOf, matrixColumns } from "./team-model";
@@ -13,17 +14,49 @@ import type { AccessCatalog, BaseRole } from "./team.types";
 interface TeamRolesTabProps {
   readonly catalog: AccessCatalog;
   readonly query?: string;
+  /** Owner or Admin: may create, edit and delete custom roles. */
+  readonly canManageRoles?: boolean;
+  readonly can?: (permission: string) => boolean;
   readonly lang: string;
   readonly d: I18nRecord;
 }
 
-/** Read-only matrix: permissions (grouped by module) × base and module roles. */
+const NO_PERMISSION = () => false;
+
+/**
+ * The organization's custom roles, then a read-only matrix: permissions
+ * (grouped by module) × base, module and custom roles.
+ */
 export function TeamRolesTab({
   catalog,
   query = "",
+  canManageRoles = false,
+  can = NO_PERMISSION,
   lang,
   d,
 }: TeamRolesTabProps) {
+  return (
+    <div className="flex flex-col gap-6">
+      <CustomRolesSection
+        catalog={catalog}
+        canManage={canManageRoles}
+        can={can}
+        lang={lang}
+        d={d}
+      />
+      <RolesMatrix catalog={catalog} query={query} lang={lang} d={d} />
+    </div>
+  );
+}
+
+function RolesMatrix({
+  catalog,
+  query,
+  lang,
+  d,
+}: Pick<TeamRolesTabProps, "catalog" | "lang" | "d"> & {
+  readonly query: string;
+}) {
   const baseLabels: Record<BaseRole, string> = {
     OWNER: tr("baseOWNER", d),
     ADMIN: tr("baseADMIN", d),
@@ -52,6 +85,15 @@ export function TeamRolesTab({
                   className={`px-3 py-3 text-center text-xs font-medium text-gray-500 ${column.base ? "bg-gray-100 dark:bg-gray-700" : ""}`}
                 >
                   {column.label}
+                  {column.custom && (
+                    <Badge
+                      color="purple"
+                      size="xs"
+                      className="mx-auto mt-1 w-fit"
+                    >
+                      {tr("customRoleBadge", d)}
+                    </Badge>
+                  )}
                 </th>
               ))}
             </tr>

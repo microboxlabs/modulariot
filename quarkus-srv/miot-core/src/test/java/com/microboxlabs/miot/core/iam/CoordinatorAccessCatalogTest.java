@@ -31,6 +31,15 @@ class CoordinatorAccessCatalogTest {
     }
 
     @Test
+    void aReviewerSeesTheBoardTheFinishedServicesAndTheGeographicView() {
+        RoleDef reviewer = registry.role(CoordinatorAccessCatalog.REVIEWER).orElseThrow();
+        assertEquals(Set.of(CoordinatorAccessCatalog.KANBAN_VIEW, CoordinatorAccessCatalog.FINISHED_VIEW,
+                CoordinatorAccessCatalog.GEOGRAPHIC_VIEW), reviewer.permissions());
+        assertTrue(reviewer.description().get("es").contains("vista geográfica"));
+        assertTrue(reviewer.description().get("en").contains("geographic view"));
+    }
+
+    @Test
     void eachStageRoleWorksItsOwnStage() {
         Set<String> executive =
                 registry.permissionsOf(BaseRole.MEMBER, List.of(CoordinatorAccessCatalog.CONTROL_TOWER_EXECUTIVE));

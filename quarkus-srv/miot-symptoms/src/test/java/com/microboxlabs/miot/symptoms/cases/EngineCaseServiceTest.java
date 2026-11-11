@@ -154,6 +154,17 @@ class EngineCaseServiceTest {
         assertEquals(service.caseCounts(TENANT, null, null).path("Code Black").asLong(),
                 page.path("total_rows").asLong());
         assertEquals(200, service.casesPage(TENANT, Map.of()).path("total_rows").asInt());
+        JsonNode bounded = service.casesPage(TENANT, Map.of("p_page_size", "999999999"),
+                EngineCaseStore.OperatorScope.ALL);
+        assertEquals(200, bounded.path("page_size").asInt());
+        assertEquals(200, bounded.path("data").size());
+        assertEquals(215, bounded.path("total_rows").asInt());
+        assertEquals(2, bounded.path("total_pages").asInt());
+        JsonNode last = service.casesPage(TENANT, Map.of("p_page_size", "999999999", "p_page", "2"),
+                EngineCaseStore.OperatorScope.ALL);
+        assertEquals(15, last.path("data").size());
+        assertEquals(999999999, service.casesPage(TENANT, Map.of("p_page_size", "999999999"))
+                .path("page_size").asInt());
     }
 
     @Test

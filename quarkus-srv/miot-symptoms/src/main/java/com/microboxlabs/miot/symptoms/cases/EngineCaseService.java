@@ -413,6 +413,7 @@ public class EngineCaseService {
     }
 
     private static final int PAGE_SIZE = 10;
+    private static final int MAX_PAGE_SIZE = 200;
 
     /**
      * One page of the symptom list from the cases alone, in the GPS database function's shape, with totals counted
@@ -432,7 +433,8 @@ public class EngineCaseService {
         if (Integer.valueOf(6).equals(filter.level())) {
             filter = filter.withOpenTreatment();
         }
-        int size = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
+        int requestedSize = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
+        int size = operator == null ? requestedSize : Math.min(requestedSize, MAX_PAGE_SIZE);
         int page = Math.max(1, number(filters.get(PAGE), 1));
         EngineCaseStore.CasePage result;
         if (operator == null) {

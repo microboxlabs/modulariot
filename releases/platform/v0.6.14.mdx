@@ -1,0 +1,43 @@
+# 🔔 Release Notes v0.6.14 — ModularIoT
+
+### Fecha: 11/11/2026
+
+**Objetivo**: Esta versión mejora la clasificación de viajes y la gestión de casos de síntomas para operadores. Los cambios corresponden exclusivamente al milestone OSS de ModularIoT.
+
+## 🚀 Evolutivos
+
+- **📍 Aplicación de condiciones por tipo de viaje en síntomas**
+  - **Punto clave**: Se publicaron versiones PATCH de los síntomas aplicables para que los casos de viajes que no sean de tipo `v` no se asignen a la bandeja del operador.
+  - **Detalle técnico**: Se añadió la condición `operatorWhen` para los orígenes `gps_signal` y `trip_check`; las condiciones existentes se conservan y se combinan con la nueva. Los viajes `v` en estado SCHEDULED quedan fuera del alcance.
+
+## 🐛 Correcciones
+
+- **🐛 Tipo de viaje incorrecto en `trip_live`**
+  - **Impacto**: Todos los viajes aparecían como tipo `v`, afectando la prioridad y las reglas de síntomas.
+  - **Solución**: El tipo se obtiene del `order_type` del mandato principal, en minúsculas, y se actualiza en cada refresco del viaje.
+
+## 📊 Beneficios
+
+- Los operadores reciben en su bandeja los casos de síntomas correspondientes a viajes de tipo `v`.
+- Los casos de viajes de otros tipos ya no se derivan a esa bandeja por error.
+- Las reglas de síntomas pueden evaluar el tipo real del viaje.
+- La prioridad de los viajes refleja su tipo correcto.
+- Los cambios respetan las condiciones `operatorWhen` que ya existían.
+- Se mantiene fuera de alcance la asignación de viajes `v` en estado SCHEDULED.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.14`
+- App: `app@v0.6.14` — con cambios.
+- Docs: `docs@v0.6.14` — con cambios.
+- Web: `web@v0.6.14` — con cambios.
+- Modulith: `modulith@v0.5.52` — con cambios.
+- Harness: `harness@v0.1.15` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build de la aplicación y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión corrige la información de tipo de viaje que utilizan las reglas y prioridades, y ajusta la asignación de casos de síntomas a operadores según ese tipo.
+
+Con ello, la gestión de casos refleja mejor las condiciones definidas para los viajes, mientras se mantienen los límites de alcance establecidos para esta versión OSS.

@@ -215,8 +215,7 @@ public class ApiKeyService {
         return IamRoleBinding.findFor(List.of(rootId), IamRoleBinding.SERVICE_ACCOUNT,
                         List.of(account.id.toString()))
                 .flatMap(bindings -> {
-                    Set<String> held = new TreeSet<>();
-                    bindings.forEach(b -> held.add(b.roleKey));
+                    Set<String> held = TeamRules.unexpired(bindings);
                     return access(slug, actor).flatMap(access -> evaluator.rolesForGrant(rootId, held)
                             .invoke(orgRoles -> TeamRules.checkGrantBound(access, held, orgRoles)));
                 }).replaceWithVoid();

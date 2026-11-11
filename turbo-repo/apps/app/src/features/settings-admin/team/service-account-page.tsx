@@ -217,6 +217,7 @@ function AccountEditor({
           />
           <TokenCredentialSection
             account={account}
+            catalog={catalog}
             organization={organization}
             d={d}
             onChanged={onChanged}
@@ -304,6 +305,7 @@ function AccountHeader({ account, lang, d, onDelete }: AccountHeaderProps) {
 
 interface TokenCredentialSectionProps {
   readonly account: ServiceAccount;
+  readonly catalog: AccessCatalog;
   readonly organization: string | undefined;
   readonly d: I18nRecord;
   readonly onChanged: () => void;
@@ -312,6 +314,7 @@ interface TokenCredentialSectionProps {
 
 function TokenCredentialSection({
   account,
+  catalog,
   organization,
   d,
   onChanged,
@@ -328,7 +331,7 @@ function TokenCredentialSection({
     : null;
   const current = account.tokenCredentialRef;
   const linked = options?.find((c) => c.id === current);
-  const needsGpsRole = defaultTokenNeedsGpsRole(account);
+  const needsGpsRole = defaultTokenNeedsGpsRole(account, catalog);
   const [saving, setSaving] = useState(false);
 
   const change = async (ref: string | null) => {

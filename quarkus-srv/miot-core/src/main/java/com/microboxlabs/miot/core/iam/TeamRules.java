@@ -1,7 +1,10 @@
 package com.microboxlabs.miot.core.iam;
 
+import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Who may change whom. No I/O. Every refusal is an {@link IllegalStateException} (409) for a state the
@@ -81,6 +84,15 @@ public final class TeamRules {
      */
     public static void checkGrantBound(Access actor, Collection<String> boundRoleKeys, OrgRoles roles) {
         checkGrant(actor, boundRoleKeys.stream().filter(key -> roles.permissions(key).isPresent()).toList(), roles);
+    }
+
+    /** The role keys of the bindings that have not expired, on any scope. */
+    public static Set<String> unexpired(Collection<IamRoleBinding> bindings) {
+        Instant now = Instant.now();
+        Set<String> keys = new TreeSet<>();
+        bindings.stream().filter(b -> b.expiresAt == null || b.expiresAt.isAfter(now))
+                .forEach(b -> keys.add(b.roleKey));
+        return keys;
     }
 
     /** The base role to invite with, checked like a change from nothing. */

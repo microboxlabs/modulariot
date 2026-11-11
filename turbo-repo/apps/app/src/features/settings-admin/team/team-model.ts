@@ -531,14 +531,22 @@ export function lastKeyUse(account: ServiceAccount): string | null {
 /** The modulith's `GpsAccessCatalog.PUBLISHER`: the role the organization's application issues tokens to. */
 export const GPS_PUBLISHER_ROLE = "GPS_PUBLISHER";
 
+/** The permission that role gives, which the modulith checks before issuing the token. */
+const GPS_TRACK_WRITE = "gps:track.write";
+
 /**
  * The account uses the organization's application (no credential linked) but cannot get a token from it: that
  * application issues tokens only to accounts that may send GPS positions.
  */
-export function defaultTokenNeedsGpsRole(account: ServiceAccount): boolean {
-  return (
-    account.tokenCredentialRef === null &&
-    !account.roles.includes(GPS_PUBLISHER_ROLE)
+export function defaultTokenNeedsGpsRole(
+  account: ServiceAccount,
+  catalog?: AccessCatalog
+): boolean {
+  if (account.tokenCredentialRef !== null) return false;
+  if (account.roles.includes(GPS_PUBLISHER_ROLE)) return false;
+  // Any role that gives the permission will do, such as a custom role.
+  return !(
+    catalog && rolePermissions(account.roles, catalog).has(GPS_TRACK_WRITE)
   );
 }
 

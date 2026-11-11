@@ -328,7 +328,7 @@ public class TeamService {
                     .flatMap(saved -> joins
                             ? bridge.memberAdded(invitation.organizationId, me)
                             : Uni.createFrom().voidItem())
-                    .flatMap(saved -> stillBindable(invitation.organizationId, invitation.roles()))
+                    .flatMap(saved -> stillBindable(invitation))
                     .flatMap(roles -> addRoles(invitation.organizationId, user.id, roles, me))
                     .flatMap(ignored -> {
                         invitation.status = IamInvitation.ACCEPTED;
@@ -346,13 +346,19 @@ public class TeamService {
 
     // --- helpers ---
 
-    /** The invited roles without custom roles the organization deleted since the invitation was sent. */
-    private Uni<List<String>> stillBindable(Long rootId, List<String> roles) {
-        if (roles.stream().noneMatch(OrgRoles::isCustom)) {
-            return Uni.createFrom().item(roles);
+    /**
+     * The invited roles without custom roles the organization deleted since the invitation was sent. Deleting a role
+     * rewrites the invitation, so it is read again once the organization is locked.
+     */
+    private Uni<List<String>> stillBindable(IamInvitation invitation) {
+        if (invitation.roles().stream().noneMatch(OrgRoles::isCustom)) {
+            return Uni.createFrom().item(invitation.roles());
         }
-        return evaluator.rolesForGrant(rootId, roles).map(orgRoles -> roles.stream()
-                .filter(key -> !OrgRoles.isCustom(key) || orgRoles.custom().containsKey(key)).toList());
+        return evaluator.rolesForGrant(invitation.organizationId, invitation.roles())
+                .flatMap(orgRoles -> Panache.getSession().flatMap(session -> session.refresh(invitation))
+                        .map(refreshed -> invitation.roles().stream()
+                                .filter(key -> !OrgRoles.isCustom(key) || orgRoles.custom().containsKey(key))
+                                .toList()));
     }
 
     private Uni<CreatedInvitation> inviteOne(Organization root, String email, BaseRole base, Set<String> roles,

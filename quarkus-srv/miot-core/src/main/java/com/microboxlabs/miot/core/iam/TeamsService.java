@@ -179,8 +179,7 @@ public class TeamsService {
         }
         return IamRoleBinding.findFor(List.of(rootId), IamRoleBinding.TEAM, List.of(team.id.toString()))
                 .flatMap(bindings -> {
-                    Set<String> held = new TreeSet<>();
-                    bindings.forEach(b -> held.add(b.roleKey));
+                    Set<String> held = TeamRules.unexpired(bindings);
                     return evaluator.evaluate(slug, actor).flatMap(access -> evaluator.rolesForGrant(rootId, held)
                             .invoke(orgRoles -> TeamRules.checkGrantBound(access, held, orgRoles)));
                 }).replaceWithVoid();

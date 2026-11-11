@@ -296,7 +296,7 @@ class CustomRolesApiTest {
     }
 
     @Test
-    void aRoleAnAdminCannotGrantIsNotReachedThroughATeamAKeyOrTheRoleHoldersApi() {
+    void aRoleAnAdminCannotGrantIsNotReachedThroughATeamAKeyOrTheRoleHoldersApi() throws SQLException {
         String admin = userId(ADMIN);
         String owners = create(OWNER, ROLES, "Dueños", CoreAccessCatalog.OWNERS_MANAGE)
                 .statusCode(201).extract().path("key");
@@ -332,6 +332,36 @@ class CustomRolesApiTest {
         given().header("Authorization", bearer(OWNER)).contentType("application/json")
                 .body(Map.of("name", "otra")).when().post(BASE + "/service-accounts/" + account + "/keys")
                 .then().statusCode(201);
+
+        // An expired binding gives nothing, so it does not block the admin.
+        exec("UPDATE miot_iam.iam_role_binding SET expires_at = now() - interval '1 day' WHERE role_key = '"
+                + owners + "'");
+        given().header("Authorization", bearer(ADMIN)).contentType("application/json")
+                .body(Map.of("name", "tercera")).when().post(BASE + "/service-accounts/" + account + "/keys")
+                .then().statusCode(201);
+        given().header("Authorization", bearer(ADMIN)).contentType("application/json")
+                .body(Map.of("userIds", List.of(admin))).when().put(BASE + "/teams/" + team + "/members")
+                .then().statusCode(200);
+    }
+
+    @Test
+    void anAcceptedInvitationBindsOnlyRolesThatStillExist() {
+        String kept = create(OWNER, ROLES, "Auditor", CoreAccessCatalog.AUDIT_READ)
+                .statusCode(201).extract().path("key");
+        var gone = create(OWNER, ROLES, "Mapa", GEOGRAPHIC).statusCode(201).extract();
+        String invitee = "invited@roles.test";
+        String token = given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("emails", List.of(invitee), "baseRole", "MEMBER",
+                        "roles", List.of(kept, gone.<String>path("key"))))
+                .when().post(BASE + "/invitations").then().statusCode(201).extract().path("[0].token");
+        given().header("Authorization", bearer(OWNER)).when().delete(ROLES + "/" + gone.path("id"))
+                .then().statusCode(200);
+        // The same key again, now with another permission.
+        create(OWNER, ROLES, "Mapa", CoreAccessCatalog.MEMBERS_INVITE).statusCode(201);
+
+        given().header("Authorization", bearer(invitee)).contentType("application/json")
+                .body(Map.of("token", token)).when().post("/api/v1/me/invitations/accept")
+                .then().statusCode(200).body("member.roles", contains(kept));
     }
 
     @Test

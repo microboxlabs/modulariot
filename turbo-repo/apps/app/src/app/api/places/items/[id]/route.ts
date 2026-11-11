@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { forwardToQuarkus } from "@/app/api/utils/quarkus-proxy";
+import { forwardToStreamhubModulith } from "@/app/api/utils/streamhub-modulith-proxy";
 import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
 import { placeRequestSchema } from "@/features/places/data/saved-places";
 
@@ -34,5 +34,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
   if (!body.success) {
     return NextResponse.json({ error: "Invalid place" }, { status: 400 });
   }
-  return forwardToQuarkus(path, { method: "PUT", body: body.data });
+  return forwardToStreamhubModulith(path, {
+    method: "PUT",
+    body: body.data,
+  });
 }

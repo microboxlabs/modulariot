@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { forwardToQuarkus } from "@/app/api/utils/quarkus-proxy";
+import { forwardToStreamhubModulith } from "@/app/api/utils/streamhub-modulith-proxy";
 import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
 
 /**
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing code" }, { status: 400 });
   }
   const org = encodeURIComponent(scope.scope.activeOrg.slug);
-  return forwardToQuarkus(
+  return forwardToStreamhubModulith(
     `/api/v1/orgs/${org}/places/items/code-usage?code=${encodeURIComponent(code)}`
   );
 }

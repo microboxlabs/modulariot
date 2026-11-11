@@ -138,7 +138,7 @@ public class ControlTowerMapService {
         List<String> conditions = List.of("Stable", "Under Observation", "Compromised condition",
                 "Critical condition", "Code Black", "Deteriorating condition", "Under Treatment",
                 "Recovery phase", "Remission", "Ignored");
-        Uni<JsonNode> result = Uni.createFrom().item(() -> JsonNodeFactory.instance.objectNode());
+        Uni<JsonNode> result = Uni.createFrom().item(JsonNodeFactory.instance::objectNode);
         for (int code = 0; code < conditions.size(); code++) {
             Map<String, String> query = new LinkedHashMap<>(base);
             query.put(ICU_CODE, Integer.toString(code));

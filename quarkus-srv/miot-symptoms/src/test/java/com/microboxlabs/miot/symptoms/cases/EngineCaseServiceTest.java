@@ -116,6 +116,26 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void scopedCountsSeparateHeldCasesFromActiveLevels() {
+        store.operatorLevels.put(PANIC, Set.of(4));
+        store.add(engineCase(1, "DEMO01", 1, 0));
+        store.add(engineCase(2, "DEMO02", 4, 0));
+        store.add(engineCase(3, "DEMO03", 1, 0));
+        store.add(engineCase(4, "DEMO04", 4, 0));
+        store.add(at(5, "DEMO05", OPENED, OPENED.plusSeconds(60)));
+        store.held.addAll(List.of(1L, 2L, 5L));
+        for (EngineCaseStore.OperatorScope scope : EngineCaseStore.OperatorScope.values()) {
+            JsonNode counts = service.caseCounts(TENANT, null, null, scope);
+            assertEquals(scope == EngineCaseStore.OperatorScope.NONE ? 0 : 1, counts.path("Code Black").asInt());
+            assertEquals(scope == EngineCaseStore.OperatorScope.REQUIRED ? 0 : 1,
+                    counts.path("Under Observation").asInt());
+            assertEquals(scope == EngineCaseStore.OperatorScope.ALL ? 2 : 1, counts.path("Ignored").asInt());
+            long active = counts.path("Code Black").asLong() + counts.path("Under Observation").asLong();
+            assertEquals(active, service.casesPage(TENANT, Map.of(), scope).path("total_rows").asLong());
+        }
+    }
+
+    @Test
     void theOperatorFilterAlsoAppliesToARange() {
         store.operatorLevels.put(PANIC, Set.of(2, 3, 4));
         store.add(engineCase(12, "DEMO01", 1, 0));

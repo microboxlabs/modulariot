@@ -900,10 +900,10 @@ class OrgControlTowerMapResourceTest {
         }
         failedGpsPage = "2";
         for (String scope : List.of("required", "all")) {
-            Response response = call(resource(Optional.of("http://gps.example")).symptoms(ORG,
+            Response pageResponse = call(resource(Optional.of("http://gps.example")).symptoms(ORG,
                     query("operator=" + scope + "&p_page_size=10&p_page=3")));
-            assertEquals(200, response.getStatus(), "a second GPS failure also keeps the engine fallback");
-            JsonNode page = (JsonNode) response.getEntity();
+            assertEquals(200, pageResponse.getStatus(), "a second GPS failure also keeps the engine fallback");
+            JsonNode page = (JsonNode) pageResponse.getEntity();
             assertEquals(12, page.path("total_rows").asInt(), "only the complete engine total survives");
             assertEquals(3, page.path("page").asInt());
             assertEquals(10, page.path("page_size").asInt());

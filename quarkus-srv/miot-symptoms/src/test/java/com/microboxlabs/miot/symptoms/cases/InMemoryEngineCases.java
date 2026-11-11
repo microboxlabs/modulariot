@@ -172,13 +172,16 @@ public class InMemoryEngineCases implements EngineCaseStore {
         if (down) {
             throw new IllegalStateException("database down");
         }
-        List<OpenCount> active = cases.stream().filter(c -> c.closedAt() == null
+        List<EngineCase> scopedCases = cases.stream().filter(c -> c.closedAt() == null
                         && (operator == OperatorScope.ALL || needsOperator(c) == (operator == OperatorScope.REQUIRED)))
+                .toList();
+        List<OpenCount> active = scopedCases.stream().filter(c -> !held.contains(c.id()))
                 .collect(Collectors.groupingBy(c -> List.of(c.level(), c.treatments() > 0), Collectors.counting()))
                 .entrySet().stream()
                 .map(e -> new OpenCount((Integer) e.getKey().get(0), (Boolean) e.getKey().get(1), e.getValue()))
                 .toList();
-        return new TowerCounts(active, ignoredCount(tenantCode));
+        long ignored = scopedCases.stream().filter(c -> held.contains(c.id())).count();
+        return new TowerCounts(active, ignored);
     }
 
     @Override

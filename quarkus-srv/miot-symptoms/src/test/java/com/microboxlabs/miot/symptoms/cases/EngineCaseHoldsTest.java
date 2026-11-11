@@ -27,12 +27,7 @@ class EngineCaseHoldsTest {
     private static final Instant NOW = Instant.parse("2026-11-03T12:00:00Z");
     private static final UUID SPEEDING = UUID.randomUUID();
 
-    private final InMemoryEngineCases store = new InMemoryEngineCases() {
-        @Override
-        public long ignoredCount(String tenantCode) {
-            return 2;
-        }
-    };
+    private final InMemoryEngineCases store = new InMemoryEngineCases();
     private final EngineCaseService service = new EngineCaseService(store, (t, a, d) -> { }, t -> null,
             Clock.fixed(NOW, ZoneOffset.UTC));
 
@@ -75,6 +70,9 @@ class EngineCaseHoldsTest {
 
     @Test
     void theCountsCarryTheIgnoredCases() {
+        store.add(engineCase(1));
+        store.add(engineCase(2));
+        store.held.addAll(List.of(1L, 2L));
         JsonNode counts = service.withOpenCaseCounts(TENANT, JsonNodeFactory.instance.objectNode());
         assertEquals(2, counts.path("Ignored").asLong());
     }

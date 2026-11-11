@@ -4,12 +4,15 @@ import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.trips.domain.Location;
+import com.microboxlabs.miot.trips.domain.Mandate;
+import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripLiveProjection;
 import com.microboxlabs.miot.trips.store.AssignmentStore;
 import com.microboxlabs.miot.trips.store.CargoStore;
 import com.microboxlabs.miot.trips.store.LocationStore;
+import com.microboxlabs.miot.trips.store.MandateStore;
 import com.microboxlabs.miot.trips.store.Pg;
 import com.microboxlabs.miot.trips.store.StageStore;
 import com.microboxlabs.miot.trips.store.TripLiveStore;
@@ -22,6 +25,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,23 +42,26 @@ public class TripLiveProjector {
 
     private static final int TYPE_LOAD_MAX = 255;
     private static final int LABEL_MAX = 128;
+    private static final String PRIMARY = "primary";
 
     private final TripStore trips;
     private final StageStore stages;
     private final AssignmentStore assignments;
     private final CargoStore cargo;
     private final LocationStore locations;
+    private final MandateStore mandates;
     private final TripLiveStore live;
     private final FleetResources fleet;
 
     @Inject
     public TripLiveProjector(TripStore trips, StageStore stages, AssignmentStore assignments, CargoStore cargo,
-            LocationStore locations, TripLiveStore live, FleetResources fleet) {
+            LocationStore locations, MandateStore mandates, TripLiveStore live, FleetResources fleet) {
         this.trips = trips;
         this.stages = stages;
         this.assignments = assignments;
         this.cargo = cargo;
         this.locations = locations;
+        this.mandates = mandates;
         this.live = live;
         this.fleet = fleet;
     }
@@ -84,9 +91,10 @@ public class TripLiveProjector {
         List<Stage> plan = stages.listBySubject(tenantCode, Stage.SUBJECT_TRIP, tripId);
         Optional<Location> origin = location(tenantCode, t.originId());
         Optional<Location> destination = location(tenantCode, t.destinationId());
+        List<MandateRef> linked = trips.mandatesOf(tenantCode, tripId);
 
-        live.upsert(new TripLiveProjection(t.id(), tenantCode, mandateCodes(tenantCode, tripId),
-                truck.map(FleetResources.Vehicle::licensePlate).orElse(null),
+        live.upsert(new TripLiveProjection(t.id(), tenantCode, mandateCodes(linked),
+                truck.map(FleetResources.Vehicle::licensePlate).orElse(null), tripType(tenantCode, linked),
                 origin.map(l -> truncate(l.name(), LABEL_MAX)).orElse(null),
                 destination.map(l -> truncate(l.name(), LABEL_MAX)).orElse(null),
                 origin.map(Location::geofenceId).orElse(null), destination.map(Location::geofenceId).orElse(null),
@@ -119,8 +127,8 @@ public class TripLiveProjector {
                 .flatMap(Optional::stream).findFirst();
     }
 
-    private String mandateCodes(String tenantCode, UUID tripId) {
-        List<Map<String, String>> codes = trips.mandatesOf(tenantCode, tripId).stream()
+    private static String mandateCodes(List<MandateRef> linked) {
+        List<Map<String, String>> codes = linked.stream()
                 .map(m -> {
                     Map<String, String> code = new LinkedHashMap<>();
                     code.put("mandate_id", m.mandateId());
@@ -128,6 +136,18 @@ public class TripLiveProjector {
                     return code;
                 }).toList();
         return codes.isEmpty() ? null : Pg.json(codes);
+    }
+
+    /**
+     * The order type of the trip's primary mandate, else of its first linked mandate, trimmed and lower-cased;
+     * null when the trip has no mandate or the type is blank.
+     */
+    private String tripType(String tenantCode, List<MandateRef> linked) {
+        return linked.stream().filter(m -> PRIMARY.equals(m.role())).findFirst()
+                .or(() -> linked.stream().findFirst())
+                .flatMap(m -> mandates.find(tenantCode, UUID.fromString(m.mandateId())))
+                .map(Mandate::orderType).map(String::strip).filter(type -> !type.isEmpty())
+                .map(type -> type.toLowerCase(Locale.ROOT)).orElse(null);
     }
 
     private Optional<Location> location(String tenantCode, String locationId) {

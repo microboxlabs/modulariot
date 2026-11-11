@@ -9,6 +9,7 @@ public record TripLiveProjection(
         String tenantCode,
         String mandateCodes,
         String assetId,
+        String tripType,
         String originGeofenceLabel,
         String destinationGeofenceLabel,
         Integer originGeofenceId,

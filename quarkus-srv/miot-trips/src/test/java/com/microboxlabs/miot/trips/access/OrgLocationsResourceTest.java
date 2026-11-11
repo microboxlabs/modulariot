@@ -371,7 +371,7 @@ class OrgLocationsResourceTest {
     @Test
     void resolvingTheSameLinkStillRefreshesLiveTripsAfterAnUnlockedRead() {
         java.util.concurrent.atomic.AtomicInteger refreshes = new java.util.concurrent.atomic.AtomicInteger();
-        TripLiveProjector live = new TripLiveProjector(null, null, null, null, null, null, null) {
+        TripLiveProjector live = new TripLiveProjector(null, null, null, null, null, null, null, null) {
             @Override
             public void refreshAll(String tenant, java.util.Collection<java.util.UUID> ids) {
                 assertEquals(TENANT, tenant);

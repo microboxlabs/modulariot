@@ -32,7 +32,7 @@ class TripGeofenceServiceTest {
 
     private void trip(Integer origin, Integer destination, List<Integer> stops) {
         world.tripLiveStore.upsert(new TripLiveProjection(id.toString(), "tenant-a", "ORDER-1", "TRUCK-1",
-                null, null, origin, destination, stops, "planned", null, null, null, null, null, null,
+                null, null, null, origin, destination, stops, "planned", null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null));
     }
 

@@ -73,8 +73,8 @@ public class InMemoryTripsWorld {
 
     /** The projector over this world's stores. */
     public TripLiveProjector projector(FleetResources fleet) {
-        return new TripLiveProjector(tripStore, stageStore, assignmentStore, cargoStore, locationStore, tripLiveStore,
-                fleet);
+        return new TripLiveProjector(tripStore, stageStore, assignmentStore, cargoStore, locationStore, mandateStore,
+                tripLiveStore, fleet);
     }
 
     public List<AuditEvent> auditTrail() {
@@ -727,7 +727,7 @@ public class InMemoryTripsWorld {
     }
 
     private static TripLiveRow row(TripLiveProjection p) {
-        return new TripLiveRow(p.tripId(), p.tenantCode(), p.mandateCodes(), p.assetId(), "v",
+        return new TripLiveRow(p.tripId(), p.tenantCode(), p.mandateCodes(), p.assetId(), p.tripType(),
                 p.originGeofenceId(), p.destinationGeofenceId(), p.originGeofenceLabel(),
                 p.destinationGeofenceLabel(), p.stopGeofenceIds(), p.status(), p.driverId(),
                 p.driverName(), p.driverContactPhone(), p.secondDriverId() != null, p.secondDriverId(),

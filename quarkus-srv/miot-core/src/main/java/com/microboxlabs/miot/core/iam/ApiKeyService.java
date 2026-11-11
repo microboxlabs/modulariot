@@ -137,7 +137,7 @@ public class ApiKeyService {
         Set<String> roles = new TreeSet<>(request.roles() == null ? List.of() : request.roles());
         Duration ttl = ttl(request.expiresInDays());
         return Panache.withTransaction(() -> root(slug, actor).flatMap(root -> access(root.slug, actor).flatMap(access ->
-                evaluator.grant(root, actor, roles, CoreAccessCatalog.APIKEYS_MANAGE).flatMap(grant -> {
+                evaluator.grant(root, actor, CoreAccessCatalog.APIKEYS_MANAGE).flatMap(grant -> {
             TeamRules.checkGrant(grant.access(), roles, grant.roles());
             IamServiceAccount account = new IamServiceAccount();
             account.id = UUID.randomUUID();
@@ -167,7 +167,7 @@ public class ApiKeyService {
     public Uni<ServiceAccountView> setRoles(String slug, Caller actor, UUID accountId, List<String> requested) {
         Set<String> roles = new TreeSet<>(requested == null ? List.of() : requested);
         return Panache.withTransaction(() -> root(slug, actor).flatMap(root -> access(root.slug, actor).flatMap(access ->
-                account(root.id, accountId).flatMap(account -> evaluator.grant(root, actor, roles, CoreAccessCatalog.APIKEYS_MANAGE)
+                account(root.id, accountId).flatMap(account -> evaluator.grant(root, actor, CoreAccessCatalog.APIKEYS_MANAGE)
                         .flatMap(grant -> {
                     TeamRules.checkGrant(grant.access(), roles, grant.roles());
                     return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 and principalId = ?3 "
@@ -216,7 +216,7 @@ public class ApiKeyService {
                         List.of(account.id.toString()))
                 .flatMap(bindings -> {
                     Set<String> held = TeamRules.unexpired(bindings);
-                    return root(slug).flatMap(root -> evaluator.grant(root, actor, held, CoreAccessCatalog.APIKEYS_MANAGE))
+                    return root(slug).flatMap(root -> evaluator.grant(root, actor, CoreAccessCatalog.APIKEYS_MANAGE))
                             .invoke(grant -> TeamRules.checkGrantBound(grant.access(), held, grant.roles()));
                 }).replaceWithVoid();
     }

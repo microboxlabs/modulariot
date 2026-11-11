@@ -191,18 +191,34 @@ public class AccessEvaluator {
             return roles(rootOrganizationId);
         }
         return Organization.<Organization>findById(rootOrganizationId, LockModeType.PESSIMISTIC_READ)
-                .flatMap(locked -> IamCustomRole.findByOrganization(rootOrganizationId).flatMap(rows -> rows.isEmpty()
-                        ? Uni.createFrom().item(OrgRoles.system(registry))
-                        : Panache.getSession().flatMap(session -> session.refreshAll(rows.toArray()))
-                                .map(ignored -> OrgRoles.of(registry, rows))));
+                .flatMap(locked -> freshRoles(rootOrganizationId));
+    }
+
+    private Uni<OrgRoles> freshRoles(Long rootOrganizationId) {
+        return IamCustomRole.findByOrganization(rootOrganizationId).flatMap(rows -> rows.isEmpty()
+                ? Uni.createFrom().item(OrgRoles.system(registry))
+                : Panache.getSession().flatMap(session -> session.refreshAll(rows.toArray()))
+                        .map(ignored -> OrgRoles.of(registry, rows)));
+    }
+
+    /** Fresh authority for a mutation whose caller already holds the root organization lock. */
+    public Uni<Access> freshAccess(Organization root, Caller actor, String permission) {
+        return freshRoles(root.id).flatMap(ignored -> refreshAuthority(root, actor))
+                .flatMap(ignored -> evaluate(root, actor)).invoke(access -> {
+                    if (!access.can(permission)) {
+                        throw new SecurityException("Permission required in the root organization: " + permission);
+                    }
+                });
     }
 
     public record Grant(Access access, OrgRoles roles) {
     }
 
     /** Re-checks custom-role authority after the shared lock and role refresh, including the mutation permission. */
-    public Uni<Grant> grant(Organization root, Caller actor, Collection<String> roleKeys, String permission) {
-        return rolesForGrant(root.id, roleKeys).flatMap(roles -> refreshAuthority(root, actor)
+    @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
+    public Uni<Grant> grant(Organization root, Caller actor, String permission) {
+        return Organization.<Organization>findById(root.id, LockModeType.PESSIMISTIC_READ)
+                .flatMap(locked -> freshRoles(root.id)).flatMap(roles -> refreshAuthority(root, actor)
                 .flatMap(ignored -> evaluate(root, actor)).map(access -> {
             if (!access.can(permission)) {
                 throw new SecurityException("Permission required in the root organization: " + permission);

@@ -89,11 +89,11 @@ export function useCustomRoleManagement() {
 
 /** Team records and bindings belong to the root, so their affordances use root permissions. */
 export function useTeamAccess() {
-  const { data, error } = useCustomRoleManagement();
+  const { data, error, isLoading } = useCustomRoleManagement();
   const access = data?.access;
   const can = (permission: string) =>
-    access?.permissions.includes(permission) ?? false;
-  return { access, accessError: error, can };
+    !error && (access?.permissions.includes(permission) ?? false);
+  return { access, accessError: error, accessLoading: isLoading, can };
 }
 
 /**

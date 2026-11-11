@@ -119,7 +119,7 @@ public class OrganizationRoleService {
         if (!OrgRoles.isCustom(role)) {
             return Uni.createFrom().voidItem();
         }
-        return evaluator.root(org).flatMap(root -> evaluator.grant(root, Caller.user(actor), List.of(role),
+        return evaluator.root(org).flatMap(root -> evaluator.grant(root, Caller.user(actor),
                         com.microboxlabs.miot.core.iam.CoreAccessCatalog.MEMBERS_UPDATE))
                 .invoke(grant -> {
                     try {

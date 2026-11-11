@@ -31,6 +31,8 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /** Custom roles end to end on a native organization with one sub-account, and a second organization. */
 @QuarkusTest
@@ -267,6 +269,60 @@ class CustomRolesApiTest {
         given().header("Authorization", bearer(ANA)).when().get(ACCESS).then().statusCode(200)
                 .body("baseRole", is("MEMBER"))
                 .body("permissions", not(hasItem(CoreAccessCatalog.OWNERS_MANAGE)));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+    void memberMutationsUseCurrentAuthorityAndTargetRole(boolean revokeActor, boolean remove)
+            throws SQLException, InterruptedException, ExecutionException, TimeoutException {
+        String ana = userId(ANA);
+        String actor = revokeActor ? ANA : ADMIN;
+        String target = revokeActor ? userId(ADMIN) : ana;
+        String changedId = target;
+        String value = "OWNER";
+        String updateSql = "UPDATE miot_iam.iam_membership SET base_role = ? WHERE user_id = ?::uuid";
+        if (revokeActor) {
+            var manager = create(OWNER, ROLES, "Gestor de miembros", CoreAccessCatalog.MEMBERS_UPDATE,
+                    CoreAccessCatalog.MEMBERS_REMOVE, CoreAccessCatalog.OWNERS_MANAGE).statusCode(201).extract();
+            bind(OWNER, "USER", ana, manager.path("key"), null).statusCode(201);
+            changedId = manager.path("id");
+            value = GEOGRAPHIC;
+            updateSql = "UPDATE miot_iam.iam_custom_role SET permission_keys = ? WHERE id = ?::uuid";
+        }
+        CompletableFuture<io.restassured.response.Response> change = null;
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try (var lock = c.prepareStatement("SELECT id FROM miot_core.organizations WHERE slug = ? FOR UPDATE");
+                    var update = c.prepareStatement(updateSql)) {
+                lock.setString(1, ORG);
+                try (var rows = lock.executeQuery()) {
+                    rows.next();
+                }
+                update.setString(1, value);
+                update.setString(2, changedId);
+                update.executeUpdate();
+                change = CompletableFuture.supplyAsync(() -> {
+                    var request = given().header("Authorization", bearer(actor));
+                    if (remove) {
+                        return request.when().delete(BASE + "/members/" + target);
+                    }
+                    return request.contentType("application/json").body(Map.of("baseRole", "MEMBER"))
+                            .when().patch(BASE + "/members/" + target);
+                });
+                await().atMost(Duration.ofSeconds(15)).until(() -> count(
+                        "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                                + "AND wait_event_type = 'Lock' AND query LIKE '%organizations%'") > 0);
+                c.commit();
+            } finally {
+                c.rollback();
+            }
+        } finally {
+            if (change != null) {
+                assertEquals(403, change.get(30, TimeUnit.SECONDS).statusCode());
+            }
+        }
+        given().header("Authorization", bearer(OWNER)).when().get(BASE + "/members").then().statusCode(200)
+                .body("members.find { it.userId == '" + target + "' }.baseRole", is(revokeActor ? "ADMIN" : "OWNER"));
     }
 
     @Test

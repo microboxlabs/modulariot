@@ -61,7 +61,7 @@ export default function MemberAccessPage({
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
   const router = useRouter();
   const { data: session } = useSession();
-  const { can } = useTeamAccess();
+  const { can, accessError, accessLoading } = useTeamAccess();
   const team = useTeam();
   const { data: catalog, error: catalogError } = useAccessCatalog();
 
@@ -75,10 +75,11 @@ export default function MemberAccessPage({
       backHref={teamPath}
       backLabel={tr("backToTeam", d)}
     >
-      {(team.isLoading || !catalog) && !team.error && !catalogError && (
-        <Spinner className="mx-auto" />
-      )}
-      {(team.error || catalogError) && (
+      {(team.isLoading || !catalog || accessLoading) &&
+        !team.error &&
+        !catalogError &&
+        !accessError && <Spinner className="mx-auto" />}
+      {(team.error || catalogError || accessError) && (
         <Alert color="gray">{tr("loadFailed", d)}</Alert>
       )}
       {team.data && catalog && !member && (
@@ -88,7 +89,7 @@ export default function MemberAccessPage({
           </p>
         </div>
       )}
-      {team.data && catalog && member && (
+      {team.data && catalog && member && !accessError && !accessLoading && (
         <MemberEditor
           key={member.userId}
           member={member}

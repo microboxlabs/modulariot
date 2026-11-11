@@ -66,13 +66,13 @@ export default function TeamAccessPage({
 }: TeamAccessPageProps) {
   const d = dict?.team as I18nRecord;
   const router = useRouter();
-  const { can } = useTeamAccess();
+  const { can, accessError, accessLoading } = useTeamAccess();
   const teams = useTeams(true);
   const org = useTeam();
   const { data: catalog, error: catalogError } = useAccessCatalog();
   const teamsPath = `/${lang}/users/settings/team?tab=teams`;
   const team = teams.data?.find((t) => t.id === teamId);
-  const loadError = teams.error ?? catalogError;
+  const loadError = teams.error ?? catalogError ?? accessError;
 
   return (
     <DetailShell
@@ -81,7 +81,7 @@ export default function TeamAccessPage({
       backHref={teamsPath}
       backLabel={tr("backToTeams", d)}
     >
-      {(teams.isLoading || !catalog) && !loadError && (
+      {(teams.isLoading || !catalog || accessLoading) && !loadError && (
         <Spinner className="mx-auto" />
       )}
       {loadError && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
@@ -92,7 +92,7 @@ export default function TeamAccessPage({
           </p>
         </div>
       )}
-      {team && catalog && (
+      {team && catalog && !loadError && !accessLoading && (
         <TeamEditor
           key={team.id}
           team={team}

@@ -180,7 +180,7 @@ public class TeamsService {
         return IamRoleBinding.findFor(List.of(rootId), IamRoleBinding.TEAM, List.of(team.id.toString()))
                 .flatMap(bindings -> {
                     Set<String> held = TeamRules.unexpired(bindings);
-                    return root(slug).flatMap(root -> evaluator.grant(root, actor, held, CoreAccessCatalog.TEAMS_MANAGE))
+                    return root(slug).flatMap(root -> evaluator.grant(root, actor, CoreAccessCatalog.TEAMS_MANAGE))
                             .invoke(grant -> TeamRules.checkGrantBound(grant.access(), held, grant.roles()));
                 }).replaceWithVoid();
     }
@@ -208,7 +208,7 @@ public class TeamsService {
         Set<String> wanted = new TreeSet<>(request == null || request.roles() == null ? List.of() : request.roles());
         return Panache.withTransaction(() -> root(slug).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.MEMBERS_UPDATE)).flatMap(root -> evaluator.evaluate(root, actor)
                 .flatMap(access -> team(root.id, teamId).flatMap(team -> evaluator
-                        .grant(root, actor, wanted, CoreAccessCatalog.MEMBERS_UPDATE).flatMap(grant -> {
+                        .grant(root, actor, CoreAccessCatalog.MEMBERS_UPDATE).flatMap(grant -> {
                     TeamRules.checkGrant(grant.access(), wanted, grant.roles());
                     return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 and principalId = ?3 "
                                     + "and scopeKind = ?4", root.id, IamRoleBinding.TEAM, team.id.toString(),
@@ -251,7 +251,7 @@ public class TeamsService {
         String kind = principalKind(request);
         UUID principal = uuid(request.principalId());
         return Panache.withTransaction(() -> root(slug).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.MEMBERS_UPDATE)).flatMap(root -> evaluator.evaluate(root, actor)
-                .flatMap(access -> evaluator.grant(root, actor, List.of(request.role()), CoreAccessCatalog.MEMBERS_UPDATE)
+                .flatMap(access -> evaluator.grant(root, actor, CoreAccessCatalog.MEMBERS_UPDATE)
                         .flatMap(grant -> {
                     TeamRules.checkGrant(grant.access(), List.of(request.role()), grant.roles());
                     return principalExists(root.id, kind, principal)

@@ -166,7 +166,7 @@ export default function TeamPageContent({
   const d = dict?.team as I18nRecord;
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
   const { data: session } = useSession();
-  const { access, can } = useTeamAccess();
+  const { access, can, accessError, accessLoading } = useTeamAccess();
   const { data: roleManagement } = useCustomRoleManagement();
   const team = useTeam();
   const { canInvite, canEditInvitationEmail, ...allowed } = teamActions(can);
@@ -378,10 +378,12 @@ export default function TeamPageContent({
             {error}
           </Alert>
         )}
-        {(team.error || catalogError) && (
+        {(team.error || catalogError || accessError) && (
           <Alert color="gray">{tr("loadFailed", d)}</Alert>
         )}
-        {team.isLoading && <Spinner className="mx-auto" />}
+        {(team.isLoading || accessLoading) && !accessError && (
+          <Spinner className="mx-auto" />
+        )}
 
         {tab === "members" && team.data && (
           <TeamMembersTab
@@ -430,6 +432,8 @@ export default function TeamPageContent({
             query={permissionQuery}
             canManageRoles={
               !!catalog &&
+              !accessError &&
+              !accessLoading &&
               canManageCustomRoles(access) &&
               roleManagement?.canManage === true
             }

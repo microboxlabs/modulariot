@@ -120,8 +120,9 @@ public class TeamService {
         }
         BaseRole next = baseRole(request.baseRole());
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.MEMBERS_UPDATE)).flatMap(root ->
-                evaluator.evaluate(root, actor).flatMap(access -> membership(root.id, userId).flatMap(m ->
-                        lockedOwnerCount(root.id).flatMap(owners -> {
+                lockedOwnerCount(root.id).flatMap(owners -> evaluator.freshAccess(root, actor, CoreAccessCatalog.MEMBERS_UPDATE)
+                        .flatMap(access -> membership(root.id, userId)
+                                .call(m -> Panache.getSession().flatMap(session -> session.refresh(m))).flatMap(m -> {
                             BaseRole current = BaseRole.valueOf(m.baseRole);
                             TeamRules.checkBaseRoleChange(access, current, next, owners);
                             m.baseRole = next.name();
@@ -136,7 +137,7 @@ public class TeamService {
         Set<String> wanted = new TreeSet<>(request == null || request.roles() == null ? List.of() : request.roles());
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.MEMBERS_UPDATE)).flatMap(root ->
                 evaluator.evaluate(root, actor).flatMap(access -> membership(root.id, userId).flatMap(m ->
-                        evaluator.grant(root, actor, wanted, CoreAccessCatalog.MEMBERS_UPDATE).flatMap(grant -> {
+                        evaluator.grant(root, actor, CoreAccessCatalog.MEMBERS_UPDATE).flatMap(grant -> {
                             TeamRules.checkGrant(grant.access(), wanted, grant.roles());
                             return replaceRoles(root.id, userId, wanted, actor.name())
                                     .flatMap(ignored -> view(root.id, m));
@@ -145,8 +146,9 @@ public class TeamService {
 
     public Uni<Void> remove(String slug, Caller actor, UUID userId) {
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.MEMBERS_REMOVE)).flatMap(root ->
-                evaluator.evaluate(root, actor).flatMap(access -> membership(root.id, userId).flatMap(m ->
-                        lockedOwnerCount(root.id).flatMap(owners -> {
+                lockedOwnerCount(root.id).flatMap(owners -> evaluator.freshAccess(root, actor, CoreAccessCatalog.MEMBERS_REMOVE)
+                        .flatMap(access -> membership(root.id, userId)
+                                .call(m -> Panache.getSession().flatMap(session -> session.refresh(m))).flatMap(m -> {
                             TeamRules.checkRemoval(access, BaseRole.valueOf(m.baseRole), owners);
                             return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 "
                                             + "and principalId = ?3", root.id, IamRoleBinding.USER, userId.toString())
@@ -203,7 +205,7 @@ public class TeamService {
             emails.add(normalized);
         }
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root -> requireRoot(root, actor, CoreAccessCatalog.MEMBERS_INVITE)).flatMap(root ->
-                evaluator.evaluate(root, actor).flatMap(access -> evaluator.grant(root, actor, roles, CoreAccessCatalog.MEMBERS_INVITE)
+                evaluator.evaluate(root, actor).flatMap(access -> evaluator.grant(root, actor, CoreAccessCatalog.MEMBERS_INVITE)
                         .flatMap(grant -> {
                     TeamRules.checkInvite(grant.access(), base, roles, grant.roles());
                     Uni<List<CreatedInvitation>> chain = Uni.createFrom().item(new ArrayList<>());

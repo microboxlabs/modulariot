@@ -108,6 +108,7 @@ const data = vi.hoisted(() => {
     accounts,
     canManageKeys: true,
     catalogError: null as Error | null,
+    accessError: null as Error | null,
   };
 });
 
@@ -123,8 +124,11 @@ vi.mock("@/features/common/components/Breadcrumb/Breadcrumb", () => ({
 }));
 vi.mock("./team-api", () => ({
   useTeamAccess: () => ({
+    accessError: data.accessError,
+    accessLoading: false,
     can: (permission: string) =>
-      permission !== "apikeys:manage" || data.canManageKeys,
+      !data.accessError &&
+      (permission !== "apikeys:manage" || data.canManageKeys),
   }),
   useTeam: () => ({
     data: { organization: "example-organization", members: data.members },
@@ -182,9 +186,21 @@ beforeEach(() => {
   data.members[1].source = "NATIVE";
   data.canManageKeys = true;
   data.catalogError = null;
+  data.accessError = null;
 });
 
 describe("TeamPageContent members filters", () => {
+  it("reports a root-access failure and hides management actions", () => {
+    data.accessError = new Error("root access unavailable");
+    renderPage();
+    expect(
+      screen.getByText(en.pages.userSettings.team.loadFailed)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: en.pages.userSettings.team.invite })
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps the read-only module matrix and reports a custom-role loading failure", async () => {
     data.catalogError = new Error("custom roles unavailable");
     renderPage();

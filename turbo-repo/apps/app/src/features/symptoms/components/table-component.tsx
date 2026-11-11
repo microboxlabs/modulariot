@@ -1,7 +1,10 @@
 import { Pagination } from "flowbite-react";
 import TableItem from "./table-item";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { useSymptomsTable } from "@/features/common/providers/client-api.provider";
+import {
+  useSymptomCounts,
+  useSymptomsTable,
+} from "@/features/common/providers/client-api.provider";
 import EmptyTable from "./empty-table";
 import CustomTable from "@/features/common/components/custom-table/custom-table";
 import {
@@ -30,6 +33,9 @@ export default function SymptomsTable({
   // Feed the "Nombre del síntoma" dropdown from the same query minus the
   // symptom filter, so selecting one symptom doesn't hide all the others.
   usePublishSymptomNames(query);
+
+  // The constellation shows only on an empty page; read its counts only then.
+  const { counts } = useSymptomCounts(query, tableData?.data.length === 0);
 
   if (loading) {
     return (
@@ -74,7 +80,7 @@ export default function SymptomsTable({
     : 0;
 
   if (tableData?.data.length === 0) {
-    return <EmptyTable dict={dict} />;
+    return <EmptyTable dict={dict} counts={counts} />;
   }
 
   const header = !compact

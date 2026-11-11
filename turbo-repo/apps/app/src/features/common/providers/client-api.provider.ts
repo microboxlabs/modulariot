@@ -18,6 +18,7 @@ import {
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
 import { FetcherError, FetcherErrorCode } from "./fetcher.types";
 import {
+  SymptomConstellationCounts,
   SymptomDashboard,
   SymptomTableResponse,
 } from "../../symptoms/types/symptoms";
@@ -370,6 +371,62 @@ export function useSymptomsTable({
     error,
     refetch: mutate,
   };
+}
+
+/**
+ * Open cases by condition and vehicles on a trip for the symptoms table's
+ * filters, refreshed with the table. The condition and the page are not sent:
+ * every condition is counted. Nothing is read while `enabled` is false.
+ */
+export function useSymptomCounts(
+  {
+    trip_id = "",
+    asset_id = "",
+    driver_id = "",
+    carrier_id = "",
+    origin = "",
+    destination = "",
+    symptom_name = "",
+    date_range,
+  }: {
+    trip_id?: string;
+    asset_id?: string;
+    driver_id?: string;
+    carrier_id?: string;
+    origin?: string;
+    destination?: string;
+    symptom_name?: string;
+    date_range?: { from: string; to?: string };
+  },
+  enabled = true
+) {
+  const params = new URLSearchParams();
+  const filters: [string, string | undefined][] = [
+    ["trip_id", trip_id],
+    ["asset_id", asset_id],
+    ["driver_id", driver_id],
+    ["carrier_id", carrier_id],
+    ["origin", origin],
+    ["destination", destination],
+    ["symptom_name", symptom_name],
+    ["from", date_range?.from],
+    ["to", date_range?.to],
+  ];
+  for (const [name, value] of filters) {
+    if (value) params.set(name, value);
+  }
+  const search = params.size ? `?${params}` : "";
+
+  const { data, error, isLoading } = useSWR<
+    SymptomConstellationCounts,
+    FetcherError
+  >(enabled ? `/app/api/symptoms/counts${search}` : null, fetcher, {
+    refreshInterval: 30000,
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  });
+
+  return { counts: data, loading: isLoading, error };
 }
 
 export function useSymptomsIcu(condition?: string) {

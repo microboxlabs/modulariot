@@ -17,8 +17,10 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.json.JsonValue;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -175,6 +177,20 @@ public class AccessEvaluator {
      */
     public Uni<OrgRoles> roles(Long rootOrganizationId) {
         return IamCustomRole.findByOrganization(rootOrganizationId).map(rows -> OrgRoles.of(registry, rows));
+    }
+
+    /**
+     * {@link #roles} for a transaction that binds {@code roleKeys}. When one is a custom role, it first takes a
+     * shared lock on the top-level organization's row. {@link CustomRoles} changes roles under the exclusive lock,
+     * so a role cannot be deleted between this check and the insert of its binding.
+     */
+    @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
+    public Uni<OrgRoles> rolesForGrant(Long rootOrganizationId, Collection<String> roleKeys) {
+        if (roleKeys.stream().noneMatch(OrgRoles::isCustom)) {
+            return roles(rootOrganizationId);
+        }
+        return Organization.<Organization>findById(rootOrganizationId, LockModeType.PESSIMISTIC_READ)
+                .flatMap(locked -> roles(rootOrganizationId));
     }
 
     /** The memberships after a join through the caller's email domain; empty when the domain gives none. */

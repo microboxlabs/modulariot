@@ -10,6 +10,7 @@ import com.microboxlabs.miot.core.iam.BaseRole;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.IamDirectory;
 import com.microboxlabs.miot.core.iam.OrgRoles;
+import com.microboxlabs.miot.core.iam.TeamRules;
 import com.microboxlabs.miot.core.iam.model.IamCustomRole;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.model.Organization;
@@ -106,8 +107,41 @@ public class OrganizationRoleService {
         String actor = organizationContext.getUserEmail();
         return Panache.withTransaction(() -> findOrganization(organizationSlug)
                 .flatMap(org -> requireBase(org, needed)
+                        .flatMap(ignored -> requireGrantable(org, role, actor))
                         .flatMap(ignored -> write(root(org), role, assignees, actor))
                         .flatMap(ignored -> load(root(org), role, false))));
+    }
+
+    /**
+     * A custom role may hold any permission, so the caller must be able to grant it, as on the Team API: an Admin
+     * cannot hand out a role with permissions an Admin lacks.
+     */
+    private Uni<Void> requireGrantable(Organization org, String role, String actor) {
+        if (!OrgRoles.isCustom(role)) {
+            return Uni.createFrom().voidItem();
+        }
+        return evaluator.evaluate(org, Caller.user(actor))
+                .flatMap(access -> evaluator.rolesForGrant(root(org), List.of(role)).map(orgRoles -> {
+                    try {
+                        TeamRules.checkGrant(access, List.of(role), orgRoles);
+                    } catch (SecurityException e) {
+                        throw new ForbiddenException(e.getMessage());
+                    } catch (IllegalArgumentException e) {
+                        throw new BadRequestException("Unknown organization role: " + role);
+                    }
+                    return null;
+                }));
+    }
+
+    /**
+     * Whether the M2M client holds {@code permission} through a role bound to it. Unlike {@link #access}, this
+     * also answers for a client that is not the organization's own.
+     */
+    public Uni<Boolean> clientCan(Organization organization, String clientId, String permission) {
+        return clientRoles(organization, clientId).flatMap(roles -> evaluator.root(organization)
+                .flatMap(root -> evaluator.roles(root.id))
+                .map(orgRoles -> roles.stream().anyMatch(key -> orgRoles.permissions(key)
+                        .map(granted -> granted.contains(permission)).orElse(false))));
     }
 
     /** {@link #get} for a platform owner, who need not belong to the organization. */

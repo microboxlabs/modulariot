@@ -275,6 +275,103 @@ class CustomRolesApiTest {
     }
 
     @Test
+    void aMemberWhoManagesMembersThroughARoleCannotMakeAdmins() {
+        String ana = userId(ANA);
+        String admin = userId(ADMIN);
+        String manager = create(OWNER, ROLES, "Gestor", CoreAccessCatalog.MEMBERS_INVITE,
+                CoreAccessCatalog.MEMBERS_UPDATE, CoreAccessCatalog.MEMBERS_REMOVE)
+                .statusCode(201).extract().path("key");
+        bind(OWNER, "USER", ana, manager, null).statusCode(201);
+
+        invite(ANA, "new-admin@roles.test", "ADMIN").statusCode(403);
+        invite(ANA, "new-member@roles.test", "MEMBER").statusCode(201);
+        given().header("Authorization", bearer(ANA)).contentType("application/json")
+                .body(Map.of("baseRole", "ADMIN")).when().patch(BASE + "/members/" + ana).then().statusCode(403);
+        given().header("Authorization", bearer(ANA)).contentType("application/json")
+                .body(Map.of("baseRole", "MEMBER")).when().patch(BASE + "/members/" + admin).then().statusCode(403);
+        given().header("Authorization", bearer(ANA)).when().delete(BASE + "/members/" + admin)
+                .then().statusCode(403);
+        // An admin still does all three.
+        invite(ADMIN, "new-admin@roles.test", "ADMIN").statusCode(201);
+    }
+
+    @Test
+    void aRoleAnAdminCannotGrantIsNotReachedThroughATeamAKeyOrTheRoleHoldersApi() {
+        String admin = userId(ADMIN);
+        String owners = create(OWNER, ROLES, "Dueños", CoreAccessCatalog.OWNERS_MANAGE)
+                .statusCode(201).extract().path("key");
+
+        // The role holders API.
+        given().header("Authorization", bearer(ADMIN)).contentType("application/json")
+                .body(Map.of("assigneeIds", List.of(ADMIN)))
+                .when().put("/api/v1/orgs/" + ORG + "/roles/" + owners).then().statusCode(403);
+
+        // A team that holds the role.
+        String team = given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body("{\"name\":\"Turno A\"}").when().post(BASE + "/teams")
+                .then().statusCode(201).extract().path("id");
+        bind(OWNER, "TEAM", team, owners, null).statusCode(201);
+        given().header("Authorization", bearer(ADMIN)).contentType("application/json")
+                .body(Map.of("userIds", List.of(admin))).when().put(BASE + "/teams/" + team + "/members")
+                .then().statusCode(403);
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("userIds", List.of(admin))).when().put(BASE + "/teams/" + team + "/members")
+                .then().statusCode(200);
+        // Removing members needs no grant.
+        given().header("Authorization", bearer(ADMIN)).contentType("application/json")
+                .body(Map.of("userIds", List.of())).when().put(BASE + "/teams/" + team + "/members")
+                .then().statusCode(200);
+
+        // A service account that holds the role.
+        String account = given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("name", "Integrador", "roles", List.of(owners))).when().post(BASE + "/service-accounts")
+                .then().statusCode(201).extract().path("serviceAccount.id");
+        given().header("Authorization", bearer(ADMIN)).contentType("application/json")
+                .body(Map.of("name", "otra")).when().post(BASE + "/service-accounts/" + account + "/keys")
+                .then().statusCode(403);
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body(Map.of("name", "otra")).when().post(BASE + "/service-accounts/" + account + "/keys")
+                .then().statusCode(201);
+    }
+
+    @Test
+    void aCustomRoleWithTheTrainerPermissionPassesTheLegacyPermissionCheck() {
+        String check = "/api/v1/orgs/" + ORG + "/permissions/HARNESS_TRAINER/me";
+        given().header("Authorization", bearer(ANA)).when().get(check)
+                .then().statusCode(200).body("allowed", is(false));
+        String trainer = create(OWNER, ROLES, "Entrenador", CoreAccessCatalog.HARNESS_TRAIN)
+                .statusCode(201).extract().path("key");
+        bind(OWNER, "USER", userId(ANA), trainer, null).statusCode(201);
+        given().header("Authorization", bearer(ANA)).when().get(check)
+                .then().statusCode(200).body("allowed", is(true));
+    }
+
+    @Test
+    void aRecreatedRoleStartsWithoutHolders() throws SQLException {
+        String ana = userId(ANA);
+        var created = create(OWNER, ROLES, "Mapa", GEOGRAPHIC).statusCode(201).extract();
+        given().header("Authorization", bearer(OWNER)).when().delete(ROLES + "/" + created.path("id"))
+                .then().statusCode(200);
+        // A binding left behind by a grant that raced the delete.
+        exec("INSERT INTO miot_iam.iam_role_binding (organization_id, principal_kind, principal_id, role_key) "
+                + "SELECT id, 'USER', '" + ana + "', 'custom:mapa' FROM miot_core.organizations WHERE slug = '"
+                + ORG + "'");
+        given().header("Authorization", bearer(ANA)).when().get(ACCESS).then().statusCode(200)
+                .body("permissions", not(hasItem(GEOGRAPHIC)));
+
+        create(OWNER, ROLES, "Mapa", GEOGRAPHIC).statusCode(201)
+                .body("key", is("custom:mapa")).body("holders.members", is(0));
+        given().header("Authorization", bearer(ANA)).when().get(ACCESS).then().statusCode(200)
+                .body("permissions", not(hasItem(GEOGRAPHIC)));
+    }
+
+    private static ValidatableResponse invite(String email, String invitee, String baseRole) {
+        return given().header("Authorization", bearer(email)).contentType("application/json")
+                .body(Map.of("emails", List.of(invitee), "baseRole", baseRole, "roles", List.of()))
+                .when().post(BASE + "/invitations").then();
+    }
+
+    @Test
     void aReviewerHasTheGeographicView() {
         bind(OWNER, "USER", userId(ANA), CoordinatorAccessCatalog.REVIEWER, null).statusCode(201);
         given().header("Authorization", bearer(ANA)).when().get(ACCESS).then().statusCode(200)

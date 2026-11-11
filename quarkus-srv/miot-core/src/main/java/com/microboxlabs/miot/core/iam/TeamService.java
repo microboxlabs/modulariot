@@ -136,7 +136,7 @@ public class TeamService {
         Set<String> wanted = new TreeSet<>(request == null || request.roles() == null ? List.of() : request.roles());
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 evaluator.evaluate(org, actor).flatMap(access -> membership(root.id, userId).flatMap(m ->
-                        evaluator.roles(root.id).flatMap(orgRoles -> {
+                        evaluator.rolesForGrant(root.id, wanted).flatMap(orgRoles -> {
                             TeamRules.checkGrant(access, wanted, orgRoles);
                             return replaceRoles(root.id, userId, wanted, actor.name())
                                     .flatMap(ignored -> view(root.id, m));
@@ -203,7 +203,8 @@ public class TeamService {
             emails.add(normalized);
         }
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
-                evaluator.evaluate(org, actor).flatMap(access -> evaluator.roles(root.id).flatMap(orgRoles -> {
+                evaluator.evaluate(org, actor).flatMap(access -> evaluator.rolesForGrant(root.id, roles)
+                        .flatMap(orgRoles -> {
                     TeamRules.checkInvite(access, base, roles, orgRoles);
                     Uni<List<CreatedInvitation>> chain = Uni.createFrom().item(new ArrayList<>());
                     for (String email : emails) {
@@ -327,7 +328,8 @@ public class TeamService {
                     .flatMap(saved -> joins
                             ? bridge.memberAdded(invitation.organizationId, me)
                             : Uni.createFrom().voidItem())
-                    .flatMap(saved -> addRoles(invitation.organizationId, user.id, invitation.roles(), me))
+                    .flatMap(saved -> stillBindable(invitation.organizationId, invitation.roles()))
+                    .flatMap(roles -> addRoles(invitation.organizationId, user.id, roles, me))
                     .flatMap(ignored -> {
                         invitation.status = IamInvitation.ACCEPTED;
                         invitation.acceptedBy = user.id;
@@ -343,6 +345,15 @@ public class TeamService {
     }
 
     // --- helpers ---
+
+    /** The invited roles without custom roles the organization deleted since the invitation was sent. */
+    private Uni<List<String>> stillBindable(Long rootId, List<String> roles) {
+        if (roles.stream().noneMatch(OrgRoles::isCustom)) {
+            return Uni.createFrom().item(roles);
+        }
+        return evaluator.rolesForGrant(rootId, roles).map(orgRoles -> roles.stream()
+                .filter(key -> !OrgRoles.isCustom(key) || orgRoles.custom().containsKey(key)).toList());
+    }
 
     private Uni<CreatedInvitation> inviteOne(Organization root, String email, BaseRole base, Set<String> roles,
             Duration ttl, String actor) {

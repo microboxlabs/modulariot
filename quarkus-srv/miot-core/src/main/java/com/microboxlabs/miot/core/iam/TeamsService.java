@@ -14,6 +14,7 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -154,7 +155,8 @@ public class TeamsService {
         return Panache.withTransaction(() -> root(slug).flatMap(root -> team(root.id, teamId).flatMap(team ->
                 IamMembership.findByOrganization(root.id).flatMap(memberships -> {
                     requireMembers(memberships, wanted);
-                    return ProjectionQueue.teamMembers(team.id).flatMap(before -> replaceMembers(team, wanted)
+                    return ProjectionQueue.teamMembers(team.id).flatMap(before -> requireGrantable(slug, actor,
+                                    root.id, team, before, wanted).flatMap(checked -> replaceMembers(team, wanted))
                                     .flatMap(ignored -> {
                                         Set<UUID> affected = new LinkedHashSet<>(before);
                                         affected.addAll(wanted);
@@ -164,6 +166,24 @@ public class TeamsService {
                                     Map.of("members", wanted.stream().map(UUID::toString).toList())))
                             .flatMap(ignored -> view(root.id, team));
                 }))));
+    }
+
+    /**
+     * Adding someone to a team gives them the team's roles, so the actor must be able to grant those roles. Removing
+     * members needs no such check.
+     */
+    private Uni<Void> requireGrantable(String slug, Caller actor, Long rootId, IamTeam team,
+            Collection<UUID> before, Set<UUID> wanted) {
+        if (before.containsAll(wanted)) {
+            return Uni.createFrom().voidItem();
+        }
+        return IamRoleBinding.findFor(List.of(rootId), IamRoleBinding.TEAM, List.of(team.id.toString()))
+                .flatMap(bindings -> {
+                    Set<String> held = new TreeSet<>();
+                    bindings.forEach(b -> held.add(b.roleKey));
+                    return evaluator.evaluate(slug, actor).flatMap(access -> evaluator.rolesForGrant(rootId, held)
+                            .invoke(orgRoles -> TeamRules.checkGrantBound(access, held, orgRoles)));
+                }).replaceWithVoid();
     }
 
     private static void requireMembers(List<IamMembership> memberships, Set<UUID> wanted) {
@@ -188,7 +208,8 @@ public class TeamsService {
     public Uni<TeamView> setRoles(String slug, Caller actor, UUID teamId, TeamRolesRequest request) {
         Set<String> wanted = new TreeSet<>(request == null || request.roles() == null ? List.of() : request.roles());
         return Panache.withTransaction(() -> root(slug).flatMap(root -> evaluator.evaluate(slug, actor)
-                .flatMap(access -> team(root.id, teamId).flatMap(team -> evaluator.roles(root.id).flatMap(orgRoles -> {
+                .flatMap(access -> team(root.id, teamId).flatMap(team -> evaluator
+                        .rolesForGrant(root.id, wanted).flatMap(orgRoles -> {
                     TeamRules.checkGrant(access, wanted, orgRoles);
                     return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 and principalId = ?3 "
                                     + "and scopeKind = ?4", root.id, IamRoleBinding.TEAM, team.id.toString(),
@@ -231,7 +252,8 @@ public class TeamsService {
         String kind = principalKind(request);
         UUID principal = uuid(request.principalId());
         return Panache.withTransaction(() -> root(slug).flatMap(root -> evaluator.evaluate(slug, actor)
-                .flatMap(access -> evaluator.roles(root.id).flatMap(orgRoles -> {
+                .flatMap(access -> evaluator.rolesForGrant(root.id, List.of(request.role()))
+                        .flatMap(orgRoles -> {
                     TeamRules.checkGrant(access, List.of(request.role()), orgRoles);
                     return principalExists(root.id, kind, principal)
                             .flatMap(ignored -> subAccount(root, request.subAccount()))

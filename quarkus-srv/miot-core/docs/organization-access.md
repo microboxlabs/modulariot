@@ -79,7 +79,9 @@ Sub-accounts get no Alfresco group. Creating a top-level organization is for pla
 
 - Only an owner can make or remove an owner.
 - The last owner cannot be removed or demoted.
+- Only an owner or admin can make, demote, invite or remove an admin. A member who holds `members:invite`, `members:update` or `members:remove` through a role manages members only.
 - A caller cannot grant a role holding permissions the caller lacks. Explicit-only permissions are exempt.
+- The same rule applies to adding a member to a team (the team's roles) and to creating an API key for a service account (the account's roles).
 
 ## Teams
 
@@ -116,13 +118,16 @@ Changes write `custom-role.created`, `custom-role.updated` and `custom-role.dele
 | `AccessEvaluator` | Loads the custom roles among the caller's bindings and adds their permissions. `@PermissionsAllowed` with `OrgPermission`, `McpCaller.permitted`, `GET .../me/access` and the module access endpoints (control tower, trips) all read this decision. |
 | App route and menu gates | Read `GET .../me/access`, so they follow |
 | Granting (`TeamRules.checkGrant`) | Members, teams, invitations, bindings and service accounts accept custom role keys of the organization |
-| `GET`, `PUT /api/v1/orgs/{org}/roles/{roleCode}` | Accepts a custom role key of the organization, for users and M2M clients |
+| `GET`, `PUT /api/v1/orgs/{org}/roles/{roleCode}` | Accepts a custom role key of the organization, for users and M2M clients. `PUT` needs the right to grant the role |
+| `GET .../permissions/{code}/me`, `POST .../authorization/check`, Harness learning routes | `HARNESS_TRAINER` and the content auto-approve check pass for any role that gives `harness:train` or `content:review.autoapprove` |
 | Harness | Does not read roles. It calls the modulith, which checks permissions as above. |
 | Alfresco group mappings (`iam_group_role`) and the projection outbox | Module roles only. The outbox stores group membership changes, not permissions. A custom role is never projected to an Alfresco group, so it gives no BPM candidate group. |
 | Token role mappings (`iam_token_role`) | Module roles and base roles only |
 | Legacy-default roles | Module roles only |
 
 A custom role gives only permissions the running modulith declares. A bound key whose role no longer exists gives nothing.
+
+Creating, editing and deleting a custom role lock the top-level organization's row. Binding a custom role takes a shared lock on the same row, so a role is not deleted between the check and the insert. A new role deletes any binding left with its key, so it starts with no holders.
 
 ## Coordination roles
 

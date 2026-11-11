@@ -21,6 +21,9 @@ public final class TeamRules {
         if (touchesOwner && !actor.can(CoreAccessCatalog.OWNERS_MANAGE)) {
             throw new SecurityException("Only an owner changes who is an owner");
         }
+        if (current == BaseRole.ADMIN || next == BaseRole.ADMIN) {
+            requireAdministrator(actor);
+        }
         if (current == BaseRole.OWNER && next != BaseRole.OWNER && owners <= 1) {
             throw new IllegalStateException("An organization keeps at least one owner");
         }
@@ -30,6 +33,20 @@ public final class TeamRules {
     public static void checkRemoval(Access actor, BaseRole target, long owners) {
         if (target == BaseRole.OWNER) {
             checkBaseRoleChange(actor, BaseRole.OWNER, BaseRole.MEMBER, owners);
+        }
+        if (target == BaseRole.ADMIN) {
+            requireAdministrator(actor);
+        }
+    }
+
+    /**
+     * Making, unmaking or removing an Admin needs an Owner or Admin, or {@code owners:manage}. A member who holds
+     * {@code members:invite}, {@code members:update} or {@code members:remove} through a role manages members only.
+     */
+    private static void requireAdministrator(Access actor) {
+        boolean administrator = actor.member() && actor.baseRole().atLeast(BaseRole.ADMIN);
+        if (!administrator && !actor.can(CoreAccessCatalog.OWNERS_MANAGE)) {
+            throw new SecurityException("Only an owner or admin changes who is an admin");
         }
     }
 
@@ -57,6 +74,15 @@ public final class TeamRules {
         }
     }
 
+    /**
+     * The actor may give access through roles already bound to a principal: adding a member to a team, or issuing a
+     * key for a service account. Same rule as {@link #checkGrant}; bound keys the organization no longer has give
+     * nothing and are skipped.
+     */
+    public static void checkGrantBound(Access actor, Collection<String> boundRoleKeys, OrgRoles roles) {
+        checkGrant(actor, boundRoleKeys.stream().filter(key -> roles.permissions(key).isPresent()).toList(), roles);
+    }
+
     /** The base role to invite with, checked like a change from nothing. */
     public static void checkInvite(Access actor, BaseRole baseRole, Set<String> roleKeys, AccessRegistry registry) {
         checkInvite(actor, baseRole, roleKeys, OrgRoles.system(registry));
@@ -65,6 +91,9 @@ public final class TeamRules {
     public static void checkInvite(Access actor, BaseRole baseRole, Set<String> roleKeys, OrgRoles roles) {
         if (baseRole == BaseRole.OWNER && !actor.can(CoreAccessCatalog.OWNERS_MANAGE)) {
             throw new SecurityException("Only an owner invites owners");
+        }
+        if (baseRole == BaseRole.ADMIN) {
+            requireAdministrator(actor);
         }
         checkGrant(actor, roleKeys, roles);
     }

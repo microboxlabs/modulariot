@@ -137,7 +137,7 @@ public class ApiKeyService {
         Set<String> roles = new TreeSet<>(request.roles() == null ? List.of() : request.roles());
         Duration ttl = ttl(request.expiresInDays());
         return Panache.withTransaction(() -> root(slug).flatMap(root -> access(slug, actor).flatMap(access ->
-                evaluator.roles(root.id).flatMap(orgRoles -> {
+                evaluator.rolesForGrant(root.id, roles).flatMap(orgRoles -> {
             TeamRules.checkGrant(access, roles, orgRoles);
             IamServiceAccount account = new IamServiceAccount();
             account.id = UUID.randomUUID();
@@ -167,7 +167,8 @@ public class ApiKeyService {
     public Uni<ServiceAccountView> setRoles(String slug, Caller actor, UUID accountId, List<String> requested) {
         Set<String> roles = new TreeSet<>(requested == null ? List.of() : requested);
         return Panache.withTransaction(() -> root(slug).flatMap(root -> access(slug, actor).flatMap(access ->
-                account(root.id, accountId).flatMap(account -> evaluator.roles(root.id).flatMap(orgRoles -> {
+                account(root.id, accountId).flatMap(account -> evaluator.rolesForGrant(root.id, roles)
+                        .flatMap(orgRoles -> {
                     TeamRules.checkGrant(access, roles, orgRoles);
                     return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 and principalId = ?3 "
                                     + "and scopeKind = ?4", root.id, IamRoleBinding.SERVICE_ACCOUNT,
@@ -203,9 +204,22 @@ public class ApiKeyService {
         Duration ttl = ttl(request == null ? null : request.expiresInDays());
         String name = request == null || request.name() == null ? null : request.name().trim();
         return Panache.withTransaction(() -> root(slug).flatMap(root -> account(root.id, accountId)
-                .flatMap(account -> newKey(account.id, name, ttl, actor.name())
+                .flatMap(account -> requireGrantable(slug, actor, root.id, account)
+                        .flatMap(checked -> newKey(account.id, name, ttl, actor.name()))
                         .flatMap(created -> directory.audit(root.id, actor.name(), "api-key.created",
                                 account.name, Map.of("keyId", created.key().keyId())).replaceWith(created)))));
+    }
+
+    /** A key acts with the account's roles, so issuing one needs the right to grant those roles. */
+    private Uni<Void> requireGrantable(String slug, Caller actor, Long rootId, IamServiceAccount account) {
+        return IamRoleBinding.findFor(List.of(rootId), IamRoleBinding.SERVICE_ACCOUNT,
+                        List.of(account.id.toString()))
+                .flatMap(bindings -> {
+                    Set<String> held = new TreeSet<>();
+                    bindings.forEach(b -> held.add(b.roleKey));
+                    return access(slug, actor).flatMap(access -> evaluator.rolesForGrant(rootId, held)
+                            .invoke(orgRoles -> TeamRules.checkGrantBound(access, held, orgRoles)));
+                }).replaceWithVoid();
     }
 
     public Uni<Void> revokeKey(String slug, Caller actor, UUID accountId, UUID keyId) {

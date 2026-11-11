@@ -84,7 +84,10 @@ public class CustomRoles {
                 role.roleKey = CustomRoleRules.key(fields.nameEs(), existing.stream().map(r -> r.roleKey).toList());
                 role.createdBy = actor.name();
                 apply(role, fields, actor.name());
-                return role.<IamCustomRole>persist()
+                // A new role starts with no holders, even if bindings of a deleted role with this key were left.
+                return IamRoleBinding.delete("organizationId = ?1 and roleKey = ?2", root.id, role.roleKey)
+                        .flatMap(ignored -> withoutRole(root.id, role.roleKey))
+                        .flatMap(ignored -> role.<IamCustomRole>persist())
                         .flatMap(saved -> directory.audit(root.id, actor.name(), "custom-role.created", role.roleKey,
                                 Map.of("name", role.nameEs, PERMISSIONS, role.permissions())))
                         .flatMap(ignored -> view(root.id, role));

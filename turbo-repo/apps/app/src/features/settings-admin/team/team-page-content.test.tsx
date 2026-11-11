@@ -132,6 +132,7 @@ vi.mock("./team-api", () => ({
   useInvitations: () => ({ data: data.invitations, mutate: vi.fn() }),
   useTeams: () => ({ data: data.teams, mutate: vi.fn() }),
   useServiceAccounts: () => ({ data: data.accounts, mutate: vi.fn() }),
+  useCustomRoles: () => ({ data: [] }),
   useAccessCatalog: () => ({
     data: { baseRoles: [], permissions: data.permissions, roles: data.roles },
   }),

@@ -15,6 +15,7 @@ import {
   DetailShell,
   EffectivePermissions,
   Meta,
+  CustomRolesCard,
   ModuleCard,
   SaveBar,
   SectionTitle,
@@ -31,6 +32,7 @@ import {
 import {
   activeKeyCount,
   catalogModules,
+  customRolesOf,
   defaultTokenNeedsGpsRole,
   effectivePermissions,
   lastKeyUse,
@@ -196,6 +198,15 @@ function AccountEditor({
                 onChange={(key) => setByModule({ ...byModule, [mod.key]: key })}
               />
             ))}
+            <CustomRolesCard
+              roles={customRolesOf(catalog)}
+              catalog={catalog}
+              selection={byModule}
+              disabled={busy}
+              lang={lang}
+              d={d}
+              onChange={setByModule}
+            />
           </section>
           <ServiceAccountKeys
             account={account}

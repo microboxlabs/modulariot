@@ -18,6 +18,7 @@ import {
   DetailShell,
   EffectivePermissions,
   Meta,
+  CustomRolesCard,
   ModuleCard,
   SaveBar,
   SectionTitle,
@@ -36,6 +37,7 @@ import { TeamMembersModal } from "./team-members-modal";
 import { formatDate } from "./team-members-tab";
 import {
   catalogModules,
+  customRolesOf,
   rolePermissions,
   rolesByModule,
   sameRoles,
@@ -254,6 +256,15 @@ function TeamEditor({
                 onChange={(key) => setByModule({ ...byModule, [mod.key]: key })}
               />
             ))}
+            <CustomRolesCard
+              roles={customRolesOf(catalog)}
+              catalog={catalog}
+              selection={byModule}
+              disabled={!canBind || busy}
+              lang={lang}
+              d={d}
+              onChange={setByModule}
+            />
           </section>
         </div>
         <aside className="lg:col-span-1">

@@ -66,6 +66,43 @@ export interface CatalogRole {
   /** What the role is for, per language. Empty when the module gives none. */
   description?: Record<string, string>;
   permissions: string[];
+  /** A role the organization defined; its key starts with "custom:". */
+  custom?: boolean;
+}
+
+/** How many principals hold a custom role. */
+export interface RoleHolders {
+  members: number;
+  teams: number;
+  serviceAccounts: number;
+  clients: number;
+}
+
+/** A role the organization defined from catalog permissions. */
+export interface CustomRole {
+  id: string;
+  key: string;
+  label: Record<string, string>;
+  description: Record<string, string>;
+  permissions: string[];
+  holders: RoleHolders;
+  createdAt: string;
+  createdBy: string | null;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+export interface CustomRoleRequest {
+  label: Record<string, string>;
+  description: Record<string, string>;
+  permissions: string[];
+}
+
+/** What deleting a custom role removed. */
+export interface CustomRoleDeleted {
+  key: string;
+  removedBindings: number;
+  holders: RoleHolders;
 }
 
 /** A module that has roles. `ai` marks assistant modules, shown with the AI accent. */

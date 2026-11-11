@@ -13,6 +13,7 @@ import {
   DetailShell,
   EffectivePermissions,
   Meta,
+  CustomRolesCard,
   ModuleCard,
   SaveBar,
   SectionTitle,
@@ -28,6 +29,7 @@ import {
 import {
   BASE_ROLES,
   catalogModules,
+  customRolesOf,
   effectivePermissions,
   initials,
   NON_OWNER_ROLES,
@@ -221,6 +223,15 @@ function MemberEditor({
               onChange={(key) => setByModule({ ...byModule, [mod.key]: key })}
             />
           ))}
+          <CustomRolesCard
+            roles={customRolesOf(catalog)}
+            catalog={catalog}
+            selection={byModule}
+            disabled={!canUpdate || busy}
+            lang={lang}
+            d={d}
+            onChange={setByModule}
+          />
         </section>
         <aside className="lg:col-span-1">
           <EffectivePermissions

@@ -22,6 +22,7 @@ import {
   CARD,
   DetailShell,
   EffectivePermissions,
+  CustomRolesCard,
   ModuleCard,
   SectionTitle,
 } from "./module-access";
@@ -35,6 +36,7 @@ import {
 import {
   BASE_ROLES,
   catalogModules,
+  customRolesOf,
   effectivePermissions,
   invalidEmails,
   inviteAll,
@@ -383,6 +385,15 @@ function InviteForm({
                 onChange={(key) => setByModule({ ...byModule, [mod.key]: key })}
               />
             ))}
+            <CustomRolesCard
+              roles={customRolesOf(catalog)}
+              catalog={catalog}
+              selection={byModule}
+              disabled={busy}
+              lang={lang}
+              d={d}
+              onChange={setByModule}
+            />
           </section>
         </div>
         <aside className="lg:col-span-1">

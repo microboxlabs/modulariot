@@ -43,7 +43,13 @@ import {
 import { TeamInvitationsTab } from "./team-invitations-tab";
 import { TeamKeysTab } from "./team-keys-tab";
 import { TeamMembersTab } from "./team-members-tab";
-import { BASE_ROLES, inviteLinkOf, labelOf, teamActions } from "./team-model";
+import {
+  BASE_ROLES,
+  canManageCustomRoles,
+  inviteLinkOf,
+  labelOf,
+  teamActions,
+} from "./team-model";
 import { TeamRolesTab } from "./team-roles-tab";
 import { TeamTeamsTab } from "./team-teams-tab";
 import {
@@ -159,7 +165,7 @@ export default function TeamPageContent({
   const d = dict?.team as I18nRecord;
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
   const { data: session } = useSession();
-  const { can } = useMyAccess();
+  const { access, can } = useMyAccess();
   const team = useTeam();
   const { canInvite, canEditInvitationEmail, ...allowed } = teamActions(can);
   const teamsAllowed = {
@@ -413,6 +419,8 @@ export default function TeamPageContent({
           <TeamRolesTab
             catalog={catalog}
             query={permissionQuery}
+            canManageRoles={canManageCustomRoles(access)}
+            can={can}
             lang={lang}
             d={d}
           />

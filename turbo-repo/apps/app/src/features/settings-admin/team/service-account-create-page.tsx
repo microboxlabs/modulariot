@@ -17,6 +17,7 @@ import {
   CARD,
   DetailShell,
   EffectivePermissions,
+  CustomRolesCard,
   ModuleCard,
   SectionTitle,
 } from "./module-access";
@@ -24,6 +25,7 @@ import { SecretOnce } from "./secret-once";
 import { createServiceAccount, useAccessCatalog } from "./team-api";
 import {
   catalogModules,
+  customRolesOf,
   effectivePermissions,
   expiryDays,
   MAX_KEY_DAYS,
@@ -231,6 +233,15 @@ function CreateForm({
                 onChange={(key) => setByModule({ ...byModule, [mod.key]: key })}
               />
             ))}
+            <CustomRolesCard
+              roles={customRolesOf(catalog)}
+              catalog={catalog}
+              selection={byModule}
+              disabled={busy}
+              lang={lang}
+              d={d}
+              onChange={setByModule}
+            />
           </section>
         </div>
         <aside className="lg:col-span-1">

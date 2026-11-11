@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.signal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.vertx.mutiny.core.Vertx;
@@ -64,6 +65,19 @@ class PgHistoricalDeviceTripsTest {
             pool.close().await().atMost(WAIT);
             vertx.close().await().atMost(WAIT);
         }
+    }
+
+    @Test
+    void theLiveTripsQueryPreservesANullTripType() {
+        UUID trip = UUID.randomUUID();
+        pool.preparedQuery("""
+                INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id, trip_type, status)
+                VALUES ($1, 'tenant-demo', 'vehicle-null-type', NULL, 'in_progress')
+                """).execute(Tuple.of(trip)).await().atMost(WAIT);
+        var rows = new DeviceEvents.PgTrips(() -> pool).of("tenant-demo", "vehicle-null-type");
+        assertEquals(1, rows.size());
+        assertNull(rows.getFirst().tripType());
+        assertEquals(1, rows.getFirst().priority());
     }
 
     @Test

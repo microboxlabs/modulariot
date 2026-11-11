@@ -226,6 +226,21 @@ class RuleLanguageTest {
     }
 
     @Test
+    void aMissingTripTypeUsesTheOptionalFallback() {
+        RuleSchema schema = new RuleSchema("signal", Map.of("signal.trip.type", "text"), Map.of());
+        String rule = "signal.?trip.?type.orValue(\"v\") == \"v\"";
+        assertTrue(RuleLanguage.check(schema, rule, Expect.CONDITION).ok());
+        for (Map<String, Object> signal : java.util.List.<Map<String, Object>>of(
+                Map.of(), Map.of("trip", Map.of()), Map.of("trip", Map.of("type", "v")))) {
+            RuleResult result = RuleLanguage.evaluate(schema, rule, Map.of("signal", signal));
+            assertTrue(result.ok(), result.error());
+            assertEquals(true, result.value());
+        }
+        assertEquals(false, RuleLanguage.evaluate(schema, rule,
+                Map.of("signal", Map.of("trip", Map.of("type", "otr")))).value());
+    }
+
+    @Test
     void optionalsCannotBeUsedAsConditionsDirectly() {
         assertFalse(RuleLanguage.check(FRAME, "signal.frame.?sensors.?panic_button", Expect.CONDITION).ok());
     }

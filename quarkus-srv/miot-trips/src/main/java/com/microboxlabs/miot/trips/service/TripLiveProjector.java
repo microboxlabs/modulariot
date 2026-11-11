@@ -4,7 +4,6 @@ import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.trips.domain.Location;
-import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
@@ -12,7 +11,6 @@ import com.microboxlabs.miot.trips.domain.TripLiveProjection;
 import com.microboxlabs.miot.trips.store.AssignmentStore;
 import com.microboxlabs.miot.trips.store.CargoStore;
 import com.microboxlabs.miot.trips.store.LocationStore;
-import com.microboxlabs.miot.trips.store.MandateStore;
 import com.microboxlabs.miot.trips.store.Pg;
 import com.microboxlabs.miot.trips.store.StageStore;
 import com.microboxlabs.miot.trips.store.TripLiveStore;
@@ -49,19 +47,17 @@ public class TripLiveProjector {
     private final AssignmentStore assignments;
     private final CargoStore cargo;
     private final LocationStore locations;
-    private final MandateStore mandates;
     private final TripLiveStore live;
     private final FleetResources fleet;
 
     @Inject
     public TripLiveProjector(TripStore trips, StageStore stages, AssignmentStore assignments, CargoStore cargo,
-            LocationStore locations, MandateStore mandates, TripLiveStore live, FleetResources fleet) {
+            LocationStore locations, TripLiveStore live, FleetResources fleet) {
         this.trips = trips;
         this.stages = stages;
         this.assignments = assignments;
         this.cargo = cargo;
         this.locations = locations;
-        this.mandates = mandates;
         this.live = live;
         this.fleet = fleet;
     }
@@ -94,7 +90,7 @@ public class TripLiveProjector {
         List<MandateRef> linked = trips.mandatesOf(tenantCode, tripId);
 
         live.upsert(new TripLiveProjection(t.id(), tenantCode, mandateCodes(linked),
-                truck.map(FleetResources.Vehicle::licensePlate).orElse(null), tripType(tenantCode, linked),
+                truck.map(FleetResources.Vehicle::licensePlate).orElse(null), tripType(linked),
                 origin.map(l -> truncate(l.name(), LABEL_MAX)).orElse(null),
                 destination.map(l -> truncate(l.name(), LABEL_MAX)).orElse(null),
                 origin.map(Location::geofenceId).orElse(null), destination.map(Location::geofenceId).orElse(null),
@@ -142,11 +138,10 @@ public class TripLiveProjector {
      * The order type of the trip's primary mandate, else of its first linked mandate, trimmed and lower-cased;
      * null when the trip has no mandate or the type is blank.
      */
-    private String tripType(String tenantCode, List<MandateRef> linked) {
+    private static String tripType(List<MandateRef> linked) {
         return linked.stream().filter(m -> PRIMARY.equals(m.role())).findFirst()
                 .or(() -> linked.stream().findFirst())
-                .flatMap(m -> mandates.find(tenantCode, UUID.fromString(m.mandateId())))
-                .map(Mandate::orderType).map(String::strip).filter(type -> !type.isEmpty())
+                .map(MandateRef::orderType).map(String::strip).filter(type -> !type.isEmpty())
                 .map(type -> type.toLowerCase(Locale.ROOT)).orElse(null);
     }
 

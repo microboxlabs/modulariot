@@ -73,8 +73,8 @@ public class InMemoryTripsWorld {
 
     /** The projector over this world's stores. */
     public TripLiveProjector projector(FleetResources fleet) {
-        return new TripLiveProjector(tripStore, stageStore, assignmentStore, cargoStore, locationStore, mandateStore,
-                tripLiveStore, fleet);
+        return new TripLiveProjector(tripStore, stageStore, assignmentStore, cargoStore, locationStore, tripLiveStore,
+                fleet);
     }
 
     public List<AuditEvent> auditTrail() {
@@ -284,7 +284,7 @@ public class InMemoryTripsWorld {
                 return false;
             }
             Mandate m = mandates.get(mandateId.toString());
-            refs.add(new MandateRef(m.id(), m.externalCode(), m.status(), seq, role));
+            refs.add(new MandateRef(m.id(), m.externalCode(), m.status(), seq, role, m.orderType()));
             return true;
         }
 
@@ -306,7 +306,12 @@ public class InMemoryTripsWorld {
 
         @Override
         public List<MandateRef> mandatesOf(String tenantCode, UUID tripId) {
-            return List.copyOf(tripMandates.getOrDefault(tripId.toString(), List.of()));
+            return tripMandates.getOrDefault(tripId.toString(), List.of()).stream()
+                    .sorted(java.util.Comparator.comparingInt(MandateRef::seq))
+                    .map(r -> {
+                        Mandate m = mandates.get(r.mandateId());
+                        return new MandateRef(m.id(), m.externalCode(), m.status(), r.seq(), r.role(), m.orderType());
+                    }).toList();
         }
 
         @Override

@@ -77,7 +77,7 @@ class PgTripsStoresTest {
     /** The projector over the Postgres stores, fleet included. */
     static TripLiveProjector projector(Supplier<Pool> pool) {
         return new TripLiveProjector(new PgTripStore(pool), new PgStageStore(pool), new PgAssignmentStore(pool),
-                new PgCargoStore(pool), new PgLocationStore(pool), new PgMandateStore(pool), new PgTripLiveStore(pool),
+                new PgCargoStore(pool), new PgLocationStore(pool), new PgTripLiveStore(pool),
                 new FleetResourcesService(new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(pool)));
     }
 
@@ -680,8 +680,18 @@ class PgTripsStoresTest {
         UUID bare = UUID.fromString(trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null,
                 null, null, null, ACTOR, null, ACTOR)).id());
 
-        projector.refresh(tenant, tripId);
-        projector.refresh(tenant, bare);
+        var accesses = new java.util.concurrent.atomic.AtomicInteger();
+        TripLiveProjector counted = projector(() -> {
+            accesses.incrementAndGet();
+            return pool;
+        });
+        counted.refresh(tenant, bare);
+        int withoutMandate = accesses.getAndSet(0);
+        counted.refresh(tenant, tripId);
+        assertEquals(withoutMandate, accesses.get(), "the linked mandate adds no database round trip");
+        accesses.set(0);
+        counted.refreshAll(tenant, List.of(tripId, bare, tripId));
+        assertEquals(2 * withoutMandate, accesses.get(), "bulk refresh reads each trip's links only once");
         assertEquals("v", live.find(tenant, tripId).orElseThrow().tripType());
         assertNull(live.find(tenant, bare).orElseThrow().tripType(), "a trip without mandate has no type");
 

@@ -91,9 +91,10 @@ public class InMemoryEngineCases implements EngineCaseStore {
                 .filter(c -> f.level() == null || f.level() == c.level())
                 .filter(c -> !f.underTreatmentOnly() || c.treatments() > 0)
                 .filter(c -> !f.operatorOnly() || needsOperator(c))
+                .filter(c -> !f.withoutOperatorOnly() || !needsOperator(c))
                 .filter(c -> !f.byTrip() || matchesTrip(trips.get(c.tripId()), f))
                 .sorted(Comparator.comparing(EngineCase::openedAt).reversed())
-                .limit(PAGE).toList();
+                .limit(PAGE).map(c -> c.withOperatorRequired(needsOperator(c))).toList();
     }
 
     private static boolean matchesTrip(Trip t, CaseFilter f) {
@@ -134,10 +135,16 @@ public class InMemoryEngineCases implements EngineCaseStore {
 
     @Override
     public TowerCounts towerCounts(String tenantCode) {
+        return towerCounts(tenantCode, OperatorScope.REQUIRED);
+    }
+
+    @Override
+    public TowerCounts towerCounts(String tenantCode, OperatorScope operator) {
         if (down) {
             throw new IllegalStateException("database down");
         }
-        List<OpenCount> active = cases.stream().filter(c -> c.closedAt() == null && needsOperator(c))
+        List<OpenCount> active = cases.stream().filter(c -> c.closedAt() == null
+                        && (operator == OperatorScope.ALL || needsOperator(c) == (operator == OperatorScope.REQUIRED)))
                 .collect(Collectors.groupingBy(c -> List.of(c.level(), c.treatments() > 0), Collectors.counting()))
                 .entrySet().stream()
                 .map(e -> new OpenCount((Integer) e.getKey().get(0), (Boolean) e.getKey().get(1), e.getValue()))

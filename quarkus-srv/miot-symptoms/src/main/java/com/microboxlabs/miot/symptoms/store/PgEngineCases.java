@@ -144,19 +144,21 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String OPEN_FOR_ASSET = WITH_SLA.formatted(SELECT.formatted(CASES
             + " AND o.asset_id = $2") + " WHERE x.closed_id IS NULL");
     /**
-     * With $10 (the inbox), by criticality: highest level first, then the SLA that runs out soonest (overdue
+     * Without dates (the tray), by criticality: highest level first, then the SLA that runs out soonest (overdue
      * first, a level without SLA last), then the oldest arrival at the level, then the case id. As
      * {@code EngineCaseService.INBOX_ORDER}, so the 200 kept are the most critical.
      */
+    private static final String OPEN_ONLY = "($5::timestamptz IS NULL AND $6::timestamptz IS NULL)";
     private static final String INBOX_ORDER = """
-            CASE WHEN $10::boolean THEN z.current_level END DESC NULLS LAST,
-            CASE WHEN $10::boolean AND z.sla_minutes > 0 THEN GREATEST(z.level_at, COALESCE(z.returned_at, z.level_at))
+            CASE WHEN %1$s THEN z.current_level END DESC NULLS LAST,
+            CASE WHEN %1$s AND z.sla_minutes > 0 THEN GREATEST(z.level_at, COALESCE(z.returned_at, z.level_at))
                  + make_interval(mins => z.sla_minutes) END ASC NULLS LAST,
-            CASE WHEN $10::boolean THEN z.level_at END ASC,
-            CASE WHEN $10::boolean THEN z.id END ASC""";
+            CASE WHEN %1$s THEN z.level_at END ASC,
+            CASE WHEN %1$s THEN z.id END ASC""".formatted(OPEN_ONLY);
     /**
      * {@link CaseFilter}: $2 trip, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only, $9
-     * ignored only, $10 operator only. Without dates and $9, the open cases no hold covers.
+     * ignored only, $10 whether the level goes to the operators (null for any). Without dates and $9, the open
+     * cases no hold covers.
      */
     private static final String MATCHING = "SELECT * FROM (" + WITH_SLA.formatted(SELECT.formatted(CASES + """
                AND ($2::text IS NULL OR o.trip_id = $2)
@@ -167,7 +169,7 @@ public class PgEngineCases implements EngineCaseStore {
             + ") z WHERE ($7::int IS NULL OR z.current_level = $7)"
             + " AND ($5::timestamptz IS NULL OR z.closed_at IS NULL OR z.closed_at >= $5)"
             + " AND (NOT $8::boolean OR z.treatments > 0)"
-            + " AND (NOT $10::boolean OR z.needs_operator)"
+            + " AND ($10::boolean IS NULL OR z.needs_operator = $10::boolean)"
             + " AND CASE WHEN $9::boolean THEN z.hold_id IS NOT NULL AND z.closed_id IS NULL"
             + " WHEN $5::timestamptz IS NULL AND $6::timestamptz IS NULL THEN z.hold_id IS NULL ELSE true END"
             + " ORDER BY " + INBOX_ORDER + ", z.at DESC LIMIT 200";
@@ -199,10 +201,11 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL AND x.hold_id IS NULL) y"
             + " GROUP BY 1, 2";
-    /** The tower inbox's counts: open cases whose current level asks for an operator. */
+    /** The tower's counts over the open cases: $2 whether their current level asks for an operator, null for any. */
     private static final String TOWER_COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment,"
             + " y.hold_id IS NOT NULL AS ignored, count(*) AS n FROM (" + SELECT.formatted(CASES) + ") y"
-            + " WHERE y.closed_id IS NULL AND " + needsOperator("y") + " GROUP BY y.current_level, y.treatments > 0, y.hold_id IS NOT NULL";
+            + " WHERE y.closed_id IS NULL AND ($2::boolean IS NULL OR " + needsOperator("y") + " = $2::boolean)"
+            + " GROUP BY y.current_level, y.treatments > 0, y.hold_id IS NOT NULL";
     private static final String IGNORED = "SELECT count(*) AS n FROM (" + CASES + ") x"
             + " WHERE x.closed_id IS NULL AND x.hold_id IS NOT NULL";
     private static final String LEVELS = """
@@ -613,7 +616,7 @@ public class PgEngineCases implements EngineCaseStore {
                 .addString(f.assetId()).addString(f.symptomName())
                 .addOffsetDateTime(f.from() == null ? null : utc(f.from()))
                 .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level())
-                .addBoolean(f.underTreatmentOnly()).addBoolean(f.ignoredOnly()).addBoolean(f.operatorOnly());
+                .addBoolean(f.underTreatmentOnly()).addBoolean(f.ignoredOnly()).addBoolean(needsOperator(f));
         if (!f.byTrip()) {
             cases(MATCHING, args).forEach(r -> out.add(engineCase(r)));
             return out;
@@ -637,6 +640,14 @@ public class PgEngineCases implements EngineCaseStore {
         return out;
     }
 
+    /** {@link CaseFilter}'s operator filters as the queries read them: null keeps every case. */
+    private static Boolean needsOperator(CaseFilter f) {
+        if (f.operatorOnly()) {
+            return Boolean.TRUE;
+        }
+        return f.withoutOperatorOnly() ? Boolean.FALSE : null;
+    }
+
     static String plain(String value) {
         return value == null ? null : value.replaceAll("[^0-9A-Za-z]", "").toUpperCase(Locale.ROOT);
     }
@@ -655,9 +666,20 @@ public class PgEngineCases implements EngineCaseStore {
 
     @Override
     public TowerCounts towerCounts(String tenantCode) {
+        return towerCounts(tenantCode, OperatorScope.REQUIRED);
+    }
+
+    @Override
+    public TowerCounts towerCounts(String tenantCode, OperatorScope operator) {
         List<OpenCount> active = new ArrayList<>();
         long ignored = 0;
-        for (Row r : PgIds.query(pool.get(), TOWER_COUNTS, Tuple.of(tenantCode))) {
+        Boolean needsOperator = switch (operator) {
+            case REQUIRED -> Boolean.TRUE;
+            case NONE -> Boolean.FALSE;
+            case ALL -> null;
+        };
+        Tuple args = Tuple.tuple().addString(tenantCode).addBoolean(needsOperator);
+        for (Row r : PgIds.query(pool.get(), TOWER_COUNTS, args)) {
             if (Boolean.TRUE.equals(r.getBoolean("ignored"))) {
                 ignored += r.getLong("n");
             } else {
@@ -956,7 +978,8 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"), r.getString("trip_code_fallback"))).withTrip(trip(r))
                 .withHold(hold(r), instant(r.getOffsetDateTime("returned_at")))
                 .withLevelAt(instant(r.getOffsetDateTime("level_at")))
-                .withTest("TEST".equals(r.getString("state")));
+                .withTest("TEST".equals(r.getString("state")))
+                .withOperatorRequired(r.getBoolean("needs_operator"));
     }
 
     private static EngineCase.Ignored hold(Row r) {

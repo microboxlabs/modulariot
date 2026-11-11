@@ -283,7 +283,7 @@ class OrgControlTowerMapResourceTest {
 
     @Test
     void readsAsTheOrganizationsApplication() {
-        Response counts = call(resource.conditions(ORG, null, null));
+        Response counts = call(resource.conditions(ORG, null, null, null));
         assertEquals(200, counts.getStatus());
         assertEquals(3, ((JsonNode) counts.getEntity()).get("Stable").asInt());
         assertEquals(200, call(resource.positions(ORG)).getStatus());
@@ -302,7 +302,7 @@ class OrgControlTowerMapResourceTest {
         engineCases.add(openCase(3, 4));
         engineCases.add(openCase(4, 4));
 
-        JsonNode counts = (JsonNode) call(resource.conditions(ORG, null, null)).getEntity();
+        JsonNode counts = (JsonNode) call(resource.conditions(ORG, null, null, null)).getEntity();
 
         assertEquals(3, counts.get("Code Black").asInt());
         assertEquals(3, counts.get("Stable").asInt());
@@ -312,7 +312,7 @@ class OrgControlTowerMapResourceTest {
     void theCountsOfARangeAreTheGpsDatabasesOnly() {
         engineCases.add(openCase(3, 4));
 
-        JsonNode counts = (JsonNode) call(resource.conditions(ORG, "2026-10-01", "2026-10-02")).getEntity();
+        JsonNode counts = (JsonNode) call(resource.conditions(ORG, "2026-10-01", "2026-10-02", null)).getEntity();
 
         assertFalse(counts.has("Code Black"));
     }
@@ -320,10 +320,10 @@ class OrgControlTowerMapResourceTest {
     @Test
     void theOpenCasesCountWhenTheGpsDatabaseIsDown() {
         response = new GpsRpcApi.RpcResponse(500, "Unexpected error", null);
-        assertEquals(503, call(resource.conditions(ORG, null, null)).getStatus(), "nothing to count");
+        assertEquals(503, call(resource.conditions(ORG, null, null, null)).getStatus(), "nothing to count");
 
         engineCases.add(openCase(3, 4));
-        Response counts = call(resource(Optional.empty()).conditions(ORG, null, null));
+        Response counts = call(resource(Optional.empty()).conditions(ORG, null, null, null));
 
         assertEquals(200, counts.getStatus());
         assertEquals(1, ((JsonNode) counts.getEntity()).get("Code Black").asInt());
@@ -331,7 +331,7 @@ class OrgControlTowerMapResourceTest {
 
     @Test
     void aBadRangeIs400() {
-        assertEquals(400, call(resource.conditions(ORG, "2026-10-01", null)).getStatus());
+        assertEquals(400, call(resource.conditions(ORG, "2026-10-01", null, null)).getStatus());
     }
 
     @Test
@@ -776,15 +776,69 @@ class OrgControlTowerMapResourceTest {
         engineCases.add(openCase(2, "CD34", "Pérdida de señal", 2));
         var subject = engineOnly();
 
-        JsonNode counts = (JsonNode) call(subject.conditions(ORG, null, null)).getEntity();
-        JsonNode range = (JsonNode) call(subject.conditions(ORG, "2026-01-01", "2099-01-01")).getEntity();
+        JsonNode counts = (JsonNode) call(subject.conditions(ORG, null, null, null)).getEntity();
+        JsonNode range = (JsonNode) call(subject.conditions(ORG, "2026-01-01", "2099-01-01", null)).getEntity();
 
         assertEquals(1, counts.get("Code Black").asInt());
         assertEquals(1, counts.get("Compromised condition").asInt());
         assertFalse(counts.has("Stable"));
         assertEquals(1, range.get("Code Black").asInt());
-        assertEquals(400, call(subject.conditions(ORG, "2026-10-01", null)).getStatus());
+        assertEquals(400, call(subject.conditions(ORG, "2026-10-01", null, null)).getStatus());
         assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void engineOnlyTheOperatorFilterAppliesToTheListAndTheCounts() {
+        EngineCase quiet = openCase(1, "AB12", "Pérdida de señal", 1);
+        EngineCase loud = openCase(2, "CD34", "Pérdida de señal", 4);
+        engineCases.add(quiet);
+        engineCases.add(loud);
+        engineCases.operatorRequired.put(quiet.id(), false);
+        var subject = engineOnly();
+
+        assertEquals(List.of(-2L), listed(subject, "p_page=1"), "the default stays the cases for the operators");
+        assertEquals(List.of(-2L), listed(subject, "operator=required"));
+        assertEquals(List.of(-1L), listed(subject, "operator=none"));
+        assertEquals(List.of(-2L, -1L), listed(subject, "operator=all&p_page_size=10"));
+        assertEquals(400, call(subject.symptoms(ORG, query("operator=some"))).getStatus());
+
+        JsonNode none = (JsonNode) call(subject.conditions(ORG, null, null, "none")).getEntity();
+        assertEquals(1, none.get("Under Observation").asInt());
+        assertFalse(none.has("Code Black"));
+        JsonNode all = (JsonNode) call(subject.conditions(ORG, null, null, "all")).getEntity();
+        assertEquals(1, all.get("Under Observation").asInt());
+        assertEquals(1, all.get("Code Black").asInt());
+        JsonNode required = (JsonNode) call(subject.conditions(ORG, null, null, "required")).getEntity();
+        assertFalse(required.has("Under Observation"));
+        assertEquals(400, call(subject.conditions(ORG, null, null, "some")).getStatus());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    private List<Long> listed(OrgControlTowerMapResource subject, String q) {
+        List<Long> ids = new ArrayList<>();
+        ((JsonNode) call(subject.symptoms(ORG, query(q))).getEntity()).get("data")
+                .forEach(row -> ids.add(row.get("id").asLong()));
+        return ids;
+    }
+
+    @Test
+    void withoutOperatorTheGpsDatabaseSymptomsAreLeftOut() {
+        response = new GpsRpcApi.RpcResponse(200, "ok", JSON.createObjectNode().put("Code Black", 1));
+        EngineCase quiet = openCase(3, 1);
+        engineCases.add(quiet);
+        engineCases.add(openCase(4, 4));
+        engineCases.operatorRequired.put(quiet.id(), false);
+
+        assertEquals(List.of(-3L), listed(resource, "operator=none"));
+        JsonNode none = (JsonNode) call(resource.conditions(ORG, null, null, "none")).getEntity();
+        assertEquals(1, none.get("Under Observation").asInt());
+        assertFalse(none.has("Code Black"));
+        assertEquals(List.of(), gpsCalls);
+
+        JsonNode all = (JsonNode) call(resource.conditions(ORG, null, null, "all")).getEntity();
+        assertEquals(2, all.get("Code Black").asInt(), "the GPS database's and the case's");
+        assertEquals(1, all.get("Under Observation").asInt());
+        assertEquals(400, call(resource.symptoms(ORG, query("operator=some"))).getStatus());
     }
 
     @Test

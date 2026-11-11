@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.api;
 
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.OperatorScope;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -70,6 +71,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final boolean legacy;
     private final Instance<SignalStates> signals;
     private final Clock clock;
+    private static final String OPERATOR = "operator";
 
     @Inject
     public OrgControlTowerMapResource(
@@ -168,18 +170,30 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @Path("/conditions")
     @Operation(operationId = "countSymptomConditions", summary = "Symptom counts by condition",
             description = "Active symptoms, with the evaluator's open cases, or with from and to (ISO-8601) the "
-                    + "symptoms created in that range.")
+                    + "symptoms created in that range. operator counts the evaluator's cases whose current level "
+                    + "goes to the operators (required), those that do not (none) or both (all); without it, the "
+                    + "open cases that go to the operators, or with dates every case. With none, the GPS database's "
+                    + "symptoms are not counted. Any other value is a 400.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> conditions(
             @PathParam("organizationId") String organizationId,
             @QueryParam("from") String from,
-            @QueryParam("to") String to) {
+            @QueryParam("to") String to,
+            @QueryParam(OPERATOR) String operator) {
         String tenant = tenantCode(organizationId);
         if (!legacy) {
-            return answer(() -> blocking(() -> cases.caseCounts(tenant, from, to)));
+            return answer(() -> {
+                OperatorScope scope = OperatorScope.parse(operator);
+                return blocking(() -> cases.caseCounts(tenant, from, to, scope));
+            });
         }
         return answer(() -> {
+            OperatorScope scope = OperatorScope.parse(operator);
+            if (scope == OperatorScope.NONE) {
+                // Every GPS database symptom goes to the operators.
+                return blocking(() -> cases.caseCounts(tenant, from, to, scope));
+            }
             Uni<JsonNode> gps = map.conditions(tenantContext.getClientId(), from, to);
             if (notBlank(from) || notBlank(to)) {
                 return gps;
@@ -188,7 +202,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
                     .emitOn(Infrastructure.getDefaultWorkerPool())
                     .map(counts -> {
-                        JsonNode out = cases.withOpenCaseCounts(tenant, counts);
+                        JsonNode out = cases.withOpenCaseCounts(tenant, counts, scope);
                         if (counts == null && out.isEmpty()) {
                             throw new ControlTowerMapService.UnavailableException("GPS data is not available");
                         }
@@ -206,20 +220,27 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @Operation(operationId = "listMapSymptoms", summary = "One page of the organization's symptoms, with totals",
             description = "Query parameters are the GPS database function's: p_asset_id, p_trip_id, p_driver_id, "
                     + "p_carrier_id, p_origin, p_destination, p_symptom_name, p_icu_code, p_page, p_page_size, "
-                    + "p_start_date_historic, p_end_date_historic. Any other is a 400.")
+                    + "p_start_date_historic, p_end_date_historic, and operator: the evaluator's cases whose "
+                    + "current level goes to the operators (required), those that do not (none) or both (all); "
+                    + "without it, the open cases that go to the operators, or with dates every case. With none, "
+                    + "the GPS database's symptoms are left out. Each of the evaluator's cases has "
+                    + "operator_required. Any other parameter or operator value is a 400.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> symptoms(@PathParam("organizationId") String organizationId, @Context UriInfo uri) {
         String tenant = tenantCode(organizationId);
         Map<String, String> filters = new LinkedHashMap<>();
         uri.getQueryParameters().forEach((name, values) -> filters.put(name, values.isEmpty() ? null : values.get(0)));
+        String operator = filters.remove(OPERATOR);
         if (!legacy) {
-            return answer(() -> {
-                Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
-                return blocking(() -> cases.casesPage(tenant, checked));
-            });
+            return answer(() -> casesOnly(tenant, filters, OperatorScope.parse(operator)));
         }
         return answer(() -> {
+            OperatorScope scope = OperatorScope.parse(operator);
+            if (scope == OperatorScope.NONE) {
+                // Every GPS database symptom goes to the operators.
+                return casesOnly(tenant, filters, scope);
+            }
             Uni<JsonNode> gps = map.symptoms(tenantContext.getClientId(), filters);
             if (!EngineCaseService.showsCases(filters)) {
                 return gps;
@@ -228,13 +249,18 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
                     .emitOn(Infrastructure.getDefaultWorkerPool())
                     .map(page -> {
-                        JsonNode out = cases.withCases(tenant, filters, page);
+                        JsonNode out = cases.withCases(tenant, filters, page, scope);
                         if (page == null && out.path("data").isEmpty()) {
                             throw new ControlTowerMapService.UnavailableException("GPS data is not available");
                         }
                         return out;
                     });
         });
+    }
+
+    private Uni<JsonNode> casesOnly(String tenant, Map<String, String> filters, OperatorScope scope) {
+        Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
+        return blocking(() -> cases.casesPage(tenant, checked, scope));
     }
 
     @GET

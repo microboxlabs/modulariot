@@ -608,6 +608,11 @@ class PgSlaStoreTest {
         assertTrue(cases.list("other-" + tenant, filter).isEmpty());
     }
 
+    private static long openCount(PgEngineCases cases, String tenant, EngineCaseStore.OperatorScope operator) {
+        return cases.towerCounts(tenant, operator).active().stream().mapToLong(EngineCaseStore.OpenCount::count)
+                .sum();
+    }
+
     private static List<Long> ids(List<com.microboxlabs.miot.symptoms.cases.EngineCase> found) {
         return found.stream().map(com.microboxlabs.miot.symptoms.cases.EngineCase::id).toList();
     }
@@ -748,6 +753,16 @@ class PgSlaStoreTest {
                 ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN)).stream().sorted().toList(),
                 "both are recorded and listed");
         assertEquals(List.of(attended), ids(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN.forOperator())));
+        List<EngineCase> without = cases.list(tenant,
+                EngineCaseStore.CaseFilter.OPEN.operator(EngineCaseStore.OperatorScope.NONE));
+        assertEquals(List.of(recordedOnly), ids(without));
+        assertEquals(Boolean.FALSE, without.get(0).operatorRequired());
+        assertEquals(Boolean.TRUE, cases.find(tenant, attended).orElseThrow().operatorRequired());
+        assertEquals(2, cases.list(tenant,
+                EngineCaseStore.CaseFilter.OPEN.operator(EngineCaseStore.OperatorScope.ALL)).size());
+        assertEquals(1, openCount(cases, tenant, EngineCaseStore.OperatorScope.REQUIRED));
+        assertEquals(1, openCount(cases, tenant, EngineCaseStore.OperatorScope.NONE));
+        assertEquals(2, openCount(cases, tenant, EngineCaseStore.OperatorScope.ALL));
         assertEquals(15, cases.find(tenant, attended).orElseThrow().slaMinutes());
         assertNull(cases.find(tenant, recordedOnly).orElseThrow().slaMinutes(), "no SLA without an operator");
         assertEquals(1, cases.towerCounts(tenant).active().stream().mapToLong(EngineCaseStore.OpenCount::count)

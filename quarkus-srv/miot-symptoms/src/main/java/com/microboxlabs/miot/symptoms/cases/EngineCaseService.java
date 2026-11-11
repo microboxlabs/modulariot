@@ -299,11 +299,15 @@ public class EngineCaseService {
             .thenComparing(c -> c.levelAt() != null ? c.levelAt() : c.openedAt())
             .thenComparingLong(EngineCase::id);
 
-    /** The store's cases for the list, in the inbox's order when it is the inbox. */
-    private List<EngineCase> listed(String tenantCode, EngineCaseStore.CaseFilter filter) {
-        EngineCaseStore.CaseFilter f = inbox(filter);
+    /**
+     * The store's cases for the list, in the inbox's order without dates. {@code operator} null is the default
+     * ({@link #inbox}); any other value keeps the cases it names, with or without dates.
+     */
+    private List<EngineCase> listed(String tenantCode, EngineCaseStore.CaseFilter filter,
+            EngineCaseStore.OperatorScope operator) {
+        EngineCaseStore.CaseFilter f = operator == null ? inbox(filter) : filter.operator(operator);
         List<EngineCase> found = store.list(tenantCode, f);
-        return f.operatorOnly() ? found.stream().sorted(INBOX_ORDER).toList() : found;
+        return f.openOnly() ? found.stream().sorted(INBOX_ORDER).toList() : found;
     }
 
     private static String text(Map<String, String> filters, String name) {
@@ -338,7 +342,13 @@ public class EngineCaseService {
      * cases that need an operator ({@link #inbox}).
      */
     public JsonNode withCases(String tenantCode, Map<String, String> filters, JsonNode page) {
-        List<EngineCase> found = listed(tenantCode, filter(filters));
+        return withCases(tenantCode, filters, page, null);
+    }
+
+    /** As {@link #withCases(String, Map, JsonNode)}, keeping the cases {@code operator} names (null: the default). */
+    public JsonNode withCases(String tenantCode, Map<String, String> filters, JsonNode page,
+            EngineCaseStore.OperatorScope operator) {
+        List<EngineCase> found = listed(tenantCode, filter(filters), operator);
         ObjectNode out = page != null && page.isObject() ? ((ObjectNode) page).deepCopy() : JSON.objectNode();
         ArrayNode rows = JSON.arrayNode();
         found.forEach(c -> rows.add(row(c)));
@@ -371,9 +381,18 @@ public class EngineCaseService {
      * open cases cannot be read, the GPS counts are answered alone.
      */
     public JsonNode withOpenCaseCounts(String tenantCode, JsonNode counts) {
+        return withOpenCaseCounts(tenantCode, counts, null);
+    }
+
+    /**
+     * As {@link #withOpenCaseCounts(String, JsonNode)}, counting the open cases {@code operator} names (null: those
+     * that need an operator).
+     */
+    public JsonNode withOpenCaseCounts(String tenantCode, JsonNode counts, EngineCaseStore.OperatorScope operator) {
         EngineCaseStore.TowerCounts engineCounts;
         try {
-            engineCounts = store.towerCounts(tenantCode);
+            engineCounts = store.towerCounts(tenantCode,
+                    operator == null ? EngineCaseStore.OperatorScope.REQUIRED : operator);
         } catch (RuntimeException e) {
             if (counts == null) {
                 throw e;
@@ -403,11 +422,17 @@ public class EngineCaseService {
      * @param filters already checked by {@code ControlTowerMapService.symptomFilters}
      */
     public JsonNode casesPage(String tenantCode, Map<String, String> filters) {
+        return casesPage(tenantCode, filters, null);
+    }
+
+    /** As {@link #casesPage(String, Map)}, keeping the cases {@code operator} names (null: the default). */
+    public JsonNode casesPage(String tenantCode, Map<String, String> filters,
+            EngineCaseStore.OperatorScope operator) {
         EngineCaseStore.CaseFilter filter = filter(filters);
         if (Integer.valueOf(6).equals(filter.level())) {
             filter = filter.withOpenTreatment();
         }
-        List<EngineCase> found = listed(tenantCode, filter);
+        List<EngineCase> found = listed(tenantCode, filter, operator);
         int size = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
         int page = Math.max(1, number(filters.get(PAGE), 1));
         int pages = Math.max(1, Math.ceilDiv(found.size(), size));
@@ -441,18 +466,33 @@ public class EngineCaseService {
      * @throws IllegalArgumentException when only one date is given, or a date is not ISO-8601
      */
     public JsonNode caseCounts(String tenantCode, String from, String to) {
+        return caseCounts(tenantCode, from, to, null);
+    }
+
+    /**
+     * As {@link #caseCounts(String, String, String)}, counting the cases {@code operator} names. Null is the
+     * default: the open cases that need an operator, or with dates every case opened in the range.
+     */
+    public JsonNode caseCounts(String tenantCode, String from, String to, EngineCaseStore.OperatorScope operator) {
         if (notBlank(from) != notBlank(to)) {
             throw new IllegalArgumentException("Send both from and to, or neither");
         }
         if (!notBlank(from)) {
-            return withOpenCaseCounts(tenantCode, null);
+            return withOpenCaseCounts(tenantCode, null, operator);
         }
         Instant start = instant(from.trim());
         Instant end = instant(to.trim());
         ObjectNode out = JSON.objectNode();
         for (EngineCaseStore.LevelCount c : store.openedCounts(tenantCode, start, end)) {
-            String key = COUNTED.getOrDefault(c.level(), COUNTED.get(1));
-            out.put(key, out.path(key).asLong(0) + c.count());
+            long counted = switch (operator == null ? EngineCaseStore.OperatorScope.ALL : operator) {
+                case REQUIRED -> c.count() - c.withoutOperator();
+                case NONE -> c.withoutOperator();
+                case ALL -> c.count();
+            };
+            if (counted > 0) {
+                String key = COUNTED.getOrDefault(c.level(), COUNTED.get(1));
+                out.put(key, out.path(key).asLong(0) + counted);
+            }
         }
         return out;
     }
@@ -590,6 +630,7 @@ public class EngineCaseService {
         r.put("sla_minutes", c.slaMinutes());
         r.put("sla_since", c.slaStart().toString());
         r.put("recurrence_events", c.recurrence());
+        r.put("operator_required", c.operatorRequired());
         EngineCase.TripDetails trip = c.trip();
         r.put(DRIVER_FIELD, trip == null ? null : trip.driver());
         r.put(CARRIER_FIELD, trip == null ? null : trip.carrier());

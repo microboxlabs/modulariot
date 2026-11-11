@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.cases;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -83,6 +84,70 @@ class EngineCaseServiceTest {
         JsonNode counts = service.caseCounts(TENANT, null, null);
         assertEquals(1, counts.path("Critical condition").asInt());
         assertFalse(counts.has("Under Observation"), "the counts match the list");
+    }
+
+    @Test
+    void theOperatorFilterKeepsTheCasesItNamesInTheListAndTheCounts() {
+        store.operatorLevels.put(PANIC, Set.of(2, 3, 4));
+        store.add(engineCase(12, "DEMO01", 1, 0));
+        store.add(engineCase(13, "DEMO02", 3, 0));
+
+        JsonNode required = service.casesPage(TENANT, Map.of(), EngineCaseStore.OperatorScope.REQUIRED);
+        assertEquals(List.of(-13L), ids(required));
+        assertTrue(required.path("data").get(0).path("operator_required").asBoolean());
+        JsonNode none = service.casesPage(TENANT, Map.of(), EngineCaseStore.OperatorScope.NONE);
+        assertEquals(List.of(-12L), ids(none));
+        assertEquals(1, none.path("total_rows").asInt());
+        assertFalse(none.path("data").get(0).path("operator_required").asBoolean(true));
+        assertEquals(List.of(-13L, -12L), ids(service.casesPage(TENANT, Map.of(), EngineCaseStore.OperatorScope.ALL)),
+                "the highest level first");
+        assertEquals(List.of(-12L), ids(service.withCases(TENANT, Map.of(), null,
+                EngineCaseStore.OperatorScope.NONE)));
+
+        JsonNode withOperator = service.caseCounts(TENANT, null, null, EngineCaseStore.OperatorScope.REQUIRED);
+        assertEquals(1, withOperator.path("Critical condition").asInt());
+        assertFalse(withOperator.has("Under Observation"));
+        JsonNode without = service.caseCounts(TENANT, null, null, EngineCaseStore.OperatorScope.NONE);
+        assertEquals(1, without.path("Under Observation").asInt());
+        assertFalse(without.has("Critical condition"));
+        JsonNode all = service.caseCounts(TENANT, null, null, EngineCaseStore.OperatorScope.ALL);
+        assertEquals(1, all.path("Under Observation").asInt());
+        assertEquals(1, all.path("Critical condition").asInt());
+    }
+
+    @Test
+    void theOperatorFilterAlsoAppliesToARange() {
+        store.operatorLevels.put(PANIC, Set.of(2, 3, 4));
+        store.add(engineCase(12, "DEMO01", 1, 0));
+        store.add(engineCase(13, "DEMO02", 3, 0));
+        Map<String, String> range = Map.of("p_start_date_historic", "2026-10-22T00:00:00Z",
+                "p_end_date_historic", "2026-10-23T00:00:00Z");
+        String from = "2026-10-22T00:00:00Z";
+        String to = "2026-10-23T00:00:00Z";
+
+        assertEquals(2, ids(service.casesPage(TENANT, range)).size(), "without the filter, every case");
+        assertEquals(List.of(-13L), ids(service.casesPage(TENANT, range, EngineCaseStore.OperatorScope.REQUIRED)));
+        assertEquals(List.of(-12L), ids(service.casesPage(TENANT, range, EngineCaseStore.OperatorScope.NONE)));
+        assertEquals(2, ids(service.casesPage(TENANT, range, EngineCaseStore.OperatorScope.ALL)).size());
+
+        JsonNode withOperator = service.caseCounts(TENANT, from, to, EngineCaseStore.OperatorScope.REQUIRED);
+        assertEquals(1, withOperator.path("Critical condition").asInt());
+        assertFalse(withOperator.has("Under Observation"));
+        JsonNode without = service.caseCounts(TENANT, from, to, EngineCaseStore.OperatorScope.NONE);
+        assertEquals(1, without.path("Under Observation").asInt());
+        assertFalse(without.has("Critical condition"));
+        assertEquals(service.caseCounts(TENANT, from, to),
+                service.caseCounts(TENANT, from, to, EngineCaseStore.OperatorScope.ALL));
+    }
+
+    @Test
+    void theOperatorFilterReadsRequiredNoneOrAll() {
+        assertEquals(EngineCaseStore.OperatorScope.REQUIRED, EngineCaseStore.OperatorScope.parse(" Required "));
+        assertEquals(EngineCaseStore.OperatorScope.NONE, EngineCaseStore.OperatorScope.parse("none"));
+        assertEquals(EngineCaseStore.OperatorScope.ALL, EngineCaseStore.OperatorScope.parse("ALL"));
+        assertNull(EngineCaseStore.OperatorScope.parse(null));
+        assertNull(EngineCaseStore.OperatorScope.parse(" "));
+        assertThrows(IllegalArgumentException.class, () -> EngineCaseStore.OperatorScope.parse("some"));
     }
 
     @Test

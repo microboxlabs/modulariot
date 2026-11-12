@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { MapPosition } from "../types/map";
 import { PulsePinLayer } from "./layers/pulse";
+import { LATE_GRAY } from "./layers/pulse-base";
 import MapVisualizationTrip from "./map-visualization-trip";
 
 const mapState = vi.hoisted(() => ({
@@ -336,7 +337,13 @@ describe("case map frames", () => {
   }
 
   it("keeps a frame blue and shows its symptom and level when clicked", () => {
-    render(<MapVisualizationTrip {...props} />);
+    // on time: a late frame would be gray
+    render(
+      <MapVisualizationTrip
+        {...props}
+        positions={positions.map((p) => ({ ...p, delay_s: 0 }))}
+      />
+    );
     const layer = pulseLayer();
     const frame = layer.props.data.features[1];
     expect(frame.properties).toMatchObject({
@@ -655,18 +662,23 @@ describe("case map frames", () => {
     const stopped = layer
       .renderLayers()
       .find((item) => item.id === "pulse-selected-stopped-vehicles-layer");
-    expect(markerColor(stopped, frame)).toEqual([255, 255, 255, 255]);
-    expect(markerColor(stopped, frame, "getLineColor")).toEqual([
-      28, 100, 242, 255,
-    ]);
-    const late = mapState.layers.find((item) => item.id === "late-frames");
-    expect(late?.props).toMatchObject({
-      data: positions.slice(0, 2),
-      filled: true,
-      getFillColor: [156, 163, 175, 255],
-      stroked: true,
-      getLineColor: [255, 255, 255, 255],
-    });
+    expect(markerColor(stopped, frame)).toEqual([28, 100, 242, 255]);
+    const center = layer
+      .renderLayers()
+      .find(
+        (item) => item.id === "pulse-selected-stopped-vehicles-center-layer"
+      );
+    expect(markerColor(center, frame)).toEqual([255, 255, 255, 255]);
+    // late frames are the pulses' own dots, gray instead of blue: no layer
+    // of their own over the pulses
+    expect(
+      mapState.layers.some((item) => String(item.id).startsWith("late-frames"))
+    ).toBe(false);
+    const late = layer.props.data.features[0];
+    const moving = layer
+      .renderLayers()
+      .find((item) => item.id === "pulse-moving-vehicles-layer");
+    expect(markerColor(moving, late)).toEqual(LATE_GRAY);
   });
 });
 

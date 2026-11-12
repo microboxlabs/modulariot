@@ -85,11 +85,7 @@ import {
   formatEtaHours,
   ringCentroid,
 } from "../utils/vehicle-origin";
-import {
-  countPulseSources,
-  filterVisiblePulses,
-  isDarkMapStyle,
-} from "../utils/pulse-source";
+import { countPulseSources, isDarkMapStyle } from "../utils/pulse-source";
 import { PulseSourceLegend } from "./pulse-source-indicator";
 import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
 import {
@@ -101,13 +97,7 @@ import {
   type CaseWindow,
   pulsesInWindow,
 } from "@/features/symptoms/model/case-window";
-import {
-  dashSegments,
-  frameDelay,
-  hasFramePosition,
-  isLate,
-  silenceGap,
-} from "../utils/frame-delays";
+import { dashSegments, frameDelay, silenceGap } from "../utils/frame-delays";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -195,11 +185,13 @@ function applySelectionCardPosition(
 
 const NO_SPANS: CaseSpan[] = [];
 
-/** The silence connection and late-frame rings, independent of the other map layers. */
+/**
+ * The silence connection, independent of the other map layers. Late frames
+ * are drawn by the pulse layer itself, gray instead of blue.
+ */
 function frameDelayLayers(
   positions: MapPosition[],
-  lostSince: string | null,
-  showAppSignalDetail: boolean
+  lostSince: string | null
 ): Layer[] {
   const layers: Layer[] = [];
   const gap = silenceGap(positions, lostSince);
@@ -213,30 +205,6 @@ function frameDelayLayers(
         getColor: [255, 255, 255, 230],
         getWidth: 3,
         widthUnits: "pixels",
-        parameters: { depthCompare: "always" },
-      })
-    );
-  }
-  // A hidden app pulse must not leave its late-frame dot behind.
-  const late = filterVisiblePulses(positions, showAppSignalDetail)
-    .filter(hasFramePosition)
-    .filter(isLate);
-  if (late.length) {
-    layers.push(
-      new ScatterplotLayer<MapPosition>({
-        id: "late-frames",
-        data: late,
-        getPosition: (d) => [d.longitude, d.latitude],
-        // A late frame is drawn as a gray dot with a white border over its blue
-        // dot (Tailwind gray-400): lateness is context, not an alarm.
-        getRadius: 6,
-        radiusUnits: "pixels",
-        filled: true,
-        getFillColor: [156, 163, 175, 255],
-        stroked: true,
-        getLineColor: [255, 255, 255, 255],
-        getLineWidth: 2,
-        lineWidthUnits: "pixels",
         parameters: { depthCompare: "always" },
       })
     );
@@ -1027,9 +995,7 @@ export default function MapVisualizationTrip({
     }
 
     if (showPulse && positions?.length) {
-      baseLayers.push(
-        ...frameDelayLayers(positions, lostSince, showAppSignalDetail)
-      );
+      baseLayers.push(...frameDelayLayers(positions, lostSince));
     }
 
     if (caseLng != null && caseLat != null) {

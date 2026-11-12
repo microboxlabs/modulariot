@@ -572,8 +572,9 @@ class PgHoldsTest {
         long untreated = open(speeding, TRUCK, now.minusSeconds(900), 3, null);
         long treating = open(speeding, "DEMO02", now.minusSeconds(800), 3, null);
         String mine = treat(treating, OPERATOR, now.minusSeconds(600), ActionKind.CALL, "No contesta");
+        Instant competingAt = now.minusSeconds(500);
         assertThrows(IllegalStateException.class,
-                () -> treat(treating, "first@example.com", now.minusSeconds(500), null, null));
+                () -> treat(treating, "first@example.com", competingAt, null, null));
         long called = open(speeding, "DEMO03", now.minusSeconds(790), 3, null);
         finish(treat(called, OPERATOR, now.minusSeconds(500), ActionKind.CALL, "Contesta"), now.minusSeconds(400));
         cases.close(tenant, called, OPERATOR, now.minusSeconds(400));

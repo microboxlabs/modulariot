@@ -238,11 +238,7 @@ public class PgTreatmentStore implements TreatmentStore {
                                 if (rows.iterator().hasNext()) throw new IllegalStateException("the case is closed");
                             })
                             .flatMap(ignored -> tx.preparedQuery(OTHER_OPEN).execute(mine))
-                            .invoke(rows -> {
-                                if (rows.iterator().hasNext()) {
-                                    throw new IllegalStateException("another operator is treating this case");
-                                }
-                            })
+                            .invoke(PgTreatmentStore::requireNoCompetingTreatment)
                             .flatMap(ignored -> tx.preparedQuery(INSERT_TREATMENT).execute(params))
                             .flatMap(rows -> {
                                 List<Treatment> saved = treatments(rows);
@@ -251,6 +247,12 @@ public class PgTreatmentStore implements TreatmentStore {
                                         .map(again -> new Inserted(treatments(again).get(0), false));
                             });
                 })).await().atMost(QUERY_TIMEOUT);
+    }
+
+    private static void requireNoCompetingTreatment(RowSet<Row> rows) {
+        if (rows.iterator().hasNext()) {
+            throw new IllegalStateException("another operator is treating this case");
+        }
     }
 
     @Override

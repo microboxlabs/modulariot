@@ -1,4 +1,5 @@
-import type { NextAuthConfig, Session } from "next-auth";
+import type { Account, NextAuthConfig, Session, User } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
 import {
   authenticateWithAuth0Password,
@@ -95,6 +96,82 @@ const authSessionLogger = createManagedLogger("auth.session", "Session Managemen
 const authCredentialsLogger = createManagedLogger("auth.providers.credentials", "Credentials Auth", undefined, "auth.providers");
 const authAuth0Logger = createManagedLogger("auth.providers.auth0", "Auth0 OIDC", undefined, "auth.providers");
 const authAuthzLogger = createManagedLogger("auth.authorization", "Route Authorization", undefined, "auth");
+
+/** Stores the tokens and profile of an Auth0 sign-in in the JWT. */
+function applyAuth0Account(token: JWT, account: Account, user: User | undefined) {
+  authAuth0Logger.debug({
+    hasAccessToken: !!account.access_token,
+    hasIdToken: !!account.id_token,
+    hasRefreshToken: !!account.refresh_token,
+    expiresAt: account.expires_at,
+  }, "Processing Auth0 authentication");
+
+  token.rawJWT = account.id_token;
+  // When AUTH_AUTH0_AUDIENCE is set, access_token is a JWT scoped to the API audience
+  // (harness, ECM, etc.). Store it separately from rawJWT (id_token).
+  token.accessToken = account.access_token;
+  token.expiresAt = earliestTokenExpiry(account.id_token, account.expires_at);
+  token.refreshToken = account.refresh_token;
+
+  // Store user info from initial sign-in
+  if (user) {
+    token.name = user.name;
+    token.email = user.email;
+    token.picture = user.image;
+  }
+
+  authAuth0Logger.debug({
+    email: token.email,
+    hasRawJWT: !!token.rawJWT,
+    expiresAt: token.expiresAt,
+  }, "Auth0 tokens stored in JWT");
+}
+
+/** Sessions saved before `expiresAt` existed only carry the access token expiry. */
+function backfillExpiresAt(token: JWT) {
+  if (token.expiresAt === undefined) {
+    token.expiresAt = earliestTokenExpiry(token.rawJWT, token.accessTokenExpiresAt);
+  }
+}
+
+/** Refreshes the Auth0 tokens when they expire within 5 minutes. */
+async function maybeRefreshAuth0(token: JWT) {
+  if (!token.refreshToken) return;
+
+  const expiresAt = Number(token.expiresAt ?? 0) * 1000;
+  const shouldRefresh = expiresAt - Date.now() < 5 * 60 * 1000; // 5 min before expiry
+  if (!shouldRefresh) return;
+
+  const result = await refreshAuth0Tokens(token.refreshToken, token.rawJWT);
+  if (result.ok) {
+    Object.assign(token, result.tokens);
+    token.error = undefined;
+    authAuth0Logger.debug({ expiresAt: token.expiresAt }, "Auth0 token refreshed");
+  } else {
+    authAuth0Logger.warn({ status: result.status }, "Auth0 token refresh failed");
+    token.error = "RefreshTokenError";
+  }
+}
+
+/**
+ * Credentials users are validated against Auth0 (password-realm grant), so they
+ * carry an idToken and get a JWT-shaped token, same as OAuth users (including refresh).
+ */
+function applyCredentialsUser(token: JWT, account: Account, user: User | undefined) {
+  authCredentialsLogger.debug({
+    hasUser: !!user,
+    email: user?.email,
+  }, "Processing credentials-based authentication");
+
+  if (user) {
+    Object.assign(token, tokenFieldsForCredentialsUser(user));
+    authJwtLogger.debug({
+      email: user.email,
+      hasRawJWT: !!token.rawJWT,
+      provider: account.provider,
+    }, "Processing user in JWT callback");
+  }
+}
 
 export const authConfig: NextAuthConfig = {
   basePath: "/app/api/auth",
@@ -205,76 +282,18 @@ export const authConfig: NextAuthConfig = {
 
         // When user signs in with Auth0 (Google, GitHub, Microsoft, or Auth0 credentials)
         if (account?.provider === "auth0") {
-          authAuth0Logger.debug({
-            hasAccessToken: !!account.access_token,
-            hasIdToken: !!account.id_token,
-            hasRefreshToken: !!account.refresh_token,
-            expiresAt: account.expires_at,
-          }, "Processing Auth0 authentication");
-
-          token.rawJWT = account.id_token;
-          // When AUTH_AUTH0_AUDIENCE is set, access_token is a JWT scoped to the API audience
-          // (harness, ECM, etc.). Store it separately from rawJWT (id_token).
-          token.accessToken = account.access_token;
-          token.expiresAt = earliestTokenExpiry(account.id_token, account.expires_at);
-          token.refreshToken = account.refresh_token;
-
-          // Store user info from initial sign-in
-          if (user) {
-            token.name = user.name;
-            token.email = user.email;
-            token.picture = user.image;
-          }
-
-          authAuth0Logger.debug({
-            email: token.email,
-            hasRawJWT: !!token.rawJWT,
-            expiresAt: token.expiresAt,
-          }, "Auth0 tokens stored in JWT");
+          applyAuth0Account(token, account, user);
         }
 
-        // Sessions saved before `expiresAt` existed only carry the access token expiry.
-        if (!account && token.expiresAt === undefined) {
-          token.expiresAt = earliestTokenExpiry(token.rawJWT, token.accessTokenExpiresAt);
+        // Subsequent invocations carry no account: backfill sessions saved before
+        // `expiresAt` existed, then refresh Auth0 tokens near expiry.
+        if (!account) {
+          backfillExpiresAt(token);
+          await maybeRefreshAuth0(token);
         }
 
-        // Auth0 token refresh on subsequent invocations
-        if (token.refreshToken && !account) {
-          const expiresAt = Number(token.expiresAt ?? 0) * 1000;
-          const shouldRefresh = expiresAt - Date.now() < 5 * 60 * 1000; // 5 min before expiry
-
-          if (shouldRefresh) {
-            const result = await refreshAuth0Tokens(token.refreshToken, token.rawJWT);
-            if (result.ok) {
-              Object.assign(token, result.tokens);
-              token.error = undefined;
-              authAuth0Logger.debug({ expiresAt: token.expiresAt }, "Auth0 token refreshed");
-            } else {
-              authAuth0Logger.warn({ status: result.status }, "Auth0 token refresh failed");
-              token.error = "RefreshTokenError";
-            }
-          }
-        }
-
-        // Handle credentials provider. Credentials users are validated against
-        // Auth0 (password-realm grant), so they carry an idToken and get a
-        // JWT-shaped token, same as OAuth users (including refresh).
-        if (account && account.provider === "credentials") {
-            authCredentialsLogger.debug( {
-              hasUser: !!user,
-              email: user?.email,
-            }, "Processing credentials-based authentication");
-
-
-          if (user) {
-            Object.assign(token, tokenFieldsForCredentialsUser(user));
-            authJwtLogger.debug( {
-              email: user.email,
-              hasRawJWT: !!token.rawJWT,
-              provider: account?.provider,
-            }, "Processing user in JWT callback");
-
-          }
+        if (account?.provider === "credentials") {
+          applyCredentialsUser(token, account, user);
         }
 
         return token;

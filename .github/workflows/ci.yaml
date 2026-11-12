@@ -22,9 +22,11 @@ on:
     paths:
       - 'turbo-repo/**'
       - '.github/workflows/ci.yaml'
+    types: [opened, synchronize, reopened, edited]
     branches:
       - trunk
       - main
+      - 'task/sonar-*'
   workflow_dispatch:
 
 concurrency:

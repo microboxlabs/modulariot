@@ -568,6 +568,15 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void aTripSearchWithoutDatesIsTheTripsHistory() {
+        EngineCaseStore.CaseFilter trip = EngineCaseService.filter(Map.of("p_trip_id", "SERVICE-001"));
+        assertFalse(trip.openOnly(), "closed cases of the trip too");
+        assertEquals(Instant.EPOCH, trip.from());
+        assertNull(trip.to());
+        assertTrue(EngineCaseService.filter(Map.of("p_asset_id", "DEMO")).openOnly(), "a plate stays the inbox");
+    }
+
+    @Test
     void readsTheTripFiltersAsACaseFilter() {
         EngineCaseStore.CaseFilter f = EngineCaseService.filter(Map.of("p_driver_id", " 12.345.678-9 ",
                 "p_carrier_id", "76.111.111-1", "p_origin", "Planta Norte", "p_destination", " "));
@@ -610,7 +619,7 @@ class EngineCaseServiceTest {
     }
 
     @Test
-    void aTripsCasesOpenAndClosedComeWithADateRange() {
+    void aTripsCasesOpenAndClosedComeWithOrWithoutADateRange() {
         store.add(engineCase(12, "DEMO01", 4, 0));
         store.add(new EngineCase(13, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01",
                 OPENED.plusSeconds(30), 2, "T-1", null, null, null, OPENED.plusSeconds(60), 0, null, 0L));
@@ -622,7 +631,7 @@ class EngineCaseServiceTest {
                 "p_start_date_historic", "2026-10-22T00:00:00Z", "p_end_date_historic", "2026-10-23T00:00:00Z"),
                 null);
 
-        assertEquals(List.of(-12L), ids(open), "without dates, the open ones");
+        assertEquals(List.of(-13L, -12L), ids(open), "without dates, the trip's whole history");
         assertEquals(List.of(-13L, -12L), ids(all), "the latest first");
         JsonNode closed = all.path("data").get(0);
         assertEquals(OPENED.plusSeconds(60).toString(), closed.path("end_time").asText());

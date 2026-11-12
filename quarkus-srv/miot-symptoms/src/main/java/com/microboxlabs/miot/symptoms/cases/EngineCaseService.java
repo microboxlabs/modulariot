@@ -270,10 +270,17 @@ public class EngineCaseService {
      */
     public static EngineCaseStore.CaseFilter filter(Map<String, String> filters) {
         String level = text(filters, LEVEL);
+        String trip = text(filters, TRIP_ID);
+        Instant from = instant(text(filters, FROM));
+        Instant to = instant(text(filters, TO));
+        // A search for one trip is its history: every case of the trip, open or closed, without dates.
+        if (trip != null && from == null && to == null) {
+            from = Instant.EPOCH;
+        }
         try {
-            EngineCaseStore.CaseFilter f = new EngineCaseStore.CaseFilter(text(filters, TRIP_ID),
+            EngineCaseStore.CaseFilter f = new EngineCaseStore.CaseFilter(trip,
                     text(filters, ASSET_ID), text(filters, NAME), level == null ? null : Integer.valueOf(level),
-                    instant(text(filters, FROM)), instant(text(filters, TO)), text(filters, DRIVER),
+                    from, to, text(filters, DRIVER),
                     text(filters, CARRIER), text(filters, ORIGIN), text(filters, DESTINATION));
             return Integer.valueOf(IGNORED_CODE).equals(f.level()) ? f.withIgnored() : f;
         } catch (NumberFormatException e) {

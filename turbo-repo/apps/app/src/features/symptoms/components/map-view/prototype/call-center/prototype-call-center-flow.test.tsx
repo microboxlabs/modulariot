@@ -94,11 +94,14 @@ vi.mock("../prototype-call-driver", () => ({
     <>
       <span data-testid="result-phone">{initialCallTargetPhone}</span>
       <span data-testid="treatment-id">
-        {treatmentProgress.opened?.treatmentId ?? "none"}
+        {treatmentProgress.pendingClose?.treatmentId ?? "none"}
       </span>
       <button
         onClick={() => {
-          treatmentProgress.opened = { symptomId: "-1", treatmentId: "t-1" };
+          treatmentProgress.pendingClose = {
+            symptomId: "-1",
+            treatmentId: "t-1",
+          };
           onMakeAnotherCall();
         }}
       >

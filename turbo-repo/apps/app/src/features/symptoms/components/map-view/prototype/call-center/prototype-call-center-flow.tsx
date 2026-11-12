@@ -133,9 +133,12 @@ export default function PrototypeCallCenterFlow({
   onFormDraftChange,
   skippedTo,
   onSkip,
+  onCallStart,
 }: Readonly<{
   skippedTo: number | null;
   onSkip: (step: number) => void;
+  /** "Llamar" was pressed on a contact: the treatment must be open by now. */
+  onCallStart?: () => void;
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   messageToCommunicate: string;
@@ -277,6 +280,7 @@ export default function PrototypeCallCenterFlow({
   };
 
   const handleCall = (target: CallTarget, script?: CallScript) => {
+    onCallStart?.();
     setAdoptedSessionKey(undefined);
     if (!activeScript) defaultMessage.current = messageToCommunicate;
     // The step's script replaces the treatment's default message, so the

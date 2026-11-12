@@ -26,6 +26,16 @@ import { TiDelete } from "react-icons/ti";
 import { MdBlock } from "react-icons/md";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
 import { useOptionalCallSession } from "./call-center/call-session";
+import { ShowNotification } from "@/features/notifications/notification";
+import { revalidateCase } from "@/features/symptoms/control-tower/control-tower-api";
+import { isCaseClosedError } from "./prototype-api-guard";
+import { useStartedTreatment } from "./use-started-treatment";
+
+/** The treatment type each form opens with; the call forms leave it empty. */
+const TREATMENT_TYPE_BY_OPTION: Partial<Record<string, string>> = {
+  ignore_condition: "ignorar condicion",
+  invalidate_symptom: "invalidar sintoma",
+};
 
 /** Panel header title per call-center debug-flow step — overrides the menu's
  *  static title while that flow is on screen. */
@@ -78,7 +88,10 @@ export default function PrototypeInlineForm({
       ? null
       : String(treatmentData.symptom_info.id);
   const setIsMenuOpen = (open: boolean) => {
-    if (!open) callSession?.clearIfOver(caseId);
+    if (!open) {
+      callSession?.clearIfOver(caseId);
+      startedTreatment.callCleared();
+    }
     setPanelOpen(open);
   };
 
@@ -236,6 +249,27 @@ export default function PrototypeInlineForm({
     });
   }, [messageToCommunicate]);
 
+  // The treatment opens with the panel, not on the first save: the engine can
+  // close the case while the operator works. WhatsApp records no treatment.
+  const startedTreatment = useStartedTreatment({
+    request: {
+      ...treatmentRequest,
+      treatment_type: TREATMENT_TYPE_BY_OPTION[selectedOption] ?? "",
+    },
+    active: isMenuOpen && selectedOption !== "contact_via_whatsapp",
+    callSession,
+    onRefused: (error) => {
+      if (isCaseClosedError(error)) {
+        ShowNotification({
+          type: "error",
+          message: tr("symptoms.treatment_case_closed", dict),
+        });
+      }
+      void revalidateCase(treatmentRequest.symptom_id);
+      setIsMenuOpen(false);
+    },
+  });
+
   // Lets the call flow's `CallSwitchDropdown` jump to a different treatment
   // form without leaving the panel.
   const handleSwitchFromCall = (option: SelectedOption) => {
@@ -266,6 +300,7 @@ export default function PrototypeInlineForm({
             onFormDraftChange={setCallFormDraft}
             skippedTo={callSkippedTo}
             onSkip={(step) => setCallSkip({ scope: skipScope, step })}
+            onCallStart={startedTreatment.ensure}
           />
         </div>
       ),

@@ -14,6 +14,7 @@ import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
 import {
   addTreatmentAction,
+  cancelTreatment,
   closeTreatment,
   openTreatment,
   revalidateCase,
@@ -70,15 +71,35 @@ export interface EngineTreatmentProgress {
     treatmentId: string;
     resolution?: string;
   };
-  /** The treatment this form already opened: later saves add to it without opening again. */
-  opened?: {
-    symptomId: TreatmentsRequest["symptom_id"];
-    treatmentId: string;
-  };
+}
+
+/** The operator's treatment on an engine case, as this page opened or resumed it. */
+interface StartedTreatment {
+  treatmentId: string;
+  /** False while it holds no action: it is then cancelled when the operator leaves. */
+  recorded: boolean;
+}
+
+interface TreatmentTarget {
+  symptomId: number | string;
+  type: TowerTreatmentType;
+  assetId?: string;
+  tripId?: string;
+}
+
+/** By case id. A treatment stays here from its opening until it is closed or the operator leaves. */
+const started = new Map<string, Promise<StartedTreatment>>();
+/** By case id: the cancel of an abandoned treatment, which the next opening waits for. */
+const leaving = new Map<string, Promise<void>>();
+
+/** Forgets every treatment this page opened, without cancelling any. */
+export function forgetStartedTreatments(): void {
+  started.clear();
+  leaving.clear();
 }
 
 /** A conflict answer from the Control Tower API (`ControlTowerError`). */
-function isConflict(error: unknown): error is Error {
+export function isConflict(error: unknown): error is Error {
   return (
     error instanceof Error &&
     (error as Partial<ControlTowerError>).status === 409
@@ -102,13 +123,38 @@ function towerType(payload: TreatmentsRequest): TowerTreatmentType {
   return TOWER_TREATMENT_TYPES[payload.treatment_type] ?? "CALL";
 }
 
-/** Opens the operator's treatment on the case, or resumes the open one. */
-function openEngineTreatment(payload: TreatmentsRequest) {
-  return openTreatment(payload.symptom_id ?? "", {
+function targetOf(payload: TreatmentsRequest): TreatmentTarget {
+  return {
+    symptomId: payload.symptom_id ?? "",
     type: towerType(payload),
     assetId: payload.asset_id || undefined,
     tripId: payload.trip_id || undefined,
+  };
+}
+
+/**
+ * The treatment this page has open on the case. The first call opens it, or
+ * resumes the operator's open one, which the API does even after the engine
+ * closed the case. Only a new treatment on a closed case is refused.
+ */
+function startEngineTreatment(
+  target: TreatmentTarget
+): Promise<StartedTreatment> {
+  const key = String(target.symptomId);
+  const known = started.get(key);
+  if (known) return known;
+  const { symptomId, ...body } = target;
+  const opening = (leaving.get(key) ?? Promise.resolve())
+    .then(() => openTreatment(symptomId, body))
+    .then((treatment) => ({
+      treatmentId: treatment.id,
+      recorded: (treatment.actions?.length ?? 0) > 0,
+    }));
+  started.set(key, opening);
+  opening.catch(() => {
+    if (started.get(key) === opening) started.delete(key);
   });
+  return opening;
 }
 
 function engineAction(
@@ -140,9 +186,8 @@ async function saveEngineTreatment(
     await finishEngineTreatment(payload, progress);
   } else {
     const treatmentId = await addEngineAction(
-      payload,
-      engineAction(payload, action),
-      progress
+      targetOf(payload),
+      engineAction(payload, action)
     );
     if (finish) {
       await finishEngineTreatment(
@@ -157,45 +202,38 @@ async function saveEngineTreatment(
 }
 
 /**
- * The treatment this form opened, else the operator's open one on the case,
- * which the API resumes even after the engine closed the case. Only a new
- * treatment on a closed case is refused.
+ * Adds the action to the case's treatment. A treatment closed elsewhere is
+ * forgotten and the open one is looked up once.
  */
-async function engineTreatmentId(
-  payload: TreatmentsRequest,
-  progress?: EngineTreatmentProgress
+async function addEngineAction(
+  target: TreatmentTarget,
+  body: AddActionBody
 ): Promise<string> {
-  const known = progress?.opened;
-  if (known?.symptomId === payload.symptom_id) return known.treatmentId;
-  const treatment = await openEngineTreatment(payload);
-  if (progress) {
-    progress.opened = {
-      symptomId: payload.symptom_id,
-      treatmentId: treatment.id,
-    };
+  const key = String(target.symptomId);
+  const remembered = started.has(key);
+  const treatment = await startEngineTreatment(target);
+  try {
+    return await recordAction(treatment, body);
+  } catch (error) {
+    if (!remembered || !isConflict(error)) throw error;
+    started.delete(key);
+    return recordAction(await startEngineTreatment(target), body);
   }
-  return treatment.id;
 }
 
-/** A remembered treatment closed elsewhere is forgotten and the open one is looked up once. */
-async function addEngineAction(
-  payload: TreatmentsRequest,
-  body: AddActionBody,
-  progress?: EngineTreatmentProgress
+/** Counts as recorded while the request runs, so leaving meanwhile does not cancel it. */
+async function recordAction(
+  treatment: StartedTreatment,
+  body: AddActionBody
 ): Promise<string> {
-  const remembered = progress?.opened?.symptomId === payload.symptom_id;
-  const treatmentId = await engineTreatmentId(payload, progress);
+  const before = treatment.recorded;
+  treatment.recorded = true;
   try {
-    await addTreatmentAction(treatmentId, body);
-    return treatmentId;
+    await addTreatmentAction(treatment.treatmentId, body);
+    return treatment.treatmentId;
   } catch (error) {
-    if (!remembered || !isConflict(error)) {
-      throw error;
-    }
-    if (progress) progress.opened = undefined;
-    const reopened = await engineTreatmentId(payload, progress);
-    await addTreatmentAction(reopened, body);
-    return reopened;
+    treatment.recorded = before;
+    throw error;
   }
 }
 
@@ -209,7 +247,9 @@ async function finishEngineTreatment(
   if (pending?.symptomId !== payload.symptom_id) pending = undefined;
   pending ??= {
     symptomId: payload.symptom_id,
-    treatmentId: treatmentId ?? (await engineTreatmentId(payload, progress)),
+    treatmentId:
+      treatmentId ??
+      (await startEngineTreatment(targetOf(payload))).treatmentId,
     resolution,
   };
   if (progress) progress.pendingClose = pending;
@@ -217,10 +257,8 @@ async function finishEngineTreatment(
     pending.treatmentId,
     pending.resolution === undefined ? {} : { resolution: pending.resolution }
   );
-  if (progress) {
-    progress.pendingClose = undefined;
-    progress.opened = undefined;
-  }
+  if (progress) progress.pendingClose = undefined;
+  started.delete(String(payload.symptom_id));
 }
 
 /** On a NOTE action: the call-script step (1-based) the operator skipped to. */
@@ -248,23 +286,68 @@ export interface StepSkip {
  */
 export async function guardedSkipStep(skip: StepSkip): Promise<void> {
   if (isPrototypeApiDisabled() || skip.symptomId >= 0) return;
-  const treatment = await openTreatment(skip.symptomId, {
-    type: "CALL",
-    assetId: skip.assetId || undefined,
-    tripId: skip.tripId || undefined,
-  });
-  await addTreatmentAction(treatment.id, {
-    kind: "NOTE",
-    note: skip.reason,
-    details: {
-      [SKIP_TO_STEP]: skip.toStep + 1,
-      level: skip.level,
-      version: skip.version,
-      skipId: skip.skipId,
-      slaSince: skip.slaSince,
+  await addEngineAction(
+    {
+      symptomId: skip.symptomId,
+      type: "CALL",
+      assetId: skip.assetId || undefined,
+      tripId: skip.tripId || undefined,
     },
-  });
+    {
+      kind: "NOTE",
+      note: skip.reason,
+      details: {
+        [SKIP_TO_STEP]: skip.toStep + 1,
+        level: skip.level,
+        version: skip.version,
+        skipId: skip.skipId,
+        slaSince: skip.slaSince,
+      },
+    }
+  );
   void revalidateCase(skip.symptomId);
+}
+
+/**
+ * Opens the operator's treatment on an engine case when they start treating
+ * it, or resumes their open one. Later saves record into it, also after the
+ * engine closes the case. Rejects when the API refuses: the case is already
+ * closed, or another operator treats it.
+ */
+export async function guardedStartTreatment(
+  payload: TreatmentsRequest
+): Promise<void> {
+  if (isPrototypeApiDisabled() || !isEngineCase(payload)) return;
+  const known = started.has(String(payload.symptom_id));
+  await startEngineTreatment(targetOf(payload));
+  if (!known) void revalidateCase(payload.symptom_id);
+}
+
+/**
+ * The operator left the case's forms: the treatment this page opened is
+ * cancelled when nothing was recorded in it. `keepalive` lets the cancel
+ * outlive a page that is unloading.
+ */
+export function guardedAbandonTreatment(
+  symptomId: TreatmentsRequest["symptom_id"],
+  options: { keepalive?: boolean } = {}
+): Promise<void> {
+  const key = String(symptomId);
+  const opening = started.get(key);
+  if (!opening) return Promise.resolve();
+  started.delete(key);
+  const left = opening
+    .then(async (treatment) => {
+      if (treatment.recorded) return;
+      await cancelTreatment(treatment.treatmentId, "panel closed", options);
+      void revalidateCase(symptomId);
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      if (leaving.get(key) === left) leaving.delete(key);
+    });
+  leaving.set(key, left);
+  return left;
 }
 
 /**

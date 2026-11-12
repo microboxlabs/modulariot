@@ -9,7 +9,11 @@ import PrototypeCallDriver, {
   type CallFormDraft,
 } from "./prototype-call-driver";
 import type { TelephonyCallResult } from "./call-center/telnyx-call";
-import type { EngineTreatmentProgress } from "./prototype-api-guard";
+import {
+  forgetStartedTreatments,
+  guardedStartTreatment,
+  type EngineTreatmentProgress,
+} from "./prototype-api-guard";
 
 const api = vi.hoisted(() => ({
   ControlTowerError: class extends Error {
@@ -124,6 +128,7 @@ function renderCall(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  forgetStartedTreatments();
   api.openTreatment.mockResolvedValue({ id: "t-1", type: "CALL" });
   api.addTreatmentAction.mockResolvedValue({});
   api.closeTreatment.mockResolvedValue({});
@@ -380,9 +385,8 @@ describe("engine call treatment form", () => {
 
   it("preserves the note when a remembered treatment and its case both closed elsewhere", async () => {
     const user = userEvent.setup();
-    const progress: EngineTreatmentProgress = {
-      opened: { symptomId: request.symptom_id, treatmentId: "t-1" },
-    };
+    const progress: EngineTreatmentProgress = {};
+    await guardedStartTreatment(request);
     api.addTreatmentAction.mockRejectedValueOnce(
       new api.ControlTowerError("treatment is CLOSED", 409)
     );

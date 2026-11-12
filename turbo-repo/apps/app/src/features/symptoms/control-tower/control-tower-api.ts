@@ -218,7 +218,7 @@ function parseJson(text: string) {
 /** `path` is relative to the proxy, or a full app API URL such as a key from the `*Key` helpers. */
 async function request<T>(
   path: string,
-  init?: { method?: string; body?: unknown }
+  init?: { method?: string; body?: unknown; keepalive?: boolean }
 ): Promise<T> {
   const url = path.startsWith(API_ROOT) ? path : `${BASE}${path}`;
   const response = await fetch(url, {
@@ -229,6 +229,7 @@ async function request<T>(
         : undefined,
     body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
     cache: "no-store",
+    keepalive: init?.keepalive,
   });
   if (response.status === 204) return undefined as T;
   const text = await response.text();
@@ -459,10 +460,16 @@ export function resumeTreatment(treatmentId: string) {
   });
 }
 
-export function cancelTreatment(treatmentId: string, reason?: string) {
+/** `keepalive` lets the request finish after the page unloads. */
+export function cancelTreatment(
+  treatmentId: string,
+  reason?: string,
+  options: { keepalive?: boolean } = {}
+) {
   return request<TowerTreatment>(`/treatments/${treatmentId}/cancel`, {
     method: "POST",
     body: reason ? { reason } : {},
+    keepalive: options.keepalive,
   });
 }
 

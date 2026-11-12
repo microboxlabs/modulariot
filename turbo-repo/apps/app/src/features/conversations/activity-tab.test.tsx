@@ -71,8 +71,8 @@ describe("RunsTable", () => {
       .getByText("Hola Juan Soto, ¿estás bien?")
       .closest("li") as HTMLElement;
     const badge = within(message).getByTitle("WhatsApp");
-    expect(badge.getAttribute("data-channel")).toBe("whatsapp");
-    expect(within(badge).getByText("WhatsApp").className).toBe("sr-only");
+    expect(badge).toHaveAttribute("data-channel", "whatsapp");
+    expect(within(badge).getByText("WhatsApp")).toHaveClass("sr-only");
 
     fireEvent.click(toggle);
     expect(screen.queryByText("Hola Juan Soto, ¿estás bien?")).toBeNull();

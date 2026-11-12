@@ -90,11 +90,11 @@ describe("SymptomRulesCard", () => {
     expect(first.textContent).toContain("v0.1.0");
     expect(first.textContent).toContain("Botón de pánico");
     const whatsapp = within(first).getByTitle("WhatsApp");
-    expect(whatsapp.getAttribute("data-channel")).toBe("whatsapp");
-    expect(within(whatsapp).getByText("WhatsApp").className).toBe("sr-only");
+    expect(whatsapp).toHaveAttribute("data-channel", "whatsapp");
+    expect(within(whatsapp).getByText("WhatsApp")).toHaveClass("sr-only");
     const email = within(first).getByTitle("Correo");
-    expect(email.getAttribute("data-channel")).toBe("email");
-    expect(within(email).getByText("Correo").className).toBe("sr-only");
+    expect(email).toHaveAttribute("data-channel", "email");
+    expect(within(email).getByText("Correo")).toHaveClass("sr-only");
     expect(items[1]!.textContent).toContain("Por clave del servidor");
   });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { WebMercatorViewport } from "@deck.gl/core";
-import { headingToIconAngle, iconTipOffset } from "./icon-heading";
+import { headingToIconAngle, iconTipOffset, viewportKey } from "./icon-heading";
 
 const LNG = -76.93;
 const LAT = -12.25;
@@ -51,5 +51,46 @@ describe("headingToIconAngle", () => {
 
   it("falls back to a north-up angle without a viewport", () => {
     expect(headingToIconAngle(undefined, LNG, LAT, 90)).toBe(-90);
+  });
+
+  it.each([0, 90, 180, 270])(
+    "projects heading %i with bearing and pitch together",
+    (heading) => {
+      const delta = ((heading - 35) * Math.PI) / 180;
+      const expected = [-Math.sin(delta), Math.cos(delta) * 0.5];
+      const length = Math.hypot(...expected);
+      const [x, y] = tip(headingToIconAngle(view(35, 60), LNG, LAT, heading));
+      expect(x).toBeCloseTo(-expected[0] / length, 3);
+      expect(y).toBeCloseTo(-expected[1] / length, 3);
+    }
+  );
+
+  it.each([
+    [NaN, LAT],
+    [LNG, Infinity],
+    [-Infinity, LAT],
+  ])("falls back for non-finite coordinates %j", (longitude, latitude) => {
+    expect(headingToIconAngle(view(45, 60), longitude, latitude, 90)).toBe(-90);
+  });
+
+  it.each([
+    [Infinity, 0],
+    [NaN, NaN],
+    [0, 0],
+  ])("falls back for unusable projected directions %j", (x, y) => {
+    const viewport = { project: () => [x, y] };
+    expect(headingToIconAngle(viewport, LNG, LAT, 90)).toBe(-90);
+  });
+
+  it("changes the angle trigger when the view moves", () => {
+    expect(viewportKey(undefined)).toBe("");
+    expect(viewportKey(view(0, 0))).not.toBe(viewportKey(view(90, 0)));
+    expect(viewportKey(view(0, 0))).not.toBe(viewportKey(view(0, 60)));
+    const viewport = view(35, 60);
+    const resized = new WebMercatorViewport({ ...viewport, height: 400 });
+    expect(viewportKey(viewport)).not.toBe(viewportKey(resized));
+    const before = headingToIconAngle(viewport, LNG + 0.02, LAT + 0.01, 45);
+    const after = headingToIconAngle(resized, LNG + 0.02, LAT + 0.01, 45);
+    expect(Math.abs(after - before)).toBeGreaterThan(0.1);
   });
 });

@@ -1,4 +1,5 @@
 import { CompositeLayer, IconLayer, Layer } from "deck.gl";
+import type { UpdateParameters } from "@deck.gl/core";
 import Supercluster from "supercluster";
 import { PinCountLayer } from "./pin_count";
 import { createSVGIcon } from "../prototype/svg-generation";
@@ -105,14 +106,19 @@ interface ClusterFeature {
 export class PinLayer extends CompositeLayer<any> {
   static readonly layerName = "ClusteredPinLayer";
 
-  supercluster: Supercluster;
   state!: {
     clusters: ClusterFeature[];
+    supercluster: Supercluster;
   };
 
-  constructor(props: any) {
-    super(props);
-    this.supercluster = new Supercluster({
+  get supercluster(): Supercluster {
+    return this.state.supercluster;
+  }
+
+  initializeState(context: any) {
+    super.initializeState(context);
+    const props = this.props;
+    const supercluster = new Supercluster({
       radius: props.sizeScale * Math.sqrt(2) || 50,
       maxZoom: 16,
       minPoints: 2,
@@ -160,25 +166,23 @@ export class PinLayer extends CompositeLayer<any> {
         };
       },
     });
-  }
-
-  initializeState(context: any) {
-    super.initializeState(context);
-
     this.setState({
       clusters: [],
+      supercluster,
     });
   }
 
-  shouldUpdateState({ changeFlags }: any) {
+  shouldUpdateState({ changeFlags }: UpdateParameters<this>) {
     // The pins' angles depend on the map's bearing and pitch.
     return changeFlags.somethingChanged;
   }
 
-  updateState({ props, changeFlags }: any) {
-    const zoom = Math.floor(props.zoom || 10);
+  updateState({ props, oldProps, changeFlags }: any) {
+    const zoom = Math.floor(props.zoom ?? 10);
+    const oldZoom = Math.floor(oldProps?.zoom ?? 10);
 
-    if (changeFlags.propsOrDataChanged) {
+    // View changes update angles without rebuilding the spatial index.
+    if (changeFlags.dataChanged) {
       const features = (props.data || []).map((point: any) => ({
         type: "Feature",
         properties: {
@@ -192,7 +196,9 @@ export class PinLayer extends CompositeLayer<any> {
       }));
 
       this.supercluster.load(features);
+    }
 
+    if (changeFlags.dataChanged || zoom !== oldZoom) {
       const clusters = this.supercluster.getClusters(
         [-180, -85, 180, 85],
         zoom

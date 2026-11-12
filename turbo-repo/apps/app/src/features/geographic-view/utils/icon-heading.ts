@@ -8,6 +8,8 @@ type ProjectingViewport = {
   longitude?: number;
   latitude?: number;
   zoom?: number;
+  width?: number;
+  height?: number;
 };
 
 /**
@@ -42,13 +44,18 @@ export function headingToIconAngle(
 }
 
 /** Screen offset of a point `distance` pixels ahead of an icon drawn at `angle`. */
-export function iconTipOffset(angle: number, distance: number): [number, number] {
+export function iconTipOffset(
+  angle: number,
+  distance: number
+): [number, number] {
   const rad = (angle * Math.PI) / 180;
   return [-Math.sin(rad) * distance, -Math.cos(rad) * distance];
 }
 
 /** Changes whenever the view moves, so angle attributes are recomputed. */
-export function viewportKey(viewport: ProjectingViewport | null | undefined): string {
+export function viewportKey(
+  viewport: ProjectingViewport | null | undefined
+): string {
   if (!viewport) return "";
   return [
     viewport.bearing,
@@ -56,5 +63,7 @@ export function viewportKey(viewport: ProjectingViewport | null | undefined): st
     viewport.longitude,
     viewport.latitude,
     viewport.zoom,
+    viewport.width,
+    viewport.height,
   ].join("|");
 }

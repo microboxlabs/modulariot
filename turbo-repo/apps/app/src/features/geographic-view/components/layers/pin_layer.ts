@@ -1,4 +1,5 @@
 import { CompositeLayer, IconLayer, Layer, TextLayer } from "deck.gl";
+import type { UpdateParameters } from "@deck.gl/core";
 import { createSVGIcon } from "../prototype/svg-generation";
 import { OFFLINE_LABEL_BACKGROUND } from "../../utils/signal-state";
 import { headingToIconAngle, viewportKey } from "../../utils/icon-heading";
@@ -24,7 +25,7 @@ const WHITE: [number, number, number, number] = [255, 255, 255, 255];
 export class PinLayer extends CompositeLayer<any> {
   static readonly layerName = "PinLayer";
 
-  shouldUpdateState({ changeFlags }: any) {
+  shouldUpdateState({ changeFlags }: UpdateParameters<this>) {
     // The pin's angle depends on the map's bearing and pitch.
     return changeFlags.somethingChanged;
   }

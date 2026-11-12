@@ -68,15 +68,34 @@ describe("VideoFilmstripFrame play toggle", () => {
     expect(onUnhandledRejection).not.toHaveBeenCalled();
   });
 
-  it("stays paused when a pause interrupts a play() that has not resolved yet", async () => {
-    let rejectPlay: (reason: unknown) => void = () => {};
+  type PendingPlay = {
+    resolve: () => void;
+    reject: (reason: unknown) => void;
+  };
+  const noop = () => {};
+
+  it.each([
+    [
+      "stays paused when a pause interrupts a play() that has not resolved yet",
+      (play: PendingPlay) =>
+        play.reject(new DOMException("interrupted by pause", "AbortError")),
+      noop,
+    ],
+    [
+      "stays paused when a pending play() resolves after the pause",
+      noop,
+      (play: PendingPlay) => play.resolve(),
+    ],
+  ])("%s", async (_name, settleOnPause, settleAfterPause) => {
+    const pending: PendingPlay = { resolve: noop, reject: noop };
     vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(function (
       this: HTMLMediaElement
     ) {
       paused = false;
       this.dispatchEvent(new Event("play"));
-      return new Promise<void>((_resolve, reject) => {
-        rejectPlay = reject;
+      return new Promise<void>((resolve, reject) => {
+        pending.resolve = resolve;
+        pending.reject = reject;
       });
     });
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(function (
@@ -84,7 +103,7 @@ describe("VideoFilmstripFrame play toggle", () => {
     ) {
       paused = true;
       this.dispatchEvent(new Event("pause"));
-      rejectPlay(new DOMException("interrupted by pause", "AbortError"));
+      settleOnPause(pending);
     });
     const frame = renderFrame();
 
@@ -92,6 +111,7 @@ describe("VideoFilmstripFrame play toggle", () => {
     expect(screen.queryByText(DURATION)).not.toBeInTheDocument();
 
     fireEvent.click(frame);
+    settleAfterPause(pending);
     await flushRejections();
 
     expect(screen.getByText(DURATION)).toBeInTheDocument();

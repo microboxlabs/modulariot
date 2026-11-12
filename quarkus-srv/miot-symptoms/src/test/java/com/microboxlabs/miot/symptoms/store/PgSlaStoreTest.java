@@ -211,6 +211,28 @@ class PgSlaStoreTest {
     }
 
     @Test
+    void theTripFilterTakesTheTripIdOrItsServiceCode() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        UUID tripId = UUID.randomUUID();
+        Instant at = Instant.parse("2026-01-01T00:00:00Z");
+        log.append(tenant, List.of(t(Kind.OPENED, speeding, at, 3, 0)),
+                new TransitionLog.Place(tripId.toString(), null, null, null, null));
+        mandate(tenant, tripId, 1, "SERVICE-777", true);
+        mandate("other-" + tenant, UUID.randomUUID(), 1, "SERVICE-888", true);
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertEquals(1, cases.list(tenant, byTrip(tripId.toString())).size());
+        assertEquals(1, cases.list(tenant, byTrip("SERVICE-777")).size());
+        assertEquals(0, cases.list(tenant, byTrip("SERVICE-888")).size(), "another tenant's code");
+        assertEquals(0, cases.list(tenant, byTrip("SERVICE-000")).size());
+    }
+
+    private static EngineCaseStore.CaseFilter byTrip(String trip) {
+        return new EngineCaseStore.CaseFilter(trip, null, null, null, null, null);
+    }
+
+    @Test
     void casesReadTheServiceCodeFromTheFirstMandate() {
         String tenant = "tenant-" + UUID.randomUUID();
         UUID speeding = symptom(tenant);

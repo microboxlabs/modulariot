@@ -196,13 +196,24 @@ public class PgEngineCases implements EngineCaseStore {
                  + make_interval(mins => z.sla_minutes) END ASC NULLS LAST,
             CASE WHEN %1$s THEN z.level_at END ASC,
             CASE WHEN %1$s THEN z.id END ASC""".formatted(OPEN_ONLY);
+    /** $2 itself, as cases store a trip id. */
+    private static final String TRIP_AS_GIVEN = "SELECT $2::text AS trip_id";
+    /** $2 as a trip id, or the service code of a trips-module trip: its feed service's or a current mandate's. */
+    private static final String TRIP_BY_CODE = TRIP_AS_GIVEN + """
+
+            UNION SELECT f.trip_id::text FROM miot_trips.feed_service f
+             WHERE f.tenant_code = $1 AND f.external_code = $2 AND f.trip_id IS NOT NULL
+            UNION SELECT tm.trip_id::text FROM miot_trips.mandate m
+              JOIN miot_trips.trip_mandate tm ON tm.mandate_id = m.id AND tm.tenant_code = m.tenant_code
+             WHERE m.tenant_code = $1 AND m.external_code = $2 AND m.version_of IS NULL AND m.is_active
+               AND tm.version_of IS NULL AND tm.is_active""";
     /**
-     * {@link CaseFilter}: $2 trip, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only, $9
+     * {@link CaseFilter}: $2 trip id or trip code, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only, $9
      * ignored only, $10 whether the level goes to the operators (null for any), $11 the treatment state (null for
      * any). Without dates and $9, the open cases no hold covers.
      */
-    private static final String MATCHING_ROWS = "SELECT * FROM (" + WITH_SLA.formatted(SELECT.formatted(CASES + """
-               AND ($2::text IS NULL OR o.trip_id = $2)
+    private static final String MATCHING_ROWS = "SELECT * FROM (" + WITH_SLA.formatted(SELECT.formatted(CASES
+            + "\n   AND ($2::text IS NULL OR o.trip_id IN (" + TRIP_BY_CODE + "))\n" + """
                AND ($3::text IS NULL OR o.asset_id ILIKE '%' || $3 || '%')
                AND ($4::text IS NULL OR lower(d.name) = lower($4))
                AND ($6::timestamptz IS NULL OR o.at < $6)
@@ -246,7 +257,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String TREATMENT_COUNTS = "SELECT m.treatment_state, count(*) AS n FROM (%s) m GROUP BY 1";
     /**
      * The vehicles on a trips-module trip now: departed (its confirmed departure, else its first transit or stop)
-     * and not ended, as the signal's {@code trip.active}. $2 trip, $3 part of the vehicle id, $4 either driver's
+     * and not ended, as the signal's {@code trip.active}. $2 trip id or trip code, $3 part of the vehicle id, $4 either driver's
      * RUT, $5 the carrier's RUT, $6 the carrier's id, $7 the origin name, $8 the destination name, normalized as in
      * {@link #MATCHING_BY_TRIP}.
      */
@@ -262,13 +273,13 @@ public class PgEngineCases implements EngineCaseStore {
                               WHERE s.tenant_code = tl.tenant_code AND s.subject_type = 'trip'
                                 AND s.subject_id = tl.trip_id AND s.stage_type IN ('transit', 'stop')
                                 AND s.version_of IS NULL AND s.is_active)) <= now()
-               AND ($2::text IS NULL OR tl.trip_id::text = $2)
+               AND ($2::text IS NULL OR tl.trip_id::text IN (%s))
                AND ($3::text IS NULL OR tl.asset_id ILIKE '%%' || $3 || '%%')
                AND ($4::text IS NULL OR %s = $4 OR %s = $4)
                AND ($5::text IS NULL OR %s = $5 OR tl.carrier_id = $6)
                AND ($7::text IS NULL OR lower(btrim(tl.origin_geofence_label)) = $7)
                AND ($8::text IS NULL OR lower(btrim(tl.destination_geofence_label)) = $8)
-            """.formatted(PLAIN.formatted("tl.driver_id"), PLAIN.formatted("tl.second_driver_id"),
+            """.formatted(TRIP_BY_CODE, PLAIN.formatted("tl.driver_id"), PLAIN.formatted("tl.second_driver_id"),
                     PLAIN.formatted("fc.rut"));
 
     /** {@code query} that also filters by the case's live trip, as {@link #MATCHING_BY_TRIP}. */
@@ -401,17 +412,6 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String OPENED_PAGE = WITH_SLA.formatted(LEVEL_SINCE.formatted(
             SELECT.formatted(OPENED + " AND o.id > $4") + " ORDER BY x.id LIMIT $5")) + " ORDER BY y.id";
 
-    /** $2 itself, as cases store a trip id. */
-    private static final String TRIP_AS_GIVEN = "SELECT $2::text AS trip_id";
-    /** $2 as a trip id, or the service code of a trips-module trip: its feed service's or a current mandate's. */
-    private static final String TRIP_BY_CODE = TRIP_AS_GIVEN + """
-
-            UNION SELECT f.trip_id::text FROM miot_trips.feed_service f
-             WHERE f.tenant_code = $1 AND f.external_code = $2 AND f.trip_id IS NOT NULL
-            UNION SELECT tm.trip_id::text FROM miot_trips.mandate m
-              JOIN miot_trips.trip_mandate tm ON tm.mandate_id = m.id AND tm.tenant_code = m.tenant_code
-             WHERE m.tenant_code = $1 AND m.external_code = $2 AND m.version_of IS NULL AND m.is_active
-               AND tm.version_of IS NULL AND tm.is_active""";
     /**
      * The ACTIVE symptoms and those with a case on the trip ids of {@code %s}, each with its cases there: how
      * many, how many are open, the highest level any reached (its opening or a later change before it closed),
@@ -671,6 +671,38 @@ public class PgEngineCases implements EngineCaseStore {
     /** Trip details are optional, including when the trips module is unavailable. */
     private Iterable<Row> cases(String query, Tuple args) {
         try {
+            return casesWithTrips(query, args);
+        } catch (PgException e) {
+            if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
+                throw e;
+            }
+            LOG.debug("Trip codes not resolved: trips unavailable", e);
+            return casesWithTrips(tripAsGiven(query), args);
+        }
+    }
+
+    /**
+     * {@code query} run as is, or, without the trips tables that resolve a service code, with the trip filter
+     * matching trip ids only.
+     */
+    private RowSet<Row> tripQuery(String query, Tuple args) {
+        try {
+            return PgIds.query(pool.get(), query, args);
+        } catch (PgException e) {
+            if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
+                throw e;
+            }
+            LOG.debug("Trip codes not resolved: trips unavailable", e);
+            return PgIds.query(pool.get(), tripAsGiven(query), args);
+        }
+    }
+
+    private static String tripAsGiven(String query) {
+        return query.replace(TRIP_BY_CODE, TRIP_AS_GIVEN);
+    }
+
+    private Iterable<Row> casesWithTrips(String query, Tuple args) {
+        try {
             return PgIds.query(pool.get(), WITH_TRIP_CODE.formatted(query), args);
         } catch (RuntimeException e) {
             LOG.debug("Engine case trip codes unavailable", e);
@@ -721,7 +753,7 @@ public class PgEngineCases implements EngineCaseStore {
             rows = byTrip(MATCHING_ROWS);
         }
         try {
-            PgIds.query(pool.get(), counts.formatted(rows), args).forEach(each);
+            tripQuery(counts.formatted(rows), args).forEach(each);
         } catch (PgException e) {
             // Without the trips or fleet tables no case has a live trip to match.
             if (!f.byTrip() || !UNDEFINED_TABLE.equals(e.getSqlState())) {
@@ -742,7 +774,7 @@ public class PgEngineCases implements EngineCaseStore {
                 .addString(driver).addString(carrier).addString(f.carrierId() == null ? null : f.carrierId().trim())
                 .addString(lower(f.origin())).addString(lower(f.destination()));
         try {
-            var rows = PgIds.query(pool.get(), ON_TRIP, args).iterator();
+            var rows = tripQuery(ON_TRIP, args).iterator();
             return rows.hasNext() ? rows.next().getLong("n") : 0;
         } catch (PgException e) {
             if (!UNDEFINED_TABLE.equals(e.getSqlState())) {

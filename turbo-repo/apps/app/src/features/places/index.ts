@@ -25,3 +25,5 @@ export {
 } from "./map/places-editor-overlays";
 export { default as PlacesMapLayers } from "./map/places-map-layers";
 export { default as PlaceBadgeTooltip } from "./map/place-badge-tooltip";
+export { capasBadgesNombres } from "./map/place-name-layer";
+export type { ItemNombre } from "./map/place-labels";

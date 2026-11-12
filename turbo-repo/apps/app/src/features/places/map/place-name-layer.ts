@@ -189,7 +189,8 @@ export function claveChip(
   resaltado = false
 ): string {
   const fontSize = item.inner ? 12 : 13;
-  return `${item.name}|${item.color}|${item.icon}|${fontSize}|${tema}|${resaltado}`;
+  const icono = item.sinIcono ? "-" : item.icon;
+  return `${item.name}|${item.color}|${icono}|${fontSize}|${tema}|${resaltado}`;
 }
 
 /** Badge de un lugar según el estilo del mapa: día claro / noche gray-800. */
@@ -204,15 +205,17 @@ export function chipEtiqueta(
 
   const fontSize = item.inner ? 12 : 13;
   const font = `300 ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+  // sin icono, el nombre lleva el mismo margen a ambos lados
+  const textoX = item.sinIcono ? PAD_R : PAD_L + ICON + GAP;
   const ctx = document.createElement("canvas").getContext("2d");
-  if (!ctx) return chipSinCanvas(key, PAD_L + ICON + GAP + PAD_R, CHIP_H);
+  if (!ctx) return chipSinCanvas(key, textoX + PAD_R, CHIP_H);
 
   ctx.font = font;
   const ancho = (t: string) => ctx.measureText(t).width;
   // el nombre entero: si no cabe en una línea, sigue en otra (sin "…")
   const lineas = lineasDeNombre(ancho, item.name);
   const tw = Math.max(...lineas.map(ancho));
-  const w = Math.ceil(PAD_L + ICON + GAP + tw + PAD_R);
+  const w = Math.ceil(textoX + tw + PAD_R);
   const h = altoNombre(lineas.length);
   // con una línea, centrada; con varias, cada una en la suya
   const fila = lineas.length > 1 ? LINEA_H : h;
@@ -238,14 +241,16 @@ export function chipEtiqueta(
   ctx.stroke();
 
   // el icono, siempre centrado en el alto del badge (tenga las líneas que tenga)
-  const colorIco = resaltado ? RESALTADO.texto : colorIcono(item.color);
-  dibujarIcono(ctx, item.icon, colorIco, PAD_L, (h - ICON) / 2, ICON);
+  if (!item.sinIcono) {
+    const colorIco = resaltado ? RESALTADO.texto : colorIcono(item.color);
+    dibujarIcono(ctx, item.icon, colorIco, PAD_L, (h - ICON) / 2, ICON);
+  }
 
   ctx.fillStyle = paleta.texto;
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
   lineas.forEach((linea, i) => {
-    ctx.fillText(linea, PAD_L + ICON + GAP, arriba + i * fila + fila / 2 + 0.5);
+    ctx.fillText(linea, textoX, arriba + i * fila + fila / 2 + 0.5);
   });
 
   const chip: Chip = {
@@ -513,6 +518,44 @@ const PROPS_COMUNES = {
   },
   parameters: { depthCompare: "always" as const },
 };
+
+/**
+ * Badges de nombres sueltos, con el mismo aspecto que los de Lugares pero sin
+ * clusters ni resaltado: para unos pocos nombres fijos (p. ej. el origen y el
+ * destino de un viaje).
+ */
+export function capasBadgesNombres(
+  items: ItemNombre[],
+  {
+    layerId = "badges-nombres",
+    mapStyle = "dark",
+  }: { layerId?: string; mapStyle?: string } = {}
+): LayersList {
+  const tema = temaChipMapa(mapStyle);
+  const textos = textosLugares();
+  const badges: BadgeMapa[] = items.map((item) => ({ item, miembros: [item] }));
+  return paginasDeBadges(badges, tema, textos).map(
+    ({ atlas, badges: data }, i) =>
+      new IconLayer<BadgeMapa>({
+        ...PROPS_COMUNES,
+        pickable: false,
+        id: `${layerId}-${i}`,
+        data,
+        iconAtlas: atlasDeck(atlas.canvas),
+        iconMapping: atlas.mapping,
+        getIcon: (b) => chipEtiqueta(b.item, tema).key,
+        getPosition: (b) => [b.item.ancla[1], b.item.ancla[0]],
+        getSize: (b) => chipEtiqueta(b.item, tema).size,
+        getPixelOffset: (b) => offsetBadge(b, tema),
+        updateTriggers: {
+          getIcon: [data, tema],
+          getPosition: data,
+          getSize: data,
+          getPixelOffset: data,
+        },
+      })
+  );
+}
 
 /** Sin lugar resaltado desde la lista. */
 const SIN_RESALTADO: { id: string | null; t: number } = { id: null, t: 0 };

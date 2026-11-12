@@ -277,6 +277,16 @@ describe("place name deck layer", () => {
     expect(chip.canvas).toBeInstanceOf(HTMLCanvasElement);
   });
 
+  it("draws a name-only badge, narrower by the icon, as its own image", () => {
+    mockCanvas();
+    const conIcono = chipEtiqueta(padre, "noche");
+    const soloNombre = chipEtiqueta({ ...padre, sinIcono: true }, "noche");
+    expect(soloNombre.key).not.toBe(conIcono.key);
+    expect(soloNombre.size).toBe(24);
+    // the icon (16) and its gap (4) out, the left margin as wide as the right
+    expect(soloNombre.width).toBe(conIcono.width - (16 + 4 - 4) * 2);
+  });
+
   it("never cuts a name: a long one goes on to more lines", () => {
     // 7 px per character, as the canvas mock measures
     const ancho = (t: string) => t.length * 7;

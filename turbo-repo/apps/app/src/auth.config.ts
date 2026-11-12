@@ -113,7 +113,7 @@ export const authConfig: NextAuthConfig = {
      * guard: those users are provisioned by us (Auth0 database connection), not
      * self-asserted via a federated IdP.
      */
-    async signIn({ user, account, profile }) {
+    signIn({ user, account, profile }) {
       if (account?.provider === "credentials") {
         return true;
       }

@@ -42,30 +42,33 @@ function createMockDataTransfer(data: Record<string, string>): DataTransfer {
 
 describe("extractImageUrlFromDrop", () => {
   describe("text/uri-list extraction", () => {
-    it("should extract first URL from text/uri-list", () => {
+    it.each([
+      [
+        "should extract first URL from text/uri-list",
+        "https://example.com/image.jpg",
+        "https://example.com/image.jpg",
+      ],
+      [
+        "should extract first URL from multiple URLs in text/uri-list",
+        "https://example.com/image1.jpg\nhttps://example.com/image2.png\nhttps://example.com/image3.jpeg",
+        "https://example.com/image1.jpg",
+      ],
+      [
+        "should skip commented lines (starting with #) in text/uri-list",
+        "# This is a comment\nhttps://example.com/actual-image.jpg\n# Another comment",
+        "https://example.com/actual-image.jpg",
+      ],
+      [
+        "should skip empty lines in text/uri-list",
+        "\n\nhttps://example.com/image.jpg\n\nhttps://example.com/image2.png",
+        "https://example.com/image.jpg",
+      ],
+    ])("%s", (_name, uriList, expected) => {
       const dataTransfer = createMockDataTransfer({
-        "text/uri-list": "https://example.com/image.jpg",
+        "text/uri-list": uriList,
       });
       const result = extractImageUrlFromDrop(dataTransfer);
-      expect(result).toBe("https://example.com/image.jpg");
-    });
-
-    it("should extract first URL from multiple URLs in text/uri-list", () => {
-      const dataTransfer = createMockDataTransfer({
-        "text/uri-list":
-          "https://example.com/image1.jpg\nhttps://example.com/image2.png\nhttps://example.com/image3.jpeg",
-      });
-      const result = extractImageUrlFromDrop(dataTransfer);
-      expect(result).toBe("https://example.com/image1.jpg");
-    });
-
-    it("should skip commented lines (starting with #) in text/uri-list", () => {
-      const dataTransfer = createMockDataTransfer({
-        "text/uri-list":
-          "# This is a comment\nhttps://example.com/actual-image.jpg\n# Another comment",
-      });
-      const result = extractImageUrlFromDrop(dataTransfer);
-      expect(result).toBe("https://example.com/actual-image.jpg");
+      expect(result).toBe(expected);
     });
 
     it("should handle only commented lines and return null", () => {
@@ -74,15 +77,6 @@ describe("extractImageUrlFromDrop", () => {
       });
       const result = extractImageUrlFromDrop(dataTransfer);
       expect(result).toBeNull();
-    });
-
-    it("should skip empty lines in text/uri-list", () => {
-      const dataTransfer = createMockDataTransfer({
-        "text/uri-list":
-          "\n\nhttps://example.com/image.jpg\n\nhttps://example.com/image2.png",
-      });
-      const result = extractImageUrlFromDrop(dataTransfer);
-      expect(result).toBe("https://example.com/image.jpg");
     });
   });
 
@@ -130,31 +124,28 @@ describe("extractImageUrlFromDrop", () => {
   });
 
   describe("text/html extraction (img src)", () => {
-    it("should extract img src from text/html with double quotes", () => {
+    it.each([
+      [
+        "should extract img src from text/html with double quotes",
+        '<img src="https://example.com/image.jpg" alt="test image">',
+        "https://example.com/image.jpg",
+      ],
+      [
+        "should extract img src from text/html with single quotes",
+        "<img src='https://example.com/image.png' alt='test image'>",
+        "https://example.com/image.png",
+      ],
+      [
+        "should extract img src from complex HTML",
+        '<div class="wrapper"><img class="image" src="https://cdn.example.com/photos/image.jpeg" width="100"></div>',
+        "https://cdn.example.com/photos/image.jpeg",
+      ],
+    ])("%s", (_name, html, expected) => {
       const dataTransfer = createMockDataTransfer({
-        "text/html":
-          '<img src="https://example.com/image.jpg" alt="test image">',
+        "text/html": html,
       });
       const result = extractImageUrlFromDrop(dataTransfer);
-      expect(result).toBe("https://example.com/image.jpg");
-    });
-
-    it("should extract img src from text/html with single quotes", () => {
-      const dataTransfer = createMockDataTransfer({
-        "text/html":
-          "<img src='https://example.com/image.png' alt='test image'>",
-      });
-      const result = extractImageUrlFromDrop(dataTransfer);
-      expect(result).toBe("https://example.com/image.png");
-    });
-
-    it("should extract img src from complex HTML", () => {
-      const dataTransfer = createMockDataTransfer({
-        "text/html":
-          '<div class="wrapper"><img class="image" src="https://cdn.example.com/photos/image.jpeg" width="100"></div>',
-      });
-      const result = extractImageUrlFromDrop(dataTransfer);
-      expect(result).toBe("https://cdn.example.com/photos/image.jpeg");
+      expect(result).toBe(expected);
     });
 
     it("should return null when HTML has no img tag", () => {
@@ -416,46 +407,25 @@ describe("fetchImageAsFile", () => {
   });
 
   describe("disallowed MIME types (from ALLOWED_FILE_TYPES)", () => {
-    it("should return null for image/gif (not in ALLOWED_FILE_TYPES)", async () => {
-      const mockBlob = new Blob(["gif data"], { type: "image/gif" });
+    it.each([
+      ["image/gif", "gif data", "https://example.com/animation.gif"],
+      ["image/webp", "webp data", "https://example.com/photo.webp"],
+      ["image/svg+xml", "<svg></svg>", "https://example.com/icon.svg"],
+    ])(
+      "should return null for %s (not in ALLOWED_FILE_TYPES)",
+      async (type, data, url) => {
+        const mockBlob = new Blob([data], { type });
 
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        blob: () => Promise.resolve(mockBlob),
-      });
+        global.fetch = vi.fn().mockResolvedValue({
+          ok: true,
+          blob: () => Promise.resolve(mockBlob),
+        });
 
-      const result = await fetchImageAsFile(
-        "https://example.com/animation.gif"
-      );
+        const result = await fetchImageAsFile(url);
 
-      expect(result).toBeNull();
-    });
-
-    it("should return null for image/webp (not in ALLOWED_FILE_TYPES)", async () => {
-      const mockBlob = new Blob(["webp data"], { type: "image/webp" });
-
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        blob: () => Promise.resolve(mockBlob),
-      });
-
-      const result = await fetchImageAsFile("https://example.com/photo.webp");
-
-      expect(result).toBeNull();
-    });
-
-    it("should return null for image/svg+xml (not in ALLOWED_FILE_TYPES)", async () => {
-      const mockBlob = new Blob(["<svg></svg>"], { type: "image/svg+xml" });
-
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        blob: () => Promise.resolve(mockBlob),
-      });
-
-      const result = await fetchImageAsFile("https://example.com/icon.svg");
-
-      expect(result).toBeNull();
-    });
+        expect(result).toBeNull();
+      }
+    );
 
     it("should accept image/jpeg (in ALLOWED_FILE_TYPES)", async () => {
       const mockBlob = new Blob(["jpeg data"], { type: "image/jpeg" });
@@ -505,44 +475,23 @@ describe("fetchImageAsFile", () => {
       expect(result).toBeNull();
     });
 
-    it("should return null when response is not ok (404)", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-      });
+    it.each([
+      ["404", 404, "https://example.com/not-found.jpg"],
+      ["500", 500, "https://example.com/server-error.jpg"],
+      ["403 Forbidden", 403, "https://example.com/forbidden.jpg"],
+    ])(
+      "should return null when response is not ok (%s)",
+      async (_label, status, url) => {
+        global.fetch = vi.fn().mockResolvedValue({
+          ok: false,
+          status,
+        });
 
-      const result = await fetchImageAsFile(
-        "https://example.com/not-found.jpg"
-      );
+        const result = await fetchImageAsFile(url);
 
-      expect(result).toBeNull();
-    });
-
-    it("should return null when response is not ok (500)", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-      });
-
-      const result = await fetchImageAsFile(
-        "https://example.com/server-error.jpg"
-      );
-
-      expect(result).toBeNull();
-    });
-
-    it("should return null when response is not ok (403 Forbidden)", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 403,
-      });
-
-      const result = await fetchImageAsFile(
-        "https://example.com/forbidden.jpg"
-      );
-
-      expect(result).toBeNull();
-    });
+        expect(result).toBeNull();
+      }
+    );
 
     it("should return null when fetch is aborted (AbortError)", async () => {
       const abortError = new DOMException("Aborted", "AbortError");

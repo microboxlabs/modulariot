@@ -271,8 +271,7 @@ export function PlanningSidebarForm({
         setSelectedTime(firstAvailable.time);
       } else {
         // All slots are full, select the last one to show something
-        const lastOption = timeOptions.at(-1);
-        if (lastOption) setSelectedTime(lastOption.time);
+        setSelectedTime(timeOptions.at(-1)!.time);
       }
     }
   }, [timeOptions, selectedTime, reassigningService]);

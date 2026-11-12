@@ -5,6 +5,7 @@ import {
   isVisiblePulse,
 } from "../../utils/pulse-source";
 import { OFFLINE_GRAY } from "../../utils/signal-state";
+import { LATE_FRAME_S } from "../../utils/frame-delays";
 
 export function getColor(icu_code: number): [number, number, number, number] {
   switch (icu_code) {
@@ -24,26 +25,47 @@ export function getColor(icu_code: number): [number, number, number, number] {
 }
 
 const WHITE: [number, number, number, number] = [255, 255, 255, 255];
+/** A late frame's dot (Tailwind gray-400): lateness is context, not an alarm. */
+export const LATE_GRAY: [number, number, number, number] = [156, 163, 175, 255];
+
+/** Radius of a pulse's dot, and of the white center of a stopped one. */
+const DOT_RADIUS = 5;
+const STOPPED_CENTER_RADIUS = 3;
 
 /**
- * A stopped vehicle is a hollow dot: white inside, ringed in its level color.
- * Red fill is kept for symptoms. An offline vehicle is filled gray, stopped
- * or not.
+ * A stopped vehicle is a hollow dot: a dot in its level color (gray when the
+ * frame came late), drawn with the other dots' colors, and a white center
+ * drawn over every dot afterwards, so a neighbor's color never covers it. Red
+ * fill is kept for symptoms. An offline vehicle's center is gray.
  */
-export function stoppedMarkProps<T>(
+export function stoppedDotProps<T>(
   levelOf: (d: T) => number,
+  lateOf: (d: T) => boolean = () => false
+) {
+  return {
+    getFillColor: (d: T) => (lateOf(d) ? LATE_GRAY : getColor(levelOf(d))),
+    getRadius: DOT_RADIUS,
+  };
+}
+
+/** The center of a stopped vehicle's dot: white, or gray while offline. */
+export function stoppedCenterProps<T>(
   offlineOf: (d: T) => boolean = () => false
 ) {
   return {
     getFillColor: (d: T) => (offlineOf(d) ? OFFLINE_GRAY : WHITE),
-    getLineColor: (d: T) => getColor(levelOf(d)),
-    stroked: true,
-    getLineWidth: 2,
-    lineWidthUnits: "pixels" as const,
+    getRadius: STOPPED_CENTER_RADIUS,
+    pickable: false,
   };
 }
 
-type PulseFeature = { properties?: { icu_code?: number; offline?: boolean } };
+type PulseFeature = {
+  properties?: {
+    icu_code?: number;
+    offline?: boolean;
+    delay_s?: number | null;
+  };
+};
 
 function levelOfFeature(d: PulseFeature): number {
   return d.properties?.icu_code ?? 0;
@@ -54,9 +76,17 @@ export function isOfflineFeature(d: PulseFeature): boolean {
   return d.properties?.offline === true;
 }
 
-/** The level color, or gray for an offline vehicle. */
+/** A frame that reached the platform late: drawn gray instead of its color. */
+export function isLateFeature(d: PulseFeature): boolean {
+  const delay = d.properties?.delay_s;
+  return typeof delay === "number" && delay >= LATE_FRAME_S;
+}
+
+/** The level color; gray for an offline vehicle, light gray for a late frame. */
 export function pulseColor(d: PulseFeature): [number, number, number, number] {
-  return isOfflineFeature(d) ? OFFLINE_GRAY : getColor(levelOfFeature(d));
+  if (isOfflineFeature(d)) return OFFLINE_GRAY;
+  if (isLateFeature(d)) return LATE_GRAY;
+  return getColor(levelOfFeature(d));
 }
 
 export function isValidCoordinate(coords: any): boolean {
@@ -94,7 +124,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
     };
 
     return {
-      getRadius: 5,
+      getRadius: DOT_RADIUS,
       getPosition:
         this.props.getPosition || ((d: any) => d.geometry.coordinates),
       parameters: { depthTest: false },
@@ -254,15 +284,27 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
         id: "pulse-stopped-vehicles-layer",
         data: stoppedVehicles,
         ...this.getCommonLayerProps(),
-        ...stoppedMarkProps(levelOfFeature, isOfflineFeature),
+        ...stoppedDotProps(levelOfFeature, isLateFeature),
         updateTriggers: {
-          getFillColor: [this.props.data],
-          getLineColor: [
+          getFillColor: [
             selectedPulse,
             this.props.displayPosition,
             this.props.displayRange,
             this.props.data,
           ],
+          getPosition: [showStops],
+        },
+        radiusUnits: "pixels",
+      }) as Layer,
+
+      // After every dot's color: no neighbor's color is drawn over a center.
+      new ScatterplotLayer({
+        id: "pulse-stopped-vehicles-center-layer",
+        data: stoppedVehicles,
+        ...this.getCommonLayerProps(),
+        ...stoppedCenterProps(isOfflineFeature),
+        updateTriggers: {
+          getFillColor: [this.props.data],
           getPosition: [showStops],
         },
         radiusUnits: "pixels",
@@ -311,10 +353,20 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
         id: "pulse-selected-stopped-vehicles-layer",
         data: selectedStoppedVehicles,
         ...this.getCommonLayerProps(),
-        ...stoppedMarkProps(levelOfFeature, isOfflineFeature),
+        ...stoppedDotProps(levelOfFeature, isLateFeature),
+        updateTriggers: {
+          getFillColor: [selectedPulse, showStops, this.props.data],
+        },
+        radiusUnits: "pixels",
+      }) as Layer,
+
+      new ScatterplotLayer({
+        id: "pulse-selected-stopped-vehicles-center-layer",
+        data: selectedStoppedVehicles,
+        ...this.getCommonLayerProps(),
+        ...stoppedCenterProps(isOfflineFeature),
         updateTriggers: {
           getFillColor: [this.props.data],
-          getLineColor: [selectedPulse, showStops, this.props.data],
         },
         radiusUnits: "pixels",
       }) as Layer,

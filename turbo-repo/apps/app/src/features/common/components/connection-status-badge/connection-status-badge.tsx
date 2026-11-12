@@ -7,6 +7,12 @@ interface ConnectionStatusBadgeProps {
   readonly signalStrength: number; // 0-100 percentage
   readonly connectedLabel: string;
   readonly disconnectedLabel: string;
+  /**
+   * Translated description of the signal bars, e.g. "Signal 3 of 4". When
+   * omitted or empty, the bars are named with the status label and the level,
+   * e.g. "Connected (3/4)".
+   */
+  readonly signalLabel?: string;
   readonly className?: string;
 }
 
@@ -28,9 +34,10 @@ function getSignalColor(level: number, isConnected: boolean): string {
 interface SignalIconProps {
   readonly level: 0 | 1 | 2 | 3 | 4;
   readonly isConnected: boolean;
+  readonly label: string;
 }
 
-function SignalIcon({ level, isConnected }: SignalIconProps) {
+function SignalIcon({ level, isConnected, label }: SignalIconProps) {
   const activeColor = isConnected
     ? getSignalColor(level, isConnected)
     : "text-gray-400 dark:text-gray-500";
@@ -41,6 +48,9 @@ function SignalIcon({ level, isConnected }: SignalIconProps) {
       className={twMerge("w-4 h-4", activeColor)}
       viewBox="0 0 24 24"
       fill="currentColor"
+      role="img"
+      aria-label={label}
+      focusable="false"
     >
       {/* Bar 1 - always visible when connected */}
       <rect
@@ -87,9 +97,16 @@ export default function ConnectionStatusBadge({
   signalStrength,
   connectedLabel,
   disconnectedLabel,
+  signalLabel,
   className,
 }: ConnectionStatusBadgeProps) {
   const signalLevel = getSignalLevel(signalStrength);
+  const statusLabel = isConnected ? connectedLabel : disconnectedLabel;
+  // Disconnected renders every bar inactive, whatever signalStrength says.
+  const activeBars = isConnected ? signalLevel : 0;
+  const iconLabel = signalLabel?.trim()
+    ? signalLabel
+    : `${statusLabel} (${activeBars}/4)`;
 
   const badgeClasses = twMerge(
     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
@@ -101,8 +118,12 @@ export default function ConnectionStatusBadge({
 
   return (
     <span className={badgeClasses}>
-      <SignalIcon level={signalLevel} isConnected={isConnected} />
-      {isConnected ? connectedLabel : disconnectedLabel}
+      <SignalIcon
+        level={signalLevel}
+        isConnected={isConnected}
+        label={iconLabel}
+      />
+      {statusLabel}
     </span>
   );
 }

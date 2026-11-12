@@ -9,6 +9,7 @@ import StatusCard from "./components/card/status-card";
 import CardSkeleton from "./components/card/card-skeleton";
 import CustomCard from "./components/card/custom-card";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { trDynamic } from "@/features/i18n/tr.service";
 import icuConditions from "./model/icu_condition.json";
 import { useSymptomCounts } from "../common/providers/client-api.provider";
 import { useSymptomTableQuery } from "./hooks/use-symptom-names";
@@ -22,7 +23,11 @@ export default function SymptomsCards({
 }) {
   const query = useSymptomTableQuery(1, 13);
   const { date_range } = query;
-  const { counts, loading, error } = useSymptomCounts(query, showCards);
+  // The cards count every case, whatever the operator filter selects.
+  const { counts, loading, error } = useSymptomCounts(
+    { ...query, operator: "all" },
+    showCards
+  );
 
   // Handle loading and error states
   if (loading) {
@@ -33,7 +38,7 @@ export default function SymptomsCards({
     //Todo: Show error message
   }
 
-  // The cards and constellation share the list's filters and count buckets.
+  // The list's filters, except the operator filter, and its count buckets.
   const {
     codeBlack = 0,
     critic = 0,
@@ -59,6 +64,13 @@ export default function SymptomsCards({
         <h1 className="ml-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white leading-tight flex items-center">
           {(dict.symptoms as I18nRecord).symptoms as string}
         </h1>
+        {counts && (
+          <span className="ml-3 flex items-center gap-1 self-center rounded-md bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
+            {trDynamic("symptoms.vehicles_on_trip", dict, {
+              count: String(counts.vehiclesOnTrip),
+            })}
+          </span>
+        )}
       </div>
 
       <div className="relative pb-3 px-5 pt-2 flex flex-row md:flex-row gap-4 overflow-x-auto">

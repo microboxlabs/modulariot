@@ -1,10 +1,7 @@
 import { Pagination } from "flowbite-react";
 import TableItem from "./table-item";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import {
-  useSymptomCounts,
-  useSymptomsTable,
-} from "@/features/common/providers/client-api.provider";
+import { useSymptomsTable } from "@/features/common/providers/client-api.provider";
 import EmptyTable from "./empty-table";
 import CustomTable from "@/features/common/components/custom-table/custom-table";
 import {
@@ -34,12 +31,6 @@ export default function SymptomsTable({
   // symptom filter, so selecting one symptom doesn't hide all the others.
   usePublishSymptomNames(query);
 
-  // The constellation shows only on an empty page; read its counts only then.
-  // It counts every case, whatever the operator filter selects.
-  const { counts } = useSymptomCounts(
-    { ...query, operator: "all" },
-    tableData?.data.length === 0
-  );
 
   if (loading) {
     return (
@@ -89,7 +80,7 @@ export default function SymptomsTable({
       query.treatment === "treated" && !query.date_range.from
         ? ((dict.symptoms as I18nRecord).treated_needs_dates as string)
         : undefined;
-    return <EmptyTable dict={dict} counts={counts} hint={hint} />;
+    return <EmptyTable dict={dict} hint={hint} />;
   }
 
   const header = !compact

@@ -129,6 +129,9 @@ function storytelling_params(storyDict: I18nRecord): ParamType[] {
   ];
 }
 
+/** The symptom cards' levels: code black, critical, compromised, observation, ignored. */
+const ICU_CODE_FILTERS = ["4", "3", "2", "1", "9"];
+
 function symptoms_params(searchbarDict: I18nRecord): ParamType[] {
   return [
     // "Todos" is the badge's own first entry, which writes `FILTER_ANY`.
@@ -147,6 +150,15 @@ function symptoms_params(searchbarDict: I18nRecord): ParamType[] {
       TREATMENT_STATES.map((state) => ({
         value: state,
         label: trDynamic(`treatment_${state}`, searchbarDict),
+      }))
+    ),
+    // The level the symptom cards select, so the bar can show and clear it.
+    setParam(
+      "icu_code",
+      "selector",
+      ICU_CODE_FILTERS.map((code) => ({
+        value: code,
+        label: tr(`icu_code_${code}`, searchbarDict),
       }))
     ),
     setParam("asset_id", "text"),

@@ -177,6 +177,49 @@ describe("GET /api/collaborators/[codDriver]", () => {
     });
   });
 
+  describe("cache freshness for an in-scope driver", () => {
+    it.each([
+      { ageMs: CACHE_TTL_MS, cacheStatus: "HIT", providerCalls: 1 },
+      { ageMs: CACHE_TTL_MS + 1, cacheStatus: "STALE", providerCalls: 2 },
+      { ageMs: STALE_TTL_MS, cacheStatus: "STALE", providerCalls: 2 },
+      { ageMs: STALE_TTL_MS + 1, cacheStatus: "MISS", providerCalls: 2 },
+    ])(
+      "answers $cacheStatus for an entry $ageMs ms old",
+      async ({ ageMs, cacheStatus, providerCalls }) => {
+        resolveTenantScopeMock.mockResolvedValue(scopeFor([ALLOWED_TAX_ID]));
+        providerReturns(ALLOWED_TAX_ID);
+        await callGet();
+
+        now += ageMs;
+        const res = await callGet();
+
+        expect(res).toMatchObject({ status: 200, cacheStatus });
+        expect(res.body.collaborator.department).toBe(ALLOWED_TAX_ID);
+        expect(fetchDetailMock).toHaveBeenCalledTimes(providerCalls);
+      }
+    );
+
+    it("stores the background refresh started by a STALE response", async () => {
+      resolveTenantScopeMock.mockResolvedValue(
+        scopeFor([ALLOWED_TAX_ID, OTHER_TAX_ID])
+      );
+      providerReturns(ALLOWED_TAX_ID);
+      await callGet();
+
+      providerReturns(OTHER_TAX_ID);
+      now += CACHE_TTL_MS + 1_000;
+      const stale = await callGet();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const refreshed = await callGet();
+
+      expect(stale).toMatchObject({ status: 200, cacheStatus: "STALE" });
+      expect(stale.body.collaborator.department).toBe(ALLOWED_TAX_ID);
+      expect(refreshed).toMatchObject({ status: 200, cacheStatus: "HIT" });
+      expect(refreshed.body.collaborator.department).toBe(OTHER_TAX_ID);
+      expect(fetchDetailMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("cache isolation and deduplication", () => {
     it("does not share entries across users or organizations", async () => {
       providerReturns(ALLOWED_TAX_ID);

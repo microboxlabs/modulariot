@@ -126,6 +126,33 @@ function refreshDetailCache(cacheKey: string, codDriver: string) {
   return promise;
 }
 
+/**
+ * Serves a cache entry younger than the fresh TTL as HIT, or younger than the
+ * stale TTL as STALE while a background refresh runs. Returns undefined when
+ * there is no usable entry and the caller must fetch.
+ */
+function cachedDetailResponse(
+  scope: TenantScope,
+  cacheKey: string,
+  codDriver: string,
+  cacheEntry: DetailCacheEntry | undefined,
+  now: number
+) {
+  if (!cacheEntry) return undefined;
+  const ageMs = now - cacheEntry.fetchedAt;
+
+  if (ageMs <= DETAIL_CACHE_TTL_MS) {
+    return authorizedJsonResponse(scope, cacheEntry.data, "HIT");
+  }
+
+  if (ageMs <= DETAIL_CACHE_STALE_TTL_MS) {
+    void refreshDetailCache(cacheKey, codDriver).catch(() => undefined);
+    return authorizedJsonResponse(scope, cacheEntry.data, "STALE");
+  }
+
+  return undefined;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ codDriver: string }> }
@@ -155,18 +182,14 @@ export async function GET(
   const cacheEntry = detailCache.get(cacheKey);
   const now = Date.now();
 
-  if (cacheEntry) {
-    const ageMs = now - cacheEntry.fetchedAt;
-
-    if (ageMs <= DETAIL_CACHE_TTL_MS) {
-      return authorizedJsonResponse(scope, cacheEntry.data, "HIT");
-    }
-
-    if (ageMs <= DETAIL_CACHE_STALE_TTL_MS) {
-      void refreshDetailCache(cacheKey, codDriver).catch(() => undefined);
-      return authorizedJsonResponse(scope, cacheEntry.data, "STALE");
-    }
-  }
+  const cached = cachedDetailResponse(
+    scope,
+    cacheKey,
+    codDriver,
+    cacheEntry,
+    now
+  );
+  if (cached) return cached;
 
   try {
     const dto = await refreshDetailCache(cacheKey, codDriver);

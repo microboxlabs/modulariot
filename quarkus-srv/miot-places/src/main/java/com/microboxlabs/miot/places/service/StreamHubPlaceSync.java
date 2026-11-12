@@ -21,8 +21,10 @@ import org.jboss.logging.Logger;
  * and code ({@code client_id}, {@code client_geofence_id}), upserted with the place's name, shape and properties
  * (with its address); a delete removes the row for good. A route has none.
  *
- * <p>Only rows created by this sync may be replaced or removed. A collision with a legacy row leaves the place
- * pending. Deletes also match the source place ID, protecting a newer owner of the code. On with the places
+ * <p>The organization and code are the key: a row with them is the place's, whoever created it (a geofence
+ * imported into Places keeps its GPS row), and the first write marks it as this sync's. The one exception is a trips
+ * location geofence ({@code created_by = miot-trips}): it is never replaced or removed, and the place stays pending.
+ * Deletes also match the source place ID when the row has one, protecting a newer owner of the code. On with the places
  * component; off while {@code miot.places.sync.enabled} is false (in dev by default) or the GPS database is not
  * configured; what is written meanwhile stays pending.
  */
@@ -33,8 +35,8 @@ public class StreamHubPlaceSync implements PlaceSync {
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Logger LOG = Logger.getLogger(StreamHubPlaceSync.class);
-    private static final String OWNED = "geofences.properties->>'created_by' = 'miot-places'"
-            + " AND geofences.properties->>'miot_place_id' IS NOT NULL";
+    // Any row of the organization and code except a trips location geofence.
+    private static final String WRITABLE = "geofences.properties->>'created_by' IS DISTINCT FROM 'miot-trips'";
     // polygon_type and geofence_classification as StreamHub's own polygons; an existing row keeps its own
     private static final String UPSERT = """
             INSERT INTO geofences (coordinates, client_geofence_id, client_id, geofence_name,
@@ -44,9 +46,11 @@ public class StreamHubPlaceSync implements PlaceSync {
             ON CONFLICT (client_id, client_geofence_id) DO UPDATE
                SET coordinates = EXCLUDED.coordinates, geofence_name = EXCLUDED.geofence_name, updated_at = now(),
                    properties = EXCLUDED.properties
-             WHERE\s""" + OWNED + " RETURNING geofence_id";
+             WHERE\s""" + WRITABLE + " RETURNING geofence_id";
+    // A row marked by another place is that place's: an old delete must not remove a newer owner's geofence.
     private static final String DELETE = "DELETE FROM geofences WHERE client_id = $1 AND client_geofence_id = $2 AND "
-            + OWNED + " AND geofences.properties->>'miot_place_id' = $3";
+            + WRITABLE + " AND (geofences.properties->>'miot_place_id' IS NULL"
+            + " OR geofences.properties->>'miot_place_id' = $3)";
 
     private final GpsDatabase gps;
     private final boolean enabled;
@@ -69,7 +73,7 @@ public class StreamHubPlaceSync implements PlaceSync {
         } else if (!gps.configured()) {
             LOG.info("places sync: skipped (GPS datasource not configured); places stay pending");
         } else {
-            LOG.info("places sync: enabled; only geofences owned by miot-places are changed");
+            LOG.info("places sync: enabled; geofences are matched by organization and code, never a trips location");
         }
     }
 
@@ -95,7 +99,7 @@ public class StreamHubPlaceSync implements PlaceSync {
                 .await().atMost(TIMEOUT).iterator().hasNext();
         if (!written) {
             throw new IllegalStateException("the GPS geofence " + tenantCode + "/" + externalCode
-                    + " is not owned by miot-places; it is not replaced");
+                    + " is a trips location geofence; it is not replaced");
         }
     }
 

@@ -83,7 +83,7 @@ export default function EmptyAnimation({
                       count: String(shown.counts.vehiclesOnTrip),
                     }
                   )}
-                  className="bottom-1 left-1 h-6 min-w-6 text-xs"
+                  className="top-auto right-auto bottom-1 left-1 h-6 min-w-6 text-xs"
                 />
               )}
             </div>

@@ -252,6 +252,16 @@ export function roundsToTimeline(rounds: ReviewRoundResponse[]): TimelineEntry[]
   });
 }
 
+function timelineEntriesFor(
+  rounds: ReviewRoundResponse[] | null,
+  data: ForumDiscussionResponse | null,
+  refMap: Map<string, { topicRef: string; postRef: string }>,
+): TimelineEntry[] {
+  if (rounds) return roundsToTimeline(rounds);
+  if (data) return buildNodeTimeline(data, refMap);
+  return [];
+}
+
 function buildNodeTimeline(data: ForumDiscussionResponse, refMap: Map<string, { topicRef: string; postRef: string }>): TimelineEntry[] {
   const allPosts = flattenTopicPosts(data, refMap);
   allPosts.sort((a, b) => a.created.getTime() - b.created.getTime());
@@ -853,8 +863,7 @@ export default function FileImages({
       return next;
     });
     setDraftObservations((prev) => {
-      const obs = (prev.get(fileId) ?? []).find((o) => o.id === obsId);
-      if (!obs) return prev;
+      if (!(prev.get(fileId) ?? []).some((o) => o.id === obsId)) return prev;
       const next = new Map(prev);
       next.set(fileId, (prev.get(fileId) ?? []).map((o) => addReplyToObservation(o, obsId, reply)));
       return next;
@@ -873,8 +882,7 @@ export default function FileImages({
       return next;
     });
     setDraftObservations((prev) => {
-      const obs = (prev.get(fileId) ?? []).find((o) => o.id === obsId);
-      if (!obs) return prev;
+      if (!(prev.get(fileId) ?? []).some((o) => o.id === obsId)) return prev;
       const next = new Map(prev);
       next.set(fileId, (prev.get(fileId) ?? []).map((o) => removeReplyFromObservation(o, obsId, replyId)));
       return next;
@@ -951,7 +959,7 @@ export default function FileImages({
       for (const result of results) {
         if (result.status !== "fulfilled") continue;
         const { nodeId, rounds, data } = result.value;
-        const entries = rounds ? roundsToTimeline(rounds) : data ? buildNodeTimeline(data, refMap) : [];
+        const entries = timelineEntriesFor(rounds, data, refMap);
         if (entries.length > 0) timeline.set(nodeId, entries);
       }
       setForumRefMap((prev) => new Map([...prev, ...refMap]));
@@ -964,7 +972,8 @@ export default function FileImages({
       });
       setDiscussionsLoaded(true);
     }
-    fetchHistories();
+    // Fire and forget: allSettled collects each history read's failure, and those nodes are skipped.
+    void fetchHistories();
     return () => { cancelled = true; };
   }, [allIds, discussionsLoaded, src]);
 

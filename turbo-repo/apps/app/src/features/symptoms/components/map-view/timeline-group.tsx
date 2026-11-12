@@ -58,6 +58,13 @@ function TimelineCaseBadges({
   );
 }
 
+function timelineDurationText(minutes: number): string {
+  if (minutes > 86400) return `${Math.floor(minutes / 86400)} d`;
+  if (minutes > 1440) return `${Math.floor(minutes / 1440)} h`;
+  if (minutes > 60) return `${Math.floor(minutes / 60)} h`;
+  return `${Math.floor(minutes)} m`;
+}
+
 export default function TimelineGroup({
   item,
   dict,
@@ -116,17 +123,6 @@ export default function TimelineGroup({
       60000,
   ); */
 
-  // add to this the transformed value of length
-  const length_text =
-    length > 60 ? (length > 1440 ? (length > 86400 ? "d" : "h") : "h") : "m";
-  const length_text_value =
-    length > 60
-      ? length > 1440
-        ? length > 86400
-          ? length / 86400
-          : length / 1440
-        : length / 60
-      : length;
   return (
     <div
       data-current={isCurrent ? "true" : undefined}
@@ -162,7 +158,7 @@ export default function TimelineGroup({
                   date={item.conditions_agg?.[0]?.start}
                   format="time"
                 />{" "}
-                | {Math.floor(length_text_value)} {length_text}
+                | {timelineDurationText(length)}
               </p>
               <TimelineCaseBadges
                 isCurrent={isCurrent}

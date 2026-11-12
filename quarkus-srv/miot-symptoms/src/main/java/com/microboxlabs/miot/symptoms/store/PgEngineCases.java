@@ -65,6 +65,8 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String UNDER_TREATMENT = "under_treatment";
     private static final String UNDEFINED_TABLE = "42P01";
     private static final String TRIPS_UNAVAILABLE = "Trip codes not resolved: trips unavailable";
+    private static final String CONTEXT = "context";
+    private static final String CASE_ID = "case_id";
 
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.state, o.asset_id, o.at, o.level, o.trip_id,
@@ -1035,7 +1037,7 @@ public class PgEngineCases implements EngineCaseStore {
     public List<CaseNote> notes(String tenantCode, long caseId) {
         List<CaseNote> out = new ArrayList<>();
         PgIds.query(pool.get(), NOTES, Tuple.of(tenantCode, caseId, MAX_NOTES)).forEach(r -> out.add(
-                note(r.getOffsetDateTime("at").toInstant(), json(r.getString("context")))));
+                note(r.getOffsetDateTime("at").toInstant(), json(r.getString(CONTEXT)))));
         out.sort(Comparator.comparing(CaseNote::at));
         return out;
     }
@@ -1048,8 +1050,8 @@ public class PgEngineCases implements EngineCaseStore {
         Map<Long, List<CaseNote>> out = new HashMap<>();
         PgIds.query(pool.get(), NOTES_BY_CASES,
                 Tuple.of(tenantCode, caseIds.stream().distinct().toArray(Long[]::new), MAX_NOTES))
-                .forEach(r -> out.computeIfAbsent(r.getLong("case_id"), id -> new ArrayList<>()).add(
-                        note(r.getOffsetDateTime("at").toInstant(), json(r.getString("context")))));
+                .forEach(r -> out.computeIfAbsent(r.getLong(CASE_ID), id -> new ArrayList<>()).add(
+                        note(r.getOffsetDateTime("at").toInstant(), json(r.getString(CONTEXT)))));
         out.values().forEach(notes -> notes.sort(Comparator.comparing(CaseNote::at)));
         return out;
     }
@@ -1213,8 +1215,8 @@ public class PgEngineCases implements EngineCaseStore {
         for (Row row : rows) {
             ClosingFrame frame = frames.apply(staleCase(row));
             if (frame != null) {
-                snapshots.add(new JsonObject().put("case_id", row.getLong("id"))
-                        .put(MEASURE, frame.maxMeasure()).put("context", frame.context()));
+                snapshots.add(new JsonObject().put(CASE_ID, row.getLong("id"))
+                        .put(MEASURE, frame.maxMeasure()).put(CONTEXT, frame.context()));
             }
         }
         return snapshots;
@@ -1228,7 +1230,7 @@ public class PgEngineCases implements EngineCaseStore {
 
     /** The case identity shared by closure queries and the durable trip-end effects queue. */
     public static StaleCase staleCase(Row r) {
-        return new StaleCase(r.getString("tenant_code"), r.getLong("case_id"),
+        return new StaleCase(r.getString("tenant_code"), r.getLong(CASE_ID),
                 r.getUUID(DEFINITION_ID), r.getString("version"), "TEST".equals(r.getString("state")),
                 r.getString(ASSET_ID), r.getInteger(LEVEL), r.getString(TRIP_ID), r.getDouble("latitude"),
                 r.getDouble("longitude"), r.getDouble(SPEED_KMH), r.getOffsetDateTime("opened_at").toInstant());

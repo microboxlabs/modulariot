@@ -232,17 +232,13 @@ public class PgTreatmentStore implements TreatmentStore {
                     if (!rows.iterator().hasNext()) throw new NoSuchElementException("case not found");
                 })
                 .flatMap(ignored -> tx.preparedQuery(ENGINE_CASE_HELD).execute(key))
-                .invoke(rows -> {
-                    if (rows.iterator().hasNext()) throw new IllegalStateException("the case is on hold");
-                })
+                .invoke(rows -> rejectIfPresent(rows, "the case is on hold"))
                 .flatMap(ignored -> tx.preparedQuery(SELECT_MY_OPEN).execute(mine))
                 .flatMap(open -> {
                     List<Treatment> resumed = treatments(open);
                     if (!resumed.isEmpty()) return Uni.createFrom().item(new Inserted(resumed.get(0), false));
                     return tx.preparedQuery(ENGINE_CASE_CLOSED).execute(key)
-                            .invoke(rows -> {
-                                if (rows.iterator().hasNext()) throw new IllegalStateException("the case is closed");
-                            })
+                            .invoke(rows -> rejectIfPresent(rows, "the case is closed"))
                             .flatMap(ignored -> tx.preparedQuery(INSERT_TREATMENT).execute(params))
                             .flatMap(rows -> {
                                 List<Treatment> saved = treatments(rows);
@@ -251,6 +247,12 @@ public class PgTreatmentStore implements TreatmentStore {
                                         .map(again -> new Inserted(treatments(again).get(0), false));
                             });
                 })).await().atMost(QUERY_TIMEOUT);
+    }
+
+    private static void rejectIfPresent(RowSet<Row> rows, String message) {
+        if (rows.iterator().hasNext()) {
+            throw new IllegalStateException(message);
+        }
     }
 
     @Override

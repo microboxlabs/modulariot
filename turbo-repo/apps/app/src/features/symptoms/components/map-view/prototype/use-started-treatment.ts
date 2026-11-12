@@ -53,9 +53,10 @@ export function useStartedTreatment({
     return guardedStartTreatment(latest.current.request)
       .then(() => lifetime.current === current)
       .catch((error: unknown) => {
-        if (lifetime.current !== current) return false;
-        if (isConflict(error)) latest.current.onRefused(error);
-        else latest.current.onFailed();
+        if (lifetime.current === current) {
+          if (isConflict(error)) latest.current.onRefused(error);
+          else latest.current.onFailed();
+        }
         return false;
       });
   }, []);
@@ -68,7 +69,7 @@ export function useStartedTreatment({
   useEffect(() => {
     if (!active) return;
     lifetime.current = {};
-    ensure();
+    void ensure();
     const leave = (keepalive: boolean) => {
       const call = latest.current.call;
       const callPending =

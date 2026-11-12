@@ -41,6 +41,8 @@ export interface TowerAction {
 }
 
 export interface TowerTreatment {
+  /** Original server-resolved organization, retained for deferred abandonment. */
+  organizationSlug?: string;
   id: string;
   symptomId: number;
   assetId: string | null;
@@ -241,6 +243,8 @@ async function request<T>(
       typeof json?.code === "string" ? json.code : undefined
     );
   }
+  const organizationSlug = response.headers.get("X-Control-Tower-Organization");
+  if (json && organizationSlug) json.organizationSlug = organizationSlug;
   return json as T;
 }
 
@@ -464,7 +468,7 @@ export function resumeTreatment(treatmentId: string) {
 export function cancelTreatment(
   treatmentId: string,
   reason?: string,
-  options: { keepalive?: boolean } = {}
+  options: { keepalive?: boolean; organizationSlug?: string } = {}
 ) {
   return request<void>(`/treatments/${treatmentId}/abandon`, {
     method: "POST",

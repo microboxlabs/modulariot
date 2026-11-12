@@ -550,3 +550,16 @@ it("cancels after leaving if the pending action fails", async () => {
   await leaving;
   expect(tower.cancelTreatment).toHaveBeenCalledTimes(1);
 });
+
+it("retains the opening organization while a failed save delays abandonment", async () => {
+  tower.openTreatment.mockResolvedValueOnce({
+    id: "t1",
+    actions: [],
+    organizationSlug: "old-org",
+  });
+  await guardedStartTreatment(base);
+  await guardedAbandonTreatment(base.symptom_id);
+  expect(tower.cancelTreatment).toHaveBeenCalledWith("t1", "panel closed", {
+    organizationSlug: "old-org",
+  });
+});

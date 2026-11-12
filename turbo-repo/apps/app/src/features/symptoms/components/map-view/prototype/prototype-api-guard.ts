@@ -76,6 +76,7 @@ export interface EngineTreatmentProgress {
 /** The operator's treatment on an engine case, as this page opened or resumed it. */
 interface StartedTreatment {
   treatmentId: string;
+  organizationSlug?: string;
   /** False while it holds no action: it is then cancelled when the operator leaves. */
   recorded: boolean;
   pending: Set<Promise<unknown>>;
@@ -96,7 +97,7 @@ const leaving = new Map<string, Promise<void>>();
 const retainedForCall = new Set<string>();
 
 export function retainTreatmentForCall(
-  symptomId: number | string | undefined
+  symptomId: number | string | null | undefined
 ): void {
   retainedForCall.add(String(symptomId));
 }
@@ -165,6 +166,7 @@ function startEngineTreatment(
     .then(() => openTreatment(symptomId, body))
     .then((treatment) => ({
       treatmentId: treatment.id,
+      organizationSlug: treatment.organizationSlug,
       recorded: (treatment.actions?.length ?? 0) > 0,
       pending: new Set<Promise<unknown>>(),
     }));
@@ -359,7 +361,12 @@ export function guardedAbandonTreatment(
     .then(async (treatment) => {
       await Promise.allSettled(treatment.pending);
       if (treatment.recorded) return;
-      await cancelTreatment(treatment.treatmentId, "panel closed", options);
+      await cancelTreatment(treatment.treatmentId, "panel closed", {
+        ...options,
+        ...(treatment.organizationSlug
+          ? { organizationSlug: treatment.organizationSlug }
+          : {}),
+      });
       void revalidateCase(symptomId);
     })
     .catch(() => undefined)

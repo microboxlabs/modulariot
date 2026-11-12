@@ -39,7 +39,10 @@ describe("/api/control-tower/[...path]", () => {
     scheduled.length = 0;
     scopeMock.mockResolvedValue({
       resolved: true,
-      scope: { activeOrg: { slug: "acme org" } },
+      scope: {
+        activeOrg: { slug: "acme org" },
+        availableOrgs: [{ slug: "acme org" }, { slug: "symptoms" }],
+      },
     });
     forwardMock.mockResolvedValue(NextResponse.json({ ok: true }));
   });
@@ -155,7 +158,10 @@ describe("an opening request whose browser disconnected", () => {
     scheduled.length = 0;
     scopeMock.mockResolvedValue({
       resolved: true,
-      scope: { activeOrg: { slug: "acme org" } },
+      scope: {
+        activeOrg: { slug: "acme org" },
+        availableOrgs: [{ slug: "acme org" }, { slug: "symptoms" }],
+      },
     });
     forwardMock.mockResolvedValue(NextResponse.json({}));
   });
@@ -209,7 +215,10 @@ describe("an opening request whose browser disconnected", () => {
     async (status) => {
       scopeMock.mockResolvedValue({
         resolved: true,
-        scope: { activeOrg: { slug: "acme org" } },
+        scope: {
+          activeOrg: { slug: "acme org" },
+          availableOrgs: [{ slug: "acme org" }, { slug: "symptoms" }],
+        },
       });
       forwardMock.mockResolvedValue(
         NextResponse.json({ id: "synthetic-treatment" }, { status })
@@ -225,4 +234,85 @@ describe("an opening request whose browser disconnected", () => {
       expect(forwardMock).toHaveBeenCalledTimes(1);
     }
   );
+});
+
+describe("deferred treatment cleanup scope and actions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    scheduled.length = 0;
+    scopeMock.mockResolvedValue({
+      resolved: true,
+      scope: {
+        activeOrg: { slug: "new-org" },
+        availableOrgs: [{ slug: "new-org" }, { slug: "old-org" }],
+      },
+    });
+    forwardMock.mockResolvedValue(NextResponse.json({}));
+  });
+  it("abandons in the original organization after the active one changes", async () => {
+    await POST(
+      req("http://x/api/control-tower/treatments/t1/abandon", {
+        method: "POST",
+        body: JSON.stringify({ organizationSlug: "old-org" }),
+      }),
+      ctx(["treatments", "t1", "abandon"])
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/old-org/control-tower/treatments/t1/abandon",
+      { method: "POST", body: {} }
+    );
+  });
+  it("rejects an original organization the caller does not belong to", async () => {
+    const result = await POST(
+      req("http://x/api/control-tower/treatments/t1/abandon", {
+        method: "POST",
+        body: JSON.stringify({ organizationSlug: "foreign-org" }),
+      }),
+      ctx(["treatments", "t1", "abandon"])
+    );
+    expect(result.status).toBe(403);
+    expect(forwardMock).not.toHaveBeenCalled();
+  });
+  it("cleans up a failed action after a client disconnect", async () => {
+    forwardMock.mockResolvedValueOnce(
+      NextResponse.json({ error: "failed" }, { status: 500 })
+    );
+    await POST(
+      req("http://x/api/control-tower/treatments/t1/actions", {
+        method: "POST",
+        signal: AbortSignal.abort(),
+      }),
+      ctx(["treatments", "t1", "actions"])
+    );
+    await scheduled[0]!();
+    expect(forwardMock).toHaveBeenLastCalledWith(
+      "/api/v1/orgs/new-org/control-tower/treatments/t1/abandon",
+      { method: "POST", body: {} }
+    );
+  });
+  it("does not confuse an organization named symptoms with the resource", async () => {
+    scopeMock.mockResolvedValue({
+      resolved: true,
+      scope: {
+        activeOrg: { slug: "symptoms" },
+        availableOrgs: [{ slug: "symptoms" }],
+      },
+    });
+    forwardMock.mockResolvedValueOnce(
+      NextResponse.json({ id: "t1" }, { status: 201 })
+    );
+    const result = await POST(
+      req("http://x/api/control-tower/symptoms/-7/treatments", {
+        method: "POST",
+        signal: AbortSignal.abort(),
+      }),
+      ctx(["symptoms", "-7", "treatments"])
+    );
+    expect(result.headers.get("X-Control-Tower-Organization")).toBe("symptoms");
+    await scheduled[0]!();
+    expect(forwardMock).toHaveBeenLastCalledWith(
+      "/api/v1/orgs/symptoms/control-tower/treatments/t1/abandon",
+      { method: "POST", body: {} }
+    );
+  });
 });

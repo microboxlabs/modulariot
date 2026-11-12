@@ -58,8 +58,8 @@ class FileAttachmentAdapter implements AttachmentAdapter {
   ) {}
 
   add({ file }: { file: File }): Promise<PendingAttachment> {
-    return new Promise((resolve) => {
-      resolve({
+    try {
+      return Promise.resolve({
         id: crypto.randomUUID(),
         type: "document",
         name: file.name,
@@ -67,7 +67,9 @@ class FileAttachmentAdapter implements AttachmentAdapter {
         file,
         status: { type: "requires-action", reason: "composer-send" },
       });
-    });
+    } catch (error) {
+      return Promise.reject(error);
+    }
   }
 
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {

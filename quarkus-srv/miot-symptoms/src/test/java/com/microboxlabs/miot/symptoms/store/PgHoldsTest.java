@@ -742,8 +742,9 @@ class PgHoldsTest {
             assertThrows(IllegalStateException.class, () -> guarded.addAction(tenant, "own-operator", mine, request));
             assertThrows(IllegalStateException.class, () -> guarded.addAction(tenant, OPERATOR, held, request));
         }
+        CloseTreatmentRequest closeRequest = new CloseTreatmentRequest(null, null);
         assertThrows(IllegalStateException.class,
-                () -> guarded.close(tenant, "own-operator", mine, new CloseTreatmentRequest(null, null)));
+                () -> guarded.close(tenant, "own-operator", mine, closeRequest));
         assertThrows(IllegalStateException.class, () -> guarded.cancel(tenant, "own-operator", mine, null));
         guarded.abandon(tenant, "empty-operator", empty);
         assertEquals(TreatmentStatus.CANCELLED, treatments.find(tenant, empty).orElseThrow().status());

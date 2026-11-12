@@ -31,19 +31,46 @@ function formatDate(date: Date, lang: string): string {
 }
 */
 
+function TimelineCaseBadges({
+  isCurrent,
+  closedAt,
+  dict,
+}: Readonly<{
+  isCurrent: boolean;
+  closedAt: string | null | undefined;
+  dict: I18nRecord;
+}>) {
+  if (!isCurrent && !closedAt) return null;
+  const symptoms = dict.symptoms as I18nRecord;
+  return (
+    <div className="flex flex-row gap-1">
+      {isCurrent && (
+        <span className="rounded bg-amber-100 px-1.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+          {symptoms.timeline_current_case as string}
+        </span>
+      )}
+      {closedAt && (
+        <span className="rounded bg-gray-100 px-1.5 text-[10px] text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          {symptoms.timeline_case_closed as string}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function TimelineGroup({
   item,
   dict,
   treatmentData,
   setSelectedTreatment,
   setSelectedTreatmentIndex,
-}: {
+}: Readonly<{
   item: TimelineElement;
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem;
   setSelectedTreatment: (treatment: TreatmentsGeneralResponseItem) => void;
   setSelectedTreatmentIndex: (treatmentIndex: ConditionsAgg) => void;
-}) {
+}>) {
   const [isExpanded, setIsExpanded] = useState(false);
   const selectedItemRef = useRef<HTMLDivElement>(null);
 
@@ -54,7 +81,6 @@ export default function TimelineGroup({
       (subItem) => subItem.symptom_id == treatmentData.symptom_info?.id
     ) ??
       false);
-  const symptoms = dict.symptoms as I18nRecord;
 
   useEffect(() => {
     if (isCurrent) {
@@ -138,20 +164,11 @@ export default function TimelineGroup({
                 />{" "}
                 | {Math.floor(length_text_value)} {length_text}
               </p>
-              {(isCurrent || item.closed_at) && (
-                <div className="flex flex-row gap-1">
-                  {isCurrent && (
-                    <span className="rounded bg-amber-100 px-1.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                      {symptoms.timeline_current_case as string}
-                    </span>
-                  )}
-                  {item.closed_at && (
-                    <span className="rounded bg-gray-100 px-1.5 text-[10px] text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                      {symptoms.timeline_case_closed as string}
-                    </span>
-                  )}
-                </div>
-              )}
+              <TimelineCaseBadges
+                isCurrent={isCurrent}
+                closedAt={item.closed_at}
+                dict={dict}
+              />
             </div>
           </div>
           <div className="flex flex-wrap gap-2 mt-2"></div>

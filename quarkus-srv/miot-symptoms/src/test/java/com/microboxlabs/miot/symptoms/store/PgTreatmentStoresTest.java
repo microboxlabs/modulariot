@@ -693,11 +693,15 @@ class PgTreatmentStoresTest {
         assertEquals(1, treatments.listBySymptom(tenant, symptomId).size());
         Treatment mine = results.getFirst().treatment();
         Treatment otherOperator = openTreatment(tenant, symptomId, "other@example.com");
-        assertThrows(IllegalStateException.class, () -> treatments.insert(otherOperator),
-                "another operator cannot start a second treatment");
-        treatments.transition(tenant, mine.id(), TreatmentStatus.CANCELLED, ACTOR, "cancelled", null).orElseThrow();
         Treatment other = treatments.insert(otherOperator).treatment();
-        assertNotEquals(mine.id(), other.id(), "after cancellation the case is available again");
+        assertNotEquals(mine.id(), other.id(), "each operator can treat the open case");
+        assertEquals(other.id(), treatments.insert(otherOperator).treatment().id(), "each actor resumes its episode");
+        assertTrue(treatments.cancelEmpty(tenant, mine.id(), otherOperator.openedBy()).isEmpty());
+        treatments.cancelEmpty(tenant, mine.id(), ACTOR).orElseThrow();
+        assertEquals(TreatmentStatus.OPEN, treatments.find(tenant, other.id()).orElseThrow().status(),
+                "abandoning one episode leaves the other operator's episode alone");
+        Treatment reopened = treatments.insert(openTreatment(tenant, symptomId, ACTOR)).treatment();
+        assertNotEquals(mine.id(), reopened.id(), "the same actor can treat again after cancellation");
         assertTrue(treatments.findOpen(tenant(), symptomId, ACTOR).isEmpty());
         assertTrue(treatments.findOpen(tenant, symptomId - 1, ACTOR).isEmpty());
         Treatment wrongTenant = openTreatment(tenant(), symptomId, ACTOR);

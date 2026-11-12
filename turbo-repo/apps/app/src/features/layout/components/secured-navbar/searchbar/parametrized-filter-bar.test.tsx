@@ -36,6 +36,12 @@ const DICT: I18nRecord = {
     treatment_untreated: "Sin tratar",
     treatment_in_treatment: "En tratamiento",
     treatment_treated: "Tratado",
+    icu_code: "Condición",
+    icu_code_4: "Código negro",
+    icu_code_3: "Condición crítica",
+    icu_code_2: "Condición comprometida",
+    icu_code_1: "En observación",
+    icu_code_9: "Ignorados",
   },
   dashboard: { settings: { columnFilterAll: "Todos" } },
   storytelling: { kind: {} },
@@ -60,6 +66,28 @@ beforeEach(() => {
 });
 
 afterEach(cleanup);
+
+describe("the symptoms condition filter", () => {
+  it("shows the condition a card selected in the URL", () => {
+    mockSearchParams = new URLSearchParams("icu_code=3&operator=all");
+    renderBar();
+
+    expect(screen.getByText(/^Condición:?$/)).toBeTruthy();
+    expect(screen.getByText("Condición crítica")).toBeTruthy();
+  });
+
+  it("clears the condition while keeping the operator URL override and stored choice", () => {
+    localStorage.setItem(OPERATOR_FILTER_KEY, "none");
+    mockSearchParams = new URLSearchParams("icu_code=3&operator=all");
+    renderBar();
+
+    fireEvent.click(screen.getByText(/^Condición:?$/));
+    fireEvent.mouseDown(screen.getByRole("button", { name: "Todos" }));
+
+    expect(push).toHaveBeenCalledWith("/es/symptoms?operator=all");
+    expect(localStorage.getItem(OPERATOR_FILTER_KEY)).toBe("none");
+  });
+});
 
 describe("the symptoms treatment filter", () => {
   function pickTreatment(label: string) {

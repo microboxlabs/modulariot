@@ -47,6 +47,12 @@ describe("caseActionOf", () => {
     expect(caseActionOf("in_treatment", { ...open, mine: true }, false)).toBe(
       "continue"
     );
+    expect(caseActionOf("untreated", { ...open, mine: true }, true)).toBe(
+      "continue"
+    );
+    expect(caseActionOf("treated", { ...open, mine: true }, true)).toBe(
+      "continue"
+    );
   });
 
   it("offers a treatment alongside another operator on an open case", () => {

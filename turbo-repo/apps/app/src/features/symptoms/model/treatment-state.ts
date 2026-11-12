@@ -54,7 +54,7 @@ export function caseActionOf(
   treatment: CaseTreatment | null | undefined,
   closed: boolean
 ): CaseAction {
-  if (state === "in_treatment" && treatment?.mine) return "continue";
+  if (treatment?.status === "OPEN" && treatment.mine) return "continue";
   if (closed)
     return !state || state === "untreated" ? "view_case" : "view_treatment";
   return "treat";

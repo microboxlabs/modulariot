@@ -101,6 +101,7 @@ function useTreatmentFormLock(
   const sameCase = ownEpisode?.startsWith(`${symptomInfo?.id}:`) ?? false;
   const finishingOwnEpisode =
     isFormOpen &&
+    !symptomInfo?.ignored &&
     sameCase &&
     (ownEpisode === `${symptomInfo?.id}:${episode?.id}` ||
       !!symptomInfo?.closed_at);

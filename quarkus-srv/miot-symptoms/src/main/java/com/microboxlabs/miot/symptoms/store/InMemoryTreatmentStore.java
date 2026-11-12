@@ -46,10 +46,6 @@ public class InMemoryTreatmentStore implements TreatmentStore {
             if (open.isPresent()) {
                 return new Inserted(open.get(), false);
             }
-            if (t.symptomId() < 0 && listBySymptom(t.tenantCode(), t.symptomId()).stream()
-                    .anyMatch(other -> other.status() == TreatmentStatus.OPEN)) {
-                throw new IllegalStateException("another operator is treating this case");
-            }
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime openedAt = t.openedAt() == null ? now : t.openedAt();

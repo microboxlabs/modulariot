@@ -29,8 +29,10 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -62,6 +64,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String SPEED_KMH = "speed_kmh";
     private static final String UNDER_TREATMENT = "under_treatment";
     private static final String UNDEFINED_TABLE = "42P01";
+    private static final String TRIPS_UNAVAILABLE = "Trip codes not resolved: trips unavailable";
 
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.state, o.asset_id, o.at, o.level, o.trip_id,
@@ -478,6 +481,11 @@ public class PgEngineCases implements EngineCaseStore {
              ORDER BY n.id
              LIMIT $3
             """;
+    /** The same per-case note bound, read in one round trip for every timeline case. */
+    private static final String NOTES_BY_CASES = """
+            SELECT ids.case_id, history.* FROM unnest($2::bigint[]) AS ids(case_id)
+              CROSS JOIN LATERAL (%s) history
+            """.formatted(NOTES.replace("o.id = $2", "o.id = ids.case_id"));
 
     private static final String HOLD_HISTORY = """
             SELECT history.* FROM miot_symptoms.signal_transitions o
@@ -681,7 +689,7 @@ public class PgEngineCases implements EngineCaseStore {
             if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
-            LOG.debug("Trip codes not resolved: trips unavailable", e);
+            LOG.debug(TRIPS_UNAVAILABLE, e);
             return casesWithTrips(tripAsGiven(query), args);
         }
     }
@@ -697,7 +705,7 @@ public class PgEngineCases implements EngineCaseStore {
             if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
-            LOG.debug("Trip codes not resolved: trips unavailable", e);
+            LOG.debug(TRIPS_UNAVAILABLE, e);
             return PgIds.query(pool.get(), tripAsGiven(query), args);
         }
     }
@@ -958,7 +966,7 @@ public class PgEngineCases implements EngineCaseStore {
             if (!UNDEFINED_TABLE.equals(e.getSqlState())) {
                 throw e;
             }
-            LOG.debug("Trip codes not resolved: trips unavailable", e);
+            LOG.debug(TRIPS_UNAVAILABLE, e);
             rows = PgIds.query(pool.get(), TRIP_SYMPTOMS.formatted(TRIP_AS_GIVEN), args);
         }
         List<TripSymptom> out = new ArrayList<>();
@@ -1029,6 +1037,20 @@ public class PgEngineCases implements EngineCaseStore {
         PgIds.query(pool.get(), NOTES, Tuple.of(tenantCode, caseId, MAX_NOTES)).forEach(r -> out.add(
                 note(r.getOffsetDateTime("at").toInstant(), json(r.getString("context")))));
         out.sort(Comparator.comparing(CaseNote::at));
+        return out;
+    }
+
+    @Override
+    public Map<Long, List<CaseNote>> notesByCases(String tenantCode, Collection<Long> caseIds) {
+        if (caseIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, List<CaseNote>> out = new HashMap<>();
+        PgIds.query(pool.get(), NOTES_BY_CASES,
+                Tuple.of(tenantCode, caseIds.stream().distinct().toArray(Long[]::new), MAX_NOTES))
+                .forEach(r -> out.computeIfAbsent(r.getLong("case_id"), id -> new ArrayList<>()).add(
+                        note(r.getOffsetDateTime("at").toInstant(), json(r.getString("context")))));
+        out.values().forEach(notes -> notes.sort(Comparator.comparing(CaseNote::at)));
         return out;
     }
 

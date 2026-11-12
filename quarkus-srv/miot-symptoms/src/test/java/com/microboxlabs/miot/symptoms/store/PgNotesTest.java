@@ -101,4 +101,24 @@ class PgNotesTest {
         assertEquals(List.of(at.plusSeconds(30), at.plusSeconds(60)),
                 cases.notes(tenant, caseId).stream().map(n -> n.at()).toList());
     }
+
+    @Test
+    void batchNotesKeepEachCasesHistoryOrderAndTenantBoundary() {
+        long first = log.append(tenant, List.of(transition(Kind.OPENED, 0)), NOWHERE).getFirst().caseId();
+        log.append(tenant, List.of(transition(Kind.NOTED, 60), transition(Kind.NOTED, 30)), NOWHERE);
+        log.append(tenant, List.of(transition(Kind.CLOSED, 120)), NOWHERE);
+        long second = log.append(tenant, List.of(transition(Kind.OPENED, 180)), NOWHERE).getFirst().caseId();
+        log.append(tenant, List.of(transition(Kind.NOTED, 240)), NOWHERE);
+        long foreign = log.append("other-" + tenant, List.of(transition(Kind.OPENED, 0)), NOWHERE)
+                .getFirst().caseId();
+        log.append("other-" + tenant, List.of(transition(Kind.NOTED, 60)), NOWHERE);
+
+        var notes = cases.notesByCases(tenant, List.of(first, second, foreign, first));
+
+        assertEquals(List.of(at.plusSeconds(30), at.plusSeconds(60)),
+                notes.get(first).stream().map(n -> n.at()).toList());
+        assertEquals(List.of(at.plusSeconds(240)), notes.get(second).stream().map(n -> n.at()).toList());
+        assertEquals(2, notes.size(), "another tenant's case is absent and duplicate ids do not repeat notes");
+        assertEquals(Map.of(), cases.notesByCases(tenant, List.of()));
+    }
 }

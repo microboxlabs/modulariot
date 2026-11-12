@@ -110,6 +110,7 @@ public class EngineCaseService {
     private static final String TREATMENTS = "treatments";
     private static final String TIMELINE = "timeline";
     private static final String CURRENT = "current";
+    private static final String CLOSED_AT = "closed_at";
     private static final String DRIVER_RESPONSE = "driver_response";
     /** The treatment type of a note rule's timeline entry. */
     static final String NOTE_TYPE = "evento del gps";
@@ -770,7 +771,7 @@ public class EngineCaseService {
         }
         ObjectNode t = out.putObject("treatment");
         t.put("id", e.id());
-        t.put("status", e.closedAt() == null && c.treatmentState() == EngineCase.TreatmentState.IN_TREATMENT
+        t.put("status", e.closedAt() == null
                 ? TreatmentStatus.OPEN.name() : TreatmentStatus.CLOSED.name());
         t.put("type", e.type());
         t.put("outcome", e.outcome());
@@ -779,14 +780,11 @@ public class EngineCaseService {
         t.put("opened_by", e.openedBy());
         t.put(OPENED_AT, e.openedAt() == null ? null : e.openedAt().toString());
         t.put("closed_by", e.closedBy());
-        t.put("closed_at", e.closedAt() == null ? null : e.closedAt().toString());
-        boolean inTreatment = c.treatmentState() == EngineCase.TreatmentState.IN_TREATMENT;
-        t.put("mine", inTreatment && read.openBy(actor));
+        t.put(CLOSED_AT, e.closedAt() == null ? null : e.closedAt().toString());
+        t.put("mine", read.openBy(actor));
         ArrayNode operators = t.putArray("operators");
-        if (inTreatment) {
-            read.open().stream().map(EngineCase.Episode::openedBy).filter(java.util.Objects::nonNull).distinct()
-                    .forEach(operators::add);
-        }
+        read.open().stream().map(EngineCase.Episode::openedBy).filter(java.util.Objects::nonNull).distinct()
+                .forEach(operators::add);
     }
 
     /**
@@ -968,8 +966,11 @@ public class EngineCaseService {
         Instant ended = end(c);
         String start = started.toString();
         ArrayNode timeline = out.putArray(TIMELINE);
-        for (EngineCase other : tripCases(tenantCode, c)) {
-            addTimelineEntry(timeline, tenantCode, other, other.id() == c.id());
+        List<EngineCase> tripCases = tripCases(tenantCode, c);
+        Map<Long, List<EngineCaseStore.CaseNote>> notes = store.notesByCases(tenantCode,
+                tripCases.stream().map(EngineCase::id).toList());
+        for (EngineCase other : tripCases) {
+            addTimelineEntry(timeline, other, other.id() == c.id(), notes.getOrDefault(other.id(), List.of()));
         }
         ObjectNode symptom = out.putObject("symptom_info");
         symptom.put("id", c.symptomId());
@@ -984,7 +985,7 @@ public class EngineCaseService {
         symptom.put("duration_sec", Duration.between(started, ended).toSeconds());
         putHold(symptom, c);
         putTreatment(symptom, c, actor);
-        symptom.put("closed_at", c.closedAt() == null ? null : c.closedAt().toString());
+        symptom.put(CLOSED_AT, c.closedAt() == null ? null : c.closedAt().toString());
         out.set("level_reason", levelReason(c));
         putMapWindow(out.putObject("map_window"), signalWindow(tenantCode, c), started, ended);
         out.set("level_response", c.levelResponse() == null ? JSON.nullNode() : c.levelResponse());
@@ -1039,7 +1040,8 @@ public class EngineCaseService {
      * One case's timeline entry: its time, symptom, one block per level step with the note rule's entries, and
      * {@code current} for the case the page is about.
      */
-    private void addTimelineEntry(ArrayNode timeline, String tenantCode, EngineCase c, boolean current) {
+    private void addTimelineEntry(ArrayNode timeline, EngineCase c, boolean current,
+            List<EngineCaseStore.CaseNote> notes) {
         Instant started = start(c);
         Instant ended = end(c);
         ObjectNode entry = timeline.addObject();
@@ -1048,10 +1050,10 @@ public class EngineCaseService {
         entry.put(SYMPTOM_ID, c.symptomId());
         entry.put(SYMPTOM_NAME, c.name());
         entry.put(CURRENT, current);
-        entry.put("closed_at", c.closedAt() == null ? null : c.closedAt().toString());
+        entry.put(CLOSED_AT, c.closedAt() == null ? null : c.closedAt().toString());
         ArrayNode levelAggs = entry.putArray(CONDITIONS_AGG);
         addLevelAggs(levelAggs, c, started, ended);
-        addNotes(levelAggs, store.notes(tenantCode, c.id()));
+        addNotes(levelAggs, notes);
     }
 
     /**

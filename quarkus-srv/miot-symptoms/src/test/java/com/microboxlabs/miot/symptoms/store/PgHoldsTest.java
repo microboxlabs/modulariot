@@ -572,9 +572,7 @@ class PgHoldsTest {
         long untreated = open(speeding, TRUCK, now.minusSeconds(900), 3, null);
         long treating = open(speeding, "DEMO02", now.minusSeconds(800), 3, null);
         String mine = treat(treating, OPERATOR, now.minusSeconds(600), ActionKind.CALL, "No contesta");
-        Instant competingAt = now.minusSeconds(500);
-        assertThrows(IllegalStateException.class,
-                () -> treat(treating, "first@example.com", competingAt, null, null));
+        String other = treat(treating, "other-operator", now.minusSeconds(500), null, null);
         long called = open(speeding, "DEMO03", now.minusSeconds(790), 3, null);
         finish(treat(called, OPERATOR, now.minusSeconds(500), ActionKind.CALL, "Contesta"), now.minusSeconds(400));
         cases.close(tenant, called, OPERATOR, now.minusSeconds(400));
@@ -602,10 +600,11 @@ class PgHoldsTest {
 
         EngineCase.CaseTreatment both = listed(treating, open).treatment();
         assertEquals(EngineCase.TreatmentState.IN_TREATMENT, both.state());
-        assertEquals(List.of(OPERATOR),
+        assertEquals(List.of(OPERATOR, "other-operator"),
                 both.open().stream().map(EngineCase.Episode::openedBy).toList(), "oldest first");
         assertEquals(mine, both.shown(OPERATOR).id());
         assertEquals(now.minusSeconds(600), both.shown(OPERATOR).openedAt());
+        assertEquals(other, both.shown("other-operator").id());
         assertTrue(both.openBy(OPERATOR));
         assertFalse(both.openBy("third@example.com"));
         assertEquals(OPERATOR, both.shown("third@example.com").openedBy());
@@ -650,7 +649,7 @@ class PgHoldsTest {
     }
 
     @Test
-    void concurrentOperatorsCannotOpenASecondTreatmentOnTheCase() throws Exception {
+    void concurrentOperatorsOpenTheirOwnTreatmentsOnTheCase() throws Exception {
         long id = open(symptom("single-treatment"), TRUCK, now.minusSeconds(900), 3, null);
         java.util.concurrent.ExecutorService workers = java.util.concurrent.Executors.newFixedThreadPool(2);
         java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
@@ -659,25 +658,55 @@ class PgHoldsTest {
             for (String actor : List.of(OPERATOR, "other@example.com")) {
                 results.add(workers.submit(() -> {
                     start.await();
-                    try {
-                        treat(id, actor, now.minusSeconds(100), null, null);
-                        return true;
-                    } catch (IllegalStateException conflict) {
-                        assertEquals("another operator is treating this case", conflict.getMessage());
-                        return false;
-                    }
+                    treat(id, actor, now.minusSeconds(100), null, null);
+                    return true;
                 }));
             }
             start.countDown();
             int created = 0;
             for (var result : results) if (result.get(10, java.util.concurrent.TimeUnit.SECONDS)) created++;
-            assertEquals(1, created);
-            assertEquals(1, treatments.listBySymptom(tenant, -id).size());
+            assertEquals(2, created);
+            assertEquals(2, treatments.listBySymptom(tenant, -id).size());
             Treatment own = treatments.listBySymptom(tenant, -id).get(0);
             assertEquals(own.id(), treat(id, own.openedBy(), now, null, null), "the owner resumes it");
         } finally {
             workers.shutdownNow();
         }
+    }
+
+    @Test
+    void theHeaderKeepsTheOwnersOpenEpisodeAfterTheEngineClosesTheCase() {
+        long id = open(symptom("resume-after-engine-close"), TRUCK, now.minusSeconds(900), 3, null);
+        String mine = treat(id, OPERATOR, now.minusSeconds(600), ActionKind.CALL, "test-outcome");
+        cases.close(tenant, id, "engine", now.minusSeconds(300));
+        EngineCaseService service = new EngineCaseService(cases, (t, a, d) -> { }, t -> null,
+                Clock.fixed(now, ZoneOffset.UTC));
+
+        JsonNode info = service.header(tenant, -id, OPERATOR).path("symptom_info");
+
+        assertEquals("untreated", info.path("treatment_state").asText(), "case counters keep their meaning");
+        assertEquals(mine, info.path("treatment").path("id").asText());
+        assertEquals("OPEN", info.path("treatment").path("status").asText());
+        assertTrue(info.path("treatment").path("mine").asBoolean());
+        assertTrue(service.header(tenant, -id, "other-operator").path("symptom_info").path("treatment").isNull());
+        assertEquals(mine, treat(id, OPERATOR, now, null, null), "the owner resumes its episode");
+        finish(mine, now);
+        assertEquals("CLOSED", service.header(tenant, -id, OPERATOR).path("symptom_info")
+                .path("treatment").path("status").asText());
+        assertThrows(IllegalStateException.class, () -> treat(id, OPERATOR, now, null, null));
+    }
+
+    @Test
+    void aHeldCaseDoesNotOpenOrResumeATreatmentUntilTheHoldEnds() {
+        long id = open(symptom("held-treatment"), TRUCK, now.minusSeconds(900), 3, null);
+        String mine = treat(id, "own-operator", now.minusSeconds(800), null, null);
+        String held = hold(id, now.minusSeconds(600), 1800, "CASE", false);
+
+        assertThrows(IllegalStateException.class, () -> treat(id, "own-operator", now, null, null));
+        assertThrows(IllegalStateException.class, () -> treat(id, OPERATOR, now, null, null));
+        assertThrows(IllegalStateException.class, () -> treat(id, "other-operator", now, null, null));
+        end(held, now);
+        assertEquals(mine, treat(id, "own-operator", now, null, null));
     }
 
     @Test

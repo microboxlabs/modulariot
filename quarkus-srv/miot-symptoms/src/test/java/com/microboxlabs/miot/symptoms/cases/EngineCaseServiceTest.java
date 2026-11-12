@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -898,6 +899,38 @@ class EngineCaseServiceTest {
         assertEquals(1, timeline.size());
         assertEquals(-12, timeline.get(0).path("symptom_id").asLong());
         assertTrue(timeline.get(0).path("current").asBoolean());
+    }
+
+    @Test
+    void aBoundedTripTimelineKeepsTheOldCurrentCaseAndReadsNotesOnce() {
+        List<List<Long>> reads = new ArrayList<>();
+        InMemoryEngineCases batched = new InMemoryEngineCases() {
+            @Override
+            public List<CaseNote> notes(String tenantCode, long caseId) {
+                throw new AssertionError("the trip timeline must not read notes case by case");
+            }
+
+            @Override
+            public Map<Long, List<CaseNote>> notesByCases(String tenantCode, Collection<Long> caseIds) {
+                assertEquals(TENANT, tenantCode);
+                reads.add(List.copyOf(caseIds));
+                return Map.of();
+            }
+        };
+        for (int id = 1; id <= 105; id++) {
+            batched.add(tripCase(id, PANIC, "test-symptom", "test-trip", OPENED.plusSeconds(id), null));
+        }
+        EngineCaseService bounded = new EngineCaseService(batched, (t, a, d) -> { }, t -> null,
+                Clock.fixed(OPENED.plusSeconds(200), ZoneOffset.UTC));
+
+        JsonNode timeline = bounded.header(TENANT, -1).path("timeline");
+
+        assertEquals(100, timeline.size());
+        assertEquals(-1, timeline.get(0).path("symptom_id").asLong());
+        assertTrue(timeline.get(0).path("current").asBoolean());
+        assertEquals(-105, timeline.get(99).path("symptom_id").asLong());
+        assertEquals(1, reads.size(), "one batch regardless of the number of cases");
+        assertEquals(100, reads.get(0).size(), "only the retained cases need notes");
     }
 
     @Test

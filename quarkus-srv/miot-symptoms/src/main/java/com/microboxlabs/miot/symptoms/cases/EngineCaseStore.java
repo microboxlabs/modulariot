@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.cases;
 
 import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -151,6 +152,11 @@ public interface EngineCaseStore {
     /** The note rule's timeline entries on the case, oldest first, at most {@link #MAX_NOTES}. */
     default List<CaseNote> notes(String tenantCode, long caseId) {
         return List.of();
+    }
+
+    /** {@link #notes(String, long)} for a timeline's cases; persistent stores read them in one query. */
+    default Map<Long, List<CaseNote>> notesByCases(String tenantCode, Collection<Long> caseIds) {
+        return caseIds.stream().distinct().collect(Collectors.toMap(id -> id, id -> notes(tenantCode, id)));
     }
 
     /** Historical holds whose coverage overlaps this case, including holds that have ended. */

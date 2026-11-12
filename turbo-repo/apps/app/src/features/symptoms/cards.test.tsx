@@ -110,7 +110,31 @@ describe("SymptomsCards", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Treatment/ }));
 
-    expect(push).toHaveBeenCalledWith("?asset_id=demo-asset&icu_code=6");
+    expect(push).toHaveBeenCalledWith(
+      "?asset_id=demo-asset&treatment=in_treatment"
+    );
+  });
+
+  it("uses the treatment-state count in history and resets incompatible condition and page", () => {
+    globalThis.history.replaceState(
+      null,
+      "",
+      "/?operator=none&icu_code=3&page=7&date_from=2026-10-01&date_to=2026-10-02"
+    );
+    useCounts.mockReturnValue({
+      counts: {
+        conditions: { treatment: 1 },
+        treatmentStates: { in_treatment: 3 },
+      },
+      loading: false,
+    });
+    render(<SymptomsCards showCards dict={dict} />);
+    const card = screen.getByRole("button", { name: /Treatment/ });
+    expect(within(card).getByText("03")).toBeInTheDocument();
+    fireEvent.click(card);
+    expect(push).toHaveBeenCalledWith(
+      "?operator=none&date_from=2026-10-01&date_to=2026-10-02&treatment=in_treatment"
+    );
   });
 
   it("counts the cards in the list's treatment state", () => {

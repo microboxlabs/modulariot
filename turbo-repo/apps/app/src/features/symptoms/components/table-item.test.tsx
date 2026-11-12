@@ -32,7 +32,7 @@ vi.mock("next/link", () => ({
 }));
 vi.mock("./condition-icon", () => ({ default: () => null }));
 vi.mock("@/features/common/components/formatted-date", () => ({
-  FormattedDate: () => null,
+  FormattedDate: ({ date }: Readonly<{ date: string }>) => <time>{date}</time>,
 }));
 
 const tripId = "00000000-0000-4000-8000-000000000001";
@@ -128,7 +128,7 @@ describe("symptoms row opens the treatment", () => {
 
     await user.click(within(condition).getByRole("link"));
     await user.click(within(symptom).getByRole("link"));
-    await user.click(screen.getByRole("button", { name: "Tratar" }));
+    await user.click(screen.getByRole("link", { name: "Tratar" }));
 
     expect(navigate.mock.calls).toEqual([[href], [href], [href]]);
     expect(within(condition).getByRole("link")).toHaveAttribute(
@@ -153,7 +153,7 @@ describe("symptoms row opens the treatment", () => {
 
   it("keeps the Tratar button", () => {
     renderRow(row);
-    expect(screen.getByRole("button", { name: "Tratar" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Tratar" })).toBeInTheDocument();
   });
 });
 
@@ -169,7 +169,7 @@ describe("symptoms treatment column and row action", () => {
   };
 
   function actionLink(name: string) {
-    return screen.getByRole("button", { name }).closest("a");
+    return screen.getByRole("link", { name });
   }
 
   it("shows 'Sin tratar' and Tratar for an open case nobody treats", () => {
@@ -195,7 +195,7 @@ describe("symptoms treatment column and row action", () => {
       "href",
       `${href}&open=1&menu=call_driver`
     );
-    expect(screen.queryByRole("button", { name: "Tratar" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Tratar" })).toBeNull();
   });
 
   it("does not offer a second treatment while another operator treats the case", () => {
@@ -205,8 +205,8 @@ describe("symptoms treatment column and row action", () => {
       treatment: openTreatment,
     });
 
-    expect(screen.queryByRole("button", { name: "Tratar" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Continuar" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Tratar" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Continuar" })).toBeNull();
     const link = actionLink("Ver tratamiento");
     expect(link).toHaveAttribute("href", href);
     expect(link).toHaveAttribute("title", "En tratamiento por operator-a");
@@ -228,6 +228,8 @@ describe("symptoms treatment column and row action", () => {
           id: "t-2",
           status: "CLOSED",
           outcome,
+          type: "CALL",
+          opened_at: "2026-01-01T00:05:00Z",
           opened_by: "operator-a",
           closed_by: "operator-b",
           closed_at: "2026-01-01T00:09:00Z",
@@ -238,8 +240,15 @@ describe("symptoms treatment column and row action", () => {
       expect(within(cell).getByText("Tratado")).toBeInTheDocument();
       expect(within(cell).getByText(label)).toBeInTheDocument();
       expect(within(cell).getByText(/por operator-b/)).toBeInTheDocument();
+      expect(
+        within(cell).getByText("2026-01-01T00:05:00Z")
+      ).toBeInTheDocument();
+      expect(
+        within(cell).getByText("2026-01-01T00:09:00Z")
+      ).toBeInTheDocument();
+      expect(within(cell).getByText("Llamada")).toBeInTheDocument();
       expect(actionLink("Ver tratamiento")).toHaveAttribute("href", href);
-      expect(screen.queryByRole("button", { name: "Tratar" })).toBeNull();
+      expect(screen.queryByRole("link", { name: "Tratar" })).toBeNull();
     }
   );
 
@@ -252,7 +261,7 @@ describe("symptoms treatment column and row action", () => {
     });
 
     expect(actionLink("Ver caso")).toHaveAttribute("href", href);
-    expect(screen.queryByRole("button", { name: "Tratar" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Tratar" })).toBeNull();
   });
 
   it("shows a held case as ignored by whoever set the hold, without Continuar", () => {

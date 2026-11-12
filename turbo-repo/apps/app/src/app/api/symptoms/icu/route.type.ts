@@ -1,3 +1,4 @@
+import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
 import type {
   CaseTreatment,
   TreatmentState,
@@ -10,6 +11,7 @@ export interface SymptomsICUResponse {
 }
 
 export interface SymptomsICUItemResponse {
+  ignored?: IgnoredInfo | null;
   id: number;
   client: string;
   driver: string;

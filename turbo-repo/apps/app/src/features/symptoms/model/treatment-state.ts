@@ -1,3 +1,5 @@
+import type { IgnoredInfo } from "./ignore-hold";
+
 /** What the operators did about a case, as the modulith names it. */
 export type TreatmentState = "untreated" | "in_treatment" | "treated";
 
@@ -89,10 +91,12 @@ export function otherOperators(
  * operator has it open.
  */
 export function isReadOnlyCase(info: {
+  ignored?: IgnoredInfo | null;
   closed_at?: string | null;
   treatment_state?: TreatmentState | null;
   treatment?: CaseTreatment | null;
 }): boolean {
-  if (info.closed_at) return true;
+  if (info.ignored || info.closed_at || info.treatment_state === "treated")
+    return true;
   return info.treatment_state === "in_treatment" && !info.treatment?.mine;
 }

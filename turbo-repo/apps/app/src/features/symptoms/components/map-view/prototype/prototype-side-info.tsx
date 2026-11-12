@@ -3,7 +3,7 @@
 import { HiArrowRight } from "react-icons/hi";
 import { Button, ButtonGroup, Tooltip } from "flowbite-react";
 import BlurrableDropdown from "../blurrable-dropdown";
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { SelectedOption } from "../../../types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
@@ -42,9 +42,14 @@ function ReadOnlyNotice({
   info: NonNullable<TreatmentsGeneralResponseItem["symptom_info"]>;
   dict: I18nRecord;
 }>) {
-  const others = info.closed_at ? [] : otherOperators(info.treatment);
+  const others =
+    info.treatment_state === "in_treatment" && !info.closed_at
+      ? otherOperators(info.treatment)
+      : [];
   let message = tr("symptoms.read_only_closed", dict);
-  if (others.length) {
+  if (info.ignored) {
+    message = tr("symptoms.read_only_ignored", dict);
+  } else if (others.length) {
     message = tr("symptoms.read_only_other_operator", dict, {
       operator: others.join(", "),
     });
@@ -52,18 +57,50 @@ function ReadOnlyNotice({
     message = tr("symptoms.read_only_treated", dict);
   }
   return (
-    <div
-      role="status"
-      className="flex flex-col gap-1 rounded-md border border-gray-300 bg-gray-50 p-2 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-    >
+    <output className="flex flex-col gap-1 rounded-md border border-gray-300 bg-gray-50 p-2 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
       <p>{message}</p>
       <TreatmentStateCell
         state={info.treatment_state}
         treatment={info.treatment}
+        ignored={info.ignored}
         dict={dict}
       />
-    </div>
+    </output>
   );
+}
+
+function useTreatmentFormLock(
+  symptomInfo: TreatmentsGeneralResponseItem["symptom_info"] | undefined,
+  readOnly: boolean,
+  isFormOpen: boolean,
+  setIsFormOpen: (open: boolean) => void
+) {
+  const [ownEpisode, setOwnEpisode] = useState<string | null>(null);
+  const episode = symptomInfo?.treatment;
+  useEffect(() => {
+    if (!isFormOpen) setOwnEpisode(null);
+    else if (!readOnly && episode?.mine && episode.status === "OPEN") {
+      setOwnEpisode(`${symptomInfo?.id}:${episode.id}`);
+    }
+  }, [
+    readOnly,
+    isFormOpen,
+    symptomInfo?.id,
+    episode?.id,
+    episode?.mine,
+    episode?.status,
+  ]);
+  const sameCase = ownEpisode?.startsWith(`${symptomInfo?.id}:`) ?? false;
+  const finishingOwnEpisode =
+    isFormOpen &&
+    sameCase &&
+    (ownEpisode === `${symptomInfo?.id}:${episode?.id}` ||
+      !!symptomInfo?.closed_at);
+  const formLocked = readOnly && !finishingOwnEpisode;
+  useEffect(() => {
+    if (formLocked && isFormOpen) setIsFormOpen(false);
+  }, [formLocked, isFormOpen, setIsFormOpen]);
+  return formLocked;
 }
 
 /**
@@ -101,14 +138,15 @@ export default function PrototypeSideInfo({
 }>) {
   const pastFormsEnabled = useRuntimeConfig()?.SYMPTOMS_PAST_FORMS === "true";
   const [order, setOrder] = useState<"asc" | "desc">("desc");
-  // A closed case, or one another operator treats, is shown without the
-  // treatment forms. A form already open stays: the case closes when its own
-  // treatment is saved, before the form finishes.
+  // Only the form's own episode may finish saving after the case closes.
   const symptomInfo = treatmentData?.symptom_info;
   const readOnly = !!symptomInfo && isReadOnlyCase(symptomInfo);
-  const editableSeen = useRef(false);
-  if (symptomInfo && !readOnly) editableSeen.current = true;
-  const formLocked = readOnly && !editableSeen.current;
+  const formLocked = useTreatmentFormLock(
+    symptomInfo,
+    readOnly,
+    isFormOpen,
+    setIsFormOpen
+  );
   const orderLabel =
     order === "asc"
       ? ((dict.symptoms as I18nRecord).ascending as string)

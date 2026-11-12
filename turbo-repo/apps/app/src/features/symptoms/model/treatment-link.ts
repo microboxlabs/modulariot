@@ -27,3 +27,8 @@ export function treatmentHref(
   const query = params.toString();
   return `/symptoms/map-view/${symptomId}${query ? `?${query}` : ""}`;
 }
+
+/** The operator's existing treatment, with its form open for continuation. */
+export function continueTreatmentHref(href: string): string {
+  return `${href}${href.includes("?") ? "&" : "?"}open=1&menu=call_driver`;
+}

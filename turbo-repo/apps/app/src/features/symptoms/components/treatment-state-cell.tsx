@@ -7,7 +7,6 @@ import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
 import {
   otherOperators,
-  treatmentAt,
   treatmentOperator,
   type CaseTreatment,
   type TreatmentState,
@@ -32,6 +31,23 @@ const OUTCOME_LABEL = {
   invalidate: "symptoms.treatment_outcome_invalidate",
 } as const;
 
+function operatorFor(
+  state: TreatmentState,
+  shown: CaseTreatment | null | undefined,
+  ignored?: IgnoredInfo | null
+) {
+  if (ignored) return ignored.by;
+  const others = otherOperators(shown);
+  if (state === "in_treatment" && others.length) return others.join(", ");
+  return treatmentOperator(shown);
+}
+
+const TYPE_LABEL = {
+  CALL: "symptoms.treatment_outcome_call",
+  IGNORE_CONDITION: "symptoms.treatment_outcome_ignore",
+  INVALIDATE_SYMPTOM: "symptoms.treatment_outcome_invalidate",
+} as const;
+
 /**
  * A case's treatment state, with who handled it and when. A treated case says
  * how it was handled (call, handling record, ignore, invalidation); a held
@@ -54,13 +70,13 @@ export default function TreatmentStateCell({
   const outcomeLabel = outcome ? trDynamic(OUTCOME_LABEL[outcome], dict) : null;
   // An untreated case that came back from a hold keeps its last treatment for the record only.
   const shown = state === "untreated" ? null : treatment;
-  const others = otherOperators(shown);
-  const operator = ignored
-    ? ignored.by
-    : state === "in_treatment" && others.length
-      ? others.join(", ")
-      : treatmentOperator(shown);
-  const at = ignored ? ignored.since : treatmentAt(shown);
+  const operator = operatorFor(state, shown, ignored);
+  const openedAt = shown?.opened_at ?? ignored?.since;
+  const closedAt = shown?.closed_at;
+  const typeLabel =
+    shown?.type && shown.type in TYPE_LABEL
+      ? trDynamic(TYPE_LABEL[shown.type as keyof typeof TYPE_LABEL], dict)
+      : null;
 
   return (
     <div className="flex flex-col gap-0.5" data-testid="treatment-state">
@@ -72,15 +88,24 @@ export default function TreatmentStateCell({
           <span title={shown?.outcome_label ?? undefined}>{outcomeLabel}</span>
         )}
       </div>
-      {(operator || at) && (
+      {typeLabel && typeLabel !== outcomeLabel && (
+        <span className="text-[11px] opacity-80">{typeLabel}</span>
+      )}
+      {openedAt && (
         <span className="text-[11px] font-normal opacity-80">
-          {at && <FormattedDate date={at} format="datetime" />}
-          {operator && (
-            <>
-              {at && " · "}
-              {tr("symptoms.treatment_by", dict, { operator })}
-            </>
-          )}
+          {tr("symptoms.treatment_opened_at", dict)}:{" "}
+          <FormattedDate date={openedAt} format="datetime" />
+        </span>
+      )}
+      {closedAt && (
+        <span className="text-[11px] font-normal opacity-80">
+          {tr("symptoms.treatment_closed_at", dict)}:{" "}
+          <FormattedDate date={closedAt} format="datetime" />
+        </span>
+      )}
+      {operator && (
+        <span className="text-[11px] font-normal opacity-80">
+          {tr("symptoms.treatment_by", dict, { operator })}
         </span>
       )}
     </div>

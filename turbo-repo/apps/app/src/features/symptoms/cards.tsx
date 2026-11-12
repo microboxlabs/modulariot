@@ -44,6 +44,10 @@ export default function SymptomsCards({
     compromised = 0,
   } = counts?.conditions ?? {};
   const ignored = counts?.ignored ?? 0;
+  const inTreatment =
+    query.treatment && query.treatment !== "in_treatment"
+      ? 0
+      : (counts?.treatmentStates?.in_treatment ?? treatment);
 
   return (
     <div
@@ -186,7 +190,8 @@ export default function SymptomsCards({
               }
               title={(dict.symptoms as I18nRecord).in_treatment as string}
               icu_condition={icuConditions.under_treatment}
-              count={treatment.toString().padStart(2, "0")}
+              treatmentState="in_treatment"
+              count={inTreatment.toString().padStart(2, "0")}
             />
             <StatusCard
               dict={dict}

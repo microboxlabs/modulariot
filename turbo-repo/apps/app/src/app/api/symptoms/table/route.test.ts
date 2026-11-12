@@ -101,6 +101,23 @@ describe("GET /api/symptoms/table", () => {
     expect(row.treatment).toEqual(treatment);
   });
 
+  it.each([
+    { treatment_state: "unknown" },
+    {
+      treatment_state: "in_treatment",
+      treatment: { id: "t", status: "OPEN", mine: "yes" },
+    },
+  ])("rejects malformed upstream treatment data: %j", async (fields) => {
+    forwardMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ ...page, data: [{ ...page.data[0], ...fields }] }),
+        { status: 200 }
+      )
+    );
+    const response = await GET(new NextRequest("http://x/t?page=1"));
+    expect(response.status).toBe(502);
+  });
+
   it("answers no treatment state for a symptom without one", async () => {
     const res = await GET(new NextRequest("http://x/t"));
     const [row] = (await res.json()).data;

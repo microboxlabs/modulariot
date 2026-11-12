@@ -10,11 +10,11 @@ vi.mock("next/link", () => ({
     href,
     children,
     "aria-label": label,
-  }: {
+  }: Readonly<{
     href: string;
     children: ReactNode;
     "aria-label"?: string;
-  }) => (
+  }>) => (
     <a href={href} aria-label={label}>
       {children}
     </a>
@@ -76,7 +76,7 @@ describe("TimedSymptoms", () => {
     [
       "in_treatment",
       { id: "t", status: "OPEN", mine: false, opened_by: "operator-a" },
-      "En tratamiento por operator-a",
+      "Ver tratamiento · En tratamiento por operator-a",
     ],
     ["treated", { id: "t", status: "CLOSED" }, "Ver tratamiento"],
   ] as const)(
@@ -84,9 +84,31 @@ describe("TimedSymptoms", () => {
     (treatment_state, treatment, label) => {
       renderItem({ ...item, treatment_state, treatment });
 
-      expect(screen.getByRole("link", { name: label })).toBeTruthy();
+      const link = screen.getByRole("link", { name: label });
+      expect(link).toBeTruthy();
+      if (label === "Continuar")
+        expect(link.getAttribute("href")).toContain("open=1&menu=call_driver");
+      else expect(link.getAttribute("href")).not.toContain("open=1");
     }
   );
+
+  it("views a hold instead of continuing the hold owner's treatment", () => {
+    renderItem({
+      ...item,
+      treatment_state: "in_treatment",
+      treatment: { id: "t", status: "OPEN", mine: true },
+      ignored: {
+        treatment_id: "t",
+        since: "2026-01-01T00:05:00Z",
+        until: null,
+        until_trip_end: true,
+        scope: "ALL",
+        by: "operator-a",
+      },
+    });
+    expect(screen.getByRole("link", { name: "Ver tratamiento" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Continuar" })).toBeNull();
+  });
 
   it.each([undefined, null, "  "])(
     "falls back to the trip id when the code is %j",

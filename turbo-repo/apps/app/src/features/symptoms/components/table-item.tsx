@@ -1,7 +1,10 @@
 "use client";
 
 import { TableRow, TableCell, Button, Badge } from "flowbite-react";
-import { treatmentHref } from "@/features/symptoms/model/treatment-link";
+import {
+  treatmentHref,
+  continueTreatmentHref,
+} from "@/features/symptoms/model/treatment-link";
 import ConditionIcon from "./condition-icon";
 import { Conditions, TableItemType } from "./table-item.type";
 import { HiArrowRight } from "react-icons/hi";
@@ -43,11 +46,6 @@ const ACTION_LABEL = {
   view_case: "symptoms.view_case",
 } as const;
 
-/** The treatment page with the form open, where the user's own treatment resumes. */
-function continueHref(href: string): string {
-  return `${href}${href.includes("?") ? "&" : "?"}open=1&menu=call_driver`;
-}
-
 /**
  * The row's button: "Tratar" only for an open case nobody treats, "Continuar"
  * for the user's own open treatment, else a link that only shows the case.
@@ -68,8 +66,11 @@ function RowAction({
       : [];
   const primary = action === "treat" || action === "continue";
   return (
-    <Link
-      href={action === "continue" ? continueHref(href) : href}
+    <Button
+      as={Link}
+      className="h-8 flex justify-center items-center !text-xs"
+      color={primary ? "blue" : "light"}
+      href={action === "continue" ? continueTreatmentHref(href) : href}
       title={
         others.length
           ? tr("symptoms.treating_by_other", dict, {
@@ -78,16 +79,11 @@ function RowAction({
           : undefined
       }
     >
-      <Button
-        className="h-8 flex justify-center items-center !text-xs"
-        color={primary ? "blue" : "light"}
-      >
-        <div className="flex items-center gap-2">
-          <p>{trDynamic(ACTION_LABEL[action], dict)}</p>
-          <HiArrowRight className="w-4 h-4" />
-        </div>
-      </Button>
-    </Link>
+      <div className="flex items-center gap-2">
+        <p>{trDynamic(ACTION_LABEL[action], dict)}</p>
+        <HiArrowRight className="w-4 h-4" />
+      </div>
+    </Button>
   );
 }
 

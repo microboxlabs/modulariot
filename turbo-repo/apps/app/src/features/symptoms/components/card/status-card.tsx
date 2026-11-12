@@ -5,6 +5,7 @@ import { twMerge } from "tailwind-merge";
 import StatusCardSkeleton from "./status-card-skeleton";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useRouter } from "next/navigation";
+import type { TreatmentState } from "../../model/treatment-state";
 
 interface StatusCardProps {
   icon: React.ReactNode;
@@ -14,6 +15,7 @@ interface StatusCardProps {
   dict: I18nRecord;
   icu_condition?: string;
   loading?: boolean;
+  treatmentState?: TreatmentState;
 }
 
 export default function StatusCard({
@@ -23,7 +25,8 @@ export default function StatusCard({
   variant = "black",
   icu_condition = "CODE_BLACK",
   loading = false,
-}: StatusCardProps) {
+  treatmentState,
+}: Readonly<StatusCardProps>) {
   const router = useRouter();
 
   const bgColor = variant === "critical" ? "bg-rose-100" : "bg-gray-200";
@@ -58,7 +61,13 @@ export default function StatusCard({
         onClick={() => {
           // add to the route params icu_code with the icu_condition value
           const url = new URLSearchParams(window.location.search);
-          url.set("icu_code", icu_condition);
+          if (treatmentState) {
+            url.set("treatment", treatmentState);
+            url.delete("icu_code");
+          } else {
+            url.set("icu_code", icu_condition);
+          }
+          url.delete("page");
           router.push(`?${url.toString()}`);
         }}
       >

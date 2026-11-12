@@ -84,6 +84,11 @@ describe("who and when", () => {
 });
 
 describe("isReadOnlyCase", () => {
+  it("locks a treated case even while the engine keeps it open", () => {
+    expect(
+      isReadOnlyCase({ treatment_state: "treated", treatment: closed })
+    ).toBe(true);
+  });
   it("locks a closed case", () => {
     expect(
       isReadOnlyCase({

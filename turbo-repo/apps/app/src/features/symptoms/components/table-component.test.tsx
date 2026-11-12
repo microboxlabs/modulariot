@@ -17,7 +17,7 @@ vi.mock("@/features/common/providers/client-api.provider", () => ({
 
 vi.mock("./table-item", () => ({ default: () => <tr data-testid="row" /> }));
 vi.mock("@/features/common/components/custom-table/custom-table", () => ({
-  default: ({ header }: { header: string[] }) => (
+  default: ({ header }: Readonly<{ header: string[] }>) => (
     <ul data-testid="columns">
       {header.map((title, i) => (
         <li key={i}>{title}</li>

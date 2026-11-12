@@ -1,0 +1,50 @@
+# 🔔 Release Notes v0.6.15 — ModularIoT
+
+### Fecha: 12/11/2026
+
+**Objetivo**: Mejorar el seguimiento y tratamiento de síntomas en la Torre de control, y ampliar la gestión de permisos para organizaciones. Esta versión también corrige la pérdida de resultados de llamadas durante el tratamiento de casos.
+
+## 🚀 Evolutivos
+
+- **📍 Seguimiento y tratamiento de síntomas**
+  - **Key point**: La tabla muestra el estado, el responsable y la acción de tratamiento en una columna; permite filtrar por estado de tratamiento y por operador, y volver a tratar casos abiertos. Las tarjetas cuentan todos los casos, independientemente del filtro de operador. El filtro por viaje acepta el código de servicio y, sin fechas, permite consultar el historial del viaje.
+  - **Technical detail**: La línea de tiempo reúne los casos del viaje, sus condiciones y tratamientos. Se ajustaron los conteos de la constelación y de vehículos en viaje; la constelación no muestra conteos.
+
+- **📍 Roles personalizados y acceso geográfico para Revisor**
+  - **Key point**: Las organizaciones raíz pueden definir roles personalizados para miembros, equipos, invitaciones y cuentas de servicio con clave API. El rol Revisor obtiene acceso de visualización geográfica.
+  - **Technical detail**: La gestión de roles personalizados está limitada a OWNER/ADMIN de la organización raíz. Revisor recibe el permiso de consulta geográfica, sin permisos para completar tareas ni escribir en la Torre de control.
+
+- **📍 Filtro de operador y simplificación de la bandeja de síntomas**
+  - **Key point**: La lista permite ver síntomas destinados a operadores, sin operador o todos; se conserva la selección del usuario. Se eliminó el botón de configuración de la bandeja.
+
+## 🐛 Correcciones
+
+- **🐛 Conservación de resultados al tratar casos en vista de mapa**
+  - **Impacto**: Si el motor cerraba un caso antes del primer guardado, se podía perder el resultado de la llamada y las notas del operador.
+  - **Solución**: El tratamiento se abre al comenzar la gestión y las acciones posteriores se registran en él, incluso si el caso se cierra durante el proceso.
+
+## 📊 Beneficios
+
+- Más claridad sobre quién trata cada caso y en qué estado se encuentra.
+- Los filtros de operador y condición facilitan localizar síntomas sin limitar los conteos generales de las tarjetas.
+- La búsqueda por código de servicio y la línea de tiempo ofrecen más contexto sobre los casos de un viaje.
+- Se reducen las pérdidas de información cuando un caso se cierra mientras un operador lo gestiona.
+- Las organizaciones pueden adaptar roles y permisos a sus necesidades, con controles de autoridad en la organización raíz.
+- Revisor puede consultar información geográfica sin obtener permisos de escritura en la Torre de control.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.15` — versión 0.6.15.
+- App: `app@v0.6.15` — actualizada.
+- Docs: `docs@v0.6.14` — sin cambios.
+- Web: `web@v0.6.14` — sin cambios.
+- Modulith: `modulith@v0.5.53` — actualizado.
+- Harness: `harness@v0.1.15` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 0.6.15 mejora la operación diaria de la Torre de control con información más completa sobre los síntomas y sus tratamientos, y refuerza la continuidad de los registros durante la gestión de casos.
+
+También incorpora roles personalizados por organización y acceso geográfico para Revisor. La entrega de roles incluye limitaciones operativas documentadas para ciertos casos, como las asignaciones personalizadas a clientes OAuth M2M.

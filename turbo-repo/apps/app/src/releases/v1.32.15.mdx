@@ -1,0 +1,50 @@
+# 🔔 Release Notes v1.32.15 — ModularIoT
+
+### Fecha: 12/11/2026
+
+**Objetivo**: Esta versión reúne mejoras de coordinación y operación, con especial atención a los síntomas de la Torre de control, la gestión de tratamientos y los permisos por organización. Los cambios OSS corresponden a la integración del milestone **MIOT-0.6.15**.
+
+## 🚀 Evolutivos
+
+- **📍 Síntomas y tratamientos en la Torre de control** — Integración OSS del milestone **MIOT-0.6.15** (issues #2616, #2623, #2625, #2629 y #2631).
+  - **Puntos clave**: Se incorporan filtros por alcance de operador y estado del tratamiento, además de una columna que indica quién atendió el caso. Las tarjetas cuentan casos sin depender del filtro de operador; al seleccionarlas, filtran por condición y muestran todos los alcances de operador. También se amplían la búsqueda por código de servicio y la cronología de casos del viaje.
+  - **Detalle técnico**: Los filtros de estado se aplican en la API antes de paginar; la selección de alcance de operador se conserva en `localStorage`. Los vehículos en viaje se cuentan sobre toda la flota.
+
+- **📍 Roles personalizados y acceso geográfico para Revisor** — Integración OSS del milestone **MIOT-0.6.15** (issue #2618).
+  - **Puntos clave**: Los administradores de la organización raíz pueden gestionar roles personalizados que también se asignan a miembros, equipos, invitaciones y cuentas de servicio con clave API. El rol Revisor obtiene acceso de lectura geográfica sin permisos para completar tareas ni escribir en la Torre de control.
+  - **Detalle técnico**: Las subcuentas pueden usar roles definidos por la raíz. La asignación de roles personalizados a clientes OAuth M2M queda rechazada temporalmente. Para GKE, la migración SQL indicada en el issue debe aplicarse manualmente antes del despliegue.
+
+- **📍 Interfaz de síntomas más directa** — Integración OSS del milestone **MIOT-0.6.15** (issue #2621).
+  - **Puntos clave**: Se elimina el botón de configuración de la bandeja de síntomas, que solo recargaba la página.
+
+## 🐛 Correcciones
+
+- **🐛 Registro del tratamiento si el caso se cierra durante la atención** — Integración OSS del milestone **MIOT-0.6.15** (issue #2627).
+  - **Impacto**: Si el motor cerraba el caso antes del primer guardado, se podía perder el resultado de la llamada y las demás gestiones.
+  - **Solución**: El tratamiento se abre al iniciar la atención o, como máximo, al llamar, y los guardados posteriores se registran en él. Si no se registra ninguna gestión, el tratamiento vacío se cancela; si el caso ya estaba cerrado al iniciar, se informa al abrir el formulario.
+
+## 📊 Beneficios
+
+- Facilita identificar el estado de cada caso y quién lo está tratando.
+- Permite consultar síntomas dentro y fuera del alcance de operador.
+- Reduce la pérdida de gestiones cuando el estado del caso cambia durante una atención.
+- Mejora la búsqueda de viajes y la consulta de su historial de casos.
+- Amplía el control de acceso organizacional sin conceder al rol Revisor capacidades de escritura.
+- Simplifica la bandeja de síntomas al retirar una acción sin utilidad operativa.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.15`
+- App: `app@v0.6.15` (cambios)
+- Docs: `docs@v0.6.14` (sin cambios)
+- Web: `web@v0.6.14` (sin cambios)
+- Modulith: `modulith@v0.5.53` (cambios)
+- Harness: `harness@v0.1.15` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build de la aplicación y en el recurso de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión integra mejoras de la Torre de control para dar más contexto sobre los casos, sus tratamientos y su relación con los viajes, y refuerza el control de acceso mediante roles organizacionales y permisos geográficos de solo lectura.
+
+La creación de roles personalizados requiere aplicar manualmente la migración SQL indicada antes del despliegue en GKE. Las restricciones descritas para clientes OAuth M2M y otros casos operativos se mantienen.

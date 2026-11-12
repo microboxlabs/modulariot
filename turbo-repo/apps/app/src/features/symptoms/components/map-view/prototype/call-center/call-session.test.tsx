@@ -118,7 +118,7 @@ describe("CallSessionProvider", () => {
     );
     sessionStorage.setItem("other-feature", "draft");
     clearSavedCalls();
-    expect(sessionStorage.length).toBe(1);
+    expect(sessionStorage).toHaveLength(1);
     expect(sessionStorage.getItem("other-feature")).toBe("draft");
   });
 

@@ -194,9 +194,9 @@ describe("session callback", () => {
       expiresAt: nowSeconds() - 1,
     } as JWT;
 
-    expect(sessionCallback({ session: baseSession(), token }).user).toBe(
-      undefined
-    );
+    expect(
+      sessionCallback({ session: baseSession(), token }).user
+    ).toBeUndefined();
   });
 
   it("returns no user when the session has no id_token", () => {
@@ -205,9 +205,9 @@ describe("session callback", () => {
       expiresAt: nowSeconds() + 3_600,
     } as JWT;
 
-    expect(sessionCallback({ session: baseSession(), token }).user).toBe(
-      undefined
-    );
+    expect(
+      sessionCallback({ session: baseSession(), token }).user
+    ).toBeUndefined();
   });
 
   it("exposes the id_token while it is valid", () => {

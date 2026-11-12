@@ -175,6 +175,13 @@ describe("SymptomsTable constellation", () => {
     ).toBeTruthy();
   });
 
+  it("counts every case whatever the operator filter selects", () => {
+    renderTable();
+
+    expect(mockUseSymptomsTable.mock.calls[0][0].operator).not.toBe("all");
+    expect(mockUseSymptomCounts.mock.calls[0][0].operator).toBe("all");
+  });
+
   it("does not read the counts while the page has rows", () => {
     mockUseSymptomsTable.mockReturnValue({
       tableData: {

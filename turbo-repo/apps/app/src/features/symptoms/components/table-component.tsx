@@ -35,7 +35,11 @@ export default function SymptomsTable({
   usePublishSymptomNames(query);
 
   // The constellation shows only on an empty page; read its counts only then.
-  const { counts } = useSymptomCounts(query, tableData?.data.length === 0);
+  // It counts every case, whatever the operator filter selects.
+  const { counts } = useSymptomCounts(
+    { ...query, operator: "all" },
+    tableData?.data.length === 0
+  );
 
   if (loading) {
     return (

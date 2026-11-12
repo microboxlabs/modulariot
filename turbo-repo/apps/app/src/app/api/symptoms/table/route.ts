@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import { treatmentFieldsSchema } from "./route.schema";
 import { scopedSymptomListParams } from "../list-params";
 import { SymptomsTableResponse } from "./route.types";
 import { SymptomTableResponse } from "@/features/symptoms/types/symptoms";
@@ -29,6 +30,8 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       returnedAfterIgnoreAt: item?.returned_after_ignore_at ?? null,
       slaSince: item?.sla_since ?? null,
       operatorRequired: item?.operator_required ?? null,
+      treatmentState: item?.treatment_state ?? null,
+      treatment: item?.treatment ?? null,
     })),
     pagination: {
       total_rows: data.total_rows,
@@ -54,5 +57,13 @@ export async function GET(req: NextRequest) {
   if (!response.ok) return response;
 
   const data = (await response.json()) as SymptomsTableResponse;
+  for (const row of data.data ?? []) {
+    if (!treatmentFieldsSchema.safeParse(row).success) {
+      return NextResponse.json(
+        { error: "Invalid treatment data from symptoms service" },
+        { status: 502 }
+      );
+    }
+  }
   return NextResponse.json(formatSymptomData(data));
 }

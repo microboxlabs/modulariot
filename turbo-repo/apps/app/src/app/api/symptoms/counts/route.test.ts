@@ -56,7 +56,44 @@ describe("GET /api/symptoms/counts", () => {
       },
       vehiclesOnTrip: 9,
       ignored: 4,
+      treatmentStates: { untreated: 0, in_treatment: 0, treated: 0 },
     });
+  });
+
+  it("maps the counts by treatment state", async () => {
+    forwardMock.mockImplementation(async () =>
+      NextResponse.json({
+        conditions: {},
+        treatment_states: { untreated: 5, in_treatment: 2, treated: 1 },
+      })
+    );
+
+    const body = await (await GET(new NextRequest("http://x/c"))).json();
+
+    expect(body.treatmentStates).toEqual({
+      untreated: 5,
+      in_treatment: 2,
+      treated: 1,
+    });
+  });
+
+  it.each(["untreated", "in_treatment", "treated"])(
+    "forwards the %s treatment state to the filtered counters",
+    async (treatment) => {
+      await GET(new NextRequest(`http://x/c?treatment=${treatment}`));
+
+      expect(forwardMock.mock.calls[0][0]).toBe(
+        `/api/v1/orgs/acme/control-tower/map/case-counts?treatment=${treatment}`
+      );
+    }
+  );
+
+  it("drops a treatment state the modulith does not know", async () => {
+    await GET(new NextRequest("http://x/c?treatment=done"));
+
+    expect(forwardMock.mock.calls[0][0]).toBe(
+      "/api/v1/orgs/acme/control-tower/map/case-counts"
+    );
   });
 
   it("sends the list's filters, without the condition and the page", async () => {

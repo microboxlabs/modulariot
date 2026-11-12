@@ -68,6 +68,9 @@ public class PgTreatmentStore implements TreatmentStore {
     private static final String SELECT_MY_OPEN = SELECT_TREATMENTS
             + " AND symptom_id = $2 AND opened_by = $3 AND status = 'OPEN'";
 
+    private static final String OTHER_OPEN = SELECT_TREATMENTS
+            + " AND symptom_id = $2 AND opened_by <> $3 AND status = 'OPEN'";
+
     private static final String LOCK_ENGINE_CASE = """
             SELECT id FROM miot_symptoms.signal_transitions
              WHERE tenant_code = $1 AND id = $2 AND kind = 'OPENED' FOR UPDATE
@@ -234,6 +237,8 @@ public class PgTreatmentStore implements TreatmentStore {
                             .invoke(rows -> {
                                 if (rows.iterator().hasNext()) throw new IllegalStateException("the case is closed");
                             })
+                            .flatMap(ignored -> tx.preparedQuery(OTHER_OPEN).execute(mine))
+                            .invoke(PgTreatmentStore::requireNoCompetingTreatment)
                             .flatMap(ignored -> tx.preparedQuery(INSERT_TREATMENT).execute(params))
                             .flatMap(rows -> {
                                 List<Treatment> saved = treatments(rows);
@@ -242,6 +247,12 @@ public class PgTreatmentStore implements TreatmentStore {
                                         .map(again -> new Inserted(treatments(again).get(0), false));
                             });
                 })).await().atMost(QUERY_TIMEOUT);
+    }
+
+    private static void requireNoCompetingTreatment(RowSet<Row> rows) {
+        if (rows.iterator().hasNext()) {
+            throw new IllegalStateException("another operator is treating this case");
+        }
     }
 
     @Override

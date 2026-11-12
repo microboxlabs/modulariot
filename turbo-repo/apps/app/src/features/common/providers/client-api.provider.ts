@@ -28,6 +28,10 @@ import {
   type OperatorFilter,
 } from "@/features/symptoms/model/operator-filter";
 import {
+  TREATMENT_PARAM,
+  type TreatmentState,
+} from "@/features/symptoms/model/treatment-state";
+import {
   MapPosition,
   MapPositionResume,
 } from "@/features/geographic-view/types/map";
@@ -336,6 +340,7 @@ export function useSymptomsTable({
   symptom_name = "",
   date_range,
   operator,
+  treatment,
 }: {
   page?: number;
   pageSize?: number;
@@ -353,6 +358,8 @@ export function useSymptomsTable({
   };
   /** Without it the API answers its default. */
   operator?: OperatorFilter;
+  /** Without it every treatment state is listed. */
+  treatment?: TreatmentState;
 }) {
   const { data, error, isLoading, isValidating, mutate } = useSWR<
     SymptomTableResponse,
@@ -370,7 +377,8 @@ export function useSymptomsTable({
     ${param_set(symptom_name, "symptom_name")}
     ${param_set(date_range?.from ?? null, "from")}
     ${param_set(date_range?.to ?? null, "to")}
-    ${param_set(operator ?? null, OPERATOR_PARAM)}`,
+    ${param_set(operator ?? null, OPERATOR_PARAM)}
+    ${param_set(treatment ?? null, TREATMENT_PARAM)}`,
     fetcher,
     {
       refreshInterval: 30000,
@@ -404,6 +412,7 @@ export function useSymptomCounts(
     symptom_name = "",
     date_range,
     operator,
+    treatment,
   }: {
     trip_id?: string;
     asset_id?: string;
@@ -413,6 +422,7 @@ export function useSymptomCounts(
     destination?: string;
     symptom_name?: string;
     operator?: OperatorFilter;
+    treatment?: TreatmentState;
     date_range?: { from: string; to?: string };
   },
   enabled = true
@@ -420,6 +430,7 @@ export function useSymptomCounts(
   const params = new URLSearchParams();
   const filters: [string, string | undefined][] = [
     [OPERATOR_PARAM, operator],
+    [TREATMENT_PARAM, treatment],
     ["trip_id", trip_id],
     ["asset_id", asset_id],
     ["driver_id", driver_id],

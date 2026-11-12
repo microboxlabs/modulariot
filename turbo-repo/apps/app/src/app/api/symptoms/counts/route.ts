@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
 import type { SymptomConstellationCounts } from "@/features/symptoms/types/symptoms";
+import type { TreatmentState } from "@/features/symptoms/model/treatment-state";
 import { scopedSymptomListParams } from "../list-params";
 
 /** The modulith's answer: case counts by its condition keys. */
 interface CaseCountsResponse {
   conditions?: Record<string, number>;
   vehicles_on_trip?: number;
+  treatment_states?: Partial<Record<TreatmentState, number>>;
 }
 
 /**
@@ -39,6 +41,11 @@ export async function GET(req: NextRequest) {
     },
     vehiclesOnTrip: body.vehicles_on_trip ?? 0,
     ignored: counts["Ignored"] ?? 0,
+    treatmentStates: {
+      untreated: body.treatment_states?.untreated ?? 0,
+      in_treatment: body.treatment_states?.in_treatment ?? 0,
+      treated: body.treatment_states?.treated ?? 0,
+    },
   };
   return NextResponse.json(result);
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
+import { parseTreatmentState, TREATMENT_PARAM } from "../model/treatment-state";
 import {
   DEFAULT_OPERATOR_FILTER,
   OPERATOR_FILTER_KEY,
@@ -57,19 +58,21 @@ export function useOperatorFilter(): OperatorFilter {
   return parseOperatorFilter(searchParams.get(OPERATOR_PARAM)) ?? stored;
 }
 
-/** A different operator scope starts on page one, including storage events. */
+/** A different operator scope or treatment state starts on page one. */
 export function useOperatorPagination() {
   const operator = useOperatorFilter();
-  const [pagination, setPagination] = useState({ operator, page: 1 });
-  if (pagination.operator !== operator) {
-    setPagination({ operator, page: 1 });
+  const treatment = parseTreatmentState(useSearchParams().get(TREATMENT_PARAM));
+  const scope = `${operator}:${treatment ?? ""}`;
+  const [pagination, setPagination] = useState({ scope, page: 1 });
+  if (pagination.scope !== scope) {
+    setPagination({ scope, page: 1 });
   }
   const setCurrentPage = useCallback(
-    (page: number) => setPagination({ operator, page }),
-    [operator]
+    (page: number) => setPagination({ scope, page }),
+    [scope]
   );
   return {
-    currentPage: pagination.operator === operator ? pagination.page : 1,
+    currentPage: pagination.scope === scope ? pagination.page : 1,
     setCurrentPage,
   };
 }

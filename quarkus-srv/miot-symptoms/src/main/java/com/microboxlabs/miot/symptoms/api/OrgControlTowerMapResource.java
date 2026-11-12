@@ -1,7 +1,9 @@
 package com.microboxlabs.miot.symptoms.api;
 
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
+import com.microboxlabs.miot.symptoms.cases.EngineCase.TreatmentState;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseService.Viewer;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.OperatorScope;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -77,6 +79,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final Clock clock;
     private static final String GPS_UNAVAILABLE = "GPS data is not available";
     private static final String OPERATOR = "operator";
+    private static final String TREATMENT = "treatment";
     private static final String TOTAL_ROWS = "total_rows";
     private static final String PAGE_SIZE = "page_size";
     private static final String GPS_PAGE_SIZE = "p_page_size";
@@ -240,7 +243,10 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
                     + "open treatment, held cases separately as Ignored), with dates the cases active in the range "
                     + "by level. vehicles_on_trip: the "
                     + "vehicles on a trips-module trip that departed and has not ended, filtered by trip, vehicle, "
-                    + "driver, carrier, origin and destination. With legacy enabled and an explicit required/all operator "
+                    + "driver, carrier, origin and destination. treatment (untreated, in_treatment or treated) "
+                    + "keeps the cases in that treatment state, and then only the evaluator's cases are counted; "
+                    + "treatment_states counts the cases by treatment state without that filter. "
+                    + "With legacy enabled and an explicit required/all operator "
                     + "scope, conditions also counts GPS symptoms for the same filters; none leaves them out.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
@@ -249,11 +255,14 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         Map<String, String> filters = new LinkedHashMap<>();
         uri.getQueryParameters().forEach((name, values) -> filters.put(name, values.isEmpty() ? null : values.get(0)));
         String operator = filters.remove(OPERATOR);
+        String treatment = filters.remove(TREATMENT);
         return answer(() -> {
             Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
             OperatorScope scope = OperatorScope.parse(operator);
-            Uni<JsonNode> engine = blocking(() -> cases.filteredCounts(tenant, checked, scope));
-            if (!legacy || scope == null || scope == OperatorScope.NONE) {
+            Viewer viewer = new Viewer(scope, TreatmentState.parse(treatment), null);
+            Uni<JsonNode> engine = blocking(() -> cases.filteredCounts(tenant, checked, viewer));
+            // A GPS database symptom has no treatment state: only the evaluator's cases match one.
+            if (!legacy || scope == null || scope == OperatorScope.NONE || viewer.treatment() != null) {
                 return engine;
             }
             String client = tenantContext.getClientId();
@@ -275,8 +284,14 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
                     + "p_start_date_historic, p_end_date_historic, and operator: the evaluator's cases whose "
                     + "current level goes to the operators (required), those that do not (none) or both (all); "
                     + "without it, the open cases that go to the operators, or with dates every case. With none, "
-                    + "the GPS database's symptoms are left out. Each of the evaluator's cases has "
-                    + "operator_required. Any other parameter or operator value is a 400.")
+                    + "the GPS database's symptoms are left out. treatment keeps the evaluator's cases in one "
+                    + "treatment state: untreated, in_treatment (open, with an OPEN treatment) or treated (with a "
+                    + "CLOSED treatment); with it the GPS database's symptoms are left out, and without it every "
+                    + "case is listed. Each of the evaluator's cases has operator_required, treatment_state and "
+                    + "treatment: the episode the state is about (status, type, outcome call, handling, ignore or "
+                    + "invalidate, outcome_label, opened_by, opened_at, closed_by, closed_at, operators who have it "
+                    + "open, and mine when the caller is one of them), or null. Any other parameter, operator or "
+                    + "treatment value is a 400.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> symptoms(@PathParam("organizationId") String organizationId, @Context UriInfo uri) {
@@ -284,17 +299,21 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         Map<String, String> filters = new LinkedHashMap<>();
         uri.getQueryParameters().forEach((name, values) -> filters.put(name, values.isEmpty() ? null : values.get(0)));
         String operator = filters.remove(OPERATOR);
+        String treatment = filters.remove(TREATMENT);
+        String actor = actor();
         if (!legacy) {
-            return answer(() -> casesOnly(tenant, filters, OperatorScope.parse(operator)));
+            return answer(() -> casesOnly(tenant, filters,
+                    new Viewer(OperatorScope.parse(operator), TreatmentState.parse(treatment), actor)));
         }
         return answer(() -> {
             OperatorScope scope = OperatorScope.parse(operator);
-            if (scope == OperatorScope.NONE) {
-                // Every GPS database symptom goes to the operators.
-                return casesOnly(tenant, filters, scope);
+            Viewer viewer = new Viewer(scope, TreatmentState.parse(treatment), actor);
+            if (scope == OperatorScope.NONE || viewer.treatment() != null) {
+                // Every GPS database symptom goes to the operators, and none has a treatment state.
+                return casesOnly(tenant, filters, viewer);
             }
             if (scope != null) {
-                return scopedSymptoms(tenant, filters, scope);
+                return scopedSymptoms(tenant, filters, viewer);
             }
             Uni<JsonNode> gps = map.symptoms(tenantContext.getClientId(), filters);
             if (!EngineCaseService.showsCases(filters)) {
@@ -304,7 +323,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
                     .emitOn(Infrastructure.getDefaultWorkerPool())
                     .map(page -> {
-                        JsonNode out = cases.withCases(tenant, filters, page, scope);
+                        JsonNode out = cases.withCases(tenant, filters, page, viewer);
                         if (page == null && out.path("data").isEmpty()) {
                             throw new ControlTowerMapService.UnavailableException(GPS_UNAVAILABLE);
                         }
@@ -313,9 +332,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         });
     }
 
-    private Uni<JsonNode> casesOnly(String tenant, Map<String, String> filters, OperatorScope scope) {
+    private Uni<JsonNode> casesOnly(String tenant, Map<String, String> filters, Viewer viewer) {
         Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
-        return blocking(() -> cases.casesPage(tenant, checked, scope));
+        return blocking(() -> cases.casesPage(tenant, checked, viewer));
     }
 
     private static JsonNode historicalCounts(JsonNode gps, JsonNode engine) {
@@ -328,10 +347,10 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     }
 
     /** Explicit scopes page the engine-first union; the omitted parameter keeps the legacy contract. */
-    private Uni<JsonNode> scopedSymptoms(String tenant, Map<String, String> filters, OperatorScope scope) {
+    private Uni<JsonNode> scopedSymptoms(String tenant, Map<String, String> filters, Viewer viewer) {
         Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
         String client = tenantContext.getClientId();
-        return blocking(() -> cases.casesPage(tenant, checked, scope)).chain(engine -> {
+        return blocking(() -> cases.casesPage(tenant, checked, viewer)).chain(engine -> {
             int size = engine.path(PAGE_SIZE).asInt();
             long offset = gpsOffset(engine);
             Map<String, String> gpsFilters = new LinkedHashMap<>(checked);
@@ -411,7 +430,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         String tenant = tenantCode(organizationId);
         if (engineCase(symptomId)) {
             long id = Long.parseLong(symptomId.trim());
-            return answer(() -> blocking(() -> EngineCaseService.withTreatments(cases.header(tenant, id),
+            String actor = actor();
+            return answer(() -> blocking(() -> EngineCaseService.withTreatments(cases.header(tenant, id, actor),
                     caseTreatments.listForSymptom(tenant, id))));
         }
         if (!legacy) {

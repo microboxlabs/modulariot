@@ -62,6 +62,70 @@ describe("GET /api/symptoms/table", () => {
     }
   );
 
+  it.each(["untreated", "in_treatment", "treated"])(
+    "passes treatment=%s to the modulith",
+    async (treatment) => {
+      await GET(new NextRequest(`http://x/t?page=1&treatment=${treatment}`));
+      expect(forwardMock.mock.calls[0][0]).toBe(
+        `/api/v1/orgs/acme/control-tower/map/symptoms?p_page=1&treatment=${treatment}`
+      );
+    }
+  );
+
+  it("drops a treatment state the modulith does not know", async () => {
+    await GET(new NextRequest("http://x/t?page=1&treatment=done"));
+    expect(forwardMock.mock.calls[0][0]).toBe(
+      "/api/v1/orgs/acme/control-tower/map/symptoms?p_page=1"
+    );
+  });
+
+  it("answers each case's treatment state and the treatment behind it", async () => {
+    const treatment = {
+      id: "t-1",
+      status: "CLOSED",
+      outcome: "call",
+      closed_by: "operator-a",
+      closed_at: "2026-10-08T10:05:00Z",
+    };
+    forwardMock.mockImplementation(async () =>
+      NextResponse.json({
+        ...page,
+        data: [{ ...page.data[0], treatment_state: "treated", treatment }],
+      })
+    );
+
+    const res = await GET(new NextRequest("http://x/t"));
+    const [row] = (await res.json()).data;
+
+    expect(row.treatmentState).toBe("treated");
+    expect(row.treatment).toEqual(treatment);
+  });
+
+  it.each([
+    { treatment_state: "unknown" },
+    {
+      treatment_state: "in_treatment",
+      treatment: { id: "t", status: "OPEN", mine: "yes" },
+    },
+  ])("rejects malformed upstream treatment data: %j", async (fields) => {
+    forwardMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ ...page, data: [{ ...page.data[0], ...fields }] }),
+        { status: 200 }
+      )
+    );
+    const response = await GET(new NextRequest("http://x/t?page=1"));
+    expect(response.status).toBe(502);
+  });
+
+  it("answers no treatment state for a symptom without one", async () => {
+    const res = await GET(new NextRequest("http://x/t"));
+    const [row] = (await res.json()).data;
+
+    expect(row.treatmentState).toBeNull();
+    expect(row.treatment).toBeNull();
+  });
+
   it("drops an operator value the modulith does not know", async () => {
     await GET(new NextRequest("http://x/t?page=1&operator=junk"));
     expect(forwardMock).toHaveBeenCalledWith(

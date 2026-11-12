@@ -3,7 +3,7 @@
 import { HiArrowRight } from "react-icons/hi";
 import { Button, ButtonGroup, Tooltip } from "flowbite-react";
 import BlurrableDropdown from "../blurrable-dropdown";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SelectedOption } from "../../../types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
@@ -19,6 +19,12 @@ import PrototypeInlineForm from "./prototype-inline-form";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import SymptomForm from "../../blurrable-stepped-menu/symptom-form";
 import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
+import {
+  isReadOnlyCase,
+  otherOperators,
+} from "@/features/symptoms/model/treatment-state";
+import { tr } from "@/features/i18n/tr.service";
+import TreatmentStateCell from "../../treatment-state-cell";
 
 /** Menus the previous full-screen modal still implements. */
 const PAST_FORM_OPTIONS = new Set<SelectedOption>([
@@ -27,6 +33,75 @@ const PAST_FORM_OPTIONS = new Set<SelectedOption>([
   "ignore_condition",
   "invalidate_symptom",
 ]);
+
+/** Why the case has no treatment forms: who treats it, or how it was treated. */
+function ReadOnlyNotice({
+  info,
+  dict,
+}: Readonly<{
+  info: NonNullable<TreatmentsGeneralResponseItem["symptom_info"]>;
+  dict: I18nRecord;
+}>) {
+  const others =
+    info.treatment_state === "in_treatment" && !info.closed_at
+      ? otherOperators(info.treatment)
+      : [];
+  let message = tr("symptoms.read_only_closed", dict);
+  if (info.ignored) {
+    message = tr("symptoms.read_only_ignored", dict);
+  } else if (others.length) {
+    message = tr("symptoms.read_only_other_operator", dict, {
+      operator: others.join(", "),
+    });
+  } else if (info.treatment_state === "treated") {
+    message = tr("symptoms.read_only_treated", dict);
+  }
+  return (
+    <output className="flex flex-col gap-1 rounded-md border border-gray-300 bg-gray-50 p-2 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+      <p>{message}</p>
+      <TreatmentStateCell
+        state={info.treatment_state}
+        treatment={info.treatment}
+        ignored={info.ignored}
+        dict={dict}
+      />
+    </output>
+  );
+}
+
+function useTreatmentFormLock(
+  symptomInfo: TreatmentsGeneralResponseItem["symptom_info"] | undefined,
+  readOnly: boolean,
+  isFormOpen: boolean,
+  setIsFormOpen: (open: boolean) => void
+) {
+  const [ownEpisode, setOwnEpisode] = useState<string | null>(null);
+  const episode = symptomInfo?.treatment;
+  useEffect(() => {
+    if (!isFormOpen) setOwnEpisode(null);
+    else if (!readOnly && episode?.mine && episode.status === "OPEN") {
+      setOwnEpisode(`${symptomInfo?.id}:${episode.id}`);
+    }
+  }, [
+    readOnly,
+    isFormOpen,
+    symptomInfo?.id,
+    episode?.id,
+    episode?.mine,
+    episode?.status,
+  ]);
+  const sameCase = ownEpisode?.startsWith(`${symptomInfo?.id}:`) ?? false;
+  const finishingOwnEpisode =
+    isFormOpen &&
+    sameCase &&
+    (ownEpisode === `${symptomInfo?.id}:${episode?.id}` ||
+      !!symptomInfo?.closed_at);
+  const formLocked = readOnly && !finishingOwnEpisode;
+  useEffect(() => {
+    if (formLocked && isFormOpen) setIsFormOpen(false);
+  }, [formLocked, isFormOpen, setIsFormOpen]);
+  return formLocked;
+}
 
 /**
  * PROTOTYPE — inline variant of `features/symptoms/side-info.tsx`.
@@ -63,6 +138,15 @@ export default function PrototypeSideInfo({
 }>) {
   const pastFormsEnabled = useRuntimeConfig()?.SYMPTOMS_PAST_FORMS === "true";
   const [order, setOrder] = useState<"asc" | "desc">("desc");
+  // Only the form's own episode may finish saving after the case closes.
+  const symptomInfo = treatmentData?.symptom_info;
+  const readOnly = !!symptomInfo && isReadOnlyCase(symptomInfo);
+  const formLocked = useTreatmentFormLock(
+    symptomInfo,
+    readOnly,
+    isFormOpen,
+    setIsFormOpen
+  );
   const orderLabel =
     order === "asc"
       ? ((dict.symptoms as I18nRecord).ascending as string)
@@ -93,21 +177,25 @@ export default function PrototypeSideInfo({
       {/* Previous full-screen modal, mounted only while open: it keeps the
           treatment it opened in state, and a reopen would set that saved
           treatment back to pending. */}
-      {treatments_templates && !loading && showPastModal && isFormOpen && (
-        <SymptomForm
-          selectedOption={selectedOption}
-          dict={dict}
-          isMenuOpen={isFormOpen}
-          setIsMenuOpen={setIsFormOpen}
-          treatmentData={treatmentData}
-          treatments_templates={treatments_templates}
-          className={isFormOpen ? "animate-show" : "animate-hide"}
-        />
-      )}
+      {treatments_templates &&
+        !loading &&
+        showPastModal &&
+        isFormOpen &&
+        !formLocked && (
+          <SymptomForm
+            selectedOption={selectedOption}
+            dict={dict}
+            isMenuOpen={isFormOpen}
+            setIsMenuOpen={setIsFormOpen}
+            treatmentData={treatmentData}
+            treatments_templates={treatments_templates}
+            className={isFormOpen ? "animate-show" : "animate-hide"}
+          />
+        )}
 
       {/* Inline morphed form — replaces the timeline + action buttons in place.
           Fades in after the parent's width transition (~500ms) has mostly run. */}
-      {isFormOpen && formReady && !showPastModal && (
+      {isFormOpen && formReady && !showPastModal && !formLocked && (
         <div
           className="absolute inset-0 z-20 animate-fade-in-opacity"
           style={{ animationDelay: "250ms", opacity: 0 }}
@@ -128,7 +216,7 @@ export default function PrototypeSideInfo({
       {/* Timeline view — hidden while the inline form is open. The past
           modal overlays the page, so the timeline stays put. "Registrar
           gestión" has no past modal and always opens inline. */}
-      {(!isFormOpen || showPastModal) && (
+      {(!isFormOpen || showPastModal || formLocked) && (
         <>
           <div className="flex flex-col h-full overflow-y-auto pb-20 gap-1">
             <div className="border border-gray-300 dark:border-gray-700 flex flex-row items-center justify-between gap-2 rounded-md transition-all duration-200">
@@ -176,30 +264,35 @@ export default function PrototypeSideInfo({
           <div
             className={`absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5 ${loading ? "opacity-50" : "opacity-100"}`}
           >
-            <AccessAllowed rule={ACCESS_RULES.controlTowerCaseTreat}>
-              <ButtonGroup className="w-full">
-                <BlurrableDropdown
-                  dict={dict}
-                  recordHandling={engineCase}
-                  onSelect={(option) => {
-                    setSelectedOption(option);
-                    setIsFormOpen(true);
-                  }}
-                />
-                <Button
-                  size="md"
-                  color="blue"
-                  className="h-10 rounded-l-none w-full whitespace-nowrap"
-                  onClick={() => {
-                    setSelectedOption("call_driver");
-                    setIsFormOpen(true);
-                  }}
-                >
-                  {(dict.symptoms as I18nRecord).call_driver as string}
-                  <HiArrowRight className="ml-2 h-5 w-5 xl:flex lg:hidden" />
-                </Button>
-              </ButtonGroup>
-            </AccessAllowed>
+            {readOnly && symptomInfo && (
+              <ReadOnlyNotice info={symptomInfo} dict={dict} />
+            )}
+            {!readOnly && (
+              <AccessAllowed rule={ACCESS_RULES.controlTowerCaseTreat}>
+                <ButtonGroup className="w-full">
+                  <BlurrableDropdown
+                    dict={dict}
+                    recordHandling={engineCase}
+                    onSelect={(option) => {
+                      setSelectedOption(option);
+                      setIsFormOpen(true);
+                    }}
+                  />
+                  <Button
+                    size="md"
+                    color="blue"
+                    className="h-10 rounded-l-none w-full whitespace-nowrap"
+                    onClick={() => {
+                      setSelectedOption("call_driver");
+                      setIsFormOpen(true);
+                    }}
+                  >
+                    {(dict.symptoms as I18nRecord).call_driver as string}
+                    <HiArrowRight className="ml-2 h-5 w-5 xl:flex lg:hidden" />
+                  </Button>
+                </ButtonGroup>
+              </AccessAllowed>
+            )}
           </div>
         </>
       )}

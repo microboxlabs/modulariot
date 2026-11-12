@@ -643,8 +643,12 @@ class PgTreatmentStoresTest {
         assertEquals(1, results.stream().map(r -> r.treatment().id()).distinct().count());
         assertEquals(1, treatments.listBySymptom(tenant, symptomId).size());
         Treatment mine = results.getFirst().treatment();
-        Treatment other = treatments.insert(openTreatment(tenant, symptomId, "other@example.com")).treatment();
-        assertNotEquals(mine.id(), other.id());
+        Treatment otherOperator = openTreatment(tenant, symptomId, "other@example.com");
+        assertThrows(IllegalStateException.class, () -> treatments.insert(otherOperator),
+                "another operator cannot start a second treatment");
+        treatments.transition(tenant, mine.id(), TreatmentStatus.CANCELLED, ACTOR, "cancelled", null).orElseThrow();
+        Treatment other = treatments.insert(otherOperator).treatment();
+        assertNotEquals(mine.id(), other.id(), "after cancellation the case is available again");
         assertTrue(treatments.findOpen(tenant(), symptomId, ACTOR).isEmpty());
         assertTrue(treatments.findOpen(tenant, symptomId - 1, ACTOR).isEmpty());
         Treatment wrongTenant = openTreatment(tenant(), symptomId, ACTOR);

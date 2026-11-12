@@ -6,6 +6,10 @@ import type { LevelResponseView } from "@/features/symptoms/maintainer/maintaine
 import type { LevelReason } from "@/features/symptoms/model/level-reason";
 import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
 import type { MapWindow } from "@/features/symptoms/model/case-window";
+import type {
+  CaseTreatment,
+  TreatmentState,
+} from "@/features/symptoms/model/treatment-state";
 
 export type TreatmentsGeneralResponseItem = {
   conditions_agg: ConditionsAgg[];
@@ -53,4 +57,9 @@ export type TreatmentsSymptomInfoResponse = {
   ignored?: IgnoredInfo | null;
   /** When the case came back to the tower from its latest hold. */
   returned_after_ignore_at?: string | null;
+  /** Engine cases: when the case closed; null while it is open. */
+  closed_at?: string | null;
+  /** Engine cases: what the operators did about the case, and the treatment behind it. */
+  treatment_state?: TreatmentState | null;
+  treatment?: CaseTreatment | null;
 };

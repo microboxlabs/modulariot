@@ -32,6 +32,10 @@ const DICT: I18nRecord = {
     operator: "Operador",
     operator_required: "Solo para operadores",
     operator_none: "Sin operador",
+    treatment: "Tratamiento",
+    treatment_untreated: "Sin tratar",
+    treatment_in_treatment: "En tratamiento",
+    treatment_treated: "Tratado",
   },
   dashboard: { settings: { columnFilterAll: "Todos" } },
   storytelling: { kind: {} },
@@ -56,6 +60,52 @@ beforeEach(() => {
 });
 
 afterEach(cleanup);
+
+describe("the symptoms treatment filter", () => {
+  function pickTreatment(label: string) {
+    fireEvent.click(screen.getByText(/^Tratamiento:?$/));
+    const matches = screen.getAllByText(label);
+    fireEvent.mouseDown(matches[matches.length - 1]);
+  }
+
+  it("offers the three treatment states in the filter menu", () => {
+    const param = (getNavegationParams(DICT, 0).symptoms ?? []).find(
+      (p) => p.param.key === "treatment"
+    );
+
+    expect(param?.param.type).toBe("selector");
+    expect(param?.options).toEqual([
+      { value: "untreated", label: "Sin tratar" },
+      { value: "in_treatment", label: "En tratamiento" },
+      { value: "treated", label: "Tratado" },
+    ]);
+    expect(param?.defaultValue).toBeUndefined();
+  });
+
+  it("filters by nothing until a state is picked", () => {
+    renderBar();
+
+    expect(screen.queryByText("En tratamiento")).toBeNull();
+  });
+
+  it("writes the picked state to the URL, keeping the other filters", () => {
+    mockSearchParams = new URLSearchParams("asset_id=DEMO01");
+    renderBar();
+
+    pickTreatment("En tratamiento");
+
+    expect(push).toHaveBeenCalledWith(
+      "/es/symptoms?asset_id=DEMO01&treatment=in_treatment"
+    );
+  });
+
+  it("shows the state the URL names", () => {
+    mockSearchParams = new URLSearchParams("treatment=treated");
+    renderBar();
+
+    expect(screen.getByText("Tratado")).toBeTruthy();
+  });
+});
 
 describe("the symptoms operator filter", () => {
   it("shows 'Solo para operadores' by default", () => {

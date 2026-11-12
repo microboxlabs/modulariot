@@ -115,6 +115,20 @@ describe("useOperatorFilter", () => {
 });
 
 describe("useOperatorPagination", () => {
+  it("starts a new treatment filter on page one, preserving the operator scope", () => {
+    mockSearchParams = new URLSearchParams("operator=none");
+    const { result, rerender } = renderHook(() => useOperatorPagination());
+    act(() => result.current.setCurrentPage(5));
+    mockSearchParams = new URLSearchParams("operator=none&treatment=treated");
+    rerender();
+    expect(result.current.currentPage).toBe(1);
+    act(() => result.current.setCurrentPage(2));
+    expect(result.current.currentPage).toBe(2);
+    mockSearchParams = new URLSearchParams("operator=none&treatment=untreated");
+    rerender();
+    expect(result.current.currentPage).toBe(1);
+  });
+
   it("starts a new scope on page one when the URL changes", () => {
     const { result, rerender } = renderHook(() => useOperatorPagination());
     act(() => result.current.setCurrentPage(5));

@@ -94,6 +94,18 @@ public class InMemoryEngineCases implements EngineCaseStore {
                 found.stream().map(EngineCase::name).distinct().toList());
     }
 
+    @Override
+    public Map<EngineCase.TreatmentState, Long> treatmentCounts(String tenantCode, CaseFilter filter) {
+        return matching(filter).collect(Collectors.groupingBy(EngineCase::treatmentState, Collectors.counting()));
+    }
+
+    @Override
+    public List<OpenCount> matchingCounts(String tenantCode, CaseFilter filter) {
+        return matching(filter).collect(Collectors.groupingBy(c -> Map.entry(c.level(), c.treatments() > 0),
+                Collectors.counting())).entrySet().stream()
+                .map(e -> new OpenCount(e.getKey().getKey(), e.getKey().getValue(), e.getValue())).toList();
+    }
+
     private Stream<EngineCase> matching(CaseFilter f) {
         return cases.stream()
                 .filter(c -> f.openOnly() ? c.closedAt() == null
@@ -105,6 +117,7 @@ public class InMemoryEngineCases implements EngineCaseStore {
                 .filter(c -> f.symptomName() == null || f.symptomName().equalsIgnoreCase(c.name()))
                 .filter(c -> f.level() == null || f.level() == c.level())
                 .filter(c -> !f.underTreatmentOnly() || c.treatments() > 0)
+                .filter(c -> f.treatment() == null || c.treatmentState() == f.treatment())
                 .filter(c -> !f.operatorOnly() || needsOperator(c))
                 .filter(c -> !f.withoutOperatorOnly() || !needsOperator(c))
                 .filter(c -> f.ignoredOnly() ? held.contains(c.id()) && c.closedAt() == null

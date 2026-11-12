@@ -1,3 +1,9 @@
+import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
+import type {
+  CaseTreatment,
+  TreatmentState,
+} from "@/features/symptoms/model/treatment-state";
+
 export interface SymptomsICUResponse {
   data: SymptomsICUItemResponse[];
   status: number;
@@ -5,6 +11,7 @@ export interface SymptomsICUResponse {
 }
 
 export interface SymptomsICUItemResponse {
+  ignored?: IgnoredInfo | null;
   id: number;
   client: string;
   driver: string;
@@ -21,4 +28,7 @@ export interface SymptomsICUItemResponse {
   treatment_count: number;
   type_of_incidence: string;
   geographical_reference_point: string;
+  /** What the operators did about the case, and the treatment behind it. */
+  treatment_state?: TreatmentState | null;
+  treatment?: CaseTreatment | null;
 }

@@ -13,6 +13,10 @@ import {
   DEFAULT_OPERATOR_FILTER,
   OPERATOR_PARAM,
 } from "@/features/symptoms/model/operator-filter";
+import {
+  TREATMENT_PARAM,
+  TREATMENT_STATES,
+} from "@/features/symptoms/model/treatment-state";
 
 export type NavParam = {
   label: string;
@@ -136,6 +140,14 @@ function symptoms_params(searchbarDict: I18nRecord): ParamType[] {
         { value: "none", label: tr("operator_none", searchbarDict) },
       ],
       DEFAULT_OPERATOR_FILTER
+    ),
+    setParam(
+      TREATMENT_PARAM,
+      "selector",
+      TREATMENT_STATES.map((state) => ({
+        value: state,
+        label: trDynamic(`treatment_${state}`, searchbarDict),
+      }))
     ),
     setParam("asset_id", "text"),
     setParam("trip_id", "text"),

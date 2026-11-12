@@ -42,6 +42,9 @@ public interface EngineCaseStore {
                 .map(e -> new OpenCount(e.getKey().getKey(), e.getKey().getValue(), e.getValue())).toList();
     }
 
+    /** The cases {@link #list} matches, counted by treatment state, without the list's page limit. */
+    Map<EngineCase.TreatmentState, Long> treatmentCounts(String tenantCode, CaseFilter filter);
+
     /**
      * The vehicles on a trips-module trip now: it departed and has not ended. Of the filter, only the trip's fields
      * apply: trip, vehicle, driver, carrier, origin and destination. 0 without the trips module.
@@ -245,34 +248,37 @@ public interface EngineCaseStore {
      * {@code operatorWhen}); for a case recorded before that, {@code response.operator: true} in the published
      * version the case runs on. A level with {@code operator: false} or no response is left out.
      * {@code withoutOperatorOnly} keeps the other cases instead.
+     *
+     * <p>{@code treatment} keeps the cases in that {@link EngineCase.TreatmentState}; null keeps every case.
      */
     record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to,
             String driverId, String carrierId, String origin, String destination, boolean underTreatmentOnly,
-            boolean ignoredOnly, boolean operatorOnly, boolean withoutOperatorOnly) {
+            boolean ignoredOnly, boolean operatorOnly, boolean withoutOperatorOnly,
+            EngineCase.TreatmentState treatment) {
 
         public static final CaseFilter OPEN = new CaseFilter(null, null, null, null, null, null);
 
         public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
                 Instant to) {
             this(tripId, assetId, symptomName, level, from, to, null, null, null, null, false, false, false,
-                    false);
+                    false, null);
         }
 
         @SuppressWarnings("java:S107")
         public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
                 Instant to, String driverId, String carrierId, String origin, String destination) {
             this(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin, destination, false,
-                    false, false, false);
+                    false, false, false, null);
         }
 
         public CaseFilter withOpenTreatment() {
             return new CaseFilter(tripId, assetId, symptomName, null, from, to, driverId, carrierId, origin,
-                    destination, true, ignoredOnly, operatorOnly, withoutOperatorOnly);
+                    destination, true, ignoredOnly, operatorOnly, withoutOperatorOnly, treatment);
         }
 
         public CaseFilter withIgnored() {
             return new CaseFilter(tripId, assetId, symptomName, null, from, to, driverId, carrierId, origin,
-                    destination, underTreatmentOnly, true, operatorOnly, withoutOperatorOnly);
+                    destination, underTreatmentOnly, true, operatorOnly, withoutOperatorOnly, treatment);
         }
 
         /** Only the cases whose current level asks for an operator: the tower inbox. */
@@ -284,7 +290,13 @@ public interface EngineCaseStore {
         public CaseFilter operator(OperatorScope scope) {
             return new CaseFilter(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin,
                     destination, underTreatmentOnly, ignoredOnly, scope == OperatorScope.REQUIRED,
-                    scope == OperatorScope.NONE);
+                    scope == OperatorScope.NONE, treatment);
+        }
+
+        /** Only the cases in {@code state}; null keeps every case. */
+        public CaseFilter treatment(EngineCase.TreatmentState state) {
+            return new CaseFilter(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin,
+                    destination, underTreatmentOnly, ignoredOnly, operatorOnly, withoutOperatorOnly, state);
         }
 
         /** Whether it filters by a field of the case's trip. */

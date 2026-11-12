@@ -1,7 +1,10 @@
 "use client";
 
 import { TableRow, TableCell, Button, Badge } from "flowbite-react";
-import { treatmentHref } from "@/features/symptoms/model/treatment-link";
+import {
+  treatmentHref,
+  continueTreatmentHref,
+} from "@/features/symptoms/model/treatment-link";
 import ConditionIcon from "./condition-icon";
 import { Conditions, TableItemType } from "./table-item.type";
 import { HiArrowRight } from "react-icons/hi";
@@ -11,7 +14,13 @@ import { FormattedDate } from "@/features/common/components/formatted-date";
 import icu_condition from "@/features/symptoms/model/icu_condition.json";
 import { FaChevronRight } from "react-icons/fa6";
 import IgnoredHoldCell from "./ignored-hold-cell";
-import { tr } from "@/features/i18n/tr.service";
+import TreatmentStateCell from "./treatment-state-cell";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
+import {
+  caseActionOf,
+  otherOperators,
+  type CaseAction,
+} from "@/features/symptoms/model/treatment-state";
 
 /** Cell content that opens the case's treatment, as the "Tratar" button does. */
 const ROW_LINK =
@@ -27,6 +36,54 @@ function TripPlateNow({
     <span className="block text-[11px] font-normal text-amber-700 dark:text-amber-400">
       {tr("symptoms.trip_plate_now", dict, { plate: data.tripPlateNow })}
     </span>
+  );
+}
+
+const ACTION_LABEL = {
+  treat: "symptoms.diagnose",
+  continue: "symptoms.continue_treatment",
+  view_treatment: "symptoms.view_treatment",
+  view_case: "symptoms.view_case",
+} as const;
+
+/**
+ * The row's button: "Tratar" only for an open case nobody treats, "Continuar"
+ * for the user's own open treatment, else a link that only shows the case.
+ * A case another operator treats says who.
+ */
+function RowAction({
+  data,
+  href,
+  dict,
+}: Readonly<{ data: TableItemType; href: string; dict: I18nRecord }>) {
+  // A held case has an open treatment, the hold: it is resumed, not continued.
+  const action: CaseAction = data.ignored
+    ? "view_treatment"
+    : caseActionOf(data.treatmentState, data.treatment, !!data.endDate);
+  const others =
+    data.treatmentState === "in_treatment" && !data.ignored
+      ? otherOperators(data.treatment)
+      : [];
+  const primary = action === "treat" || action === "continue";
+  return (
+    <Button
+      as={Link}
+      className="h-8 flex justify-center items-center !text-xs"
+      color={primary ? "blue" : "light"}
+      href={action === "continue" ? continueTreatmentHref(href) : href}
+      title={
+        others.length
+          ? tr("symptoms.treating_by_other", dict, {
+              operator: others.join(", "),
+            })
+          : undefined
+      }
+    >
+      <div className="flex items-center gap-2">
+        <p>{trDynamic(ACTION_LABEL[action], dict)}</p>
+        <HiArrowRight className="w-4 h-4" />
+      </div>
+    </Button>
   );
 }
 
@@ -178,12 +235,16 @@ export default function TableItem({
         >
           <FormattedDate date={data.date} format="datetime" />
         </TableCell>
-        {/* <TableCell
+        <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
-          
-          {data.status}
-        </TableCell> */}
+          <TreatmentStateCell
+            state={data.treatmentState}
+            treatment={data.treatment}
+            ignored={data.ignored}
+            dict={dict}
+          />
+        </TableCell>
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
@@ -205,17 +266,7 @@ export default function TableItem({
                 </Button>
               </Link>
             ) : (
-              <Link href={href}>
-                <Button
-                  className="h-8 flex justify-center items-center !text-xs"
-                  color="blue"
-                >
-                  <div className="flex items-center gap-2">
-                    <p>{(dict.symptoms as I18nRecord).diagnose as string}</p>
-                    <HiArrowRight className="w-4 h-4" />
-                  </div>
-                </Button>
-              </Link>
+              <RowAction data={data} href={href} dict={dict} />
             )}
           </div>
         </TableCell>

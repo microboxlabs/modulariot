@@ -1,4 +1,8 @@
 import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
+import type {
+  CaseTreatment,
+  TreatmentState,
+} from "@/features/symptoms/model/treatment-state";
 
 export interface SymptomsTableRequest {
   page: number;
@@ -48,4 +52,8 @@ export interface SymptomsTable {
   sla_since?: string | null;
   /** Whether the case's current level goes to the operators; absent on GPS database symptoms. */
   operator_required?: boolean | null;
+  /** What the operators did about the case; absent on GPS database symptoms. */
+  treatment_state?: TreatmentState | null;
+  /** The treatment that state is about. */
+  treatment?: CaseTreatment | null;
 }

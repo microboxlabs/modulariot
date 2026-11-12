@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -16,6 +16,15 @@ vi.mock("@/features/common/providers/client-api.provider", () => ({
 }));
 
 vi.mock("./table-item", () => ({ default: () => <tr data-testid="row" /> }));
+vi.mock("@/features/common/components/custom-table/custom-table", () => ({
+  default: ({ header }: Readonly<{ header: string[] }>) => (
+    <ul data-testid="columns">
+      {header.map((title, i) => (
+        <li key={i}>{title}</li>
+      ))}
+    </ul>
+  ),
+}));
 
 const { default: SymptomsTable } = await import("./table-component");
 
@@ -26,6 +35,9 @@ const DICT: I18nRecord = {
     compromised_condition: "Condición comprometida",
     constellation_condition_count: "{condition} — casos activos: {count}",
     constellation_on_trip: "Vehículos en viaje: {count}",
+    creation_date: "Fecha de creación",
+    treatment_column: "Tratamiento",
+    treated_needs_dates: "Elige un rango de fechas",
   },
 };
 
@@ -70,6 +82,71 @@ beforeEach(() => {
 });
 
 afterEach(cleanup);
+
+describe("SymptomsTable treatment state", () => {
+  const ONE_ROW = {
+    ...EMPTY_PAGE,
+    data: [{ id: "1" }],
+    pagination: { ...EMPTY_PAGE.pagination, total_rows: 1 },
+  };
+
+  it("has a treatment column after the creation date", () => {
+    mockUseSymptomsTable.mockReturnValue({
+      tableData: ONE_ROW,
+      loading: false,
+      error: undefined,
+    });
+
+    renderTable();
+
+    const titles = within(screen.getByTestId("columns"))
+      .getAllByRole("listitem")
+      .map((li) => li.textContent);
+    expect(titles.slice(-3)).toEqual(["Fecha de creación", "Tratamiento", ""]);
+  });
+
+  it.each(["untreated", "in_treatment", "treated"])(
+    "queries the table and its counts in the %s state",
+    (treatment) => {
+      mockSearchParams = new URLSearchParams({ treatment });
+
+      renderTable();
+
+      expect(mockUseSymptomsTable.mock.calls[0][0]).toMatchObject({
+        treatment,
+      });
+      expect(mockUseSymptomCounts.mock.calls[0][0]).toMatchObject({
+        treatment,
+      });
+    }
+  );
+
+  it("ignores a treatment state it does not know", () => {
+    mockSearchParams = new URLSearchParams({ treatment: "done" });
+
+    renderTable();
+
+    expect(mockUseSymptomsTable.mock.calls[0][0].treatment).toBeUndefined();
+  });
+
+  it("says treated cases need dates when the live list has none", () => {
+    mockSearchParams = new URLSearchParams({ treatment: "treated" });
+
+    renderTable();
+
+    expect(screen.getByText("Elige un rango de fechas")).toBeTruthy();
+  });
+
+  it("does not say so with dates", () => {
+    mockSearchParams = new URLSearchParams(
+      "treatment=treated&date_from=2026-10-01&date_to=2026-10-02"
+    );
+
+    renderTable();
+
+    expect(screen.queryByText("Elige un rango de fechas")).toBeNull();
+  });
+});
 
 describe("SymptomsTable constellation", () => {
   it("reads the counts with the page's filters and shows them on an empty page", () => {

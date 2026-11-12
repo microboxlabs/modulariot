@@ -689,9 +689,20 @@ export function usePlacesWorkspace(
     scopedFetcher
   );
   const local = useLocalPlaces(storageScope);
-  /** Guarda sin perder los tipos de la metadata guardada (ver conMetadataGuardada). */
+  /**
+   * Guarda sin perder los tipos de la metadata guardada ni las properties del
+   * GeoJSON que el formulario no edita, como geofence_type (ver conMetadataGuardada).
+   */
   const guardarConTipos = (id: string | null, body: PlaceRequest) =>
-    guardarPlace(id, conMetadataGuardada(id, body, guardados?.metadatos));
+    guardarPlace(
+      id,
+      conMetadataGuardada(
+        id,
+        body,
+        guardados?.metadatos,
+        guardados?.propiedades
+      )
+    );
   const lugaresGuardados = useMemo(() => guardados?.lugares ?? [], [guardados]);
   const trayectosGuardados = useMemo(
     () => guardados?.trayectos ?? [],

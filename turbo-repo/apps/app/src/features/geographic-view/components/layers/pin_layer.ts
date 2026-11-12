@@ -1,6 +1,7 @@
 import { CompositeLayer, IconLayer, Layer, TextLayer } from "deck.gl";
 import { createSVGIcon } from "../prototype/svg-generation";
 import { OFFLINE_LABEL_BACKGROUND } from "../../utils/signal-state";
+import { headingToIconAngle, viewportKey } from "../../utils/icon-heading";
 
 type PinPosition = {
   assetid: string;
@@ -23,6 +24,11 @@ const WHITE: [number, number, number, number] = [255, 255, 255, 255];
 export class PinLayer extends CompositeLayer<any> {
   static readonly layerName = "PinLayer";
 
+  shouldUpdateState({ changeFlags }: any) {
+    // The pin's angle depends on the map's bearing and pitch.
+    return changeFlags.somethingChanged;
+  }
+
   renderLayers(): Layer[] {
     const getIconSize = (count: number) => {
       const baseSize = Math.min(70, count) / 70 + 1;
@@ -34,6 +40,7 @@ export class PinLayer extends CompositeLayer<any> {
     const offline = this.props.offline === true;
     const engineOff = !offline && this.props.engineOff === true;
     const label: string | null = this.props.label ?? null;
+    const viewport = this.context?.viewport;
 
     const layers: Layer[] = [
       new IconLayer({
@@ -48,11 +55,13 @@ export class PinLayer extends CompositeLayer<any> {
           mask: false,
         }),
         getPosition: (d: PinPosition) => [d.longitude, d.latitude],
-        getAngle: (d: PinPosition) => Math.round(360 + d.heading),
+        getAngle: (d: PinPosition) =>
+          headingToIconAngle(viewport, d.longitude, d.latitude, d.heading || 0),
         getSize: (_d: PinPosition) => getIconSize(1),
         updateTriggers: {
           ...this.props.updateTriggers,
           getIcon: [offline, engineOff],
+          getAngle: viewportKey(viewport),
         },
         pickable: true,
         parameters: {

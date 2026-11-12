@@ -3,6 +3,11 @@ import Supercluster from "supercluster";
 import { PinCountLayer } from "./pin_count";
 import { createSVGIcon } from "../prototype/svg-generation";
 import conditions_atlas from "@assets/icons/map/conditions-atlas.png";
+import {
+  headingToIconAngle,
+  iconTipOffset,
+  viewportKey,
+} from "../../utils/icon-heading";
 
 // remision
 // observation
@@ -165,6 +170,11 @@ export class PinLayer extends CompositeLayer<any> {
     });
   }
 
+  shouldUpdateState({ changeFlags }: any) {
+    // The pins' angles depend on the map's bearing and pitch.
+    return changeFlags.somethingChanged;
+  }
+
   updateState({ props, changeFlags }: any) {
     const zoom = Math.floor(props.zoom || 10);
 
@@ -235,6 +245,20 @@ export class PinLayer extends CompositeLayer<any> {
       const baseSize = Math.min(70, count) / 70 + 1;
       return count > 1 ? baseSize * 70 : 50;
     };
+    const viewport = this.context?.viewport;
+    const viewKey = viewportKey(viewport);
+    const angles = clusters.map((d) =>
+      d.properties.cluster
+        ? 0
+        : headingToIconAngle(
+            viewport,
+            d.geometry.coordinates[0],
+            d.geometry.coordinates[1],
+            d.properties.heading || 0
+          )
+    );
+    const angleOf = (_d: ClusterFeature, { index }: { index: number }) =>
+      angles[index];
 
     return [
       new IconLayer({
@@ -255,11 +279,10 @@ export class PinLayer extends CompositeLayer<any> {
           mask: false,
         }),
         getPosition: (d: ClusterFeature) => d.geometry.coordinates,
-        getAngle: (d: ClusterFeature) =>
-          !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,
+        getAngle: angleOf,
         getSize: (d: ClusterFeature) =>
           getIconSize(d.properties.cluster ? d.properties.point_count || 1 : 1),
-        updateTriggers: this.props.updateTriggers,
+        updateTriggers: { ...this.props.updateTriggers, getAngle: viewKey },
         pickable: true,
         parameters: {
           depthTest: true,
@@ -287,15 +310,11 @@ export class PinLayer extends CompositeLayer<any> {
           }
         },
         getPosition: (d: ClusterFeature) => d.geometry.coordinates,
-        getPixelOffset: (d: ClusterFeature) => {
+        getPixelOffset: (d: ClusterFeature, info: { index: number }) => {
           const size = getIconSize(
             d.properties.cluster ? d.properties.point_count || 1 : 1
           );
-          const heading = d.properties.heading || 0;
-          // Convert heading to radians and calculate offset
-          const angleRad = (heading * Math.PI) / 180;
-          const offsetY = -size * 0.5;
-          return [Math.sin(angleRad) * offsetY, Math.cos(angleRad) * offsetY];
+          return iconTipOffset(angleOf(d, info), size * 0.5);
         },
         iconAtlas: conditions_atlas.src,
         iconMapping: icon_definition,
@@ -311,8 +330,8 @@ export class PinLayer extends CompositeLayer<any> {
           );
         },
         sizeScale: 1,
-        getAngle: (d: ClusterFeature) =>
-          !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,
+        getAngle: angleOf,
+        updateTriggers: { getAngle: viewKey, getPixelOffset: viewKey },
         pickable: true,
       }) as Layer,
     ];

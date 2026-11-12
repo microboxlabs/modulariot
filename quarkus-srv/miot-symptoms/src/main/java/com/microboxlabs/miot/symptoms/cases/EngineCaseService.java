@@ -95,6 +95,7 @@ public class EngineCaseService {
     private static final String START = "start";
     private static final String SYMPTOM_NAMES = "symptom_name_list";
     private static final String ICU_CODE = "icu_code";
+    private static final String OPENED_AT = "opened_at";
     private static final String ICU_CONDITION = "icu_condition";
     private static final Map<Integer, String> CONDITIONS = Map.of(1, "UNDER OBSERVATION", 2,
             "COMPROMISED CONDITION", 3, "CRITICAL CONDITION", 4, "CODE BLACK");
@@ -469,10 +470,11 @@ public class EngineCaseService {
             filter = filter.withOpenTreatment();
         }
         int requestedSize = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
-        int size = operator == null ? requestedSize : Math.min(requestedSize, MAX_PAGE_SIZE);
+        boolean bounded = operator == null && viewer.treatment() == null;
+        int size = bounded ? requestedSize : Math.min(requestedSize, MAX_PAGE_SIZE);
         int page = Math.max(1, number(filters.get(PAGE), 1));
         EngineCaseStore.CasePage result;
-        if (operator == null) {
+        if (bounded) {
             // Preserve the bounded list contract for callers that omit operator.
             List<EngineCase> found = listed(tenantCode, filter, viewer);
             result = new EngineCaseStore.CasePage(
@@ -766,7 +768,7 @@ public class EngineCaseService {
         t.put("outcome_label", e.outcomeLabel());
         t.put("resolution", e.resolution());
         t.put("opened_by", e.openedBy());
-        t.put("opened_at", e.openedAt() == null ? null : e.openedAt().toString());
+        t.put(OPENED_AT, e.openedAt() == null ? null : e.openedAt().toString());
         t.put("closed_by", e.closedBy());
         t.put("closed_at", e.closedAt() == null ? null : e.closedAt().toString());
         boolean inTreatment = c.treatmentState() == EngineCase.TreatmentState.IN_TREATMENT;
@@ -841,7 +843,7 @@ public class EngineCaseService {
             sample.put(SYMPTOM_ID, c.symptomId());
             sample.put(POSITION_ASSET_ID, c.assetId());
             sample.put(ICU_CODE, c.level());
-            sample.put("opened_at", c.openedAt().toString());
+            sample.put(OPENED_AT, c.openedAt().toString());
             sample.set(CONTEXT_FIELD, context(tenantCode, find(tenantCode, c.symptomId())));
         });
         return out;
@@ -971,7 +973,7 @@ public class EngineCaseService {
         symptom.put("type", c.family());
         symptom.put(ICU_CODE, c.level());
         symptom.put(ICU_CONDITION, condition(c.level()));
-        symptom.put("opened_at", c.openedAt().toString());
+        symptom.put(OPENED_AT, c.openedAt().toString());
         symptom.put("sla_since", c.slaStart().toString());
         symptom.put("sla_minutes", c.slaMinutes());
         symptom.put("started_at", start);

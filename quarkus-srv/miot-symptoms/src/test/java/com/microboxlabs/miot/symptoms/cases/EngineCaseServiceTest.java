@@ -1483,6 +1483,21 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void treatmentPagingAndCountersIncludeMatchesBeyondTwoHundredWithoutOperatorScope() {
+        for (int i = 1; i <= 201; i++) {
+            store.add(engineCase(i, "DEMO" + i, 3, 1));
+        }
+        EngineCaseService.Viewer viewer = viewer(EngineCase.TreatmentState.IN_TREATMENT, null);
+        JsonNode last = service.casesPage(TENANT, Map.of("p_page", "21", "p_page_size", "10"), viewer);
+        assertEquals(201, last.path("total_rows").asInt());
+        assertEquals(21, last.path("total_pages").asInt());
+        assertEquals(1, last.path("data").size());
+        JsonNode counts = service.filteredCounts(TENANT, Map.of(), viewer);
+        assertEquals(201, counts.path(TREATMENT_STATES).path("in_treatment").asInt());
+        assertEquals(201, counts.path("conditions").path("Under Treatment").asInt());
+    }
+
+    @Test
     void theUnderTreatmentConditionListsTheCasesWithAnOpenTreatment() {
         addTreatmentStates();
         JsonNode page = service.casesPage(TENANT, Map.of("p_icu_code", "6"));

@@ -571,8 +571,9 @@ class PgHoldsTest {
         UUID speeding = symptom("treatment-states");
         long untreated = open(speeding, TRUCK, now.minusSeconds(900), 3, null);
         long treating = open(speeding, "DEMO02", now.minusSeconds(800), 3, null);
-        treat(treating, "first@example.com", now.minusSeconds(700), ActionKind.CALL, "No contesta");
-        String mine = treat(treating, OPERATOR, now.minusSeconds(600), null, null);
+        String mine = treat(treating, OPERATOR, now.minusSeconds(600), ActionKind.CALL, "No contesta");
+        assertThrows(IllegalStateException.class,
+                () -> treat(treating, "first@example.com", now.minusSeconds(500), null, null));
         long called = open(speeding, "DEMO03", now.minusSeconds(790), 3, null);
         finish(treat(called, OPERATOR, now.minusSeconds(500), ActionKind.CALL, "Contesta"), now.minusSeconds(400));
         cases.close(tenant, called, OPERATOR, now.minusSeconds(400));
@@ -600,13 +601,13 @@ class PgHoldsTest {
 
         EngineCase.CaseTreatment both = listed(treating, open).treatment();
         assertEquals(EngineCase.TreatmentState.IN_TREATMENT, both.state());
-        assertEquals(List.of("first@example.com", OPERATOR),
+        assertEquals(List.of(OPERATOR),
                 both.open().stream().map(EngineCase.Episode::openedBy).toList(), "oldest first");
         assertEquals(mine, both.shown(OPERATOR).id());
         assertEquals(now.minusSeconds(600), both.shown(OPERATOR).openedAt());
         assertTrue(both.openBy(OPERATOR));
         assertFalse(both.openBy("third@example.com"));
-        assertEquals("first@example.com", both.shown("third@example.com").openedBy());
+        assertEquals(OPERATOR, both.shown("third@example.com").openedBy());
 
         EngineCase.Episode call = listed(called, history).treatment().last();
         assertEquals("call", call.outcome());
@@ -614,15 +615,68 @@ class PgHoldsTest {
         assertEquals(OPERATOR, call.closedBy());
         assertEquals(now.minusSeconds(400), call.closedAt());
         assertEquals(now.minusSeconds(500), call.openedAt());
-        EngineCase.Episode record = listed(handled, open).treatment().last();
-        assertEquals("handling", record.outcome(), "a later plain note does not decide the outcome");
-        assertEquals("Resuelto", record.outcomeLabel());
+        EngineCase.Episode handledEpisode = listed(handled, open).treatment().last();
+        assertEquals("handling", handledEpisode.outcome(), "a later plain note does not decide the outcome");
+        assertEquals("Resuelto", handledEpisode.outcomeLabel());
         EngineCase returned = listed(back, open);
         assertEquals(EngineCase.TreatmentState.UNTREATED, returned.treatment().state());
         assertEquals("ignore", returned.treatment().last().outcome());
         assertEquals("returned_after_ignore", returned.treatment().last().resolution());
         assertNull(listed(untreated, open).treatment().last());
         assertEquals(EngineCase.TreatmentState.TREATED, cases.find(tenant, called).orElseThrow().treatmentState());
+    }
+
+    @Test
+    void coveringHoldsAndReturnsOverrideEarlierTreatmentUntilTreatedAgain() {
+        UUID speeding = symptom("covering-treatment");
+        long source = open(speeding, TRUCK, now.minusSeconds(900), 3, null);
+        long covered = open(symptom("covered-treatment"), TRUCK, now.minusSeconds(890), 3, null);
+        finish(treat(covered, OPERATOR, now.minusSeconds(800), ActionKind.CALL, "Contesta"), now.minusSeconds(700));
+        String covering = hold(source, now.minusSeconds(600), 60, "ALL", false);
+        EngineCaseStore.CaseFilter ignored = EngineCaseStore.CaseFilter.OPEN.withIgnored();
+        assertEquals(List.of(source, covered), inState(EngineCase.TreatmentState.IN_TREATMENT, ignored));
+        EngineCase.CaseTreatment treatment = listed(covered, ignored).treatment();
+        assertEquals(covering, treatment.shown(OPERATOR).id());
+        assertEquals("IGNORE_CONDITION", treatment.shown(OPERATOR).type());
+        assertTrue(treatment.openBy(OPERATOR));
+        end(covering, now.minusSeconds(500));
+        assertEquals(List.of(source, covered), inState(EngineCase.TreatmentState.UNTREATED, EngineCaseStore.CaseFilter.OPEN));
+        assertEquals("call", listed(covered, EngineCaseStore.CaseFilter.OPEN).treatment().last().outcome());
+        finish(treat(covered, OPERATOR, now.minusSeconds(400), ActionKind.NOTE, "Resuelto"), now.minusSeconds(300));
+        assertEquals(List.of(covered), inState(EngineCase.TreatmentState.TREATED, EngineCaseStore.CaseFilter.OPEN));
+        cases.close(tenant, covered, "engine", now.minusSeconds(200));
+        assertEquals(EngineCase.TreatmentState.TREATED, cases.find(tenant, covered).orElseThrow().treatmentState());
+    }
+
+    @Test
+    void concurrentOperatorsCannotOpenASecondTreatmentOnTheCase() throws Exception {
+        long id = open(symptom("single-treatment"), TRUCK, now.minusSeconds(900), 3, null);
+        java.util.concurrent.ExecutorService workers = java.util.concurrent.Executors.newFixedThreadPool(2);
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        try {
+            List<java.util.concurrent.Future<Boolean>> results = new ArrayList<>();
+            for (String actor : List.of(OPERATOR, "other@example.com")) {
+                results.add(workers.submit(() -> {
+                    start.await();
+                    try {
+                        treat(id, actor, now.minusSeconds(100), null, null);
+                        return true;
+                    } catch (IllegalStateException conflict) {
+                        assertEquals("another operator is treating this case", conflict.getMessage());
+                        return false;
+                    }
+                }));
+            }
+            start.countDown();
+            int created = 0;
+            for (var result : results) if (result.get(10, java.util.concurrent.TimeUnit.SECONDS)) created++;
+            assertEquals(1, created);
+            assertEquals(1, treatments.listBySymptom(tenant, -id).size());
+            Treatment own = treatments.listBySymptom(tenant, -id).get(0);
+            assertEquals(own.id(), treat(id, own.openedBy(), now, null, null), "the owner resumes it");
+        } finally {
+            workers.shutdownNow();
+        }
     }
 
     @Test

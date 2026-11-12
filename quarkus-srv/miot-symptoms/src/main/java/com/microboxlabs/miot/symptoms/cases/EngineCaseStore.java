@@ -43,10 +43,7 @@ public interface EngineCaseStore {
     }
 
     /** The cases {@link #list} matches, counted by treatment state, without the list's page limit. */
-    default Map<EngineCase.TreatmentState, Long> treatmentCounts(String tenantCode, CaseFilter filter) {
-        return list(tenantCode, filter).stream()
-                .collect(Collectors.groupingBy(EngineCase::treatmentState, Collectors.counting()));
-    }
+    Map<EngineCase.TreatmentState, Long> treatmentCounts(String tenantCode, CaseFilter filter);
 
     /**
      * The vehicles on a trips-module trip now: it departed and has not ended. Of the filter, only the trip's fields

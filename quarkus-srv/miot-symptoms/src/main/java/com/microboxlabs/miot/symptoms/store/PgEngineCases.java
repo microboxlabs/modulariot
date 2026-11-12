@@ -68,9 +68,10 @@ public class PgEngineCases implements EngineCaseStore {
                    o.latitude, o.longitude, o.speed_kmh, o.operator_required, d.name, d.family,
                    closed.id AS closed_id, closed.at AS closed_at,
                    ot.n AS treatments,
-                   CASE WHEN closed.id IS NULL AND ot.n > 0 THEN 'in_treatment'
+                   CASE WHEN closed.id IS NULL AND (ot.n > 0 OR hold.hold_id IS NOT NULL) THEN 'in_treatment'
                         WHEN done.id IS NOT NULL AND NOT (closed.id IS NULL
-                             AND COALESCE(done.resolution, '') = 'returned_after_ignore') THEN 'treated'
+                             AND (COALESCE(done.resolution, '') = 'returned_after_ignore'
+                                  OR COALESCE(ret.returned_at >= done.closed_at, false))) THEN 'treated'
                         ELSE 'untreated' END AS treatment_state,
                    CASE WHEN o.trip_id IS NOT NULL THEN
                      (SELECT count(*) FROM miot_symptoms.signal_transitions r
@@ -87,7 +88,7 @@ public class PgEngineCases implements EngineCaseStore {
                      ORDER BY c.id LIMIT 1) closed ON true
               LEFT JOIN LATERAL (SELECT count(*) AS n FROM miot_symptoms.treatment t
                      WHERE t.tenant_code = o.tenant_code AND t.symptom_id = -o.id AND t.status = 'OPEN') ot ON true
-              LEFT JOIN LATERAL (SELECT t.id, t.resolution FROM miot_symptoms.treatment t
+              LEFT JOIN LATERAL (SELECT t.id, t.resolution, t.closed_at FROM miot_symptoms.treatment t
                      WHERE t.tenant_code = o.tenant_code AND t.symptom_id = -o.id AND t.status = 'CLOSED'
                      ORDER BY t.closed_at DESC NULLS LAST, t.opened_at DESC, t.id LIMIT 1) done ON true
               LEFT JOIN LATERAL (%s) hold ON true
@@ -104,7 +105,8 @@ public class PgEngineCases implements EngineCaseStore {
                    (SELECT json_agg(json_build_object('id', t.id, 'type', t.type, 'opened_by', t.opened_by,
                            'opened_at', t.opened_at) ORDER BY t.opened_at, t.id)::text
                       FROM miot_symptoms.treatment t
-                     WHERE t.tenant_code = c.tenant_code AND t.symptom_id = -c.id AND t.status = 'OPEN')
+                     WHERE t.tenant_code = c.tenant_code AND (t.symptom_id = -c.id OR t.id = c.hold_id::uuid)
+                       AND t.status = 'OPEN')
                        AS open_treatments,
                    (SELECT json_build_object('id', t.id, 'type', t.type, 'opened_by', t.opened_by,
                            'opened_at', t.opened_at, 'closed_by', t.closed_by, 'closed_at', t.closed_at,

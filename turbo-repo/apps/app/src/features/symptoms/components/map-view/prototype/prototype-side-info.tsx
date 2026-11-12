@@ -232,7 +232,7 @@ export default function PrototypeSideInfo({
           gestión" has no past modal and always opens inline. */}
       {(!isFormOpen || showPastModal || formLocked) && (
         <>
-          <div className="flex flex-col h-full overflow-y-auto pb-20 gap-1">
+          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto pb-2 gap-1">
             <div className="border border-gray-300 dark:border-gray-700 flex flex-row items-center justify-between gap-2 rounded-md transition-all duration-200">
               <div className="flex flex-row items-center gap-2 pl-2 py-1">
                 <div className="text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200 rounded-md w-5 h-5 border-transparent bg-transparent">
@@ -276,7 +276,7 @@ export default function PrototypeSideInfo({
             )}
           </div>
           <div
-            className={`absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5 ${loading ? "opacity-50" : "opacity-100"}`}
+            className={`flex shrink-0 flex-col w-full px-4 pt-2 pb-4 ${loading ? "opacity-50" : "opacity-100"}`}
           >
             {readOnly && symptomInfo && (
               <ReadOnlyNotice info={symptomInfo} dict={dict} />

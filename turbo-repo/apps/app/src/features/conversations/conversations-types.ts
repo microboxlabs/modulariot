@@ -277,8 +277,8 @@ export interface MetaTemplate {
   id: string;
   name: string;
   language: string;
-  category: MetaTemplateCategory | string;
-  status: MetaTemplateStatus | string;
+  category: MetaTemplateCategory | (string & {});
+  status: MetaTemplateStatus | (string & {});
   rejectedReason: string | null;
   parameterFormat: string;
   /** TEXT, IMAGE, VIDEO, DOCUMENT or LOCATION; null without a header. */

@@ -77,26 +77,20 @@ function useTreatmentFormLock(
 ) {
   const [ownEpisode, setOwnEpisode] = useState<string | null>(null);
   const episode = symptomInfo?.treatment;
+  // The user's own open episode, which a hold makes read-only all the same.
+  const own =
+    !!episode?.mine && episode.status === "OPEN" && !symptomInfo?.ignored;
   useEffect(() => {
     if (!isFormOpen) setOwnEpisode(null);
-    else if (!readOnly && episode?.mine && episode.status === "OPEN") {
-      setOwnEpisode(`${symptomInfo?.id}:${episode.id}`);
-    }
-  }, [
-    readOnly,
-    isFormOpen,
-    symptomInfo?.id,
-    episode?.id,
-    episode?.mine,
-    episode?.status,
-  ]);
+    else if (own) setOwnEpisode(`${symptomInfo?.id}:${episode?.id}`);
+  }, [isFormOpen, own, symptomInfo?.id, episode?.id]);
   const sameCase = ownEpisode?.startsWith(`${symptomInfo?.id}:`) ?? false;
   const finishingOwnEpisode =
     isFormOpen &&
     sameCase &&
     (ownEpisode === `${symptomInfo?.id}:${episode?.id}` ||
       !!symptomInfo?.closed_at);
-  const formLocked = readOnly && !finishingOwnEpisode;
+  const formLocked = readOnly && !own && !finishingOwnEpisode;
   useEffect(() => {
     if (formLocked && isFormOpen) setIsFormOpen(false);
   }, [formLocked, isFormOpen, setIsFormOpen]);
@@ -138,7 +132,7 @@ export default function PrototypeSideInfo({
 }>) {
   const pastFormsEnabled = useRuntimeConfig()?.SYMPTOMS_PAST_FORMS === "true";
   const [order, setOrder] = useState<"asc" | "desc">("desc");
-  // Only the form's own episode may finish saving after the case closes.
+  // After the case closes, only the user's own open episode may still save.
   const symptomInfo = treatmentData?.symptom_info;
   const readOnly = !!symptomInfo && isReadOnlyCase(symptomInfo);
   const formLocked = useTreatmentFormLock(

@@ -90,7 +90,7 @@ describe("SymptomsTable treatment state", () => {
     pagination: { ...EMPTY_PAGE.pagination, total_rows: 1 },
   };
 
-  it("has a treatment column after the creation date", () => {
+  it("ends with the treatment column, which holds the row action", () => {
     mockUseSymptomsTable.mockReturnValue({
       tableData: ONE_ROW,
       loading: false,
@@ -102,7 +102,7 @@ describe("SymptomsTable treatment state", () => {
     const titles = within(screen.getByTestId("columns"))
       .getAllByRole("listitem")
       .map((li) => li.textContent);
-    expect(titles.slice(-3)).toEqual(["Fecha de creación", "Tratamiento", ""]);
+    expect(titles.slice(-2)).toEqual(["Fecha de creación", "Tratamiento"]);
   });
 
   it.each(["untreated", "in_treatment", "treated"])(

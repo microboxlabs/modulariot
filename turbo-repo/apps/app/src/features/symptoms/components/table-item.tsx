@@ -47,11 +47,11 @@ const ACTION_LABEL = {
 } as const;
 
 /**
- * The row's button: "Tratar" only for an open case nobody treats, "Continuar"
- * for the user's own open treatment, else a link that only shows the case.
- * A case another operator treats says who.
+ * The treatment column: the "Tratar" button for an open case nobody treats;
+ * otherwise the treatment state, as a link that continues the user's own open
+ * treatment or shows the case. A case another operator treats says who.
  */
-function RowAction({
+function TreatmentColumn({
   data,
   href,
   dict,
@@ -60,30 +60,48 @@ function RowAction({
   const action: CaseAction = data.ignored
     ? "view_treatment"
     : caseActionOf(data.treatmentState, data.treatment, !!data.endDate);
+  const label = trDynamic(ACTION_LABEL[action], dict);
+
+  if (action === "treat") {
+    return (
+      <Button
+        as={Link}
+        className="h-8 w-fit flex justify-center items-center !text-xs"
+        color="blue"
+        href={href}
+      >
+        <div className="flex items-center gap-2">
+          <p>{label}</p>
+          <HiArrowRight className="w-4 h-4" />
+        </div>
+      </Button>
+    );
+  }
+
   const others =
     data.treatmentState === "in_treatment" && !data.ignored
       ? otherOperators(data.treatment)
       : [];
-  const primary = action === "treat" || action === "continue";
   return (
-    <Button
-      as={Link}
-      className="h-8 flex justify-center items-center !text-xs"
-      color={primary ? "blue" : "light"}
+    <Link
+      className={ROW_LINK}
       href={action === "continue" ? continueTreatmentHref(href) : href}
+      aria-label={label}
       title={
         others.length
           ? tr("symptoms.treating_by_other", dict, {
               operator: others.join(", "),
             })
-          : undefined
+          : label
       }
     >
-      <div className="flex items-center gap-2">
-        <p>{trDynamic(ACTION_LABEL[action], dict)}</p>
-        <HiArrowRight className="w-4 h-4" />
-      </div>
-    </Button>
+      <TreatmentStateCell
+        state={data.treatmentState}
+        treatment={data.treatment}
+        ignored={data.ignored}
+        dict={dict}
+      />
+    </Link>
   );
 }
 
@@ -238,16 +256,6 @@ export default function TableItem({
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
-          <TreatmentStateCell
-            state={data.treatmentState}
-            treatment={data.treatment}
-            ignored={data.ignored}
-            dict={dict}
-          />
-        </TableCell>
-        <TableCell
-          className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
-        >
           <div className="flex items-center gap-2">
             {data.last_assigned_to ? (
               <Link href={href}>
@@ -266,7 +274,7 @@ export default function TableItem({
                 </Button>
               </Link>
             ) : (
-              <RowAction data={data} href={href} dict={dict} />
+              <TreatmentColumn data={data} href={href} dict={dict} />
             )}
           </div>
         </TableCell>

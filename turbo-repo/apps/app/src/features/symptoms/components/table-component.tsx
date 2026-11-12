@@ -103,7 +103,6 @@ export default function SymptomsTable({
         (dict.symptoms as I18nRecord).driver as string,
         (dict.symptoms as I18nRecord).creation_date as string,
         (dict.symptoms as I18nRecord).treatment_column as string,
-        "",
       ]
     : [
         (dict.symptoms as I18nRecord).condition as string,

@@ -172,12 +172,10 @@ describe("symptoms treatment column and row action", () => {
     return screen.getByRole("link", { name });
   }
 
-  it("shows 'Sin tratar' and Tratar for an open case nobody treats", () => {
+  it("shows only Tratar for an open case nobody treats", () => {
     renderRow({ ...row, treatmentState: "untreated", treatment: null });
 
-    expect(
-      within(screen.getByTestId("treatment-state")).getByText("Sin tratar")
-    ).toBeInTheDocument();
+    expect(screen.queryByTestId("treatment-state")).toBeNull();
     expect(actionLink("Tratar")).toHaveAttribute("href", href);
   });
 
@@ -285,7 +283,7 @@ describe("symptoms treatment column and row action", () => {
     expect(actionLink("Ver tratamiento")).toHaveAttribute("href", href);
   });
 
-  it("keeps a case back from a hold as 'Sin tratar' with Tratar", () => {
+  it("shows only Tratar for a case back from a hold", () => {
     renderRow({
       ...row,
       treatmentState: "untreated",
@@ -300,9 +298,8 @@ describe("symptoms treatment column and row action", () => {
       returnedAfterIgnoreAt: "2026-01-01T00:09:00Z",
     });
 
-    const cell = screen.getByTestId("treatment-state");
-    expect(within(cell).getByText("Sin tratar")).toBeInTheDocument();
-    expect(within(cell).queryByText(/por system/)).toBeNull();
+    expect(screen.queryByTestId("treatment-state")).toBeNull();
+    expect(screen.queryByText(/por system/)).toBeNull();
     expect(actionLink("Tratar")).toHaveAttribute("href", href);
   });
 

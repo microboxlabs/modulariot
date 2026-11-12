@@ -100,6 +100,42 @@ class PgTreatmentStoresTest {
     }
 
     @Test
+    void abandonCancelsOnlyTheOwnersEmptyEpisode() {
+        String tenant = tenant();
+        var t = treatments.insert(openTreatment(tenant, 712L, ACTOR)).treatment();
+        assertTrue(treatments.cancelEmpty("other-tenant", t.id(), ACTOR).isEmpty());
+        assertTrue(treatments.cancelEmpty(tenant, t.id(), "other-operator").isEmpty());
+        treatments.addAction(note(tenant, t.id(), null));
+        assertTrue(treatments.cancelEmpty(tenant, t.id(), ACTOR).isEmpty());
+        assertEquals(TreatmentStatus.OPEN, treatments.find(tenant, t.id()).orElseThrow().status());
+        var empty = treatments.insert(openTreatment(tenant, 713L, ACTOR)).treatment();
+        assertEquals(TreatmentStatus.CANCELLED, treatments.cancelEmpty(tenant, empty.id(), ACTOR).orElseThrow().status());
+        assertTrue(treatments.cancelEmpty(tenant, empty.id(), ACTOR).isEmpty());
+    }
+
+    @Test
+    void anActionRacingAbandonIsNeverCancelledAfterItCommits() throws Exception {
+        String tenant = tenant();
+        try (var workers = Executors.newFixedThreadPool(2)) {
+            for (int i = 0; i < 10; i++) {
+                var t = treatments.insert(openTreatment(tenant, 900L + i, ACTOR)).treatment();
+                var start = new java.util.concurrent.CountDownLatch(1);
+                var action = workers.submit(() -> {
+                    start.await();
+                    try { treatments.addAction(note(tenant, t.id(), null)); return true; }
+                    catch (IllegalStateException closed) { return false; }
+                });
+                var abandon = workers.submit(() -> { start.await(); return treatments.cancelEmpty(tenant, t.id(), ACTOR); });
+                start.countDown();
+                boolean saved = action.get();
+                abandon.get();
+                assertEquals(saved ? TreatmentStatus.OPEN : TreatmentStatus.CANCELLED,
+                        treatments.find(tenant, t.id()).orElseThrow().status());
+            }
+        }
+    }
+
+    @Test
     void aSyncUpdateCannotOverwriteAnEditCommittedAfterItsRead() {
         String tenant = tenant();
         Contact read = contacts.insert(new Contact(null, tenant, "Juan", null, null, List.of(), true, null,
@@ -743,6 +779,11 @@ class PgTreatmentStoresTest {
 
     /** Delegates to a store but never finds an open episode, to reach the insert conflict path. */
     private record MissingOpenLookup(TreatmentStore store) implements TreatmentStore {
+        @Override
+        public Optional<Treatment> cancelEmpty(String tenantCode, String id, String actor) {
+            return store.cancelEmpty(tenantCode, id, actor);
+        }
+
 
         @Override
         public Inserted insert(Treatment treatment) {

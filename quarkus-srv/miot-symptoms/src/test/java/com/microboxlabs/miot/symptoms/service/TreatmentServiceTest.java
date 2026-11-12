@@ -48,6 +48,21 @@ class TreatmentServiceTest {
     }
 
     @Test
+    void abandonmentIsEmptyOnlyOwnedAndIdempotent() {
+        String empty = service.open(TENANT, ACTOR, 991L, open(TreatmentType.CALL)).treatment().id();
+        service.abandon(TENANT, "another-operator", empty);
+        service.abandon("another-tenant", ACTOR, empty);
+        assertEquals(TreatmentStatus.OPEN, service.get(TENANT, empty).status());
+        service.abandon(TENANT, ACTOR, empty);
+        service.abandon(TENANT, ACTOR, empty);
+        assertEquals(TreatmentStatus.CANCELLED, service.get(TENANT, empty).status());
+        String recorded = service.open(TENANT, ACTOR, 992L, open(TreatmentType.CALL)).treatment().id();
+        service.addAction(TENANT, ACTOR, recorded, call(null, "Synthetic contact", true));
+        service.abandon(TENANT, ACTOR, recorded);
+        assertEquals(TreatmentStatus.OPEN, service.get(TENANT, recorded).status());
+    }
+
+    @Test
     void openCreatesThenResumesTheSameOperatorsEpisode() {
         var first = service.open(TENANT, ACTOR, 42L, open(TreatmentType.CALL));
         var again = service.open(TENANT, ACTOR, 42L, open(TreatmentType.IGNORE_CONDITION));

@@ -100,6 +100,7 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerTreatmentsResource.close", TREAT),
             Map.entry("OrgControlTowerTreatmentsResource.resume", TREAT),
             Map.entry("OrgControlTowerTreatmentsResource.cancel", TREAT),
+            Map.entry("OrgControlTowerTreatmentsResource.abandon", TREAT),
             Map.entry("OrgDataSourcesResource.list", VIEW),
             Map.entry("OrgDataSourcesResource.get", VIEW),
             Map.entry("OrgDataSourcesResource.eventTypes", VIEW),

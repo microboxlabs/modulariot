@@ -13,6 +13,7 @@ const tower = vi.hoisted(() => ({
   openTreatment: vi.fn(),
   addTreatmentAction: vi.fn(),
   closeTreatment: vi.fn(),
+  cancelTreatment: vi.fn(),
   revalidateCase: vi.fn(),
 }));
 const config = vi.hoisted(() => ({ disabled: false }));
@@ -25,10 +26,15 @@ vi.mock("@/features/runtime-config/runtime-config-context", () => ({
 }));
 
 import {
+  forgetStartedTreatments,
+  retainTreatmentForCall,
+  abandonRetainedCallTreatment,
+  guardedAbandonTreatment,
   guardedFinishTreatment,
   guardedInvalidateSymptom,
   guardedRequestTreatment,
   guardedSkipStep,
+  guardedStartTreatment,
   isCaseClosedError,
   RECORD_HANDLING_TYPE,
   treatmentSaveErrorKey,
@@ -47,10 +53,12 @@ const base: TreatmentsRequest = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  forgetStartedTreatments();
   config.disabled = false;
   tower.openTreatment.mockResolvedValue({ id: "t-1", type: "CALL" });
   tower.addTreatmentAction.mockResolvedValue({});
   tower.closeTreatment.mockResolvedValue({});
+  tower.cancelTreatment.mockResolvedValue({});
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => new Response("{}"))
@@ -220,6 +228,189 @@ describe("treatments on an engine case", () => {
   });
 });
 
+describe("the treatment opened when the operator starts", () => {
+  const caseClosed = () =>
+    new tower.ControlTowerError("the case is closed", 409);
+
+  it("opens it once and revalidates the case", async () => {
+    await guardedStartTreatment(base);
+    await guardedStartTreatment(base);
+
+    expect(tower.openTreatment).toHaveBeenCalledTimes(1);
+    expect(tower.openTreatment).toHaveBeenCalledWith("-16", {
+      type: "CALL",
+      assetId: "asset-test",
+      tripId: "trip-1",
+    });
+    expect(tower.revalidateCase).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens it with the type of the form the panel opened on", async () => {
+    await guardedStartTreatment({
+      ...base,
+      treatment_type: "invalidar sintoma",
+    });
+
+    expect(tower.openTreatment.mock.calls[0][1].type).toBe(
+      "INVALIDATE_SYMPTOM"
+    );
+  });
+
+  it("records a save into it after the engine closed the case", async () => {
+    await guardedStartTreatment(base);
+    tower.openTreatment.mockRejectedValue(caseClosed());
+
+    await guardedRequestTreatment({ ...base, description: "Contactado" });
+
+    expect(tower.openTreatment).toHaveBeenCalledTimes(1);
+    expect(tower.addTreatmentAction.mock.calls[0][0]).toBe("t-1");
+    expect(tower.closeTreatment).toHaveBeenCalledWith("t-1", {
+      resolution: "Contactado",
+    });
+  });
+
+  it("records a call-step skip into it after the engine closed the case", async () => {
+    await guardedStartTreatment(base);
+    tower.openTreatment.mockRejectedValue(caseClosed());
+
+    await guardedSkipStep({
+      symptomId: -16,
+      toStep: 1,
+      reason: "No contesta",
+      skipId: "skip-1",
+    });
+
+    expect(tower.addTreatmentAction.mock.calls[0][0]).toBe("t-1");
+  });
+
+  it("is refused on a case that was already closed", async () => {
+    tower.openTreatment.mockRejectedValue(caseClosed());
+
+    const refusal = await guardedStartTreatment(base).catch((e) => e);
+
+    expect(isCaseClosedError(refusal)).toBe(true);
+    expect(tower.revalidateCase).not.toHaveBeenCalled();
+  });
+
+  it("opens again after a failed try", async () => {
+    tower.openTreatment.mockRejectedValueOnce(new Error("network"));
+    await expect(guardedStartTreatment(base)).rejects.toThrow("network");
+
+    await guardedStartTreatment(base);
+
+    expect(tower.openTreatment).toHaveBeenCalledTimes(2);
+  });
+
+  it("is cancelled when the operator leaves without recording anything", async () => {
+    await guardedStartTreatment(base);
+
+    await guardedAbandonTreatment(base.symptom_id);
+
+    expect(tower.cancelTreatment).toHaveBeenCalledWith(
+      "t-1",
+      "panel closed",
+      {}
+    );
+    expect(tower.revalidateCase).toHaveBeenCalledTimes(2);
+  });
+
+  it("is cancelled once it opens when the operator left before that", async () => {
+    let opened: (treatment: { id: string }) => void = () => {};
+    tower.openTreatment.mockReturnValue(
+      new Promise((resolve) => (opened = resolve))
+    );
+    const starting = guardedStartTreatment(base);
+    const leaving = guardedAbandonTreatment(base.symptom_id);
+    expect(tower.cancelTreatment).not.toHaveBeenCalled();
+
+    opened({ id: "t-1" });
+    await Promise.all([starting, leaving]);
+
+    expect(tower.cancelTreatment).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the cancel outlive the page", async () => {
+    await guardedStartTreatment(base);
+
+    await guardedAbandonTreatment(base.symptom_id, { keepalive: true });
+
+    expect(tower.cancelTreatment).toHaveBeenCalledWith("t-1", "panel closed", {
+      keepalive: true,
+    });
+  });
+
+  it("stays open when an action was recorded in it", async () => {
+    await guardedStartTreatment(base);
+    await guardedRequestTreatment(base, { finish: false });
+
+    await guardedAbandonTreatment(base.symptom_id);
+
+    expect(tower.cancelTreatment).not.toHaveBeenCalled();
+  });
+
+  it("stays open while an action is being recorded", async () => {
+    await guardedStartTreatment(base);
+    let recorded: (action: object) => void = () => {};
+    tower.addTreatmentAction.mockReturnValue(
+      new Promise((resolve) => (recorded = resolve))
+    );
+    const saving = guardedRequestTreatment(base, { finish: false });
+    await Promise.resolve();
+
+    const leaving = guardedAbandonTreatment(base.symptom_id);
+    recorded({});
+    await saving;
+    await leaving;
+
+    expect(tower.cancelTreatment).not.toHaveBeenCalled();
+  });
+
+  it("stays open when it was resumed with actions from before", async () => {
+    tower.openTreatment.mockResolvedValue({ id: "t-1", actions: [{}] });
+    await guardedStartTreatment(base);
+
+    await guardedAbandonTreatment(base.symptom_id);
+
+    expect(tower.cancelTreatment).not.toHaveBeenCalled();
+  });
+
+  it("opens the next one only after the cancel of the abandoned one", async () => {
+    await guardedStartTreatment(base);
+    let cancelled: (treatment: object) => void = () => {};
+    tower.cancelTreatment.mockReturnValue(
+      new Promise((resolve) => (cancelled = resolve))
+    );
+    void guardedAbandonTreatment(base.symptom_id);
+
+    const restarting = guardedStartTreatment(base);
+    await Promise.resolve();
+    expect(tower.openTreatment).toHaveBeenCalledTimes(1);
+    cancelled({});
+    await restarting;
+
+    expect(tower.openTreatment).toHaveBeenCalledTimes(2);
+  });
+
+  it("has nothing to cancel after the treatment was finished", async () => {
+    await guardedStartTreatment(base);
+    await guardedRequestTreatment(base);
+
+    await guardedAbandonTreatment(base.symptom_id);
+
+    expect(tower.cancelTreatment).not.toHaveBeenCalled();
+  });
+
+  it("opens nothing with the API off or outside the Control Tower", async () => {
+    await guardedStartTreatment({ ...base, symptom_id: "16" });
+    config.disabled = true;
+    await guardedStartTreatment(base);
+    await guardedAbandonTreatment(base.symptom_id);
+
+    expect(tower.openTreatment).not.toHaveBeenCalled();
+    expect(tower.cancelTreatment).not.toHaveBeenCalled();
+  });
+});
+
 describe("treatments on a symptom that is not an engine case", () => {
   const gps = { ...base, symptom_id: "4512" };
 
@@ -307,5 +498,68 @@ describe("call-step skips", () => {
     });
     expect(tower.openTreatment).not.toHaveBeenCalled();
     expect(tower.addTreatmentAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("discarding a call after leaving its panel", () => {
+  it("cancels the empty treatment retained for that call", async () => {
+    await guardedStartTreatment(base);
+    retainTreatmentForCall(base.symptom_id);
+    abandonRetainedCallTreatment(String(base.symptom_id));
+    await vi.waitFor(() =>
+      expect(tower.cancelTreatment).toHaveBeenCalledWith(
+        "t-1",
+        "panel closed",
+        {}
+      )
+    );
+  });
+
+  it("keeps a treatment whose panel has reopened", async () => {
+    await guardedStartTreatment(base);
+    retainTreatmentForCall(base.symptom_id);
+    await guardedStartTreatment(base);
+    abandonRetainedCallTreatment(String(base.symptom_id));
+    await Promise.resolve();
+    expect(tower.cancelTreatment).not.toHaveBeenCalled();
+  });
+
+  it("keeps recorded actions when their call is cleared", async () => {
+    await guardedRequestTreatment(base, { finish: false });
+    retainTreatmentForCall(base.symptom_id);
+    abandonRetainedCallTreatment(String(base.symptom_id));
+    await Promise.resolve();
+    expect(tower.cancelTreatment).not.toHaveBeenCalled();
+  });
+});
+
+it("cancels after leaving if the pending action fails", async () => {
+  await guardedStartTreatment(base);
+  let fail!: (error: Error) => void;
+  tower.addTreatmentAction.mockReturnValueOnce(
+    new Promise((_resolve, reject) => {
+      fail = reject;
+    })
+  );
+  const saving = guardedRequestTreatment(base, { finish: false });
+  const rejected = expect(saving).rejects.toThrow("network");
+  await vi.waitFor(() => expect(tower.addTreatmentAction).toHaveBeenCalled());
+  const leaving = guardedAbandonTreatment(base.symptom_id);
+  fail(new Error("network"));
+  await rejected;
+  await leaving;
+  expect(tower.cancelTreatment).toHaveBeenCalledTimes(1);
+});
+
+it("retains the opening organization while a failed save delays abandonment", async () => {
+  tower.openTreatment.mockResolvedValueOnce({
+    id: "t1",
+    actions: [],
+    organizationSlug: "old-org",
+  });
+  await guardedStartTreatment(base);
+  await guardedAbandonTreatment(base.symptom_id);
+  expect(tower.cancelTreatment).toHaveBeenCalledWith("t1", "panel closed", {
+    organizationSlug: "old-org",
   });
 });

@@ -8,11 +8,8 @@ import {
   guardedFinishTreatment,
   guardedRequestTreatment,
   guardedSkipStep,
+  forgetStartedTreatments,
 } from "../components/map-view/prototype/prototype-api-guard";
-import {
-  TreatmentSessionProvider,
-  useTreatmentSession,
-} from "../components/map-view/prototype/treatment-session";
 import {
   CONTROL_TOWER_BASE,
   isCaseKey,
@@ -124,27 +121,19 @@ function OtherViews({ id }: Readonly<{ id: number }>) {
   );
 }
 
-let session: ReturnType<typeof useTreatmentSession>;
-function Session() {
-  session = useTreatmentSession();
-  return null;
-}
-
 /** The default SWR cache, as in the app, where `revalidateCase` writes. */
-function renderCase(id: number, children?: React.ReactNode) {
+function renderCase(id: number) {
   render(
     <SWRConfig value={{ dedupingInterval: 0 }}>
-      <TreatmentSessionProvider symptomId={id}>
-        <Timeline id={String(id)} />
-        <OtherViews id={id} />
-        {children}
-      </TreatmentSessionProvider>
+      <Timeline id={String(id)} />
+      <OtherViews id={id} />
     </SWRConfig>
   );
 }
 
 describe("the case timeline after a save", () => {
   beforeEach(() => {
+    forgetStartedTreatments();
     stubBackend();
   });
   afterEach(async () => {
@@ -169,17 +158,6 @@ describe("the case timeline after a save", () => {
     expect(await screen.findByText("nota 1")).toBeTruthy();
     expect(await screen.findByText("señales 1")).toBeTruthy();
     expect(await screen.findByText("acciones 1")).toBeTruthy();
-  });
-
-  it("shows an action saved in the treatment session without a reload", async () => {
-    renderCase(-8, <Session />);
-    expect(await screen.findByText("apertura")).toBeTruthy();
-
-    await act(() => session.addAction({ kind: "NOTE", note: "sin respuesta" }));
-
-    expect(await screen.findByText("nota 1")).toBeTruthy();
-    await act(() => session.finish());
-    expect(await screen.findByText("cierre")).toBeInTheDocument();
   });
 
   const request: TreatmentsRequest = {

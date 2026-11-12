@@ -291,6 +291,13 @@ public class TreatmentService {
         return TreatmentView.of(closed, actions);
     }
 
+    /** A disconnected panel must never cancel a recorded action or another operator's episode. */
+    public void abandon(String tenantCode, String actor, String treatmentId) {
+        treatments.cancelEmpty(tenantCode, treatmentId, actor).ifPresent(cancelled ->
+                audit.log(tenantCode, actor, "treatment.cancelled", ENTITY, cancelled.id(), cancelled.symptomId(),
+                        Map.of("reason", "panel closed")));
+    }
+
     /**
      * Abandons an open episode, e.g. a form that was opened and dismissed. An engine case's hold is resumed, not
      * cancelled.

@@ -41,6 +41,8 @@ export interface TowerAction {
 }
 
 export interface TowerTreatment {
+  /** Original server-resolved organization, retained for deferred abandonment. */
+  organizationSlug?: string;
   id: string;
   symptomId: number;
   assetId: string | null;
@@ -218,7 +220,7 @@ function parseJson(text: string) {
 /** `path` is relative to the proxy, or a full app API URL such as a key from the `*Key` helpers. */
 async function request<T>(
   path: string,
-  init?: { method?: string; body?: unknown }
+  init?: { method?: string; body?: unknown; keepalive?: boolean }
 ): Promise<T> {
   const url = path.startsWith(API_ROOT) ? path : `${BASE}${path}`;
   const response = await fetch(url, {
@@ -229,6 +231,7 @@ async function request<T>(
         : undefined,
     body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
     cache: "no-store",
+    keepalive: init?.keepalive,
   });
   if (response.status === 204) return undefined as T;
   const text = await response.text();
@@ -240,6 +243,8 @@ async function request<T>(
       typeof json?.code === "string" ? json.code : undefined
     );
   }
+  const organizationSlug = response.headers.get("X-Control-Tower-Organization");
+  if (json && organizationSlug) json.organizationSlug = organizationSlug;
   return json as T;
 }
 
@@ -459,10 +464,16 @@ export function resumeTreatment(treatmentId: string) {
   });
 }
 
-export function cancelTreatment(treatmentId: string, reason?: string) {
-  return request<TowerTreatment>(`/treatments/${treatmentId}/cancel`, {
+/** `keepalive` lets the request finish after the page unloads. */
+export function cancelTreatment(
+  treatmentId: string,
+  reason?: string,
+  options: { keepalive?: boolean; organizationSlug?: string } = {}
+) {
+  return request<void>(`/treatments/${treatmentId}/abandon`, {
     method: "POST",
     body: reason ? { reason } : {},
+    keepalive: options.keepalive,
   });
 }
 

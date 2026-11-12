@@ -6,6 +6,7 @@ import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
 import PrototypeRecordHandling from "./prototype-record-handling";
+import { forgetStartedTreatments } from "./prototype-api-guard";
 
 const api = vi.hoisted(() => ({
   openTreatment: vi.fn(),
@@ -114,6 +115,7 @@ const saveButton = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  forgetStartedTreatments();
   selectableOptions = OUTCOMES;
   api.openTreatment.mockResolvedValue({ id: "t-1", type: "CALL" });
   api.addTreatmentAction.mockResolvedValue({});

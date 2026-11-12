@@ -196,6 +196,22 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     }
 
     @POST
+    @Path("/treatments/{treatmentId}/abandon")
+    @Operation(operationId = "abandonEmptyTreatment", summary = "Cancel your empty treatment if still open")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> abandon(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("treatmentId") String treatmentId) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return work(() -> {
+            treatments.abandon(tenant, actor, treatmentId);
+            return Response.noContent().build();
+        });
+    }
+
+    @POST
     @Path("/treatments/{treatmentId}/cancel")
     @Operation(operationId = "cancelTreatment", summary = "Abandon an open treatment")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,

@@ -12,6 +12,11 @@ import {
 } from "./call-session-store";
 import type { StartCallOptions } from "./telnyx-call";
 
+const abandon = vi.hoisted(() => vi.fn());
+vi.mock("../prototype-api-guard", () => ({
+  abandonRetainedCallTreatment: abandon,
+}));
+
 const scope = vi.hoisted(() => ({ slug: "org-1" as string | null }));
 vi.mock(
   "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
@@ -94,6 +99,7 @@ function browserCall() {
 }
 
 beforeEach(() => {
+  abandon.mockClear();
   sessionStorage.clear();
   session = null;
   scope.slug = "org-1";
@@ -251,6 +257,16 @@ describe("CallSessionProvider", () => {
     act(() => s().clearIfOver("other-case"));
     expect(s().call).not.toBeNull();
     act(() => s().clearIfOver("case-1"));
+    expect(s().call).toBeNull();
+  });
+
+  it("releases a treatment retained by a closed panel when the call is discarded", () => {
+    mount();
+    act(() => {
+      s().startManual(manual);
+    });
+    act(() => s().cancel());
+    expect(abandon).toHaveBeenCalledWith("case-1");
     expect(s().call).toBeNull();
   });
 

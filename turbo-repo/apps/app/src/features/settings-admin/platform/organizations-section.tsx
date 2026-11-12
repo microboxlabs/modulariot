@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import { Button, Label, Select, TextInput } from "flowbite-react";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { toast } from "sonner";
@@ -114,7 +114,7 @@ export default function OrganizationsSection({
     setProblem(null);
   };
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const result = toOrganizationRequest(draft);
     if (!result.ok) {

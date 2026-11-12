@@ -82,7 +82,7 @@ export default function FormModal({
   showCancelButton = false,
   showHeaderClose = false,
 }: FormModalProps) {
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSubmit();
   };

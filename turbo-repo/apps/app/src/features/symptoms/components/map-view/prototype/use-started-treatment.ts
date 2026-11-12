@@ -6,6 +6,7 @@ import type { CallSession } from "./call-center/call-session";
 import {
   guardedAbandonTreatment,
   guardedStartTreatment,
+  retainTreatmentForCall,
   isConflict,
 } from "./prototype-api-guard";
 
@@ -22,20 +23,37 @@ export function useStartedTreatment({
   active,
   callSession,
   onRefused,
+  onFailed,
 }: {
   request: TreatmentsRequest;
   active: boolean;
   callSession: CallSession | null;
   /** The API refused the treatment: the case is closed, or another operator treats it. */
-  onRefused: (error: unknown) => void;
+  onRefused: (error: Error) => void;
+  onFailed: () => void;
 }): { ensure: () => void; callCleared: () => void } {
   const symptomId = request.symptom_id;
-  const latest = useRef({ request, onRefused, call: callSession?.call });
-  latest.current = { request, onRefused, call: callSession?.call };
+  const latest = useRef({
+    request,
+    onRefused,
+    onFailed,
+    call: callSession?.call,
+  });
+  const lifetime = useRef<object | null>(null);
+  useEffect(() => {
+    latest.current = { ...latest.current, request, onRefused, onFailed };
+  }, [request, onRefused, onFailed]);
+  useEffect(() => {
+    latest.current.call = callSession?.call;
+  }, [callSession?.call]);
 
   const ensure = useCallback(() => {
+    const current = lifetime.current;
+    if (!current) return;
     guardedStartTreatment(latest.current.request).catch((error: unknown) => {
+      if (lifetime.current !== current) return;
       if (isConflict(error)) latest.current.onRefused(error);
+      else latest.current.onFailed();
     });
   }, []);
 
@@ -46,18 +64,21 @@ export function useStartedTreatment({
 
   useEffect(() => {
     if (!active) return;
+    lifetime.current = {};
     ensure();
     const leave = (keepalive: boolean) => {
       const call = latest.current.call;
       const callPending =
         call?.status !== "failed" && call?.context.caseId === String(symptomId);
-      if (!callPending) void guardedAbandonTreatment(symptomId, { keepalive });
+      if (callPending) retainTreatmentForCall(symptomId);
+      else void guardedAbandonTreatment(symptomId, { keepalive });
     };
     const onPageHide = () => leave(true);
     // A page restored from the back/forward cache still shows the panel.
     globalThis.addEventListener("pagehide", onPageHide);
     globalThis.addEventListener("pageshow", ensure);
     return () => {
+      lifetime.current = null;
       globalThis.removeEventListener("pagehide", onPageHide);
       globalThis.removeEventListener("pageshow", ensure);
       leave(false);

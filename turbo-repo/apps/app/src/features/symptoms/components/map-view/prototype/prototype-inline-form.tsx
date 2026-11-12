@@ -258,6 +258,13 @@ export default function PrototypeInlineForm({
     },
     active: isMenuOpen && selectedOption !== "contact_via_whatsapp",
     callSession,
+    onFailed: () => {
+      ShowNotification({
+        type: "error",
+        message: tr("symptoms.treatment_start_error", dict),
+      });
+      setIsMenuOpen(false);
+    },
     onRefused: (error) => {
       if (isCaseClosedError(error)) {
         ShowNotification({

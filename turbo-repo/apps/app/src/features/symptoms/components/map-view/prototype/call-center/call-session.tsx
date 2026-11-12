@@ -45,6 +45,8 @@ import {
   type LiveCall,
 } from "./telnyx-call";
 
+import { abandonRetainedCallTreatment } from "../prototype-api-guard";
+
 export type { ActiveCall, CallContext, CallStatus } from "./call-session-store";
 
 export interface StartCall {
@@ -480,6 +482,7 @@ export function CallSessionProvider({
   };
 
   const cancel = () => {
+    abandonRetainedCallTreatment(callRef.current?.context.caseId ?? null);
     stopEngine();
     callRef.current = null;
     setCall(null);

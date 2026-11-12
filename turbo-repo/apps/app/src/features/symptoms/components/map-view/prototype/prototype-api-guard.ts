@@ -91,11 +91,27 @@ interface TreatmentTarget {
 const started = new Map<string, Promise<StartedTreatment>>();
 /** By case id: the cancel of an abandoned treatment, which the next opening waits for. */
 const leaving = new Map<string, Promise<void>>();
+/** Panels left while their call still needed a result. */
+const retainedForCall = new Set<string>();
+
+export function retainTreatmentForCall(
+  symptomId: number | string | undefined
+): void {
+  retainedForCall.add(String(symptomId));
+}
+
+/** Discarding the call releases only a treatment whose panel has already left. */
+export function abandonRetainedCallTreatment(symptomId: string | null): void {
+  if (symptomId !== null && retainedForCall.delete(symptomId)) {
+    void guardedAbandonTreatment(symptomId);
+  }
+}
 
 /** Forgets every treatment this page opened, without cancelling any. */
 export function forgetStartedTreatments(): void {
   started.clear();
   leaving.clear();
+  retainedForCall.clear();
 }
 
 /** A conflict answer from the Control Tower API (`ControlTowerError`). */
@@ -318,6 +334,7 @@ export async function guardedStartTreatment(
   payload: TreatmentsRequest
 ): Promise<void> {
   if (isPrototypeApiDisabled() || !isEngineCase(payload)) return;
+  retainedForCall.delete(String(payload.symptom_id));
   const known = started.has(String(payload.symptom_id));
   await startEngineTreatment(targetOf(payload));
   if (!known) void revalidateCase(payload.symptom_id);

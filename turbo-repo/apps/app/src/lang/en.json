@@ -7673,6 +7673,7 @@
     "response": "Response",
     "treatment_saved": "Treatment saved successfully",
     "treatment_save_error": "The treatment could not be finished. Please try again.",
+    "treatment_start_error": "The treatment could not be opened. Reopen the form to try again.",
     "treatment_case_closed": "The case is already closed, so nothing new can be recorded on it.",
     "creation_date": "Symptom creation date",
     "Check Load Securing Absence": "Check load securing absence",

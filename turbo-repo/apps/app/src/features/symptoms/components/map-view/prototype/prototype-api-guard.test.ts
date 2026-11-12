@@ -27,6 +27,8 @@ vi.mock("@/features/runtime-config/runtime-config-context", () => ({
 
 import {
   forgetStartedTreatments,
+  retainTreatmentForCall,
+  abandonRetainedCallTreatment,
   guardedAbandonTreatment,
   guardedFinishTreatment,
   guardedInvalidateSymptom,
@@ -495,5 +497,37 @@ describe("call-step skips", () => {
     });
     expect(tower.openTreatment).not.toHaveBeenCalled();
     expect(tower.addTreatmentAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("discarding a call after leaving its panel", () => {
+  it("cancels the empty treatment retained for that call", async () => {
+    await guardedStartTreatment(base);
+    retainTreatmentForCall(base.symptom_id);
+    abandonRetainedCallTreatment(String(base.symptom_id));
+    await vi.waitFor(() =>
+      expect(tower.cancelTreatment).toHaveBeenCalledWith(
+        "t-1",
+        "panel closed",
+        {}
+      )
+    );
+  });
+
+  it("keeps a treatment whose panel has reopened", async () => {
+    await guardedStartTreatment(base);
+    retainTreatmentForCall(base.symptom_id);
+    await guardedStartTreatment(base);
+    abandonRetainedCallTreatment(String(base.symptom_id));
+    await Promise.resolve();
+    expect(tower.cancelTreatment).not.toHaveBeenCalled();
+  });
+
+  it("keeps recorded actions when their call is cleared", async () => {
+    await guardedRequestTreatment(base, { finish: false });
+    retainTreatmentForCall(base.symptom_id);
+    abandonRetainedCallTreatment(String(base.symptom_id));
+    await Promise.resolve();
+    expect(tower.cancelTreatment).not.toHaveBeenCalled();
   });
 });

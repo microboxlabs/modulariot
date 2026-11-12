@@ -99,6 +99,7 @@ function panel(
   } as TreatmentsGeneralResponseItem;
   return (
     <PrototypeInlineForm
+      key={id}
       setIsMenuOpen={setIsMenuOpen}
       isMenuOpen={true}
       dict={es as I18nRecord}
@@ -175,6 +176,12 @@ describe("the treatment behind the panel", () => {
     tower.openTreatment.mockRejectedValueOnce(new Error("network"));
     render(panel(-7, 3, SINCE));
     await opened();
+    await waitFor(() =>
+      expect(page.notify).toHaveBeenCalledWith({
+        type: "error",
+        message: es.symptoms.treatment_start_error,
+      })
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Llamar" }));
 
@@ -275,6 +282,44 @@ describe("the treatment behind the panel", () => {
     render(panel(-7, 3, SINCE, "call_driver", setIsMenuOpen));
 
     await waitFor(() => expect(setIsMenuOpen).toHaveBeenCalledWith(false));
+    expect(page.notify).not.toHaveBeenCalled();
+  });
+});
+
+describe("late treatment refusals", () => {
+  it("does not close a new case panel when the old case is refused", async () => {
+    let refuse!: (error: Error) => void;
+    tower.openTreatment.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        refuse = reject;
+      })
+    );
+    const close = vi.fn();
+    const view = render(panel(-7, 3, "start", "call_driver", close));
+    await waitFor(() => expect(tower.openTreatment).toHaveBeenCalledTimes(1));
+    view.rerender(panel(-8, 3, "start", "call_driver", close));
+    await act(async () =>
+      refuse(new tower.ControlTowerError("the case is closed", 409))
+    );
+    expect(close).not.toHaveBeenCalled();
+    expect(page.notify).not.toHaveBeenCalled();
+  });
+
+  it("does not notify after the panel unmounts", async () => {
+    let refuse!: (error: Error) => void;
+    tower.openTreatment.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        refuse = reject;
+      })
+    );
+    const close = vi.fn();
+    const view = render(panel(-7, 3, "start", "call_driver", close));
+    await waitFor(() => expect(tower.openTreatment).toHaveBeenCalledTimes(1));
+    view.unmount();
+    await act(async () =>
+      refuse(new tower.ControlTowerError("the case is closed", 409))
+    );
+    expect(close).not.toHaveBeenCalled();
     expect(page.notify).not.toHaveBeenCalled();
   });
 });

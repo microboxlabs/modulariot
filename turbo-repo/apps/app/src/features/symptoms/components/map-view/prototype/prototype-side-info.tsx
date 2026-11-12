@@ -135,6 +135,11 @@ export default function PrototypeSideInfo({
   // After the case closes, only the user's own open episode may still save.
   const symptomInfo = treatmentData?.symptom_info;
   const readOnly = !!symptomInfo && isReadOnlyCase(symptomInfo);
+  const canResume =
+    readOnly &&
+    !!symptomInfo?.treatment?.mine &&
+    symptomInfo.treatment.status === "OPEN" &&
+    !symptomInfo.ignored;
   const formLocked = useTreatmentFormLock(
     symptomInfo,
     readOnly,
@@ -195,6 +200,7 @@ export default function PrototypeSideInfo({
           style={{ animationDelay: "250ms", opacity: 0 }}
         >
           <PrototypeInlineForm
+            key={symptomInfo?.id}
             selectedOption={selectedOption}
             setSelectedOption={setSelectedOption}
             dict={dict}
@@ -260,6 +266,19 @@ export default function PrototypeSideInfo({
           >
             {readOnly && symptomInfo && (
               <ReadOnlyNotice info={symptomInfo} dict={dict} />
+            )}
+            {canResume && (
+              <AccessAllowed rule={ACCESS_RULES.controlTowerCaseTreat}>
+                <Button
+                  color="blue"
+                  onClick={() => {
+                    setSelectedOption("call_driver");
+                    setIsFormOpen(true);
+                  }}
+                >
+                  {tr("symptoms.continue_treatment", dict)}
+                </Button>
+              </AccessAllowed>
             )}
             {!readOnly && (
               <AccessAllowed rule={ACCESS_RULES.controlTowerCaseTreat}>

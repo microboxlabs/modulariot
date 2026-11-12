@@ -74,6 +74,7 @@ export default function EmptyAnimation({
               />
               {shown && (
                 <ConstellationCount
+                  tone="onTrip"
                   value={shown.counts.vehiclesOnTrip}
                   label={trDynamic(
                     "symptoms.constellation_on_trip",
@@ -82,7 +83,7 @@ export default function EmptyAnimation({
                       count: String(shown.counts.vehiclesOnTrip),
                     }
                   )}
-                  className="-bottom-1 -left-1 h-6 min-w-6 text-xs"
+                  className="bottom-1 left-1 h-6 min-w-6 text-xs"
                 />
               )}
             </div>
@@ -103,6 +104,7 @@ export default function EmptyAnimation({
           />
           {shown && (
             <ConstellationCount
+              tone={orbit.condition}
               value={shown.counts.conditions[orbit.condition]}
               label={conditionLabel(
                 orbit.label,

@@ -187,8 +187,8 @@ describe("symptoms treatment column and row action", () => {
     });
 
     const cell = screen.getByTestId("treatment-state");
-    expect(within(cell).getByText("En tratamiento")).toBeInTheDocument();
-    expect(within(cell).getByText(/por operator-a/)).toBeInTheDocument();
+    expect(cell).toHaveTextContent("operator-a");
+    expect(cell).toHaveAttribute("title", "En tratamiento");
     expect(actionLink("Continuar")).toHaveAttribute(
       "href",
       `${href}&open=1&menu=call_driver`
@@ -203,9 +203,9 @@ describe("symptoms treatment column and row action", () => {
       treatment: openTreatment,
     });
 
-    expect(
-      within(screen.getByTestId("treatment-state")).getByText(/por operator-a/)
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("treatment-state")).toHaveTextContent(
+      "operator-a"
+    );
     expect(screen.queryByRole("link", { name: "Continuar" })).toBeNull();
     expect(actionLink("Tratar")).toHaveAttribute("href", href);
   });
@@ -227,7 +227,7 @@ describe("symptoms treatment column and row action", () => {
     ["ignore", "Ignorado"],
     ["invalidate", "Invalidado"],
   ] as const)(
-    "shows a treated case's %s outcome, who closed it, and 'Ver tratamiento'",
+    "shows only who closed a treated case, with the %s outcome in its title, and 'Ver tratamiento'",
     (outcome, label) => {
       renderRow({
         ...row,
@@ -246,16 +246,8 @@ describe("symptoms treatment column and row action", () => {
       });
 
       const cell = screen.getByTestId("treatment-state");
-      expect(within(cell).getByText("Tratado")).toBeInTheDocument();
-      expect(within(cell).getByText(label)).toBeInTheDocument();
-      expect(within(cell).getByText(/por operator-b/)).toBeInTheDocument();
-      expect(
-        within(cell).getByText("2026-01-01T00:05:00Z")
-      ).toBeInTheDocument();
-      expect(
-        within(cell).getByText("2026-01-01T00:09:00Z")
-      ).toBeInTheDocument();
-      expect(within(cell).getByText("Llamada")).toBeInTheDocument();
+      expect(cell).toHaveTextContent(/^operator-b$/);
+      expect(cell).toHaveAttribute("title", `Tratado · ${label}`);
       expect(actionLink("Ver tratamiento")).toHaveAttribute("href", href);
       expect(screen.queryByRole("link", { name: "Tratar" })).toBeNull();
     }
@@ -289,8 +281,8 @@ describe("symptoms treatment column and row action", () => {
     });
 
     const cell = screen.getByTestId("treatment-state");
-    expect(within(cell).getByText("Ignorado")).toBeInTheDocument();
-    expect(within(cell).getByText(/por operator-c/)).toBeInTheDocument();
+    expect(cell).toHaveTextContent(/^operator-c$/);
+    expect(cell).toHaveAttribute("title", "En tratamiento · Ignorado");
     expect(actionLink("Ver tratamiento")).toHaveAttribute("href", href);
   });
 

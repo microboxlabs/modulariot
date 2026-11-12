@@ -58,11 +58,14 @@ export default function TreatmentStateCell({
   treatment,
   ignored,
   dict,
+  compact = false,
 }: Readonly<{
   state: TreatmentState | null | undefined;
   treatment: CaseTreatment | null | undefined;
   ignored?: IgnoredInfo | null;
   dict: I18nRecord;
+  /** Only who handled the case, for the symptoms table. */
+  compact?: boolean;
 }>) {
   if (!state) return <span className="text-gray-400">—</span>;
 
@@ -77,6 +80,25 @@ export default function TreatmentStateCell({
     shown?.type && shown.type in TYPE_LABEL
       ? trDynamic(TYPE_LABEL[shown.type as keyof typeof TYPE_LABEL], dict)
       : null;
+
+  if (compact) {
+    // The table shows who handled the case; the rest is in the tooltip and the case page.
+    const detail = [
+      trDynamic(STATE_LABEL[state], dict),
+      state !== "untreated" ? outcomeLabel : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return (
+      <span
+        className="text-xs font-medium"
+        data-testid="treatment-state"
+        title={detail}
+      >
+        {operator ?? trDynamic(STATE_LABEL[state], dict)}
+      </span>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-0.5" data-testid="treatment-state">

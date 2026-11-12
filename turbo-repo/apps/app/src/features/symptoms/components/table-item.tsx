@@ -86,6 +86,7 @@ function TreatmentColumn({
           treatment={data.treatment}
           ignored={data.ignored}
           dict={dict}
+          compact
         />
         {treatButton}
       </div>
@@ -114,6 +115,7 @@ function TreatmentColumn({
         treatment={data.treatment}
         ignored={data.ignored}
         dict={dict}
+        compact
       />
     </Link>
   );

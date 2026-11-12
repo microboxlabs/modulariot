@@ -28,6 +28,8 @@ export default function SymptomsCards({
     { ...query, operator: "all" },
     showCards
   );
+  // The vehicles on a trip in the whole fleet, whatever the filters select.
+  const { counts: fleet } = useSymptomCounts({ operator: "all" }, showCards);
 
   // Handle loading and error states
   if (loading) {
@@ -64,10 +66,10 @@ export default function SymptomsCards({
         <h1 className="ml-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white leading-tight flex items-center">
           {(dict.symptoms as I18nRecord).symptoms as string}
         </h1>
-        {counts && (
+        {fleet && (
           <span className="ml-3 flex items-center gap-1 self-center rounded-md bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
             {trDynamic("symptoms.vehicles_on_trip", dict, {
-              count: String(counts.vehiclesOnTrip),
+              count: String(fleet.vehiclesOnTrip),
             })}
           </span>
         )}

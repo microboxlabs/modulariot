@@ -176,4 +176,25 @@ describe("SymptomsCards", () => {
     expect(screen.getByText("04")).toBeInTheDocument();
     expect(screen.getByText("Vehículos en viaje: 69")).toBeInTheDocument();
   });
+
+  it("counts the vehicles on a trip in the whole fleet, whatever the filters", () => {
+    searchParams = new URLSearchParams({
+      trip_id: "SERVICE-001",
+      asset_id: "DEMO01",
+    });
+    useCounts.mockImplementation((query: Record<string, unknown>) => ({
+      counts: {
+        conditions: {},
+        ignored: 0,
+        vehiclesOnTrip: query.trip_id ? 1 : 69,
+      },
+      loading: false,
+      error: null,
+    }));
+
+    render(<SymptomsCards showCards dict={dict} />);
+
+    expect(useCounts).toHaveBeenCalledWith({ operator: "all" }, true);
+    expect(screen.getByText("Vehículos en viaje: 69")).toBeInTheDocument();
+  });
 });

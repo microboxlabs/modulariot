@@ -27,6 +27,7 @@ const dict: I18nRecord = {
   symptoms: {
     symptoms: "Síntomas",
     vehicles_on_trip: "Vehículos en viaje: {count}",
+    vehicles_on_trip_unavailable: "Vehículos en viaje: conteo no disponible",
     critical_condition: "Critical",
     in_treatment: "Treatment",
     ignored: "Ignored",
@@ -51,6 +52,26 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("SymptomsCards", () => {
+  it("shows fleet-count feedback without hiding condition cards when that request fails", () => {
+    useCounts.mockReturnValueOnce({
+      counts: { conditions: { critic: 3 }, ignored: 0 },
+      loading: false,
+      error: null,
+    });
+    useCounts.mockReturnValueOnce({
+      counts: undefined,
+      loading: false,
+      error: new Error("test-fleet-unavailable"),
+    });
+
+    render(<SymptomsCards showCards dict={dict} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Vehículos en viaje: conteo no disponible"
+    );
+    expect(screen.getByRole("button", { name: /Critical/ })).toHaveTextContent("03");
+  });
+
   it("renders the tray header without the settings cog", () => {
     render(<SymptomsCards showCards dict={dict} />);
 

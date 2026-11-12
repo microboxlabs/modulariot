@@ -14,6 +14,32 @@ import icuConditions from "./model/icu_condition.json";
 import { useSymptomCounts } from "../common/providers/client-api.provider";
 import { useSymptomTableQuery } from "./hooks/use-symptom-names";
 
+function FleetTripCount({
+  count,
+  unavailable,
+  dict,
+}: Readonly<{
+  count: number | undefined;
+  unavailable: boolean;
+  dict: I18nRecord;
+}>) {
+  if (count !== undefined) {
+    return (
+      <span className="ml-3 flex items-center gap-1 self-center rounded-md bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
+        {trDynamic("symptoms.vehicles_on_trip", dict, { count: String(count) })}
+      </span>
+    );
+  }
+  if (unavailable) {
+    return (
+      <output className="ml-3 self-center text-xs text-amber-700 dark:text-amber-400">
+        {trDynamic("symptoms.vehicles_on_trip_unavailable", dict)}
+      </output>
+    );
+  }
+  return null;
+}
+
 export default function SymptomsCards({
   showCards,
   dict,
@@ -29,7 +55,10 @@ export default function SymptomsCards({
     showCards
   );
   // The vehicles on a trip in the whole fleet, whatever the filters select.
-  const { counts: fleet } = useSymptomCounts({ operator: "all" }, showCards);
+  const { counts: fleet, error: fleetError } = useSymptomCounts(
+    { operator: "all" },
+    showCards
+  );
 
   // Handle loading and error states
   if (loading) {
@@ -66,13 +95,11 @@ export default function SymptomsCards({
         <h1 className="ml-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white leading-tight flex items-center">
           {(dict.symptoms as I18nRecord).symptoms as string}
         </h1>
-        {fleet && (
-          <span className="ml-3 flex items-center gap-1 self-center rounded-md bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
-            {trDynamic("symptoms.vehicles_on_trip", dict, {
-              count: String(fleet.vehiclesOnTrip),
-            })}
-          </span>
-        )}
+        <FleetTripCount
+          count={fleet?.vehiclesOnTrip}
+          unavailable={!!fleetError}
+          dict={dict}
+        />
       </div>
 
       <div className="relative pb-3 px-5 pt-2 flex flex-row md:flex-row gap-4 overflow-x-auto">

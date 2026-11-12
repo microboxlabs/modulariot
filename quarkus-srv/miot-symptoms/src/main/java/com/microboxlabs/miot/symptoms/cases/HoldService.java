@@ -215,7 +215,13 @@ public class HoldService implements IgnoreHolds {
             return work.get();
         }
         EngineCase c = cases.find(tenant, -treatment.symptomId()).orElseThrow();
-        return holds.locked(tenant, c.assetId(), work);
+        return holds.locked(tenant, c.assetId(), () -> {
+            EngineCase current = cases.find(tenant, c.id()).orElseThrow();
+            if (current.ignored() != null) {
+                throw new IllegalStateException("the case is on hold");
+            }
+            return work.get();
+        });
     }
 
     /**

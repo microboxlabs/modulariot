@@ -97,10 +97,7 @@ public class TreatmentService {
             throw new IllegalArgumentException("kind is required (CALL, IGNORE, INVALIDATE, NOTE)");
         }
         Treatment t = requireOpen(tenantCode, treatmentId);
-        if (req.kind() == ActionKind.IGNORE || isStepSkip(req)) {
-            return holds.locked(tenantCode, t, () -> addCheckedAction(tenantCode, actor, t, req));
-        }
-        return addCheckedAction(tenantCode, actor, t, req);
+        return holds.locked(tenantCode, t, () -> addCheckedAction(tenantCode, actor, t, req));
     }
 
     private TreatmentAction addCheckedAction(String tenantCode, String actor, Treatment t, AddActionRequest req) {
@@ -272,6 +269,10 @@ public class TreatmentService {
 
     public TreatmentView close(String tenantCode, String actor, String treatmentId, CloseTreatmentRequest req) {
         Treatment t = requireOpen(tenantCode, treatmentId);
+        return holds.locked(tenantCode, t, () -> closeChecked(tenantCode, actor, t, req));
+    }
+
+    private TreatmentView closeChecked(String tenantCode, String actor, Treatment t, CloseTreatmentRequest req) {
         List<TreatmentAction> actions = treatments.listActions(tenantCode, List.of(t.id()));
         if (t.symptomId() < 0 && actions.stream().anyMatch(a -> a.kind() == ActionKind.IGNORE)) {
             throw new IllegalStateException("the case is on hold: resume it instead");
@@ -305,6 +306,10 @@ public class TreatmentService {
      */
     public TreatmentView cancel(String tenantCode, String actor, String treatmentId, String reason) {
         Treatment t = requireOpen(tenantCode, treatmentId);
+        return holds.locked(tenantCode, t, () -> cancelChecked(tenantCode, actor, t, reason));
+    }
+
+    private TreatmentView cancelChecked(String tenantCode, String actor, Treatment t, String reason) {
         if (t.symptomId() < 0 && treatments.listActions(tenantCode, List.of(t.id())).stream()
                 .anyMatch(a -> a.kind() == ActionKind.IGNORE)) {
             throw new IllegalStateException("the case is on hold: resume it instead");

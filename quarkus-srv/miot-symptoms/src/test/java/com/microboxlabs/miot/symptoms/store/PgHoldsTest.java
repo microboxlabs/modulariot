@@ -12,6 +12,8 @@ import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
+import com.microboxlabs.miot.symptoms.cases.HoldIndex;
+import com.microboxlabs.miot.symptoms.cases.HoldService;
 import com.microboxlabs.miot.symptoms.cases.SlaStore;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.domain.ActionKind;
@@ -19,6 +21,11 @@ import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.domain.TreatmentType;
+import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
+import com.microboxlabs.miot.symptoms.dto.CloseTreatmentRequest;
+import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.service.DemoSeeder;
+import com.microboxlabs.miot.symptoms.service.TreatmentService;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
@@ -539,6 +546,16 @@ class PgHoldsTest {
 
     private static final String OPERATOR = "ops@example.com";
 
+    private TreatmentService treatmentService() {
+        Clock clock = Clock.fixed(now, ZoneOffset.UTC);
+        AuditService audit = new AuditService(new InMemoryAuditStore());
+        EngineCaseService caseService = new EngineCaseService(cases, (t, a, d) -> { }, t -> null, clock);
+        HoldService guarded = new HoldService(cases, caseService, holds, new HoldIndex(holds), treatments,
+                audit, (t, c) -> null, clock);
+        InMemoryContactStore contacts = new InMemoryContactStore();
+        return new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments), audit, guarded);
+    }
+
     /** A treatment of the case opened at {@code at}, with one action of {@code kind} when given. */
     private String treat(long caseId, String operator, Instant at, ActionKind kind, String outcome) {
         Treatment t = treatments.insert(new Treatment(null, tenant, -caseId, TRUCK, null, TreatmentType.CALL,
@@ -690,7 +707,10 @@ class PgHoldsTest {
         assertTrue(info.path("treatment").path("mine").asBoolean());
         assertTrue(service.header(tenant, -id, "other-operator").path("symptom_info").path("treatment").isNull());
         assertEquals(mine, treat(id, OPERATOR, now, null, null), "the owner resumes its episode");
-        finish(mine, now);
+        treatmentService().addAction(tenant, OPERATOR, mine,
+                new AddActionRequest(ActionKind.NOTE, null, null, null, null, null, null, null, null,
+                        null, null, "test-note-after-engine-close", null, null));
+        treatmentService().close(tenant, OPERATOR, mine, new CloseTreatmentRequest("test-resolved", null));
         assertEquals("CLOSED", service.header(tenant, -id, OPERATOR).path("symptom_info")
                 .path("treatment").path("status").asText());
         assertThrows(IllegalStateException.class, () -> treat(id, OPERATOR, now, null, null));
@@ -707,6 +727,32 @@ class PgHoldsTest {
         assertThrows(IllegalStateException.class, () -> treat(id, "other-operator", now, null, null));
         end(held, now);
         assertEquals(mine, treat(id, "own-operator", now, null, null));
+    }
+
+    @Test
+    void heldCasesRejectWritesAndClosesButAllowEmptyOwnedAbandonment() {
+        long id = open(symptom("held-writes"), TRUCK, now.minusSeconds(900), 3, null);
+        String mine = treat(id, "own-operator", now.minusSeconds(800), ActionKind.CALL, "test-outcome");
+        String empty = treat(id, "empty-operator", now.minusSeconds(700), null, null);
+        String held = hold(id, now.minusSeconds(600), 1800, "CASE", false);
+        TreatmentService guarded = treatmentService();
+        for (ActionKind kind : ActionKind.values()) {
+            AddActionRequest request = new AddActionRequest(kind, null, "test-contact", null, null, null,
+                    "test-outcome", "test-outcome", true, 30, null, "test-note", List.of(), Map.of());
+            assertThrows(IllegalStateException.class, () -> guarded.addAction(tenant, "own-operator", mine, request));
+            assertThrows(IllegalStateException.class, () -> guarded.addAction(tenant, OPERATOR, held, request));
+        }
+        assertThrows(IllegalStateException.class,
+                () -> guarded.close(tenant, "own-operator", mine, new CloseTreatmentRequest(null, null)));
+        assertThrows(IllegalStateException.class, () -> guarded.cancel(tenant, "own-operator", mine, null));
+        guarded.abandon(tenant, "empty-operator", empty);
+        assertEquals(TreatmentStatus.CANCELLED, treatments.find(tenant, empty).orElseThrow().status());
+        assertEquals(1, treatments.listActions(tenant, List.of(mine)).size());
+        end(held, now);
+        guarded.addAction(tenant, "own-operator", mine,
+                new AddActionRequest(ActionKind.NOTE, null, null, null, null, null, null, null, null,
+                        null, null, "test-note-after-hold", null, null));
+        assertEquals(2, treatments.listActions(tenant, List.of(mine)).size());
     }
 
     @Test

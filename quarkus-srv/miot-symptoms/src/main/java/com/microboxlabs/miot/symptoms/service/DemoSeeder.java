@@ -99,9 +99,12 @@ public class DemoSeeder {
             int calls = 1 + random.nextInt(3);
             OffsetDateTime closedAt = openedAt.plusMinutes(4L * calls + 2);
             // Actions go on an OPEN episode, which is then closed at its historical time.
-            Treatment t = treatments.insert(new Treatment(null, tenantCode, symptomId, null, null,
+            Treatment t = openHistory(new Treatment(null, tenantCode, symptomId, null, null,
                     TreatmentType.CALL, TreatmentStatus.OPEN, DEMO_OPERATOR, openedAt, null, null, null, null,
-                    openedAt)).treatment();
+                    openedAt));
+            if (t == null) {
+                return;
+            }
             for (int c = 0; c < calls; c++) {
                 addDemoCall(t, people, random, openedAt.plusMinutes(4L * c + 1));
             }
@@ -113,6 +116,19 @@ public class DemoSeeder {
             }
             treatments.transition(tenantCode, t.id(), TreatmentStatus.CLOSED, DEMO_OPERATOR,
                     endsIgnored ? "ignored" : "resolved", null, closedAt);
+        }
+    }
+
+    /** Demo reads must not fail when an engine case closed or went on hold before the synthetic insert. */
+    private Treatment openHistory(Treatment episode) {
+        try {
+            return treatments.insert(episode).treatment();
+        } catch (IllegalStateException e) {
+            if (episode.symptomId() < 0 && ("the case is closed".equals(e.getMessage())
+                    || "the case is on hold".equals(e.getMessage()))) {
+                return null;
+            }
+            throw e;
         }
     }
 

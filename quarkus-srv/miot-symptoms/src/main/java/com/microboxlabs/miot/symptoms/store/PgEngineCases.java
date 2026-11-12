@@ -211,7 +211,12 @@ public class PgEngineCases implements EngineCaseStore {
             UNION SELECT tm.trip_id::text FROM miot_trips.mandate m
               JOIN miot_trips.trip_mandate tm ON tm.mandate_id = m.id AND tm.tenant_code = m.tenant_code
              WHERE m.tenant_code = $1 AND m.external_code = $2 AND m.version_of IS NULL AND m.is_active
-               AND tm.version_of IS NULL AND tm.is_active""";
+               AND tm.version_of IS NULL AND tm.is_active
+            UNION SELECT tl.trip_id::text FROM miot_trips.trip_live tl
+             WHERE tl.tenant_code = $1 AND EXISTS (SELECT 1 FROM jsonb_array_elements(CASE
+                 WHEN jsonb_typeof(tl.mandate_codes) = 'array' THEN tl.mandate_codes
+                 WHEN (tl.mandate_codes #>> '{}') IS JSON ARRAY THEN (tl.mandate_codes #>> '{}')::jsonb
+                 ELSE '[]'::jsonb END) code WHERE btrim(code ->> 'code') = $2)""";
     /**
      * {@link CaseFilter}: $2 trip id or trip code, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only, $9
      * ignored only, $10 whether the level goes to the operators (null for any), $11 the treatment state (null for

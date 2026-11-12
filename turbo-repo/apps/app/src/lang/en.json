@@ -7638,6 +7638,7 @@
     "process_treatment_auto": "Automatic",
     "no_active_conditions": "No active conditions at this time",
     "vehicles_on_trip": "Vehicles on a trip: {count}",
+    "vehicles_on_trip_unavailable": "Vehicles on a trip: count unavailable",
     "normal_operation": "The fleet is operating normally.",
     "check_later": "Check this section later to detect and treat any new condition.",
     "automatic_notification": "Automatic notification",

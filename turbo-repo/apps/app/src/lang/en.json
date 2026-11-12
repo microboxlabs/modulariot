@@ -7499,6 +7499,8 @@
     "control_tower": "Control Tower",
     "warning": "Warning",
     "timeline": "Timeline",
+    "timeline_current_case": "Current case",
+    "timeline_case_closed": "Closed",
     "other_options": "Other options",
     "derive_to_specialist": "Derive to specialist",
     "contact_carabineros": "Contact Carabineros",

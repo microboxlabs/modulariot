@@ -59,7 +59,7 @@ export default function TimelineComponent({
   }
 
   // Ordering of elements to be displayed
-  const TimelineGroupedByDate = treatmentData?.timeline
+  const TimelineGroupedByDate = [...treatmentData.timeline]
     .sort((a, b) => {
       if (order === "asc") {
         return new Date(a.start).getTime() - new Date(b.start).getTime();

@@ -100,6 +100,19 @@ class PgTreatmentStoresTest {
     }
 
     @Test
+    void listsTheTreatmentsOfSeveralSymptomsOfTheTenant() {
+        String tenant = tenant();
+        Treatment a = treatments.insert(openTreatment(tenant, 31L, ACTOR)).treatment();
+        Treatment b = treatments.insert(openTreatment(tenant, 32L, ACTOR)).treatment();
+        treatments.insert(openTreatment(tenant, 33L, ACTOR));
+        treatments.insert(openTreatment("other-tenant", 31L, ACTOR));
+
+        assertEquals(Set.of(a.id(), b.id()), treatments.listBySymptoms(tenant, List.of(31L, 32L)).stream()
+                .map(Treatment::id).collect(java.util.stream.Collectors.toSet()));
+        assertTrue(treatments.listBySymptoms(tenant, List.of()).isEmpty());
+    }
+
+    @Test
     void abandonCancelsOnlyTheOwnersEmptyEpisode() {
         String tenant = tenant();
         var t = treatments.insert(openTreatment(tenant, 712L, ACTOR)).treatment();

@@ -850,6 +850,78 @@ class EngineCaseServiceTest {
         assertEquals(lost.minusSeconds(3600), service.signalWindow(TENANT, -12).from());
     }
 
+    private static final UUID STOP = UUID.randomUUID();
+
+    private static EngineCase tripCase(long id, UUID definition, String name, String trip, Instant opened,
+            Instant closed) {
+        return new EngineCase(id, definition, "0.1.0", name, "driving", "DEMO01", opened, 1, trip, null, null, null,
+                closed, 0, null, 0L);
+    }
+
+    @Test
+    void theTimelineListsEveryActiveCaseOfTheTripWithTheCurrentOneFlagged() {
+        Instant earlier = OPENED.minusSeconds(7200);
+        store.add(tripCase(10, PANIC, "Conducción continua", "TRIP-A", earlier, earlier.plusSeconds(3600))
+                .withLevel(null, null, null, List.of(new EngineCase.LevelStep(earlier, 1),
+                        new EngineCase.LevelStep(earlier.plusSeconds(600), 2),
+                        new EngineCase.LevelStep(earlier.plusSeconds(1200), 3))));
+        store.add(tripCase(11, STOP, "Detención no autorizada", "TRIP-A", earlier.plusSeconds(900),
+                earlier.plusSeconds(1800)));
+        store.add(tripCase(12, PANIC, "Conducción continua", "TRIP-A", OPENED, null)
+                .withLevel(null, null, null, List.of(new EngineCase.LevelStep(OPENED, 4))));
+        store.add(tripCase(13, STOP, "Detención no autorizada", "TRIP-A", OPENED, null).withTest(true));
+        store.add(tripCase(14, STOP, "Detención no autorizada", "TRIP-B", OPENED, null));
+
+        JsonNode timeline = service.header(TENANT, -12).path("timeline");
+
+        List<Long> ids = new ArrayList<>();
+        timeline.forEach(e -> ids.add(e.path("symptom_id").asLong()));
+        assertEquals(List.of(-10L, -11L, -12L), ids, "oldest first; test cases and other trips are left out");
+        assertFalse(timeline.get(0).path("current").asBoolean());
+        assertTrue(timeline.get(2).path("current").asBoolean());
+        assertEquals(earlier.plusSeconds(3600).toString(), timeline.get(0).path("closed_at").asText());
+        assertTrue(timeline.get(2).path("closed_at").isNull());
+        JsonNode steps = timeline.get(0).path("conditions_agg");
+        assertEquals(List.of("1", "2", "3"), List.of(steps.get(0).path("icu_code").asText(),
+                steps.get(1).path("icu_code").asText(), steps.get(2).path("icu_code").asText()));
+        assertEquals("Detención no autorizada", timeline.get(1).path("symptom_name").asText());
+        assertEquals(List.of(-10L, -11L, -12L), EngineCaseService.timelineSymptomIds(service.header(TENANT, -12)));
+    }
+
+    @Test
+    void aCaseWithoutATripHasOnlyItsOwnEntry() {
+        store.add(tripCase(12, PANIC, "Conducción continua", null, OPENED, null));
+        store.add(tripCase(13, STOP, "Detención no autorizada", null, OPENED, null));
+
+        JsonNode timeline = service.header(TENANT, -12).path("timeline");
+
+        assertEquals(1, timeline.size());
+        assertEquals(-12, timeline.get(0).path("symptom_id").asLong());
+        assertTrue(timeline.get(0).path("current").asBoolean());
+    }
+
+    @Test
+    void eachTimelineEntryShowsItsOwnCasesTreatments() {
+        Instant earlier = OPENED.minusSeconds(7200);
+        store.add(tripCase(10, PANIC, "Conducción continua", "TRIP-A", earlier, earlier.plusSeconds(3600)));
+        store.add(tripCase(12, PANIC, "Conducción continua", "TRIP-A", OPENED, null));
+        JsonNode header = service.header(TENANT, -12);
+
+        JsonNode timeline = EngineCaseService.withTreatments(header, Map.of(
+                -10L, List.of(treatment(TreatmentStatus.CLOSED,
+                        actionAt(earlier.plusSeconds(60), "Ana"))),
+                -12L, List.of(treatment(TreatmentStatus.OPEN, actionAt(OPENED.plusSeconds(30), "Luis")))))
+                .path("timeline");
+
+        assertEquals(List.of("Llamado a: Ana"), messages(timeline.get(0).path("conditions_agg").get(0)));
+        assertEquals(List.of("Llamado a: Luis"), messages(timeline.get(1).path("conditions_agg").get(0)));
+        JsonNode onlyCurrent = EngineCaseService.withTreatments(header,
+                List.of(treatment(TreatmentStatus.OPEN, actionAt(OPENED.plusSeconds(30), "Luis")))).path("timeline");
+        assertEquals(List.of(), messages(onlyCurrent.get(0).path("conditions_agg").get(0)),
+                "a list of treatments is the current case's");
+        assertEquals(List.of("Llamado a: Luis"), messages(onlyCurrent.get(1).path("conditions_agg").get(0)));
+    }
+
     @Test
     void theHeaderListsTheCaseTreatmentsAndWhenItClosed() {
         Instant closed = OPENED.plusSeconds(600);

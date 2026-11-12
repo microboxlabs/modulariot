@@ -6,6 +6,10 @@ export interface TimelineElement {
   icu_conditions?: string[];
   symptom_id?: number;
   symptom_name?: string;
+  /** Engine cases: true on the entry of the case the page is about; the trip's other cases are false. */
+  current?: boolean;
+  /** Engine cases: when the entry's case closed; null while it is open. */
+  closed_at?: string | null;
 }
 
 export interface ConditionsAgg {

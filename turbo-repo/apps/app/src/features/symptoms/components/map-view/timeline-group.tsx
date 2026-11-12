@@ -47,15 +47,20 @@ export default function TimelineGroup({
   const [isExpanded, setIsExpanded] = useState(false);
   const selectedItemRef = useRef<HTMLDivElement>(null);
 
+  // The page's own case: flagged by the server, else the entry holding its symptom id.
+  const isCurrent =
+    item.current ??
+    (item.conditions_agg?.some(
+      (subItem) => subItem.symptom_id == treatmentData.symptom_info?.id
+    ) ??
+      false);
+  const symptoms = dict.symptoms as I18nRecord;
+
   useEffect(() => {
-    if (
-      item.conditions_agg?.some(
-        (subItem) => subItem.symptom_id == treatmentData.symptom_info?.id
-      )
-    ) {
+    if (isCurrent) {
       setIsExpanded(true);
     }
-  }, [item, treatmentData.symptom_info?.id]);
+  }, [isCurrent]);
 
   useEffect(() => {
     if (selectedItemRef.current) {
@@ -97,7 +102,14 @@ export default function TimelineGroup({
         : length / 60
       : length;
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm transition-colors duration-200 border hover:bg-gray-100 dark:hover:bg-gray-900 hover:border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700">
+    <div
+      data-current={isCurrent ? "true" : undefined}
+      className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm transition-colors duration-200 border hover:bg-gray-100 dark:hover:bg-gray-900 hover:border ${
+        isCurrent
+          ? "border-amber-300 dark:border-amber-500"
+          : "border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700"
+      }`}
+    >
       <div
         className="flex flex-col cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -126,6 +138,20 @@ export default function TimelineGroup({
                 />{" "}
                 | {Math.floor(length_text_value)} {length_text}
               </p>
+              {(isCurrent || item.closed_at) && (
+                <div className="flex flex-row gap-1">
+                  {isCurrent && (
+                    <span className="rounded bg-amber-100 px-1.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                      {symptoms.timeline_current_case as string}
+                    </span>
+                  )}
+                  {item.closed_at && (
+                    <span className="rounded bg-gray-100 px-1.5 text-[10px] text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                      {symptoms.timeline_case_closed as string}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap gap-2 mt-2"></div>

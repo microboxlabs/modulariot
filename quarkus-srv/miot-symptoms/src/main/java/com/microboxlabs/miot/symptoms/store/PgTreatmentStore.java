@@ -292,6 +292,15 @@ public class PgTreatmentStore implements TreatmentStore {
     }
 
     @Override
+    public List<Treatment> listBySymptoms(String tenantCode, Collection<Long> symptomIds) {
+        if (symptomIds.isEmpty()) {
+            return List.of();
+        }
+        return treatments(query(pool.get(), SELECT_TREATMENTS + "AND symptom_id = ANY($2) ORDER BY opened_at, id",
+                Tuple.of(tenantCode, symptomIds.stream().distinct().toArray(Long[]::new))));
+    }
+
+    @Override
     public Optional<Treatment> cancelEmpty(String tenantCode, String id, String actor) {
         UUID uuid = parse(id);
         if (uuid == null) return Optional.empty();

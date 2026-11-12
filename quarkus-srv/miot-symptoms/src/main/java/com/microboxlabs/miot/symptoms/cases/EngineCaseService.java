@@ -108,6 +108,8 @@ public class EngineCaseService {
     private static final String TREATMENT_TYPE = "treatment_type";
     private static final String MESSAGE = "message";
     private static final String TREATMENTS = "treatments";
+    private static final String TIMELINE = "timeline";
+    private static final String CURRENT = "current";
     private static final String DRIVER_RESPONSE = "driver_response";
     /** The treatment type of a note rule's timeline entry. */
     static final String NOTE_TYPE = "evento del gps";
@@ -961,19 +963,14 @@ public class EngineCaseService {
         EngineCase c = find(tenantCode, symptomId);
         ObjectNode out = JSON.objectNode();
         out.set(CONDITIONS_AGG, JSON.arrayNode());
-        // One timeline entry with the case, which the map selects to load its point; one block per level step.
+        // One timeline entry per case of the trip, oldest first; the map selects the current one to load its point.
         Instant started = start(c);
         Instant ended = end(c);
         String start = started.toString();
-        String end = ended.toString();
-        ObjectNode entry = out.putArray("timeline").addObject();
-        entry.put(START, start);
-        entry.put("end", end);
-        entry.put(SYMPTOM_ID, c.symptomId());
-        entry.put(SYMPTOM_NAME, c.name());
-        ArrayNode levelAggs = entry.putArray(CONDITIONS_AGG);
-        addLevelAggs(levelAggs, c, started, ended);
-        addNotes(levelAggs, store.notes(tenantCode, c.id()));
+        ArrayNode timeline = out.putArray(TIMELINE);
+        for (EngineCase other : tripCases(tenantCode, c)) {
+            addTimelineEntry(timeline, tenantCode, other, other.id() == c.id());
+        }
         ObjectNode symptom = out.putObject("symptom_info");
         symptom.put("id", c.symptomId());
         symptom.put("name", c.name());
@@ -1010,6 +1007,51 @@ public class EngineCaseService {
             trip.put("driver_contact", t.getString("driver_contact_phone"));
         }
         return out;
+    }
+
+    /** At most this many cases of the trip are in a case's timeline: the latest, with the case itself. */
+    static final int MAX_TRIP_CASES = 100;
+
+    /**
+     * The case and the other ACTIVE cases of its trip, of any symptom, ordered by when their condition began; only
+     * the case when it has no trip.
+     */
+    private List<EngineCase> tripCases(String tenantCode, EngineCase c) {
+        List<EngineCase> all = new ArrayList<>();
+        all.add(c);
+        if (c.tripId() != null) {
+            store.tripCases(tenantCode, c.tripId(), MAX_TRIP_CASES).stream()
+                    .filter(o -> o.id() != c.id()).forEach(all::add);
+            if (all.size() > MAX_TRIP_CASES) {
+                all.sort(Comparator.comparing(EngineCase::openedAt).reversed());
+                List<EngineCase> kept = new ArrayList<>(all.subList(0, MAX_TRIP_CASES));
+                if (kept.stream().noneMatch(o -> o.id() == c.id())) {
+                    kept.set(MAX_TRIP_CASES - 1, c);
+                }
+                all = kept;
+            }
+        }
+        all.sort(Comparator.comparing(EngineCaseService::start).thenComparing(EngineCase::id));
+        return all;
+    }
+
+    /**
+     * One case's timeline entry: its time, symptom, one block per level step with the note rule's entries, and
+     * {@code current} for the case the page is about.
+     */
+    private void addTimelineEntry(ArrayNode timeline, String tenantCode, EngineCase c, boolean current) {
+        Instant started = start(c);
+        Instant ended = end(c);
+        ObjectNode entry = timeline.addObject();
+        entry.put(START, started.toString());
+        entry.put("end", ended.toString());
+        entry.put(SYMPTOM_ID, c.symptomId());
+        entry.put(SYMPTOM_NAME, c.name());
+        entry.put(CURRENT, current);
+        entry.put("closed_at", c.closedAt() == null ? null : c.closedAt().toString());
+        ArrayNode levelAggs = entry.putArray(CONDITIONS_AGG);
+        addLevelAggs(levelAggs, c, started, ended);
+        addNotes(levelAggs, store.notes(tenantCode, c.id()));
     }
 
     /**
@@ -1264,15 +1306,39 @@ public class EngineCaseService {
     }
 
     /**
-     * The header with the case's treatments in its timeline, one entry per call, ignore or invalidate action,
-     * in the shape of the GPS database's treatments. Each action goes in the level step whose time holds it; one
-     * before the first step goes in the first, one after the last in the last. A handling record ("Registrar
-     * gestión") shows as {@code registrar gestion}. Cancelled treatments and other notes are left out.
+     * The header with the case's treatments in its timeline entry ({@code current}), one row per call, ignore or
+     * invalidate action, in the shape of the GPS database's treatments. Each action goes in the level step whose
+     * time holds it; one before the first step goes in the first, one after the last in the last. A handling record
+     * ("Registrar gestión") shows as {@code registrar gestion}. Cancelled treatments and other notes are left out.
      */
     public static JsonNode withTreatments(JsonNode header, List<TreatmentView> treatments) {
+        for (JsonNode entry : header.path(TIMELINE)) {
+            if (entry.path(CURRENT).asBoolean(true)) {
+                return withTreatments(header, Map.of(entry.path(SYMPTOM_ID).asLong(), treatments));
+            }
+        }
+        return header.deepCopy();
+    }
+
+    /** As {@link #withTreatments(JsonNode, List)}, each timeline entry with its case's treatments, by symptom id. */
+    public static JsonNode withTreatments(JsonNode header, Map<Long, List<TreatmentView>> bySymptom) {
         ObjectNode out = header.deepCopy();
-        List<ObjectNode> aggs = new ArrayList<>();
-        out.path("timeline").forEach(entry -> entry.path(CONDITIONS_AGG).forEach(agg -> aggs.add((ObjectNode) agg)));
+        out.path(TIMELINE).forEach(entry -> {
+            List<ObjectNode> aggs = new ArrayList<>();
+            entry.path(CONDITIONS_AGG).forEach(agg -> aggs.add((ObjectNode) agg));
+            addTreatments(aggs, bySymptom.getOrDefault(entry.path(SYMPTOM_ID).asLong(), List.of()));
+        });
+        return out;
+    }
+
+    /** The symptom ids of the header's timeline entries: the cases whose treatments it shows. */
+    public static List<Long> timelineSymptomIds(JsonNode header) {
+        List<Long> ids = new ArrayList<>();
+        header.path(TIMELINE).forEach(entry -> ids.add(entry.path(SYMPTOM_ID).asLong()));
+        return ids;
+    }
+
+    private static void addTreatments(List<ObjectNode> aggs, List<TreatmentView> treatments) {
         List<ArrayNode> rows = new ArrayList<>();
         // A step is assigned to whoever treated the case during it; a step with no treatment has nobody.
         List<String> assignees = new ArrayList<>();
@@ -1303,7 +1369,6 @@ public class EngineCaseService {
             aggs.get(i).set(TREATMENTS, rows.get(i));
             aggs.get(i).put("assigned_to", assignees.get(i));
         }
-        return out;
     }
 
     private static boolean includedInHistory(TreatmentAction action) {

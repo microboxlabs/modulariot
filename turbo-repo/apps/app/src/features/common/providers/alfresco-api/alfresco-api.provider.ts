@@ -156,7 +156,7 @@ export async function getUnbookedTasks(
     from?: number;
     size?: number;
     filter?: Record<string, unknown>;
-  } = {},
+  },
   calendarId: string
 ): Promise<FastTasksResponse> {
   const { from = 0, size = 100, filter: baseFilter = undefined } = options;

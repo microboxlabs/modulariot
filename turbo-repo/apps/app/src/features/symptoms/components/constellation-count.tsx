@@ -12,7 +12,7 @@ const TONE: Record<ConstellationCondition | "onTrip", string> = {
   onTrip: "bg-blue-600 text-white",
 };
 
-/** A count on a constellation icon, on its lower left edge. */
+/** A count on a constellation icon, below and to the left of it. */
 export default function ConstellationCount({
   value,
   label,
@@ -29,7 +29,7 @@ export default function ConstellationCount({
       aria-label={label}
       title={label}
       className={twMerge(
-        "absolute bottom-0 left-0 z-10 flex h-5 min-w-5 items-center justify-center rounded-md border-2 border-white px-1 text-[11px] font-semibold leading-none shadow-sm dark:border-gray-800",
+        "absolute -bottom-1 -left-2 z-10 flex h-5 min-w-5 items-center justify-center rounded-md border-2 border-white px-1 text-[11px] font-semibold leading-none shadow-sm dark:border-gray-800",
         TONE[tone],
         className
       )}

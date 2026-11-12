@@ -131,6 +131,8 @@ export type ItemNombre = {
   abajo?: boolean;
   /** El badge es de un trayecto (no de una geocerca). */
   trayectoId?: string;
+  /** Badge solo con el nombre, sin el icono del lugar. */
+  sinIcono?: boolean;
 };
 
 /** Badges de los trayectos dibujados: con su nombre, en el medio del camino. */

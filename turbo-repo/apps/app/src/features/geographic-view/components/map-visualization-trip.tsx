@@ -968,6 +968,7 @@ export default function MapVisualizationTrip({
             return true;
           },
           showGeofences,
+          mapStyle,
           updateTriggers: {
             showGeofences,
           },
@@ -1068,6 +1069,7 @@ export default function MapVisualizationTrip({
     showPulse,
     showAppSignalDetail,
     isDarkMap,
+    mapStyle,
     pinSelectionCardToCorner,
     pinOffline,
     offlineText,

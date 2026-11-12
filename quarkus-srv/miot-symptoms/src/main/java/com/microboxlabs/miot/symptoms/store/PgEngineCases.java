@@ -308,7 +308,7 @@ public class PgEngineCases implements EngineCaseStore {
      * before it closed, else its opening), that level's rule in the version that opened it, and the level of each
      * of those rows.
      */
-    private static final String ONE = """
+    private static final String DETAILED = """
             SELECT w.*,
                    (SELECT o.context::text FROM miot_symptoms.signal_transitions o
                      WHERE o.tenant_code = w.tenant_code AND o.id = w.id) AS opening_context,
@@ -350,7 +350,12 @@ public class PgEngineCases implements EngineCaseStore {
                        AND v.version = w.level_version AND v.status = 'PUBLISHED'
                      LIMIT 1) AS level_response
               FROM (%s) w
-            """.formatted(WITH_SLA.formatted(SELECT.formatted(TREATABLE_CASES + " AND o.id = $2")));
+            """;
+    private static final String ONE = DETAILED.formatted(
+            WITH_SLA.formatted(SELECT.formatted(TREATABLE_CASES + " AND o.id = $2")));
+    /** {@link #ONE} for the latest $3 ACTIVE cases of trip $2. */
+    private static final String TRIP_CASES = DETAILED.formatted(WITH_SLA.formatted(SELECT.formatted(
+            CASES + " AND o.trip_id = $2 ORDER BY o.at DESC, o.id DESC LIMIT $3")));
     private static final String LIVE_TRIP_COLUMNS = "SELECT c.*,\n" + TREATMENT_COLUMNS + """
                    t.mandate_codes::text AS trip_mandate_codes, t.driver_name AS trip_driver,
                    t.carrier_name AS trip_carrier, t.origin_geofence_label AS trip_origin,
@@ -938,12 +943,23 @@ public class PgEngineCases implements EngineCaseStore {
         if (!rows.hasNext()) {
             return Optional.empty();
         }
-        Row r = rows.next();
-        return Optional.of(engineCase(r).withLevel(json(r.getString("opening_context")),
+        return Optional.of(detailed(rows.next()));
+    }
+
+    @Override
+    public List<EngineCase> tripCases(String tenantCode, String tripId, int limit) {
+        List<EngineCase> out = new ArrayList<>();
+        cases(TRIP_CASES, Tuple.of(tenantCode, tripId, limit)).forEach(r -> out.add(detailed(r)));
+        out.sort(Comparator.comparing(EngineCase::openedAt).thenComparing(EngineCase::id));
+        return out;
+    }
+
+    private static EngineCase detailed(Row r) {
+        return engineCase(r).withLevel(json(r.getString("opening_context")),
                 json(r.getString("level_context")), r.getString("level_rule"),
                 steps(json(r.getString("level_steps"))))
                 .withClosing(json(r.getString("closing_context")))
-                .withLevelResponse(json(r.getString("level_response"))));
+                .withLevelResponse(json(r.getString("level_response")));
     }
 
     @Override

@@ -431,8 +431,11 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         if (engineCase(symptomId)) {
             long id = Long.parseLong(symptomId.trim());
             String actor = actor();
-            return answer(() -> blocking(() -> EngineCaseService.withTreatments(cases.header(tenant, id, actor),
-                    caseTreatments.listForSymptom(tenant, id))));
+            return answer(() -> blocking(() -> {
+                JsonNode header = cases.header(tenant, id, actor);
+                return EngineCaseService.withTreatments(header,
+                        caseTreatments.listForSymptoms(tenant, EngineCaseService.timelineSymptomIds(header)));
+            }));
         }
         if (!legacy) {
             return notFound();

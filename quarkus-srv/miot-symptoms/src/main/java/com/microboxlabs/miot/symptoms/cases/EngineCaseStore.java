@@ -121,6 +121,18 @@ public interface EngineCaseStore {
 
     Optional<EngineCase> find(String tenantCode, long caseId);
 
+    /**
+     * The ACTIVE cases of one trip, open or closed, of any symptom, as {@link #find} reads them (with their level
+     * steps): the latest {@code limit}, oldest first. TEST cases are left out.
+     */
+    default List<EngineCase> tripCases(String tenantCode, String tripId, int limit) {
+        CaseFilter any = new CaseFilter(tripId, null, null, null, Instant.EPOCH,
+                Instant.parse("9999-12-31T00:00:00Z"));
+        List<EngineCase> latest = list(tenantCode, any).stream().filter(c -> !c.test())
+                .sorted(java.util.Comparator.comparing(EngineCase::openedAt).reversed()).limit(limit).toList();
+        return latest.reversed();
+    }
+
     /** The cases opened from {@code from} until before {@code to}, counted by symptom and level. */
     List<LevelCount> openedCounts(String tenantCode, Instant from, Instant to);
 

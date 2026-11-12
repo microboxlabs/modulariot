@@ -15,6 +15,7 @@ import com.microboxlabs.miot.symptoms.store.TreatmentStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -337,6 +338,19 @@ public class TreatmentService {
         return episodes.stream()
                 .map(t -> TreatmentView.of(t, actionsById.getOrDefault(t.id(), List.of())))
                 .toList();
+    }
+
+    /** {@link #listForSymptom} for several symptoms, by symptom id; a symptom without treatments is absent. */
+    public Map<Long, List<TreatmentView>> listForSymptoms(String tenantCode, Collection<Long> symptomIds) {
+        symptomIds.forEach(id -> seeder.ensureHistory(tenantCode, id));
+        List<Treatment> episodes = treatments.listBySymptoms(tenantCode, symptomIds);
+        Map<String, List<TreatmentAction>> actionsById = episodes.isEmpty() ? Map.of() : treatments
+                .listActions(tenantCode, episodes.stream().map(Treatment::id).toList())
+                .stream()
+                .collect(Collectors.groupingBy(TreatmentAction::treatmentId));
+        return episodes.stream().collect(Collectors.groupingBy(Treatment::symptomId, LinkedHashMap::new,
+                Collectors.mapping(t -> TreatmentView.of(t, actionsById.getOrDefault(t.id(), List.of())),
+                        Collectors.toList())));
     }
 
     public record OpenResult(TreatmentView treatment, boolean created) {

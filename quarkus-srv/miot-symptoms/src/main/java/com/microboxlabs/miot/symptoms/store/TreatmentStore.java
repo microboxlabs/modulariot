@@ -39,6 +39,11 @@ public interface TreatmentStore {
     /** Oldest first. */
     List<Treatment> listBySymptom(String tenantCode, long symptomId);
 
+    /** {@link #listBySymptom} for several symptoms at once, oldest first. */
+    default List<Treatment> listBySymptoms(String tenantCode, Collection<Long> symptomIds) {
+        return symptomIds.stream().distinct().flatMap(id -> listBySymptom(tenantCode, id).stream()).toList();
+    }
+
     /** Moves an OPEN episode to {@code status}; empty when it was not open or not found. */
     default Optional<Treatment> transition(
             String tenantCode, String id, TreatmentStatus status, String actor, String resolution, String note) {

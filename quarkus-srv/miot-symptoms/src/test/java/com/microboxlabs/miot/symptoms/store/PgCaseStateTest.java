@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.Access;
@@ -253,6 +254,50 @@ class PgCaseStateTest {
 
     private static Response call(Uni<Response> uni) {
         return uni.await().atMost(WAIT);
+    }
+
+    private static UUID definition(String tenant, SymptomState state) {
+        UUID id = UUID.randomUUID();
+        pool.preparedQuery("""
+                INSERT INTO miot_symptoms.symptom_definition
+                    (id, tenant_code, symptom_key, name, source_key, state, current_version, created_by, updated_by)
+                VALUES ($1, $2, $3, 'Detención', 'gps_signal', $4, '1.0.0', 'test', 'test')""")
+                .execute(Tuple.of(id, tenant, "stop-" + id, state.name())).await().atMost(WAIT);
+        return id;
+    }
+
+    private long openOnTrip(String tenant, UUID definition, SymptomState state, String trip, int seconds) {
+        return log.append(tenant, List.of(new Transition(Kind.OPENED, definition, "1.0.0", state, TRUCK,
+                T0.plusSeconds(seconds), 1, 0, 5)), new Place(trip, -33.4, -70.6, 80.0, null)).get(0).caseId();
+    }
+
+    @Test
+    void theCaseTimelineListsTheTripsActiveCasesOfTheTenant() {
+        setState(SymptomState.ACTIVE);
+        UUID other = definition("client-b", SymptomState.ACTIVE);
+        UUID inTest = definition(TENANT, SymptomState.TEST);
+        long first = openOnTrip(TENANT, speeding, SymptomState.ACTIVE, "trip-1", 0);
+        log.append(TENANT, List.of(new Transition(Kind.LEVEL_CHANGED, speeding, "1.0.0", SymptomState.ACTIVE,
+                TRUCK, T0.plusSeconds(60), 3, 1, 5)), new Place("trip-1", -33.4, -70.6, 80.0, null));
+        log.append(TENANT, List.of(new Transition(Kind.CLOSED, speeding, "1.0.0", SymptomState.ACTIVE, TRUCK,
+                T0.plusSeconds(120), 3, 3, 5)), new Place("trip-1", -33.4, -70.6, 80.0, null));
+        long current = openOnTrip(TENANT, speeding, SymptomState.ACTIVE, "trip-1", 180);
+        openOnTrip(TENANT, inTest, SymptomState.TEST, "trip-1", 200);
+        openOnTrip("client-b", other, SymptomState.ACTIVE, "trip-1", 210);
+        log.append(TENANT, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE, "DEMO02",
+                T0.plusSeconds(220), 1, 0, 5)), new Place("trip-2", -33.4, -70.6, 80.0, null));
+
+        List<EngineCase> trip = cases.tripCases(TENANT, "trip-1", 100);
+
+        assertEquals(List.of(first, current), trip.stream().map(EngineCase::id).toList(),
+                "oldest first; TEST cases, other trips and other tenants are left out");
+        assertEquals(List.of(1, 3), trip.get(0).levels().stream().map(EngineCase.LevelStep::level).toList());
+        assertNotNull(trip.get(0).closedAt());
+        assertEquals(List.of(current), cases.tripCases(TENANT, "trip-1", 1).stream().map(EngineCase::id).toList(),
+                "the limit keeps the latest");
+        JsonNode timeline = caseService.header(TENANT, -current).path("timeline");
+        assertEquals(2, timeline.size());
+        assertTrue(timeline.get(1).path("current").asBoolean());
     }
 
     @Test

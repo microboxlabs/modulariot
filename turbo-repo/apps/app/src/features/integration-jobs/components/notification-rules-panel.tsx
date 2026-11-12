@@ -177,8 +177,7 @@ function RuleCard({ jobType, rule, dict, saving, saveError, onSave, onDelete }: 
   const [inputError, setInputError] = useState(false);
 
   const dirty =
-    rule == null ||
-    enabled !== rule.enabled ||
+    enabled !== rule?.enabled ||
     throttleSeconds !== rule.throttleSeconds ||
     recipients.join(",") !== rule.recipients.join(",");
 

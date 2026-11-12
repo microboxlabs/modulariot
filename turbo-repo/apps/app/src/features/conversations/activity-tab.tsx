@@ -259,7 +259,7 @@ export default function ActivityTab({
         </p>
       )}
       {isLoading && <p className={`text-sm ${MUTED}`}>{tr("loading", d)}</p>}
-      {runs && runs.length === 0 && (
+      {runs?.length === 0 && (
         <p
           className={`rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-sm dark:border-gray-600 dark:bg-gray-800 ${MUTED}`}
         >

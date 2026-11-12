@@ -6,6 +6,8 @@ import { HiMinus, HiPlus, HiChevronDown } from "react-icons/hi";
 import { DynamicFieldConfig } from "../dynamic-form.types";
 import { DisplayField } from "./display-field";
 
+type DynamicFieldValue = string | boolean | number;
+
 /**
  * Props for DynamicFormField component
  */
@@ -13,9 +15,9 @@ export interface DynamicFormFieldProps {
   /** Field configuration */
   readonly field: DynamicFieldConfig;
   /** Current field value */
-  readonly value: string | boolean | number;
+  readonly value: DynamicFieldValue;
   /** Change handler */
-  readonly onChange: (value: string | boolean | number) => void;
+  readonly onChange: (value: DynamicFieldValue) => void;
   /** Whether field is visible (based on dependsOn) */
   readonly isVisible: boolean;
   /** Translation function */
@@ -30,7 +32,7 @@ export interface DynamicFormFieldProps {
   /** Custom renderer for display fields */
   readonly displayFieldRenderer?: (
     field: DynamicFieldConfig,
-    value: string | boolean | number
+    value: DynamicFieldValue
   ) => React.ReactNode;
 }
 
@@ -42,11 +44,11 @@ function NumberStepper({
   field,
   value,
   onChange,
-}: {
+}: Readonly<{
   field: DynamicFieldConfig;
-  value: string | boolean | number;
-  onChange: (value: string | boolean | number) => void;
-}) {
+  value: DynamicFieldValue;
+  onChange: (value: DynamicFieldValue) => void;
+}>) {
   const min = field.min ?? 0;
   const max = field.max ?? 99;
   const numValue = typeof value === "number" ? value : (Number.parseInt(String(value)) || min);

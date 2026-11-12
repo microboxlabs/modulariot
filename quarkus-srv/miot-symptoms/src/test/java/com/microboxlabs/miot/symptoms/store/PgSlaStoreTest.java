@@ -211,6 +211,28 @@ class PgSlaStoreTest {
     }
 
     @Test
+    void theTripFilterTakesTheTripIdOrItsServiceCode() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        UUID tripId = UUID.randomUUID();
+        Instant at = Instant.parse("2026-01-01T00:00:00Z");
+        log.append(tenant, List.of(t(Kind.OPENED, speeding, at, 3, 0)),
+                new TransitionLog.Place(tripId.toString(), null, null, null, null));
+        mandate(tenant, tripId, 1, "SERVICE-777", true);
+        mandate("other-" + tenant, UUID.randomUUID(), 1, "SERVICE-888", true);
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertEquals(1, cases.list(tenant, byTrip(tripId.toString())).size());
+        assertEquals(1, cases.list(tenant, byTrip("SERVICE-777")).size());
+        assertEquals(0, cases.list(tenant, byTrip("SERVICE-888")).size(), "another tenant's code");
+        assertEquals(0, cases.list(tenant, byTrip("SERVICE-000")).size());
+    }
+
+    private static EngineCaseStore.CaseFilter byTrip(String trip) {
+        return new EngineCaseStore.CaseFilter(trip, null, null, null, null, null);
+    }
+
+    @Test
     void casesReadTheServiceCodeFromTheFirstMandate() {
         String tenant = "tenant-" + UUID.randomUUID();
         UUID speeding = symptom(tenant);
@@ -229,18 +251,27 @@ class PgSlaStoreTest {
         assertEquals("SERVICE-001", cases.open(tenant).get(0).tripCode());
         assertEquals(tripId.toString(), cases.find(tenant, id).orElseThrow().tripId());
         assertEquals("SERVICE-001", cases.find(tenant, id).orElseThrow().tripCode());
+        assertEquals(1, cases.list(tenant, byTrip("SERVICE-001")).size(), "search the displayed live code");
+        assertEquals(1, cases.list(tenant, byTrip("SERVICE-002")).size(), "other live mandate codes resolve too");
+        assertEquals(1, cases.matchingCounts(tenant, byTrip("SERVICE-001")).stream()
+                .mapToLong(EngineCaseStore.OpenCount::count).sum());
+        assertEquals(1, cases.treatmentCounts(tenant, byTrip("SERVICE-001")).values().stream()
+                .mapToLong(Long::longValue).sum());
         for (String codes : List.of("[]", "[{\"code\":null}]", "[{\"code\":\"  \"}]", "null", "\"not-json\"")) {
             PgIds.query(pool, "UPDATE miot_trips.trip_live SET mandate_codes = $2::text::jsonb WHERE trip_id = $1",
                     Tuple.of(tripId, codes));
             assertNull(cases.find(tenant, id).orElseThrow().tripCode());
+            assertTrue(cases.list(tenant, byTrip("SERVICE-001")).isEmpty(), "malformed live codes stay harmless");
         }
         // Some projections encode the JSON array as a JSON string.
         PgIds.query(pool, "UPDATE miot_trips.trip_live SET mandate_codes = to_jsonb($2::text) WHERE trip_id = $1",
                 Tuple.of(tripId, "[{\"code\":\"SERVICE-001\"}]"));
         assertEquals("SERVICE-001", cases.find(tenant, id).orElseThrow().tripCode());
+        assertEquals(1, cases.list(tenant, byTrip("SERVICE-001")).size(), "JSON-string projections resolve too");
         PgIds.query(pool, "UPDATE miot_trips.trip_live SET tenant_code = 'another-tenant' WHERE trip_id = $1",
                 Tuple.of(tripId));
         assertNull(cases.find(tenant, id).orElseThrow().tripCode(), "another tenant's trip");
+        assertTrue(cases.list(tenant, byTrip("SERVICE-001")).isEmpty(), "another tenant's live code stays isolated");
         PgIds.query(pool, "UPDATE miot_trips.trip_live SET tenant_code = $2, asset_id = 'another-vehicle' WHERE trip_id = $1",
                 Tuple.of(tripId, tenant));
         assertEquals("SERVICE-001", cases.find(tenant, id).orElseThrow().tripCode(),

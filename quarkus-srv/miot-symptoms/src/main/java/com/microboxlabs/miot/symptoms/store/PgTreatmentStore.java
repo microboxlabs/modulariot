@@ -68,9 +68,6 @@ public class PgTreatmentStore implements TreatmentStore {
     private static final String SELECT_MY_OPEN = SELECT_TREATMENTS
             + " AND symptom_id = $2 AND opened_by = $3 AND status = 'OPEN'";
 
-    private static final String OTHER_OPEN = SELECT_TREATMENTS
-            + " AND symptom_id = $2 AND opened_by <> $3 AND status = 'OPEN'";
-
     private static final String LOCK_ENGINE_CASE = """
             SELECT id FROM miot_symptoms.signal_transitions
              WHERE tenant_code = $1 AND id = $2 AND kind = 'OPENED' FOR UPDATE
@@ -82,6 +79,11 @@ public class PgTreatmentStore implements TreatmentStore {
                AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id
              WHERE o.tenant_code = $1 AND o.id = $2
             """;
+    private static final String ENGINE_CASE_HELD = """
+            SELECT 1 FROM miot_symptoms.signal_transitions o
+              JOIN LATERAL (%s) hold ON true
+             WHERE o.tenant_code = $1 AND o.id = $2
+            """.formatted(HoldSql.active("o"));
 
     private static final String TRANSITION = """
             UPDATE miot_symptoms.treatment
@@ -229,16 +231,14 @@ public class PgTreatmentStore implements TreatmentStore {
                 .invoke(rows -> {
                     if (!rows.iterator().hasNext()) throw new NoSuchElementException("case not found");
                 })
+                .flatMap(ignored -> tx.preparedQuery(ENGINE_CASE_HELD).execute(key))
+                .invoke(rows -> rejectIfPresent(rows, "the case is on hold"))
                 .flatMap(ignored -> tx.preparedQuery(SELECT_MY_OPEN).execute(mine))
                 .flatMap(open -> {
                     List<Treatment> resumed = treatments(open);
                     if (!resumed.isEmpty()) return Uni.createFrom().item(new Inserted(resumed.get(0), false));
                     return tx.preparedQuery(ENGINE_CASE_CLOSED).execute(key)
-                            .invoke(rows -> {
-                                if (rows.iterator().hasNext()) throw new IllegalStateException("the case is closed");
-                            })
-                            .flatMap(ignored -> tx.preparedQuery(OTHER_OPEN).execute(mine))
-                            .invoke(PgTreatmentStore::requireNoCompetingTreatment)
+                            .invoke(rows -> rejectIfPresent(rows, "the case is closed"))
                             .flatMap(ignored -> tx.preparedQuery(INSERT_TREATMENT).execute(params))
                             .flatMap(rows -> {
                                 List<Treatment> saved = treatments(rows);
@@ -249,9 +249,9 @@ public class PgTreatmentStore implements TreatmentStore {
                 })).await().atMost(QUERY_TIMEOUT);
     }
 
-    private static void requireNoCompetingTreatment(RowSet<Row> rows) {
+    private static void rejectIfPresent(RowSet<Row> rows, String message) {
         if (rows.iterator().hasNext()) {
-            throw new IllegalStateException("another operator is treating this case");
+            throw new IllegalStateException(message);
         }
     }
 
@@ -289,6 +289,15 @@ public class PgTreatmentStore implements TreatmentStore {
     public List<Treatment> listBySymptom(String tenantCode, long symptomId) {
         return treatments(query(pool.get(), SELECT_TREATMENTS + "AND symptom_id = $2 ORDER BY opened_at, id",
                 Tuple.of(tenantCode, symptomId)));
+    }
+
+    @Override
+    public List<Treatment> listBySymptoms(String tenantCode, Collection<Long> symptomIds) {
+        if (symptomIds.isEmpty()) {
+            return List.of();
+        }
+        return treatments(query(pool.get(), SELECT_TREATMENTS + "AND symptom_id = ANY($2) ORDER BY opened_at, id",
+                Tuple.of(tenantCode, symptomIds.stream().distinct().toArray(Long[]::new))));
     }
 
     @Override

@@ -132,39 +132,40 @@ describe("the case panel by treatment state", () => {
     expect(screen.queryByRole("button", { name: /Otras opciones/ })).toBeNull();
   }
 
-  it("says who treats the case and offers no second treatment", () => {
+  it("says who else treats the case and keeps the treatment buttons", () => {
     renderPanel("call_driver", false, -16, {
       treatment_state: "in_treatment",
       treatment: { ...open, mine: false },
     });
 
     expect(screen.getByRole("status")).toHaveTextContent(
-      "operator-a está tratando este caso"
+      "operator-a también está tratando este caso."
     );
-    expectNoActions();
+    expect(screen.getByRole("button", { name: /Llamar/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Otras opciones/ })
+    ).toBeInTheDocument();
   });
 
-  it("does not open a form from the URL on a case another operator treats", () => {
+  it("opens a form from the URL on a case another operator also treats", () => {
     const { setIsFormOpen } = renderPanel("call_driver", true, -16, {
       treatment_state: "in_treatment",
       treatment: { ...open, mine: false },
     });
-    expect(setIsFormOpen).toHaveBeenCalledWith(false);
 
-    expect(screen.queryByText(/Inline form/)).toBeNull();
-    expect(screen.getByText("Timeline")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(setIsFormOpen).not.toHaveBeenCalledWith(false);
+    expect(screen.getByText("Inline form call_driver")).toBeInTheDocument();
   });
 
-  it("locks an open form as soon as another operator takes the case", () => {
+  it("keeps an open form when another operator starts treating the case", () => {
     const { update, setIsFormOpen } = renderPanel("call_driver", true);
     expect(screen.getByText("Inline form call_driver")).toBeInTheDocument();
     update({
       treatment_state: "in_treatment",
       treatment: { ...open, mine: false },
     });
-    expect(screen.queryByText(/Inline form/)).toBeNull();
-    expect(setIsFormOpen).toHaveBeenCalledWith(false);
+    expect(screen.getByText("Inline form call_driver")).toBeInTheDocument();
+    expect(setIsFormOpen).not.toHaveBeenCalledWith(false);
   });
 
   it("keeps only its own episode mounted while its save closes the case", () => {
@@ -190,7 +191,8 @@ describe("the case panel by treatment state", () => {
       treatment_state: "treated",
       treatment: { ...open, status: "CLOSED", mine: false },
     });
-    expect(screen.queryByText(/Inline form/)).toBeNull();
+    // The case is open again without a closing time: it can be treated anew.
+    expect(screen.getByText("Inline form call_driver")).toBeInTheDocument();
   });
 
   it("keeps the owner's existing form when the engine closes the case before the episode", () => {
@@ -209,7 +211,7 @@ describe("the case panel by treatment state", () => {
   it("opens the form on the user's own open treatment after the engine closed the case", () => {
     const { setIsFormOpen } = renderPanel("call_driver", true, -16, {
       closed_at: "2026-01-01T00:10:00Z",
-      treatment_state: "in_treatment",
+      treatment_state: "untreated",
       treatment: { ...open, mine: true },
     });
 
@@ -224,7 +226,7 @@ describe("the case panel by treatment state", () => {
       -16,
       {
         closed_at: "2026-01-01T00:10:00Z",
-        treatment_state: "in_treatment",
+        treatment_state: "treated",
         treatment: { ...open, mine: true },
       }
     );
@@ -236,8 +238,18 @@ describe("the case panel by treatment state", () => {
     expectNoActions();
   });
 
-  it("shows an open treated case read-only", () => {
+  it("lets an open treated case be treated again", () => {
+    renderPanel("call_driver", false, -16, {
+      treatment_state: "treated",
+      treatment: { ...open, status: "CLOSED", closed_by: "operator-a" },
+    });
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("button", { name: /Llamar/ })).toBeInTheDocument();
+  });
+
+  it("shows a closed treated case read-only", () => {
     renderPanel("call_driver", true, -16, {
+      closed_at: "2026-01-01T00:10:00Z",
       treatment_state: "treated",
       treatment: { ...open, status: "CLOSED", closed_by: "operator-a" },
     });
@@ -263,6 +275,27 @@ describe("the case panel by treatment state", () => {
     });
     expect(screen.getByRole("status")).toHaveTextContent("Caso ignorado.");
     expect(screen.queryByText(/Inline form/)).toBeNull();
+    expectNoActions();
+  });
+
+  it("locks an already mounted own form as soon as the case goes on hold", () => {
+    const { update, setIsFormOpen } = renderPanel("call_driver", true, -16, {
+      treatment_state: "in_treatment",
+      treatment: { ...open, mine: true },
+    });
+    expect(screen.getByText("Inline form call_driver")).toBeInTheDocument();
+    update({
+      ignored: {
+        treatment_id: "other-treatment",
+        since: "2026-01-01T00:06:00Z",
+        until: null,
+        until_trip_end: true,
+        scope: "ALL",
+        by: "other-operator",
+      },
+    });
+    expect(screen.queryByText(/Inline form/)).toBeNull();
+    expect(setIsFormOpen).toHaveBeenCalledWith(false);
     expectNoActions();
   });
 

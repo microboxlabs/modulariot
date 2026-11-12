@@ -26,6 +26,8 @@ vi.mock("@/features/common/providers/client-api.provider", () => ({
 const dict: I18nRecord = {
   symptoms: {
     symptoms: "Síntomas",
+    vehicles_on_trip: "Vehículos en viaje: {count}",
+    vehicles_on_trip_unavailable: "Vehículos en viaje: conteo no disponible",
     critical_condition: "Critical",
     in_treatment: "Treatment",
     ignored: "Ignored",
@@ -50,6 +52,26 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("SymptomsCards", () => {
+  it("shows fleet-count feedback without hiding condition cards when that request fails", () => {
+    useCounts.mockReturnValueOnce({
+      counts: { conditions: { critic: 3 }, ignored: 0 },
+      loading: false,
+      error: null,
+    });
+    useCounts.mockReturnValueOnce({
+      counts: undefined,
+      loading: false,
+      error: new Error("test-fleet-unavailable"),
+    });
+
+    render(<SymptomsCards showCards dict={dict} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Vehículos en viaje: conteo no disponible"
+    );
+    expect(screen.getByRole("button", { name: /Critical/ })).toHaveTextContent("03");
+  });
+
   it("renders the tray header without the settings cog", () => {
     render(<SymptomsCards showCards dict={dict} />);
 
@@ -93,26 +115,30 @@ describe("SymptomsCards", () => {
   });
 
   it.each(["required", "none", "all"])(
-    "uses the %s operator scope for the cards",
+    "counts every operator scope when the filter is %s",
     (operator) => {
       searchParams = new URLSearchParams({ operator });
       render(<SymptomsCards showCards dict={dict} />);
       expect(useCounts).toHaveBeenCalledWith(
-        expect.objectContaining({ operator }),
+        expect.objectContaining({ operator: "all" }),
         true
       );
     }
   );
 
-  it("filters the list to the cases in treatment when its card is clicked", () => {
+  it("filters the list to the cases in treatment, for every operator, when its card is clicked", () => {
     globalThis.history.replaceState(null, "", "/?asset_id=demo-asset");
     render(<SymptomsCards showCards dict={dict} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Treatment/ }));
 
     expect(push).toHaveBeenCalledWith(
-      "?asset_id=demo-asset&treatment=in_treatment"
+      "?asset_id=demo-asset&treatment=in_treatment&operator=all"
     );
+    // The card sets the list's scope; the user's stored choice stays.
+    expect(
+      localStorage.getItem("miot.control-tower.operator-filter")
+    ).toBeNull();
   });
 
   it("uses the treatment-state count in history and resets incompatible condition and page", () => {
@@ -133,7 +159,7 @@ describe("SymptomsCards", () => {
     expect(within(card).getByText("03")).toBeInTheDocument();
     fireEvent.click(card);
     expect(push).toHaveBeenCalledWith(
-      "?operator=none&date_from=2026-10-01&date_to=2026-10-02&treatment=in_treatment"
+      "?operator=all&date_from=2026-10-01&date_to=2026-10-02&treatment=in_treatment"
     );
   });
 
@@ -151,5 +177,45 @@ describe("SymptomsCards", () => {
     render(<SymptomsCards showCards={false} dict={dict} />);
 
     expect(useCounts.mock.calls[0][1]).toBe(false);
+  });
+
+  it("counts every case whatever the operator filter selects", () => {
+    useCounts.mockReturnValue({
+      counts: {
+        conditions: { codeBlack: 9, critic: 4 },
+        ignored: 1,
+        vehiclesOnTrip: 69,
+      },
+      loading: false,
+      error: null,
+    });
+
+    render(<SymptomsCards showCards dict={dict} />);
+
+    expect(useCounts.mock.calls[0][0]).toMatchObject({ operator: "all" });
+    expect(screen.getByText("09")).toBeInTheDocument();
+    expect(screen.getByText("04")).toBeInTheDocument();
+    expect(screen.getByText("Vehículos en viaje: 69")).toBeInTheDocument();
+  });
+
+  it("counts the vehicles on a trip in the whole fleet, whatever the filters", () => {
+    searchParams = new URLSearchParams({
+      trip_id: "SERVICE-001",
+      asset_id: "DEMO01",
+    });
+    useCounts.mockImplementation((query: Record<string, unknown>) => ({
+      counts: {
+        conditions: {},
+        ignored: 0,
+        vehiclesOnTrip: query.trip_id ? 1 : 69,
+      },
+      loading: false,
+      error: null,
+    }));
+
+    render(<SymptomsCards showCards dict={dict} />);
+
+    expect(useCounts).toHaveBeenCalledWith({ operator: "all" }, true);
+    expect(screen.getByText("Vehículos en viaje: 69")).toBeInTheDocument();
   });
 });

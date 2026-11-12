@@ -172,12 +172,10 @@ describe("symptoms treatment column and row action", () => {
     return screen.getByRole("link", { name });
   }
 
-  it("shows 'Sin tratar' and Tratar for an open case nobody treats", () => {
+  it("shows only Tratar for an open case nobody treats", () => {
     renderRow({ ...row, treatmentState: "untreated", treatment: null });
 
-    expect(
-      within(screen.getByTestId("treatment-state")).getByText("Sin tratar")
-    ).toBeInTheDocument();
+    expect(screen.queryByTestId("treatment-state")).toBeNull();
     expect(actionLink("Tratar")).toHaveAttribute("href", href);
   });
 
@@ -189,8 +187,8 @@ describe("symptoms treatment column and row action", () => {
     });
 
     const cell = screen.getByTestId("treatment-state");
-    expect(within(cell).getByText("En tratamiento")).toBeInTheDocument();
-    expect(within(cell).getByText(/por operator-a/)).toBeInTheDocument();
+    expect(cell).toHaveTextContent("operator-a");
+    expect(cell).toHaveAttribute("title", "En tratamiento");
     expect(actionLink("Continuar")).toHaveAttribute(
       "href",
       `${href}&open=1&menu=call_driver`
@@ -198,18 +196,29 @@ describe("symptoms treatment column and row action", () => {
     expect(screen.queryByRole("link", { name: "Tratar" })).toBeNull();
   });
 
-  it("does not offer a second treatment while another operator treats the case", () => {
+  it("shows who treats the case and offers a treatment alongside", () => {
     renderRow({
       ...row,
       treatmentState: "in_treatment",
       treatment: openTreatment,
     });
 
-    expect(screen.queryByRole("link", { name: "Tratar" })).toBeNull();
+    expect(screen.getByTestId("treatment-state")).toHaveTextContent(
+      "operator-a"
+    );
     expect(screen.queryByRole("link", { name: "Continuar" })).toBeNull();
-    const link = actionLink("Ver tratamiento");
-    expect(link).toHaveAttribute("href", href);
-    expect(link).toHaveAttribute("title", "En tratamiento por operator-a");
+    expect(actionLink("Tratar")).toHaveAttribute("href", href);
+  });
+
+  it("offers a new treatment on an open treated case and keeps its state", () => {
+    renderRow({
+      ...row,
+      treatmentState: "treated",
+      treatment: { ...openTreatment, status: "CLOSED", outcome: "call" },
+    });
+
+    expect(screen.getByTestId("treatment-state")).toBeInTheDocument();
+    expect(actionLink("Tratar")).toHaveAttribute("href", href);
   });
 
   it.each([
@@ -218,7 +227,7 @@ describe("symptoms treatment column and row action", () => {
     ["ignore", "Ignorado"],
     ["invalidate", "Invalidado"],
   ] as const)(
-    "shows a treated case's %s outcome, who closed it, and 'Ver tratamiento'",
+    "shows only who closed a treated case, with the %s outcome in its title, and 'Ver tratamiento'",
     (outcome, label) => {
       renderRow({
         ...row,
@@ -237,16 +246,8 @@ describe("symptoms treatment column and row action", () => {
       });
 
       const cell = screen.getByTestId("treatment-state");
-      expect(within(cell).getByText("Tratado")).toBeInTheDocument();
-      expect(within(cell).getByText(label)).toBeInTheDocument();
-      expect(within(cell).getByText(/por operator-b/)).toBeInTheDocument();
-      expect(
-        within(cell).getByText("2026-01-01T00:05:00Z")
-      ).toBeInTheDocument();
-      expect(
-        within(cell).getByText("2026-01-01T00:09:00Z")
-      ).toBeInTheDocument();
-      expect(within(cell).getByText("Llamada")).toBeInTheDocument();
+      expect(cell).toHaveTextContent(/^operator-b$/);
+      expect(cell).toHaveAttribute("title", `Tratado · ${label}`);
       expect(actionLink("Ver tratamiento")).toHaveAttribute("href", href);
       expect(screen.queryByRole("link", { name: "Tratar" })).toBeNull();
     }
@@ -280,12 +281,12 @@ describe("symptoms treatment column and row action", () => {
     });
 
     const cell = screen.getByTestId("treatment-state");
-    expect(within(cell).getByText("Ignorado")).toBeInTheDocument();
-    expect(within(cell).getByText(/por operator-c/)).toBeInTheDocument();
+    expect(cell).toHaveTextContent(/^operator-c$/);
+    expect(cell).toHaveAttribute("title", "En tratamiento · Ignorado");
     expect(actionLink("Ver tratamiento")).toHaveAttribute("href", href);
   });
 
-  it("keeps a case back from a hold as 'Sin tratar' with Tratar", () => {
+  it("shows only Tratar for a case back from a hold", () => {
     renderRow({
       ...row,
       treatmentState: "untreated",
@@ -300,9 +301,8 @@ describe("symptoms treatment column and row action", () => {
       returnedAfterIgnoreAt: "2026-01-01T00:09:00Z",
     });
 
-    const cell = screen.getByTestId("treatment-state");
-    expect(within(cell).getByText("Sin tratar")).toBeInTheDocument();
-    expect(within(cell).queryByText(/por system/)).toBeNull();
+    expect(screen.queryByTestId("treatment-state")).toBeNull();
+    expect(screen.queryByText(/por system/)).toBeNull();
     expect(actionLink("Tratar")).toHaveAttribute("href", href);
   });
 

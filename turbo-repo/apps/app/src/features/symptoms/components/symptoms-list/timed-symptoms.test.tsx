@@ -76,9 +76,9 @@ describe("TimedSymptoms", () => {
     [
       "in_treatment",
       { id: "t", status: "OPEN", mine: false, opened_by: "operator-a" },
-      "Ver tratamiento · En tratamiento por operator-a",
+      "Ir al tratamiento · En tratamiento por operator-a",
     ],
-    ["treated", { id: "t", status: "CLOSED" }, "Ver tratamiento"],
+    ["treated", { id: "t", status: "CLOSED" }, "Ir al tratamiento"],
   ] as const)(
     "labels the row's action for state %s",
     (treatment_state, treatment, label) => {

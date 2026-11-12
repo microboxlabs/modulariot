@@ -34,7 +34,7 @@ const PAST_FORM_OPTIONS = new Set<SelectedOption>([
   "invalidate_symptom",
 ]);
 
-/** Why the case has no treatment forms: who treats it, or how it was treated. */
+/** Why the case has no treatment forms: it is closed or on hold. */
 function ReadOnlyNotice({
   info,
   dict,
@@ -42,17 +42,9 @@ function ReadOnlyNotice({
   info: NonNullable<TreatmentsGeneralResponseItem["symptom_info"]>;
   dict: I18nRecord;
 }>) {
-  const others =
-    info.treatment_state === "in_treatment" && !info.closed_at
-      ? otherOperators(info.treatment)
-      : [];
   let message = tr("symptoms.read_only_closed", dict);
   if (info.ignored) {
     message = tr("symptoms.read_only_ignored", dict);
-  } else if (others.length) {
-    message = tr("symptoms.read_only_other_operator", dict, {
-      operator: others.join(", "),
-    });
   } else if (info.treatment_state === "treated") {
     message = tr("symptoms.read_only_treated", dict);
   }
@@ -65,6 +57,28 @@ function ReadOnlyNotice({
         ignored={info.ignored}
         dict={dict}
       />
+    </output>
+  );
+}
+
+/** Another operator also treats this open case; the forms stay available. */
+function OtherOperatorNotice({
+  info,
+  dict,
+}: Readonly<{
+  info: NonNullable<TreatmentsGeneralResponseItem["symptom_info"]>;
+  dict: I18nRecord;
+}>) {
+  const others =
+    info.treatment_state === "in_treatment"
+      ? otherOperators(info.treatment)
+      : [];
+  if (!others.length) return null;
+  return (
+    <output className="mb-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100">
+      {tr("symptoms.other_operator_treating", dict, {
+        operator: others.join(", "),
+      })}
     </output>
   );
 }
@@ -87,6 +101,7 @@ function useTreatmentFormLock(
   const sameCase = ownEpisode?.startsWith(`${symptomInfo?.id}:`) ?? false;
   const finishingOwnEpisode =
     isFormOpen &&
+    !symptomInfo?.ignored &&
     sameCase &&
     (ownEpisode === `${symptomInfo?.id}:${episode?.id}` ||
       !!symptomInfo?.closed_at);
@@ -218,7 +233,7 @@ export default function PrototypeSideInfo({
           gestión" has no past modal and always opens inline. */}
       {(!isFormOpen || showPastModal || formLocked) && (
         <>
-          <div className="flex flex-col h-full overflow-y-auto pb-20 gap-1">
+          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto pb-2 gap-1">
             <div className="border border-gray-300 dark:border-gray-700 flex flex-row items-center justify-between gap-2 rounded-md transition-all duration-200">
               <div className="flex flex-row items-center gap-2 pl-2 py-1">
                 <div className="text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200 rounded-md w-5 h-5 border-transparent bg-transparent">
@@ -262,10 +277,13 @@ export default function PrototypeSideInfo({
             )}
           </div>
           <div
-            className={`absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5 ${loading ? "opacity-50" : "opacity-100"}`}
+            className={`flex shrink-0 flex-col w-full px-4 pt-2 pb-4 ${loading ? "opacity-50" : "opacity-100"}`}
           >
             {readOnly && symptomInfo && (
               <ReadOnlyNotice info={symptomInfo} dict={dict} />
+            )}
+            {!readOnly && symptomInfo && (
+              <OtherOperatorNotice info={symptomInfo} dict={dict} />
             )}
             {canResume && (
               <AccessAllowed rule={ACCESS_RULES.controlTowerCaseTreat}>

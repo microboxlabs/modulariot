@@ -6,6 +6,7 @@ import StatusCardSkeleton from "./status-card-skeleton";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useRouter } from "next/navigation";
 import type { TreatmentState } from "../../model/treatment-state";
+import { OPERATOR_PARAM } from "../../model/operator-filter";
 
 interface StatusCardProps {
   icon: React.ReactNode;
@@ -67,6 +68,9 @@ export default function StatusCard({
           } else {
             url.set("icu_code", icu_condition);
           }
+          // The cards count every operator scope, so the list they open does
+          // too. Only the URL changes; the stored choice stays.
+          url.set(OPERATOR_PARAM, "all");
           url.delete("page");
           router.push(`?${url.toString()}`);
         }}

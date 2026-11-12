@@ -45,20 +45,19 @@ export function parseTreatmentState(
 export type CaseAction = "treat" | "continue" | "view_treatment" | "view_case";
 
 /**
- * The action a case offers the user: treat an open case nobody treats,
- * continue the user's own open treatment, or only look. A case another
- * operator treats is not offered for treatment.
+ * The action a case offers the user: continue the user's own open treatment,
+ * treat any other open case (again, or alongside another operator), or only
+ * look at a closed one.
  */
 export function caseActionOf(
   state: TreatmentState | null | undefined,
   treatment: CaseTreatment | null | undefined,
   closed: boolean
 ): CaseAction {
-  if (state === "in_treatment") {
-    return treatment?.mine ? "continue" : "view_treatment";
-  }
-  if (state === "treated") return "view_treatment";
-  return closed ? "view_case" : "treat";
+  if (treatment?.status === "OPEN" && treatment.mine) return "continue";
+  if (closed)
+    return !state || state === "untreated" ? "view_case" : "view_treatment";
+  return "treat";
 }
 
 /** Who handled the treatment: whoever closed it, else whoever opened it. */
@@ -87,8 +86,8 @@ export function otherOperators(
 }
 
 /**
- * Whether the treatment page only shows the case: it is closed, or another
- * operator has it open.
+ * Whether the treatment page only shows the case: it is closed or on hold.
+ * A treated case, or one another operator treats, can be treated again.
  */
 export function isReadOnlyCase(info: {
   ignored?: IgnoredInfo | null;
@@ -96,7 +95,5 @@ export function isReadOnlyCase(info: {
   treatment_state?: TreatmentState | null;
   treatment?: CaseTreatment | null;
 }): boolean {
-  if (info.ignored || info.closed_at || info.treatment_state === "treated")
-    return true;
-  return info.treatment_state === "in_treatment" && !info.treatment?.mine;
+  return !!info.ignored || !!info.closed_at;
 }

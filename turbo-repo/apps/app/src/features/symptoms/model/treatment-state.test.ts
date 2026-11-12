@@ -47,15 +47,22 @@ describe("caseActionOf", () => {
     expect(caseActionOf("in_treatment", { ...open, mine: true }, false)).toBe(
       "continue"
     );
+    expect(caseActionOf("untreated", { ...open, mine: true }, true)).toBe(
+      "continue"
+    );
+    expect(caseActionOf("treated", { ...open, mine: true }, true)).toBe(
+      "continue"
+    );
   });
 
-  it("only shows a case another operator treats", () => {
-    expect(caseActionOf("in_treatment", open, false)).toBe("view_treatment");
+  it("offers a treatment alongside another operator on an open case", () => {
+    expect(caseActionOf("in_treatment", open, false)).toBe("treat");
   });
 
-  it("only shows a treated case, open or closed", () => {
-    expect(caseActionOf("treated", closed, false)).toBe("view_treatment");
+  it("offers a new treatment on an open treated case and only shows a closed one", () => {
+    expect(caseActionOf("treated", closed, false)).toBe("treat");
     expect(caseActionOf("treated", closed, true)).toBe("view_treatment");
+    expect(caseActionOf("in_treatment", open, true)).toBe("view_treatment");
   });
 
   it("keeps Tratar for a symptom without a treatment state", () => {
@@ -84,10 +91,10 @@ describe("who and when", () => {
 });
 
 describe("isReadOnlyCase", () => {
-  it("locks a treated case even while the engine keeps it open", () => {
+  it("leaves an open treated case editable, for a new treatment", () => {
     expect(
       isReadOnlyCase({ treatment_state: "treated", treatment: closed })
-    ).toBe(true);
+    ).toBe(false);
   });
   it("locks a closed case", () => {
     expect(
@@ -98,10 +105,10 @@ describe("isReadOnlyCase", () => {
     ).toBe(true);
   });
 
-  it("locks a case another operator treats, not the user's own", () => {
+  it("leaves an open case editable whoever treats it", () => {
     expect(
       isReadOnlyCase({ treatment_state: "in_treatment", treatment: open })
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isReadOnlyCase({
         treatment_state: "in_treatment",

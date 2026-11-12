@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.domain.ActionKind;
@@ -51,6 +52,44 @@ class DemoSeederTest {
         seeder.ensureHistory("t", 1L);
         assertTrue(contacts.isEmpty("t"));
         assertTrue(treatments.listBySymptom("t", 1L).isEmpty());
+    }
+
+    @Test
+    void engineCasesThatClosedOrWentOnHoldDoNotFailDemoReads() {
+        for (String reason : List.of("the case is closed", "the case is on hold")) {
+            var contacts = new InMemoryContactStore();
+            List<Long> attempts = new java.util.ArrayList<>();
+            var treatments = new InMemoryTreatmentStore() {
+                @Override
+                public synchronized Inserted insert(Treatment treatment) {
+                    attempts.add(treatment.symptomId());
+                    throw new IllegalStateException(reason);
+                }
+            };
+            var seeder = new DemoSeeder(true, contacts, treatments);
+            for (long id = -1; id >= -30; id--) {
+                seeder.ensureHistory("test-tenant", id);
+            }
+            assertTrue(!attempts.isEmpty(), "exercise a synthetic insert, not only zero-history cases");
+            assertThrows(IllegalStateException.class, () -> {
+                for (long id = 1; id <= 30; id++) seeder.ensureHistory("test-tenant", id);
+            }, "legacy insert failures must still surface");
+        }
+    }
+
+    @Test
+    void anUnrelatedEngineHistoryFailureStillSurfaces() {
+        var contacts = new InMemoryContactStore();
+        var treatments = new InMemoryTreatmentStore() {
+            @Override
+            public synchronized Inserted insert(Treatment treatment) {
+                throw new IllegalStateException("test-database-unavailable");
+            }
+        };
+        var seeder = new DemoSeeder(true, contacts, treatments);
+        assertThrows(IllegalStateException.class, () -> {
+            for (long id = -1; id >= -30; id--) seeder.ensureHistory("test-tenant", id);
+        });
     }
 
     private static List<String> shape(String tenant) {

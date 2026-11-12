@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.cases;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
 
@@ -226,13 +227,16 @@ public record EngineCase(long id, UUID definitionId, String version, String name
         }
 
         /**
-         * The episode the state is about: for a case in treatment, {@code actor}'s own open one, else the oldest
-         * open one; otherwise the latest closed one. Null without any.
+         * The actor's own open episode, even after the engine closed the case; otherwise the oldest open one
+         * for a case in treatment, else the latest closed one. Null without any.
          */
         public Episode shown(String actor) {
+            Optional<Episode> own = open.stream().filter(e -> actor != null && actor.equals(e.openedBy())).findFirst();
+            if (own.isPresent()) {
+                return own.get();
+            }
             if (state == TreatmentState.IN_TREATMENT && !open.isEmpty()) {
-                return open.stream().filter(e -> actor != null && actor.equals(e.openedBy())).findFirst()
-                        .orElse(open.get(0));
+                return open.get(0);
             }
             return last;
         }

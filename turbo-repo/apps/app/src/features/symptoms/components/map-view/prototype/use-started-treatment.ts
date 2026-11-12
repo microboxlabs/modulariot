@@ -31,7 +31,7 @@ export function useStartedTreatment({
   /** The API refused the treatment: the case is closed, or another operator treats it. */
   onRefused: (error: Error) => void;
   onFailed: () => void;
-}): { ensure: () => void; callCleared: () => void } {
+}): { ensure: () => Promise<boolean>; callCleared: () => void } {
   const symptomId = request.symptom_id;
   const latest = useRef({
     request,
@@ -49,12 +49,15 @@ export function useStartedTreatment({
 
   const ensure = useCallback(() => {
     const current = lifetime.current;
-    if (!current) return;
-    guardedStartTreatment(latest.current.request).catch((error: unknown) => {
-      if (lifetime.current !== current) return;
-      if (isConflict(error)) latest.current.onRefused(error);
-      else latest.current.onFailed();
-    });
+    if (!current) return Promise.resolve(false);
+    return guardedStartTreatment(latest.current.request)
+      .then(() => lifetime.current === current)
+      .catch((error: unknown) => {
+        if (lifetime.current !== current) return false;
+        if (isConflict(error)) latest.current.onRefused(error);
+        else latest.current.onFailed();
+        return false;
+      });
   }, []);
 
   /** The panel cleared the case's ended call in the same update that closes it. */

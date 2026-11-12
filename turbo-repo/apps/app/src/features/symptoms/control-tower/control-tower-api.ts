@@ -466,7 +466,7 @@ export function cancelTreatment(
   reason?: string,
   options: { keepalive?: boolean } = {}
 ) {
-  return request<TowerTreatment>(`/treatments/${treatmentId}/cancel`, {
+  return request<void>(`/treatments/${treatmentId}/abandon`, {
     method: "POST",
     body: reason ? { reason } : {},
     keepalive: options.keepalive,

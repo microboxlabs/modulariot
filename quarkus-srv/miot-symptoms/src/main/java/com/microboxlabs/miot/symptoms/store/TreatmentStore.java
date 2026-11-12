@@ -28,6 +28,9 @@ public interface TreatmentStore {
     record Inserted(Treatment treatment, boolean created) {
     }
 
+    /** Atomically cancels only an empty OPEN episode owned by actor; races with actions are serialized. */
+    Optional<Treatment> cancelEmpty(String tenantCode, String id, String actor);
+
     Optional<Treatment> find(String tenantCode, String id);
 
     /** The OPEN episode {@code actor} has on the symptom, if any. */

@@ -138,7 +138,7 @@ export default function PrototypeCallCenterFlow({
   skippedTo: number | null;
   onSkip: (step: number) => void;
   /** "Llamar" was pressed on a contact: the treatment must be open by now. */
-  onCallStart?: () => void;
+  onCallStart?: () => Promise<boolean>;
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   messageToCommunicate: string;
@@ -279,8 +279,8 @@ export default function PrototypeCallCenterFlow({
     message: messageToCommunicate,
   };
 
-  const handleCall = (target: CallTarget, script?: CallScript) => {
-    onCallStart?.();
+  const handleCall = async (target: CallTarget, script?: CallScript) => {
+    if (onCallStart && !(await onCallStart())) return;
     setAdoptedSessionKey(undefined);
     if (!activeScript) defaultMessage.current = messageToCommunicate;
     // The step's script replaces the treatment's default message, so the

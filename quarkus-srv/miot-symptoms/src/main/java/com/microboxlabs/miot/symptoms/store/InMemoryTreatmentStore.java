@@ -96,6 +96,14 @@ public class InMemoryTreatmentStore implements TreatmentStore {
     }
 
     @Override
+    public synchronized Optional<Treatment> cancelEmpty(String tenantCode, String id, String actor) {
+        var current = find(tenantCode, id);
+        if (current.isEmpty() || !java.util.Objects.equals(current.get().openedBy(), actor)
+                || !listActions(tenantCode, List.of(id)).isEmpty()) return Optional.empty();
+        return transition(tenantCode, id, TreatmentStatus.CANCELLED, actor, "cancelled", "panel closed");
+    }
+
+    @Override
     public synchronized Optional<Treatment> transition(
             String tenantCode, String id, TreatmentStatus status, String actor, String resolution, String note,
             OffsetDateTime at) {

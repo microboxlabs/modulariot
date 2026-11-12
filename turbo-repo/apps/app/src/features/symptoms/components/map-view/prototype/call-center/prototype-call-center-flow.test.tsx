@@ -152,16 +152,19 @@ function Flow({
   snapshot,
   onConfirmed = vi.fn(),
   symptomId = "-1",
+  onCallStart,
 }: Readonly<{
   snapshot?: CallSnapshot;
   onConfirmed?: (snapshot: CallSnapshot) => void;
   symptomId?: string;
+  onCallStart?: () => Promise<boolean>;
 }>) {
   const [message, setMessage] = useState(
     snapshot?.script?.message ?? "Default message"
   );
   return (
     <PrototypeCallCenterFlow
+      onCallStart={onCallStart}
       dict={{}}
       treatmentData={null}
       messageToCommunicate={message}
@@ -318,4 +321,31 @@ describe("the call session", () => {
     fireEvent.click(screen.getByText("Another call"));
     expect(session?.call).toBeNull();
   });
+});
+
+it("waits for treatment ownership before showing the dialing step", async () => {
+  let opened!: (ok: boolean) => void;
+  render(
+    <Flow
+      onCallStart={() =>
+        new Promise((resolve) => {
+          opened = resolve;
+        })
+      }
+    />
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Other contact" }));
+  expect(screen.queryByRole("button", { name: "Confirm call" })).toBeNull();
+  await act(async () => opened(true));
+  expect(
+    screen.getByRole("button", { name: "Confirm call" })
+  ).toBeInTheDocument();
+});
+
+it("does not dial when opening the treatment is refused", async () => {
+  render(<Flow onCallStart={async () => false} />);
+  await act(async () =>
+    fireEvent.click(screen.getByRole("button", { name: "Other contact" }))
+  );
+  expect(screen.queryByRole("button", { name: "Confirm call" })).toBeNull();
 });

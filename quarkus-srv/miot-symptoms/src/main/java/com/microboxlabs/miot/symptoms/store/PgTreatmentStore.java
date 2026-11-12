@@ -292,6 +292,26 @@ public class PgTreatmentStore implements TreatmentStore {
     }
 
     @Override
+    public Optional<Treatment> cancelEmpty(String tenantCode, String id, String actor) {
+        UUID uuid = parse(id);
+        if (uuid == null) return Optional.empty();
+        // Take the same row lock as addAction, then use a fresh statement snapshot:
+        // an action committed while this request waited must prevent cancellation.
+        String lock = "SELECT id FROM miot_symptoms.treatment WHERE tenant_code = $1 AND id = $2 FOR UPDATE";
+        String cancel = """
+                UPDATE miot_symptoms.treatment t
+                   SET status = 'CANCELLED', closed_by = $3, closed_at = now(),
+                       resolution = 'cancelled', note = 'panel closed', updated_at = now()
+                 WHERE t.tenant_code = $1 AND t.id = $2 AND t.status = 'OPEN' AND t.opened_by = $3
+                   AND NOT EXISTS (SELECT 1 FROM miot_symptoms.treatment_action a
+                                    WHERE a.tenant_code = $1 AND a.treatment_id = $2)
+                RETURNING\s""" + TREATMENT_COLUMNS;
+        return pool.get().withTransaction(tx -> tx.preparedQuery(lock).execute(Tuple.of(tenantCode, uuid))
+                .flatMap(ignored -> tx.preparedQuery(cancel).execute(Tuple.of(tenantCode, uuid, actor)))
+                .map(rows -> treatments(rows).stream().findFirst())).await().atMost(QUERY_TIMEOUT);
+    }
+
+    @Override
     public Optional<Treatment> transition(
             String tenantCode, String id, TreatmentStatus status, String actor, String resolution, String note,
             OffsetDateTime at) {

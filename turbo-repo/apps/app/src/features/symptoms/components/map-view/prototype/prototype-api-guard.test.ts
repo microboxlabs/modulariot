@@ -357,9 +357,10 @@ describe("the treatment opened when the operator starts", () => {
     const saving = guardedRequestTreatment(base, { finish: false });
     await Promise.resolve();
 
-    await guardedAbandonTreatment(base.symptom_id);
+    const leaving = guardedAbandonTreatment(base.symptom_id);
     recorded({});
     await saving;
+    await leaving;
 
     expect(tower.cancelTreatment).not.toHaveBeenCalled();
   });
@@ -530,4 +531,22 @@ describe("discarding a call after leaving its panel", () => {
     await Promise.resolve();
     expect(tower.cancelTreatment).not.toHaveBeenCalled();
   });
+});
+
+it("cancels after leaving if the pending action fails", async () => {
+  await guardedStartTreatment(base);
+  let fail!: (error: Error) => void;
+  tower.addTreatmentAction.mockReturnValueOnce(
+    new Promise((_resolve, reject) => {
+      fail = reject;
+    })
+  );
+  const saving = guardedRequestTreatment(base, { finish: false });
+  const rejected = expect(saving).rejects.toThrow("network");
+  await vi.waitFor(() => expect(tower.addTreatmentAction).toHaveBeenCalled());
+  const leaving = guardedAbandonTreatment(base.symptom_id);
+  fail(new Error("network"));
+  await rejected;
+  await leaving;
+  expect(tower.cancelTreatment).toHaveBeenCalledTimes(1);
 });

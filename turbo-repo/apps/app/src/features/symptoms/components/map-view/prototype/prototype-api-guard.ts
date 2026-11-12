@@ -78,6 +78,7 @@ interface StartedTreatment {
   treatmentId: string;
   /** False while it holds no action: it is then cancelled when the operator leaves. */
   recorded: boolean;
+  pending: Set<Promise<unknown>>;
 }
 
 interface TreatmentTarget {
@@ -165,6 +166,7 @@ function startEngineTreatment(
     .then((treatment) => ({
       treatmentId: treatment.id,
       recorded: (treatment.actions?.length ?? 0) > 0,
+      pending: new Set<Promise<unknown>>(),
     }));
   started.set(key, opening);
   opening.catch(() => {
@@ -237,19 +239,19 @@ async function addEngineAction(
   }
 }
 
-/** Counts as recorded while the request runs, so leaving meanwhile does not cancel it. */
+/** Abandoning waits for in-flight writes and preserves only confirmed actions. */
 async function recordAction(
   treatment: StartedTreatment,
   body: AddActionBody
 ): Promise<string> {
-  const before = treatment.recorded;
-  treatment.recorded = true;
+  const write = addTreatmentAction(treatment.treatmentId, body);
+  treatment.pending.add(write);
   try {
-    await addTreatmentAction(treatment.treatmentId, body);
+    await write;
+    treatment.recorded = true;
     return treatment.treatmentId;
-  } catch (error) {
-    treatment.recorded = before;
-    throw error;
+  } finally {
+    treatment.pending.delete(write);
   }
 }
 
@@ -355,6 +357,7 @@ export function guardedAbandonTreatment(
   started.delete(key);
   const left = opening
     .then(async (treatment) => {
+      await Promise.allSettled(treatment.pending);
       if (treatment.recorded) return;
       await cancelTreatment(treatment.treatmentId, "panel closed", options);
       void revalidateCase(symptomId);

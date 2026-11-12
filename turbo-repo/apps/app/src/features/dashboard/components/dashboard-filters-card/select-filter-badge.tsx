@@ -155,7 +155,7 @@ export function SelectFilterBadge({ filter, values, onApply, onClear, dictionary
               }`}
             >
               {checked && !filter.single && (
-                <svg className="h-2.5 w-2.5 text-white" viewBox="0 0 10 10" fill="none">
+                <svg className="h-2.5 w-2.5 text-white" viewBox="0 0 10 10" fill="none" aria-hidden="true" focusable="false">
                   <path d="M2 5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}

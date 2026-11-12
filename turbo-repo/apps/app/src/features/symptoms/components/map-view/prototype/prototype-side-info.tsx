@@ -34,7 +34,7 @@ const PAST_FORM_OPTIONS = new Set<SelectedOption>([
   "invalidate_symptom",
 ]);
 
-/** Why the case has no treatment forms: who treats it, or how it was treated. */
+/** Why the case has no treatment forms: it is closed or on hold. */
 function ReadOnlyNotice({
   info,
   dict,
@@ -42,17 +42,9 @@ function ReadOnlyNotice({
   info: NonNullable<TreatmentsGeneralResponseItem["symptom_info"]>;
   dict: I18nRecord;
 }>) {
-  const others =
-    info.treatment_state === "in_treatment" && !info.closed_at
-      ? otherOperators(info.treatment)
-      : [];
   let message = tr("symptoms.read_only_closed", dict);
   if (info.ignored) {
     message = tr("symptoms.read_only_ignored", dict);
-  } else if (others.length) {
-    message = tr("symptoms.read_only_other_operator", dict, {
-      operator: others.join(", "),
-    });
   } else if (info.treatment_state === "treated") {
     message = tr("symptoms.read_only_treated", dict);
   }
@@ -65,6 +57,28 @@ function ReadOnlyNotice({
         ignored={info.ignored}
         dict={dict}
       />
+    </output>
+  );
+}
+
+/** Another operator also treats this open case; the forms stay available. */
+function OtherOperatorNotice({
+  info,
+  dict,
+}: Readonly<{
+  info: NonNullable<TreatmentsGeneralResponseItem["symptom_info"]>;
+  dict: I18nRecord;
+}>) {
+  const others =
+    info.treatment_state === "in_treatment"
+      ? otherOperators(info.treatment)
+      : [];
+  if (!others.length) return null;
+  return (
+    <output className="mb-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100">
+      {tr("symptoms.other_operator_treating", dict, {
+        operator: others.join(", "),
+      })}
     </output>
   );
 }
@@ -266,6 +280,9 @@ export default function PrototypeSideInfo({
           >
             {readOnly && symptomInfo && (
               <ReadOnlyNotice info={symptomInfo} dict={dict} />
+            )}
+            {!readOnly && symptomInfo && (
+              <OtherOperatorNotice info={symptomInfo} dict={dict} />
             )}
             {canResume && (
               <AccessAllowed rule={ACCESS_RULES.controlTowerCaseTreat}>

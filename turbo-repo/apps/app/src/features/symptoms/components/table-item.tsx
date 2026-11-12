@@ -62,19 +62,33 @@ function TreatmentColumn({
     : caseActionOf(data.treatmentState, data.treatment, !!data.endDate);
   const label = trDynamic(ACTION_LABEL[action], dict);
 
+  const treatButton = (
+    <Button
+      as={Link}
+      className="h-8 w-fit flex justify-center items-center !text-xs"
+      color="blue"
+      href={href}
+    >
+      <div className="flex items-center gap-2">
+        <p>{label}</p>
+        <HiArrowRight className="w-4 h-4" />
+      </div>
+    </Button>
+  );
+  const untreated = !data.treatmentState || data.treatmentState === "untreated";
+  if (action === "treat" && untreated) return treatButton;
   if (action === "treat") {
+    // Treated before, or treated by another operator: the state, and a new treatment.
     return (
-      <Button
-        as={Link}
-        className="h-8 w-fit flex justify-center items-center !text-xs"
-        color="blue"
-        href={href}
-      >
-        <div className="flex items-center gap-2">
-          <p>{label}</p>
-          <HiArrowRight className="w-4 h-4" />
-        </div>
-      </Button>
+      <div className="flex items-center gap-3">
+        <TreatmentStateCell
+          state={data.treatmentState}
+          treatment={data.treatment}
+          ignored={data.ignored}
+          dict={dict}
+        />
+        {treatButton}
+      </div>
     );
   }
 

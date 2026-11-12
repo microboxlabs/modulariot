@@ -7462,7 +7462,7 @@
     "view_treatment": "View treatment",
     "view_case": "View case",
     "treating_by_other": "Being treated by {operator}",
-    "read_only_other_operator": "{operator} is treating this case. You can view the treatment, but not open another one.",
+    "other_operator_treating": "{operator} is also treating this case.",
     "read_only_treated": "Treated case. Read only.",
     "read_only_ignored": "Case ignored. Resume the case to treat it.",
     "read_only_closed": "Closed case. Read only.",

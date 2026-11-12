@@ -196,18 +196,29 @@ describe("symptoms treatment column and row action", () => {
     expect(screen.queryByRole("link", { name: "Tratar" })).toBeNull();
   });
 
-  it("does not offer a second treatment while another operator treats the case", () => {
+  it("shows who treats the case and offers a treatment alongside", () => {
     renderRow({
       ...row,
       treatmentState: "in_treatment",
       treatment: openTreatment,
     });
 
-    expect(screen.queryByRole("link", { name: "Tratar" })).toBeNull();
+    expect(
+      within(screen.getByTestId("treatment-state")).getByText(/por operator-a/)
+    ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Continuar" })).toBeNull();
-    const link = actionLink("Ver tratamiento");
-    expect(link).toHaveAttribute("href", href);
-    expect(link).toHaveAttribute("title", "En tratamiento por operator-a");
+    expect(actionLink("Tratar")).toHaveAttribute("href", href);
+  });
+
+  it("offers a new treatment on an open treated case and keeps its state", () => {
+    renderRow({
+      ...row,
+      treatmentState: "treated",
+      treatment: { ...openTreatment, status: "CLOSED", outcome: "call" },
+    });
+
+    expect(screen.getByTestId("treatment-state")).toBeInTheDocument();
+    expect(actionLink("Tratar")).toHaveAttribute("href", href);
   });
 
   it.each([

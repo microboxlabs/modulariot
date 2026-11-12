@@ -13,10 +13,12 @@ export function validateAndGetTask(
   token: string,
   taskType: string,
 ): Promise<ExternalTask> {
-  // The executor turns a thrown ExtTaskError into a rejection, as the async version did.
-  return new Promise((resolve) => {
-    resolve(decodeTask(token, taskType));
-  });
+  // A thrown ExtTaskError becomes a rejection, as the async version did.
+  try {
+    return Promise.resolve(decodeTask(token, taskType));
+  } catch (error) {
+    return Promise.reject(error);
+  }
 }
 
 function decodeTask(token: string, taskType: string): ExternalTask {

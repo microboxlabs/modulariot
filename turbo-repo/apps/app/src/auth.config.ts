@@ -129,9 +129,7 @@ function applyAuth0Account(token: JWT, account: Account, user: User | undefined)
 
 /** Sessions saved before `expiresAt` existed only carry the access token expiry. */
 function backfillExpiresAt(token: JWT) {
-  if (token.expiresAt === undefined) {
-    token.expiresAt = earliestTokenExpiry(token.rawJWT, token.accessTokenExpiresAt);
-  }
+  token.expiresAt ??= earliestTokenExpiry(token.rawJWT, token.accessTokenExpiresAt);
 }
 
 /** Refreshes the Auth0 tokens when they expire within 5 minutes. */

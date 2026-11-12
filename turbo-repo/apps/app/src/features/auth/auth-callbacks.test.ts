@@ -153,6 +153,19 @@ describe("jwt callback refresh", () => {
     expect(result.rawJWT).toBe(currentIdToken);
     expect(result.expiresAt).toBe(nowSeconds() + 60);
   });
+
+  it("keeps an expiresAt of 0 and refreshes", async () => {
+    const token = {
+      sub: "auth0|abc123",
+      rawJWT: makeIdToken({ exp: nowSeconds() + 3_600 }),
+      refreshToken: nextRefreshToken(),
+      expiresAt: 0,
+    } as JWT;
+
+    await jwt({ token });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
 });
 
 describe("jwt callback with a session saved before expiresAt existed", () => {

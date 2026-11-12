@@ -1,0 +1,269 @@
+{
+  "stack_version": "0.6.15",
+  "stack_tag": "miot-stack@v0.6.15",
+  "milestone": "MIOT-0.6.15",
+  "pull_requests": [
+    {
+      "number": 2617,
+      "title": "feat(symptoms): operator filter in the Control Tower symptoms",
+      "source_issues": [
+        {
+          "number": 2616,
+          "title": "feat: operator filter in the Control Tower symptoms (only for operators, without operator, all)"
+        }
+      ]
+    },
+    {
+      "number": 2619,
+      "title": "feat(iam): custom roles per organization; Revisor gains the geographic view",
+      "source_issues": [
+        {
+          "number": 2618,
+          "title": "feat: custom roles per organization, and geographic view for the Revisor role"
+        }
+      ]
+    },
+    {
+      "number": 2622,
+      "title": "feat(symptoms): remove the settings cog from the symptoms tray",
+      "source_issues": [
+        {
+          "number": 2621,
+          "title": "Remove the settings cog from the symptoms tray"
+        }
+      ]
+    },
+    {
+      "number": 2624,
+      "title": "[app] Case counts and vehicles on a trip in the symptoms constellation",
+      "source_issues": [
+        {
+          "number": 2623,
+          "title": "Control Tower symptoms: case counts and vehicles on a trip in the constellation"
+        }
+      ]
+    },
+    {
+      "number": 2626,
+      "title": "feat(symptoms): show and filter engine cases by treatment state",
+      "source_issues": [
+        {
+          "number": 2625,
+          "title": "feat: show and filter Control Tower engine cases by treatment state"
+        }
+      ]
+    },
+    {
+      "number": 2628,
+      "title": "[app] Open the treatment when the operator starts treating a case",
+      "source_issues": [
+        {
+          "number": 2627,
+          "title": "bug: call result lost when the engine closes the case while the operator treats it (map view)"
+        }
+      ]
+    },
+    {
+      "number": 2630,
+      "title": "[app] Constellation counts ignore the operator filter",
+      "source_issues": [
+        {
+          "number": 2629,
+          "title": "[app] Constellation counts ignore the operator filter"
+        }
+      ]
+    },
+    {
+      "number": 2632,
+      "title": "[app] Control Tower symptoms: treatment column, cards, re-treatment, trip search and trip timeline",
+      "source_issues": [
+        {
+          "number": 2631,
+          "title": "[app] Control Tower symptoms: treatment column, cards, re-treatment, trip search and trip timeline"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-core/docs/organization-access.md",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgCustomRolesResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgServiceAccountsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AccessEvaluator.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AccessRules.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/ApiKeyService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/CoordinatorAccessCatalog.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/CustomRoleRules.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/CustomRoles.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/IamDirectory.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/OrgRoles.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/TeamRules.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/TeamService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/TeamsService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamCustomRole.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/OrganizationPermissionDefinition.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/OrganizationPermissionService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/OrganizationRoleService.java",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.21__create_iam_custom_role.sql",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/CoordinatorAccessCatalogTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/CustomRoleRulesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/CustomRolesApiTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/ProjectionQueueTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/TeamRulesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/OrganizationPermissionServiceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/OrganizationRoleServiceTest.java",
+    "quarkus-srv/miot-symptoms/docs/control-tower-api.md",
+    "quarkus-srv/miot-symptoms/docs/evaluator.md",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerTreatmentsResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCase.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCaseService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/EngineCaseStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/cases/HoldService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/ControlTowerMapService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/DemoSeeder.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/service/TreatmentService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/InMemoryTreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgEngineCases.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/TreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/access/ControlTowerPermissionsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/EngineCaseHoldsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/EngineCaseServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/cases/InMemoryEngineCases.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/service/DemoSeederTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/service/TreatmentServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgCaseStateTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgEngineCasesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgHoldsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgNotesTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgSlaStoreTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgTreatmentStoresTest.java",
+    "turbo-repo/apps/app/src/app/api/control-tower/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/control-tower/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/counts/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/counts/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/dashboard/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/dashboard/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/icu/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/icu/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/icu/route.type.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/list-params.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.schema.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.ts",
+    "turbo-repo/apps/app/src/app/api/symptoms/table/route.types.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/general/route.type.ts",
+    "turbo-repo/apps/app/src/app/api/utils/control-tower-map.ts",
+    "turbo-repo/apps/app/src/features/auth/access/server-access.test.ts",
+    "turbo-repo/apps/app/src/features/auth/access/server-access.ts",
+    "turbo-repo/apps/app/src/features/common/providers/client-api.provider.ts",
+    "turbo-repo/apps/app/src/features/common/providers/symptom-counts.test.tsx",
+    "turbo-repo/apps/app/src/features/common/providers/symptoms-operator-filter.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/side-bar/inner-menu/symptoms.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/navegation_params.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/parametrized-filter-bar.test.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/parametrized-filter-bar.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/data/json-client.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/custom-role-form-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/custom-roles-model.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/custom-roles-section.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/custom-roles-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/invite-members-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/member-access-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/module-access.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/permission-picker.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/service-account-create-page.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/service-account-create-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/service-account-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-access-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-api.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-model.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-model.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-roles-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team.types.ts",
+    "turbo-repo/apps/app/src/features/symptoms/cards.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/cards.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/client-symptoms.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/card/status-card.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/constellation-count.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/empty-animation.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/empty-table.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/empty-table.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-session.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-session.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/prototype-call-center-flow.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/prototype-call-center-flow.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-call-driver.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-inline-form.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-inline-form.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-record-handling.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-side-info.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-side-info.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/treatment-session.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/treatment-session.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/use-started-treatment.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/timeline-group.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/timeline.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/timeline.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/symptoms-list/symptoms-icu-list.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/symptoms-list/timed-symptoms.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/symptoms-list/timed-symptoms.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-component.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-component.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-item.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-item.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-item.type.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/treatment-state-cell.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/control-tower-api.ts",
+    "turbo-repo/apps/app/src/features/symptoms/control-tower/revalidate-case.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/hooks/use-operator-filter.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/hooks/use-operator-filter.ts",
+    "turbo-repo/apps/app/src/features/symptoms/hooks/use-symptom-names.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/hooks/use-symptom-names.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/operator-filter.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/treatment-link.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/treatment-state.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/treatment-state.ts",
+    "turbo-repo/apps/app/src/features/symptoms/table.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/types/symptoms.ts",
+    "turbo-repo/apps/app/src/features/symptoms/types/timeline.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.15",
+      "tag": "app@v0.6.15"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.6.14",
+      "version": "0.6.14",
+      "tag": "docs@v0.6.14"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.6.14",
+      "version": "0.6.14",
+      "tag": "web@v0.6.14"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.52",
+      "version": "0.5.53",
+      "tag": "modulith@v0.5.53"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

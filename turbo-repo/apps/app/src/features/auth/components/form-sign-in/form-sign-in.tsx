@@ -61,10 +61,10 @@ export default function FormSignIn({
     }
   }, [_state]);
 
-  const onSubmitForm = async function (e: React.MouseEvent<HTMLButtonElement>) {
+  const onSubmitForm = function (e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
     setPending(true);
-    await e.currentTarget.form?.requestSubmit();
+    e.currentTarget.form?.requestSubmit();
   };
 
   const getMessages = function (message = "") {

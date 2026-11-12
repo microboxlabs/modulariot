@@ -57,15 +57,17 @@ class FileAttachmentAdapter implements AttachmentAdapter {
     private readonly fallbackMime: string
   ) {}
 
-  async add({ file }: { file: File }): Promise<PendingAttachment> {
-    return {
-      id: crypto.randomUUID(),
-      type: "document",
-      name: file.name,
-      contentType: file.type,
-      file,
-      status: { type: "requires-action", reason: "composer-send" },
-    };
+  add({ file }: { file: File }): Promise<PendingAttachment> {
+    return new Promise((resolve) => {
+      resolve({
+        id: crypto.randomUUID(),
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      });
+    });
   }
 
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {

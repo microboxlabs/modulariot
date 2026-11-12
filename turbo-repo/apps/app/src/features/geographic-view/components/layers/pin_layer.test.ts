@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { PinLayer } from "./pin_layer";
 import { createSVGIcon } from "../prototype/svg-generation";
+import { WebMercatorViewport } from "@deck.gl/core";
+import type { UpdateParameters } from "@deck.gl/core";
+import type { IconLayer } from "deck.gl";
 
 const position = {
   assetid: "AB12",
@@ -24,6 +27,36 @@ function iconUrl(layers: ReturnType<typeof render>): string {
 }
 
 describe("PinLayer", () => {
+  it("recomputes the heading when the map turns and tilts", () => {
+    const point = { ...position, heading: 90 };
+    const layer = new PinLayer({ id: "pin", data: [point] });
+    const first = layer.renderLayers()[0] as IconLayer;
+    const angle = first.props.getAngle as (d: typeof point) => number;
+    expect(angle(point)).toBe(-90);
+    layer.context = {
+      ...layer.context,
+      viewport: new WebMercatorViewport({
+        width: 800,
+        height: 600,
+        longitude: -70,
+        latitude: -33,
+        zoom: 12,
+        bearing: 90,
+        pitch: 60,
+      }),
+    };
+    expect(
+      layer.shouldUpdateState({
+        changeFlags: { somethingChanged: true },
+      } as UpdateParameters<PinLayer>)
+    ).toBe(true);
+    const moved = layer.renderLayers()[0] as IconLayer;
+    expect((moved.props.getAngle as typeof angle)(point)).toBeCloseTo(0, 3);
+    expect(moved.props.updateTriggers?.getAngle).not.toBe(
+      first.props.updateTriggers?.getAngle
+    );
+  });
+
   it("keeps today's pin while the signal arrives or is unknown", () => {
     const layers = render({ offline: false, label: null });
     expect(layers).toHaveLength(1);

@@ -56,8 +56,8 @@ export async function POST(req: NextRequest, ctx: Context) {
   const writing = orgApiProxy("control-tower", {
     forward: async (upstreamPath, init) => {
       const response = await forwardToStreamhubModulith(upstreamPath, init);
-      const base = upstreamPath.match(
-        /^\/api\/v1\/orgs\/[^/]+\/control-tower/
+      const base = /^\/api\/v1\/orgs\/[^/]+\/control-tower/.exec(
+        upstreamPath
       )?.[0];
       if (!base) return response;
       let id = writingAction ? path?.[1] : undefined;

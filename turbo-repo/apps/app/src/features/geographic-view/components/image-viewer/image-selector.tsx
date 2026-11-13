@@ -109,7 +109,9 @@ function VideoFilmstripFrame({
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
-      video.play();
+      // play() rejects when autoplay is blocked or a pause interrupts it;
+      // onPlay/onPause stay the source of truth, so resync from the element.
+      video.play().catch(() => setPlaying(!video.paused));
       setPlaying(true);
     } else {
       video.pause();

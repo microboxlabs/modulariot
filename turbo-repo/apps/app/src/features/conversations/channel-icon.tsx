@@ -51,8 +51,6 @@ export default function ChannelIcon({
   return (
     <span
       title={label}
-      role={label ? "img" : undefined}
-      aria-label={label}
       aria-hidden={label ? undefined : true}
       data-channel={channel ?? ""}
       style={{ width: px, height: px }}
@@ -62,6 +60,7 @@ export default function ChannelIcon({
       )}
     >
       <Icon aria-hidden style={{ width: px * 0.6, height: px * 0.6 }} />
+      {label && <span className="sr-only">{label}</span>}
     </span>
   );
 }

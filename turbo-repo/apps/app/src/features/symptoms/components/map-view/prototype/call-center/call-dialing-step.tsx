@@ -32,6 +32,7 @@
 
 import WhatsAppCallPermission, {
   useWhatsAppCallPermission,
+  type CallPermissionView,
 } from "./whatsapp-call-permission";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -78,6 +79,7 @@ import {
   useCallSession,
   useNow,
   type CallContext,
+  type CallSession,
 } from "./call-session";
 import { OtherCallNotice, formatDuration } from "./call-bar";
 
@@ -127,6 +129,72 @@ function CallTimer({
     >
       {formatDuration(seconds)}
     </p>
+  );
+}
+
+/**
+ * What the step shows of the session's call. The call is this step's when it
+ * was started for this contact and case; any other call that is not over
+ * blocks starting a new one.
+ */
+function stepCall(
+  { call, busy }: Pick<CallSession, "call" | "busy">,
+  key: string
+) {
+  const own = call?.key === key ? call : null;
+  const started = own?.status === "live";
+  const browserAttempt = started && own?.kind === "telnyx";
+  return {
+    own,
+    other: !own && busy ? call : null,
+    started,
+    dropped: own?.status === "dropped" ? own : null,
+    method: own?.method ?? "phone",
+    browserAttempt,
+    dialReady: own?.dialReady ?? false,
+    phase: browserAttempt ? (own?.phase ?? null) : null,
+    failure: own?.status === "failed" ? own.error : null,
+    teamsNotice: started ? (own?.notice ?? null) : null,
+  };
+}
+
+/** The numbers the step dials, and whether the WhatsApp button calls from the browser. */
+function callDestinations({
+  channels,
+  contactPhone,
+  methods,
+  whatsAppCalling,
+}: {
+  channels?: TowerContactChannels | null;
+  contactPhone?: string;
+  methods: readonly CallMethod[];
+  whatsAppCalling: boolean;
+}) {
+  const destination = dialNumber(channels?.phone ?? contactPhone);
+  const waPhone = channels?.whatsapp ?? contactPhone;
+  const waDestination = dialNumber(waPhone);
+  return {
+    destination,
+    // Provider token/admission APIs require E.164. Service numbers use the
+    // native phone in the same timed call and CALL-result flow.
+    serviceNumber: destination !== null && !destination.startsWith("+"),
+    waPhone,
+    waDestination,
+    waCall:
+      whatsAppCalling &&
+      methods.includes("whatsapp") &&
+      waDestination?.startsWith("+") === true,
+  };
+}
+
+/** Unknown permission (loading, flow off): Meta decides, and a 403 is shown after. */
+function whatsAppPermissionBlocks(permission: CallPermissionView | undefined) {
+  return (
+    permission?.callingEnabled === true &&
+    permission.refusal !== "NO_CONNECTION" &&
+    permission.refusal !== "INVALID_PHONE" &&
+    (permission.permission !== "NONE" || permission.lastRequestAt != null) &&
+    permission.state !== "CAN_CALL"
   );
 }
 
@@ -219,19 +287,19 @@ export default function CallDialingStep({
   const session = useCallSession();
   const methods = ALL_CALL_METHODS.filter((m) => allowedMethods.includes(m));
   const key = sessionKey ?? `${caseRef ?? ""}:${contactId ?? contactName}`;
-  // The session's call is this step's when it was started for this contact
-  // and case; any other call that is not over blocks starting a new one.
-  const own = session.call?.key === key ? session.call : null;
-  const other = !own && session.busy ? session.call : null;
-  const started = own?.status === "live";
-  const dropped = own?.status === "dropped" ? own : null;
-  const method: CallMethod = own?.method ?? "phone";
-  const browserAttempt = started && own?.kind === "telnyx";
-  const dialReady = own?.dialReady ?? false;
-  const phase = browserAttempt ? (own?.phase ?? null) : null;
-  const failure = own?.status === "failed" ? own.error : null;
+  const {
+    own,
+    other,
+    started,
+    dropped,
+    method,
+    browserAttempt,
+    dialReady,
+    phase,
+    failure,
+    teamsNotice,
+  } = stepCall(session, key);
   const refusal = failure?.refusal ?? null;
-  const teamsNotice = started ? (own?.notice ?? null) : null;
   const now = useNow(started);
   const shownSeconds = own ? callSeconds(own, now) : 0;
   const [showCancel, setShowCancel] = useState(false);
@@ -263,10 +331,8 @@ export default function CallDialingStep({
     onStartedChangeRef.current?.(started);
   }, [started]);
 
-  const destination = dialNumber(channels?.phone ?? contactPhone);
-  // Provider token/admission APIs require E.164. Service numbers use the
-  // native phone in the same timed call and CALL-result flow.
-  const serviceNumber = destination !== null && !destination.startsWith("+");
+  const { destination, serviceNumber, waPhone, waDestination, waCall } =
+    callDestinations({ channels, contactPhone, methods, whatsAppCalling });
   const viaTelnyx = (id: CallMethod) =>
     id === "phone" &&
     line?.provider === "TELNYX" &&
@@ -277,26 +343,12 @@ export default function CallDialingStep({
   const teamsConnection =
     [line, teamsLine].find((l) => l?.provider === "TEAMS_PHONE" && l.ready) ??
     null;
-  const waPhone = channels?.whatsapp ?? contactPhone;
-  const waDestination = dialNumber(waPhone);
-  const waCall =
-    whatsAppCalling &&
-    methods.includes("whatsapp") &&
-    waDestination?.startsWith("+") === true;
   // Same SWR key as the permission row: one request for both.
   const { data: waPermission } = useWhatsAppCallPermission(
     waCall ? waPhone : null,
     true
   );
-  // Unknown permission (loading, flow off): Meta decides, and a 403 is shown after.
-  const waBlocked =
-    waCall &&
-    waPermission?.callingEnabled === true &&
-    waPermission.refusal !== "NO_CONNECTION" &&
-    waPermission.refusal !== "INVALID_PHONE" &&
-    (waPermission.permission !== "NONE" ||
-      waPermission.lastRequestAt != null) &&
-    waPermission.state !== "CAN_CALL";
+  const waBlocked = waCall && whatsAppPermissionBlocks(waPermission);
   const teamsVia = (id: CallMethod): TelephonyLine | null => {
     if (destination === null || serviceNumber) return null;
     if (id === "teams") return teamsConnection;

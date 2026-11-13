@@ -43,6 +43,7 @@ import {
   pendingTeamsCall,
   startTelnyxCall,
   type LiveCall,
+  type StartCallOptions,
 } from "./telnyx-call";
 
 import { abandonRetainedCallTreatment } from "../prototype-api-guard";
@@ -261,7 +262,7 @@ export function CallSessionProvider({
   useEffect(() => stopEngine, [stopEngine]);
 
   const patch = useCallback((id: string, fields: Partial<ActiveCall>) => {
-    setCall((prev) => (prev && prev.id === id ? { ...prev, ...fields } : prev));
+    setCall((prev) => (prev?.id === id ? { ...prev, ...fields } : prev));
   }, []);
 
   const canStart = () => {
@@ -350,6 +351,86 @@ export function CallSessionProvider({
       void endCall(acquiredRef, callId).catch(() => undefined);
     };
     eng.release = release;
+    const fail = (cause: unknown) => {
+      release();
+      if (eng.cancelled) return;
+      if (engine.current === eng) engine.current = null;
+      const code = cause instanceof ControlTowerError ? cause.code : undefined;
+      patch(id, {
+        status: "failed",
+        phase: null,
+        dialReady: false,
+        error: {
+          refusal: code && KNOWN_REFUSALS.includes(code) ? code : null,
+          message: cause instanceof Error ? cause.message : String(cause),
+        },
+      });
+    };
+    const onEnd: StartCallOptions["onEnd"] = (result) => {
+      ended = true;
+      eng.live = null;
+      release(result.callId);
+      if (eng.cancelled) return;
+      if (engine.current === eng) engine.current = null;
+      if (!result.callId) {
+        patch(id, {
+          status: "failed",
+          phase: null,
+          dialReady: false,
+          error: { refusal: null, message: null },
+        });
+        return;
+      }
+      const finish = () =>
+        patch(id, {
+          status: "ended",
+          phase: "ended",
+          dialReady: false,
+          providerCallId: result.callId,
+          result: {
+            durationSeconds: result.durationSeconds,
+            method: input.method,
+            telephony: result,
+          },
+        });
+      // A WhatsApp call that never connected may have been refused by
+      // Meta (no call permission): the server kept why.
+      if (channel !== "WHATSAPP" || result.answered || !acquiredRef) {
+        finish();
+        return;
+      }
+      void whatsAppFailure(outcome, acquiredRef)
+        .then((failure) => {
+          if (!failure) return finish();
+          patch(id, {
+            status: "failed",
+            phase: null,
+            dialReady: false,
+            providerCallId: result.callId,
+            error: { refusal: failure, message: null },
+          });
+        })
+        .catch(finish);
+    };
+    const connect = async (login: Awaited<ReturnType<typeof token>>) => {
+      const live = await dial({
+        token: login.token,
+        callerNumber: login.callerNumber,
+        destination,
+        remoteElement: audioRef.current,
+        clientState: acquiredRef ? btoa(acquiredRef) : undefined,
+        signal: eng.abort?.signal,
+        onPhase: (next, at) => patch(id, { phase: next, answeredAt: at }),
+        onCallId: (callId) => patch(id, { providerCallId: callId }),
+        onEnd,
+      });
+      if (!ended) eng.live = live;
+      if (eng.cancelled) {
+        live.hangup();
+        return;
+      }
+      if (!ended) patch(id, { dialReady: true });
+    };
     void (async () => {
       try {
         const login = await token({
@@ -363,83 +444,9 @@ export function CallSessionProvider({
           return;
         }
         patch(id, { callRef: acquiredRef });
-        const live = await dial({
-          token: login.token,
-          callerNumber: login.callerNumber,
-          destination,
-          remoteElement: audioRef.current,
-          clientState: acquiredRef ? btoa(acquiredRef) : undefined,
-          signal: eng.abort?.signal,
-          onPhase: (next, at) => patch(id, { phase: next, answeredAt: at }),
-          onCallId: (callId) => patch(id, { providerCallId: callId }),
-          onEnd: (result) => {
-            ended = true;
-            eng.live = null;
-            release(result.callId);
-            if (eng.cancelled) return;
-            if (engine.current === eng) engine.current = null;
-            if (!result.callId) {
-              patch(id, {
-                status: "failed",
-                phase: null,
-                dialReady: false,
-                error: { refusal: null, message: null },
-              });
-              return;
-            }
-            const finish = () =>
-              patch(id, {
-                status: "ended",
-                phase: "ended",
-                dialReady: false,
-                providerCallId: result.callId,
-                result: {
-                  durationSeconds: result.durationSeconds,
-                  method: input.method,
-                  telephony: result,
-                },
-              });
-            // A WhatsApp call that never connected may have been refused by
-            // Meta (no call permission): the server kept why.
-            if (channel !== "WHATSAPP" || result.answered || !acquiredRef) {
-              finish();
-              return;
-            }
-            void whatsAppFailure(outcome, acquiredRef)
-              .then((failure) => {
-                if (!failure) return finish();
-                patch(id, {
-                  status: "failed",
-                  phase: null,
-                  dialReady: false,
-                  providerCallId: result.callId,
-                  error: { refusal: failure, message: null },
-                });
-              })
-              .catch(finish);
-          },
-        });
-        if (!ended) eng.live = live;
-        if (eng.cancelled) {
-          live.hangup();
-          return;
-        }
-        if (!ended) patch(id, { dialReady: true });
+        await connect(login);
       } catch (cause) {
-        release();
-        if (eng.cancelled) return;
-        if (engine.current === eng) engine.current = null;
-        const code =
-          cause instanceof ControlTowerError ? cause.code : undefined;
-        patch(id, {
-          status: "failed",
-          phase: null,
-          dialReady: false,
-          error: {
-            refusal: code && KNOWN_REFUSALS.includes(code) ? code : null,
-            message: cause instanceof Error ? cause.message : String(cause),
-          },
-        });
+        fail(cause);
       }
     })();
     return true;

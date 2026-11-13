@@ -91,7 +91,7 @@ export function AdminMessageTemplatesConsole({
   });
 
   // Handlers
-  const handleCreateWebhook = async (e: React.FormEvent) => {
+  const handleCreateWebhook = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       let templateNodeRef = webhookForm.template;
@@ -139,7 +139,9 @@ export function AdminMessageTemplatesConsole({
     }
   };
 
-  const handleCreateTemplate = async (e: React.FormEvent) => {
+  const handleCreateTemplate = async (
+    e: React.SubmitEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
     try {
       await createMessageTemplateClient({

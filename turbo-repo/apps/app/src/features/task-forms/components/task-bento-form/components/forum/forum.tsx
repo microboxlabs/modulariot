@@ -92,7 +92,7 @@ export default function Forum({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     const content = text.trim();
     if (!content) return;

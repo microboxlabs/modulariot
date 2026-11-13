@@ -188,7 +188,7 @@ export default function TaskConfirmModal({
   ]);
 
   async function handleConfirm(
-    e?: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>
+    e?: React.SubmitEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>
   ) {
     e?.preventDefault();
 

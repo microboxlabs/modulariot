@@ -117,7 +117,7 @@ export function usePagefindSearch(
 
   // Load pagefind once on mount
   useEffect(() => {
-    loadPagefind().then(setPagefind);
+    void loadPagefind().then(setPagefind);
   }, []);
 
   useEffect(() => {

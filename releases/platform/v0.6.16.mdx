@@ -1,0 +1,46 @@
+# 🔔 Release Notes v0.6.16 — ModularIoT
+
+### Fecha: 13/11/2026
+
+**Objetivo**: Esta versión mejora la lectura de los mapas de viajes y flota con etiquetas de geocercas, una representación más clara de las paradas y una orientación precisa de los vehículos. Incluye exclusivamente cambios del milestone OSS MIOT-0.6.16.
+
+## 🚀 Evolutivos
+
+- **📍 Nombres de geocercas en el mapa del viaje**
+  - **Punto clave**: Las banderas de origen y destino muestran el nombre de la geocerca.
+  - **Detalle técnico**: Se utiliza el mismo distintivo de nombre en la vista de mapa de síntomas, el bento box y la hoja del viaje.
+
+## 🐛 Correcciones
+
+- **🐛 Orientación de los vehículos en el mapa**
+  - **Impacto**: Los pines podían apuntar en una dirección incorrecta, especialmente con el mapa girado o inclinado.
+  - **Solución**: Se corrige la orientación para que corresponda al rumbo del vehículo con distintos ángulos y perspectivas del mapa.
+
+- **🐛 Capas de pulsos en el mapa del viaje**
+  - **Impacto**: Las paradas cercanas y los fotogramas tardíos podían cubrir los puntos vecinos.
+  - **Solución**: Los pulsos se dibujan en orden de fondo, color y centro blanco —o gris si el vehículo está desconectado— en la vista de mapa de síntomas, el bento box y la hoja del viaje.
+
+## 📊 Beneficios
+
+- Identificación más rápida del origen y destino de un viaje mediante nombres de geocercas.
+- Lectura más clara de los puntos de parada incluso cuando están próximos entre sí.
+- Orientación de vehículos coherente con su rumbo en mapas girados e inclinados.
+- Presentación uniforme de la información del viaje en sus distintas vistas.
+- Indicador central diferenciado según el estado de conexión del vehículo.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.16`
+- App: `app@v0.6.16` — con cambios.
+- Docs: `docs@v0.6.16` — con cambios.
+- Web: `web@v0.6.16` — con cambios.
+- Modulith: `modulith@v0.5.53` — sin cambios.
+- Harness: `harness@v0.1.15` — sin cambios.
+
+Los digest exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto `stack-manifest.json` de la versión.
+
+## 📌 Conclusión
+
+Esta versión hace más comprensible la información geográfica de los viajes y mejora la precisión visual de los mapas de flota y recorrido.
+
+Los cambios se limitan a la plataforma OSS del milestone MIOT-0.6.16; no incluyen entregas de clientes.

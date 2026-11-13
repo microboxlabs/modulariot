@@ -134,7 +134,7 @@ describe("getValidDashletsForParent", () => {
   it("returns all registered dashlets", () => {
     const all = getAllDashlets();
     const valid = getValidDashletsForParent(null);
-    expect(valid.length).toBe(all.length);
+    expect(valid).toHaveLength(all.length);
   });
 });
 

@@ -57,24 +57,24 @@ describe("getCredentialsConnection", () => {
 });
 
 describe("isAuth0Configured", () => {
-  it("is false when the Auth0 client env vars are missing", () => {
-    vi.stubEnv("AUTH_AUTH0_ID", "");
-    vi.stubEnv("AUTH_AUTH0_SECRET", "");
-    vi.stubEnv("AUTH_AUTH0_ISSUER", "");
-    expect(isAuth0Configured()).toBe(false);
-  });
-
-  it("is false when only some Auth0 client env vars are set", () => {
-    vi.stubEnv("AUTH_AUTH0_ID", "client-id");
-    vi.stubEnv("AUTH_AUTH0_SECRET", "");
-    vi.stubEnv("AUTH_AUTH0_ISSUER", "https://tenant.auth0.com");
-    expect(isAuth0Configured()).toBe(false);
-  });
-
-  it("is false when an Auth0 client env var is whitespace-only", () => {
-    vi.stubEnv("AUTH_AUTH0_ID", "   ");
-    vi.stubEnv("AUTH_AUTH0_SECRET", "client-secret");
-    vi.stubEnv("AUTH_AUTH0_ISSUER", "https://tenant.auth0.com");
+  it.each([
+    ["the Auth0 client env vars are missing", "", "", ""],
+    [
+      "only some Auth0 client env vars are set",
+      "client-id",
+      "",
+      "https://tenant.auth0.com",
+    ],
+    [
+      "an Auth0 client env var is whitespace-only",
+      "   ",
+      "client-secret",
+      "https://tenant.auth0.com",
+    ],
+  ])("is false when %s", (_case, id, secret, issuer) => {
+    vi.stubEnv("AUTH_AUTH0_ID", id);
+    vi.stubEnv("AUTH_AUTH0_SECRET", secret);
+    vi.stubEnv("AUTH_AUTH0_ISSUER", issuer);
     expect(isAuth0Configured()).toBe(false);
   });
 

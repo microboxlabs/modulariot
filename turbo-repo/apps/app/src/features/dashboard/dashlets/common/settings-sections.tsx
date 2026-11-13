@@ -164,9 +164,9 @@ interface ColumnCardProps {
   canDisableSticky: boolean;
   onUpdate: ColumnEditorProps["onUpdate"];
   onRemove: (id: string) => void;
-  onAddColorMapping?: ColumnEditorProps["onAddColorMapping"];
-  onRemoveColorMapping?: ColumnEditorProps["onRemoveColorMapping"];
-  onUpdateColorMapping?: ColumnEditorProps["onUpdateColorMapping"];
+  onAddColorMapping?: NonNullable<ColumnEditorProps["onAddColorMapping"]>;
+  onRemoveColorMapping?: NonNullable<ColumnEditorProps["onRemoveColorMapping"]>;
+  onUpdateColorMapping?: NonNullable<ColumnEditorProps["onUpdateColorMapping"]>;
   labels: ColumnEditorProps["labels"];
   handlebarsColorKeys: boolean;
   schemaSuggestions?: string[];
@@ -225,7 +225,14 @@ function ColumnCard({
         onClick={() => onUpdate(col._id, "sticky", !col.sticky)}
         className={`shrink-0 rounded p-1 transition-colors ${getStickyBtnClass(stickyDisabled, !!col.sticky)}`}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+          className="h-3.5 w-3.5"
+          aria-hidden="true"
+          focusable="false"
+        >
           <path fillRule="evenodd" d="M8.074.945A4.993 4.993 0 0 0 6 5v.032c.004.6.114 1.176.311 1.709.16.428-.204.857-.664.857H2.5c-.88 0-1.601.696-1.497 1.572C1.32 11.8 3.276 14 8 14c4.724 0 6.68-2.2 6.997-4.83.104-.876-.617-1.572-1.497-1.572h-3.147c-.46 0-.824-.43-.664-.857.197-.533.307-1.11.311-1.709V5a4.993 4.993 0 0 0-1.926-4.055Z" clipRule="evenodd" />
         </svg>
       </button>

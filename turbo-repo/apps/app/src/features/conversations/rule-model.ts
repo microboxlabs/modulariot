@@ -449,8 +449,18 @@ function sampleValue(type: string): unknown {
   return "";
 }
 
-const VALUE_CLAUSE =
-  /^event\.data\.(\w+)\s*(==|>=|>)\s*(?:(['"])(.*)\3|(-?\d+(?:\.\d+)?)|(true|false))$/;
+/** `event.data.<field> <op>`, then the literal it compares with. */
+const VALUE_TARGET = /^event\.data\.(\w+)\s*(==|>=|>)\s*/;
+const VALUE_LITERAL = /^(?:(['"])(.*)\1|(-?\d+(?:\.\d+)?)|(true|false))$/;
+
+function valueClause(clause: string) {
+  const target = VALUE_TARGET.exec(clause);
+  if (!target) return null;
+  const literal = VALUE_LITERAL.exec(clause.slice(target[0].length));
+  if (!literal) return null;
+  const [, , text, num, bool] = literal;
+  return { field: target[1], op: target[2], text, num, bool };
+}
 
 /**
  * The values a condition asks of `event.data`: `field == 'x'`, `field == 3`,
@@ -461,9 +471,9 @@ export function conditionValues(
 ): Record<string, string | number | boolean> {
   const out: Record<string, string | number | boolean> = {};
   for (const clause of conditions(when ?? "")) {
-    const m = VALUE_CLAUSE.exec(clause);
-    if (!m || m[1] in out) continue;
-    const [, field, op, , text, num, bool] = m;
+    const m = valueClause(clause);
+    if (!m || m.field in out) continue;
+    const { field, op, text, num, bool } = m;
     if (text !== undefined) {
       if (op === "==") out[field] = text;
     } else if (num !== undefined) {
@@ -496,7 +506,7 @@ export function sampleEvent(
   const key = data.symptomId ?? 1;
   return {
     type: trigger.event,
-    context: { kind: info?.contextKind ?? "", key: String(key) },
+    context: { kind: info?.contextKind ?? "", key: plainText(key) },
     data,
     test: false,
     at: now.toISOString(),
@@ -517,6 +527,25 @@ export interface RuleChange {
   text: string;
 }
 
+/**
+ * A value as text: strings, numbers and booleans as written, nullish as
+ * empty, anything else as JSON instead of `[object Object]`.
+ */
+export function plainText(v: unknown): string {
+  if (v == null) return "";
+  if (
+    typeof v === "string" ||
+    typeof v === "number" ||
+    typeof v === "boolean" ||
+    typeof v === "bigint"
+  )
+    return String(v);
+  return JSON.stringify(v);
+}
+
+const member = ([k, x]: [string, unknown]) =>
+  `${JSON.stringify(k)}:${canonical(x)}`;
+
 /** JSON with object keys sorted, so property order never counts as a change; array order does. */
 function canonical(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(canonical).join(",")}]`;
@@ -524,33 +553,39 @@ function canonical(v: unknown): string {
     const entries = Object.entries(v)
       .filter(([, x]) => x !== undefined)
       .sort(([a], [b]) => (a < b ? -1 : Number(a > b)));
-    return `{${entries.map(([k, x]) => `${JSON.stringify(k)}:${canonical(x)}`).join(",")}}`;
+    return `{${entries.map(member).join(",")}}`;
   }
   return JSON.stringify(v ?? null);
 }
 
 const same = (a: unknown, b: unknown) => canonical(a) === canonical(b);
 
+/** The quoted text that opens at `start`, escapes included, up to its closing quote or the end. */
+function readQuoted(text: string, start: number): string {
+  const quote = text[start];
+  let i = start + 1;
+  while (i < text.length && text[i] !== quote) i += text[i] === "\\" ? 2 : 1;
+  return text.slice(start, i + 1);
+}
+
 /** Collapses runs of whitespace outside quotes; quoted text is kept as written. */
 function squash(s: string | null | undefined): string {
   let out = "";
-  let quote: string | null = null;
   let space = false;
   const text = (s ?? "").trim();
-  for (let i = 0; i < text.length; i++) {
+  let i = 0;
+  while (i < text.length) {
     const c = text[i];
-    if (quote) {
-      out += c;
-      if (c === "\\" && i + 1 < text.length) out += text[++i];
-      else if (c === quote) quote = null;
-    } else if (/\s/.test(c)) {
+    if (/\s/.test(c)) {
       space = true;
-    } else {
-      if (space) out += " ";
-      space = false;
-      if (c === "'" || c === '"') quote = c;
-      out += c;
+      i++;
+      continue;
     }
+    if (space) out += " ";
+    space = false;
+    const part = c === "'" || c === '"' ? readQuoted(text, i) : c;
+    out += part;
+    i += part.length;
   }
   return out;
 }

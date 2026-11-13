@@ -53,10 +53,10 @@ export function OtherCallNotice({
 }: Readonly<{ dict: I18nRecord; call: ActiveCall }>) {
   const goToCall = useGoToCall();
   return (
-    <div role="status" className="flex flex-col items-center gap-2 text-sm">
-      <p className="text-center text-gray-700 dark:text-gray-300">
+    <output className="flex flex-col items-center gap-2 text-sm">
+      <span className="text-center text-gray-700 dark:text-gray-300">
         {tr("symptoms.call_other_active", dict, { name: call.contactName })}
-      </p>
+      </span>
       <button
         type="button"
         onClick={() => goToCall(call)}
@@ -64,7 +64,7 @@ export function OtherCallNotice({
       >
         {tr("symptoms.call_go_to_active", dict)}
       </button>
-    </div>
+    </output>
   );
 }
 

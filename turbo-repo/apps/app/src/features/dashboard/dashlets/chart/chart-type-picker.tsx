@@ -21,6 +21,8 @@ function LineIcon({ className }: Readonly<{ className?: string }>) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
+      aria-hidden="true"
+      focusable="false"
     >
       <polyline points="3,17 7,10 12,14 17,6 21,9" />
     </svg>
@@ -29,7 +31,13 @@ function LineIcon({ className }: Readonly<{ className?: string }>) {
 
 function BarIcon({ className }: Readonly<{ className?: string }>) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+    >
       <rect x="3" y="13" width="4" height="8" rx="1" />
       <rect x="10" y="8" width="4" height="13" rx="1" />
       <rect x="17" y="4" width="4" height="17" rx="1" />
@@ -39,7 +47,13 @@ function BarIcon({ className }: Readonly<{ className?: string }>) {
 
 function PieIcon({ className }: Readonly<{ className?: string }>) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+    >
       <path d="M12 2a10 10 0 1 0 10 10H12V2z" opacity="0.55" />
       <path d="M12 2v10h10A10 10 0 0 0 12 2z" />
     </svg>
@@ -55,6 +69,8 @@ function GaugeIcon({ className }: Readonly<{ className?: string }>) {
       strokeWidth="2"
       strokeLinecap="round"
       className={className}
+      aria-hidden="true"
+      focusable="false"
     >
       <path d="M5 18A8 8 0 0 1 19 18" />
       <line x1="12" y1="18" x2="9" y2="12" />
@@ -65,7 +81,13 @@ function GaugeIcon({ className }: Readonly<{ className?: string }>) {
 
 function ScatterIcon({ className }: Readonly<{ className?: string }>) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+    >
       <circle cx="5" cy="17" r="2" />
       <circle cx="10" cy="8" r="2" />
       <circle cx="15" cy="14" r="2" />

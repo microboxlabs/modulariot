@@ -214,7 +214,12 @@ function QuickSummaryPanel({
       {showRing && (
         <>
           <div className="relative w-16 h-16">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+            <svg
+              className="w-full h-full -rotate-90"
+              viewBox="0 0 36 36"
+              aria-hidden="true"
+              focusable="false"
+            >
               <circle
                 cx="18"
                 cy="18"

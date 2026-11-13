@@ -53,12 +53,12 @@ function toRepresentationItems(items: RepresentationConfig[]): RepresentationIte
 // ============================================================================
 
 const LINE_ICON_SVG = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true" focusable="false">
     <polyline points="3,17 7,10 12,14 17,6 21,9" />
   </svg>
 );
 const BAR_ICON_SVG = (
-  <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+  <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden="true" focusable="false">
     <rect x="3" y="13" width="4" height="8" rx="1" />
     <rect x="10" y="8" width="4" height="13" rx="1" />
     <rect x="17" y="4" width="4" height="17" rx="1" />
@@ -329,7 +329,7 @@ export function DashletSettings({
 
   useEffect(() => {
     if (dataMode === "pgrest" && pg.pgrestFunctionName) {
-      pg.detectColumns();
+      void pg.detectColumns();
     } else if (dataMode === "planner" && plannerVariableName) {
       const keys = schemas.get(plannerVariableName);
       if (keys?.length) reconcileColumns(keys);

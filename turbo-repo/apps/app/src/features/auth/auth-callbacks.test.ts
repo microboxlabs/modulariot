@@ -8,10 +8,16 @@ const { authConfig } = await import("@/auth.config");
 
 type JwtCallback = (params: { token: JWT }) => Promise<JWT>;
 type SessionCallback = (params: { session: Session; token: JWT }) => Session;
+type SignInCallback = (params: {
+  user: { email?: string | null };
+  account: { provider: string } | null;
+  profile?: { email?: string };
+}) => Promise<boolean | string> | boolean | string;
 
 const jwt = authConfig.callbacks!.jwt as unknown as JwtCallback;
 const sessionCallback = authConfig.callbacks!
   .session as unknown as SessionCallback;
+const signIn = authConfig.callbacks!.signIn as unknown as SignInCallback;
 
 function makeIdToken(payload: Record<string, unknown>): string {
   const encode = (obj: Record<string, unknown>) =>
@@ -147,6 +153,19 @@ describe("jwt callback refresh", () => {
     expect(result.rawJWT).toBe(currentIdToken);
     expect(result.expiresAt).toBe(nowSeconds() + 60);
   });
+
+  it("keeps an expiresAt of 0 and refreshes", async () => {
+    const token = {
+      sub: "auth0|abc123",
+      rawJWT: makeIdToken({ exp: nowSeconds() + 3_600 }),
+      refreshToken: nextRefreshToken(),
+      expiresAt: 0,
+    } as JWT;
+
+    await jwt({ token });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
 });
 
 describe("jwt callback with a session saved before expiresAt existed", () => {
@@ -221,5 +240,60 @@ describe("session callback", () => {
 
     expect(session.user?.id).toBe("auth0|abc123");
     expect(session.user?.rawJWT).toBe("valid-id-token");
+  });
+});
+
+describe("signIn callback", () => {
+  it.each([
+    {
+      name: "allows a credentials login outside the allowlist",
+      allowedDomains: "microboxlabs.com",
+      params: {
+        user: { email: "jane@outside.com" },
+        account: { provider: "credentials" },
+      },
+      expected: true,
+    },
+    {
+      name: "allows any domain when AUTH_ALLOWED_EMAIL_DOMAINS is not set",
+      allowedDomains: "",
+      params: {
+        user: { email: "jane@outside.com" },
+        account: { provider: "auth0" },
+      },
+      expected: true,
+    },
+    {
+      name: "allows an email in an allowed domain",
+      allowedDomains: "microboxlabs.com, Vialabs.net",
+      params: {
+        user: { email: "Jane@VIALABS.net" },
+        account: { provider: "auth0" },
+      },
+      expected: true,
+    },
+    {
+      name: "denies an email outside the allowed domains",
+      allowedDomains: "microboxlabs.com",
+      params: {
+        user: { email: "jane@outside.com" },
+        account: { provider: "auth0" },
+      },
+      expected: false,
+    },
+    {
+      name: "checks the profile email when the user has none",
+      allowedDomains: "microboxlabs.com",
+      params: {
+        user: { email: null },
+        account: { provider: "auth0" },
+        profile: { email: "jane@microboxlabs.com" },
+      },
+      expected: true,
+    },
+  ])("$name", async ({ allowedDomains, params, expected }) => {
+    vi.stubEnv("AUTH_ALLOWED_EMAIL_DOMAINS", allowedDomains);
+
+    expect(await signIn(params)).toBe(expected);
   });
 });

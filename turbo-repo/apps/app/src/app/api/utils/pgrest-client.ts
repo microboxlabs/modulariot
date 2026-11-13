@@ -211,7 +211,9 @@ function pgrestBaseUrl(): string {
   if (!raw) {
     throw new Error("STREAMHUB_URL environment variable is not set");
   }
-  return raw.replace(/\/+$/, "");
+  let end = raw.length;
+  while (end > 0 && raw[end - 1] === "/") end--;
+  return raw.slice(0, end);
 }
 
 /**

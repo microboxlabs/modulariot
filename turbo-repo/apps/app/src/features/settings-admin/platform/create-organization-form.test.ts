@@ -87,6 +87,8 @@ describe("slugFromClientName", () => {
     ["corp:Acme Tracker", "acme-tracker"],
     ["Señal_GPS", "senal-gps"],
     ["corp:ab", ""],
+    ["--acme--", "acme"],
+    [`${"a".repeat(99)} b`, "a".repeat(99)],
     [null, ""],
   ])("turns %j into %j", (name, slug) => {
     expect(slugFromClientName(name)).toBe(slug);

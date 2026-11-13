@@ -3,8 +3,8 @@ const UNIT_SECONDS: Record<string, number> = {
   mon: 30 * 86400,
   day: 86400,
 };
-const UNITS = /(-?\d+)\s+(year|mon|day)s?/g;
-const CLOCK = /(-?)(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/;
+const UNITS = /(-?(?<!\d)\d+)\s+(year|mon|day)s?/g;
+const CLOCK = /(-?)(?<!\d)(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/;
 
 /**
  * Seconds in a symptom's active time: a number of seconds (the evaluator's

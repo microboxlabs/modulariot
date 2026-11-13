@@ -351,7 +351,7 @@ function PdfPage({
 /** One entry in the side rail's "Pages" tab — same card-with-footer-strip
  * styling as the PPT previewer's slide rail (previewers/ppt/ppt-previewer.tsx),
  * just rendering a lazily-drawn pdf.js canvas instead of a slide layout. */
-function PdfThumbnail({
+export function PdfThumbnail({
   pdf,
   pageNumber,
   width,
@@ -378,32 +378,33 @@ function PdfThumbnail({
     let cancelled = false;
     let task: RenderTask | null = null;
 
-    (async () => {
-      const page = await pdf.getPage(pageNumber);
-      if (cancelled) return;
-      const canvas = canvasRef.current;
-      const ctx = canvas?.getContext("2d");
-      if (!canvas || !ctx) return;
-      const unscaled = page.getViewport({ scale: 1 });
-      const scale = width / unscaled.width;
-      const viewport = page.getViewport({ scale });
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.floor(viewport.width * dpr);
-      canvas.height = Math.floor(viewport.height * dpr);
-      canvas.style.width = `${Math.floor(viewport.width)}px`;
-      canvas.style.height = `${Math.floor(viewport.height)}px`;
-      task = page.render({
-        canvasContext: ctx,
-        viewport,
-        transform: dpr === 1 ? undefined : [dpr, 0, 0, dpr, 0, 0],
-      }) as RenderTask;
+    void (async () => {
       try {
+        const page = await pdf.getPage(pageNumber);
+        if (cancelled) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext("2d");
+        if (!canvas || !ctx) return;
+        const unscaled = page.getViewport({ scale: 1 });
+        const scale = width / unscaled.width;
+        const viewport = page.getViewport({ scale });
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(viewport.width * dpr);
+        canvas.height = Math.floor(viewport.height * dpr);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+        task = page.render({
+          canvasContext: ctx,
+          viewport,
+          transform: dpr === 1 ? undefined : [dpr, 0, 0, dpr, 0, 0],
+        }) as RenderTask;
         await task.promise;
         if (cancelled) return;
         renderedWidthRef.current = width;
         setRendered(true);
       } catch {
-        /* cancelled mid-render (width changed again) — the next effect pass redraws */
+        /* page fetch failed (document destroyed) or render cancelled mid-way
+         * (width changed again) — keep the placeholder; the next effect pass redraws */
       }
     })();
 
@@ -489,7 +490,7 @@ function PdfPreviewerImpl(
   useEffect(() => {
     let cancelled = false;
     let doc: PDFDocumentProxy | null = null;
-    (async () => {
+    void (async () => {
       try {
         const pdfjs = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc = PDF_WORKER_URL;

@@ -23,14 +23,16 @@ on:
     branches:
       - trunk
       - main
+      - 'task/sonar-*'
   pull_request:
     paths:
       - 'turbo-repo/**'
       - '.github/workflows/sonarcloud.yml'
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
     branches:
       - trunk
       - main
+      - 'task/sonar-*'
   workflow_dispatch:
 
 jobs:

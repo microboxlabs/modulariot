@@ -386,13 +386,11 @@ export function conMetadataGuardada(
     body.kind === "route"
       ? (guardada ?? body.metadata)
       : metadataConTipos(body.metadata, guardada);
+  const propiedadesGuardadas = id ? propiedades?.[id] : undefined;
   const geojson =
     body.kind === "route"
       ? body.geojson
-      : propiedadesConGuardadas(
-          body.geojson,
-          id ? propiedades?.[id] : undefined
-        );
+      : propiedadesConGuardadas(body.geojson, propiedadesGuardadas);
   return {
     ...body,
     metadata,

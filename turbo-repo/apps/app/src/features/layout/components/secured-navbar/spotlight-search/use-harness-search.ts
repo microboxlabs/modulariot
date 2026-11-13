@@ -117,7 +117,7 @@ export function useHarnessSearch(
       }
     };
 
-    consumeStream();
+    void consumeStream();
 
     return () => controller.abort();
   }, [committedQuery, attempt]);

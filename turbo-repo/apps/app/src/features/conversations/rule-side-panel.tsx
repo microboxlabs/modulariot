@@ -98,12 +98,9 @@ export function VariablesPanel({
                 {v.label}
               </span>
               {copied === v.name && (
-                <span
-                  role="status"
-                  className="shrink-0 text-[10px] text-green-700 dark:text-green-400"
-                >
+                <output className="shrink-0 text-[10px] text-green-700 dark:text-green-400">
                   {tr("copied", d)}
-                </span>
+                </output>
               )}
             </button>
           </li>

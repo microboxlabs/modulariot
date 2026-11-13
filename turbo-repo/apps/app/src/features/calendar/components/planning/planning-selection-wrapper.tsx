@@ -379,7 +379,7 @@ export function PlanningSelectionProvider({
 
   const bookingsKey = `${calendarId ?? ""}:${bookingsRange.startDate}:${bookingsRange.endDate}`;
   const handleBookingChange = useCallback(() => {
-    refreshLiveTasks();
+    void refreshLiveTasks();
     void refreshWindowUsage();
   }, [refreshLiveTasks, refreshWindowUsage]);
   const bookingsLoadErrorMessage = useMemo(

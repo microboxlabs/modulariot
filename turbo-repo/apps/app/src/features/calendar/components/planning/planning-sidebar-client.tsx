@@ -312,7 +312,7 @@ export function PlanningSidebarClient({
   // Re-fetch task list when a booking is created or removed
   useEffect(() => {
     if (bookingVersion > 0) {
-      refreshTasks();
+      void refreshTasks();
     }
   }, [bookingVersion, refreshTasks]);
 

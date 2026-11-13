@@ -1,0 +1,86 @@
+{
+  "stack_version": "0.6.16",
+  "stack_tag": "miot-stack@v0.6.16",
+  "milestone": "MIOT-0.6.16",
+  "pull_requests": [
+    {
+      "number": 2639,
+      "title": "feat(app): show origin and destination geofence names on the trip map",
+      "source_issues": [
+        {
+          "number": 2646,
+          "title": "feat(app): show origin and destination geofence names on the trip map"
+        }
+      ]
+    },
+    {
+      "number": 2640,
+      "title": "fix(app): draw trip map pulses as background, color, then white center",
+      "source_issues": [
+        {
+          "number": 2645,
+          "title": "fix(app): draw trip map pulses as background, color, then white center"
+        }
+      ]
+    },
+    {
+      "number": 2651,
+      "title": "fix(app): point the vehicle pin along its heading",
+      "source_issues": [
+        {
+          "number": 2650,
+          "title": "bug: the vehicle pin points the wrong way on the map"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "turbo-repo/apps/app/src/features/geographic-view/components/geofence_pin.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/geofence_pin.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pin_layer.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pin_layer.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pin_layer_clustered.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pin_layer_clustered.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pulse-base.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pulse-base.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/icon-heading.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/icon-heading.ts",
+    "turbo-repo/apps/app/src/features/places/index.ts",
+    "turbo-repo/apps/app/src/features/places/map/place-labels.ts",
+    "turbo-repo/apps/app/src/features/places/map/place-name-layer.test.ts",
+    "turbo-repo/apps/app/src/features/places/map/place-name-layer.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.16",
+      "tag": "app@v0.6.16"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.6.14",
+      "version": "0.6.16",
+      "tag": "docs@v0.6.16"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.6.14",
+      "version": "0.6.16",
+      "tag": "web@v0.6.16"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.53",
+      "version": "0.5.53",
+      "tag": "modulith@v0.5.53"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.15",
+      "tag": "harness@v0.1.15"
+    }
+  }
+}

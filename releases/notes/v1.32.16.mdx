@@ -1,0 +1,46 @@
+# 🔔 Release Notes v1.32.16 — ModularIoT
+
+### Fecha: 13/11/2026
+
+**Objetivo**: Mejorar la lectura y precisión de los mapas de viajes y flota. Esta versión integra cambios OSS del milestone MIOT-0.6.16.
+
+## 🚀 Evolutivos
+
+- **📍 Nombres de geocercas en el mapa del viaje** *(Integración OSS — MIOT-0.6.16, #2646)*
+  - **Punto clave**: Las banderas de origen y destino muestran el nombre de la geocerca.
+  - **Detalle técnico**: Se aplica el estilo de etiqueta de solo nombre usado en las vistas del mapa, el resumen y la ficha del viaje.
+
+## 🐛 Correcciones
+
+- **🐛 Orientación del vehículo en el mapa** *(Integración OSS — MIOT-0.6.16, #2650)*
+  - **Impacto**: El pin podía apuntar en una dirección incorrecta respecto al rumbo GPS, especialmente con el mapa inclinado o girado.
+  - **Solución**: Se corrige la orientación para que corresponda al rumbo del vehículo con distintos ángulos de mapa.
+
+- **🐛 Superposición de pulsos en el mapa del viaje** *(Integración OSS — MIOT-0.6.16, #2645)*
+  - **Impacto**: Las paradas cercanas y los fotogramas tardíos podían cubrir los puntos vecinos.
+  - **Solución**: Los pulsos se dibujan en capas: fondo, color y centro blanco —o gris si el vehículo está desconectado—.
+
+## 📊 Beneficios
+
+- 🚗 **Rumbo más claro**: La orientación del pin representa mejor el desplazamiento del vehículo.
+- 📍 **Ubicación contextual**: Los nombres de geocercas facilitan reconocer el origen y destino del viaje.
+- 🗺️ **Lectura consistente**: Las etiquetas mantienen el estilo de nombre usado en otras vistas del viaje.
+- 🔎 **Puntos más distinguibles**: El orden de dibujo mejora la visibilidad de paradas cercanas.
+- 📴 **Estado reconocible**: El centro gris diferencia los pulsos de vehículos desconectados.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.6.16`
+- **App**: `app@v0.6.16` — actualizada
+- **Docs**: `docs@v0.6.16` — actualizada
+- **Web**: `web@v0.6.16` — actualizada
+- **Modulith**: `modulith@v0.5.53` — sin cambios
+- **Harness**: `harness@v0.1.15` — sin cambios
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión incorpora mejoras OSS centradas en que los mapas de viajes y flota sean más claros y fiables: rumbo correcto, geocercas identificables y pulsos que se distinguen mejor.
+
+Los cambios se integran en el stack 0.6.16. En conjunto, facilitan interpretar la información del viaje y el estado de los vehículos en las distintas vistas.

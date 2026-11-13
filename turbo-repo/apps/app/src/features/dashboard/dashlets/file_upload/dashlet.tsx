@@ -82,7 +82,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleUpload(file);
+    if (file) void handleUpload(file);
     e.target.value = "";
   }, [handleUpload]);
 

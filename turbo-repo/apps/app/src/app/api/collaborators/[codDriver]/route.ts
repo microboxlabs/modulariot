@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { NextResponse } from "next/server";
-import { resolveTenantScope } from "../../utils/tenant-scope";
+import { resolveTenantScope, type TenantScope } from "../../utils/tenant-scope";
 import {
   driverDetailResponseToDto,
   fetchDriverDetailByCodDriver,
@@ -31,6 +31,8 @@ type DetailCacheEntry = {
   fetchedAt: number;
 };
 
+type DetailCacheStatus = "MISS" | "HIT" | "STALE" | "STALE_IF_ERROR";
+
 const detailCache = new Map<string, DetailCacheEntry>();
 const inFlight = new Map<string, Promise<CollaboratorDetailDto>>();
 
@@ -48,7 +50,7 @@ function buildCacheKey(userToken: string, activeOrgSlug: string, codDriver: stri
 
 function buildJsonResponse(
   dto: CollaboratorDetailDto,
-  cacheStatus: "MISS" | "HIT" | "STALE" | "STALE_IF_ERROR"
+  cacheStatus: DetailCacheStatus
 ) {
   return NextResponse.json(dto, {
     headers: {
@@ -56,6 +58,28 @@ function buildJsonResponse(
       "X-Cache-Status": cacheStatus,
     },
   });
+}
+
+/**
+ * Applies the caller's current scope to a DTO before it is served. Cached
+ * entries are keyed by user and org, not by scope, so every path (MISS, HIT,
+ * STALE, STALE_IF_ERROR) runs this check per request. A driver with an empty
+ * `department` stays visible, as before.
+ */
+function authorizedJsonResponse(
+  scope: TenantScope,
+  dto: CollaboratorDetailDto,
+  cacheStatus: DetailCacheStatus
+) {
+  const { department } = dto.collaborator;
+  if (
+    scope.effectiveTaxIds.length > 0 &&
+    department &&
+    !scope.effectiveTaxIds.includes(department)
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return buildJsonResponse(dto, cacheStatus);
 }
 
 /**
@@ -135,29 +159,18 @@ export async function GET(
     const ageMs = now - cacheEntry.fetchedAt;
 
     if (ageMs <= DETAIL_CACHE_TTL_MS) {
-      return buildJsonResponse(cacheEntry.data, "HIT");
+      return authorizedJsonResponse(scope, cacheEntry.data, "HIT");
     }
 
     if (ageMs <= DETAIL_CACHE_STALE_TTL_MS) {
       void refreshDetailCache(cacheKey, codDriver).catch(() => undefined);
-      return buildJsonResponse(cacheEntry.data, "STALE");
+      return authorizedJsonResponse(scope, cacheEntry.data, "STALE");
     }
   }
 
   try {
     const dto = await refreshDetailCache(cacheKey, codDriver);
-
-    // Enforce scope: if the active org has tax ids configured, the returned
-    // driver's cust_account (mapped to `department`) must be in the set.
-    if (
-      scope.effectiveTaxIds.length > 0 &&
-      dto.collaborator.department &&
-      !scope.effectiveTaxIds.includes(dto.collaborator.department)
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    return buildJsonResponse(dto, "MISS");
+    return authorizedJsonResponse(scope, dto, "MISS");
   } catch (error) {
     if (error instanceof DriverNotFoundError) {
       return NextResponse.json({ error: "driver not found" }, { status: 404 });
@@ -165,7 +178,7 @@ export async function GET(
     if (cacheEntry) {
       const ageMs = now - cacheEntry.fetchedAt;
       if (ageMs <= DETAIL_CACHE_STALE_TTL_MS) {
-        return buildJsonResponse(cacheEntry.data, "STALE_IF_ERROR");
+        return authorizedJsonResponse(scope, cacheEntry.data, "STALE_IF_ERROR");
       }
       detailCache.delete(cacheKey);
     }

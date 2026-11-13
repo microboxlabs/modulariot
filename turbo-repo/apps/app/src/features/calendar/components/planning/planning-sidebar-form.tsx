@@ -259,8 +259,8 @@ export function PlanningSidebarForm({
       // When reassigning, prefer the original booking time
       if (reassigningService) {
         const origTime = `${reassigningService.originalSlot.hour.toString().padStart(2, "0")}:${reassigningService.originalSlot.minutes.toString().padStart(2, "0")}`;
-        const origOption = timeOptions.find((opt) => opt.time === origTime);
-        if (origOption) {
+        const hasOrigOption = timeOptions.some((opt) => opt.time === origTime);
+        if (hasOrigOption) {
           setSelectedTime(origTime);
           return;
         }
@@ -271,7 +271,7 @@ export function PlanningSidebarForm({
         setSelectedTime(firstAvailable.time);
       } else {
         // All slots are full, select the last one to show something
-        setSelectedTime(timeOptions[timeOptions.length - 1].time);
+        setSelectedTime(timeOptions.at(-1)!.time);
       }
     }
   }, [timeOptions, selectedTime, reassigningService]);
@@ -291,7 +291,7 @@ export function PlanningSidebarForm({
     }
   }, [selectedTime, andenesCount, occupiedAndenesForSelectedTime]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (isSubmitting) return;
     // Defense against Enter-key submission while the form is in read-only

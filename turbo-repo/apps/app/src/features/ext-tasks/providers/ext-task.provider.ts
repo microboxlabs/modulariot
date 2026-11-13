@@ -9,10 +9,19 @@ import type { ExternalTask } from "../ext-task.types";
  * **Future**: Replace internals with Alfresco node lookup by token UUID.
  * The function signature stays the same — this is the only integration point.
  */
-export async function validateAndGetTask(
+export function validateAndGetTask(
   token: string,
   taskType: string,
 ): Promise<ExternalTask> {
+  // A thrown ExtTaskError becomes a rejection, as the async version did.
+  try {
+    return Promise.resolve(decodeTask(token, taskType));
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+function decodeTask(token: string, taskType: string): ExternalTask {
   let decoded: ExternalTask;
 
   try {

@@ -37,10 +37,10 @@ function ETADetailsRenderer({
   if (!eta) return null;
   return (
     <div className="text-xs text-blue-700 dark:text-blue-300 space-x-1">
-      {eta.duration && (
+      {Boolean(eta.duration) && (
         <CustomBadge text={`${tr("duration", dict)}: ${formatDuration(eta)}`} />
       )}
-      {eta.distance && (
+      {Boolean(eta.distance) && (
         <CustomBadge text={`${tr("distance", dict)}: ${eta.distance.toFixed(2)} km`} />
       )}
     </div>

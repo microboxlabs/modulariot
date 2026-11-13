@@ -67,9 +67,12 @@ describe("RunsTable", () => {
     expect(screen.getByText("Juan Soto")).toBeTruthy();
     expect(screen.getByText("+56900000000")).toBeTruthy();
     expect(screen.getByText("Simulado")).toBeTruthy();
-    expect(
-      screen.getByRole("img", { name: "WhatsApp" }).getAttribute("data-channel")
-    ).toBe("whatsapp");
+    const message = screen
+      .getByText("Hola Juan Soto, ¿estás bien?")
+      .closest("li") as HTMLElement;
+    const badge = within(message).getByTitle("WhatsApp");
+    expect(badge).toHaveAttribute("data-channel", "whatsapp");
+    expect(within(badge).getByText("WhatsApp")).toHaveClass("sr-only");
 
     fireEvent.click(toggle);
     expect(screen.queryByText("Hola Juan Soto, ¿estás bien?")).toBeNull();

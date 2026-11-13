@@ -38,6 +38,27 @@ class AccessRegistryTest {
     }
 
     @Test
+    void anUnknownAnyRolePermissionFailsAtStartup() {
+        AccessCatalog broken = new AccessCatalog() {
+            @Override
+            public List<PermissionDef> permissions() {
+                return List.of();
+            }
+
+            @Override
+            public List<RoleDef> roles() {
+                return List.of();
+            }
+
+            @Override
+            public Set<String> anyRolePermissions() {
+                return Set.of("x:view");
+            }
+        };
+        assertThrows(IllegalStateException.class, () -> new AccessRegistry(List.of(broken)));
+    }
+
+    @Test
     void keysFollowTheNamingRules() {
         assertThrows(IllegalArgumentException.class, () -> PermissionDef.of("View", "x", "x"));
         assertThrows(IllegalArgumentException.class, () -> RoleDef.of("viewer", "x", "x", "x", Set.of()));

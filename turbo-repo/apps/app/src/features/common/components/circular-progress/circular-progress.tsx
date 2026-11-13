@@ -28,7 +28,13 @@ export default function CircularProgress({
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <svg className="-rotate-90" width={size} height={size}>
+      <svg
+        className="-rotate-90"
+        width={size}
+        height={size}
+        aria-hidden="true"
+        focusable="false"
+      >
         <circle
           cx={size / 2}
           cy={size / 2}

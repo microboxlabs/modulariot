@@ -46,15 +46,21 @@ export const EMPTY_ORGANIZATION_DRAFT: OrganizationDraft = {
  */
 export function slugFromClientName(name: string | null): string {
   const base = (name ?? "").split(":").pop() ?? "";
-  const slug = base
+  const dashed = base
     .toLowerCase()
     .normalize("NFD")
     .replaceAll(/[\u0300-\u036f]/g, "")
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "")
-    .slice(0, 100)
-    .replaceAll(/-+$/g, "");
+    .replaceAll(/[^a-z0-9]+/g, "-");
+  const slug = trimDashes(trimDashes(dashed).slice(0, 100));
   return SLUG.test(slug) ? slug : "";
+}
+
+function trimDashes(text: string): string {
+  let start = 0;
+  let end = text.length;
+  while (start < end && text[start] === "-") start++;
+  while (end > start && text[end - 1] === "-") end--;
+  return text.slice(start, end);
 }
 
 /** The request bodies for a draft, or the first problem with it. */

@@ -32,15 +32,14 @@ describe("WorkspaceTabs", () => {
         onResponse={onResponse}
       />
     );
-    const list = screen.getByRole("tablist");
-    fireEvent.keyDown(list, { key: "ArrowRight" });
+    const rule = screen.getByRole("tab", { name: "Regla" });
+    const response = screen.getByRole("tab", { name: "Respuesta" });
+    fireEvent.keyDown(rule, { key: "ArrowRight" });
     expect(onResponse).toHaveBeenCalledTimes(1);
-    expect(document.activeElement).toBe(
-      screen.getByRole("tab", { name: "Respuesta" })
-    );
-    fireEvent.keyDown(list, { key: "Home" });
+    expect(document.activeElement).toBe(response);
+    fireEvent.keyDown(response, { key: "Home" });
     expect(onRule).toHaveBeenCalledTimes(1);
-    fireEvent.keyDown(list, { key: "Enter" });
+    fireEvent.keyDown(response, { key: "Enter" });
     expect(onRule).toHaveBeenCalledTimes(1);
     expect(onResponse).toHaveBeenCalledTimes(1);
   });

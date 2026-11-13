@@ -1,7 +1,7 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { RuleFinding, RuleSpec } from "./conversations-types";
-import { channelLabel, groupLabel, roleLabel } from "./rule-model";
+import { channelLabel, groupLabel, plainText, roleLabel } from "./rule-model";
 
 const SECTION = /^(groups|steps)\.(\d+)$/;
 
@@ -24,10 +24,10 @@ function findingParams(
 ): Record<string, string> {
   const params: Record<string, string> = {};
   const number = f.params?.step ?? f.params?.entry ?? f.params?.group;
-  if (number != null) params.n = String(number);
+  if (number != null) params.n = plainText(number);
   else if (index !== null) params.n = String(index + 1);
   for (const [name, value] of Object.entries(f.params ?? {})) {
-    const text = value == null ? "" : String(value);
+    const text = plainText(value);
     if (name === "role") params.role = roleLabel(text, d);
     else if (name === "channel") params.channel = channelLabel(text, d);
     else if (name !== "group") params[name] = text;
@@ -113,29 +113,44 @@ export function placeFindings(
       continue;
     }
     const text = ruleFindingText(f, d, spec);
-    if (kind === "groups") {
-      const issues = (out.groups[index] ??= { messages: [], entries: {} });
-      const entry = Number(f.params?.entry);
-      if (Number.isInteger(entry) && entry > 0) {
-        const messages = issues.entries[entry - 1] ?? [];
-        messages.push(text);
-        issues.entries[entry - 1] = messages;
-      } else issues.messages.push(text);
-      continue;
-    }
-    const issues = (out.steps[index] ??= {
-      messages: [],
-      template: false,
-      channel: false,
-      connection: false,
-      groups: false,
-    });
-    issues.messages.push(text);
-    const code = f.code ?? "";
-    if (TEMPLATE_CODES.has(code)) issues.template = true;
-    if (CHANNEL_CODES.has(code)) issues.channel = true;
-    if (CONNECTION_CODES.has(code)) issues.connection = true;
-    if (GROUPS_CODES.has(code)) issues.groups = true;
+    if (kind === "groups") placeGroupFinding(out.groups, index, f, text);
+    else placeStepFinding(out.steps, index, f, text);
   }
   return out;
+}
+
+function placeGroupFinding(
+  groups: Record<number, GroupIssues>,
+  index: number,
+  f: RuleFinding,
+  text: string
+) {
+  const issues = (groups[index] ??= { messages: [], entries: {} });
+  const entry = Number(f.params?.entry);
+  if (Number.isInteger(entry) && entry > 0) {
+    const messages = issues.entries[entry - 1] ?? [];
+    messages.push(text);
+    issues.entries[entry - 1] = messages;
+  } else issues.messages.push(text);
+}
+
+function placeStepFinding(
+  steps: Record<number, StepIssues>,
+  index: number,
+  f: RuleFinding,
+  text: string
+) {
+  const issues = (steps[index] ??= {
+    messages: [],
+    template: false,
+    channel: false,
+    connection: false,
+    groups: false,
+  });
+  issues.messages.push(text);
+  const code = f.code ?? "";
+  if (TEMPLATE_CODES.has(code)) issues.template = true;
+  if (CHANNEL_CODES.has(code)) issues.channel = true;
+  if (CONNECTION_CODES.has(code)) issues.connection = true;
+  if (GROUPS_CODES.has(code)) issues.groups = true;
 }

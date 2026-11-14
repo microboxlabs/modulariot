@@ -123,7 +123,7 @@ export function DashletSettings({
 
   useEffect(() => {
     if (dataMode === "pgrest" && pg.pgrestFunctionName) {
-      pg.detectColumns();
+      void pg.detectColumns();
     } else if (dataMode === "planner" && plannerVariableName) {
       const keys = schemas.get(plannerVariableName);
       if (keys?.length) reconcileColumns(keys);

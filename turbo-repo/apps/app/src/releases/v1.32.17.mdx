@@ -1,0 +1,63 @@
+# 🔔 Release Notes v1.32.17 — ModularIoT
+
+### Fecha: 14/11/2026
+
+**Objetivo**: Integrar los cambios del milestone OSS MIOT-0.6.17 y actualizar los componentes indicados del stack. Esta versión reúne correcciones para la app, el dashboard y los recordatorios de síntomas.
+
+## 🔧 Integraciones
+
+- **🔌 Milestone OSS MIOT-0.6.17**
+  - **Alcance**: Se integran los cambios OSS incluidos en este release, con mejoras en la app, el dashboard y el mantenimiento del workspace web.
+- **🔌 Workspace de la app web**
+  - **Alcance**: Se elimina un lockfile anidado obsoleto, se ignora ese archivo y se actualizan las instrucciones del README para usar el npm workspace. No cambia el runtime ni el lockfile principal.
+
+## 🐛 Correcciones
+
+- **🐛 Alcance de colaboradores en respuestas cacheadas**
+  - **Impacto**: Las respuestas HIT y STALE podían devolver datos de un conductor sin volver a comprobar el alcance de la organización activa.
+  - **Solución**: Se valida el DTO contra el alcance de la solicitud antes de responder, también en las rutas de caché. Se reorganiza la construcción de respuestas y el uso de `node:crypto`.
+- **🐛 Recordatorio de doble conductor**
+  - **Impacto**: El síntoma podía dejar de abrir casos tras el cierre de un operador, aunque la regla contemplara una nueva apertura cinco horas después.
+  - **Solución**: Se corrige el tratamiento de los casos cerrados para que la regla de reapertura pueda determinar cuándo abrir un nuevo caso.
+- **🐛 Tabla redimensionable del dashboard**
+  - **Impacto**: Los divisores del encabezado no coincidían con el cuerpo y el redimensionamiento de columnas no funcionaba en modo de edición.
+  - **Solución**: Se corrige la alineación, incluido el tema oscuro, y se restablece el redimensionamiento para guardar anchos.
+- **🐛 Navegación, tareas y llamadas**
+  - **Impacto**: La página de fuentes de datos podía quedar vacía al no esperar las redirecciones; además, las insignias ETA con valor cero podían mostrar un `0` suelto.
+  - **Solución**: Se esperan las redirecciones correspondientes y se corrige la representación de ETA cero. También se reorganiza el inicio de llamadas WebRTC sin alterar su comportamiento.
+- **🐛 Manejo de errores asíncronos**
+  - **Impacto**: El rechazo al reemplazar una imagen podía quedar sin gestionar y mantener activa la actualización; algunas promesas de reproducción, portapapeles y PDF tampoco trataban explícitamente errores.
+  - **Solución**: Se gestionan esos rechazos y se aclara el manejo de las promesas restantes.
+- **🐛 Accesibilidad y presentación**
+  - **Impacto**: Había incidencias de accesibilidad y objetos que podían mostrarse como `[object Object]` en las reglas de conversación.
+  - **Solución**: Se usan elementos HTML nativos, se mejora el manejo del teclado en pestañas y la accesibilidad de SVG; los parámetros y claves de eventos se muestran como JSON.
+- **🐛 Calidad y mantenimiento de la app**
+  - **Impacto**: Se detectaron problemas de tipos y firmas, expresiones regulares con backtracking superlineal y complejidad elevada en varias áreas.
+  - **Solución**: Se corrigen tipos y APIs obsoletas, se simplifican expresiones y lógica, y se ajustan pruebas de badges de canal para buscar sus etiquetas accesibles.
+
+## 📊 Beneficios
+
+- Las respuestas cacheadas respetan el alcance de la organización activa.
+- El recordatorio de doble conductor puede volver a abrir casos según su regla temporal.
+- El dashboard ofrece encabezados alineados y redimensionamiento de columnas en modo de edición.
+- Las páginas de fuentes de datos ejecutan sus redirecciones correctamente.
+- Se mejora el manejo de errores de imágenes, reproducción, portapapeles y PDF.
+- Se refuerzan la accesibilidad y la presentación de información en la app.
+- Se simplifica el mantenimiento de código y pruebas sin cambios de comportamiento donde así se indica.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.6.17`
+- **App**: `app@v0.6.17` (actualizada)
+- **Docs**: `docs@v0.6.16` (sin cambios)
+- **Web**: `web@v0.6.17` (actualizada)
+- **Modulith**: `modulith@v0.5.54` (actualizado)
+- **Harness**: `harness@v0.1.16` (actualizado)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.32.17 integra el milestone OSS MIOT-0.6.17 con correcciones funcionales y mejoras de accesibilidad y mantenimiento en la app y el dashboard.
+
+Los cambios refuerzan la validación del alcance en respuestas cacheadas, la continuidad de los recordatorios y la fiabilidad de flujos de interfaz. También se actualizan los componentes del stack indicados para esta versión.

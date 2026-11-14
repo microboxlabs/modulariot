@@ -1,0 +1,331 @@
+{
+  "stack_version": "0.6.17",
+  "stack_tag": "miot-stack@v0.6.17",
+  "milestone": "MIOT-0.6.17",
+  "pull_requests": [
+    {
+      "number": 2636,
+      "title": "[app] Fix 16 Sonar type and signature issues without runtime changes",
+      "source_issues": [
+        {
+          "number": 2667,
+          "title": "[app] Fix 16 Sonar type and signature issues without runtime changes"
+        }
+      ]
+    },
+    {
+      "number": 2637,
+      "title": "[app] Use dedicated matchers and it.each tables in app tests (Sonar S5906, S5976)",
+      "source_issues": [
+        {
+          "number": 2668,
+          "title": "[app] Use dedicated matchers and it.each tables in app tests (Sonar S5906, S5976)"
+        }
+      ]
+    },
+    {
+      "number": 2638,
+      "title": "[app] Sonar PR03: fix ETA 0 leak, optional chains and async cleanups",
+      "source_issues": [
+        {
+          "number": 2669,
+          "title": "[app] Sonar PR03: fix ETA 0 leak, optional chains and async cleanups"
+        }
+      ]
+    },
+    {
+      "number": 2641,
+      "title": "[app] Replace deprecated React FormEvent and req.connection (Sonar S1874)",
+      "source_issues": [
+        {
+          "number": 2670,
+          "title": "[app] Replace deprecated React FormEvent and req.connection (Sonar S1874)"
+        }
+      ]
+    },
+    {
+      "number": 2642,
+      "title": "[app] Quitar backtracking super-lineal en 5 regex (S8786)",
+      "source_issues": [
+        {
+          "number": 2671,
+          "title": "[app] Quitar backtracking super-lineal en 5 regex (S8786)"
+        }
+      ]
+    },
+    {
+      "number": 2643,
+      "title": "[app] SVG accesibles y detectColumns marcado como ignorado (Sonar S1077, S9383)",
+      "source_issues": [
+        {
+          "number": 2672,
+          "title": "[app] SVG accesibles y detectColumns marcado como ignorado (Sonar S1077, S9383)"
+        }
+      ]
+    },
+    {
+      "number": 2644,
+      "title": "[app] Use native output, fieldset and tab key handling for 8 Sonar a11y issues",
+      "source_issues": [
+        {
+          "number": 2673,
+          "title": "[app] Use native output, fieldset and tab key handling for 8 Sonar a11y issues"
+        }
+      ]
+    },
+    {
+      "number": 2647,
+      "title": "[app] Await the data sources page redirects",
+      "source_issues": [
+        {
+          "number": 2674,
+          "title": "[app] Await the data sources page redirects"
+        }
+      ]
+    },
+    {
+      "number": 2648,
+      "title": "[app] Handle floating promises: real fixes for play, clipboard and PDF getPage, void the rest",
+      "source_issues": [
+        {
+          "number": 2675,
+          "title": "[app] Handle floating promises: real fixes for play, clipboard and PDF getPage, void the rest"
+        }
+      ]
+    },
+    {
+      "number": 2649,
+      "title": "[app] Conversation rules: object params as JSON, simpler rule parsers",
+      "source_issues": [
+        {
+          "number": 2676,
+          "title": "[app] Conversation rules: object params as JSON, simpler rule parsers"
+        }
+      ]
+    },
+    {
+      "number": 2652,
+      "title": "[app] Handle rejected gallery image replace and clear file-images Sonar issues",
+      "source_issues": [
+        {
+          "number": 2677,
+          "title": "[app] Handle rejected gallery image replace and clear file-images Sonar issues"
+        }
+      ]
+    },
+    {
+      "number": 2654,
+      "title": "[app] Lower cognitive complexity in the call dialing step and symptom detail",
+      "source_issues": [
+        {
+          "number": 2678,
+          "title": "[app] Lower cognitive complexity in the call dialing step and symptom detail"
+        }
+      ]
+    },
+    {
+      "number": 2655,
+      "title": "[app] Split the browser call start in call-session into named steps",
+      "source_issues": [
+        {
+          "number": 2680,
+          "title": "[app] Split the browser call start in call-session into named steps"
+        }
+      ]
+    },
+    {
+      "number": 2656,
+      "title": "[app] Sync sign-in guard and split the jwt callback into steps",
+      "source_issues": [
+        {
+          "number": 2679,
+          "title": "[app] Sync sign-in guard and split the jwt callback into steps"
+        }
+      ]
+    },
+    {
+      "number": 2657,
+      "title": "fix(app): check collaborator scope on cached detail responses (H2)",
+      "source_issues": [
+        {
+          "number": 2681,
+          "title": "fix(app): check collaborator scope on cached detail responses (H2)"
+        }
+      ]
+    },
+    {
+      "number": 2658,
+      "title": "[app] Move cached detail responses out of the collaborator GET and use node:crypto",
+      "source_issues": [
+        {
+          "number": 2683,
+          "title": "[app] Move cached detail responses out of the collaborator GET and use node:crypto"
+        }
+      ]
+    },
+    {
+      "number": 2659,
+      "title": "test(app): check channel badges by their label, not role img",
+      "source_issues": [
+        {
+          "number": 2682,
+          "title": "test(app): check channel badges by their label, not role img"
+        }
+      ]
+    },
+    {
+      "number": 2660,
+      "title": "[dashboard-ui] Fix table header dividers and column resize in edit mode",
+      "source_issues": [
+        {
+          "number": 2688,
+          "title": "[dashboard-ui] Fix table header dividers and column resize in edit mode"
+        }
+      ]
+    },
+    {
+      "number": 2684,
+      "title": "chore(web): remove stale nested lockfile behind 57 Dependabot alerts",
+      "source_issues": [
+        {
+          "number": 2685,
+          "title": "chore(web): remove stale nested lockfile behind 57 Dependabot alerts"
+        }
+      ]
+    },
+    {
+      "number": 2687,
+      "title": "fix(symptoms): repeat the double-driver reminder after a handled close",
+      "source_issues": [
+        {
+          "number": 2686,
+          "title": "bug(symptoms): the double-driver reminder does not repeat 5 h after an operator's close"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".gitignore",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/CompiledSymptom.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/OperatorClose.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/SignalEvaluator.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/evals/RouteTemplatesRuleCasesTest.java",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/data-sources/page.test.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/data-sources/page.tsx",
+    "turbo-repo/apps/app/src/app/api/collaborators/[codDriver]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/collaborators/[codDriver]/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/pgrest-client.ts",
+    "turbo-repo/apps/app/src/auth.config.ts",
+    "turbo-repo/apps/app/src/features/auth/auth-callbacks.test.ts",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/form-sign-in.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/login-button/login-button.tsx",
+    "turbo-repo/apps/app/src/features/auth/config/auth0-connections.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-selection-wrapper.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-sidebar-client.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-sidebar-form.tsx",
+    "turbo-repo/apps/app/src/features/calendar/enrichment/calendar-enrichment-drawer.tsx",
+    "turbo-repo/apps/app/src/features/calendar/services/accredited-resources.service.ts",
+    "turbo-repo/apps/app/src/features/collaborators-management/components/collaborator-detail/collaborator-summary.tsx",
+    "turbo-repo/apps/app/src/features/common/components/admin-message-templates-console/admin-message-templates-console.tsx",
+    "turbo-repo/apps/app/src/features/common/components/circular-progress/circular-progress.tsx",
+    "turbo-repo/apps/app/src/features/common/components/connection-status-badge/connection-status-badge.test.tsx",
+    "turbo-repo/apps/app/src/features/common/components/connection-status-badge/connection-status-badge.tsx",
+    "turbo-repo/apps/app/src/features/common/components/form-modal/form-modal.tsx",
+    "turbo-repo/apps/app/src/features/common/providers/alfresco-api/alfresco-api.provider.ts",
+    "turbo-repo/apps/app/src/features/conversations/activity-tab.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/activity-tab.tsx",
+    "turbo-repo/apps/app/src/features/conversations/channel-icon.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/channel-icon.tsx",
+    "turbo-repo/apps/app/src/features/conversations/conversations-types.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-findings.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-findings.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-model.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-side-panel.tsx",
+    "turbo-repo/apps/app/src/features/conversations/symptom-rules-card.test.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/select-filter-badge.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-landing/dashboard-list.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/chart/chart-type-picker.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/chart/dashlet.settings.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/chart_v2/dashlet.settings.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/common/icon-options.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/common/settings-drawer.test.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/common/settings-drawer.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/common/settings-sections.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/file_upload/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/index.test.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_stacked/dashlet.settings.tsx",
+    "turbo-repo/apps/app/src/features/dynamic-forms/components/dynamic-form-field.tsx",
+    "turbo-repo/apps/app/src/features/ext-tasks/components/ext-task-executor.tsx",
+    "turbo-repo/apps/app/src/features/ext-tasks/providers/ext-task.provider.test.ts",
+    "turbo-repo/apps/app/src/features/ext-tasks/providers/ext-task.provider.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/image-viewer/image-selector.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/image-viewer/image-selector.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat-attachments.ts",
+    "turbo-repo/apps/app/src/features/integration-jobs/components/notification-rules-panel.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/org-switcher/org-switcher-avatar.test.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/org-switcher/org-switcher.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/use-harness-search.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/use-pagefind-search.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/create-organization-form.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/create-organization-form.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/organizations-section.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/pdf/pdf-previewer.test.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/pdf/pdf-previewer.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-bar.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-dialing-step.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-session.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/call-center/call-session.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/sample-tree.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-detail.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/workspace-tabs.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/workspace-tabs.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/model/active-duration.test.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/active-duration.ts",
+    "turbo-repo/apps/app/src/features/symptoms/model/treatment-link.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/forum/forum.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/gallery/file-images.test.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/gallery/file-images.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/gallery/use-image-replace.test.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/gallery/use-image-replace.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-confirm-modal/live-form-field.test.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-confirm-modal/live-form-field.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-confirm-modal/task-confirm-modal.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/app/src/middleware/pino-http.ts",
+    "turbo-repo/apps/web/README.md",
+    "turbo-repo/apps/web/package-lock.json",
+    "turbo-repo/packages/miot-dashboard-ui/styles.css"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.17",
+      "tag": "app@v0.6.17"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.6.16",
+      "version": "0.6.16",
+      "tag": "docs@v0.6.16"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.6.16",
+      "version": "0.6.17",
+      "tag": "web@v0.6.17"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.53",
+      "version": "0.5.54",
+      "tag": "modulith@v0.5.54"
+    },
+    "harness": {
+      "changed": true,
+      "changed_since": "harness@v0.1.15",
+      "version": "0.1.16",
+      "tag": "harness@v0.1.16"
+    }
+  }
+}

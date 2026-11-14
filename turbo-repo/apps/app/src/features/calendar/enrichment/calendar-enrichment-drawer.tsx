@@ -197,7 +197,7 @@ function BindingForm({
 
   function save() {
     if (!target) return;
-    onSave({
+    void onSave({
       eventType: ENRICHMENT_EVENT_TYPE,
       scopeKind: scopeThisCalendar ? ENRICHMENT_SCOPE_KIND : null,
       scopeKey: scopeThisCalendar ? calendarId : null,

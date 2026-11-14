@@ -6517,6 +6517,7 @@
     "cancel": "Cancel",
     "copy": "Copy",
     "copiedToClipboard": "Copied to clipboard",
+    "copyToClipboardFailed": "Could not copy to clipboard",
     "import": "Import",
     "saving": "Saving...",
     "retry": "Retry",

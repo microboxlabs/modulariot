@@ -30,7 +30,7 @@ export function DashboardList({ dict }: Readonly<DashboardListProps>) {
         type: "success",
         message: tr("dashboard.landing.deleteSuccess", dict),
       });
-      mutate(
+      await mutate(
         (current) => current
           ? { data: current.data.filter((d) => d.slug !== deleteTarget.slug) }
           : current,

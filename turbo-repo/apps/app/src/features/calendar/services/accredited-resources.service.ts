@@ -189,7 +189,7 @@ export function useAccreditedResources(opts: UseAccreditedResourcesOpts) {
 
   const loadMore = useCallback(() => {
     if (!hasMore || isLoadingMore) return;
-    setSize((s) => s + 1);
+    void setSize((s) => s + 1);
   }, [hasMore, isLoadingMore, setSize]);
 
   return {

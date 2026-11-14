@@ -58,7 +58,7 @@ export default function ExtTaskExecutor({
       }
     }
 
-    execute();
+    void execute();
     return () => {
       cancelled = true;
     };

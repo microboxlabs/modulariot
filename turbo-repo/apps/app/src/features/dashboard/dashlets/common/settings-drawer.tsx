@@ -107,14 +107,25 @@ function SettingsDrawerInner({
   const handleCopyAnchor = useCallback(() => {
     if (!widgetId) return;
     const anchor = `#widget-${widgetId}`;
-    navigator.clipboard.writeText(anchor).then(() => {
+    const copy = async () => {
+      try {
+        // Also throws synchronously when the Clipboard API is unavailable.
+        await navigator.clipboard.writeText(anchor);
+      } catch {
+        ShowNotification({
+          type: "error",
+          message: tr("common.copyToClipboardFailed", dictionary ?? {}),
+        });
+        return;
+      }
       setCopied(true);
       ShowNotification({
         type: "success",
         message: tr("common.copiedToClipboard", dictionary ?? {}),
       });
       setTimeout(() => setCopied(false), 2000);
-    });
+    };
+    void copy();
   }, [widgetId, dictionary]);
 
   useEffect(() => {

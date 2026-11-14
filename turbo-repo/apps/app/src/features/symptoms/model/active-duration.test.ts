@@ -25,4 +25,33 @@ describe("active duration", () => {
     expect(formatActiveDuration(null)).toBeUndefined();
     expect(formatActiveDuration(-5)).toBe("0 s");
   });
+
+  it("reads signs, fractions, any whitespace and parts in any order", () => {
+    expect(activeSeconds("-1 days -02:00:00")).toBe(-86400 - 7200);
+    expect(activeSeconds("1 year 2 mons 3 days")).toBe(
+      365 * 86400 + 60 * 86400 + 3 * 86400
+    );
+    expect(activeSeconds("1\tday\n 1 day")).toBe(2 * 86400);
+    expect(activeSeconds("01:00:00 1 day")).toBe(86400 + 3600);
+    expect(activeSeconds("-00:00:01.5")).toBe(-1.5);
+    expect(activeSeconds("1 day03:04:05")).toBe(97445);
+    expect(activeSeconds("01:1 day00:00")).toBe(86400);
+  });
+
+  it("refuses intervals with extra or broken parts", () => {
+    expect(activeSeconds("-1 days +02:00:00")).toBeUndefined();
+    expect(activeSeconds("1.5 days")).toBeUndefined();
+    expect(activeSeconds("01:00:00 02:00:00")).toBeUndefined();
+    expect(activeSeconds("1 day x")).toBeUndefined();
+    expect(activeSeconds("1 hour")).toBeUndefined();
+  });
+
+  it("refuses long runs of digits quickly", () => {
+    const digits = "1".repeat(10_000);
+    const started = performance.now();
+    for (const text of [`${digits} x`, `${digits}:`, `1 ${digits}x`]) {
+      expect(activeSeconds(text)).toBeUndefined();
+    }
+    expect(performance.now() - started).toBeLessThan(100);
+  });
 });

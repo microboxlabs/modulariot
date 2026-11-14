@@ -23,6 +23,7 @@ import { isRoundObservation, observationReasonLabels } from "../viewer/observati
 import { mergeLoadedStatuses, statusForCurrentVersion, versionOf } from "../viewer/observations/review-version";
 import { useBentoReview } from "../../../../bento-review-context";
 import { createAlfrescoSource, MediaSourceProvider, type MediaSource } from "../media-source";
+import { useImageReplace } from "./use-image-replace";
 
 /** The verdict each UI state records. "pending" is a reversal, not the absence of one. */
 const VERDICT_BY_STATUS: Record<ReviewStatus, "APPROVED" | "REJECTED" | "PENDING"> = {
@@ -250,6 +251,16 @@ export function roundsToTimeline(rounds: ReviewRoundResponse[]): TimelineEntry[]
         : [],
     };
   });
+}
+
+function timelineEntriesFor(
+  rounds: ReviewRoundResponse[] | null,
+  data: ForumDiscussionResponse | null,
+  refMap: Map<string, { topicRef: string; postRef: string }>,
+): TimelineEntry[] {
+  if (rounds) return roundsToTimeline(rounds);
+  if (data) return buildNodeTimeline(data, refMap);
+  return [];
 }
 
 function buildNodeTimeline(data: ForumDiscussionResponse, refMap: Map<string, { topicRef: string; postRef: string }>): TimelineEntry[] {
@@ -492,11 +503,9 @@ export default function FileImages({
   const [isClasificationFormOpen, setIsClasificationFormOpen] = useState(false);
   const [isDocumentListOpen, setIsDocumentListOpen] = useState(false);
   const [uploadableFiles, setUploadableFiles] = useState<any[]>([]);
-  const [editImageIndex, setEditImageIndex] = useState<number | null>(null);
 
   const [images, setImages] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
-  const [isUpdatingImage, setIsUpdatingImage] = useState(false);
   const [imageRefreshKey, setImageRefreshKey] = useState(0);
 
   const [isImagesExpanded, setIsImagesExpanded] = useState(true);
@@ -853,8 +862,7 @@ export default function FileImages({
       return next;
     });
     setDraftObservations((prev) => {
-      const obs = (prev.get(fileId) ?? []).find((o) => o.id === obsId);
-      if (!obs) return prev;
+      if (!(prev.get(fileId) ?? []).some((o) => o.id === obsId)) return prev;
       const next = new Map(prev);
       next.set(fileId, (prev.get(fileId) ?? []).map((o) => addReplyToObservation(o, obsId, reply)));
       return next;
@@ -873,8 +881,7 @@ export default function FileImages({
       return next;
     });
     setDraftObservations((prev) => {
-      const obs = (prev.get(fileId) ?? []).find((o) => o.id === obsId);
-      if (!obs) return prev;
+      if (!(prev.get(fileId) ?? []).some((o) => o.id === obsId)) return prev;
       const next = new Map(prev);
       next.set(fileId, (prev.get(fileId) ?? []).map((o) => removeReplyFromObservation(o, obsId, replyId)));
       return next;
@@ -951,7 +958,7 @@ export default function FileImages({
       for (const result of results) {
         if (result.status !== "fulfilled") continue;
         const { nodeId, rounds, data } = result.value;
-        const entries = rounds ? roundsToTimeline(rounds) : data ? buildNodeTimeline(data, refMap) : [];
+        const entries = timelineEntriesFor(rounds, data, refMap);
         if (entries.length > 0) timeline.set(nodeId, entries);
       }
       setForumRefMap((prev) => new Map([...prev, ...refMap]));
@@ -964,7 +971,8 @@ export default function FileImages({
       });
       setDiscussionsLoaded(true);
     }
-    fetchHistories();
+    // Fire and forget: allSettled collects each history read's failure, and those nodes are skipped.
+    void fetchHistories();
     return () => { cancelled = true; };
   }, [allIds, discussionsLoaded, src]);
 
@@ -1015,35 +1023,15 @@ export default function FileImages({
     }
   }, [viewerIndex, viewerItems.length, closeViewer]);
 
-  const handleReplaceImage = useCallback(
-    async (file: File, index: number) => {
-      const item = viewerItems[index];
-      if (!item?.file?.entry?.id) {
-        toast.error(tr("bento.multimedia.update_error", dictionary));
-        return;
-      }
-      const nodeId = item.file.entry.id;
-      setIsUpdatingImage(true);
-      const updatePromise = src.replace(nodeId, file);
-      toast.promise(updatePromise, {
-        loading: tr("bento.multimedia.update_loading", dictionary),
-        success: tr("bento.multimedia.update_success", dictionary),
-        error: tr("bento.multimedia.update_error", dictionary),
-      });
-      try {
-        await updatePromise;
-        await refresh();
-        await invalidateThumbnail(nodeId);
-        if (item.type === "image") {
-          setImageRefreshKey((prev) => prev + 1);
-        }
-      } finally {
-        setIsUpdatingImage(false);
-        setEditImageIndex(null);
-      }
-    },
-    [viewerItems, dictionary, refresh, invalidateThumbnail, src]
-  );
+  const bumpImageRefreshKey = useCallback(() => setImageRefreshKey((prev) => prev + 1), []);
+  const { editImageIndex, setEditImageIndex, isUpdatingImage, handleReplaceImage } = useImageReplace({
+    items: viewerItems,
+    dictionary,
+    src,
+    refresh,
+    invalidateThumbnail,
+    onImageReplaced: bumpImageRefreshKey,
+  });
 
   const handleDeleteMedia = useCallback(
     async (index: number) => {
@@ -1077,6 +1065,20 @@ export default function FileImages({
     return <div className="flex flex-col relative bg-gray-200 dark:bg-gray-700 w-full h-full animate-pulse rounded-lg" />;
   }
 
+  const editItem = editImageIndex === null ? undefined : viewerItems[editImageIndex];
+  const replaceImageModal = (
+    <ReplaceImageModal
+      show={editImageIndex !== null && !isUpdatingImage}
+      onClose={() => setEditImageIndex(null)}
+      onReplace={(file) => {
+        if (editImageIndex !== null) void handleReplaceImage(file, editImageIndex);
+      }}
+      dictionary={dictionary}
+      imageName={editItem?.file?.entry?.name}
+      accept={editItem?.type === "document" ? ".pdf" : ".jpg,.jpeg,.png"}
+    />
+  );
+
   // Expanded inline viewer mode — fade in after container expansion (500ms) is mostly done
   if (isExpanded && viewerIndex !== null) {
     return (
@@ -1106,16 +1108,7 @@ export default function FileImages({
           onRemoveReply={handleRemoveReply}
           dictionary={dictionary}
         />
-        <ReplaceImageModal
-          show={editImageIndex !== null && !isUpdatingImage}
-          onClose={() => setEditImageIndex(null)}
-          onReplace={(file) => {
-            if (editImageIndex !== null) handleReplaceImage(file, editImageIndex);
-          }}
-          dictionary={dictionary}
-          imageName={editImageIndex === null ? undefined : viewerItems[editImageIndex]?.file?.entry?.name}
-          accept={editImageIndex !== null && viewerItems[editImageIndex]?.type === "document" ? ".pdf" : ".jpg,.jpeg,.png"}
-        />
+        {replaceImageModal}
       </div>
       </MediaSourceProvider>
     );
@@ -1345,16 +1338,7 @@ export default function FileImages({
           </div>
 
       {/* Modals */}
-      <ReplaceImageModal
-        show={editImageIndex !== null && !isUpdatingImage}
-        onClose={() => setEditImageIndex(null)}
-        onReplace={(file) => {
-          if (editImageIndex !== null) handleReplaceImage(file, editImageIndex);
-        }}
-        dictionary={dictionary}
-        imageName={editImageIndex === null ? undefined : viewerItems[editImageIndex]?.file?.entry?.name}
-        accept={editImageIndex !== null && viewerItems[editImageIndex]?.type === "document" ? ".pdf" : ".jpg,.jpeg,.png"}
-      />
+      {replaceImageModal}
 
       <FileViewer
         selected={selectedDocument}

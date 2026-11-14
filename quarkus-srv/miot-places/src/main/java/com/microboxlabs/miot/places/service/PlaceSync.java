@@ -18,8 +18,9 @@ public interface PlaceSync {
     void saved(String tenantCode, String externalCode, Place place);
 
     /**
-     * The source place was deleted, or no longer holds the code (a route's code changed). Its ID proves ownership
-     * of the GPS row; a missing row or one owned by someone else is left alone.
+     * The source place was deleted, or no longer holds the code (a route's code changed). The GPS row of its
+     * organization and code is removed, unless it is a trips location geofence or another place's (it carries
+     * another place's ID); a missing row is no failure.
      */
     void deleted(String tenantCode, String externalCode, Place place);
 

@@ -126,15 +126,32 @@ class StreamHubPlaceSyncTest {
     }
 
     @Test
-    void aLegacyRowCannotBeAdoptedBySavingThenDeletingTheSameCode() {
-        gpsPool.preparedQuery("INSERT INTO geofences (client_id, client_geofence_id, geofence_name)"
-                + " VALUES ($1, 'SCL', 'Legacy')").execute(Tuple.of(TENANT)).await().atMost(TIMEOUT);
+    void anImportedGeofencesRowIsAdoptedBySavingAndRemovedByDeleting() {
+        gpsPool.preparedQuery("INSERT INTO geofences (client_id, client_geofence_id, geofence_name, properties)"
+                + " VALUES ($1, 'SCL', 'Legacy', '{\"geofence_type\": 0}')").execute(Tuple.of(TENANT))
+                .await().atMost(TIMEOUT);
         Place source = place("geofence", "SCL", "New", null, SQUARE);
 
-        assertThrows(IllegalStateException.class, () -> sync.saved(TENANT, "SCL", source));
-        sync.deleted(TENANT, "SCL", source);
+        sync.saved(TENANT, "SCL", source);
+        List<Row> rows = rows();
+        assertEquals(1, rows.size(), "the same row: the organization and code are the key");
+        assertEquals("New", rows.get(0).getString("geofence_name"));
+        String properties = rows.get(0).getString("properties");
+        assertTrue(properties.contains("\"created_by\": \"miot-places\""), properties);
+        assertTrue(properties.contains(source.id().toString()), properties);
 
-        assertEquals("Legacy", rows().get(0).getString("geofence_name"));
+        sync.deleted(TENANT, "SCL", source);
+        assertEquals(List.of(), rows());
+    }
+
+    @Test
+    void anUnmarkedRowIsRemovedByDeletingThePlaceWithItsCode() {
+        gpsPool.preparedQuery("INSERT INTO geofences (client_id, client_geofence_id, geofence_name)"
+                + " VALUES ($1, 'SCL', 'Legacy')").execute(Tuple.of(TENANT)).await().atMost(TIMEOUT);
+
+        sync.deleted(TENANT, "SCL", place("geofence", "SCL", "Imported", null, SQUARE));
+
+        assertEquals(List.of(), rows(), "an imported place never edited still owns its row");
     }
 
     @Test

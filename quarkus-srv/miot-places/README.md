@@ -11,11 +11,14 @@ The organization access filter resolves the organization's `tenant_client_id` in
 `client_geofence_id`. Sub-accounts sharing their parent's GPS client are refused by the places API.
 GPS needs a unique constraint on `(client_id, client_geofence_id)` for idempotent upserts.
 
-Sync reserves GPS JSON properties `created_by=miot-places` and `miot_place_id=<source UUID>`.
-Only rows bearing both markers can be updated; legacy rows, including miot-trips locations and rows
-from the earlier unmarked sync, are never adopted automatically. Collisions stay pending and produce
-a warning. A delete additionally matches the source UUID, so it cannot remove a legacy row or a newer
-place that reused the code. Routes are never copied.
+The organization and code are the key. Sync writes the row with them whoever created it, so a geofence
+imported into Places (`places-import-from-gps.sh`) keeps syncing to its own GPS row, and each write marks
+the row with the reserved GPS JSON properties `created_by=miot-places` and `miot_place_id=<source UUID>`.
+The one exception is a miot-trips location geofence (`created_by=miot-trips`): it is never replaced or
+removed, and the place stays pending with a warning. The first write replaces the row's name, shape and
+properties with the place's, so a property the place lacks is dropped from the row. A delete removes the
+row of the organization and code unless it is a trips location or carries another place's UUID, so an old
+delete cannot remove a newer place that reused the code. Routes are never copied.
 
 API writes commit locally before sync. A transaction-scoped advisory lock on the places database
 admits one writer across API calls, retry jobs and replicas. A busy writer leaves changes pending.
@@ -29,8 +32,8 @@ are currently exposed. A failed copy does not prevent later entries in its batch
 Before enabling in a deployment, an administrator must verify the GPS login has schema `USAGE`,
 `SELECT`, `INSERT`, `UPDATE` and `DELETE` on the target `geofences` table, plus `USAGE` on its generated-ID
 sequence if applicable. Both databases require PostGIS; provision that extension separately.
-Use the writable `gps` pool; `gps-read` sessions are read only. This change does not provision grants,
-adopt legacy rows, or deploy anything. Disable sync in any additional environment that points at a
+Use the writable `gps` pool; `gps-read` sessions are read only. This change does not provision grants
+or deploy anything. Disable sync in any additional environment that points at a
 shared GPS database and is not intended to own its places.
 
 Run the places and CLI reactor tests from `quarkus-srv` with

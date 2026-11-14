@@ -8,7 +8,8 @@ import java.util.Optional;
 /**
  * How an operator closed a case: invalidated, or handled (call, note, ignore), and the case's level then. Until the
  * condition goes normal, the same symptom on the same vehicle and trip opens a new case only above
- * {@link #reopenAbove()}.
+ * {@link #reopenAbove()}. A symptom whose open rule reads the close ({@code case.closed_on_trip_s}) decides by that
+ * rule when a handled case opens again; an invalidated one stays blocked.
  *
  * @param tripId the case's trip, or null
  * @param at     when the operator closed it
@@ -20,9 +21,12 @@ public record OperatorClose(String tripId, Instant at, int level, boolean invali
     static final String INVALIDATED_OUTCOME = "INVALIDATED";
     static final String HANDLED = "HANDLED";
 
+    /** {@link #reopenAbove()} of an invalidated case: no level opens a new one. */
+    static final int EVERY_LEVEL = Integer.MAX_VALUE;
+
     /** An invalidated case blocks every level; a handled one blocks up to its level. */
     public int reopenAbove() {
-        return invalidated ? Integer.MAX_VALUE : level;
+        return invalidated ? EVERY_LEVEL : level;
     }
 
     /** The CLOSED row's context. */

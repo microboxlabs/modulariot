@@ -38,7 +38,8 @@ import java.util.UUID;
  * <li>After an operator closes a case on a trip ({@link OperatorClose}), the symptom opens no new case on that
  * vehicle and trip while the condition holds, unless the level rises above {@link Episode#reopenAbove()} (the
  * closed case's level after a handled close, none after an invalidation). One signal where the condition does not
- * hold ends the block. Without an episode, the block is read back from the log's last CLOSED row.</li>
+ * hold ends the block. A symptom whose open rule reads {@code case.closed_on_trip} or {@code case.closed_on_trip_s}
+ * decides by that rule when a handled case opens again; only an invalidation blocks it. Without an episode, the block is read back from the log's last CLOSED row.</li>
  * <li>Per vehicle and source, a signal not newer than the last one applied is
  * ignored. A case's level only rises, unless the lifecycle lets it follow the
  * measure down while the condition holds. After a case closes, a condition that
@@ -459,7 +460,7 @@ public class SignalEvaluator {
         Instant markedAt = marker == null ? null : e.closedOnTripAt();
         // The block lasts while the condition holds on that trip; one normal signal ends it.
         Integer reopenAbove = reopenAbove(e, marker, r);
-        if (reopenAbove != null && r.level() <= reopenAbove) {
+        if (blocksReopen(s, reopenAbove, r)) {
             return new Step(new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                     r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0, null, marker, markedAt, null,
                     null, null, false, reopenAbove), null);
@@ -486,6 +487,15 @@ public class SignalEvaluator {
         return new Step(new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                 r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0, null, marker, markedAt, null,
                 null, null, false, reopenAbove), null);
+    }
+
+    /**
+     * A handled close blocks up to its level, unless the open rule reads the close and so decides itself (a
+     * reminder that repeats some time after the operator's close, at the same level). An invalidation always blocks.
+     */
+    private static boolean blocksReopen(CompiledSymptom s, Integer reopenAbove, Reading r) {
+        if (reopenAbove == null || r.level() > reopenAbove) return false;
+        return reopenAbove == OperatorClose.EVERY_LEVEL || !s.openReadsOperatorClose();
     }
 
     private static int initialLevel(CompiledSymptom s, Episode e, Reading r, Integer reopenAbove) {

@@ -71,6 +71,15 @@ describe("ruleFindingText", () => {
     );
   });
 
+  it("writes an object param as JSON, not [object Object]", () => {
+    expect(
+      ruleFindingText(
+        finding("trigger", "whenInvalid", { detail: { at: 3, near: ")" } }),
+        d
+      )
+    ).toBe('La condición no es válida: {"at":3,"near":")"}');
+  });
+
   it("names a group by its ordinal when the sidebar has no spec", () => {
     expect(
       ruleFindingText(finding("groups.1", "groupEmpty", { group: 2 }), d)

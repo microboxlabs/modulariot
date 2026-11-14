@@ -10,6 +10,7 @@ import {
   CALL_SESSION_STORAGE_KEY,
   clearSavedCalls,
 } from "./call-session-store";
+import type { WebRtcToken } from "@/features/symptoms/control-tower/telephony-api.types";
 import type { StartCallOptions } from "./telnyx-call";
 
 const abandon = vi.hoisted(() => vi.fn());
@@ -406,6 +407,77 @@ describe("CallSessionProvider", () => {
     const event = new Event("beforeunload", { cancelable: true });
     window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("cancels a browser call while its token is pending without dialing", async () => {
+    const { dial, endCall } = browserCall();
+    let grant: (login: WebRtcToken) => void = () => undefined;
+    const token = vi.fn(
+      () =>
+        new Promise<WebRtcToken>((resolve) => {
+          grant = resolve;
+        })
+    );
+    mount();
+    act(() => {
+      s().startTelnyx({
+        ...manual,
+        destination: "+12025550101",
+        dial,
+        token,
+        endCall,
+      });
+    });
+    act(() => s().cancel());
+    await act(async () => {
+      grant({
+        token: "secret-login-token",
+        callerNumber: "+12025550100",
+        expiresAt: "2026-11-05T10:00:00Z",
+        callRef: "ref-1",
+      });
+    });
+    expect(dial).not.toHaveBeenCalled();
+    expect(endCall).toHaveBeenCalledTimes(1);
+    expect(endCall).toHaveBeenCalledWith("ref-1", null);
+    expect(s().call).toBeNull();
+  });
+
+  it("ends a browser call the provider ends before dial returns", async () => {
+    const { token, endCall, live } = browserCall();
+    let remote: HTMLMediaElement | null | undefined;
+    const dial = vi.fn(async (o: StartCallOptions) => {
+      remote = o.remoteElement;
+      o.onEnd({
+        provider: "TELNYX",
+        answered: false,
+        durationSeconds: 0,
+        hangupCause: "CALL_REJECTED",
+        sipCode: 603,
+        callId: "v3:control-1",
+        calleeNumber: "+12025550101",
+        startedAt: "2026-11-05T10:00:00.000Z",
+      });
+      return live;
+    });
+    const view = mount();
+    act(() => {
+      s().startTelnyx({
+        ...manual,
+        destination: "+12025550101",
+        dial,
+        token,
+        endCall,
+      });
+    });
+    await waitFor(() => expect(s().call?.status).toBe("ended"));
+    expect(remote).toBeInstanceOf(HTMLAudioElement);
+    expect(remote).toBe(view.container.querySelector("audio"));
+    expect(s().call?.dialReady).toBe(false);
+    expect(endCall).toHaveBeenCalledWith("ref-1", "v3:control-1");
+    act(() => s().cancel());
+    expect(live.hangup).not.toHaveBeenCalled();
+    expect(endCall).toHaveBeenCalledTimes(1);
   });
 
   it("mutes, hangs up and releases a browser call", async () => {

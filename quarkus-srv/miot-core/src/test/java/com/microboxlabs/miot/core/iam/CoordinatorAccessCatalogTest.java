@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -57,6 +58,33 @@ class CoordinatorAccessCatalogTest {
             boolean completes = role.permissions().contains(CoordinatorAccessCatalog.TASK_COMPLETE);
             assertEquals(CoordinatorAccessCatalog.KANBAN_USER.equals(role.key()), completes, role.key());
         }
+    }
+
+    @Test
+    void anyRoleSeesTheGeographicView() {
+        for (RoleDef role : registry.roles()) {
+            assertTrue(registry.permissionsOf(BaseRole.MEMBER, List.of(role.key()))
+                    .contains(CoordinatorAccessCatalog.GEOGRAPHIC_VIEW), role.key());
+        }
+        assertTrue(registry.permissionsOf(BaseRole.MEMBER, List.of(CoordinatorAccessCatalog.CALENDAR_VIEWER))
+                .contains(CoordinatorAccessCatalog.GEOGRAPHIC_VIEW));
+    }
+
+    @Test
+    void aMemberWithoutRolesOrWithUnknownRolesDoesNotSeeTheGeographicView() {
+        assertFalse(registry.permissionsOf(BaseRole.MEMBER, List.of())
+                .contains(CoordinatorAccessCatalog.GEOGRAPHIC_VIEW));
+        assertFalse(registry.permissionsOf(BaseRole.MEMBER, List.of("GONE_ROLE"))
+                .contains(CoordinatorAccessCatalog.GEOGRAPHIC_VIEW));
+    }
+
+    @Test
+    void aCustomRoleOfTheOrganizationAlsoGivesTheGeographicView() {
+        OrgRoles org = new OrgRoles(registry, Map.of("custom:board", Set.of(CoordinatorAccessCatalog.KANBAN_VIEW)));
+        assertTrue(org.permissionsOf(BaseRole.MEMBER, List.of("custom:board"))
+                .contains(CoordinatorAccessCatalog.GEOGRAPHIC_VIEW));
+        assertFalse(org.permissionsOf(BaseRole.MEMBER, List.of("custom:deleted"))
+                .contains(CoordinatorAccessCatalog.GEOGRAPHIC_VIEW));
     }
 
     @Test

@@ -61,6 +61,11 @@ public class CoordinatorAccessCatalog implements AccessCatalog {
     private static final Set<String> STAGE_BASE = Set.of(KANBAN_VIEW, FINISHED_VIEW);
 
     @Override
+    public Set<String> anyRolePermissions() {
+        return Set.of(GEOGRAPHIC_VIEW);
+    }
+
+    @Override
     public List<PermissionDef> permissions() {
         return List.of(
                 PermissionDef.of(ADMIN_CONSOLE, "Usar la consola de administración", "Use the admin console")

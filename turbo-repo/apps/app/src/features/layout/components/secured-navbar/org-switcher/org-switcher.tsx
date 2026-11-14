@@ -51,10 +51,11 @@ const AVATAR_COLORS = [
   "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
 ];
 
-function avatarColor(slug: string): string {
+export function avatarColor(slug: string): string {
   let hash = 0;
-  for (const ch of slug) hash = (hash * 31 + ch.codePointAt(0)!) | 0;
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  for (const ch of slug) hash = Math.imul(hash, 31) + ch.codePointAt(0)!;
+  // Math.imul(hash, 1) wraps the sum to 32 bits, as the hash always did.
+  return AVATAR_COLORS[Math.abs(Math.imul(hash, 1)) % AVATAR_COLORS.length];
 }
 
 function optionId(index: number): string {
@@ -441,23 +442,21 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
             className="max-h-[min(60vh,420px)] overflow-y-auto overscroll-contain px-1.5 pb-1.5"
           >
             {platform.length > 0 && (
-              <div
-                role="group"
+              <fieldset
                 aria-labelledby={PLATFORM_LABEL_ID}
-                className="mb-1 pb-1 border-b border-gray-100 dark:border-gray-700"
+                className="mb-1 pb-1 border-b border-gray-100 dark:border-gray-700 min-w-0"
               >
                 <SectionLabel
                   id={PLATFORM_LABEL_ID}
                   text={tr("orgSwitcher.platform", dict)}
                 />
                 {platform.map((org, i) => optionFor(org, i, false))}
-              </div>
+              </fieldset>
             )}
             {recent.length > 0 && (
-              <div
-                role="group"
+              <fieldset
                 aria-labelledby={RECENT_LABEL_ID}
-                className="mb-1 pb-1 border-b border-gray-100 dark:border-gray-700"
+                className="mb-1 pb-1 border-b border-gray-100 dark:border-gray-700 min-w-0"
               >
                 <SectionLabel
                   id={RECENT_LABEL_ID}
@@ -466,9 +465,9 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
                 {recent.map((org, i) =>
                   optionFor(org, platform.length + i, true)
                 )}
-              </div>
+              </fieldset>
             )}
-            <div role="group" aria-labelledby={ALL_LABEL_ID}>
+            <fieldset aria-labelledby={ALL_LABEL_ID} className="min-w-0">
               <SectionLabel
                 id={ALL_LABEL_ID}
                 text={allLabel}
@@ -477,15 +476,15 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
               {matches.map((org, i) =>
                 optionFor(org, platform.length + recent.length + i, false)
               )}
-            </div>
+            </fieldset>
           </div>
           {options.length === 0 && (
-            <div role="status" className="px-3 pb-8 pt-2 text-center">
+            <output className="block px-3 pb-8 pt-2 text-center">
               <HiSearch className="mx-auto h-6 w-6 text-gray-300 dark:text-gray-600" />
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              <span className="mt-2 block text-sm text-gray-500 dark:text-gray-400">
                 {tr("orgSwitcher.noResults", dict, { query: query.trim() })}
-              </p>
-            </div>
+              </span>
+            </output>
           )}
 
           <div className="flex items-center gap-3 px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 text-[11px] text-gray-500 dark:text-gray-400">

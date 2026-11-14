@@ -17,12 +17,14 @@ function Tab({
   label,
   hint,
   onClick,
+  onKeyDown,
 }: Readonly<{
   id: string;
   active: boolean;
   label: string;
   hint: string;
   onClick: () => void;
+  onKeyDown: (e: KeyboardEvent<HTMLButtonElement>) => void;
 }>) {
   const tone = active
     ? "border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-500"
@@ -37,6 +39,7 @@ function Tab({
       tabIndex={active ? 0 : -1}
       title={hint}
       onClick={onClick}
+      onKeyDown={onKeyDown}
       className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium ${tone}`}
     >
       {label}
@@ -59,7 +62,7 @@ export default function WorkspaceTabs({
   onResponse: () => void;
 }>) {
   // Two tabs: the arrows switch to the other one, Home and End pick the first and last.
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (!KEYS.has(e.key)) return;
     e.preventDefault();
     let next = !response;
@@ -73,7 +76,6 @@ export default function WorkspaceTabs({
     <div
       role="tablist"
       className="flex border-b border-gray-200 dark:border-gray-700"
-      onKeyDown={onKeyDown}
     >
       <Tab
         id={RULE_TAB_ID}
@@ -81,6 +83,7 @@ export default function WorkspaceTabs({
         label={tr("workspaceRule", d)}
         hint={tr("workspaceRuleHint", d)}
         onClick={onRule}
+        onKeyDown={onKeyDown}
       />
       <Tab
         id={RESPONSE_TAB_ID}
@@ -88,6 +91,7 @@ export default function WorkspaceTabs({
         label={tr("workspaceResponse", d)}
         hint={tr("workspaceResponseHint", d)}
         onClick={onResponse}
+        onKeyDown={onKeyDown}
       />
     </div>
   );

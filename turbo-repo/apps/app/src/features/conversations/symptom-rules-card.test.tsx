@@ -89,8 +89,12 @@ describe("SymptomRulesCard", () => {
     expect(first.textContent).toContain("Pánico: conductor");
     expect(first.textContent).toContain("v0.1.0");
     expect(first.textContent).toContain("Botón de pánico");
-    expect(within(first).getByRole("img", { name: "WhatsApp" })).toBeTruthy();
-    expect(within(first).getByRole("img", { name: "Correo" })).toBeTruthy();
+    const whatsapp = within(first).getByTitle("WhatsApp");
+    expect(whatsapp).toHaveAttribute("data-channel", "whatsapp");
+    expect(within(whatsapp).getByText("WhatsApp")).toHaveClass("sr-only");
+    const email = within(first).getByTitle("Correo");
+    expect(email).toHaveAttribute("data-channel", "email");
+    expect(within(email).getByText("Correo")).toHaveClass("sr-only");
     expect(items[1]!.textContent).toContain("Por clave del servidor");
   });
 

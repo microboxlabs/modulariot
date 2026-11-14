@@ -342,7 +342,7 @@ export type PlanImport = {
   /** "Usar nuevo" contra un trayecto guardado: se actualiza con la fila. */
   actualizarTrayectos: { trayecto: Trayecto; fila: FilaConUid }[];
   /** Otros lugares guardados que la fila nueva reemplaza. */
-  borrar: Lugar[];
+  borrar: { lugar: Lugar; fila: FilaConUid }[];
 };
 
 type Decision = (uid: string) => DecisionImport | null;
@@ -372,7 +372,7 @@ function filasFuera(
 type Reemplazos = {
   actualizar: PlanImport["actualizar"];
   actualizarTrayectos: PlanImport["actualizarTrayectos"];
-  borrar: Map<string, Lugar>;
+  borrar: Map<string, PlanImport["borrar"][number]>;
   /** Guardados que ya reemplaza alguna fila. */
   usados: Set<string>;
   /** Filas que ya actualizan algo (no se crean aparte). */
@@ -394,7 +394,7 @@ function reemplazarLugar(f: FilaConUid, l: Lugar, r: Reemplazos) {
   if (r.usados.has(id)) return;
   r.usados.add(id);
   if (r.actualizadas.has(f.uid)) {
-    r.borrar.set(id, l);
+    r.borrar.set(id, { lugar: l, fila: f });
     return;
   }
   r.actualizar.push({ lugar: l, fila: f });

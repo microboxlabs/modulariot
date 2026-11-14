@@ -9867,6 +9867,7 @@
       "delete_items_one": "Eliminar 1 elemento",
       "delete_items_many": "Eliminar {n} elementos",
       "file_unreadable": "No se pudo leer el archivo.",
+      "import_refresh_failed": "La importación se detuvo porque no se pudieron actualizar los lugares guardados. Algunas filas pueden haberse guardado. Recarga los lugares antes de continuar.",
       "updated_by_import": "Actualizada por importación",
       "replaced_with_file": "Reemplazada con un archivo importado",
       "inner_replaced_with_file": "Geocerca interior reemplazada con un archivo: «{nombre}»",

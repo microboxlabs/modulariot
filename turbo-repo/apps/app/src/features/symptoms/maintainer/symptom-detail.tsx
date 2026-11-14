@@ -178,6 +178,11 @@ export default function SymptomDetail({
         : changeMarks(spec, published, plan, planIsCurrent),
     [viewed, published, spec, plan, planIsCurrent]
   );
+  // The draft's checks and preview; an old version on screen has neither and is read-only.
+  const draftView = viewed
+    ? null
+    : { findings: report?.findings, preview: currentPreview ?? undefined };
+  const readOnly = !canWrite || Boolean(viewed);
   // The overview describes the version on screen, or the one in force; a draft would rewrite it on every edit.
   const overviewSpec = viewed?.spec ?? published ?? null;
   const overview = overviewSpec ? overviewText(overviewSpec) : "";
@@ -390,11 +395,7 @@ export default function SymptomDetail({
               onResponse={() =>
                 setResponseIcu(
                   (icu) =>
-                    icu ??
-                    firstResponseLevel(
-                      shownSpec,
-                      viewed ? undefined : report?.findings
-                    )
+                    icu ?? firstResponseLevel(shownSpec, draftView?.findings)
                 )
               }
             />
@@ -428,11 +429,11 @@ export default function SymptomDetail({
                     ? new Set<number>()
                     : changedLevels(shownSpec, published)
                 }
-                findings={viewed ? undefined : report?.findings}
-                readOnly={!canWrite || Boolean(viewed)}
+                findings={draftView?.findings}
+                readOnly={readOnly}
                 icu={responseIcu}
                 sourceFields={fields}
-                preview={viewed ? undefined : (currentPreview ?? undefined)}
+                preview={draftView?.preview}
                 d={d}
                 onIcu={setResponseIcu}
                 onChange={update}
@@ -455,11 +456,11 @@ export default function SymptomDetail({
                     spec={shownSpec}
                     changed={changed}
                     published={viewed ? null : published}
-                    preview={viewed ? undefined : (currentPreview ?? undefined)}
+                    preview={draftView?.preview}
                     fields={source?.fields ?? []}
                     sourceFields={fields}
-                    findings={viewed ? undefined : report?.findings}
-                    readOnly={!canWrite || Boolean(viewed)}
+                    findings={draftView?.findings}
+                    readOnly={readOnly}
                     d={d}
                     onChange={update}
                     onConfigureResponse={setResponseIcu}

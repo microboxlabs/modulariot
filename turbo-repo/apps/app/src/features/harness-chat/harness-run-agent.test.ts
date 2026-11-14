@@ -45,10 +45,13 @@ describe("trimRunInput", () => {
           content: [
             { type: "text", text: "look at this" },
             {
-              type: "binary",
-              mimeType: "application/pdf",
-              data: `data:application/pdf;base64,${pdf}`,
-              filename: "report.pdf",
+              type: "document",
+              source: {
+                type: "data",
+                mimeType: "application/pdf",
+                value: pdf,
+              },
+              metadata: { filename: "report.pdf" },
             },
           ],
         },

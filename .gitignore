@@ -57,3 +57,6 @@ apps/app/.env.local.dev
 turbo-repo/apps/app/.env.storm
 quarkus-srv/miot-cli/src/main/resources/secret.jwk
 quarkus-srv/scripts/seed/.local/
+
+# Web uses the workspace lockfile turbo-repo/package-lock.json only
+/turbo-repo/apps/web/package-lock.json

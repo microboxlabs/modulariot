@@ -21,8 +21,7 @@ export default async function DataSourcesPage({ params }: ParamsWithLang) {
     const siteId = sites[0]?.shortName;
 
     if (!siteId) {
-      redirectWithLang(`/${lang}/shipping`);
-      return null;
+      return await redirectWithLang("/shipping");
     }
 
     return (
@@ -36,8 +35,7 @@ export default async function DataSourcesPage({ params }: ParamsWithLang) {
     );
   } catch (e: unknown) {
     if (e && typeof e === "object" && "status" in e && e.status === 401) {
-      redirectWithLang("/sign-in");
-      return null;
+      return await redirectWithLang("/sign-in");
     }
     throw e;
   }

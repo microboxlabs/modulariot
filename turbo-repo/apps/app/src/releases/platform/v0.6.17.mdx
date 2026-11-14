@@ -1,0 +1,56 @@
+# 🔔 Release Notes v0.6.17 — ModularIoT
+
+### Fecha: 14/11/2026
+
+**Objetivo**: Esta versión corrige problemas en dashboards, reglas de síntomas y flujos de la aplicación, y mejora la accesibilidad y la mantenibilidad. El alcance incluye exclusivamente cambios de la plataforma OSS.
+
+## 🐛 Correcciones
+
+- **🐛 Tablas redimensionables del dashboard**
+  - **Impacto**: Los divisores del encabezado podían desalinearse con el cuerpo de la tabla y el redimensionamiento no funcionaba en modo de edición.
+  - **Solución**: Se corrigió la alineación, también en tema oscuro, y se restableció el ajuste de anchos de columna.
+
+- **🐛 Reapertura de recordatorios de doble conductor**
+  - **Impacto**: Después de que un operador cerrara el caso, el recordatorio podía dejar de abrirse durante el viaje.
+  - **Solución**: Se corrigió la evaluación para que la regla de apertura determine cuándo puede generarse un nuevo caso tras el cierre gestionado.
+
+- **🐛 Acceso a respuestas en caché de colaboradores**
+  - **Impacto**: Una respuesta en caché podía exponer el detalle de un conductor fuera del alcance de la organización activa.
+  - **Solución**: Se verifica el alcance de la solicitud antes de devolver respuestas de caché, tanto HIT como STALE, además de las respuestas sin caché.
+
+- **🐛 Flujos de la aplicación**
+  - **Impacto**: Algunos rechazos al reemplazar imágenes podían dejar la interfaz bloqueada; la página de fuentes de datos podía quedar vacía al no esperar una redirección; y una ETA de cero podía mostrarse incorrectamente.
+  - **Solución**: Se gestionan los errores del reemplazo de imágenes, se esperan las redirecciones correspondientes y se oculta la insignia cuando la ETA es cero.
+
+- **🐛 Accesibilidad y presentación**
+  - **Impacto**: Algunos controles y elementos gráficos no seguían patrones accesibles, y parámetros de reglas podían mostrarse como `[object Object]`.
+  - **Solución**: Se adoptaron elementos HTML nativos y manejo de teclado por pestaña, se mejoraron las etiquetas accesibles y los parámetros se muestran como JSON.
+
+- **🐛 Robustez y mantenimiento de la aplicación**
+  - **Solución**: Se gestionan rechazos en operaciones de reproducción, portapapeles y PDF; se reemplazaron expresiones regulares con retroceso superlineal; y se actualizaron tipos y firmas para eliminar APIs obsoletas. También se simplificaron varios flujos y parsers sin cambiar su comportamiento. Se retiró un lockfile anidado obsoleto y se actualizaron instrucciones del workspace web.
+
+## 📊 Beneficios
+
+- Mayor fiabilidad al gestionar casos de síntomas después del cierre de un operador.
+- Protección del alcance de acceso en todas las rutas de respuesta del detalle de colaboradores.
+- Edición de tablas más predecible, con divisores alineados y anchos ajustables.
+- Mejor respuesta de la interfaz ante errores de carga y redirecciones.
+- Navegación y controles más accesibles mediante elementos HTML nativos y teclado.
+- Código y pruebas más mantenibles, con ajustes de tipos, parsers y verificaciones.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.6.17`
+- **App**: `app@v0.6.17` (actualizada)
+- **Docs**: `docs@v0.6.16` (sin cambios)
+- **Web**: `web@v0.6.17` (actualizada)
+- **Modulith**: `modulith@v0.5.54` (actualizado)
+- **Harness**: `harness@v0.1.16` (actualizado)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 0.6.17 refuerza la fiabilidad de flujos clave de la plataforma, con mejoras visibles en tablas, recordatorios y gestión de colaboradores. También reduce fallos de interfaz y mejora la accesibilidad.
+
+Los cambios de mantenimiento y calidad complementan estas correcciones y facilitan la evolución de la aplicación OSS.

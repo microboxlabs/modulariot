@@ -40,6 +40,8 @@ import java.util.UUID;
  *                  compiled without a spec
  * @param routingReads activation, measure, level and lifecycle reads that select the source producer; operator
  *                     conditions consume the selected signal without changing when a case is evaluated
+ * @param openReadsOperatorClose its open rule reads {@code case.closed_on_trip} or {@code case.closed_on_trip_s},
+ *                     so that rule decides when a case an operator handled opens again on the trip
  */
 public record CompiledSymptom(
         UUID definitionId,
@@ -59,7 +61,23 @@ public record CompiledSymptom(
         String speedLimitSource,
         Map<Integer, Operator> operators,
         Set<String> routingReads,
-        String afterTripEnd) {
+        String afterTripEnd,
+        boolean openReadsOperatorClose) {
+
+    /** The case fields that tell an open rule an operator closed a case on the signal's trip. */
+    static final Set<String> OPERATOR_CLOSE_FIELDS = Set.of("case.closed_on_trip", "case.closed_on_trip_s");
+
+    /** Without an open rule that reads the operator's close. */
+    @SuppressWarnings("java:S107")
+    public CompiledSymptom(UUID definitionId, String version, SymptomState state, String sourceKey,
+            PreparedRule activation, PreparedRule measure, Map<Integer, PreparedRule> levels, PreparedRule open,
+            PreparedRule close, PreparedRule note, boolean levelDown, boolean opensOnEvents,
+            boolean lifecycleOnEvents, Set<String> reads, String speedLimitSource, Map<Integer, Operator> operators,
+            Set<String> routingReads, String afterTripEnd) {
+        this(definitionId, version, state, sourceKey, activation, measure, levels, open, close, note, levelDown,
+                opensOnEvents, lifecycleOnEvents, reads, speedLimitSource, operators, routingReads, afterTripEnd,
+                false);
+    }
 
     /**
      * A level's {@code response.operator} and its {@code operatorWhen}.
@@ -154,7 +172,8 @@ public record CompiledSymptom(
     /** The same rules under another state, as when the symptom is switched between test and active. */
     public CompiledSymptom withState(SymptomState next) {
         return new CompiledSymptom(definitionId, version, next, sourceKey, activation, measure, levels, open,
-                close, note, levelDown, opensOnEvents, lifecycleOnEvents, reads, speedLimitSource, operators, routingReads, afterTripEnd);
+                close, note, levelDown, opensOnEvents, lifecycleOnEvents, reads, speedLimitSource, operators, routingReads, afterTripEnd,
+                openReadsOperatorClose);
     }
 
     public static CompiledSymptom compile(UUID definitionId, String version, SymptomState state, SymptomSpec spec,
@@ -206,7 +225,8 @@ public record CompiledSymptom(
                 opening.stream().anyMatch(CompiledSymptom::readsEvents),
                 readsEvents(spec.lifecycle().close()) || readsEvents(note), Set.copyOf(reads),
                 EngineCase.SpeedLimit.source(spec.measure() == null ? null : spec.measure().expression()),
-                Collections.unmodifiableMap(operators), routing, spec.lifecycle().effectiveAfterTripEnd());
+                Collections.unmodifiableMap(operators), routing, spec.lifecycle().effectiveAfterTripEnd(),
+                paths(spec.lifecycle().open()).stream().anyMatch(OPERATOR_CLOSE_FIELDS::contains));
     }
 
     private static Operator operator(RuleSchema schema, SymptomSpec.Response response) {

@@ -10,6 +10,7 @@ import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.evaluator.CompiledSymptom;
 import com.microboxlabs.miot.symptoms.evaluator.Episode;
 import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeStore;
+import com.microboxlabs.miot.symptoms.evaluator.OperatorClose;
 import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator;
 import com.microboxlabs.miot.symptoms.evaluator.evals.EvalTraces.Signal;
 import java.util.ArrayList;
@@ -80,17 +81,40 @@ class RouteTemplatesRuleCasesTest {
 
     @Test
     void rotationRemindsAgainFiveHoursAfterTheOperatorCloseEvenWhenAHoldFinishes() {
+        assertEquals(List.of("OPENED@0", "OPENED@18900"),
+                rotationWithClose(Episode.closedOnTrip(UUID.randomUUID(), "vehicle", "T-1",
+                        EvalTraces.T0.plusSeconds(900))),
+                "5 h after the close at 900 s");
+    }
+
+    /** Incident 2026-11-14: the handled close's level block (level 3, the reminder's only level) hid the repeat. */
+    @Test
+    void rotationRemindsAgainFiveHoursAfterTheOperatorHandledTheCall() {
+        assertEquals(List.of("OPENED@0", "OPENED@18900"),
+                rotationWithClose(new OperatorClose("T-1", EvalTraces.T0.plusSeconds(900), 3, false)
+                        .marker(UUID.randomUUID(), "vehicle")),
+                "5 h after the handled close at 900 s");
+    }
+
+    @Test
+    void rotationStaysClosedOnTheTripAfterTheOperatorInvalidatedTheCall() {
+        assertEquals(List.of("OPENED@0"),
+                rotationWithClose(new OperatorClose("T-1", EvalTraces.T0.plusSeconds(900), 3, true)
+                        .marker(UUID.randomUUID(), "vehicle")),
+                "an invalidated reminder does not come back on that trip");
+    }
+
+    /** A two-driver trip for 20 000 s; at 900 s the treatment API leaves {@code marker} for the operator's close. */
+    private static List<String> rotationWithClose(Episode marker) {
         SymptomSpec spec = SeedTemplates.get("double-driver-rotation").spec();
-        UUID id = UUID.randomUUID();
+        UUID id = marker.definitionId();
         CompiledSymptom symptom = CompiledSymptom.compile(id, "1.0.0", SymptomState.TEST, spec, GPS);
         InMemoryEpisodeStore store = new InMemoryEpisodeStore();
         SignalEvaluator evaluator = new SignalEvaluator(store);
         List<String> out = new ArrayList<>();
-        int closeAt = 900;
         for (int at = 0; at <= 20_000; at += 300) {
-            if (at == closeAt) {
-                // What the treatment API does when the operator closes the reminder's treatment.
-                store.save("tenant", Episode.closedOnTrip(id, "vehicle", "T-1", EvalTraces.T0.plusSeconds(at)));
+            if (at == 900) {
+                store.save("tenant", marker);
             }
             if (at == 1200) {
                 evaluator.finishHold("tenant", "vehicle", EvalTraces.T0.plusSeconds(at), List.of(symptom));
@@ -99,7 +123,6 @@ class RouteTemplatesRuleCasesTest {
             evaluator.evaluate("tenant", "vehicle", EvalTraces.T0.plusSeconds(at), s.root(), List.of(symptom))
                     .transitions().forEach(t -> out.add(t.kind() + "@" + s.at()));
         }
-
-        assertEquals(List.of("OPENED@0", "OPENED@18900"), out, "5 h after the close at 900 s");
+        return out;
     }
 }

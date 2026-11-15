@@ -32,6 +32,7 @@ import {
 import { useCredentials } from "../use-credentials";
 import { Auth0M2MCredentialModal } from "./auth0-m2m-credential-modal";
 import { AzureEntraCredentialModal } from "./azure-entra-credential-modal";
+import { BasicAuthCredentialModal } from "./basic-auth-credential-modal";
 import {
   BearerTokenCredentialModal,
   ResendCredentialModal,
@@ -57,6 +58,7 @@ const WHATSAPP = "WHATSAPP" as const;
 const MAPBOX = "MAPBOX" as const;
 const GOOGLE_MAPS = "GOOGLE_MAPS" as const;
 const TELNYX = "TELNYX" as const;
+const BASIC = "BASIC_AUTH" as const;
 
 interface CredentialsPageContentProps {
   /** `pages.userSettings` subtree. */
@@ -341,6 +343,7 @@ export default function CredentialsPageContent({
       <MapboxCredentialModal show={shown(MAPBOX)} {...formProps} />
       <GoogleMapsCredentialModal show={shown(GOOGLE_MAPS)} {...formProps} />
       <TelnyxCredentialModal show={shown(TELNYX)} {...formProps} />
+      <BasicAuthCredentialModal show={shown(BASIC)} {...formProps} />
 
       <CredentialDeleteDialog
         credential={deleting}

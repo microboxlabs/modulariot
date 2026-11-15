@@ -121,7 +121,7 @@ describe("pickerCredentialTypes", () => {
         ...available,
         ...unavailable,
       ]);
-      expect(unavailable).toEqual(["API_KEY", "BASIC_AUTH"]);
+      expect(unavailable).toEqual(["API_KEY"]);
       expect(inCatalogOrder(available)).toBe(true);
     }
   });

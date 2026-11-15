@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Auth0M2MFormData, AzureEntraFormData } from "./credential.types";
+import type {
+  Auth0M2MFormData,
+  AzureEntraFormData,
+  BasicAuthFormData,
+} from "./credential.types";
 import {
   createCredential,
   deleteCredential,
@@ -340,5 +344,56 @@ describe("credentials data service", () => {
       message: "Token issued",
       expiresInSeconds: 3599,
     });
+  });
+});
+
+describe("basic auth credentials", () => {
+  const BASIC_FORM: BasicAuthFormData = {
+    name: "Document service",
+    environment: "QA",
+    username: "  service-user  ",
+    password: " pass word ",
+  };
+
+  it("creates with the username public and the password secret", async () => {
+    const fetchMock = stubFetch({
+      body: apiCredential({
+        credentialType: "BASIC_AUTH",
+        publicConfig: { username: "service-user" },
+        summary: "****",
+      }),
+    });
+
+    const created = await createCredential(ORG, "BASIC_AUTH", BASIC_FORM);
+
+    expect(bodyOf(fetchMock)).toEqual({
+      displayName: "Document service",
+      credentialType: "BASIC_AUTH",
+      authType: "BASIC",
+      environment: "QA",
+      publicConfig: { username: "service-user" },
+      secretConfig: { password: " pass word " },
+    });
+    expect(created.typeId).toBe("BASIC_AUTH");
+    expect(created.summary).toBe("service-user");
+  });
+
+  it("keeps the stored password when the edit leaves it blank", async () => {
+    const fetchMock = stubFetch({
+      body: apiCredential({
+        credentialType: "BASIC_AUTH",
+        publicConfig: { username: "other-user" },
+      }),
+    });
+
+    await updateCredential(ORG, "cred-1", {
+      ...BASIC_FORM,
+      username: "other-user",
+      password: "",
+    });
+
+    const body = bodyOf(fetchMock);
+    expect(body.publicConfig).toEqual({ username: "other-user" });
+    expect(body).not.toHaveProperty("secretConfig");
   });
 });

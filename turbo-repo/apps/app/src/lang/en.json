@@ -3084,6 +3084,15 @@
           "tokenPlaceholder": "Paste the token",
           "tokenEditPlaceholder": "Leave blank to keep the current token",
           "tokenHelp": "Without the \"Bearer\" prefix. Stored encrypted and never returned.",
+          "basicAddTitle": "New basic auth",
+          "basicEditTitle": "Edit basic auth",
+          "basicSubtitle": "A username and password sent as HTTP basic authentication.",
+          "username": "Username",
+          "usernamePlaceholder": "The account's username",
+          "password": "Password",
+          "passwordPlaceholder": "The account's password",
+          "passwordEditPlaceholder": "Leave blank to keep the current password",
+          "passwordHelp": "Stored encrypted and never returned.",
           "resendAddTitle": "New Resend key",
           "resendEditTitle": "Edit Resend key",
           "resendSubtitle": "The key the email channel sends with. A send-only key is enough.",
@@ -3147,7 +3156,9 @@
           "clientEmailRequired": "Service account email is required",
           "clientEmailInvalid": "Enter the service account's email",
           "privateKeyRequired": "Private key is required",
-          "tokenRequired": "Token is required"
+          "tokenRequired": "Token is required",
+          "usernameRequired": "Username is required",
+          "passwordRequired": "Password is required"
         }
       },
       "selectables": {

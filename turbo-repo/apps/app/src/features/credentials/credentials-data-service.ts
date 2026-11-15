@@ -11,6 +11,7 @@ import {
   buildAuth0TokenUrl,
   type Auth0M2MFormData,
   type AzureEntraFormData,
+  type BasicAuthFormData,
   type BearerTokenFormData,
   type CredentialFormData,
   type CredentialListItem,
@@ -138,7 +139,7 @@ function toListItem(response: CredentialProfileResponse): CredentialListItem {
     name: response.displayName,
     typeId: fromApiCredentialType(response),
     environment: response.environment,
-    summary: response.summary ?? response.secretPreview ?? "",
+    summary: summaryOf(response),
     ...(response.lastTestedAt ? { lastTestedAt: response.lastTestedAt } : {}),
     ...(response.lastTestResult === null
       ? {}
@@ -149,6 +150,22 @@ function toListItem(response: CredentialProfileResponse): CredentialListItem {
     updatedBy: response.updatedBy ?? response.createdBy ?? "",
     config: toStringConfig(response.publicConfig),
   };
+}
+
+/**
+ * The upstream summary is the client id of an OAuth2 credential and the secret
+ * preview otherwise; a basic credential is told apart by its username instead,
+ * as the provider intends.
+ */
+function summaryOf(response: CredentialProfileResponse): string {
+  const username = response.publicConfig?.username;
+  if (
+    response.credentialType === "BASIC_AUTH" &&
+    typeof username === "string"
+  ) {
+    return username;
+  }
+  return response.summary ?? response.secretPreview ?? "";
 }
 
 /** publicConfig is free-form JSON upstream; the forms only ever put strings in it. */
@@ -182,6 +199,10 @@ function isGoogleForm(
   return "clientEmail" in form;
 }
 
+function isBasicForm(form: CredentialFormData): form is BasicAuthFormData {
+  return "username" in form;
+}
+
 function isBearerForm(form: CredentialFormData): form is BearerTokenFormData {
   return "token" in form;
 }
@@ -211,6 +232,10 @@ function toSecretConfig(
 ): Record<string, string> | undefined {
   if (isBearerForm(form)) {
     return bearerSecret(form);
+  }
+  if (isBasicForm(form)) {
+    // Sent as typed: spaces can be part of a password.
+    return form.password ? { password: form.password } : undefined;
   }
   const secret = (
     isGoogleForm(form) ? form.privateKey : form.clientSecret
@@ -244,6 +269,9 @@ function toPublicConfig(form: CredentialFormData): Record<string, string> {
   // A bearer credential is all secret; a Resend key keeps only its tag.
   if (isBearerForm(form)) {
     return form.provider ? { provider: form.provider } : {};
+  }
+  if (isBasicForm(form)) {
+    return { username: form.username.trim() };
   }
   if (isAuth0Form(form)) {
     return auth0PublicConfig(form);
@@ -305,6 +333,7 @@ export function createCredential(
   return sendJson<CredentialProfileResponse>("POST", base(orgSlug), {
     displayName: form.name,
     credentialType: toApiCredentialType(typeId),
+    ...(typeId === "BASIC_AUTH" ? { authType: "BASIC" } : {}),
     environment: form.environment,
     publicConfig: toPublicConfig(form),
     secretConfig: toSecretConfig(form) ?? {},

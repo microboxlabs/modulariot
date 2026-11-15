@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   Auth0M2MCredentialSchema,
+  BasicAuthCredentialEditSchema,
+  BasicAuthCredentialSchema,
   buildAuth0TokenUrl,
   CREDENTIAL_TYPES,
   type CredentialTypeId,
@@ -90,6 +92,45 @@ describe("Auth0M2MCredentialSchema", () => {
     expect(result.error.issues[0]?.message).toBe(
       "validation.auth0DomainRequired"
     );
+  });
+});
+
+describe("basic auth password validation", () => {
+  const form = {
+    name: "Document service",
+    environment: "QA",
+    username: "service-user",
+    password: " pass word ",
+  };
+
+  it.each([" ", "   ", "\t\n"])(
+    "rejects whitespace-only passwords on create and edit: %j",
+    (password) => {
+      for (const schema of [
+        BasicAuthCredentialSchema,
+        BasicAuthCredentialEditSchema,
+      ]) {
+        expect(schema.safeParse({ ...form, password }).success).toBe(false);
+      }
+    }
+  );
+
+  it("allows an empty password only on edit to retain the stored one", () => {
+    expect(
+      BasicAuthCredentialSchema.safeParse({ ...form, password: "" }).success
+    ).toBe(false);
+    expect(
+      BasicAuthCredentialEditSchema.parse({ ...form, password: "" }).password
+    ).toBe("");
+  });
+
+  it("preserves spaces around a nonblank password on create and edit", () => {
+    for (const schema of [
+      BasicAuthCredentialSchema,
+      BasicAuthCredentialEditSchema,
+    ]) {
+      expect(schema.parse(form).password).toBe(form.password);
+    }
   });
 });
 

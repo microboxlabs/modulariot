@@ -265,6 +265,16 @@ function auth0PublicConfig(form: Auth0M2MFormData): Record<string, string> {
   };
 }
 
+function googlePublicConfig(
+  form: GoogleServiceAccountFormData
+): Record<string, string> {
+  return {
+    clientEmail: form.clientEmail.trim(),
+    ...(form.projectId?.trim() ? { projectId: form.projectId.trim() } : {}),
+    ...(form.scope?.trim() ? { scope: form.scope.trim() } : {}),
+  };
+}
+
 function toPublicConfig(form: CredentialFormData): Record<string, string> {
   // A bearer credential is all secret; a Resend key keeps only its tag.
   if (isBearerForm(form)) {
@@ -277,11 +287,7 @@ function toPublicConfig(form: CredentialFormData): Record<string, string> {
     return auth0PublicConfig(form);
   }
   if (isGoogleForm(form)) {
-    return {
-      clientEmail: form.clientEmail.trim(),
-      ...(form.projectId?.trim() ? { projectId: form.projectId.trim() } : {}),
-      ...(form.scope?.trim() ? { scope: form.scope.trim() } : {}),
-    };
+    return googlePublicConfig(form);
   }
   if (!isEntraForm(form)) {
     return {

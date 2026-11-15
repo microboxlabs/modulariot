@@ -652,12 +652,16 @@ export const BasicAuthCredentialSchema = z.object({
     .min(1, "validation.environmentRequired")
     .max(40, "validation.environmentTooLong"),
   username: z.string().trim().min(1, "validation.usernameRequired"),
-  password: z.string().min(1, "validation.passwordRequired"),
+  password: z
+    .string()
+    .refine((value) => value.trim().length > 0, "validation.passwordRequired"),
 });
 
 /** On edit the password may be left blank to keep the stored one. */
 export const BasicAuthCredentialEditSchema = BasicAuthCredentialSchema.extend({
-  password: z.string().optional(),
+  password: BasicAuthCredentialSchema.shape.password
+    .or(z.literal(""))
+    .optional(),
 });
 
 export type BasicAuthFormData = z.infer<typeof BasicAuthCredentialSchema>;

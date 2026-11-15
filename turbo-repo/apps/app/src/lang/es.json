@@ -3084,6 +3084,15 @@
           "tokenPlaceholder": "Pega el token",
           "tokenEditPlaceholder": "Déjalo en blanco para mantener el token actual",
           "tokenHelp": "Sin el prefijo \"Bearer\". Se guarda cifrado y nunca se devuelve.",
+          "basicAddTitle": "Nueva autenticación básica",
+          "basicEditTitle": "Editar autenticación básica",
+          "basicSubtitle": "Un usuario y una contraseña que se envían como autenticación HTTP basic.",
+          "username": "Usuario",
+          "usernamePlaceholder": "El usuario de la cuenta",
+          "password": "Contraseña",
+          "passwordPlaceholder": "La contraseña de la cuenta",
+          "passwordEditPlaceholder": "Déjala en blanco para mantener la contraseña actual",
+          "passwordHelp": "Se guarda cifrada y nunca se devuelve.",
           "resendAddTitle": "Nueva clave de Resend",
           "resendEditTitle": "Editar clave de Resend",
           "resendSubtitle": "La clave con la que el canal de correo envía. Basta una clave de solo envío.",
@@ -3147,7 +3156,9 @@
           "clientEmailRequired": "El correo de la cuenta de servicio es obligatorio",
           "clientEmailInvalid": "Ingresa el correo de la cuenta de servicio",
           "privateKeyRequired": "La clave privada es obligatoria",
-          "tokenRequired": "El token es obligatorio"
+          "tokenRequired": "El token es obligatorio",
+          "usernameRequired": "El usuario es obligatorio",
+          "passwordRequired": "La contraseña es obligatoria"
         }
       },
       "selectables": {

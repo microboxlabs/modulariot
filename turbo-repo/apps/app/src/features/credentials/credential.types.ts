@@ -92,6 +92,7 @@ export interface CredentialListItem {
     | OAuth2Config
     | Auth0M2MConfig
     | GoogleServiceAccountConfig
+    | BasicAuthConfig
     | Record<string, string>;
 }
 
@@ -106,6 +107,11 @@ export interface GoogleServiceAccountConfig {
   readonly projectId?: string;
   /** Defaults upstream to BigQuery read-only. */
   readonly scope?: string;
+}
+
+/** Non-secret half of an HTTP basic credential; the password is the secret. */
+export interface BasicAuthConfig {
+  readonly username: string;
 }
 
 /** Non-secret half of an Azure Entra client-credentials credential. */
@@ -319,7 +325,7 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     id: "BASIC_AUTH",
     nameKey: "types.basic.name",
     descriptionKey: "types.basic.description",
-    available: false,
+    available: true,
     supportsTest: false,
   },
 ];
@@ -638,6 +644,28 @@ export const GoogleMapsCredentialSchema = BearerTokenCredentialSchema.extend(
 export const GoogleMapsCredentialEditSchema =
   BearerTokenCredentialEditSchema.extend(googleMapsProviderField);
 
+/** A username and password sent as `Authorization: Basic`. */
+export const BasicAuthCredentialSchema = z.object({
+  name: z.string().min(1, "validation.nameRequired").max(100),
+  environment: z
+    .string()
+    .min(1, "validation.environmentRequired")
+    .max(40, "validation.environmentTooLong"),
+  username: z.string().trim().min(1, "validation.usernameRequired"),
+  password: z
+    .string()
+    .refine((value) => value.trim().length > 0, "validation.passwordRequired"),
+});
+
+/** On edit the password may be left blank to keep the stored one. */
+export const BasicAuthCredentialEditSchema = BasicAuthCredentialSchema.extend({
+  password: BasicAuthCredentialSchema.shape.password
+    .or(z.literal(""))
+    .optional(),
+});
+
+export type BasicAuthFormData = z.infer<typeof BasicAuthCredentialSchema>;
+
 /**
  * Any credential form's data. The list/create/update paths are type-agnostic —
  * they carry the payload to the API and let the per-type `toPublicConfig`
@@ -648,7 +676,8 @@ export type CredentialFormData =
   | OAuth2FormData
   | Auth0M2MFormData
   | GoogleServiceAccountFormData
-  | BearerTokenFormData;
+  | BearerTokenFormData
+  | BasicAuthFormData;
 
 export interface CredentialTestResult {
   readonly success: boolean;

@@ -8,6 +8,7 @@ import {
   HiOutlineDuplicate,
   HiOutlineReply,
 } from "react-icons/hi";
+import type { EditMode } from "@/features/symptoms/maintainer/level-row";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ago } from "@/features/symptoms/maintainer/catalog-format";
@@ -48,6 +49,8 @@ import {
   changedFields,
   exampleValues,
   metaNameFrom,
+  paramNames,
+  paramVariables,
   sendParams,
   templateFindings,
   templateVariables,
@@ -55,6 +58,13 @@ import {
   usedEvents,
   withHtml,
 } from "./template-model";
+import { CodeToggle } from "./spec-code";
+import {
+  NEW_TEAMS_CARD,
+  TeamsCardJson,
+  TemplateJsonEditor,
+  TemplateParamsEditor,
+} from "./template-json";
 import { TemplatePreviewPanel } from "./template-previews";
 import TemplateTextField, { type Inserter } from "./template-text-field";
 import { plainText } from "./whatsapp-text";
@@ -66,6 +76,8 @@ const EMPTY: TemplateBody = {
   baseText: "",
   whatsapp: null,
   email: null,
+  teams: null,
+  params: [],
 };
 
 /** Languages Meta takes for a template; the variant's own is added when it is not one of them. */
@@ -90,6 +102,7 @@ function bodyOf(t: ConversationTemplate | null): TemplateBody {
     whatsapp: t.whatsapp,
     email: withHtml(t.email),
     teams: t.teams ?? null,
+    params: t.params ?? [],
   };
 }
 
@@ -263,6 +276,7 @@ function SaveActions({
 export function TemplateEditor({
   template,
   readOnly,
+  organization = false,
   lang,
   d,
   backHref,
@@ -272,6 +286,8 @@ export function TemplateEditor({
   /** Null for a new template. */
   template: ConversationTemplate | null;
   readOnly: boolean;
+  /** One of the organization's own templates: it has no WhatsApp variant. */
+  organization?: boolean;
   /** The keys of the stored templates; a new template cannot take one. */
   takenKeys?: string[];
   lang: string;
@@ -286,6 +302,10 @@ export function TemplateEditor({
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<EditMode>("form");
+  const [broken, setBroken] = useState(false);
+  // Remounts the JSON editors when the body is replaced from outside them (discard).
+  const [generation, setGeneration] = useState(0);
   const inserter = useRef<Inserter | null>(null);
   const { data: catalog } = useEventCatalog();
   // Without a WhatsApp connection the list fails and the name is typed by hand.
@@ -295,12 +315,21 @@ export function TemplateEditor({
   const key = template?.key ?? keyFrom(body.name);
   const taken = isNew && takenKeys.includes(key);
   const info = catalog?.find((e) => e.type === event);
-  const variables = templateVariables(info, catalog);
+  const params = paramVariables(body);
+  const variables = [...templateVariables(info, catalog), ...params];
   const known = info ? new Set(variables.map((v) => v.name)) : null;
   const usedNames = textVariables(
     [body.baseText, body.email?.subject ?? "", body.email?.html ?? ""].join(" ")
   );
-  const examples = { ...exampleValues(variables, usedNames), ...edited };
+  // A parameter shows its label in brackets: each rule writes its own value.
+  const paramExamples = Object.fromEntries(
+    params.map((p) => [p.name, `[${p.label}]`])
+  );
+  const examples = {
+    ...exampleValues(variables, usedNames),
+    ...paramExamples,
+    ...edited,
+  };
   const meta = metaOf(body, metaTemplates);
   const findings = templateFindings({
     body,
@@ -317,6 +346,7 @@ export function TemplateEditor({
   const changes = changedFields(body, isNew ? EMPTY : stored);
   const dirty = changes.length > 0;
   const editable = !readOnly && !saving;
+  const hasParams = paramNames(body).length > 0;
   const canSubmit =
     Boolean(metaTemplates) &&
     !readOnly &&
@@ -377,6 +407,11 @@ export function TemplateEditor({
       const saved = await saveTemplate(key, {
         ...body,
         name: body.name.trim(),
+        params: (body.params ?? []).map((p) => ({
+          name: p.name.trim(),
+          label: p.label?.trim() || null,
+          multiline: Boolean(p.multiline),
+        })),
         whatsapp: body.whatsapp && {
           ...body.whatsapp,
           params: sendParams(body, metaTemplates),
@@ -411,11 +446,21 @@ export function TemplateEditor({
                 changes={changes.length}
                 blocking={blocking}
                 saving={saving}
-                canSave={!saving && dirty && blocking === 0 && key.length >= 2}
+                canSave={
+                  !saving &&
+                  dirty &&
+                  !broken &&
+                  blocking === 0 &&
+                  key.length >= 2
+                }
                 canDiscard={dirty && !isNew}
                 error={error}
                 d={d}
-                onDiscard={() => setBody(stored)}
+                onDiscard={() => {
+                  setBody(stored);
+                  setBroken(false);
+                  setGeneration((g) => g + 1);
+                }}
                 onSave={() => void save()}
               />
             )
@@ -425,264 +470,352 @@ export function TemplateEditor({
 
       <div className="mx-auto grid w-full max-w-screen-2xl grid-cols-1 gap-4 px-4 pt-3 pb-10 xl:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">
-          <NumberedSection
-            number={1}
-            title={tr("tplSectionGeneral", d)}
-            subtitle={tr("tplSectionGeneralHint", d)}
-            changed={changes.includes("name")}
-          >
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <label className="flex flex-col gap-1">
-                <span className={LABEL}>{tr("templateName", d)}</span>
-                <input
-                  aria-label={tr("templateName", d)}
-                  className={FIELD}
-                  disabled={!editable}
-                  maxLength={200}
-                  value={body.name}
-                  onChange={(e) => set({ name: e.target.value })}
-                />
-                <span className={`text-xs ${MUTED}`}>
-                  {tr("templateKey", d)}{" "}
-                  <span className="font-mono">{key || "—"}</span>
-                </span>
-                {taken && (
-                  <span
-                    role="alert"
-                    className="text-xs text-red-600 dark:text-red-400"
-                  >
-                    {tr("templateKeyTaken", d)}
-                  </span>
-                )}
-              </label>
-              <div className="flex flex-col gap-1">
-                <span className={LABEL}>{tr("tplEvent", d)}</span>
-                <EventSelect
-                  value={event}
-                  catalog={catalog}
-                  used={used}
-                  d={d}
-                  onChange={setEvent}
-                />
-                <span className={`text-xs ${MUTED}`}>
-                  {tr("tplEventHint", d)}
-                </span>
-              </div>
-            </div>
-          </NumberedSection>
-
-          <NumberedSection
-            number={2}
-            title={tr("channelWhatsapp", d)}
-            subtitle={tr("tplSectionWhatsappHint", d)}
-            changed={
-              changes.includes("whatsapp") ||
-              (body.whatsapp !== null && changes.includes("baseText"))
-            }
-            actions={
-              <ToggleSwitch
-                checked={body.whatsapp !== null}
-                disabled={!editable}
-                label={tr("tplChannelOn", d)}
-                onChange={toggleWhatsapp}
-              />
-            }
-          >
-            {body.whatsapp ? (
-              <>
-                <TemplateTextField
-                  label={tr("tplText", d)}
-                  value={body.baseText}
-                  onChange={(baseText) => set({ baseText })}
-                  variables={variables}
-                  known={known}
-                  d={d}
-                  readOnly={!editable}
-                  rows={6}
-                  formatting
-                  placeholder={tr("baseTextPlaceholder", d)}
-                  hint={tr("tplTextHint", d)}
-                  onFocusField={focus}
-                />
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_10rem]">
-                  <div className="flex flex-col gap-1">
-                    <span className={LABEL}>{tr("metaName", d)}</span>
-                    {metaTemplates ? (
-                      <MetaTemplateCombobox
-                        name={body.whatsapp.metaName}
-                        language={body.whatsapp.language}
-                        templates={metaTemplates}
-                        readOnly={!editable}
-                        d={d}
-                        onPick={pickMeta}
-                        onName={(metaName) => setWhatsapp({ metaName })}
-                      />
-                    ) : (
-                      <input
-                        aria-label={tr("metaName", d)}
-                        className={`${FIELD} font-mono`}
-                        disabled={!editable}
-                        value={body.whatsapp.metaName}
-                        onChange={(e) =>
-                          setWhatsapp({ metaName: e.target.value })
-                        }
-                      />
-                    )}
-                  </div>
+          <div className="flex items-center justify-end gap-2">
+            <span className={`text-xs ${MUTED}`}>{tr("tplEditAs", d)}</span>
+            <CodeToggle
+              mode={mode}
+              broken={broken}
+              d={d}
+              onChange={(m) => {
+                setMode(m);
+                setGeneration((g) => g + 1);
+              }}
+            />
+          </div>
+          {mode === "expr" ? (
+            <TemplateJsonEditor
+              key={generation}
+              body={body}
+              readOnly={!editable}
+              d={d}
+              onBroken={setBroken}
+              onChange={(next) =>
+                setBody(organization ? { ...next, whatsapp: null } : next)
+              }
+            />
+          ) : (
+            <>
+              <NumberedSection
+                number={1}
+                title={tr("tplSectionGeneral", d)}
+                subtitle={tr("tplSectionGeneralHint", d)}
+                changed={changes.includes("name")}
+              >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <label className="flex flex-col gap-1">
-                    <span className={LABEL}>{tr("metaLanguage", d)}</span>
-                    <Select
-                      aria-label={tr("metaLanguage", d)}
-                      className={`${FIELD} font-mono`}
-                      wrapperClassName="w-full"
+                    <span className={LABEL}>{tr("templateName", d)}</span>
+                    <input
+                      aria-label={tr("templateName", d)}
+                      className={FIELD}
                       disabled={!editable}
-                      value={body.whatsapp.language}
-                      onChange={(e) =>
-                        setWhatsapp({ language: e.target.value })
-                      }
-                    >
-                      {languages.map((l) => (
-                        <option key={l} value={l}>
-                          {l}
-                        </option>
-                      ))}
-                    </Select>
+                      maxLength={200}
+                      value={body.name}
+                      onChange={(e) => set({ name: e.target.value })}
+                    />
+                    <span className={`text-xs ${MUTED}`}>
+                      {tr("templateKey", d)}{" "}
+                      <span className="font-mono">{key || "—"}</span>
+                    </span>
+                    {taken && (
+                      <span
+                        role="alert"
+                        className="text-xs text-red-600 dark:text-red-400"
+                      >
+                        {tr("templateKeyTaken", d)}
+                      </span>
+                    )}
                   </label>
+                  <div className="flex flex-col gap-1">
+                    <span className={LABEL}>{tr("tplEvent", d)}</span>
+                    <EventSelect
+                      value={event}
+                      catalog={catalog}
+                      used={used}
+                      d={d}
+                      onChange={setEvent}
+                    />
+                    <span className={`text-xs ${MUTED}`}>
+                      {tr("tplEventHint", d)}
+                    </span>
+                  </div>
                 </div>
-                {body.whatsapp.metaName.trim() && (
-                  <MetaStatusLine
-                    variant={body.whatsapp}
-                    meta={meta}
-                    templates={metaTemplates}
-                    d={d}
+              </NumberedSection>
+
+              <NumberedSection
+                number={2}
+                title={tr("tplSectionParams", d)}
+                subtitle={tr("tplSectionParamsHint", d)}
+                changed={changes.includes("params")}
+              >
+                <TemplateParamsEditor
+                  params={body.params ?? []}
+                  readOnly={!editable}
+                  d={d}
+                  onChange={(next) => set({ params: next })}
+                />
+              </NumberedSection>
+
+              <NumberedSection
+                number={3}
+                title={tr("channelWhatsapp", d)}
+                subtitle={tr("tplSectionWhatsappHint", d)}
+                changed={
+                  changes.includes("whatsapp") ||
+                  (body.whatsapp !== null && changes.includes("baseText"))
+                }
+                actions={
+                  <ToggleSwitch
+                    checked={body.whatsapp !== null}
+                    disabled={!editable || organization || hasParams}
+                    label={tr("tplChannelOn", d)}
+                    onChange={toggleWhatsapp}
                   />
-                )}
-                <p className={`text-xs ${MUTED}`}>
-                  {tr("tplSendsParams", d)}{" "}
-                  <span className="font-mono">
-                    {sendParams(body, metaTemplates)
-                      .map((p) => `{{${p}}}`)
-                      .join(" ") || "—"}
-                  </span>
-                </p>
-                {isNew && !readOnly && (
-                  <p className={`text-xs ${MUTED}`}>
-                    {tr("tplSaveToSubmit", d)}
+                }
+              >
+                {organization && !body.whatsapp && (
+                  <p className={`text-sm ${MUTED}`}>
+                    {tr("tplOrgNoWhatsapp", d)}
                   </p>
                 )}
-                {canSubmit && metaTemplates && (
-                  <MetaSubmitPanel
-                    key={`${body.whatsapp.metaName}:${body.whatsapp.language}`}
-                    templateKey={key}
-                    body={body}
-                    variant={body.whatsapp}
-                    templates={metaTemplates}
-                    examples={examples}
-                    dirty={dirty}
-                    busy={saving}
-                    blocked={blocking > 0}
+                {!organization && hasParams && !body.whatsapp && (
+                  <p className={`text-sm ${MUTED}`}>
+                    {tr("tplParamsNoWhatsappHint", d)}
+                  </p>
+                )}
+                {organization ||
+                (hasParams && !body.whatsapp) ? null : body.whatsapp ? (
+                  <>
+                    <TemplateTextField
+                      label={tr("tplText", d)}
+                      value={body.baseText}
+                      onChange={(baseText) => set({ baseText })}
+                      variables={variables}
+                      known={known}
+                      d={d}
+                      readOnly={!editable}
+                      rows={6}
+                      formatting
+                      placeholder={tr("baseTextPlaceholder", d)}
+                      hint={tr("tplTextHint", d)}
+                      onFocusField={focus}
+                    />
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_10rem]">
+                      <div className="flex flex-col gap-1">
+                        <span className={LABEL}>{tr("metaName", d)}</span>
+                        {metaTemplates ? (
+                          <MetaTemplateCombobox
+                            name={body.whatsapp.metaName}
+                            language={body.whatsapp.language}
+                            templates={metaTemplates}
+                            readOnly={!editable}
+                            d={d}
+                            onPick={pickMeta}
+                            onName={(metaName) => setWhatsapp({ metaName })}
+                          />
+                        ) : (
+                          <input
+                            aria-label={tr("metaName", d)}
+                            className={`${FIELD} font-mono`}
+                            disabled={!editable}
+                            value={body.whatsapp.metaName}
+                            onChange={(e) =>
+                              setWhatsapp({ metaName: e.target.value })
+                            }
+                          />
+                        )}
+                      </div>
+                      <label className="flex flex-col gap-1">
+                        <span className={LABEL}>{tr("metaLanguage", d)}</span>
+                        <Select
+                          aria-label={tr("metaLanguage", d)}
+                          className={`${FIELD} font-mono`}
+                          wrapperClassName="w-full"
+                          disabled={!editable}
+                          value={body.whatsapp.language}
+                          onChange={(e) =>
+                            setWhatsapp({ language: e.target.value })
+                          }
+                        >
+                          {languages.map((l) => (
+                            <option key={l} value={l}>
+                              {l}
+                            </option>
+                          ))}
+                        </Select>
+                      </label>
+                    </div>
+                    {body.whatsapp.metaName.trim() && (
+                      <MetaStatusLine
+                        variant={body.whatsapp}
+                        meta={meta}
+                        templates={metaTemplates}
+                        d={d}
+                      />
+                    )}
+                    <p className={`text-xs ${MUTED}`}>
+                      {tr("tplSendsParams", d)}{" "}
+                      <span className="font-mono">
+                        {sendParams(body, metaTemplates)
+                          .map((p) => `{{${p}}}`)
+                          .join(" ") || "—"}
+                      </span>
+                    </p>
+                    {isNew && !readOnly && (
+                      <p className={`text-xs ${MUTED}`}>
+                        {tr("tplSaveToSubmit", d)}
+                      </p>
+                    )}
+                    {canSubmit && metaTemplates && (
+                      <MetaSubmitPanel
+                        key={`${body.whatsapp.metaName}:${body.whatsapp.language}`}
+                        templateKey={key}
+                        body={body}
+                        variant={body.whatsapp}
+                        templates={metaTemplates}
+                        examples={examples}
+                        dirty={dirty}
+                        busy={saving}
+                        blocked={blocking > 0}
+                        d={d}
+                        onExamples={setEdited}
+                        onBusyChange={setSaving}
+                        onSaved={onSaved}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <p className={`text-sm ${MUTED}`}>
+                    {tr("tplWhatsappOff", d)}
+                  </p>
+                )}
+              </NumberedSection>
+
+              <NumberedSection
+                number={4}
+                title={tr("channelEmail", d)}
+                subtitle={tr("tplSectionEmailHint", d)}
+                changed={changes.includes("email")}
+                actions={
+                  <ToggleSwitch
+                    checked={body.email !== null}
+                    disabled={!editable}
+                    label={tr("tplChannelOn", d)}
+                    onChange={toggleEmail}
+                  />
+                }
+              >
+                {body.email ? (
+                  <>
+                    <TemplateTextField
+                      label={tr("emailSubject", d)}
+                      value={body.email.subject}
+                      onChange={(subject) => setEmail({ subject })}
+                      variables={variables}
+                      known={known}
+                      d={d}
+                      readOnly={!editable}
+                      multiline={false}
+                      onFocusField={focus}
+                    />
+                    <TemplateTextField
+                      label={tr("tplEmailHtml", d)}
+                      value={body.email.html ?? ""}
+                      onChange={(html) => setEmail({ body: null, html })}
+                      variables={variables}
+                      known={known}
+                      d={d}
+                      readOnly={!editable}
+                      rows={14}
+                      mono
+                      hint={tr("tplEmailHtmlHint", d)}
+                      onFocusField={focus}
+                    />
+                    {editable && body.whatsapp && body.baseText.trim() && (
+                      <button
+                        type="button"
+                        className="flex items-center gap-1.5 self-start text-sm text-blue-600 hover:underline dark:text-blue-400"
+                        onClick={() =>
+                          setEmail({
+                            body: null,
+                            html: textToHtml(plainText(body.baseText)),
+                          })
+                        }
+                      >
+                        <HiOutlineDuplicate aria-hidden className="h-4 w-4" />
+                        {tr("tplCopyText", d)}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <p className={`text-sm ${MUTED}`}>{tr("tplEmailOff", d)}</p>
+                )}
+              </NumberedSection>
+
+              <NumberedSection
+                number={5}
+                title={tr("tplSectionChats", d)}
+                subtitle={tr("tplSectionChatsHint", d)}
+                changed={body.whatsapp === null && changes.includes("baseText")}
+              >
+                {body.whatsapp ? (
+                  <p className={`text-sm ${MUTED}`}>
+                    {tr("tplChatsUseWhatsapp", d)}
+                  </p>
+                ) : (
+                  <TemplateTextField
+                    label={tr("tplChatText", d)}
+                    value={body.baseText}
+                    onChange={(baseText) => set({ baseText })}
+                    variables={variables}
+                    known={known}
                     d={d}
-                    onExamples={setEdited}
-                    onBusyChange={setSaving}
-                    onSaved={onSaved}
+                    readOnly={!editable}
+                    rows={4}
+                    placeholder={
+                      body.email
+                        ? tr("tplChatTextFromEmail", d)
+                        : tr("baseTextPlaceholder", d)
+                    }
+                    onFocusField={focus}
                   />
                 )}
-              </>
-            ) : (
-              <p className={`text-sm ${MUTED}`}>{tr("tplWhatsappOff", d)}</p>
-            )}
-          </NumberedSection>
+              </NumberedSection>
 
-          <NumberedSection
-            number={3}
-            title={tr("channelEmail", d)}
-            subtitle={tr("tplSectionEmailHint", d)}
-            changed={changes.includes("email")}
-            actions={
-              <ToggleSwitch
-                checked={body.email !== null}
-                disabled={!editable}
-                label={tr("tplChannelOn", d)}
-                onChange={toggleEmail}
-              />
-            }
-          >
-            {body.email ? (
-              <>
-                <TemplateTextField
-                  label={tr("emailSubject", d)}
-                  value={body.email.subject}
-                  onChange={(subject) => setEmail({ subject })}
-                  variables={variables}
-                  known={known}
-                  d={d}
-                  readOnly={!editable}
-                  multiline={false}
-                  onFocusField={focus}
-                />
-                <TemplateTextField
-                  label={tr("tplEmailHtml", d)}
-                  value={body.email.html ?? ""}
-                  onChange={(html) => setEmail({ body: null, html })}
-                  variables={variables}
-                  known={known}
-                  d={d}
-                  readOnly={!editable}
-                  rows={14}
-                  mono
-                  hint={tr("tplEmailHtmlHint", d)}
-                  onFocusField={focus}
-                />
-                {editable && body.whatsapp && body.baseText.trim() && (
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 self-start text-sm text-blue-600 hover:underline dark:text-blue-400"
-                    onClick={() =>
-                      setEmail({
-                        body: null,
-                        html: textToHtml(plainText(body.baseText)),
-                      })
-                    }
-                  >
-                    <HiOutlineDuplicate aria-hidden className="h-4 w-4" />
-                    {tr("tplCopyText", d)}
-                  </button>
-                )}
-              </>
-            ) : (
-              <p className={`text-sm ${MUTED}`}>{tr("tplEmailOff", d)}</p>
-            )}
-          </NumberedSection>
-
-          <NumberedSection
-            number={4}
-            title={tr("tplSectionChats", d)}
-            subtitle={tr("tplSectionChatsHint", d)}
-            changed={body.whatsapp === null && changes.includes("baseText")}
-          >
-            {body.whatsapp ? (
-              <p className={`text-sm ${MUTED}`}>
-                {tr("tplChatsUseWhatsapp", d)}
-              </p>
-            ) : (
-              <TemplateTextField
-                label={tr("tplChatText", d)}
-                value={body.baseText}
-                onChange={(baseText) => set({ baseText })}
-                variables={variables}
-                known={known}
-                d={d}
-                readOnly={!editable}
-                rows={4}
-                placeholder={
-                  body.email
-                    ? tr("tplChatTextFromEmail", d)
-                    : tr("baseTextPlaceholder", d)
+              <NumberedSection
+                number={6}
+                title={tr("tplSectionTeams", d)}
+                subtitle={tr("tplSectionTeamsHint", d)}
+                changed={changes.includes("teams")}
+                actions={
+                  <ToggleSwitch
+                    checked={Boolean(body.teams)}
+                    disabled={!editable}
+                    label={tr("tplChannelOn", d)}
+                    onChange={(on) => {
+                      set({
+                        teams: on ? (stored.teams ?? NEW_TEAMS_CARD) : null,
+                      });
+                      setBroken(false);
+                      setGeneration((g) => g + 1);
+                    }}
+                  />
                 }
-                onFocusField={focus}
-              />
-            )}
-          </NumberedSection>
+              >
+                {body.teams ? (
+                  <TeamsCardJson
+                    key={generation}
+                    card={body.teams}
+                    readOnly={!editable}
+                    d={d}
+                    onBroken={setBroken}
+                    onChange={(teams) => set({ teams })}
+                  />
+                ) : (
+                  <p className={`text-sm ${MUTED}`}>{tr("tplTeamsOff", d)}</p>
+                )}
+              </NumberedSection>
+            </>
+          )}
         </div>
 
         <div className="flex flex-col gap-4">

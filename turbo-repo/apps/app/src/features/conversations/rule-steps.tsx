@@ -26,7 +26,8 @@ import {
   useOrgMetaTemplates,
 } from "./conversations-api";
 import TemplatePicker, { TemplatePreview } from "./template-picker";
-import { exampleValues, SAMPLE_VALUES } from "./template-model";
+import TemplateTextField from "./template-text-field";
+import { bindTemplate, exampleValues, SAMPLE_VALUES } from "./template-model";
 import {
   emptyStep,
   groupLabel,
@@ -318,6 +319,49 @@ function StepPreview({
   );
 }
 
+/**
+ * The values the step writes into its template's parameters. Each one may use the event's variables, which the
+ * template fills when it sends.
+ */
+function StepValues({
+  template,
+  values,
+  variables,
+  readOnly,
+  d,
+  onChange,
+}: Readonly<{
+  template: ConversationTemplate;
+  values: Record<string, string>;
+  variables: EventField[];
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (values: Record<string, string>) => void;
+}>) {
+  const known = variables.length ? new Set(variables.map((v) => v.name)) : null;
+  return (
+    <div className="flex w-full flex-col gap-2 border-t border-gray-100 pt-2 dark:border-gray-700">
+      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+        {tr("stepValuesTitle", d, { template: template.name })}
+      </span>
+      {(template.params ?? []).map((p) => (
+        <TemplateTextField
+          key={p.name}
+          label={p.label || p.name}
+          value={values[p.name] ?? ""}
+          onChange={(v) => onChange({ ...values, [p.name]: v })}
+          variables={variables}
+          known={known}
+          d={d}
+          readOnly={readOnly}
+          multiline={Boolean(p.multiline)}
+          rows={p.multiline ? 4 : undefined}
+        />
+      ))}
+    </div>
+  );
+}
+
 function StepCard({
   step,
   handle,
@@ -348,6 +392,10 @@ function StepCard({
   const viaConnection = !writesToGroups(step.channel);
   const [previewing, setPreviewing] = useState(false);
   const template = templates.find((t) => t.key === step.template);
+  const bound = useMemo(
+    () => template && bindTemplate(template, step.values),
+    [template, step.values]
+  );
   const emptyLabel = viaConnection
     ? tr("stepTemplateOptional", d)
     : tr("pickTemplate", d);
@@ -434,10 +482,20 @@ function StepCard({
           ))}
         </div>
       )}
-      {template && previewing && (
+      {template && (template.params ?? []).length > 0 && (
+        <StepValues
+          template={template}
+          values={step.values ?? {}}
+          variables={variables}
+          readOnly={readOnly}
+          d={d}
+          onChange={(values) => onSet({ values })}
+        />
+      )}
+      {bound && previewing && (
         <div className="w-full border-t border-gray-100 pt-2 dark:border-gray-700">
           <StepPreview
-            template={template}
+            template={bound}
             channel={step.channel}
             meta={meta}
             event={event}

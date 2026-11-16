@@ -8,6 +8,20 @@ const api = vi.hoisted(() => ({
   useConversationTemplates: vi.fn(),
 }));
 vi.mock("./conversations-api", () => api);
+const scope = vi.hoisted(() => ({ slug: "_platform", canMaintain: false }));
+vi.mock(
+  "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
+  () => ({ useOrgScopes: () => ({ activeOrg: { slug: scope.slug } }) })
+);
+vi.mock("@/features/common/platform-scope", () => ({
+  isPlatformScope: (slug?: string) => slug === "_platform",
+}));
+vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
+  useControlTowerAccess: () => ({
+    canMaintain: scope.canMaintain,
+    loaded: true,
+  }),
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
 }));
@@ -15,11 +29,19 @@ vi.mock("./template-editor", () => ({
   TemplateEditor: ({
     template,
     takenKeys,
+    readOnly,
+    organization,
   }: {
     template: ConversationTemplate | null;
     takenKeys: string[];
+    readOnly: boolean;
+    organization: boolean;
   }) => (
-    <div data-testid="editor">
+    <div
+      data-testid="editor"
+      data-readonly={String(readOnly)}
+      data-organization={String(organization)}
+    >
       {template?.key ?? "creating"}|{takenKeys.join(",")}
     </div>
   ),
@@ -45,6 +67,29 @@ describe("PlatformTemplatePage", () => {
   beforeEach(() => {
     api.useConversationTemplate.mockReset();
     api.useConversationTemplates.mockReset();
+    scope.slug = "_platform";
+    scope.canMaintain = false;
+  });
+
+  it("in an organization opens its own template to edit and the platform's to read", () => {
+    scope.slug = "mintral";
+    scope.canMaintain = true;
+    api.useConversationTemplates.mockReturnValue({ data: undefined });
+    api.useConversationTemplate.mockReturnValue({
+      data: { ...STORED_NEW, owner: "organization" },
+    });
+    const { rerender } = render(
+      <PlatformTemplatePage templateKey="new" dict={dict} lang="es" />
+    );
+    const editor = screen.getByTestId("editor");
+    expect(editor.dataset.readonly).toBe("false");
+    expect(editor.dataset.organization).toBe("true");
+
+    api.useConversationTemplate.mockReturnValue({
+      data: { ...STORED_NEW, owner: "platform" },
+    });
+    rerender(<PlatformTemplatePage templateKey="new" dict={dict} lang="es" />);
+    expect(screen.getByTestId("editor").dataset.readonly).toBe("true");
   });
 
   it("opens a stored template whose key is 'new' as that template", () => {

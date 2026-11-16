@@ -213,11 +213,90 @@ export function changedFields(
   if (!same(body.whatsapp, stored.whatsapp)) out.push("whatsapp");
   if (!same(body.email, stored.email)) out.push("email");
   if (!same(body.teams, stored.teams)) out.push("teams");
+  if (!same(body.params ?? [], stored.params ?? [])) out.push("params");
   return out;
 }
 
+const VARIABLE = /\{\{\s*([A-Za-z0-9_.]+)\s*\}\}/g;
+
+const escapeHtml = (s: string) =>
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+/** The parameters' names; a template without parameters has none. */
+export const paramNames = (body: TemplateBody) =>
+  (body.params ?? []).map((p) => p.name);
+
+/** A parameter as an editor lists it beside the event's variables. */
+export function paramVariables(body: TemplateBody): EventField[] {
+  return (body.params ?? [])
+    .filter((p) => p.name.trim())
+    .map((p) => ({ name: p.name, label: p.label || p.name, type: "string" }));
+}
+
+/**
+ * The template with each parameter replaced by the step's value in every text, as the server does before sending.
+ * The event's variables in a value stay, for the preview to fill. The HTML email gets the value escaped.
+ */
+export function bindTemplate<T extends TemplateBody>(
+  t: T,
+  values: Record<string, string> | undefined
+): T {
+  const names = new Set(paramNames(t));
+  if (names.size === 0) return t;
+  const replace = (s: string | null | undefined, html = false) =>
+    s == null
+      ? s
+      : s.replace(VARIABLE, (m, name: string) => {
+          if (!names.has(name)) return m;
+          const v = values?.[name] ?? "";
+          return html ? escapeHtml(v) : v;
+        });
+  const text = (s: string | null | undefined) => replace(s);
+  const card = t.teams;
+  return {
+    ...t,
+    baseText: text(t.baseText) ?? "",
+    email: t.email && {
+      ...t.email,
+      subject: text(t.email.subject) ?? "",
+      body: text(t.email.body) ?? null,
+      html: replace(t.email.html, true),
+    },
+    teams: card && {
+      ...card,
+      title: text(card.title),
+      subtitle: text(card.subtitle),
+      caption: text(card.caption),
+      text: text(card.text),
+      images: card.images && {
+        ...card.images,
+        label: text(card.images.label),
+      },
+      facts: card.facts?.map((f) => ({
+        ...f,
+        title: text(f.title) ?? "",
+        value: text(f.value) ?? "",
+      })),
+      notes: card.notes?.map((n) => text(n) ?? ""),
+      actions: card.actions?.map((a) => ({
+        title: text(a.title) ?? "",
+        url: text(a.url) ?? "",
+      })),
+    },
+  };
+}
+
 export type FindingSeverity = "error" | "warning" | "info";
-export type FindingSection = "general" | "text" | "whatsapp" | "email";
+export type FindingSection =
+  | "general"
+  | "text"
+  | "whatsapp"
+  | "email"
+  | "params";
 
 export interface TemplateFinding {
   severity: FindingSeverity;
@@ -245,7 +324,8 @@ export function templateFindings({
 }): TemplateFinding[] {
   return [
     ...generalFindings(body, keyTaken),
-    ...variableFindings(body, variables),
+    ...paramFindings(body),
+    ...variableFindings(body, variables && [...variables, ...paramNames(body)]),
     ...(body.whatsapp
       ? whatsappFindings(body.whatsapp, body.baseText, metaTemplates)
       : []),
@@ -278,6 +358,39 @@ function generalFindings(
   // WhatsApp sends the short text, and without an email or a Teams card the chats have nothing else.
   if (!body.baseText.trim() && (body.whatsapp || (!body.email && !body.teams)))
     out.push({ severity: "error", section: "text", key: "tplNoText" });
+  return out;
+}
+
+const PARAM_NAME = /^[A-Za-z0-9_]+$/;
+
+/** A parameter needs a name of letters, digits and `_`, not repeated, and takes no WhatsApp variant. */
+function paramFindings(body: TemplateBody): TemplateFinding[] {
+  const params = body.params ?? [];
+  if (params.length === 0) return [];
+  const out: TemplateFinding[] = [];
+  const names = params.map((p) => p.name.trim());
+  const bad = names.filter((n) => !PARAM_NAME.test(n));
+  if (bad.length > 0)
+    out.push({
+      severity: "error",
+      section: "params",
+      key: "tplParamBadName",
+      values: { names: bad.map((n) => n || "—").join(", ") },
+    });
+  const repeated = names.filter((n, i) => n && names.indexOf(n) !== i);
+  if (repeated.length > 0)
+    out.push({
+      severity: "error",
+      section: "params",
+      key: "tplParamRepeated",
+      values: { names: [...new Set(repeated)].join(", ") },
+    });
+  if (body.whatsapp)
+    out.push({
+      severity: "error",
+      section: "params",
+      key: "tplParamsNoWhatsapp",
+    });
   return out;
 }
 

@@ -48,13 +48,16 @@ describe("MessageTemplatesPanel", () => {
     api.useConversationTemplates.mockReturnValue({ data: [CHECK, TOWER] });
   });
 
-  it("in an organization lists the templates read-only, with the rules that use each", () => {
+  it("names whose each template is, and every one opens its page", () => {
+    api.useConversationTemplates.mockReturnValue({
+      data: [CHECK, { ...TOWER, owner: "organization" }],
+    });
     const { container } = render(
-      <MessageTemplatesPanel channel="" layout="list" lang="es" d={d} readOnly />
+      <MessageTemplatesPanel channel="" layout="list" lang="es" d={d} />
     );
-    expect(container.querySelector("a")).toBeNull();
-    expect(screen.getByText("Pánico · conductor")).toBeTruthy();
-    expect(screen.getByText("Pánico")).toBeTruthy();
+    expect(container.querySelectorAll("a")).toHaveLength(2);
+    expect(screen.getByText("panic-check · De la plataforma")).toBeTruthy();
+    expect(screen.getByText("panic-tower · De la organización")).toBeTruthy();
   });
 
   it("shows each template as a card that opens it in Comunicaciones", () => {

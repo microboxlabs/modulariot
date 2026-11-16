@@ -236,6 +236,7 @@ export function StepsSection({
             ["to", "array", "jsonKeyTo"],
             ["waitForReply", "number", "jsonKeyWaitForReply"],
             ["onReply", "string", "jsonKeyOnReply"],
+            ["values", "object", "jsonKeyValues"],
           ],
         },
         d

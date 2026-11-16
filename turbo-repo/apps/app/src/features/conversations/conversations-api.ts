@@ -262,12 +262,17 @@ export function previewTemplateTeams(
   });
 }
 
-/** Saves a template; only platform owners, in the platform scope, may. */
+/** Saves a template: the platform's in the platform scope (Owner), else one of the organization's own. */
 export function saveTemplate(key: string, body: TemplateBody) {
   return request<ConversationTemplate>(templateKey(key), {
     method: "PUT",
     body,
   });
+}
+
+/** Deletes a template no rule uses: the platform's in the platform scope, else one of the organization's own. */
+export function deleteTemplate(key: string) {
+  return request<void>(templateKey(key), { method: "DELETE" });
 }
 
 export function createMetaTemplate(draft: MetaTemplateDraft) {

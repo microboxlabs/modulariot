@@ -185,6 +185,13 @@ final class InMemoryRules {
         }
 
         @Override
+        public Optional<StoredEvent> latestEvent(String tenantCode, String type) {
+            return events.values().stream()
+                    .filter(e -> e.tenantCode().equals(tenantCode) && e.type().equals(type) && !e.test())
+                    .max(java.util.Comparator.comparing(StoredEvent::receivedAt));
+        }
+
+        @Override
         public java.util.Set<String> rulesStartedBy(String eventId) {
             java.util.Set<String> out = new java.util.HashSet<>();
             runs.values().stream().filter(r -> eventId.equals(r.eventId())).forEach(r -> out.add(r.ruleId()));

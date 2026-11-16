@@ -11,6 +11,7 @@ import com.microboxlabs.miot.conversational.access.ConversationsAccessCatalog;
 import com.microboxlabs.miot.conversational.accounts.ChannelMode;
 import com.microboxlabs.miot.conversational.accounts.InMemoryChannelAccounts;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.AccountModeRequest;
+import com.microboxlabs.miot.conversational.api.OrgConversationsResource.ConnectionDestinationRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.CreateRuleRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.CreateConnectionRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.DraftRequest;
@@ -350,12 +351,13 @@ class OrgConversationsResourceTest {
         assertEquals(0, empty.path("connections").size());
 
         CreateConnectionRequest request =
-                new CreateConnectionRequest("Torre externa", "https://hooks.example.com/miot", null);
+                new CreateConnectionRequest("Torre externa", "https://hooks.example.com/miot", null, null);
         assertEquals(403, call(member.createChannelConnection(ORG, "webhook", request)).getStatus());
         Response created = call(maintainer.createChannelConnection(ORG, "webhook", request));
         assertEquals(201, created.getStatus());
         JsonNode connection = body(created);
-        assertEquals(set("id", "name", "host", "status", "lastTestedAt", "lastTestResult"), keys(connection));
+        assertEquals(set("id", "name", "host", "status", "lastTestedAt", "lastTestResult", "destination"),
+                keys(connection));
         assertEquals("hooks.example.com", connection.path("host").asText());
         assertEquals("ACTIVE", connection.path("status").asText(), "the status the store gave it");
 
@@ -365,16 +367,16 @@ class OrgConversationsResourceTest {
         assertEquals("hooks.example.com", listed.get(0).path("host").asText());
 
         assertEquals(400, call(owner.createChannelConnection(ORG, "webhook",
-                new CreateConnectionRequest("x", "ftp://hooks.example.com", null))).getStatus());
+                new CreateConnectionRequest("x", "ftp://hooks.example.com", null, null))).getStatus());
         assertEquals(400, call(owner.createChannelConnection(ORG, "webhook",
-                new CreateConnectionRequest(" ", "https://hooks.example.com", null))).getStatus());
+                new CreateConnectionRequest(" ", "https://hooks.example.com", null, null))).getStatus());
         assertEquals(400, call(owner.createChannelConnection(ORG, "webhook", null)).getStatus());
     }
 
     @Test
     void slackAndTeamsListOnlyTheirOwnConnections() {
         CreateConnectionRequest slack =
-                new CreateConnectionRequest("Canal torre", "https://hooks.example.com/slack", null);
+                new CreateConnectionRequest("Canal torre", "https://hooks.example.com/slack", null, null);
         assertEquals(201, call(owner.createChannelConnection(ORG, "slack", slack)).getStatus());
 
         JsonNode slackView = body(call(member.connectionChannel(ORG, "Slack")));
@@ -389,12 +391,50 @@ class OrgConversationsResourceTest {
     }
 
     @Test
+    void aConnectionSaysWhereItsMessagesLand() {
+        JsonNode made = body(call(owner.createChannelConnection(ORG, "teams", new CreateConnectionRequest(
+                "Torre", "https://hooks.example.com/teams", null, " Coordinador de Viajes › Torre de Control "))));
+        assertEquals("Coordinador de Viajes › Torre de Control", made.path("destination").asText());
+        String id = made.path("id").asText();
+
+        ConnectionDestinationRequest arrival = new ConnectionDestinationRequest("Coordinador de Viajes › Arribos");
+        assertEquals(403, call(member.setConnectionDestination(ORG, "teams", id, arrival)).getStatus());
+        JsonNode changed = body(call(maintainer.setConnectionDestination(ORG, "teams", id, arrival)));
+        assertEquals("Coordinador de Viajes › Arribos", changed.path("destination").asText());
+        assertEquals("Coordinador de Viajes › Arribos", body(call(member.connectionChannel(ORG, "teams")))
+                .path("connections").get(0).path("destination").asText());
+
+        JsonNode cleared = body(call(owner.setConnectionDestination(ORG, "teams", id,
+                new ConnectionDestinationRequest(" "))));
+        assertTrue(cleared.path("destination").isNull());
+
+        assertEquals(404, call(owner.setConnectionDestination(ORG, "slack", id, arrival)).getStatus(),
+                "a Teams connection is not one of Slack's");
+        assertEquals(404, call(owner.setConnectionDestination(ORG, "teams", "missing", arrival)).getStatus());
+        assertEquals(400, call(owner.setConnectionDestination(ORG, "teams", id,
+                new ConnectionDestinationRequest("x".repeat(201)))).getStatus());
+    }
+
+    @Test
+    void theLatestEventOfATypeIsTheNewestTheOrganizationReceived() {
+        assertEquals(404, call(member.latestEvent(ORG, "symptom.case.opened")).getStatus());
+        fixture.openPanicCaseAndRun();
+
+        JsonNode latest = body(call(member.latestEvent(ORG, "symptom.case.opened")));
+        assertEquals(set("type", "context", "data", "test", "at"), keys(latest));
+        assertEquals("symptom.case.opened", latest.path("type").asText());
+        assertEquals("-7", latest.path("context").path("key").asText());
+        assertFalse(latest.path("test").asBoolean());
+        assertEquals(400, call(member.latestEvent(ORG, " ")).getStatus());
+    }
+
+    @Test
     void anUnknownChannelIs404() {
         assertEquals(404, call(member.connectionChannel(ORG, "sms")).getStatus());
         assertEquals(404, call(owner.createChannelConnection(ORG, "sms",
-                new CreateConnectionRequest("x", "https://hooks.example.com", null))).getStatus());
+                new CreateConnectionRequest("x", "https://hooks.example.com", null, null))).getStatus());
         assertEquals(404, call(member.createChannelConnection(ORG, "whatsapp",
-                new CreateConnectionRequest("x", "https://hooks.example.com", null))).getStatus());
+                new CreateConnectionRequest("x", "https://hooks.example.com", null, null))).getStatus());
     }
 
     @Test

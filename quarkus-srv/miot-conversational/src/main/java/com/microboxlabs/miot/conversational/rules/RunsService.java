@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** The runs of the organization's rules, newest first, with their messages: the Activity tab. */
 @ApplicationScoped
@@ -30,11 +31,29 @@ public class RunsService {
             Instant updatedAt, List<RunMessageView> messages) {
     }
 
+    /** An event as the rule editor's preview reads it: what a rule's {@code when} and templates see. */
+    public record EventSample(String type, Map<String, Object> context, Map<String, Object> data, boolean test,
+            String at) {
+    }
+
     private final RunStore runs;
 
     @Inject
     public RunsService(RunStore runs) {
         this.runs = runs;
+    }
+
+    /** The newest real event of this type, as the rule editor previews a step with it. */
+    public Optional<EventSample> latestEvent(String tenantCode, String type) {
+        if (type == null || type.isBlank()) {
+            throw new IllegalArgumentException("type is required");
+        }
+        return runs.latestEvent(tenantCode, type.trim()).map(e -> {
+            Map<String, Object> cel = e.asCelEvent();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> context = (Map<String, Object>) cel.get("context");
+            return new EventSample(e.type(), context, e.data(), e.test(), (String) cel.get("at"));
+        });
     }
 
     public List<RunView> list(String tenantCode, String ruleId, Run.Status status, Integer limit) {

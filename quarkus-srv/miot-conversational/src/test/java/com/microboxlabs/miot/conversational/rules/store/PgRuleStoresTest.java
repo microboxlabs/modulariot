@@ -295,6 +295,28 @@ class PgRuleStoresTest {
     }
 
     @Test
+    void theLatestEventIsTheNewestRealOneOfItsTypeAndTenant() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        assertTrue(runs.latestEvent(tenant, "coordinador.pickup").isEmpty());
+        runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant, "coordinador.pickup", "coordinador",
+                "service", "1", Map.of("n", 1), false, T0, T0));
+        StoredEvent newest = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "coordinador.pickup", "coordinador", "service", "2", Map.of("n", 2), false, T0.plusSeconds(1),
+                T0.plusSeconds(1)));
+        runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant, "coordinador.pickup", "coordinador",
+                "service", "3", Map.of("n", 3), true, T0.plusSeconds(2), T0.plusSeconds(2)));
+        runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant, "coordinador.init_trip",
+                "coordinador", "service", "4", Map.of(), false, T0.plusSeconds(3), T0.plusSeconds(3)));
+        runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), "other-" + tenant, "coordinador.pickup",
+                "coordinador", "service", "5", Map.of(), false, T0.plusSeconds(4), T0.plusSeconds(4)));
+
+        StoredEvent latest = runs.latestEvent(tenant, "coordinador.pickup").orElseThrow();
+        assertEquals(newest.id(), latest.id());
+        assertEquals("2", latest.contextKey());
+        assertEquals(2, ((Number) latest.data().get("n")).intValue());
+    }
+
+    @Test
     void aQueuedSendRemainsSuppressedEvenWhenItsRunAlreadyFinished() {
         String tenant = "tenant-" + UUID.randomUUID();
         Rule rule = rule(tenant, "ignored");

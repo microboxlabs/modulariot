@@ -40,6 +40,7 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
@@ -108,7 +109,13 @@ public class OrgConversationsResource {
             String key) {
     }
 
-    public record CreateConnectionRequest(String name, String baseUrl, String credentialProfileId) {
+    /** {@code destination}: where the connection's messages land, such as a Teams team and channel; optional. */
+    public record CreateConnectionRequest(String name, String baseUrl, String credentialProfileId,
+            String destination) {
+    }
+
+    /** A blank {@code destination} clears it. */
+    public record ConnectionDestinationRequest(String destination) {
     }
 
     public record AccountModeRequest(ChannelMode mode) {
@@ -373,9 +380,28 @@ public class OrgConversationsResource {
                 throw new IllegalArgumentException("name and baseUrl are required");
             }
             return Response.status(Response.Status.CREATED).entity(ConnectionChannels.Connection.of(
-                    channels.create(kind.get(), tenant, body.name(), body.baseUrl(), body.credentialProfileId())))
+                    channels.create(kind.get(), tenant, body.name(), body.baseUrl(), body.credentialProfileId(),
+                            body.destination())))
                     .build();
         });
+    }
+
+    @PATCH
+    @Path("/channels/{channel}/connections/{connectionId}")
+    @Operation(operationId = "setConversationChannelConnectionDestination",
+            summary = "Set where a connection's messages land, such as a Teams team and channel")
+    public Uni<Response> setConnectionDestination(@PathParam(ORG) String organizationId,
+            @PathParam(CHANNEL) String channel, @PathParam("connectionId") String connectionId,
+            ConnectionDestinationRequest body) {
+        String tenant = tenantCode(organizationId);
+        Optional<ConnectionChannel> kind = ConnectionChannel.of(channel);
+        if (kind.isEmpty()) {
+            return Uni.createFrom().item(unknownChannel(channel));
+        }
+        return write(organizationId, () -> Response.ok(channels.setDestination(kind.get(), tenant, connectionId,
+                body == null ? null : body.destination())
+                .orElseThrow(() -> new NoSuchElementException("No " + channel + " connection " + connectionId)))
+                .build());
     }
 
     private static ConnectionChannel channel(String channel) {
@@ -474,6 +500,16 @@ public class OrgConversationsResource {
     public Uni<Response> catalog(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(service.events(tenant)).build());
+    }
+
+    @GET
+    @Path("/events/latest")
+    @Operation(operationId = "latestConversationEvent",
+            summary = "The newest event of a type the organization received, leaving out test events; 404 without one")
+    public Uni<Response> latestEvent(@PathParam(ORG) String organizationId, @QueryParam("type") String type) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(runs.latestEvent(tenant, type)
+                .orElseThrow(() -> new NoSuchElementException("No " + type + " event yet"))).build());
     }
 
     @GET

@@ -5212,7 +5212,10 @@
         "connectionDestinationSaved": "Destination saved",
         "connectionDestinationFailed": "Could not save the destination",
         "connectionNoDestination": "No destination set",
-        "connectionEditDestination": "Edit destination"
+        "connectionEditDestination": "Edit destination",
+        "previewTeamsSender": "Workflows",
+        "previewTeamsLoading": "Drawing the card…",
+        "previewTeamsFailed": "Could not draw the card: {error}"
       },
       "gps": {
         "title": "GPS integration",

@@ -18,6 +18,7 @@ import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
 import com.microboxlabs.miot.conversational.rules.RunsService;
 import com.microboxlabs.miot.conversational.rules.TemplatesService;
 import com.microboxlabs.miot.conversational.rules.TemplatesService.EmailPreviewRequest;
+import com.microboxlabs.miot.conversational.rules.TemplatesService.TeamsPreviewRequest;
 import com.microboxlabs.miot.conversational.rules.TemplatesService.TemplateRequest;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplateDraft;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService;
@@ -334,6 +335,15 @@ public class OrgConversationsResource {
     public Uni<Response> previewTemplateEmail(@PathParam(ORG) String organizationId, EmailPreviewRequest body) {
         tenantCode(organizationId);
         return work(() -> Response.ok(templates.previewEmail(body)).build());
+    }
+
+    @POST
+    @Path("/templates/teams-preview")
+    @Operation(operationId = "previewConversationTemplateTeams",
+            summary = "The body a Teams step sends with an unsaved card and the given values: one Adaptive Card")
+    public Uni<Response> previewTemplateTeams(@PathParam(ORG) String organizationId, TeamsPreviewRequest body) {
+        tenantCode(organizationId);
+        return work(() -> Response.ok(templates.previewTeams(body)).build());
     }
 
     @PUT

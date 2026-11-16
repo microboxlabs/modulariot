@@ -221,6 +221,12 @@ export interface TeamsVariant {
   actions?: TeamsAction[];
 }
 
+/** What a Teams step posts: `{type: "message", attachments: [{contentType, content: AdaptiveCard}]}`. */
+export interface TeamsMessage {
+  type: string;
+  attachments: { contentType: string; content: Record<string, unknown> }[];
+}
+
 export interface TemplateBody {
   name: string;
   baseText: string;

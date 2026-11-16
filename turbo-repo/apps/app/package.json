@@ -66,6 +66,7 @@
     "@types/negotiator": "^0.6.3",
     "@types/pino": "^7.0.4",
     "@xmldom/xmldom": "^0.9.10",
+    "adaptivecards": "3.0.6",
     "assistant-stream": "^0.3.37",
     "csv-parse": "^7.0.2",
     "daterangepicker": "^3.1.0",

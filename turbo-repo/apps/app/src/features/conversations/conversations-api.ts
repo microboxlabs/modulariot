@@ -14,6 +14,8 @@ import {
 } from "@/features/symptoms/control-tower/control-tower-api";
 import type { SymptomFamily } from "@/features/symptoms/maintainer/maintainer-api";
 import type {
+  TeamsMessage,
+  TeamsVariant,
   ChannelAccount,
   ChannelAccountMode,
   ConversationRun,
@@ -246,6 +248,17 @@ export function previewTemplateEmail(
   return request<EmailPreview>(`${templatesKey}/email-preview`, {
     method: "POST",
     body: { subject, html, values },
+  });
+}
+
+/** The body a Teams step sends with this card and these values: one Adaptive Card, built by the backend. */
+export function previewTemplateTeams(
+  teams: TeamsVariant,
+  values: Record<string, string>
+) {
+  return request<TeamsMessage>(`${templatesKey}/teams-preview`, {
+    method: "POST",
+    body: { teams, values },
   });
 }
 

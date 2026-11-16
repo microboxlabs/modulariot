@@ -62,6 +62,14 @@ public class TemplatesService {
     public record EmailPreviewRequest(String subject, String html, Map<String, String> values) {
     }
 
+    /**
+     * An unsaved Teams card and the values of its variables. {@code data} is the event's data the card's images
+     * come from; without it, the values.
+     */
+    public record TeamsPreviewRequest(ConvTemplate.Teams teams, Map<String, String> values,
+            Map<String, Object> data) {
+    }
+
     /** The email as sent: subject, the whole HTML with the layout, and its text. */
     public record EmailPreview(String subject, String html, String text) {
     }
@@ -101,6 +109,20 @@ public class TemplatesService {
                 request.values() == null ? Map.of() : request.values());
         return new EmailPreview(r.subject(), layout == null ? r.html() : layout.wrap(r.subject(), r.html()),
                 r.text());
+    }
+
+    /** The body a Teams step sends with this card: {@code {"type": "message", "attachments": [card]}}. */
+    public Map<String, Object> previewTeams(TeamsPreviewRequest request) {
+        if (request == null || request.teams() == null) {
+            throw new IllegalArgumentException("teams is required");
+        }
+        List<String> problems = TeamsCard.problems(request.teams());
+        if (!problems.isEmpty()) {
+            throw new IllegalArgumentException(String.join("; ", problems));
+        }
+        Map<String, String> values = request.values() == null ? Map.of() : request.values();
+        Map<String, Object> data = request.data() == null ? Map.copyOf(values) : request.data();
+        return TeamsCard.body(request.teams(), values, data);
     }
 
     /** The platform's templates, each with the organization's rules that use it. */

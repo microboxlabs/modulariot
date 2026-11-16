@@ -6,6 +6,26 @@ import type { ConversationTemplate, RuleStep } from "./conversations-types";
 const api = vi.hoisted(() => ({
   useConnectionChannel: vi.fn(),
   useLatestEvent: vi.fn(),
+  previewTemplateTeams: vi.fn(
+    async (_card: unknown, values: Record<string, string>) => ({
+      type: "message",
+      attachments: [
+        {
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            version: "1.4",
+            body: [
+              {
+                type: "TextBlock",
+                text: `Servicio ${values.identificadorServicio}`,
+              },
+            ],
+          },
+        },
+      ],
+    })
+  ),
   useOrgMetaTemplates: vi.fn(() => ({ data: undefined })),
   useConversationTemplates: vi.fn(() => ({ data: undefined })),
 }));
@@ -62,8 +82,6 @@ function renderSteps() {
   );
 }
 
-const card = () => screen.getByRole("figure", { name: d.previewTeamsLabel });
-
 describe("RuleSteps, the preview of a Teams step", () => {
   beforeEach(() => {
     api.useConnectionChannel.mockReturnValue({
@@ -96,7 +114,7 @@ describe("RuleSteps, the preview of a Teams step", () => {
     ).toBeTruthy();
   });
 
-  it("draws the card with the event's example values, and the newest real event on request", () => {
+  it("draws the card with the event's example values, and the newest real event on request", async () => {
     api.useLatestEvent.mockReturnValue({
       data: {
         type: EVENT,
@@ -110,10 +128,18 @@ describe("RuleSteps, the preview of a Teams step", () => {
     fireEvent.click(screen.getByRole("button", { name: d.showTemplate }));
 
     expect(api.useLatestEvent).toHaveBeenCalledWith(EVENT);
-    expect(card().textContent).toContain("Identificador de Servicio");
+    expect(
+      await screen.findByText(
+        "Servicio Identificador de Servicio",
+        {},
+        { timeout: 2000 }
+      )
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: d.previewWithLatest }));
-    expect(card().textContent).toContain("1717959");
+    expect(
+      await screen.findByText("Servicio 1717959", {}, { timeout: 2000 })
+    ).toBeTruthy();
     expect(screen.getByText(/· 1717959$/)).toBeTruthy();
   });
 

@@ -19,12 +19,14 @@ import com.microboxlabs.miot.conversational.api.OrgConversationsResource.InvokeR
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.PublishRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.SimulateRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.StateRequest;
+import com.microboxlabs.miot.conversational.rules.ConvTemplate;
 import com.microboxlabs.miot.conversational.rules.Invocation;
 import com.microboxlabs.miot.conversational.rules.Rule;
 import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RulesFixtureAccess;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleContext;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
+import com.microboxlabs.miot.conversational.rules.TemplatesService.TeamsPreviewRequest;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.Access;
@@ -426,6 +428,25 @@ class OrgConversationsResourceTest {
         assertEquals("-7", latest.path("context").path("key").asText());
         assertFalse(latest.path("test").asBoolean());
         assertEquals(400, call(member.latestEvent(ORG, " ")).getStatus());
+    }
+
+    @Test
+    void aTeamsPreviewIsTheBodyTheStepSends() {
+        ConvTemplate.Teams card = new ConvTemplate.Teams("Arribo {{servicio}}", null, null, "Confirme el arribo.",
+                null, List.of(new ConvTemplate.Teams.Fact("Cliente", "{{cliente}}", false)), List.of(),
+                List.of(new ConvTemplate.Teams.Action("Ver en el Coordinador", "{{viewUrl}}")));
+        JsonNode sent = body(call(member.previewTemplateTeams(ORG, new TeamsPreviewRequest(card,
+                Map.of("servicio", "1717959", "cliente", "SCL002101-01", "viewUrl", "https://example.com/t/1"),
+                null))));
+        assertEquals("message", sent.path("type").asText());
+        JsonNode content = sent.path("attachments").get(0).path("content");
+        assertEquals("AdaptiveCard", content.path("type").asText());
+        assertTrue(content.path("body").toString().contains("Arribo 1717959"));
+        assertTrue(content.path("body").toString().contains("SCL002101-01"));
+        assertEquals("https://example.com/t/1", content.path("actions").get(0).path("url").asText());
+
+        assertEquals(400, call(member.previewTemplateTeams(ORG, new TeamsPreviewRequest(null, Map.of(), null)))
+                .getStatus());
     }
 
     @Test

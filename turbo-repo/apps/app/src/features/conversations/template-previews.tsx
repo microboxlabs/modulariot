@@ -11,16 +11,20 @@ import {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { Panel } from "@/features/symptoms/maintainer/symptom-side-panels";
+import AdaptiveCardView from "./adaptive-card-view";
 import { channelLogo } from "./channel-icon";
-import { previewTemplateEmail } from "./conversations-api";
+import {
+  previewTemplateEmail,
+  previewTemplateTeams,
+} from "./conversations-api";
 import type {
   EmailPreview as EmailPreviewData,
   EmailVariant,
   MetaTemplate,
+  TeamsMessage,
   TeamsVariant,
   TemplateBody,
 } from "./conversations-types";
-import { fillText } from "./rule-model";
 import WhatsAppText, { filled } from "./whatsapp-text";
 
 // Meta has more button types (COPY_CODE, FLOW, OTP…); those show without an icon.
@@ -228,7 +232,54 @@ export function PlainPreview({
   );
 }
 
-/** The template's Teams card with the example values, as Teams draws it: title, byline, text, facts, notes, buttons. */
+interface TeamsPreviewState {
+  key: string;
+  data?: TeamsMessage;
+  error?: string;
+}
+
+/**
+ * The card as the backend builds it for a Teams step, with the values in. Asked again 400 ms after the last change;
+ * the last answer stays while the next one comes.
+ */
+export function useTeamsPreview(
+  card: TeamsVariant,
+  values: Record<string, string>
+): TeamsPreviewState {
+  const key = JSON.stringify([card, values]);
+  const [state, setState] = useState<TeamsPreviewState>({ key: "" });
+  useEffect(() => {
+    const [teams, vals] = JSON.parse(key) as [
+      TeamsVariant,
+      Record<string, string>,
+    ];
+    let live = true;
+    const timer = setTimeout(() => {
+      previewTemplateTeams(teams, vals).then(
+        (data) => {
+          if (live) setState({ key, data });
+        },
+        (e: unknown) => {
+          if (live)
+            setState({
+              key,
+              error: e instanceof Error ? e.message : String(e),
+            });
+        }
+      );
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [key]);
+  return state;
+}
+
+/**
+ * The template's Teams card as a Teams channel shows it: the body the step sends, built by the backend with the
+ * values, drawn by the Adaptive Cards renderer inside a Workflows message.
+ */
 export function TeamsCardPreview({
   card,
   values,
@@ -238,87 +289,55 @@ export function TeamsCardPreview({
   values: Record<string, string>;
   d: I18nRecord;
 }>) {
-  const fill = (text: string | null | undefined) =>
-    text ? filled(text, values).trim() : "";
-  // What the card gets: a variable without a value is empty, as the backend renders it.
-  const sent = (text: string | null | undefined) =>
-    text
-      ? fillText(text, values)
-          .map((p) => ("text" in p ? p.text : (p.value ?? "")))
-          .join("")
-          .trim()
-      : "";
-  const facts = (card.facts ?? [])
-    .filter((f) => {
-      const value = sent(f.value);
-      return !f.optional || (value !== "" && value !== "-");
-    })
-    .map((f) => ({ title: fill(f.title), value: fill(f.value) }));
-  const notes = (card.notes ?? []).filter((n) => sent(n)).map(fill);
-  const actions = (card.actions ?? []).filter((a) =>
-    /^https?:\/\//i.test(sent(a.url))
-  );
+  const preview = useTeamsPreview(card, values);
+  const content = preview.data?.attachments?.[0]?.content;
   return (
     <figure
       aria-label={tr("previewTeamsLabel", d)}
-      className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+      className="flex gap-3 rounded-lg bg-[#F5F5F5] p-3 text-sm dark:bg-gray-900"
     >
-      {fill(card.title) && (
-        <p className="text-base font-semibold">{fill(card.title)}</p>
-      )}
-      {(fill(card.subtitle) || fill(card.caption)) && (
-        <div>
-          {fill(card.subtitle) && (
-            <p className="font-semibold">{fill(card.subtitle)}</p>
-          )}
-          {fill(card.caption) && (
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {fill(card.caption)}
+      <span
+        aria-hidden
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-[#5B5FC7] to-[#3D8BFD] text-xs font-semibold text-white"
+      >
+        W
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <p className="text-xs text-gray-600 dark:text-gray-400">
+          <span className="font-semibold text-gray-900 dark:text-gray-100">
+            {tr("previewTeamsSender", d)}
+          </span>{" "}
+          {SAMPLE_TIME}
+        </p>
+        <div className="max-w-[28rem] overflow-hidden rounded-md border border-[#E1E1E1] bg-white shadow-sm">
+          {content ? (
+            <AdaptiveCardView card={content} />
+          ) : (
+            <p
+              className={`px-4 py-6 text-xs ${
+                preview.error
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-gray-500"
+              }`}
+            >
+              {preview.error
+                ? tr("previewTeamsFailed", d, { error: preview.error })
+                : tr("previewTeamsLoading", d)}
             </p>
           )}
         </div>
-      )}
-      {fill(card.text) && (
-        <p className="whitespace-pre-wrap break-words">{fill(card.text)}</p>
-      )}
-      {card.images?.field && (
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          {tr("previewTeamsImages", d, { field: card.images.field })}
-        </p>
-      )}
-      {facts.length > 0 && (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-          {facts.map((f, i) => (
-            <div key={`${f.title}-${i}`} className="contents">
-              <dt className="font-semibold">{f.title}</dt>
-              <dd className="break-words">{f.value || "—"}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      {notes.map((n, i) => (
-        <p
-          key={`note-${i}`}
-          className="text-xs text-gray-500 dark:text-gray-400"
-        >
-          {n}
-        </p>
-      ))}
-      {actions.length > 0 && (
-        <div className="flex flex-wrap gap-2 pt-1">
-          {actions.map((a, i) => (
-            <span
-              key={`${a.title}-${i}`}
-              className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium dark:border-gray-600"
-            >
-              {fill(a.title)}
-            </span>
-          ))}
-        </div>
-      )}
+        {card.images?.field && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {tr("previewTeamsImages", d, { field: card.images.field })}
+          </p>
+        )}
+      </div>
     </figure>
   );
 }
+
+/** The time shown next to the sender; a fixed one, as Teams would show it. */
+const SAMPLE_TIME = "22:14";
 
 type PreviewTab = "whatsapp" | "email" | "teams" | "text";
 

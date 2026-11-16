@@ -5212,7 +5212,10 @@
         "connectionDestinationSaved": "Destino guardado",
         "connectionDestinationFailed": "No se pudo guardar el destino",
         "connectionNoDestination": "Sin destino indicado",
-        "connectionEditDestination": "Editar destino"
+        "connectionEditDestination": "Editar destino",
+        "previewTeamsSender": "Flujos de trabajo",
+        "previewTeamsLoading": "Dibujando la tarjeta…",
+        "previewTeamsFailed": "No se pudo dibujar la tarjeta: {error}"
       },
       "gps": {
         "title": "Integración GPS",

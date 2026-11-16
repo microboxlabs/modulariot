@@ -72,7 +72,12 @@ export function templateVariables(
 
 const NUMBER = /(int|long|double|float|number|decimal)/i;
 
+/** A variable that holds a link, such as `viewUrl`: Teams shows a button only for a web URL. */
+const URL_NAME = /(url|link|href)$/i;
+
 function eventExample(v: EventField): string {
+  if (URL_NAME.test(v.name) || /url|uri/i.test(v.type))
+    return "https://example.com/";
   return NUMBER.test(v.type) ? "42" : v.label;
 }
 
@@ -87,8 +92,11 @@ export function exampleValues(
   const out: Record<string, string> = {};
   for (const v of variables)
     out[v.name] = SAMPLE_VALUES[v.name] ?? eventExample(v);
-  for (const name of names)
-    if (!(name in out) && SAMPLE_VALUES[name]) out[name] = SAMPLE_VALUES[name];
+  for (const name of names) {
+    if (name in out) continue;
+    if (SAMPLE_VALUES[name]) out[name] = SAMPLE_VALUES[name];
+    else if (URL_NAME.test(name)) out[name] = "https://example.com/";
+  }
   return out;
 }
 

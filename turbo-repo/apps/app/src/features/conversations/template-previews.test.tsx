@@ -2,14 +2,20 @@ import { act, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EmailVariant, TemplateBody } from "./conversations-types";
 
-const api = vi.hoisted(() => ({ previewTemplateEmail: vi.fn() }));
+const api = vi.hoisted(() => ({
+  previewTemplateEmail: vi.fn(),
+  previewTemplateTeams: vi.fn(),
+}));
 vi.mock("./conversations-api", () => api);
 
+import es from "@/lang/es.json";
 import {
   TeamsCardPreview,
   chatText,
   useEmailPreview,
 } from "./template-previews";
+
+const d = es.pages.userSettings.communications;
 
 describe("chatText", () => {
   it("keeps the formatting characters sent by the connection channels", () => {
@@ -62,50 +68,53 @@ describe("useEmailPreview", () => {
 });
 
 describe("TeamsCardPreview", () => {
-  it("fills the card and leaves out optional facts without a value", () => {
-    render(
-      <TeamsCardPreview
-        card={{
-          title: "Pedido {{order}}",
-          subtitle: "{{author}}",
-          text: "Salió de bodega",
-          facts: [
-            { title: "Motivo", value: "{{reason}}", optional: true },
-            { title: "Pedido", value: "{{order}}" },
+  const CARD = {
+    title: "Pedido {{order}}",
+    facts: [{ title: "Pedido", value: "{{order}}" }],
+    actions: [{ title: "Ver", url: "https://app.example.com/{{order}}" }],
+  };
+  const SENT = {
+    type: "message",
+    attachments: [
+      {
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          type: "AdaptiveCard",
+          version: "1.4",
+          body: [
+            { type: "TextBlock", text: "Pedido 4521", weight: "Bolder" },
+            { type: "FactSet", facts: [{ title: "Pedido", value: "4521" }] },
           ],
-          notes: ["Salida: {{departure}}"],
-          actions: [{ title: "Ver", url: "https://app.example.com/{{order}}" }],
-        }}
-        values={{
-          order: "4521",
-          author: "Ana",
-          reason: "-",
-          departure: "08:00",
-        }}
-        d={{ previewTeamsLabel: "Tarjeta" }}
-      />
-    );
-    expect(screen.getByText("Pedido 4521")).toBeTruthy();
-    expect(screen.getByText("Ana")).toBeTruthy();
-    expect(screen.getByText("4521")).toBeTruthy();
-    expect(screen.queryByText("Motivo")).toBeNull();
-    expect(screen.getByText("Salida: 08:00")).toBeTruthy();
-    expect(screen.getByText("Ver")).toBeTruthy();
+          actions: [
+            {
+              type: "Action.OpenUrl",
+              title: "Ver",
+              url: "https://app.example.com/4521",
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  it("draws the card the backend builds for the step, buttons included", async () => {
+    api.previewTemplateTeams.mockResolvedValue(SENT);
+    render(<TeamsCardPreview card={CARD} values={{ order: "4521" }} d={d} />);
+    expect(
+      await screen.findByText("Pedido 4521", {}, { timeout: 2000 })
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Ver" })).toBeTruthy();
+    expect(screen.getByText(d.previewTeamsSender)).toBeTruthy();
+    expect(api.previewTemplateTeams).toHaveBeenCalledWith(CARD, {
+      order: "4521",
+    });
   });
 
-  it("leaves out an optional fact and a button whose variables have no example", () => {
-    render(
-      <TeamsCardPreview
-        card={{
-          title: "Pedido",
-          facts: [{ title: "Motivo", value: "{{reason}}", optional: true }],
-          actions: [{ title: "Ver", url: "{{link}}" }],
-        }}
-        values={{}}
-        d={{ previewTeamsLabel: "Tarjeta" }}
-      />
-    );
-    expect(screen.queryByText("Motivo")).toBeNull();
-    expect(screen.queryByText("Ver")).toBeNull();
+  it("says when the card cannot be drawn", async () => {
+    api.previewTemplateTeams.mockRejectedValue(new Error("title is required"));
+    render(<TeamsCardPreview card={CARD} values={{}} d={d} />);
+    expect(
+      await screen.findByText(/title is required/, {}, { timeout: 2000 })
+    ).toBeTruthy();
   });
 });

@@ -255,8 +255,9 @@ class OrgConversationsResourceTest {
         String id = createPanicRule();
 
         JsonNode t = body(call(member.getTemplate(ORG, "panic-check")));
-        assertEquals(set("id", "key", "name", "baseText", "whatsapp", "email", "version", "updatedAt", "updatedBy",
-                "usedBy"), keys(t));
+        assertEquals(set("id", "key", "name", "baseText", "whatsapp", "email", "params", "owner", "version",
+                "updatedAt", "updatedBy", "usedBy"), keys(t));
+        assertEquals("platform", t.path("owner").asText());
         assertEquals("0.1.0", t.path("version").asText());
         assertEquals(set("metaName", "language", "params", "callPermission"), keys(t.path("whatsapp")));
         assertTrue(t.path("email").isNull());

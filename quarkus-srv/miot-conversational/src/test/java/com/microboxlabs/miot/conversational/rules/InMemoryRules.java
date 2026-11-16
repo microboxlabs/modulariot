@@ -166,9 +166,14 @@ final class InMemoryRules {
             }
             ConvTemplate saved = existing == null ? t : new ConvTemplate(existing.id(), t.tenantCode(), t.key(),
                     t.name(), t.baseText(), t.whatsapp(), t.email(), t.teams(), existing.createdAt(), t.updatedAt(),
-                    t.updatedBy(), t.version());
+                    t.updatedBy(), t.version(), t.params());
             templates.put(t.tenantCode() + "/" + t.key(), saved);
             return Optional.of(saved);
+        }
+
+        @Override
+        public boolean delete(String tenantCode, String key) {
+            return templates.remove(tenantCode + "/" + key) != null;
         }
     }
 

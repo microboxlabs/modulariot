@@ -238,7 +238,7 @@ public class RulesService {
 
     public List<Finding> validate(String tenantCode, RuleSpec spec) {
         Map<String, ConvTemplate> byKey = new LinkedHashMap<>();
-        templates.list(ConvTemplate.PLATFORM_TENANT).forEach(t -> byKey.put(t.key(), t));
+        templates.visible(tenantCode).forEach(t -> byKey.put(t.key(), t));
         Audiences audiences = new Audiences(resolvers.get());
         return RuleSpecValidator.validate(spec, new RuleSpecValidator.Context(catalog(tenantCode).contextKinds(),
                 byKey,

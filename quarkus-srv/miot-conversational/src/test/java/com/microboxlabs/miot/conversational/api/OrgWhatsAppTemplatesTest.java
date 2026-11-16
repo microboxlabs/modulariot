@@ -153,7 +153,7 @@ class OrgWhatsAppTemplatesTest {
     }
 
     @Test
-    void messageTemplatesAreSavedOnlyInThePlatformScope() {
+    void anOrganizationSavesOnlyItsOwnTemplates() {
         OrganizationContext org = new OrganizationContext();
         org.setOrganizationId("org-a");
         TenantContext tenant = new TenantContext();
@@ -164,7 +164,13 @@ class OrgWhatsAppTemplatesTest {
                 new OrgConversationsResource.Services(fixture.service(), fixture.simulator(), fixture.templates(),
                         fixture.runs(), fixture.channels(), new InMemoryChannelAccounts().service, whatsApp));
 
-        assertEquals(403, call(organization.saveTemplate("org-a", "panic-check", null)).getStatus());
-        assertEquals(403, call(member.saveTemplate(SCOPE, "panic-check", null)).getStatus());
+        var plain = new com.microboxlabs.miot.conversational.rules.TemplatesService.TemplateRequest("Propia", "Hola",
+                null, null);
+        assertEquals(400, call(organization.saveTemplate("org-a", "panic-check", plain)).getStatus(),
+                "the platform's key");
+        assertEquals(200, call(organization.saveTemplate("org-a", "propia", plain)).getStatus());
+        assertEquals(204, call(organization.deleteTemplate("org-a", "propia")).getStatus());
+        assertEquals(403, call(member.saveTemplate(SCOPE, "panic-check", null)).getStatus(),
+                "the platform's templates need an Owner");
     }
 }

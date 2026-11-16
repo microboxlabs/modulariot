@@ -315,6 +315,9 @@ class WhatsAppRuleSendTest {
                     ConvTemplate value, String version) {
                 return Optional.of(value);
             }
+            @Override public boolean delete(String tenant, String key) {
+                return false;
+            }
         };
         Instance<TemplateStore> instance =
                 (Instance<TemplateStore>)

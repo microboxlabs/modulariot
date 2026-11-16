@@ -66,7 +66,7 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
- * Conversation rules, the platform's templates, the event catalog, the runs, the connection channels and the
+ * Conversation rules, the templates (the platform's and the organization's own), the event catalog, the runs, the connection channels and the
  * WhatsApp and email accounts of an organization. Any authenticated user of the organization reads; writes need an Owner or Admin of the organization,
  * or the Control Tower maintainer's {@value #MAINTAINER_PERMISSION}; invoking a published rule also takes
  * {@value ConversationsAccessCatalog#RULE_INVOKE}; the accounts only an Owner changes. Endpoints return {@link Uni} so the request stays on the event loop for the
@@ -312,7 +312,8 @@ public class OrgConversationsResource {
     @GET
     @Path("/templates")
     @Operation(operationId = "listConversationTemplates",
-            summary = "The platform's message templates, with the organization's rules that use each")
+            summary = "The message templates the organization's rules can use, its own and the platform's, with the "
+                    + "rules that use each")
     public Uni<Response> listTemplates(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(platform(tenant) ? templates.platformList() : templates.list(tenant)).build());
@@ -321,7 +322,7 @@ public class OrgConversationsResource {
     @GET
     @Path("/templates/{key}")
     @Operation(operationId = "getConversationTemplate",
-            summary = "One platform template, with the organization's rules that use it")
+            summary = "One template, the organization's own else the platform's, with the rules that use it")
     public Uni<Response> getTemplate(@PathParam(ORG) String organizationId, @PathParam(KEY) String key) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(platform(tenant) ? templates.platformGet(key) : templates.get(tenant, key))
@@ -349,16 +350,30 @@ public class OrgConversationsResource {
     @PUT
     @Path("/templates/{key}")
     @Operation(operationId = "saveConversationTemplate",
-            summary = "In the platform scope, create or replace a template; its semantic version rises by what changed")
+            summary = "Create or replace a template: the platform's in the platform scope (Owner), else one of the "
+                    + "organization's own; its semantic version rises by what changed")
     public Uni<Response> saveTemplate(@PathParam(ORG) String organizationId, @PathParam(KEY) String key,
             TemplateRequest body) {
         String tenant = tenantCode(organizationId);
         String who = actor.get();
-        if (!platform(tenant)) {
-            return Uni.createFrom().item(error(Response.Status.FORBIDDEN,
-                    "Message templates are the platform's; edit them in the platform scope"));
+        if (platform(tenant)) {
+            return owner(organizationId, () -> Response.ok(templates.save(key, body, who)).build());
         }
-        return owner(organizationId, () -> Response.ok(templates.save(key, body, who)).build());
+        return write(organizationId, () -> Response.ok(templates.saveOwn(tenant, key, body, who)).build());
+    }
+
+    @DELETE
+    @Path("/templates/{key}")
+    @Operation(operationId = "deleteConversationTemplate",
+            summary = "Delete a template no rule uses: the platform's in the platform scope (Owner), else one of "
+                    + "the organization's own")
+    public Uni<Response> deleteTemplate(@PathParam(ORG) String organizationId, @PathParam(KEY) String key) {
+        String tenant = tenantCode(organizationId);
+        Supplier<Response> work = () -> {
+            templates.delete(tenant, key);
+            return Response.noContent().build();
+        };
+        return platform(tenant) ? owner(organizationId, work) : write(organizationId, work);
     }
 
     // Channels

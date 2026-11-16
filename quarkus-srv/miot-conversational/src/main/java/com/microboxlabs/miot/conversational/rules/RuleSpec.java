@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -66,9 +68,19 @@ public record RuleSpec(Trigger trigger, List<Group> groups, List<Step> steps, St
      * @param waitForReply minutes to wait for a reply; null is 0
      * @param onReply      {@code stop} (the default) or {@code continue}
      * @param connection   the integration connection a connection step (webhook, slack, teams) calls
+     * @param values       the value of each of the template's parameters
      */
     public record Step(Integer after, String channel, String template, List<String> to, boolean toInvalid,
-            Integer waitForReply, String onReply, String connection) {
+            Integer waitForReply, String onReply, String connection, Map<String, String> values) {
+
+        public Step {
+            values = values == null ? Map.of() : Map.copyOf(values);
+        }
+
+        public Step(Integer after, String channel, String template, List<String> to, boolean toInvalid,
+                Integer waitForReply, String onReply, String connection) {
+            this(after, channel, template, to, toInvalid, waitForReply, onReply, connection, Map.of());
+        }
 
         /** The connection channel the step sends on; empty for WhatsApp, email and preferred. */
         public Optional<ConnectionChannel> connectionChannel() {
@@ -164,7 +176,20 @@ public record RuleSpec(Trigger trigger, List<Group> groups, List<Step> steps, St
 
     private static Step step(JsonNode s, List<String> to, boolean invalid) {
         return new Step(integer(s, "after"), text(s, CHANNEL_FIELD), text(s, "template"), List.copyOf(to), invalid,
-                integer(s, "waitForReply"), text(s, "onReply"), text(s, "connection"));
+                integer(s, "waitForReply"), text(s, "onReply"), text(s, "connection"), values(s.path("values")));
+    }
+
+    /** The string fields of {@code values}; any other is left out. */
+    private static Map<String, String> values(JsonNode values) {
+        Map<String, String> out = new LinkedHashMap<>();
+        if (values.isObject()) {
+            values.properties().forEach(e -> {
+                if (e.getValue().isTextual()) {
+                    out.put(e.getKey(), e.getValue().asText());
+                }
+            });
+        }
+        return out;
     }
 
     /** {@code audience} becomes the group {@value #RULE_GROUP}; a step's own list, the group {@code step-N}. */

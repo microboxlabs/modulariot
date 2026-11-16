@@ -1,0 +1,121 @@
+{
+  "stack_version": "0.6.18",
+  "stack_tag": "miot-stack@v0.6.18",
+  "milestone": "MIOT-0.6.18",
+  "pull_requests": [
+    {
+      "number": 2692,
+      "title": "feat(credentials): enable basic auth credentials in Settings",
+      "source_issues": [
+        {
+          "number": 2693,
+          "title": "feat(credentials): enable basic auth credentials in Settings"
+        }
+      ]
+    },
+    {
+      "number": 2694,
+      "title": "feat(conversations): organization templates with parameters a rule step fills",
+      "source_issues": [
+        {
+          "number": 2695,
+          "title": "feat(conversations): organization templates with parameters a rule step fills"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/OrgConversationsResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/ConnectionChannels.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/ConvTemplate.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleSimulator.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleSpec.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RuleSpecValidator.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RulesEngine.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RulesService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/RunsService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/TemplateBump.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/TemplatesService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/Pg.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/PgRunStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/PgTemplateStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/RunStore.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/rules/store/TemplateStore.java",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.11__latest_event_by_type.sql",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.11.12__template_params.sql",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/api/OrgConversationsResourceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/api/OrgWhatsAppTemplatesTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/InMemoryIntegrations.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/InMemoryRules.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/OrgTemplatesTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/rules/store/PgRuleStoresTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppRuleSendTest.java",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/communications/templates/[key]/page.tsx",
+    "turbo-repo/apps/app/src/app/api/conversations/[...path]/route.ts",
+    "turbo-repo/apps/app/src/features/conversations/adaptive-card-view.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/adaptive-card-view.tsx",
+    "turbo-repo/apps/app/src/features/conversations/communications-page.tsx",
+    "turbo-repo/apps/app/src/features/conversations/connection-channel-panel.tsx",
+    "turbo-repo/apps/app/src/features/conversations/conversations-api.ts",
+    "turbo-repo/apps/app/src/features/conversations/conversations-types.ts",
+    "turbo-repo/apps/app/src/features/conversations/platform-template-page.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/platform-template-page.tsx",
+    "turbo-repo/apps/app/src/features/conversations/platform-templates-catalog.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/platform-templates-catalog.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-editor.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-findings.ts",
+    "turbo-repo/apps/app/src/features/conversations/rule-sections.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-steps-preview.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/rule-steps.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-editor.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-json.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-model.test.ts",
+    "turbo-repo/apps/app/src/features/conversations/template-model.ts",
+    "turbo-repo/apps/app/src/features/conversations/template-picker.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-picker.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-previews.test.tsx",
+    "turbo-repo/apps/app/src/features/conversations/template-previews.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/basic-auth-credential-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/basic-auth-credential-modal.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credentials-page-content.tsx",
+    "turbo-repo/apps/app/src/features/credentials/credential.types.test.ts",
+    "turbo-repo/apps/app/src/features/credentials/credential.types.ts",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.test.ts",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/package-lock.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.18",
+      "tag": "app@v0.6.18"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.6.16",
+      "version": "0.6.18",
+      "tag": "docs@v0.6.18"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.6.17",
+      "version": "0.6.18",
+      "tag": "web@v0.6.18"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.54",
+      "version": "0.5.55",
+      "tag": "modulith@v0.5.55"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.16",
+      "version": "0.1.16",
+      "tag": "harness@v0.1.16"
+    }
+  }
+}

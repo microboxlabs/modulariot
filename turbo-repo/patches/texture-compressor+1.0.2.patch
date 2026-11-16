@@ -1,0 +1,24 @@
+diff --git a/node_modules/texture-compressor/dist/cli/lib/utilities.js b/node_modules/texture-compressor/dist/cli/lib/utilities.js
+index 944f0a5..785e7de 100644
+--- a/node_modules/texture-compressor/dist/cli/lib/utilities.js
++++ b/node_modules/texture-compressor/dist/cli/lib/utilities.js
+@@ -7,0 +8 @@ const os_1 = require("os");
++const fs_1 = require("fs");
+@@ -11 +12 @@ const path_1 = require("path");
+-const image_size_1 = __importDefault(require("image-size"));
++const image_size_1 = require("image-size");
+@@ -33 +34 @@ exports.getFileName = (filepath) => path_1.basename(filepath, exports.getFileExt
+-exports.getImageSize = (filepath) => image_size_1.default(filepath);
++exports.getImageSize = (filepath) => image_size_1.imageSize(fs_1.readFileSync(filepath));
+diff --git a/node_modules/texture-compressor/lib/utilities.ts b/node_modules/texture-compressor/lib/utilities.ts
+index f5eeea1..789b5e0 100644
+--- a/node_modules/texture-compressor/lib/utilities.ts
++++ b/node_modules/texture-compressor/lib/utilities.ts
+@@ -2,0 +3 @@ import { platform } from 'os';
++import { readFileSync } from 'fs';
+@@ -7 +8 @@ import { basename, join, parse } from 'path';
+-import imageSize from 'image-size';
++import { imageSize } from 'image-size';
+@@ -35 +36 @@ export const getImageSize = (filepath: string): { width: number; height: number
+-  imageSize(filepath);
++  imageSize(readFileSync(filepath));

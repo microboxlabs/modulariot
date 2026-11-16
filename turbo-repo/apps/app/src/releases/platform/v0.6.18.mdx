@@ -1,0 +1,39 @@
+# 🔔 Release Notes v0.6.18 — ModularIoT
+
+### Fecha: 16/11/2026
+
+**Objetivo**: Ampliar la configuración de notificaciones con plantillas reutilizables y habilitar la autenticación básica desde Ajustes. Esta versión incluye exclusivamente evolutivos de la plataforma ModularIoT.
+
+## 🚀 Evolutivos
+
+- **📍 Plantillas de mensajes por organización**
+  - **Punto clave**: Las plantillas pueden pertenecer a una organización y definir parámetros para personalizar el título y el texto de cada notificación.
+  - **Detalle técnico**: Cada paso de una regla completa los parámetros, lo que permite reutilizar una plantilla en varias notificaciones.
+
+- **📍 Credenciales de autenticación básica**
+  - **Punto clave**: La autenticación básica ya se puede crear y editar desde Ajustes → Credenciales.
+  - **Detalle técnico**: Las credenciales se envían al backend como `BASIC_AUTH` y la tarjeta muestra el usuario.
+
+## 📊 Beneficios
+
+- Reutilización de plantillas entre distintas notificaciones de una organización.
+- Personalización del título y el texto mediante parámetros definidos por cada regla.
+- Configuración de credenciales de autenticación básica desde Ajustes.
+- Identificación del usuario asociado a las credenciales en su tarjeta.
+- Menos pasos manuales para configurar notificaciones y credenciales.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.18`
+- App: `app@v0.6.18` — actualizada.
+- Docs: `docs@v0.6.18` — actualizada.
+- Web: `web@v0.6.18` — actualizada.
+- Modulith: `modulith@v0.5.55` — actualizado.
+- Harness: `harness@v0.1.16` — sin cambios.
+- Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 0.6.18 incorpora opciones de configuración más flexibles para las notificaciones y las credenciales de autenticación básica.
+
+Las plantillas parametrizadas facilitan su reutilización, mientras que la configuración de credenciales queda disponible directamente en Ajustes.

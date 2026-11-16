@@ -1,0 +1,54 @@
+# 🔔 Release Notes v1.32.18 — ModularIoT
+
+### Fecha: 16/11/2026
+
+**Objetivo**: Esta versión mejora la gestión de notificaciones y plantillas, y habilita la autenticación básica en Ajustes. También consolida el envío de notificaciones de Teams a través de ModularIoT Communications.
+
+## 🚀 Evolutivos
+
+- **📍 Plantillas de notificación con parámetros**
+  - **Punto clave**: Las plantillas pueden pertenecer a una organización y definir parámetros que completa cada paso de regla, para reutilizar una plantilla con distintos títulos y textos. En el coordinador, las notificaciones de Teams de Mintral utilizan una plantilla propia parametrizada.
+  - **Detalle técnico**: Integración del milestone OSS `MIOT-0.6.18` (#2695) con la configuración de plantillas del coordinador (#416).
+
+- **📍 Autenticación básica en Ajustes**
+  - **Punto clave**: Se habilita la creación y edición de credenciales de autenticación básica, con usuario y contraseña; el usuario también se muestra en la tarjeta de credencial.
+  - **Detalle técnico**: La interfaz envía credenciales `BASIC_AUTH` al backend. Integración del milestone OSS `MIOT-0.6.18` (#2693).
+
+- **📍 Registro del fallo original en reintentos de feeds**
+  - **Punto clave**: El trabajo de reintento de feeds registra el fallo original (#412).
+
+## 🔧 Integraciones
+
+- **🔌 Envío de notificaciones mediante ModularIoT Communications**
+  - **Alcance**: Los trabajos `conversation.event` y `conversation.events.declare` se envían al modulith de ModularIoT en lugar de la outbox del coordinador (#417). Se elimina la ruta de webhook de Teams propia del coordinador; las notificaciones de Teams pasan por ModularIoT Communications (#418).
+
+## 🐛 Correcciones
+
+- **🐛 Inicialización del cliente de Communications**
+  - **Impacto**: Spring no podía iniciar el contexto porque `CommunicationsClient` tiene dos constructores y ninguno estaba marcado para inyección.
+  - **Solución**: Se marca el constructor público con `@Autowired` (#420).
+
+## 📊 Beneficios
+
+- Permite reutilizar plantillas por organización con parámetros para personalizar cada notificación.
+- Centraliza el envío de notificaciones de Teams a través de ModularIoT Communications.
+- Habilita la gestión de credenciales de autenticación básica desde Ajustes.
+- Conserva información del fallo original durante los reintentos de feeds.
+- Evita el error de inicio del contexto de Spring al crear el cliente de Communications.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.18`
+- App: `app@v0.6.18` (con cambios)
+- Docs: `docs@v0.6.18` (con cambios)
+- Web: `web@v0.6.18` (con cambios)
+- Modulith: `modulith@v0.5.55` (con cambios)
+- Harness: `harness@v0.1.16` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión unifica el flujo de notificaciones con ModularIoT Communications y amplía la flexibilidad de las plantillas para el coordinador y la plataforma OSS.
+
+Además, la autenticación básica ya puede configurarse desde Ajustes, mientras que los reintentos de feeds conservan el fallo original y se corrige la inicialización del cliente de Communications.

@@ -5199,7 +5199,20 @@
         "tplSectionChatsHint": "What chat connections and webhooks get",
         "tplChatsUseWhatsapp": "They send the WhatsApp text, including its format marks.",
         "tplChatText": "Text for chats",
-        "tplChatTextFromEmail": "Empty: they send the email's text."
+        "tplChatTextFromEmail": "Empty: they send the email's text.",
+        "templateNoTeams": "The template has no Teams card: only the short text is sent.",
+        "previewValues": "Preview values",
+        "previewWithExample": "Example",
+        "previewWithLatest": "Latest event",
+        "previewNoEventYet": "No {event} event has arrived yet.",
+        "previewLatestFrom": "Event of {at} · {key}",
+        "connectionDestination": "Where messages land",
+        "connectionDestinationPlaceholder": "Team › Channel",
+        "connectionDestinationSave": "Save",
+        "connectionDestinationSaved": "Destination saved",
+        "connectionDestinationFailed": "Could not save the destination",
+        "connectionNoDestination": "No destination set",
+        "connectionEditDestination": "Edit destination"
       },
       "gps": {
         "title": "GPS integration",

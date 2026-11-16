@@ -8,7 +8,10 @@
 
 import useSWR, { mutate } from "swr";
 import { parseRulePresets } from "./rule-presets.types";
-import { controlTowerRequest as request } from "@/features/symptoms/control-tower/control-tower-api";
+import {
+  ControlTowerError,
+  controlTowerRequest as request,
+} from "@/features/symptoms/control-tower/control-tower-api";
 import type { SymptomFamily } from "@/features/symptoms/maintainer/maintainer-api";
 import type {
   ChannelAccount,
@@ -139,6 +142,25 @@ export function useContactReach() {
   return useSWR<Record<string, ContactReachRule[]>>(
     contactReachKey,
     fetcher,
+    quiet
+  );
+}
+
+export const latestEventKey = (type: string) =>
+  `${CONVERSATIONS_BASE}/events/latest?type=${encodeURIComponent(type)}`;
+
+/** The newest real event of the type the organization received; null when none has arrived yet. */
+export function useLatestEvent(type: string | null) {
+  return useSWR<SampleEvent | null>(
+    type ? latestEventKey(type) : null,
+    async (url: string) => {
+      try {
+        return await request<SampleEvent>(url);
+      } catch (e) {
+        if (e instanceof ControlTowerError && e.status === 404) return null;
+        throw e;
+      }
+    },
     quiet
   );
 }
@@ -305,6 +327,7 @@ export async function createChannelConnection(
     name: string;
     baseUrl: string;
     credentialProfileId: string | null;
+    destination?: string | null;
   }
 ) {
   const created = await request<ChannelConnection>(
@@ -313,6 +336,20 @@ export async function createChannelConnection(
   );
   await mutate(connectionChannelKey(channel));
   return created;
+}
+
+/** Sets where the connection's messages land; an empty value clears it. */
+export async function setConnectionDestination(
+  channel: string,
+  connectionId: string,
+  destination: string
+) {
+  const saved = await request<ChannelConnection>(
+    `${connectionChannelKey(channel)}/connections/${encodeURIComponent(connectionId)}`,
+    { method: "PATCH", body: { destination } }
+  );
+  await mutate(connectionChannelKey(channel));
+  return saved;
 }
 
 export function useChannelAccounts(enabled = true) {

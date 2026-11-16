@@ -62,6 +62,59 @@ describe("templateFits", () => {
   });
 });
 
+const ARRIVAL = template(
+  "coordinador_arrival",
+  "Coordinador · Confirmación de arribo",
+  {
+    baseText: "Arribo del viaje {{identificadorServicio}}",
+    teams: {
+      title: "Solicitud de confirmación de arribo",
+      text: "El viaje {{identificadorServicio}} requiere su confirmación.",
+      facts: [{ title: "Cliente", value: "{{cliente}}" }],
+      actions: [{ title: "Ver en el Coordinador", url: "{{viewUrl}}" }],
+    },
+  }
+);
+
+describe("TemplatePreview, a Teams step", () => {
+  it("draws the template's card with the given values", () => {
+    render(
+      <TemplatePreview
+        template={ARRIVAL}
+        channel="teams"
+        meta={[]}
+        values={{
+          identificadorServicio: "1717959",
+          cliente: "SCL002101-01",
+          viewUrl: "https://example.com/task/1",
+        }}
+        d={d}
+      />
+    );
+    const card = screen.getByRole("figure", { name: d.previewTeamsLabel });
+    expect(card.textContent).toContain("Solicitud de confirmación de arribo");
+    expect(card.textContent).toContain(
+      "El viaje 1717959 requiere su confirmación."
+    );
+    expect(card.textContent).toContain("SCL002101-01");
+    expect(card.textContent).toContain("Ver en el Coordinador");
+  });
+
+  it("says a template without a card sends only its short text", () => {
+    render(
+      <TemplatePreview
+        template={{ ...ARRIVAL, teams: null }}
+        channel="teams"
+        meta={[]}
+        values={{ identificadorServicio: "42" }}
+        d={d}
+      />
+    );
+    expect(screen.getByText(d.templateNoTeams)).toBeTruthy();
+    expect(screen.getByText("42")).toBeTruthy();
+  });
+});
+
 describe("TemplatePreview", () => {
   it("draws an email with its subject and body, with sample values", () => {
     render(

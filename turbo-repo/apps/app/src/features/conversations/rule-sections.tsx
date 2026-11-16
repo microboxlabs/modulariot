@@ -175,6 +175,7 @@ export function GroupsSection({
 export function StepsSection({
   spec,
   templates,
+  variables = [],
   errors,
   changed,
   readOnly,
@@ -183,6 +184,8 @@ export function StepsSection({
 }: Readonly<{
   spec: RuleSpec;
   templates: ConversationTemplate[];
+  /** The trigger event's variables, for the previews' example values. */
+  variables?: EventField[];
   errors: Record<number, StepIssues>;
   changed: boolean;
   readOnly: boolean;
@@ -254,6 +257,8 @@ export function StepsSection({
           steps={spec.steps}
           groups={spec.groups}
           templates={templates}
+          event={spec.trigger.event}
+          variables={variables}
           errors={errors}
           readOnly={readOnly}
           d={d}

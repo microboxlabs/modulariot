@@ -366,6 +366,8 @@ export interface ChannelConnection {
   status: string;
   lastTestedAt: string | null;
   lastTestResult: boolean | null;
+  /** Where its messages land, such as a Teams team and channel; the URL does not say it. */
+  destination?: string | null;
 }
 
 /** A channel delivered through connections: the body each of them receives, and the connections. */

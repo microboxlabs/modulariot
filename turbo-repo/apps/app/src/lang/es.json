@@ -5199,7 +5199,20 @@
         "tplSectionChatsHint": "Lo que reciben las conexiones de chat y los webhooks",
         "tplChatsUseWhatsapp": "Envían el texto de WhatsApp, incluidas las marcas de formato.",
         "tplChatText": "Texto para chats",
-        "tplChatTextFromEmail": "Vacío: envían el texto del correo."
+        "tplChatTextFromEmail": "Vacío: envían el texto del correo.",
+        "templateNoTeams": "La plantilla no tiene tarjeta de Teams: se envía solo el texto corto.",
+        "previewValues": "Valores de la vista previa",
+        "previewWithExample": "Ejemplo",
+        "previewWithLatest": "Último evento",
+        "previewNoEventYet": "Aún no llega ningún evento {event}.",
+        "previewLatestFrom": "Evento del {at} · {key}",
+        "connectionDestination": "Destino de los mensajes",
+        "connectionDestinationPlaceholder": "Equipo › Canal",
+        "connectionDestinationSave": "Guardar",
+        "connectionDestinationSaved": "Destino guardado",
+        "connectionDestinationFailed": "No se pudo guardar el destino",
+        "connectionNoDestination": "Sin destino indicado",
+        "connectionEditDestination": "Editar destino"
       },
       "gps": {
         "title": "Integración GPS",

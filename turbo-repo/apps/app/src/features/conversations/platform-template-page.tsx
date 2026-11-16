@@ -75,7 +75,7 @@ export default function PlatformTemplatePage({
             key={template?.version ?? templateKey}
             template={template ?? null}
             readOnly={readOnly}
-            organization={!platformScope}
+            organization={!platformScope && own}
             takenKeys={(all ?? []).map((t) => t.key)}
             lang={lang}
             d={d}

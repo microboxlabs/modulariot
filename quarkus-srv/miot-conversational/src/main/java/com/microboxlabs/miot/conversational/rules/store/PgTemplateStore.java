@@ -7,6 +7,7 @@ import static com.microboxlabs.miot.conversational.rules.store.Pg.string;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.time;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.uuid;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.microboxlabs.miot.conversational.rules.ConvTemplate;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -28,7 +29,7 @@ public class PgTemplateStore implements TemplateStore {
 
     private static final String COLUMNS = """
             id, tenant_code, key, name, base_text, whatsapp::text AS whatsapp, email::text AS email,
-            teams::text AS teams, created_at, updated_at, updated_by, version""";
+            teams::text AS teams, created_at, updated_at, updated_by, version, params::text AS params""";
     private static final String LIST = SELECT + COLUMNS
             + " FROM miot_conversational.conv_template WHERE tenant_code = $1 ORDER BY key";
     private static final String FIND = SELECT + COLUMNS
@@ -36,14 +37,20 @@ public class PgTemplateStore implements TemplateStore {
     private static final String UPSERT = """
             INSERT INTO miot_conversational.conv_template
                 (id, tenant_code, key, name, base_text, whatsapp, email, teams, created_at, updated_at,
-                 updated_by, version)
-            VALUES ($1, $2, $3, $4, $5, $6::text::jsonb, $7::text::jsonb, $12::text::jsonb, $8, $8, $9, $10)
+                 updated_by, version, params)
+            VALUES ($1, $2, $3, $4, $5, $6::text::jsonb, $7::text::jsonb, $12::text::jsonb, $8, $8, $9, $10,
+                    $13::text::jsonb)
             ON CONFLICT (tenant_code, key) DO UPDATE SET
                 name = EXCLUDED.name, base_text = EXCLUDED.base_text, whatsapp = EXCLUDED.whatsapp,
                 email = EXCLUDED.email, teams = EXCLUDED.teams, updated_at = EXCLUDED.updated_at,
-                updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+                updated_by = EXCLUDED.updated_by, version = EXCLUDED.version,
+                params = EXCLUDED.params
             WHERE miot_conversational.conv_template.version IS NOT DISTINCT FROM $11::varchar
             RETURNING\s""" + COLUMNS;
+    private static final String DELETE =
+            "DELETE FROM miot_conversational.conv_template WHERE tenant_code = $1 AND key = $2 RETURNING id";
+    private static final TypeReference<List<ConvTemplate.Param>> PARAMS = new TypeReference<>() {
+    };
 
     private final Supplier<Pool> pool;
 
@@ -71,8 +78,14 @@ public class PgTemplateStore implements TemplateStore {
         Tuple params = Tuple.tuple().addUUID(uuid(t.id())).addString(t.tenantCode()).addString(t.key())
                 .addString(t.name()).addString(t.baseText()).addString(Pg.write(t.whatsapp()))
                 .addString(Pg.write(t.email())).addOffsetDateTime(time(t.updatedAt())).addString(t.updatedBy())
-                .addString(t.version()).addString(expectedVersion).addString(Pg.write(t.teams()));
+                .addString(t.version()).addString(expectedVersion).addString(Pg.write(t.teams()))
+                .addString(t.params().isEmpty() ? null : Pg.write(t.params()));
         return templates(query(pool.get(), UPSERT, params)).stream().findFirst();
+    }
+
+    @Override
+    public boolean delete(String tenantCode, String key) {
+        return query(pool.get(), DELETE, Tuple.of(tenantCode, key)).size() > 0;
     }
 
     private static List<ConvTemplate> templates(RowSet<Row> rows) {
@@ -82,7 +95,8 @@ public class PgTemplateStore implements TemplateStore {
                 Pg.read(r.getString("whatsapp"), ConvTemplate.WhatsApp.class),
                 Pg.read(r.getString("email"), ConvTemplate.Email.class),
                 Pg.read(r.getString("teams"), ConvTemplate.Teams.class), instant(r, "created_at"),
-                instant(r, "updated_at"), r.getString("updated_by"), r.getString("version"))));
+                instant(r, "updated_at"), r.getString("updated_by"), r.getString("version"),
+                Pg.read(r.getString("params"), PARAMS))));
         return out;
     }
 }

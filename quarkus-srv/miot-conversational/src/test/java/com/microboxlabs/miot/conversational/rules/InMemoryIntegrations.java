@@ -5,6 +5,7 @@ import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.IntegrationTemplate;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationTemplateRequest;
+import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
 import com.microboxlabs.miot.integrations.service.IntegrationOperationInvoker;
 import com.microboxlabs.miot.integrations.service.IntegrationTemplateService;
@@ -59,6 +60,22 @@ final class InMemoryIntegrations {
         public IntegrationConnection getConnection(String tenantCode, String connectionId) {
             return connections.stream().filter(c -> c.tenantCode().equals(tenantCode) && c.id().equals(connectionId))
                     .findFirst().orElse(null);
+        }
+
+        @Override
+        public IntegrationConnection updateConnection(String tenantCode, String connectionId,
+                UpdateIntegrationConnectionRequest req) {
+            IntegrationConnection c = getConnection(tenantCode, connectionId);
+            if (c == null) {
+                return null;
+            }
+            IntegrationConnection updated = new IntegrationConnection(c.id(), c.tenantCode(),
+                    req.name() == null ? c.name() : req.name(), c.providerType(),
+                    req.baseUrl() == null ? c.baseUrl() : req.baseUrl(), c.credentialProfileId(), c.status(),
+                    c.lastTestedAt(), c.lastTestResult(), req.metadata() == null ? c.metadata() : req.metadata(),
+                    c.templateId());
+            connections.set(connections.indexOf(c), updated);
+            return updated;
         }
 
         @Override

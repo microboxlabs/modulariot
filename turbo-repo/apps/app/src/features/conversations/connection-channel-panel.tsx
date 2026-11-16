@@ -20,6 +20,7 @@ import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import { ChannelHeader } from "./channel-panel";
 import {
   createChannelConnection,
+  setConnectionDestination,
   useConnectionChannel,
 } from "./conversations-api";
 import type {
@@ -47,15 +48,100 @@ function contractTemplate(
 
 const TEST_ROLES = new Set(["OWNER", "ADMIN", "PLATFORM_OWNER"]);
 
+/**
+ * Where the connection's messages land, such as "Equipo › Canal": the URL does not say it, and a step shows it
+ * next to the connection. Editable by whoever can maintain the channel.
+ */
+function DestinationField({
+  channelKey,
+  connection,
+  canMaintain,
+  d,
+}: Readonly<{
+  channelKey: string;
+  connection: ChannelConnection;
+  canMaintain: boolean;
+  d: I18nRecord;
+}>) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(connection.destination ?? "");
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await setConnectionDestination(channelKey, connection.id, value.trim());
+      toast.success(tr("connectionDestinationSaved", d));
+      setEditing(false);
+    } catch {
+      toast.error(tr("connectionDestinationFailed", d));
+    } finally {
+      setSaving(false);
+    }
+  };
+  if (editing)
+    return (
+      <form
+        className="mt-1 flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <input
+          aria-label={tr("connectionDestination", d)}
+          placeholder={tr("connectionDestinationPlaceholder", d)}
+          maxLength={200}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-80 max-w-full rounded-md border border-gray-300 bg-gray-50 px-2 py-1 text-xs text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        />
+        <Button size="xs" color="blue" type="submit" disabled={saving}>
+          {saving ? <Spinner size="xs" /> : tr("connectionDestinationSave", d)}
+        </Button>
+        <Button
+          size="xs"
+          color="light"
+          type="button"
+          onClick={() => {
+            setValue(connection.destination ?? "");
+            setEditing(false);
+          }}
+        >
+          {tr("cancel", d)}
+        </Button>
+      </form>
+    );
+  return (
+    <p className={`flex items-center gap-2 text-xs ${MUTED}`}>
+      <span className="truncate">
+        {connection.destination ?? tr("connectionNoDestination", d)}
+      </span>
+      {canMaintain && (
+        <button
+          type="button"
+          className="font-medium text-blue-700 hover:underline dark:text-blue-400"
+          onClick={() => setEditing(true)}
+        >
+          {tr("connectionEditDestination", d)}
+        </button>
+      )}
+    </p>
+  );
+}
+
 function ConnectionRow({
+  channelKey,
   connection,
   orgSlug,
   canTest,
+  canMaintain,
   d,
 }: Readonly<{
+  channelKey: string;
   connection: ChannelConnection;
   orgSlug: string | null;
   canTest: boolean;
+  canMaintain: boolean;
   d: I18nRecord;
 }>) {
   const [testing, setTesting] = useState(false);
@@ -78,6 +164,12 @@ function ConnectionRow({
         <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
           {connection.name}
         </p>
+        <DestinationField
+          channelKey={channelKey}
+          connection={connection}
+          canMaintain={canMaintain}
+          d={d}
+        />
         <p className={`truncate font-mono text-xs ${MUTED}`}>
           {connection.host}
         </p>
@@ -161,9 +253,11 @@ export default function ConnectionChannelPanel({
             {channel.connections.map((c) => (
               <ConnectionRow
                 key={c.id}
+                channelKey={channelKey}
                 connection={c}
                 orgSlug={orgSlug}
                 canTest={canTest}
+                canMaintain={canMaintain}
                 d={d}
               />
             ))}

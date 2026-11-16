@@ -49,6 +49,9 @@ public class PgRunStore implements RunStore {
             RETURNING\s""" + EVENT_COLUMNS;
     private static final String EVENT = SELECT + EVENT_COLUMNS
             + " FROM miot_conversational.conv_event WHERE id = $1";
+    private static final String LATEST_EVENT = SELECT + EVENT_COLUMNS
+            + " FROM miot_conversational.conv_event WHERE tenant_code = $1 AND type = $2 AND NOT test"
+            + " ORDER BY received_at DESC LIMIT 1";
     private static final String RULES_STARTED_BY = "SELECT DISTINCT rule_id FROM miot_conversational.conv_run"
             + " WHERE event_id = $1";
 
@@ -176,6 +179,12 @@ public class PgRunStore implements RunStore {
             return Optional.empty();
         }
         var rows = query(pool.get(), EVENT, Tuple.of(eventId)).iterator();
+        return rows.hasNext() ? Optional.of(event(rows.next())) : Optional.empty();
+    }
+
+    @Override
+    public Optional<StoredEvent> latestEvent(String tenantCode, String type) {
+        var rows = query(pool.get(), LATEST_EVENT, Tuple.of(tenantCode, type)).iterator();
         return rows.hasNext() ? Optional.of(event(rows.next())) : Optional.empty();
     }
 

@@ -9,7 +9,8 @@ import java.util.regex.Pattern;
 
 /**
  * How much saving a template changes it, in the bumps rules use. MAJOR: it loses a channel, its variables change,
- * or its WhatsApp variant sends another Meta template. MINOR: it gains a channel. PATCH: only its name or texts.
+ * its parameters change, or its WhatsApp variant sends another Meta template. MINOR: it gains a channel. PATCH:
+ * only its name, its texts or its parameters' labels.
  * The Teams card counts as a channel.
  */
 public final class TemplateBump {
@@ -25,7 +26,8 @@ public final class TemplateBump {
         boolean lostChannel = (before.whatsapp() != null && after.whatsapp() == null)
                 || (before.email() != null && after.email() == null)
                 || (before.teams() != null && after.teams() == null);
-        if (lostChannel || !variables(before).equals(variables(after)) || otherMetaTemplate(before, after)) {
+        if (lostChannel || !variables(before).equals(variables(after)) || !paramNames(before).equals(paramNames(after))
+                || otherMetaTemplate(before, after)) {
             return RuleBump.MAJOR;
         }
         if ((before.whatsapp() == null && after.whatsapp() != null)
@@ -37,7 +39,8 @@ public final class TemplateBump {
                 && Objects.equals(before.baseText(), after.baseText())
                 && Objects.equals(before.whatsapp(), after.whatsapp())
                 && Objects.equals(before.email(), after.email())
-                && Objects.equals(before.teams(), after.teams());
+                && Objects.equals(before.teams(), after.teams())
+                && Objects.equals(before.params(), after.params());
         return same ? null : RuleBump.PATCH;
     }
 
@@ -63,6 +66,12 @@ public final class TemplateBump {
                 out.add(t.teams().images().field());
             }
         }
+        return out;
+    }
+
+    private static Set<String> paramNames(ConvTemplate t) {
+        Set<String> out = new TreeSet<>();
+        t.params().forEach(p -> out.add(p.name()));
         return out;
     }
 

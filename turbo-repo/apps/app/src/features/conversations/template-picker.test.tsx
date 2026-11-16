@@ -12,8 +12,10 @@ import TemplatePicker, {
 const d = es.pages.userSettings.communications;
 
 const list = vi.hoisted(() => ({ error: undefined as Error | undefined }));
+const teams = vi.hoisted(() => ({ preview: vi.fn() }));
 vi.mock("./conversations-api", () => ({
   useConversationTemplates: () => ({ data: undefined, error: list.error }),
+  previewTemplateTeams: teams.preview,
 }));
 
 const template = (
@@ -59,6 +61,91 @@ describe("templateFits", () => {
     expect(templateFits(ALERT, "whatsapp")).toBe(false);
     expect(templateFits(PANIC, "preferred")).toBe(false);
     expect(templateFits(PANIC, "slack")).toBe(true);
+  });
+});
+
+const ARRIVAL = template(
+  "coordinador_arrival",
+  "Coordinador · Confirmación de arribo",
+  {
+    baseText: "Arribo del viaje {{identificadorServicio}}",
+    teams: {
+      title: "Solicitud de confirmación de arribo",
+      text: "El viaje {{identificadorServicio}} requiere su confirmación.",
+      facts: [{ title: "Cliente", value: "{{cliente}}" }],
+      actions: [{ title: "Ver en el Coordinador", url: "{{viewUrl}}" }],
+    },
+  }
+);
+
+describe("TemplatePreview, a Teams step", () => {
+  it("draws the card the backend builds with the given values", async () => {
+    teams.preview.mockImplementation(
+      async (_card: unknown, values: Record<string, string>) => ({
+        type: "message",
+        attachments: [
+          {
+            contentType: "application/vnd.microsoft.card.adaptive",
+            content: {
+              type: "AdaptiveCard",
+              version: "1.4",
+              body: [
+                {
+                  type: "TextBlock",
+                  text: `El viaje ${values.identificadorServicio} requiere su confirmación.`,
+                },
+              ],
+              actions: [
+                {
+                  type: "Action.OpenUrl",
+                  title: "Ver en el Coordinador",
+                  url: values.viewUrl,
+                },
+              ],
+            },
+          },
+        ],
+      })
+    );
+    const values = {
+      identificadorServicio: "1717959",
+      cliente: "SCL002101-01",
+      viewUrl: "https://example.com/task/1",
+    };
+    render(
+      <TemplatePreview
+        template={ARRIVAL}
+        channel="teams"
+        meta={[]}
+        values={values}
+        d={d}
+      />
+    );
+    expect(
+      await screen.findByText(
+        "El viaje 1717959 requiere su confirmación.",
+        {},
+        { timeout: 2000 }
+      )
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Ver en el Coordinador" })
+    ).toBeTruthy();
+    expect(teams.preview).toHaveBeenCalledWith(ARRIVAL.teams, values);
+  });
+
+  it("says a template without a card sends only its short text", () => {
+    render(
+      <TemplatePreview
+        template={{ ...ARRIVAL, teams: null }}
+        channel="teams"
+        meta={[]}
+        values={{ identificadorServicio: "42" }}
+        d={d}
+      />
+    );
+    expect(screen.getByText(d.templateNoTeams)).toBeTruthy();
+    expect(screen.getByText("42")).toBeTruthy();
   });
 });
 

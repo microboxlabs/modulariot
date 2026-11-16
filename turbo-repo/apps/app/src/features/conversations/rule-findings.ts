@@ -65,6 +65,8 @@ const TEMPLATE_CODES = new Set([
   "stepNoTemplate",
   "stepUnknownTemplate",
   "stepTemplateNoChannel",
+  "stepMissingValue",
+  "stepUnknownValue",
 ]);
 
 const CHANNEL_CODES = new Set(["stepBadChannel", "stepWaitNeedsReplies"]);

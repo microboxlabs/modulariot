@@ -114,4 +114,15 @@ final class Pg {
             throw new IllegalStateException("Stored JSON is not valid", e);
         }
     }
+
+    static <T> T read(String text, com.fasterxml.jackson.core.type.TypeReference<T> type) {
+        if (text == null) {
+            return null;
+        }
+        try {
+            return JSON.readValue(text, type);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Stored JSON is not valid", e);
+        }
+    }
 }

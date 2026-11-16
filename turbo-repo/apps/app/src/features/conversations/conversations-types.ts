@@ -52,6 +52,8 @@ export interface RuleStep {
   /** Minutes to wait for a reply; 0 does not wait. */
   waitForReply: number;
   onReply: OnReply;
+  /** The value of each of the template's parameters; a value may use the event's `{{variables}}`. */
+  values?: Record<string, string>;
 }
 
 export interface RuleSpec {
@@ -221,19 +223,36 @@ export interface TeamsVariant {
   actions?: TeamsAction[];
 }
 
+/** What a Teams step posts: `{type: "message", attachments: [{contentType, content: AdaptiveCard}]}`. */
+export interface TeamsMessage {
+  type: string;
+  attachments: { contentType: string; content: Record<string, unknown> }[];
+}
+
+/** A value each rule step that uses the template writes; `{{name}}` in the template's texts. */
+export interface TemplateParam {
+  name: string;
+  label?: string | null;
+  /** The value is a text of several lines. */
+  multiline?: boolean;
+}
+
 export interface TemplateBody {
   name: string;
   baseText: string;
   whatsapp: WhatsAppVariant | null;
   email: EmailVariant | null;
-  /** Kept as it is on save: the editor does not change it yet. */
   teams?: TeamsVariant | null;
+  params?: TemplateParam[];
 }
 
-/** A platform template: every organization's rules send it. */
+export type TemplateOwner = "platform" | "organization";
+
+/** A template of the platform, which every organization's rules send, or of one organization. */
 export interface ConversationTemplate extends TemplateBody {
   id: string;
   key: string;
+  owner?: TemplateOwner;
   /** Semantic version, raised on each save that changes the template. */
   version?: string;
   updatedAt?: string | null;
@@ -366,6 +385,8 @@ export interface ChannelConnection {
   status: string;
   lastTestedAt: string | null;
   lastTestResult: boolean | null;
+  /** Where its messages land, such as a Teams team and channel; the URL does not say it. */
+  destination?: string | null;
 }
 
 /** A channel delivered through connections: the body each of them receives, and the connections. */

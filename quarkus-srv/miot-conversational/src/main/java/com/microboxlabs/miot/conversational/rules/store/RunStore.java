@@ -25,6 +25,9 @@ public interface RunStore {
 
     Optional<StoredEvent> event(String id);
 
+    /** The newest event of this type the organization received, leaving out test events. */
+    Optional<StoredEvent> latestEvent(String tenantCode, String type);
+
     /** The ids of the rules this event started runs of. */
     Set<String> rulesStartedBy(String eventId);
 

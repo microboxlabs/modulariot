@@ -202,7 +202,29 @@ public final class RuleSpecValidator {
                     "La plantilla " + s.template() + NOT_FOUND));
         } else {
             variant(out, section, s, t, channel);
+            values(out, section, s, t);
         }
+    }
+
+    /** Each of the template's parameters needs a value; a value for no parameter is ignored. */
+    private static void values(List<Finding> out, String section, Step s, ConvTemplate t) {
+        for (ConvTemplate.Param p : t.params()) {
+            String value = s.values().get(p.name());
+            if (value == null || value.isBlank()) {
+                out.add(error(section, "stepMissingValue", Map.of(TEMPLATE, s.template(), "name", p.name()),
+                        "Falta el valor de " + label(p) + " para la plantilla " + s.template() + "."));
+            }
+        }
+        for (String name : s.values().keySet()) {
+            if (t.params().stream().noneMatch(p -> name.equals(p.name()))) {
+                out.add(warning(section, "stepUnknownValue", Map.of(TEMPLATE, s.template(), "name", name),
+                        "La plantilla " + s.template() + " no tiene el parámetro " + name + "; su valor no se usa."));
+            }
+        }
+    }
+
+    private static String label(ConvTemplate.Param p) {
+        return p.label() == null || p.label().isBlank() ? p.name() : p.label();
     }
 
     private static void timing(List<Finding> out, String section, Step s, String channel) {

@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { isPlatformScope } from "@/features/common/platform-scope";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
+import { useControlTowerAccess } from "@/features/symptoms/maintainer/maintainer-api";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import {
   useConversationTemplate,
@@ -16,7 +19,10 @@ import {
 } from "./platform-templates-catalog";
 import { TemplateEditor } from "./template-editor";
 
-/** Comunicaciones › Plantillas › one template, or `NEW_TEMPLATE` to create one; platform scope. */
+/**
+ * Comunicaciones › Plantillas › one template, or `NEW_TEMPLATE` to create one. The platform scope edits the
+ * platform's templates. An organization edits its own and reads the platform's.
+ */
 export default function PlatformTemplatePage({
   templateKey,
   dict,
@@ -24,6 +30,9 @@ export default function PlatformTemplatePage({
 }: Readonly<{ templateKey: string; dict: I18nRecord; lang: string }>) {
   const d = dict?.communications as I18nRecord;
   const router = useRouter();
+  const { activeOrg } = useOrgScopes();
+  const { canMaintain, loaded } = useControlTowerAccess();
+  const platformScope = isPlatformScope(activeOrg?.slug);
   const isNew = templateKey === NEW_TEMPLATE;
   const { data: template, error: templateError } = useConversationTemplate(
     isNew ? null : templateKey
@@ -32,7 +41,10 @@ export default function PlatformTemplatePage({
   const { data: all, error: listError } = useConversationTemplates(isNew);
   const error = isNew ? listError : templateError;
   const backHref = `/${lang}${PLATFORM_TEMPLATES_PAGE}`;
-  const ready = isNew ? all !== undefined : template;
+  const ready =
+    (isNew ? all !== undefined : template) && (platformScope || loaded);
+  const own = isNew || template?.owner === "organization";
+  const readOnly = !platformScope && !(own && canMaintain);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
@@ -62,7 +74,8 @@ export default function PlatformTemplatePage({
           <TemplateEditor
             key={template?.version ?? templateKey}
             template={template ?? null}
-            readOnly={false}
+            readOnly={readOnly}
+            organization={!platformScope && own}
             takenKeys={(all ?? []).map((t) => t.key)}
             lang={lang}
             d={d}

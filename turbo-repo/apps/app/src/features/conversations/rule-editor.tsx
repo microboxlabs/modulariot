@@ -230,6 +230,7 @@ export default function RuleEditor({
     () => sampleEvent(trigger ?? { event: "", when: null }, info),
     [trigger, info]
   );
+  const stepVariables = useMemo(() => eventVariables(info), [info]);
   const current = detail?.current?.spec;
   // Compared the way the draft is read, so defaults the stored spec leaves out are no change.
   const published = useMemo(
@@ -417,6 +418,7 @@ export default function RuleEditor({
                 <StepsSection
                   spec={spec}
                   templates={templates ?? []}
+                  variables={stepVariables}
                   errors={placed.steps}
                   changed={changes.some((c) => c.key.startsWith("step"))}
                   readOnly={readOnly}

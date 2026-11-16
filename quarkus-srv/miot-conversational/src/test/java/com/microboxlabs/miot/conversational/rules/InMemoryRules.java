@@ -166,9 +166,14 @@ final class InMemoryRules {
             }
             ConvTemplate saved = existing == null ? t : new ConvTemplate(existing.id(), t.tenantCode(), t.key(),
                     t.name(), t.baseText(), t.whatsapp(), t.email(), t.teams(), existing.createdAt(), t.updatedAt(),
-                    t.updatedBy(), t.version());
+                    t.updatedBy(), t.version(), t.params());
             templates.put(t.tenantCode() + "/" + t.key(), saved);
             return Optional.of(saved);
+        }
+
+        @Override
+        public boolean delete(String tenantCode, String key) {
+            return templates.remove(tenantCode + "/" + key) != null;
         }
     }
 
@@ -182,6 +187,13 @@ final class InMemoryRules {
         @Override
         public Optional<StoredEvent> event(String id) {
             return Optional.ofNullable(events.get(id));
+        }
+
+        @Override
+        public Optional<StoredEvent> latestEvent(String tenantCode, String type) {
+            return events.values().stream()
+                    .filter(e -> e.tenantCode().equals(tenantCode) && e.type().equals(type) && !e.test())
+                    .max(java.util.Comparator.comparing(StoredEvent::receivedAt));
         }
 
         @Override

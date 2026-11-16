@@ -8,9 +8,14 @@
 
 import useSWR, { mutate } from "swr";
 import { parseRulePresets } from "./rule-presets.types";
-import { controlTowerRequest as request } from "@/features/symptoms/control-tower/control-tower-api";
+import {
+  ControlTowerError,
+  controlTowerRequest as request,
+} from "@/features/symptoms/control-tower/control-tower-api";
 import type { SymptomFamily } from "@/features/symptoms/maintainer/maintainer-api";
 import type {
+  TeamsMessage,
+  TeamsVariant,
   ChannelAccount,
   ChannelAccountMode,
   ConversationRun,
@@ -143,6 +148,25 @@ export function useContactReach() {
   );
 }
 
+export const latestEventKey = (type: string) =>
+  `${CONVERSATIONS_BASE}/events/latest?type=${encodeURIComponent(type)}`;
+
+/** The newest real event of the type the organization received; null when none has arrived yet. */
+export function useLatestEvent(type: string | null) {
+  return useSWR<SampleEvent | null>(
+    type ? latestEventKey(type) : null,
+    async (url: string) => {
+      try {
+        return await request<SampleEvent>(url);
+      } catch (e) {
+        if (e instanceof ControlTowerError && e.status === 404) return null;
+        throw e;
+      }
+    },
+    quiet
+  );
+}
+
 export function useConversationRuns(filter: {
   rule?: string | null;
   status?: RunStatus | null;
@@ -227,12 +251,28 @@ export function previewTemplateEmail(
   });
 }
 
-/** Saves a template; only platform owners, in the platform scope, may. */
+/** The body a Teams step sends with this card and these values: one Adaptive Card, built by the backend. */
+export function previewTemplateTeams(
+  teams: TeamsVariant,
+  values: Record<string, string>
+) {
+  return request<TeamsMessage>(`${templatesKey}/teams-preview`, {
+    method: "POST",
+    body: { teams, values },
+  });
+}
+
+/** Saves a template: the platform's in the platform scope (Owner), else one of the organization's own. */
 export function saveTemplate(key: string, body: TemplateBody) {
   return request<ConversationTemplate>(templateKey(key), {
     method: "PUT",
     body,
   });
+}
+
+/** Deletes a template no rule uses: the platform's in the platform scope, else one of the organization's own. */
+export function deleteTemplate(key: string) {
+  return request<void>(templateKey(key), { method: "DELETE" });
 }
 
 export function createMetaTemplate(draft: MetaTemplateDraft) {
@@ -305,6 +345,7 @@ export async function createChannelConnection(
     name: string;
     baseUrl: string;
     credentialProfileId: string | null;
+    destination?: string | null;
   }
 ) {
   const created = await request<ChannelConnection>(
@@ -313,6 +354,20 @@ export async function createChannelConnection(
   );
   await mutate(connectionChannelKey(channel));
   return created;
+}
+
+/** Sets where the connection's messages land; an empty value clears it. */
+export async function setConnectionDestination(
+  channel: string,
+  connectionId: string,
+  destination: string
+) {
+  const saved = await request<ChannelConnection>(
+    `${connectionChannelKey(channel)}/connections/${encodeURIComponent(connectionId)}`,
+    { method: "PATCH", body: { destination } }
+  );
+  await mutate(connectionChannelKey(channel));
+  return saved;
 }
 
 export function useChannelAccounts(enabled = true) {

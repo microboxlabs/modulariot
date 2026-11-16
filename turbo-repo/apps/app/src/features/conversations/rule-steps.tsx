@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { HiEye, HiEyeOff, HiPlus, HiTrash } from "react-icons/hi";
@@ -12,6 +12,7 @@ import { PillNumber, PillSelect } from "@/features/symptoms/maintainer/ui/pill";
 import { ChannelGlyph } from "./channel-icon";
 import type {
   ConversationTemplate,
+  EventField,
   MetaTemplate,
   OnReply,
   RecipientGroup,
@@ -19,8 +20,14 @@ import type {
   RuleStep,
 } from "./conversations-types";
 import type { StepIssues } from "./rule-findings";
-import { useConnectionChannel, useOrgMetaTemplates } from "./conversations-api";
+import {
+  useConnectionChannel,
+  useLatestEvent,
+  useOrgMetaTemplates,
+} from "./conversations-api";
 import TemplatePicker, { TemplatePreview } from "./template-picker";
+import TemplateTextField from "./template-text-field";
+import { bindTemplate, exampleValues, SAMPLE_VALUES } from "./template-model";
 import {
   emptyStep,
   groupLabel,
@@ -127,19 +134,30 @@ function ConnectionPill({
         </Link>
       </span>
     );
+  const destination = connections.find((c) => c.id === value)?.destination;
   return (
-    <PillSelect
-      ariaLabel={tr("stepConnection", d)}
-      className={invalid ? ERROR_PILL : ""}
-      disabled={readOnly}
-      value={value ?? ""}
-      onChange={(v) => onChange(v || undefined)}
-      options={[
-        { value: "", label: tr("pickConnection", d) },
-        ...(known ? [] : [{ value: value ?? "", label: value ?? "" }]),
-        ...connections.map((c) => ({ value: c.id, label: c.name })),
-      ]}
-    />
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <PillSelect
+        ariaLabel={tr("stepConnection", d)}
+        className={invalid ? ERROR_PILL : ""}
+        disabled={readOnly}
+        value={value ?? ""}
+        onChange={(v) => onChange(v || undefined)}
+        options={[
+          { value: "", label: tr("pickConnection", d) },
+          ...(known ? [] : [{ value: value ?? "", label: value ?? "" }]),
+          ...connections.map((c) => ({ value: c.id, label: c.name })),
+        ]}
+      />
+      {destination && (
+        <span
+          className="text-xs text-gray-500 dark:text-gray-400"
+          title={tr("connectionDestination", d)}
+        >
+          {destination}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -208,12 +226,150 @@ function GroupChips({
   );
 }
 
+/** A value of the event as a template shows it. */
+function asText(value: unknown): string {
+  if (value == null) return "";
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+/**
+ * The step's message as its channel shows it, filled with example values or with the newest real event of the
+ * rule's trigger. The second option is off until an event of that type has arrived.
+ */
+function StepPreview({
+  template,
+  channel,
+  meta,
+  event,
+  variables,
+  d,
+}: Readonly<{
+  template: ConversationTemplate;
+  channel: string;
+  meta: MetaTemplate[];
+  event: string;
+  variables: EventField[];
+  d: I18nRecord;
+}>) {
+  const [source, setSource] = useState<"example" | "latest">("example");
+  const { data: latest } = useLatestEvent(event || null);
+  const examples = useMemo(
+    () => ({ ...SAMPLE_VALUES, ...exampleValues(variables, []) }),
+    [variables]
+  );
+  const real = source === "latest" && latest ? latest : null;
+  const values = useMemo(() => {
+    if (!real) return examples;
+    const out: Record<string, string> = { ...examples };
+    for (const [k, v] of Object.entries(real.data)) out[k] = asText(v);
+    return out;
+  }, [examples, real]);
+  const option = (on: boolean) =>
+    `rounded px-2 py-0.5 text-xs font-medium ${
+      on
+        ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white"
+        : "text-gray-600 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-300"
+    }`;
+  return (
+    <div className="flex flex-col gap-2">
+      {event && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            role="group"
+            aria-label={tr("previewValues", d)}
+            className="inline-flex rounded-md bg-gray-100 p-0.5 dark:bg-gray-700"
+          >
+            <button
+              type="button"
+              aria-pressed={source === "example"}
+              className={option(source === "example")}
+              onClick={() => setSource("example")}
+            >
+              {tr("previewWithExample", d)}
+            </button>
+            <button
+              type="button"
+              aria-pressed={source === "latest"}
+              disabled={!latest}
+              title={latest ? undefined : tr("previewNoEventYet", d, { event })}
+              className={option(source === "latest")}
+              onClick={() => setSource("latest")}
+            >
+              {tr("previewWithLatest", d)}
+            </button>
+          </div>
+          {real && (
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {tr("previewLatestFrom", d, {
+                at: new Date(real.at).toLocaleString(),
+                key: real.context?.key ?? "—",
+              })}
+            </span>
+          )}
+        </div>
+      )}
+      <TemplatePreview
+        template={template}
+        channel={channel}
+        meta={meta}
+        values={values}
+        d={d}
+      />
+    </div>
+  );
+}
+
+/**
+ * The values the step writes into its template's parameters. Each one may use the event's variables, which the
+ * template fills when it sends.
+ */
+function StepValues({
+  template,
+  values,
+  variables,
+  readOnly,
+  d,
+  onChange,
+}: Readonly<{
+  template: ConversationTemplate;
+  values: Record<string, string>;
+  variables: EventField[];
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (values: Record<string, string>) => void;
+}>) {
+  const known = variables.length ? new Set(variables.map((v) => v.name)) : null;
+  return (
+    <div className="flex w-full flex-col gap-2 border-t border-gray-100 pt-2 dark:border-gray-700">
+      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+        {tr("stepValuesTitle", d, { template: template.name })}
+      </span>
+      {(template.params ?? []).map((p) => (
+        <TemplateTextField
+          key={p.name}
+          label={p.label || p.name}
+          value={values[p.name] ?? ""}
+          onChange={(v) => onChange({ ...values, [p.name]: v })}
+          variables={variables}
+          known={known}
+          d={d}
+          readOnly={readOnly}
+          multiline={Boolean(p.multiline)}
+          rows={p.multiline ? 4 : undefined}
+        />
+      ))}
+    </div>
+  );
+}
+
 function StepCard({
   step,
   handle,
   templates,
   groups,
   meta,
+  event,
+  variables,
   issues,
   readOnly,
   d,
@@ -225,6 +381,8 @@ function StepCard({
   templates: ConversationTemplate[];
   groups: RecipientGroup[];
   meta: MetaTemplate[];
+  event: string;
+  variables: EventField[];
   issues: StepIssues | undefined;
   readOnly: boolean;
   d: I18nRecord;
@@ -234,6 +392,10 @@ function StepCard({
   const viaConnection = !writesToGroups(step.channel);
   const [previewing, setPreviewing] = useState(false);
   const template = templates.find((t) => t.key === step.template);
+  const bound = useMemo(
+    () => template && bindTemplate(template, step.values),
+    [template, step.values]
+  );
   const emptyLabel = viaConnection
     ? tr("stepTemplateOptional", d)
     : tr("pickTemplate", d);
@@ -320,12 +482,24 @@ function StepCard({
           ))}
         </div>
       )}
-      {template && previewing && (
+      {template && (template.params ?? []).length > 0 && (
+        <StepValues
+          template={template}
+          values={step.values ?? {}}
+          variables={variables}
+          readOnly={readOnly}
+          d={d}
+          onChange={(values) => onSet({ values })}
+        />
+      )}
+      {bound && previewing && (
         <div className="w-full border-t border-gray-100 pt-2 dark:border-gray-700">
-          <TemplatePreview
-            template={template}
+          <StepPreview
+            template={bound}
             channel={step.channel}
             meta={meta}
+            event={event}
+            variables={variables}
             d={d}
           />
         </div>
@@ -478,6 +652,8 @@ export default function RuleSteps({
   steps,
   groups,
   templates,
+  event = "",
+  variables = [],
   errors = {},
   readOnly,
   d,
@@ -486,6 +662,10 @@ export default function RuleSteps({
   steps: RuleStep[];
   groups: RecipientGroup[];
   templates: ConversationTemplate[];
+  /** The trigger's event type: the previews can fill the templates with its newest real event. */
+  event?: string;
+  /** The trigger event's variables: the previews' example values. */
+  variables?: EventField[];
   /** The validator's findings by step index. */
   errors?: Record<number, StepIssues>;
   readOnly: boolean;
@@ -542,6 +722,8 @@ export default function RuleSteps({
                   templates={templates}
                   groups={groups}
                   meta={meta ?? []}
+                  event={event}
+                  variables={variables}
                   issues={errors[i]}
                   readOnly={readOnly}
                   d={d}

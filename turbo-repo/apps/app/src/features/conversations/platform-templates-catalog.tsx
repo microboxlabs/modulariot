@@ -27,7 +27,17 @@ export const TEMPLATE_CHANNELS = ["whatsapp", "email"] as const;
 
 /** The channels a template has a version for. */
 function channelsOf(t: ConversationTemplate) {
-  return TEMPLATE_CHANNELS.filter((c) => t[c] != null);
+  return [
+    ...TEMPLATE_CHANNELS.filter((c) => t[c] != null),
+    ...(t.teams ? (["teams"] as const) : []),
+  ];
+}
+
+/** Whose the template is, for a tag: the organization's own or the platform's. */
+function ownerText(t: ConversationTemplate, d: I18nRecord) {
+  return t.owner === "organization"
+    ? tr("tplOwnerOrganization", d)
+    : tr("tplOwnerPlatform", d);
 }
 
 function usedByText(t: ConversationTemplate, d: I18nRecord) {
@@ -103,6 +113,7 @@ export function TemplateCard({
         <span className={TAG} title={usedByNames(t) || undefined}>
           {usedByText(t, d)}
         </span>
+        <span className={TAG}>{ownerText(t, d)}</span>
       </div>
       {/* Keeps the footers of a row of cards on one line. */}
       <div className="min-h-3 flex-1" />
@@ -139,12 +150,12 @@ function TemplatesTable({
   templates,
   lang,
   d,
-  readOnly,
+  readOnly = false,
 }: Readonly<{
   templates: ConversationTemplate[];
   lang: string;
   d: I18nRecord;
-  readOnly: boolean;
+  readOnly?: boolean;
 }>) {
   return (
     <CatalogTable
@@ -173,7 +184,9 @@ function TemplatesTable({
                 {t.name}
               </Link>
             )}
-            <div className={`font-mono ${MUTED}`}>{t.key}</div>
+            <div className={`font-mono ${MUTED}`}>
+              {t.key} · {ownerText(t, d)}
+            </div>
           </td>
           <td className="px-4 py-2.5">
             <span className="flex items-center gap-1">
@@ -203,22 +216,22 @@ function TemplatesTable({
 }
 
 /**
- * Comunicaciones › Plantillas: the templates rules send, as cards or a table. The platform scope edits them and
- * counts every organization's rules; an organization reads them with its own rules that use each.
+ * Comunicaciones › Plantillas: the templates rules send, as cards or a table. The platform scope edits the
+ * platform's and counts every organization's rules. An organization edits its own and reads the platform's, each
+ * with its rules that use it.
  */
 export default function MessageTemplatesPanel({
   channel,
   layout,
   lang,
   d,
-  readOnly = false,
 }: Readonly<{
   channel: string;
   layout: CatalogLayout;
   lang: string;
   d: I18nRecord;
-  readOnly?: boolean;
 }>) {
+  // Every template opens its page; one the caller cannot change opens read-only there.
   const { data, error, isLoading } = useConversationTemplates();
   const all = data ?? [];
   const shown = all.filter(
@@ -242,23 +255,12 @@ export default function MessageTemplatesPanel({
       {shown.length > 0 && layout === "cards" && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {shown.map((t) => (
-            <TemplateCard
-              key={t.key}
-              t={t}
-              lang={lang}
-              d={d}
-              readOnly={readOnly}
-            />
+            <TemplateCard key={t.key} t={t} lang={lang} d={d} />
           ))}
         </div>
       )}
       {shown.length > 0 && layout === "list" && (
-        <TemplatesTable
-          templates={shown}
-          lang={lang}
-          d={d}
-          readOnly={readOnly}
-        />
+        <TemplatesTable templates={shown} lang={lang} d={d} />
       )}
     </>
   );

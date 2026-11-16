@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MetaTemplate, TemplateBody } from "./conversations-types";
 import {
+  bindTemplate,
   changedFields,
   exampleValues,
   htmlToText,
@@ -179,5 +180,57 @@ describe("changedFields and metaNameFrom", () => {
     expect(metaNameFrom("alerta-de-cuota")).toBe("alerta_de_cuota");
     expect(metaNameFrom("___alerta__de_cuota___")).toBe("alerta__de_cuota");
     expect(metaNameFrom("_".repeat(20_000))).toBe("");
+  });
+});
+
+describe("bindTemplate", () => {
+  const body = {
+    name: "Alerta",
+    baseText: "{{titulo}}: {{mensaje}}",
+    whatsapp: null,
+    email: { subject: "{{titulo}}", body: null, html: "<p>{{titulo}}</p>" },
+    teams: {
+      title: "{{titulo}}",
+      text: "{{mensaje}}",
+      facts: [{ title: "Nivel", value: "{{level}}" }],
+      actions: [{ title: "Ver", url: "{{viewUrl}}" }],
+    },
+    params: [{ name: "titulo" }, { name: "mensaje", multiline: true }],
+  };
+
+  it("writes the step's values into every text and keeps the event's variables", () => {
+    const bound = bindTemplate(body, { titulo: "A & <B> {{assetId}}" });
+    expect(bound.baseText).toBe("A & <B> {{assetId}}: ");
+    expect(bound.email?.subject).toBe("A & <B> {{assetId}}");
+    expect(bound.email?.html).toBe("<p>A &amp; &lt;B&gt; {{assetId}}</p>");
+    expect(bound.teams?.title).toBe("A & <B> {{assetId}}");
+    expect(bound.teams?.text).toBe("");
+    expect(bound.teams?.facts?.[0].value).toBe("{{level}}");
+    expect(bound.teams?.actions?.[0].url).toBe("{{viewUrl}}");
+  });
+
+  it("leaves a template without parameters as it is", () => {
+    const plain = { ...body, params: [] };
+    expect(bindTemplate(plain, { titulo: "x" })).toBe(plain);
+  });
+
+  it("reports bad, repeated and WhatsApp-bound parameters", () => {
+    const keys = templateFindings({
+      body: {
+        ...body,
+        whatsapp: { metaName: "m", language: "es", params: [] },
+        params: [{ name: "a b" }, { name: "x" }, { name: "x" }],
+      },
+      keyTaken: false,
+      variables: null,
+      metaTemplates: undefined,
+    }).map((f) => f.key);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        "tplParamBadName",
+        "tplParamRepeated",
+        "tplParamsNoWhatsapp",
+      ])
+    );
   });
 });

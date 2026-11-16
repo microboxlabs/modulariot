@@ -16,6 +16,7 @@ import { useConversationTemplates } from "./conversations-api";
 import type { ConversationTemplate, MetaTemplate } from "./conversations-types";
 import { findMetaTemplate } from "./meta-template-combobox";
 import MetaTemplatePreview from "./meta-template-preview";
+import { TeamsCardPreview } from "./template-previews";
 import { fillText } from "./rule-model";
 import { htmlToText, SAMPLE_VALUES } from "./template-model";
 
@@ -46,10 +47,13 @@ export function templateFits(
   return true;
 }
 
-function Filled({ text }: Readonly<{ text: string }>) {
+function Filled({
+  text,
+  values = SAMPLE_VALUES,
+}: Readonly<{ text: string; values?: Record<string, string> }>) {
   return (
     <>
-      {fillText(text, SAMPLE_VALUES).map((p, i) => {
+      {fillText(text, values).map((p, i) => {
         const k = `${i}-${"text" in p ? p.text : p.variable}`;
         if ("text" in p) return <span key={k}>{p.text}</span>;
         return p.value === null ? (
@@ -135,7 +139,7 @@ function WhatsAppPreview({
   );
 }
 
-type PreviewPart = "whatsapp" | "email" | "base";
+type PreviewPart = "whatsapp" | "email" | "teams" | "base";
 
 function previewParts(
   template: ConversationTemplate,
@@ -144,19 +148,25 @@ function previewParts(
   if (channel === "whatsapp") return ["whatsapp"];
   if (channel === "email") return ["email"];
   if (channel === "preferred") return ["whatsapp", "email"];
+  if (channel === "teams") return ["teams"];
   return template.email ? ["email"] : ["base"];
 }
 
-/** The message a step sends with the template, drawn as its channel shows it, with sample values. */
+/**
+ * The message a step sends with the template, drawn as its channel shows it: a Teams step as its card. `values`
+ * fill the variables; the generic samples when not given.
+ */
 export function TemplatePreview({
   template,
   channel,
   meta,
+  values = SAMPLE_VALUES,
   d,
 }: Readonly<{
   template: ConversationTemplate;
   channel: string;
   meta: MetaTemplate[];
+  values?: Record<string, string>;
   d: I18nRecord;
 }>) {
   const parts = previewParts(template, channel);
@@ -169,12 +179,25 @@ export function TemplatePreview({
             <ChannelIcon channel={connection ? channel : p} size={6} />
           )}
           <div className="min-w-0 flex-1">
-            {p !== "base" && template[p] === null && (
+            {(p === "whatsapp" || p === "email") && template[p] === null && (
               <p className="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
                 {p === "whatsapp"
                   ? tr("templateNoWhatsapp", d)
                   : tr("templateNoEmail", d)}
               </p>
+            )}
+            {p === "teams" && template.teams && (
+              <TeamsCardPreview card={template.teams} values={values} d={d} />
+            )}
+            {p === "teams" && !template.teams && (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {tr("templateNoTeams", d)}
+                </p>
+                <p className="whitespace-pre-wrap break-words rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-900 dark:bg-gray-700 dark:text-gray-100">
+                  <Filled text={template.baseText || "—"} values={values} />
+                </p>
+              </div>
             )}
             {p === "whatsapp" && template.whatsapp && (
               <WhatsAppPreview template={template} meta={meta} d={d} />
@@ -184,7 +207,7 @@ export function TemplatePreview({
             )}
             {p === "base" && (
               <p className="whitespace-pre-wrap break-words rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-900 dark:bg-gray-700 dark:text-gray-100">
-                <Filled text={template.baseText || "—"} />
+                <Filled text={template.baseText || "—"} values={values} />
               </p>
             )}
           </div>
@@ -271,8 +294,9 @@ export default function TemplatePicker({
           aria-label={tr("stepTemplate", d)}
           placeholder={emptyLabel}
           displayValue={() => current?.name ?? value}
+          title={current?.name ?? value}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-52 border-0 bg-transparent py-0.5 pl-2 pr-6 text-sm outline-none placeholder:text-gray-900 focus:ring-0 dark:placeholder:text-white"
+          className="w-72 border-0 bg-transparent py-0.5 pl-2 pr-6 text-sm outline-none placeholder:text-gray-900 focus:ring-0 dark:placeholder:text-white"
         />
         <ComboboxButton
           aria-label={tr("templateList", d)}

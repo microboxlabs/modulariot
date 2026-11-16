@@ -275,7 +275,7 @@ export default function CommunicationsPage({
               }}
             />
           )}
-          {section === "templates" && platformScope && (
+          {section === "templates" && (platformScope || canMaintain) && (
             <Link
               href={platformTemplateHref(lang, NEW_TEMPLATE)}
               className="inline-flex items-center rounded-lg bg-blue-700 px-3 py-2 text-xs font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
@@ -308,7 +308,6 @@ export default function CommunicationsPage({
               layout={layout}
               lang={lang}
               d={d}
-              readOnly={!platformScope}
             />
           )}
           {section === "meta" && (

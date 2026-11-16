@@ -66,18 +66,17 @@ const TEAMS_CSS = `
 .miot-teams-card p { margin: 0; }
 `;
 
+const ESCAPES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
+/** Escapes markup but keeps the character references a text already has (`&lt;`), which Teams shows decoded. */
 const escapeHtml = (s: string) =>
-  s.replace(/[&<>"']/g, (c) =>
-    c === "&"
-      ? "&amp;"
-      : c === "<"
-        ? "&lt;"
-        : c === ">"
-          ? "&gt;"
-          : c === '"'
-            ? "&quot;"
-            : "&#39;"
-  );
+  s.replace(/&(?!#?\w+;)|[<>"']/g, (c) => ESCAPES[c]);
 
 /** The Markdown Teams draws in a TextBlock: bold, italics, web links and line breaks; everything else as text. */
 export function teamsMarkdown(text: string): string {

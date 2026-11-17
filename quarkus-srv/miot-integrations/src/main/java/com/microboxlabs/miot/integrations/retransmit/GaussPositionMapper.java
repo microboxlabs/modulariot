@@ -61,8 +61,9 @@ public final class GaussPositionMapper {
                 provider,
                 telecom != null ? telecom.getString("gps_provider") : null,
                 defaults.eventProvider());
-        // No IMEI reaches the platform yet: fall back to <provider>-<plate>.
+        // Gauss expects the device IMEI. Without it: SIM ICCID, then <provider>-<plate>.
         String deviceId = firstNonBlank(
+                telecom != null ? telecom.getString("imei") : null,
                 telecom != null ? telecom.getString("iccid") : null,
                 retransmitPayload.getString("device_id"),
                 eventProvider + "-" + vehicleCode);

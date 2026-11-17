@@ -106,6 +106,17 @@ class GaussPositionMapperTest {
     }
 
     @Test
+    void imeiWinsOverIccidAsDeviceId() {
+        JsonObject payload = new JsonObject()
+                .put("asset_id", "ABCD12")
+                .put("gps", new JsonObject().put("latitude", 1.0).put("longitude", 2.0))
+                .put("telecom", new JsonObject().put("iccid", "8956012345678901234").put("imei", "863719062160560"));
+
+        assertEquals("863719062160560",
+                GaussPositionMapper.toGaussPosition(payload, defaults, "acme-gps").getString("deviceId"));
+    }
+
+    @Test
     void unknownProviderKeepsDefaults() {
         JsonObject payload = new JsonObject()
                 .put("asset_id", "ABCD12")

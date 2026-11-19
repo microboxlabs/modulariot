@@ -10,8 +10,10 @@ import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.pgclient.PgConnectOptions;
 import io.vertx.sqlclient.PoolOptions;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +25,7 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 class PgTxAcquireTest {
 
     private static final Duration SHORT = Duration.ofMillis(300);
+    private final ExecutorService holder = Executors.newSingleThreadExecutor();
     private Vertx vertx;
     private Pool pool;
 
@@ -36,6 +39,7 @@ class PgTxAcquireTest {
 
     @AfterEach
     void tearDown() {
+        holder.shutdownNow();
         pool.closeAndAwait();
         vertx.closeAndAwait();
     }
@@ -44,7 +48,7 @@ class PgTxAcquireTest {
     void aTimedOutTransactionDoesNotLeakTheConnection() throws Exception {
         CountDownLatch holding = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        CompletableFuture<Object> a = CompletableFuture.supplyAsync(() -> PgTx.inTransaction(pool, () -> {
+        Future<Object> a = holder.submit(() -> PgTx.inTransaction(pool, () -> {
             holding.countDown();
             await(release);
             return "a";

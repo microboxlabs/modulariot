@@ -1,0 +1,48 @@
+# 🔔 Release Notes v1.32.19 — ModularIoT
+
+### Fecha: 19/11/2026
+
+**Objetivo**: Mejorar la continuidad de los datos de identificación y conducción en los flujos de enriquecimiento y retransmisión, junto con las integraciones OSS del milestone MIOT-0.6.19. La versión también contempla optimizaciones de lectura en la base de datos.
+
+## 🚀 Evolutivos
+
+- **📍 Datos de IMEI en el flujo de telemetría**
+  - **Key point**: El modelo GPS incorpora `telecom.imei`; los servicios de enriquecimiento y última señal lo conservan, y el escritor de base de datos lo almacena en `telcom_imei`.
+  - **Technical detail**: Integración OSS del milestone MIOT-0.6.19 en `quarkus-gps-model` y `quarkus-lastsignal`; en el alcance privado, almacenamiento mediante la migración V1.66.0.
+
+- **📍 Datos de conducción en retransmisiones**
+  - **Key point**: El enriquecimiento incorpora datos de conductor y aceleración; la retransmisión puede incluir iButton, `driverCode`, acelerómetro y proveedor real de la señal.
+  - **Technical detail**: Integración OSS del milestone MIOT-0.6.19 en `quarkus-subscriber-enrichment-assetdata` y en la función `process_enriched_position_retransmit` (V1.65.0).
+
+- **📍 Configuración de retransmisión Gauss**
+  - **Key point**: Gauss obtiene el proveedor del tenant de la organización, prioriza IMEI sobre ICCID como identificador del dispositivo y admite un heartbeat opcional por equipo.
+  - **Technical detail**: Integración OSS del milestone MIOT-0.6.19 en ModularIoT.
+
+- **📍 Optimización de exportación de síntomas**
+  - **Key point**: Está prevista una mejora para filtrar los síntomas por `created_at` durante la lectura de `fn_dx_ta_export`.
+  - **Technical detail**: El cambio propuesto corresponde a la migración V1.66.0; el elemento permanece abierto en el alcance de esta versión.
+
+## 📊 Beneficios
+
+- Mantiene el IMEI disponible a través de distintos componentes del flujo GPS.
+- Facilita el almacenamiento y consulta del IMEI junto con los datos del dispositivo.
+- Enriquece los datos disponibles para las retransmisiones de posiciones.
+- Permite configurar proveedor, identificador y heartbeat de Gauss desde el contexto de la organización y el equipo.
+- La optimización propuesta busca reducir lecturas innecesarias de síntomas en las exportaciones.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.19`
+- App: `app@v0.6.19` (con cambios)
+- Docs: `docs@v0.6.19` (con cambios)
+- Web: `web@v0.6.18` (sin cambios)
+- Modulith: `modulith@v0.5.56` (con cambios)
+- Harness: `harness@v0.1.16` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build de la aplicación y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión amplía la continuidad de los datos de identificación y conducción entre el modelo GPS, el enriquecimiento, el almacenamiento y la retransmisión, e incorpora los cambios OSS correspondientes al milestone MIOT-0.6.19.
+
+La optimización de exportación permanece como trabajo planificado en el alcance. Las versiones de los componentes indican qué partes del stack cambiaron y cuáles permanecen sin cambios.

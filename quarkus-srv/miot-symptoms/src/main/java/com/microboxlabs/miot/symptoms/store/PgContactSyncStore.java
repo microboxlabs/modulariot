@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.store;
 import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
 import static com.microboxlabs.miot.symptoms.store.PgIds.query;
 
+import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.symptoms.catalog.store.PgJson;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -55,7 +56,7 @@ public class PgContactSyncStore implements ContactSyncStore {
     /** An open transaction pins the lock's connection even through a transaction-mode pooler. */
     @Override
     public <T> Optional<T> exclusively(String name, Supplier<T> work) {
-        SqlConnection conn = pool.get().getConnection().await().atMost(QUERY_TIMEOUT);
+        SqlConnection conn = PgTx.acquire(pool.get(), QUERY_TIMEOUT);
         try {
             var transaction = conn.begin().await().atMost(QUERY_TIMEOUT);
             try {

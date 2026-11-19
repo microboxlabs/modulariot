@@ -155,7 +155,7 @@ public final class PgTx {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             IllegalStateException interrupted = new IllegalStateException("interrupted waiting for a connection", e);
-            abandon(acquired, interrupted).close();
+            abandon(acquired, interrupted).getDelegate().close();
             throw interrupted;
         } catch (ExecutionException e) {
             throw e.getCause() instanceof RuntimeException r ? r : new IllegalStateException(e.getCause());

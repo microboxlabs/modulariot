@@ -11,6 +11,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
+import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
@@ -41,10 +43,19 @@ public class PoolLiveness implements HealthCheck {
     private final AtomicReference<Failing> failing = new AtomicReference<>();
 
     @Inject
-    PoolLiveness(Instance<Pool> pool,
+    PoolLiveness(Instance<Pool> pool, Config config,
             @ConfigProperty(name = "miot.db.liveness.down-after", defaultValue = "60s") Duration downAfter,
             @ConfigProperty(name = "miot.db.liveness.failures", defaultValue = "3") int failures) {
-        this(() -> pool.isResolvable() ? pool.get() : null, Clock.systemUTC(), ACQUIRE_TIMEOUT, downAfter, failures);
+        this(() -> needsDatabase(config) && pool.isResolvable() ? pool.get() : null,
+                Clock.systemUTC(), ACQUIRE_TIMEOUT, downAfter, failures);
+    }
+
+    private static boolean needsDatabase(Config config) {
+        // Match FlywayMigrator: gateway-only deployments do not require a database.
+        return config.getOptionalValue("quarkus.datasource.active", Boolean.class).orElse(true)
+                && Stream.of("fleet", "tracking", "integrations", "conversational", "symptoms", "trips", "places")
+                        .anyMatch(name -> config.getOptionalValue("miot.component." + name + ".enabled", Boolean.class)
+                                .orElse(false));
     }
 
     PoolLiveness(Supplier<Pool> pool, Clock clock, Duration acquireTimeout, Duration downAfter, int failures) {

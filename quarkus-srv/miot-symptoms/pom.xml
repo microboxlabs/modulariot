@@ -66,6 +66,11 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-micrometer</artifactId>
         </dependency>
+        <!-- The Control Tower's tenant-wide case reads are kept a few seconds per tenant (store.CaseReadCache). -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-caffeine</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-messaging-pulsar</artifactId>

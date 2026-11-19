@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.store;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -12,9 +13,11 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
@@ -55,6 +58,8 @@ class CaseReadCacheTest {
 
     @Test
     void concurrentMissesOnOneKeyRunOneQuery() throws Exception {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        CaseReadCache shared = new CaseReadCache(Duration.ofSeconds(20), meters);
         AtomicInteger calls = new AtomicInteger();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
@@ -71,12 +76,13 @@ class CaseReadCacheTest {
         ExecutorService threads = Executors.newFixedThreadPool(8);
         try {
             List<Future<Integer>> reads = new ArrayList<>();
-            reads.add(threads.submit(() -> cache.get("tenant-a", "towerCounts", slow, "REQUIRED")));
+            reads.add(threads.submit(() -> shared.get("tenant-a", "towerCounts", slow, "REQUIRED")));
             assertTrue(started.await(10, TimeUnit.SECONDS));
             for (int i = 0; i < 7; i++) {
-                reads.add(threads.submit(() -> cache.get("tenant-a", "towerCounts", slow, "REQUIRED")));
+                reads.add(threads.submit(() -> shared.get("tenant-a", "towerCounts", slow, "REQUIRED")));
             }
-            Thread.sleep(100);
+            await().atMost(Duration.ofSeconds(10)).until(() ->
+                    meters.counter("miot.symptoms.control_tower.cache", "result", "hit").count() == 7);
             release.countDown();
             for (Future<Integer> read : reads) {
                 assertEquals(42, read.get(10, TimeUnit.SECONDS));
@@ -146,11 +152,15 @@ class CaseReadCacheTest {
     }
 
     @Test
-    void entriesExpireAfterTheTtl() throws Exception {
-        CaseReadCache shortLived = new CaseReadCache(Duration.ofMillis(50), null);
+    void entriesExpireAfterTheTtl() {
+        AtomicLong nanos = new AtomicLong();
+        CaseReadCache shortLived = new CaseReadCache(Duration.ofSeconds(20), null, nanos::get);
         AtomicInteger calls = new AtomicInteger();
         shortLived.get("tenant-a", "openCounts", counting(calls));
-        Thread.sleep(150);
+        nanos.set(Duration.ofSeconds(19).toNanos());
+        shortLived.get("tenant-a", "openCounts", counting(calls));
+        assertEquals(1, calls.get(), "hits do not extend the TTL");
+        nanos.set(Duration.ofSeconds(20).toNanos());
         shortLived.get("tenant-a", "openCounts", counting(calls));
         assertEquals(2, calls.get());
     }
@@ -174,6 +184,39 @@ class CaseReadCacheTest {
                     throw down;
                 })));
         assertEquals(7, cache.get("tenant-a", "openCounts", () -> 7));
+    }
+
+    @Test
+    void anErrorReleasesWaitersAndIsNotKept() throws Exception {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        CaseReadCache shared = new CaseReadCache(Duration.ofSeconds(20), meters);
+        AssertionError failure = new AssertionError("load failed");
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try (ExecutorService threads = Executors.newFixedThreadPool(2)) {
+            Future<Integer> owner = threads.submit(() -> shared.get("tenant-a", "openCounts", () -> {
+                started.countDown();
+                try {
+                    assertTrue(release.await(10, TimeUnit.SECONDS));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                throw failure;
+            }));
+            assertTrue(started.await(10, TimeUnit.SECONDS));
+            Future<Integer> waiter = threads.submit(() -> shared.get("tenant-a", "openCounts", () -> 99));
+            try {
+                await().atMost(Duration.ofSeconds(10)).until(() ->
+                        meters.counter("miot.symptoms.control_tower.cache", "result", "hit").count() == 1);
+            } finally {
+                release.countDown();
+            }
+            assertSame(failure, assertThrows(ExecutionException.class,
+                    () -> owner.get(10, TimeUnit.SECONDS)).getCause());
+            assertSame(failure, assertThrows(ExecutionException.class,
+                    () -> waiter.get(10, TimeUnit.SECONDS)).getCause());
+        }
+        assertEquals(7, shared.get("tenant-a", "openCounts", () -> 7));
     }
 
     @Test

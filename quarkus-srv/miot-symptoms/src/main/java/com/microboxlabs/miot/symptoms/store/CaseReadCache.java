@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.store;
 
 import com.github.benmanes.caffeine.cache.AsyncCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.microboxlabs.miot.core.db.PgTx;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -45,8 +46,12 @@ public class CaseReadCache {
     public CaseReadCache(
             @ConfigProperty(name = "miot.symptoms.control-tower.cache-ttl", defaultValue = "20S") Duration ttl,
             MeterRegistry meters) {
+        this(ttl, meters, Ticker.systemTicker());
+    }
+
+    CaseReadCache(Duration ttl, MeterRegistry meters, Ticker ticker) {
         this.cache = ttl.isZero() || ttl.isNegative() ? null
-                : Caffeine.newBuilder().expireAfterWrite(ttl).maximumSize(MAX_ENTRIES).buildAsync();
+                : Caffeine.newBuilder().ticker(ticker).expireAfterWrite(ttl).maximumSize(MAX_ENTRIES).buildAsync();
         this.hits = meters == null ? null : meters.counter("miot.symptoms.control_tower.cache", "result", "hit");
         this.misses = meters == null ? null : meters.counter("miot.symptoms.control_tower.cache", "result", "miss");
     }
@@ -65,16 +70,10 @@ public class CaseReadCache {
             return (T) join(running);
         }
         count(misses);
-        try {
-            T value = load.get();
-            mine.complete(value);
-            return value;
-        } catch (RuntimeException | Error e) {
-            // Caffeine drops a failed future; the callers waiting on it get the same failure.
-            mine.completeExceptionally(e);
-            cache.asMap().remove(key, mine);
-            throw e;
-        }
+        // Complete on the calling thread, preserving its context. CompletableFuture also completes on Error,
+        // so waiters cannot be stranded; Caffeine drops failed futures and join rethrows the original cause.
+        mine.completeAsync(load::get, Runnable::run);
+        return (T) join(mine);
     }
 
     /** Drops {@code tenant}'s entries once the open transaction commits, or now outside one; null drops all. */

@@ -1,12 +1,18 @@
 package com.microboxlabs.miot.symptoms.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.db.PgTx;
+import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.CaseFilter;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.OperatorScope;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.domain.Treatment;
+import com.microboxlabs.miot.symptoms.domain.ActionKind;
+import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
@@ -25,6 +31,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterAll;
@@ -178,5 +185,139 @@ class PgCaseReadCacheTest {
 
         assertEquals(0, inbox(tenantA));
         assertTrue(cases.openLevels(tenantA).isEmpty());
+    }
+
+    @Test
+    void filtersPagesAndTenantsKeepSeparateEntries() {
+        UUID a = symptom(tenantA);
+        long first = open(tenantA, a, "TRUCK-1", 1);
+        long second = open(tenantA, a, "TRUCK-2", 3);
+        long other = open(tenantB, symptom(tenantB), "TRUCK-9", 1);
+        CaseFilter truck = new CaseFilter(null, "TRUCK-1", null, null, null, null);
+
+        assertEquals(List.of(first), cases.list(tenantA, truck).stream().map(EngineCase::id).toList());
+        assertEquals(2, cases.list(tenantA, CaseFilter.OPEN).size());
+        assertEquals(List.of(other), cases.list(tenantB, CaseFilter.OPEN).stream().map(EngineCase::id).toList());
+        assertEquals(1, cases.matchingCounts(tenantA, truck).stream().mapToLong(EngineCaseStore.OpenCount::count).sum());
+        assertEquals(2, cases.matchingCounts(tenantA, CaseFilter.OPEN).stream()
+                .mapToLong(EngineCaseStore.OpenCount::count).sum());
+        assertEquals(List.of(second), cases.page(tenantA, CaseFilter.OPEN, 1, 1).cases().stream()
+                .map(EngineCase::id).toList());
+        assertEquals(List.of(first), cases.page(tenantA, CaseFilter.OPEN, 2, 1).cases().stream()
+                .map(EngineCase::id).toList());
+        assertEquals(2, cases.page(tenantA, CaseFilter.OPEN, 1, 2).cases().size());
+        assertTrue(cases.towerCounts(tenantA, OperatorScope.NONE).active().isEmpty());
+        assertEquals(2, cases.towerCounts(tenantA, OperatorScope.ALL).active().stream()
+                .mapToLong(EngineCaseStore.OpenCount::count).sum());
+        int before = queries.get();
+        cases.list(tenantA, truck);
+        cases.list(tenantB, CaseFilter.OPEN);
+        cases.page(tenantA, CaseFilter.OPEN, 1, 1);
+        assertEquals(before, queries.get(), "identical filters reuse the tenant's result");
+    }
+
+    @Test
+    void aCancelledTreatmentRefreshesEveryCachedRead() {
+        long id = open(tenantA, symptom(tenantA), "TRUCK-1", 3);
+        Treatment treatment = treatments.insert(new Treatment(null, tenantA, -id, "TRUCK-1", null, TreatmentType.CALL,
+                TreatmentStatus.OPEN, "ops@example.com", now.atOffset(ZoneOffset.UTC), null, null, null, null,
+                null)).treatment();
+        assertEquals(1, cases.list(tenantA, CaseFilter.OPEN).get(0).treatments());
+        assertEquals(1, cases.page(tenantA, CaseFilter.OPEN, 1, 10).cases().get(0).treatments());
+        assertTrue(cases.openCounts(tenantA).get(0).underTreatment());
+        assertTrue(cases.matchingCounts(tenantA, CaseFilter.OPEN).get(0).underTreatment());
+        assertEquals(1L, cases.treatmentCounts(tenantA, CaseFilter.OPEN)
+                .get(EngineCase.TreatmentState.IN_TREATMENT));
+
+        assertTrue(treatments.cancelEmpty(tenantA, treatment.id(), "ops@example.com").isPresent());
+
+        assertEquals(0, cases.list(tenantA, CaseFilter.OPEN).get(0).treatments());
+        assertEquals(0, cases.page(tenantA, CaseFilter.OPEN, 1, 10).cases().get(0).treatments());
+        assertTrue(cases.openCounts(tenantA).stream().noneMatch(EngineCaseStore.OpenCount::underTreatment));
+        assertTrue(cases.matchingCounts(tenantA, CaseFilter.OPEN).stream()
+                .noneMatch(EngineCaseStore.OpenCount::underTreatment));
+        assertEquals(1L, cases.treatmentCounts(tenantA, CaseFilter.OPEN).get(EngineCase.TreatmentState.UNTREATED));
+    }
+
+    @Test
+    void startingAndEndingAHoldRefreshesTheMapAndIgnoredCounts() {
+        long id = open(tenantA, symptom(tenantA), "TRUCK-1", 3);
+        Treatment treatment = treatments.insert(new Treatment(null, tenantA, -id, "TRUCK-1", null,
+                TreatmentType.IGNORE_CONDITION, TreatmentStatus.OPEN, "ops@example.com", now.atOffset(ZoneOffset.UTC),
+                null, null, null, null, null)).treatment();
+        assertEquals(1, inbox(tenantA));
+        assertEquals(1, cases.openLevels(tenantA).size());
+        assertEquals(0, cases.ignoredCount(tenantA));
+
+        treatments.addAction(new TreatmentAction(null, treatment.id(), tenantA, 0, ActionKind.IGNORE, null,
+                null, null, null, null, "reason", "hold", null, 300, null, null,
+                List.of(), Map.of("scope", "CASE", "until_trip_end", false), "ops@example.com", null));
+
+        assertEquals(0, inbox(tenantA));
+        assertTrue(cases.openLevels(tenantA).isEmpty());
+        assertEquals(1, cases.ignoredCount(tenantA));
+        assertEquals(1, cases.list(tenantA, CaseFilter.OPEN.withIgnored()).size());
+
+        treatments.transition(tenantA, treatment.id(), TreatmentStatus.CLOSED, "system", "returned_after_ignore",
+                null, now.atOffset(ZoneOffset.UTC));
+
+        assertEquals(1, inbox(tenantA));
+        assertEquals(1, cases.openLevels(tenantA).size());
+        assertEquals(0, cases.ignoredCount(tenantA));
+        assertTrue(cases.list(tenantA, CaseFilter.OPEN.withIgnored()).isEmpty());
+    }
+
+    @Test
+    void aStaleCloseInvalidatesOnlyTenantsWhoseCasesClosed() {
+        UUID a = symptom(tenantA);
+        open(tenantA, a, "TRUCK-1", 3);
+        open(tenantB, symptom(tenantB), "TRUCK-9", 1);
+        assertEquals(1, inbox(tenantA));
+        assertEquals(1, inbox(tenantB));
+        PgIds.query(pool, "UPDATE miot_symptoms.symptom_definition SET state = 'OFF' WHERE id = $1",
+                Tuple.of(a));
+
+        assertEquals(1, cases.closeStale(null, null, now, "state_changed").size());
+        int before = queries.get();
+
+        assertEquals(0, inbox(tenantA));
+        assertEquals(1, inbox(tenantB));
+        assertEquals(before + 1, queries.get());
+    }
+
+    @Test
+    void aTripCloseRefreshesTheCachedListAndCounts() {
+        UUID symptom = symptom(tenantA);
+        String trip = UUID.randomUUID().toString();
+        log.append(tenantA, List.of(new Transition(Kind.OPENED, symptom, "1.0.0", SymptomState.ACTIVE,
+                "TRUCK-1", now.minusSeconds(60), 3, 0, 30)),
+                new TransitionLog.Place(trip, null, null, null, null));
+        assertEquals(1, inbox(tenantA));
+        assertEquals(1, cases.list(tenantA, CaseFilter.OPEN).size());
+
+        assertEquals(1, cases.closeTrip(tenantA, trip, null, now, "trip_ended").size());
+
+        assertEquals(0, inbox(tenantA));
+        assertTrue(cases.list(tenantA, CaseFilter.OPEN).isEmpty());
+    }
+
+    @Test
+    void transactionsBypassCachedValuesAndInvalidateOnlyAfterCommit() {
+        AtomicInteger loads = new AtomicInteger();
+        assertEquals(1, cache.get(tenantA, "test", loads::incrementAndGet));
+
+        PgTx.inTransaction(pool, () -> {
+            assertEquals(2, cache.get(tenantA, "test", loads::incrementAndGet));
+            assertEquals(3, cache.get(tenantA, "test", loads::incrementAndGet));
+            cache.invalidateAfterCommit(tenantA);
+            return null;
+        });
+
+        assertEquals(4, cache.get(tenantA, "test", loads::incrementAndGet));
+        assertThrows(IllegalStateException.class, () -> PgTx.inTransaction(pool, () -> {
+            cache.invalidateAfterCommit(tenantA);
+            throw new IllegalStateException("rollback");
+        }));
+        assertEquals(4, cache.get(tenantA, "test", loads::incrementAndGet), "rollback retains committed data");
     }
 }

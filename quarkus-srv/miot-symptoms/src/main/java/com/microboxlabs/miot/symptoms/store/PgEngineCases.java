@@ -30,6 +30,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -678,14 +679,20 @@ public class PgEngineCases implements EngineCaseStore {
             """;
 
     private final Supplier<Pool> pool;
+    private final CaseReadCache cache;
 
     @Inject
-    PgEngineCases(Instance<Pool> pool) {
-        this(pool::get);
+    PgEngineCases(Instance<Pool> pool, CaseReadCache cache) {
+        this(pool::get, cache);
     }
 
     PgEngineCases(Supplier<Pool> pool) {
+        this(pool, CaseReadCache.DISABLED);
+    }
+
+    PgEngineCases(Supplier<Pool> pool, CaseReadCache cache) {
         this.pool = pool;
+        this.cache = cache;
     }
 
     /** Trip details are optional, including when the trips module is unavailable. */
@@ -744,6 +751,11 @@ public class PgEngineCases implements EngineCaseStore {
 
     @Override
     public List<OpenCount> matchingCounts(String tenantCode, CaseFilter f) {
+        return cache.get(tenantCode, "matchingCounts",
+                () -> Collections.unmodifiableList(loadMatchingCounts(tenantCode, f)), f);
+    }
+
+    private List<OpenCount> loadMatchingCounts(String tenantCode, CaseFilter f) {
         List<OpenCount> out = new ArrayList<>();
         counted(MATCHING_COUNTS, tenantCode, f, r -> out.add(new OpenCount(
                 r.getInteger(CURRENT_LEVEL), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
@@ -752,6 +764,11 @@ public class PgEngineCases implements EngineCaseStore {
 
     @Override
     public Map<EngineCase.TreatmentState, Long> treatmentCounts(String tenantCode, CaseFilter f) {
+        return cache.get(tenantCode, "treatmentCounts",
+                () -> Collections.unmodifiableMap(loadTreatmentCounts(tenantCode, f)), f);
+    }
+
+    private Map<EngineCase.TreatmentState, Long> loadTreatmentCounts(String tenantCode, CaseFilter f) {
         Map<EngineCase.TreatmentState, Long> out = new EnumMap<>(EngineCase.TreatmentState.class);
         counted(TREATMENT_COUNTS, tenantCode, f, r -> out.merge(
                 EngineCase.TreatmentState.parse(r.getString("treatment_state")), r.getLong("n"), Long::sum));
@@ -807,6 +824,10 @@ public class PgEngineCases implements EngineCaseStore {
 
     @Override
     public List<EngineCase> list(String tenantCode, CaseFilter f) {
+        return cache.get(tenantCode, "list", () -> Collections.unmodifiableList(loadList(tenantCode, f)), f);
+    }
+
+    private List<EngineCase> loadList(String tenantCode, CaseFilter f) {
         List<EngineCase> out = new ArrayList<>();
         Tuple args = arguments(tenantCode, f);
         if (!f.byTrip()) {
@@ -843,6 +864,10 @@ public class PgEngineCases implements EngineCaseStore {
 
     @Override
     public CasePage page(String tenantCode, CaseFilter f, int page, int size) {
+        return cache.get(tenantCode, "page", () -> loadPage(tenantCode, f, page, size), f, page, size);
+    }
+
+    private CasePage loadPage(String tenantCode, CaseFilter f, int page, int size) {
         Tuple args = arguments(tenantCode, f);
         String driver = plain(f.driverId());
         String carrier = plain(f.carrierId());
@@ -885,7 +910,7 @@ public class PgEngineCases implements EngineCaseStore {
             out.sort(Comparator.comparing(EngineCase::openedAt).reversed()
                     .thenComparing(Comparator.comparingLong(EngineCase::id).reversed()));
         }
-        return new CasePage(out, total, names);
+        return new CasePage(Collections.unmodifiableList(out), total, names);
     }
 
     /** {@link CaseFilter}'s operator filters as the queries read them: null keeps every case. */
@@ -906,6 +931,10 @@ public class PgEngineCases implements EngineCaseStore {
 
     @Override
     public List<OpenCount> openCounts(String tenantCode) {
+        return cache.get(tenantCode, "openCounts", () -> Collections.unmodifiableList(loadOpenCounts(tenantCode)));
+    }
+
+    private List<OpenCount> loadOpenCounts(String tenantCode) {
         List<OpenCount> out = new ArrayList<>();
         PgIds.query(pool.get(), COUNTS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenCount(
                 r.getInteger(CURRENT_LEVEL), r.getBoolean(UNDER_TREATMENT), r.getLong("n"))));
@@ -919,6 +948,10 @@ public class PgEngineCases implements EngineCaseStore {
 
     @Override
     public TowerCounts towerCounts(String tenantCode, OperatorScope operator) {
+        return cache.get(tenantCode, "towerCounts", () -> loadTowerCounts(tenantCode, operator), operator);
+    }
+
+    private TowerCounts loadTowerCounts(String tenantCode, OperatorScope operator) {
         List<OpenCount> active = new ArrayList<>();
         long ignored = 0;
         Boolean needsOperator = switch (operator) {
@@ -935,11 +968,15 @@ public class PgEngineCases implements EngineCaseStore {
                         r.getLong("n")));
             }
         }
-        return new TowerCounts(active, ignored);
+        return new TowerCounts(Collections.unmodifiableList(active), ignored);
     }
 
     @Override
     public long ignoredCount(String tenantCode) {
+        return cache.get(tenantCode, "ignoredCount", () -> loadIgnoredCount(tenantCode));
+    }
+
+    private long loadIgnoredCount(String tenantCode) {
         var rows = PgIds.query(pool.get(), IGNORED, Tuple.of(tenantCode)).iterator();
         return rows.hasNext() ? rows.next().getLong("n") : 0;
     }
@@ -953,6 +990,10 @@ public class PgEngineCases implements EngineCaseStore {
 
     @Override
     public List<OpenLevel> openLevels(String tenantCode) {
+        return cache.get(tenantCode, "openLevels", () -> Collections.unmodifiableList(loadOpenLevels(tenantCode)));
+    }
+
+    private List<OpenLevel> loadOpenLevels(String tenantCode) {
         List<OpenLevel> out = new ArrayList<>();
         PgIds.query(pool.get(), LEVELS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenLevel(
                 r.getString(ASSET_ID), r.getString("name"), r.getInteger(CURRENT_LEVEL),
@@ -1120,12 +1161,16 @@ public class PgEngineCases implements EngineCaseStore {
     public boolean close(String tenantCode, long caseId, String actor, Instant at,
             OperatorClose how,
             Consumer<OperatorClose> beforeClose) {
-        return pool.get().withTransaction(conn -> conn.preparedQuery(LOCK_DEFINITION)
+        boolean closed = pool.get().withTransaction(conn -> conn.preparedQuery(LOCK_DEFINITION)
                 .execute(Tuple.of(tenantCode, caseId))
                 .flatMap(locked -> conn.preparedQuery(LOCK).execute(Tuple.of(tenantCode, caseId)))
                 .flatMap(locked -> conn.preparedQuery(CLOSE_LEVEL).execute(Tuple.of(tenantCode, caseId)))
                 .flatMap(rows -> closeLocked(conn, tenantCode, caseId, actor, at, how, beforeClose, rows)))
                 .await().atMost(QUERY_TIMEOUT);
+        if (closed) {
+            cache.invalidateAfterCommit(tenantCode);
+        }
+        return closed;
     }
 
     @SuppressWarnings("java:S107") // Close inputs and the already-locked case snapshot.
@@ -1152,12 +1197,14 @@ public class PgEngineCases implements EngineCaseStore {
 
     @Override
     public List<StaleCase> closeStale(String tenantCode, UUID definitionId, Instant at, String reason) {
-        return pool.get().withTransaction(conn -> conn.query(SWEEP_LOCK).execute()
+        List<StaleCase> closed = pool.get().withTransaction(conn -> conn.query(SWEEP_LOCK).execute()
                 .flatMap(locked -> conn.preparedQuery(SWEEP_DEFINITIONS).execute(Tuple.of(tenantCode, definitionId)))
                 .flatMap(locked -> conn.preparedQuery(CLOSE_STALE)
                         .execute(Tuple.of(tenantCode, definitionId, at.atOffset(ZoneOffset.UTC), reason)))
                 .map(PgEngineCases::staleCases))
                 .await().atMost(tenantCode == null ? SWEEP_TIMEOUT : QUERY_TIMEOUT);
+        invalidate(closed);
+        return closed;
     }
 
     @Override
@@ -1185,7 +1232,7 @@ public class PgEngineCases implements EngineCaseStore {
                 .hasNext()) {
             return List.of();
         }
-        return pool.get().withTransaction(conn -> PgTripState.lock(conn, tenantCode, tripId)
+        List<StaleCase> closed = pool.get().withTransaction(conn -> PgTripState.lock(conn, tenantCode, tripId)
                 .flatMap(window -> TripEnds.REASON.equals(reason)
                         ? PgTripState.remember(conn, tenantCode, tripId, at, window)
                         : Uni.createFrom().voidItem())
@@ -1199,6 +1246,13 @@ public class PgEngineCases implements EngineCaseStore {
                                 snapshots, keepAsset})))
                 .map(PgEngineCases::staleCases))
                 .await().atMost(QUERY_TIMEOUT);
+        invalidate(closed);
+        return closed;
+    }
+
+    /** Drops the cached reads of the organizations whose cases closed. */
+    private void invalidate(List<StaleCase> closed) {
+        closed.stream().map(StaleCase::tenantCode).distinct().forEach(cache::invalidateAfterCommit);
     }
 
     /** A delayed truck-change notice must never close the truck the trip moved back to. */

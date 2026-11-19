@@ -182,6 +182,7 @@ public class PgTreatmentStore implements TreatmentStore {
             GROUP BY symptom_id""";
 
     private final Supplier<Pool> pool;
+    private final CaseReadCache cache;
 
     /** Older writers encoded JSON as a JSON string; new writes bind text before casting to jsonb. */
     private static String detailsJson(String column) {
@@ -190,16 +191,31 @@ public class PgTreatmentStore implements TreatmentStore {
     }
 
     @Inject
-    PgTreatmentStore(Instance<Pool> pool) {
-        this(pool::get);
+    PgTreatmentStore(Instance<Pool> pool, CaseReadCache cache) {
+        this(pool::get, cache);
     }
 
     PgTreatmentStore(Supplier<Pool> pool) {
-        this.pool = pool;
+        this(pool, CaseReadCache.DISABLED);
     }
 
+    PgTreatmentStore(Supplier<Pool> pool, CaseReadCache cache) {
+        this.pool = pool;
+        this.cache = cache;
+    }
+
+    /**
+     * Opens a treatment or a hold; the organization's cached case reads are dropped once it commits, as after every
+     * treatment write here.
+     */
     @Override
     public Inserted insert(Treatment t) {
+        Inserted inserted = insertTreatment(t);
+        cache.invalidateAfterCommit(t.tenantCode());
+        return inserted;
+    }
+
+    private Inserted insertTreatment(Treatment t) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime openedAt = t.openedAt() == null ? now : t.openedAt();
         TreatmentStatus status = t.status() == null ? TreatmentStatus.OPEN : t.status();
@@ -315,9 +331,12 @@ public class PgTreatmentStore implements TreatmentStore {
                    AND NOT EXISTS (SELECT 1 FROM miot_symptoms.treatment_action a
                                     WHERE a.tenant_code = $1 AND a.treatment_id = $2)
                 RETURNING\s""" + TREATMENT_COLUMNS;
-        return pool.get().withTransaction(tx -> tx.preparedQuery(lock).execute(Tuple.of(tenantCode, uuid))
+        Optional<Treatment> cancelled = pool.get().withTransaction(tx -> tx.preparedQuery(lock)
+                .execute(Tuple.of(tenantCode, uuid))
                 .flatMap(ignored -> tx.preparedQuery(cancel).execute(Tuple.of(tenantCode, uuid, actor)))
                 .map(rows -> treatments(rows).stream().findFirst())).await().atMost(QUERY_TIMEOUT);
+        cancelled.ifPresent(ignored -> cache.invalidateAfterCommit(tenantCode));
+        return cancelled;
     }
 
     @Override
@@ -332,7 +351,9 @@ public class PgTreatmentStore implements TreatmentStore {
                 .addString(tenantCode).addUUID(uuid).addString(status.name()).addString(actor)
                 .addOffsetDateTime(at == null ? OffsetDateTime.now(ZoneOffset.UTC) : at).addString(resolution)
                 .addString(note);
-        return treatments(query(pool.get(), TRANSITION, params)).stream().findFirst();
+        Optional<Treatment> changed = treatments(query(pool.get(), TRANSITION, params)).stream().findFirst();
+        changed.ifPresent(ignored -> cache.invalidateAfterCommit(tenantCode));
+        return changed;
     }
 
     @Override
@@ -346,7 +367,7 @@ public class PgTreatmentStore implements TreatmentStore {
             throw new IllegalArgumentException("contactId not found: " + a.contactId());
         }
         OffsetDateTime performedAt = a.performedAt() == null ? OffsetDateTime.now(ZoneOffset.UTC) : a.performedAt();
-        return pool.get().withTransaction(tx -> tx.preparedQuery(TOUCH_TREATMENT)
+        TreatmentAction added = pool.get().withTransaction(tx -> tx.preparedQuery(TOUCH_TREATMENT)
                         .execute(Tuple.of(a.tenantCode(), treatmentId, performedAt, a.kind().name()))
                         .flatMap(touched -> {
                             if (touched.rowCount() == 0) {
@@ -360,6 +381,9 @@ public class PgTreatmentStore implements TreatmentStore {
                                 performedAt)))
                         .map(rows -> actions(rows).get(0)))
                 .await().atMost(QUERY_TIMEOUT);
+        // The case list shows the latest action's outcome.
+        cache.invalidateAfterCommit(a.tenantCode());
+        return added;
     }
 
     @Override
@@ -479,7 +503,9 @@ public class PgTreatmentStore implements TreatmentStore {
                 connection.preparedQuery(LOCK_CALL_RECORDS).execute(Tuple.of(tenantCode))
                         .flatMap(ignored -> connection.preparedQuery(UPDATE_CALL).execute(params)))
                 .await().atMost(QUERY_TIMEOUT);
-        return actions(rows).stream().findFirst();
+        Optional<TreatmentAction> updated = actions(rows).stream().findFirst();
+        updated.ifPresent(ignored -> cache.invalidateAfterCommit(tenantCode));
+        return updated;
     }
 
     @Override

@@ -106,14 +106,20 @@ public class PgTransitionLog implements TransitionLog {
             """;
 
     private final Supplier<Pool> pool;
+    private final CaseReadCache cache;
 
     @Inject
-    PgTransitionLog(Instance<Pool> pool) {
-        this(pool::get);
+    PgTransitionLog(Instance<Pool> pool, CaseReadCache cache) {
+        this(pool::get, cache);
     }
 
     PgTransitionLog(Supplier<Pool> pool) {
+        this(pool, CaseReadCache.DISABLED);
+    }
+
+    PgTransitionLog(Supplier<Pool> pool, CaseReadCache cache) {
         this.pool = pool;
+        this.cache = cache;
     }
 
     /** The symptom's newest OPENED or CLOSED row on the vehicle. */
@@ -211,7 +217,7 @@ public class PgTransitionLog implements TransitionLog {
             Map<String, Object> context, boolean checkTrip, boolean evaluated, Supplier<Uni<Void>> validation) {
         if (transitions.isEmpty()) return new Appended(List.of(), Set.of());
         boolean opening = transitions.stream().anyMatch(t -> t.kind() == Transition.Kind.OPENED);
-        return pool.get().withTransaction(conn -> {
+        Appended appended = pool.get().withTransaction(conn -> {
             Uni<PgTripState.Window> trip = checkTrip || (evaluated && opening)
                     ? PgTripState.lock(conn, tenantCode, place.tripId())
                     : Uni.createFrom().item(new PgTripState.Window(false, false, null, null));
@@ -224,6 +230,10 @@ public class PgTransitionLog implements TransitionLog {
             }).flatMap(assetCheck::replaceWith)
                     .flatMap(window -> write(conn, tenantCode, transitions, place, context, window, evaluated, validation));
         }).await().atMost(QUERY_TIMEOUT);
+        if (!appended.recorded().isEmpty()) {
+            cache.invalidateAfterCommit(tenantCode);
+        }
+        return appended;
     }
 
     /** Read the projection after the trip lock so a truck change we waited for is visible. */

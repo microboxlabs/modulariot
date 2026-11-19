@@ -39,16 +39,22 @@ public class RetransmitDeliveryJob {
     private final RetransmitDeliveryRepository repository;
     private final GaussAuthClient gaussAuth;
     private final RetransmitDeliverySettings settings;
+    private final GaussProviderNames providerNames;
+    private final GaussHeartbeatJob heartbeat;
     private final String workerId;
     private final HttpClient httpClient;
 
     RetransmitDeliveryJob(
             RetransmitDeliveryRepository repository,
             GaussAuthClient gaussAuth,
-            RetransmitDeliverySettings settings) {
+            RetransmitDeliverySettings settings,
+            GaussProviderNames providerNames,
+            GaussHeartbeatJob heartbeat) {
         this.repository = repository;
         this.gaussAuth = gaussAuth;
         this.settings = settings;
+        this.providerNames = providerNames;
+        this.heartbeat = heartbeat;
         this.workerId = "retransmit-" + UUID.randomUUID().toString().substring(0, 8);
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
@@ -78,6 +84,7 @@ public class RetransmitDeliveryJob {
         try {
             boolean gauss = useGaussFormat(delivery);
             String body;
+            JsonObject gaussPosition = null;
             HttpRequest.Builder req = HttpRequest.newBuilder()
                     .uri(URI.create(delivery.destinationUrl()))
                     .timeout(HTTP_TIMEOUT)
@@ -87,8 +94,11 @@ public class RetransmitDeliveryJob {
 
             if (gauss) {
                 JsonObject payload = new JsonObject(delivery.payload());
-                JsonArray gaussBody = GaussPositionMapper.toGaussBody(payload, settings.gaussDefaults());
-                body = gaussBody.encode();
+                String provider = providerNames
+                        .forClientId(payload.getString("ingest_client_id"))
+                        .orElse(null);
+                gaussPosition = GaussPositionMapper.toGaussPosition(payload, settings.gaussDefaults(), provider);
+                body = new JsonArray().add(gaussPosition).encode();
                 gaussAuth.applyAuthHeaders(req);
             } else {
                 body = new JsonObject(delivery.payload()).encode();
@@ -130,6 +140,9 @@ public class RetransmitDeliveryJob {
             }
 
             handleResponse(delivery, id, code, response.body(), gauss);
+            if (gauss && code >= 200 && code < 300) {
+                heartbeat.record(gaussPosition, delivery.destinationUrl());
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             failOrRetry(delivery, id, null, "interrupted: " + e.getMessage(), true);

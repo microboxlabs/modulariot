@@ -56,7 +56,7 @@ public class RetransmitDeliverySettings {
     static Defaults gaussDefaults(
             @ConfigProperty(name = "miot.integrations.retransmit.gauss.tags", defaultValue = ";MEL;")
                     String gaussTags,
-            @ConfigProperty(name = "miot.integrations.retransmit.gauss.device-type", defaultValue = "gps")
+            @ConfigProperty(name = "miot.integrations.retransmit.gauss.device-type", defaultValue = "GPS")
                     String gaussDeviceType,
             @ConfigProperty(
                             name = "miot.integrations.retransmit.gauss.event-provider",

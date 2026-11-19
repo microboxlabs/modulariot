@@ -235,8 +235,22 @@ Identifica al conductor. `co_driver_info` usa la misma estructura para el copilo
 
 ### Objeto Telecom
 
+Identifica el equipo GPS y su conectividad.
+
+```json
+{
+  "imei": "863719062160560",
+  "iccid": "8956012345678901234",
+  "imsi": "730012345678901",
+  "operator": "Entel",
+  "signal_strength": -85,
+  "gps_provider": "Teltonika"
+}
+```
+
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
+| `imei` | string | IMEI del equipo GPS (15 dígitos) |
 | `iccid` | string | ICCID de la SIM |
 | `imsi` | string | IMSI |
 | `operator` | string | Operador móvil |
@@ -244,6 +258,8 @@ Identifica al conductor. `co_driver_info` usa la misma estructura para el copilo
 | `cell_id` / `lac` | string | Celda y área de localización |
 | `signal_strength` | integer | Intensidad de señal |
 | `gps_provider` | string | Nombre del proveedor del equipo GPS |
+
+> Todos los subcampos son opcionales. Envíe `imei` en cada posición: identifica el equipo aunque se cambie la SIM. `iccid` e `imsi` identifican la SIM, no el equipo.
 
 ### Objeto Peripherals
 

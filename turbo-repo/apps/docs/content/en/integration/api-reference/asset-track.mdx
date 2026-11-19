@@ -235,8 +235,22 @@ Identifies the driver. `co_driver_info` uses the same structure for the co-drive
 
 ### Telecom Object
 
+Identifies the GPS device and its connectivity.
+
+```json
+{
+  "imei": "863719062160560",
+  "iccid": "8956012345678901234",
+  "imsi": "730012345678901",
+  "operator": "Entel",
+  "signal_strength": -85,
+  "gps_provider": "Teltonika"
+}
+```
+
 | Field | Type | Description |
 |-------|------|-------------|
+| `imei` | string | GPS device IMEI (15 digits) |
 | `iccid` | string | SIM ICCID |
 | `imsi` | string | IMSI |
 | `operator` | string | Mobile operator |
@@ -244,6 +258,8 @@ Identifies the driver. `co_driver_info` uses the same structure for the co-drive
 | `cell_id` / `lac` | string | Cell and location area |
 | `signal_strength` | integer | Signal strength |
 | `gps_provider` | string | GPS device provider name |
+
+> All sub-fields are optional. Send `imei` with every position: it identifies the device even if the SIM is replaced. `iccid` and `imsi` identify the SIM, not the device.
 
 ### Peripherals Object
 

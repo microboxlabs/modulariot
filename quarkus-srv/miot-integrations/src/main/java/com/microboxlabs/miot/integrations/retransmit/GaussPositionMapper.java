@@ -30,11 +30,16 @@ public final class GaussPositionMapper {
 
     private GaussPositionMapper() {}
 
+    public static JsonObject toGaussPosition(JsonObject retransmitPayload, Defaults defaults) {
+        return toGaussPosition(retransmitPayload, defaults, null);
+    }
+
     /**
      * @param retransmitPayload outbox payload ({@code miot.gps.retransmit@1})
      * @param defaults          tags, deviceType, eventProvider, deviceModel when source lacks them
+     * @param provider          signal provider (tenant of {@code ingest_client_id}); null when unknown
      */
-    public static JsonObject toGaussPosition(JsonObject retransmitPayload, Defaults defaults) {
+    public static JsonObject toGaussPosition(JsonObject retransmitPayload, Defaults defaults, String provider) {
         if (retransmitPayload == null) {
             throw new IllegalArgumentException("payload is required");
         }
@@ -52,14 +57,18 @@ public final class GaussPositionMapper {
                 retransmitPayload.getString("asset_id"));
 
         JsonObject telecom = retransmitPayload.getJsonObject("telecom");
-        String deviceId = firstNonBlank(
-                telecom != null ? telecom.getString("iccid") : null,
-                retransmitPayload.getString("device_id"),
-                "streamhub-" + vehicleCode);
-
         String eventProvider = firstNonBlank(
+                provider,
                 telecom != null ? telecom.getString("gps_provider") : null,
                 defaults.eventProvider());
+        // Gauss expects the device IMEI. Without it: SIM ICCID, then <provider>-<plate>.
+        String deviceId = firstNonBlank(
+                telecom != null ? telecom.getString("imei") : null,
+                telecom != null ? telecom.getString("iccid") : null,
+                retransmitPayload.getString("device_id"),
+                eventProvider + "-" + vehicleCode);
+        JsonObject driver = retransmitPayload.getJsonObject("driver");
+        JsonObject acceleration = retransmitPayload.getJsonObject("acceleration");
 
         double lat = requireDouble(gps, KEY_LATITUDE);
         double lon = requireDouble(gps, KEY_LONGITUDE);
@@ -78,21 +87,21 @@ public final class GaussPositionMapper {
         out.put(KEY_ALTITUDE, altitude);
         out.put(KEY_SPEED, speed);
         out.put("tags", normalizeTags(defaults.tags()));
-        out.putNull("driverCode");
-        out.putNull("ibuttonCode");
+        out.put("driverCode", driver != null ? firstNonBlank(driver.getString("driver_id")) : null);
+        out.put("ibuttonCode", driver != null ? firstNonBlank(driver.getString("id_button")) : null);
         if (vehiclePlate != null) {
             out.put("vehiclePlate", vehiclePlate);
         }
         out.put("deviceType", defaults.deviceType());
         out.put("deviceId", deviceId);
         out.put("headingAngle", heading);
-        out.put("eventProvider", eventProvider != null ? eventProvider : defaults.eventProvider());
+        out.put("eventProvider", eventProvider);
         out.put("deviceModel", defaults.deviceModel());
         out.put("ignition", ignition);
-        // Required by v2; enrichment does not always carry accelerometer — use gravity Z default.
-        out.put("accelerometerX", 0.0);
-        out.put("accelerometerY", 0.0);
-        out.put("accelerometerZ", 9.81);
+        // Required by v2. Without a reading, send gravity on Z.
+        out.put("accelerometerX", axis(acceleration, "x_axis", 0.0));
+        out.put("accelerometerY", axis(acceleration, "y_axis", 0.0));
+        out.put("accelerometerZ", axis(acceleration, "z_axis", 9.81));
 
         if (gps.containsKey(KEY_ODOMETER) && gps.getValue(KEY_ODOMETER) != null) {
             out.put(KEY_ODOMETER, gps.getDouble(KEY_ODOMETER));
@@ -170,6 +179,13 @@ public final class GaussPositionMapper {
         return h < 0 ? h + 360 : h;
     }
 
+    private static double axis(JsonObject acceleration, String key, double fallback) {
+        if (acceleration == null || !(acceleration.getValue(key) instanceof Number n)) {
+            return fallback;
+        }
+        return n.doubleValue();
+    }
+
     private static double requireDouble(JsonObject obj, String key) {
         Object v = obj.getValue(key);
         if (v == null) {
@@ -203,7 +219,7 @@ public final class GaussPositionMapper {
                 String tags, String deviceType, String eventProvider, String deviceModel) {
             return new Defaults(
                     tags == null || tags.isBlank() ? ";MEL;" : tags,
-                    deviceType == null || deviceType.isBlank() ? "gps" : deviceType,
+                    deviceType == null || deviceType.isBlank() ? "GPS" : deviceType,
                     eventProvider == null || eventProvider.isBlank() ? "streamhub" : eventProvider,
                     deviceModel == null || deviceModel.isBlank() ? "streamhub-miot" : deviceModel);
         }

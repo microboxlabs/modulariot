@@ -7,6 +7,9 @@ import io.vertx.pgclient.PgException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.jboss.logging.Logger;
 
@@ -93,10 +96,14 @@ public final class PgTx {
      * call joins the outer transaction.
      */
     public static <T> T inTransaction(Pool pool, Supplier<T> work) {
+        return inTransaction(pool, work, TIMEOUT);
+    }
+
+    static <T> T inTransaction(Pool pool, Supplier<T> work, Duration acquireTimeout) {
         if (TX.get() != null) {
             return work.get();
         }
-        SqlConnection conn = pool.getConnection().await().atMost(TIMEOUT);
+        SqlConnection conn = acquire(pool, acquireTimeout);
         boolean committed = false;
         Tx tx = null;
         try {
@@ -122,6 +129,48 @@ public final class PgTx {
                 }
             }
             conn.close().await().atMost(TIMEOUT);
+        }
+    }
+
+    /**
+     * Takes a connection from {@code pool}, waiting at most {@code timeout}; the caller closes it. Use this instead of
+     * {@code getConnection().await().atMost(..)}: that cancels only the Mutiny subscriber and leaves the pool's waiter
+     * queued, so the connection the pool hands over later is never closed and is lost until the pod restarts. Here a
+     * connection that arrives after the wait gave up goes straight back to the pool. Throws Mutiny's
+     * {@link io.smallrye.mutiny.TimeoutException} on timeout, as the await did.
+     */
+    public static SqlConnection acquire(Pool pool, Duration timeout) {
+        CompletableFuture<SqlConnection> acquired = new CompletableFuture<>();
+        pool.getDelegate().getConnection().onComplete(ar -> {
+            if (ar.failed()) {
+                acquired.completeExceptionally(ar.cause());
+            } else if (!acquired.complete(SqlConnection.newInstance(ar.result()))) {
+                ar.result().close();
+            }
+        });
+        try {
+            return acquired.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            return abandon(acquired, new io.smallrye.mutiny.TimeoutException());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            IllegalStateException interrupted = new IllegalStateException("interrupted waiting for a connection", e);
+            abandon(acquired, interrupted).getDelegate().close();
+            throw interrupted;
+        } catch (ExecutionException e) {
+            throw e.getCause() instanceof RuntimeException r ? r : new IllegalStateException(e.getCause());
+        }
+    }
+
+    /** Gives up the wait, or returns the connection when it arrived just before. */
+    private static SqlConnection abandon(CompletableFuture<SqlConnection> acquired, RuntimeException reason) {
+        if (acquired.completeExceptionally(reason)) {
+            throw reason;
+        }
+        try {
+            return acquired.join();
+        } catch (java.util.concurrent.CompletionException e) {
+            throw e.getCause() instanceof RuntimeException r ? r : reason;
         }
     }
 

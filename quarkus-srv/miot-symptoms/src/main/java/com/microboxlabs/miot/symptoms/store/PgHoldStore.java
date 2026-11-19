@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.store;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.symptoms.cases.HoldStore;
 import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -56,7 +57,7 @@ public class PgHoldStore implements HoldStore {
 
     @Override
     public <T> T locked(String tenantCode, String assetId, Supplier<T> work) {
-        var connection = pool.get().getConnection().await().atMost(Duration.ofSeconds(10));
+        var connection = PgTx.acquire(pool.get(), Duration.ofSeconds(10));
         Tuple key = Tuple.of(tenantCode + ":" + assetId);
         boolean acquired = false;
         try {

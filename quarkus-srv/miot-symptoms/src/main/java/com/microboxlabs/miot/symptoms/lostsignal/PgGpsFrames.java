@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
+import com.microboxlabs.miot.core.db.PgTx;
 import io.vertx.mutiny.sqlclient.Cursor;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.PreparedStatement;
@@ -125,7 +126,7 @@ public class PgGpsFrames implements GpsFrames {
      */
     void stream(String sql, Instant from, Instant to, Consumer<Row> each) {
         Tuple args = Tuple.of(from.atOffset(ZoneOffset.UTC), to.atOffset(ZoneOffset.UTC));
-        SqlConnection conn = pool.get().getConnection().await().atMost(QUERY_TIMEOUT);
+        SqlConnection conn = PgTx.acquire(pool.get(), QUERY_TIMEOUT);
         try {
             Transaction tx = conn.begin().await().atMost(QUERY_TIMEOUT);
             conn.query("SET TRANSACTION READ ONLY").execute().await().atMost(QUERY_TIMEOUT);

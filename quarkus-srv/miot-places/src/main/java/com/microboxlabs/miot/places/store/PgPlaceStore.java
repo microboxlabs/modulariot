@@ -203,7 +203,7 @@ public class PgPlaceStore implements PlaceStore {
     public <T> Optional<T> syncExclusively(Supplier<T> work) {
         // A separate transaction pins the advisory lock even behind a transaction-mode pooler. Source
         // acknowledgements commit independently, so one failed GPS write does not undo successful copies.
-        var connection = pool.get().getConnection().await().atMost(TIMEOUT);
+        var connection = PgTx.acquire(pool.get(), TIMEOUT);
         try {
             var transaction = connection.begin().await().atMost(TIMEOUT);
             try {

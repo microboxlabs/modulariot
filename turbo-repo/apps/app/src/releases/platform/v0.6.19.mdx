@@ -1,0 +1,41 @@
+# 🔔 Release Notes v0.6.19 — ModularIoT
+
+### Fecha: 19/11/2026
+
+**Objetivo**: Esta versión incorpora mejoras de la línea OSS para el manejo de identificadores IMEI y datos de última señal. También actualiza el flujo de retransmisión Gauss con configuración del tenant y heartbeat opcional por equipo.
+
+## 🚀 Evolutivos
+
+- **📍 Compatibilidad con `telecom.imei`**
+  - **Punto clave**: El modelo GPS incorpora `telecom.imei` en la versión 1.7.0, y el publicador HTTP Pulsar actualiza su dependencia a esa versión.
+  - **Detalle técnico**: El servicio de última señal conserva `telcom_imei` en `last_signal_data`.
+  - *Línea OSS — milestone MIOT-0.6.19.*
+
+- **📍 Retransmisión Gauss**
+  - **Punto clave**: La retransmisión obtiene el proveedor desde el tenant de la organización, prioriza IMEI/ICCID para el identificador del equipo y admite un heartbeat opcional por equipo.
+  - *Línea OSS — milestone MIOT-0.6.19.*
+
+## 📊 Beneficios
+
+- 🚀 **Identificación de equipos**: Se incorpora el IMEI al modelo GPS y al flujo de retransmisión Gauss.
+- 🔄 **Continuidad de datos**: La última señal conserva `telcom_imei`.
+- ⚙️ **Configuración contextual**: Gauss utiliza el proveedor configurado para el tenant de la organización.
+- 📡 **Flexibilidad operativa**: El heartbeat puede configurarse opcionalmente por equipo.
+- 🧩 **Compatibilidad entre servicios**: El publicador HTTP Pulsar adopta el modelo GPS actualizado.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.6.19`
+- **App**: `app@v0.6.19` — actualizado.
+- **Docs**: `docs@v0.6.19` — actualizado.
+- **Web**: `web@v0.6.18` — sin cambios.
+- **Modulith**: `modulith@v0.5.56` — actualizado.
+- **Harness**: `harness@v0.1.16` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 0.6.19 mejora el recorrido de los identificadores IMEI, desde el modelo GPS y la última señal hasta la retransmisión Gauss. La configuración basada en tenant y el heartbeat opcional aportan flexibilidad al flujo de retransmisión.
+
+Estos cambios corresponden exclusivamente al milestone OSS MIOT-0.6.19 y refuerzan la interoperabilidad de los servicios de la plataforma.

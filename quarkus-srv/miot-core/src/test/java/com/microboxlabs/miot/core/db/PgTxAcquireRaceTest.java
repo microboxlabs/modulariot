@@ -25,10 +25,11 @@ class PgTxAcquireRaceTest {
         var connection = connection(closed);
         CountDownLatch acquiring = new CountDownLatch(1);
         Pool pool = pool(pending, acquiring);
+        Duration timeout = Duration.ofSeconds(10);
         CompletableFuture<Boolean> interrupted = new CompletableFuture<>();
         Thread waiter = new Thread(() -> {
             try {
-                assertThrows(IllegalStateException.class, () -> PgTx.acquire(pool, Duration.ofSeconds(10)));
+                assertThrows(IllegalStateException.class, () -> PgTx.acquire(pool, timeout));
                 interrupted.complete(Thread.currentThread().isInterrupted());
             } catch (Throwable failure) {
                 interrupted.completeExceptionally(failure);
@@ -64,9 +65,10 @@ class PgTxAcquireRaceTest {
         Promise<io.vertx.sqlclient.SqlConnection> pending = Promise.promise();
         AtomicBoolean closed = new AtomicBoolean();
         Pool pool = pool(pending, new CountDownLatch(1));
+        Duration timeout = Duration.ofMillis(10);
 
         assertThrows(io.smallrye.mutiny.TimeoutException.class,
-                () -> PgTx.acquire(pool, Duration.ofMillis(10)));
+                () -> PgTx.acquire(pool, timeout));
         pending.complete(connection(closed));
 
         assertTrue(closed.get(), "a late connection must return to the pool");

@@ -1,0 +1,60 @@
+{
+  "stack_version": "0.6.21",
+  "stack_tag": "miot-stack@v0.6.21",
+  "milestone": "MIOT-0.6.21",
+  "pull_requests": [
+    {
+      "number": 2710,
+      "title": "fix(symptoms): map positions keep signal state above 2,048 assets",
+      "source_issues": [
+        {
+          "number": 2712,
+          "title": "fix(symptoms): map positions keep signal state above 2,048 assets"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorRedis.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/RedisLossStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/SignalStateFields.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/EvaluatorStreamTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/evaluator/FakeRedis.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/lostsignal/RedisLossStoreSeenTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/SignalStateFieldsTest.java"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.21",
+      "tag": "app@v0.6.21"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.6.19",
+      "version": "0.6.21",
+      "tag": "docs@v0.6.21"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.6.20",
+      "version": "0.6.20",
+      "tag": "web@v0.6.20"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.57",
+      "version": "0.5.58",
+      "tag": "modulith@v0.5.58"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.16",
+      "version": "0.1.16",
+      "tag": "harness@v0.1.16"
+    }
+  }
+}

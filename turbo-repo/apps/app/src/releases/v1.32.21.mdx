@@ -1,0 +1,37 @@
+# 🔔 Release Notes v1.32.21 — ModularIoT
+
+### Fecha: 20/11/2026
+
+**Objetivo**: Mejorar la confiabilidad de las lecturas de señal en mapas con flotas grandes. La versión integra la corrección del milestone OSS MIOT-0.6.21.
+
+## 🐛 Correcciones
+
+- **🐛 Lecturas de señal en mapas con flotas grandes**
+  - **Impacto**: Las lecturas fallaban cuando la flota excedía la cola del cliente Redis, y los activos sin perfil podían quedar en estado desconocido.
+  - **Solución**: Las lecturas de vehículos y remitentes ahora procesan lotes secuenciales de hasta 500 comandos, con un límite configurable de respuestas pendientes. Si falta el perfil y la posición supera el máximo de silencio configurado, el mapa indica que el activo está offline; los estados conocidos del detector se conservan.
+  - **Integración OSS**: Cambio incluido desde el milestone MIOT-0.6.21.
+
+## 📊 Beneficios
+
+- Lecturas de señal más confiables al crecer el número de activos.
+- Procesamiento de comandos en lotes secuenciales para las lecturas de vehículos y remitentes.
+- Mayor control sobre la cantidad de respuestas pendientes.
+- Estado offline más claro para activos sin perfil que superan el máximo de silencio configurado.
+- Conservación de los estados conocidos del detector.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.21`
+- App: `app@v0.6.21` (actualizada)
+- Docs: `docs@v0.6.21` (actualizada)
+- Web: `web@v0.6.20` (sin cambios)
+- Modulith: `modulith@v0.5.58` (actualizado)
+- Harness: `harness@v0.1.16` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión refuerza la lectura de señales en mapas para flotas grandes y mejora la interpretación del estado de activos cuyo perfil ya no está disponible.
+
+La integración del milestone OSS MIOT-0.6.21 aporta un procesamiento más controlado y estados más útiles para el seguimiento operativo.

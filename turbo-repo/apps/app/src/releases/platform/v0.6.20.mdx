@@ -1,0 +1,42 @@
+# 🔔 Release Notes v0.6.20 — ModularIoT
+
+### Fecha: 20/11/2026
+
+**Objetivo**: Mejorar el rendimiento de las lecturas de casos del Control Tower y reforzar la estabilidad de las conexiones a la base de datos. Esta versión incluye exclusivamente cambios del milestone OSS MIOT-0.6.20.
+
+## 🚀 Evolutivos
+
+- **📍 Caché por tenant para las lecturas de casos**
+  - **Punto clave**: Las consultas de casos del Control Tower usan una caché por tenant con un TTL predeterminado de 20 segundos.
+  - **Detalle técnico**: Las escrituras que modifican casos o tratamientos invalidan las entradas del tenant correspondiente después del commit.
+
+## 🐛 Correcciones
+
+- **🐛 Estabilidad del pool reactivo y consultas del mapa**
+  - **Impacto**: Una solicitud de conexión agotada podía dejar un waiter en cola e impedir que conexiones posteriores volvieran al pool; además, las consultas del mapa del Control Tower podían ser lentas.
+  - **Solución**: Se corrige la liberación de conexiones, se añade un índice para acelerar las consultas y se incorpora una comprobación de disponibilidad del pool.
+
+## 📊 Beneficios
+
+- Reduce las consultas repetidas cuando varias pestañas leen los mismos datos de un tenant.
+- Mantiene actualizadas las lecturas en caché al cambiar casos o tratamientos.
+- Evita que una solicitud de conexión agotada deje conexiones posteriores esperando indefinidamente.
+- Acelera las consultas de transiciones de señales usadas por el mapa del Control Tower.
+- Añade una comprobación de disponibilidad para facilitar la detección de problemas en el pool.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.20`
+- App: `app@v0.6.20` (actualizada)
+- Docs: `docs@v0.6.19` (sin cambios)
+- Web: `web@v0.6.20` (actualizada)
+- Modulith: `modulith@v0.5.57` (actualizado)
+- Harness: `harness@v0.1.16` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión optimiza las lecturas compartidas del Control Tower y mejora la respuesta de las consultas del mapa. La invalidación posterior a los cambios mantiene coherentes las entradas de caché.
+
+También refuerza la gestión de conexiones y la observabilidad del pool, contribuyendo a una operación más estable de la plataforma.

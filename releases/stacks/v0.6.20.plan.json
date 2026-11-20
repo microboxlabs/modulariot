@@ -1,0 +1,79 @@
+{
+  "stack_version": "0.6.20",
+  "stack_tag": "miot-stack@v0.6.20",
+  "milestone": "MIOT-0.6.20",
+  "pull_requests": [
+    {
+      "number": 2702,
+      "title": "fix(core,symptoms): reactive pool leak in PgTx and slow Control Tower map queries",
+      "source_issues": [
+        {
+          "number": 2703,
+          "title": "fix(core,symptoms): reactive pool leak in PgTx and slow Control Tower map queries"
+        }
+      ]
+    },
+    {
+      "number": 2704,
+      "title": "perf(symptoms): per-tenant cache for the Control Tower case reads",
+      "source_issues": [
+        {
+          "number": 2705,
+          "title": "perf(symptoms): per-tenant cache for the Control Tower case reads"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/db/PgTx.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/health/PoolLiveness.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/db/PgTxAcquireRaceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/db/PgTxAcquireTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/health/PoolLivenessConfigurationTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/health/PoolLivenessTest.java",
+    "quarkus-srv/miot-places/src/main/java/com/microboxlabs/miot/places/store/PgPlaceStore.java",
+    "quarkus-srv/miot-symptoms/pom.xml",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/lostsignal/PgGpsFrames.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/CaseReadCache.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgContactSyncStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgEngineCases.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgHoldStore.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTransitionLog.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/store/PgTreatmentStore.java",
+    "quarkus-srv/miot-symptoms/src/main/resources/db/migration/symptoms/V0.12.29__signal_transitions_open_case_index.sql",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/CaseReadCacheTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/store/PgCaseReadCacheTest.java"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.20",
+      "tag": "app@v0.6.20"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.6.19",
+      "version": "0.6.19",
+      "tag": "docs@v0.6.19"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.6.18",
+      "version": "0.6.20",
+      "tag": "web@v0.6.20"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.56",
+      "version": "0.5.57",
+      "tag": "modulith@v0.5.57"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.16",
+      "version": "0.1.16",
+      "tag": "harness@v0.1.16"
+    }
+  }
+}

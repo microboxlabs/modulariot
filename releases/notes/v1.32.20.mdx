@@ -1,0 +1,44 @@
+# 🔔 Release Notes v1.32.20 — ModularIoT
+
+### Fecha: 20/11/2026
+
+**Objetivo**: Esta versión integra los cambios OSS del milestone MIOT-0.6.20, con mejoras en las lecturas del Control Tower y correcciones en el acceso reactivo a la base de datos. También optimiza las consultas del mapa y añade una verificación de disponibilidad del pool.
+
+## 🚀 Evolutivos
+
+- **📍 Caché por tenant para lecturas de casos**
+  - **Punto clave**: Las consultas de casos del Control Tower usan una caché por tenant con TTL predeterminado de 20 segundos.
+  - **Detalle técnico**: Reduce consultas repetidas para un mismo tenant y clave; los cambios en casos o tratamientos invalidan las entradas del tenant después del commit.
+  - **Integración OSS**: Incluido en el milestone MIOT-0.6.20.
+
+## 🐛 Correcciones
+
+- **🐛 Fuga del pool reactivo y consultas lentas del mapa**
+  - **Impacto**: Un `getConnection()` que agotaba el tiempo podía dejar un waiter en cola e impedir que conexiones posteriores volvieran al pool; las consultas del mapa del Control Tower también requerían optimización.
+  - **Solución**: Se corrige la gestión del waiter, se añade un índice `signal_transitions` para agilizar las consultas y se incorpora una verificación de disponibilidad del pool.
+  - **Integración OSS**: Incluido en el milestone MIOT-0.6.20.
+
+## 📊 Beneficios
+
+- Menos consultas repetidas cuando varias pestañas leen datos del mismo tenant.
+- Actualización de la caché tras cambios confirmados en casos o tratamientos.
+- Recuperación adecuada de conexiones tras tiempos de espera.
+- Consultas del mapa del Control Tower más ágiles mediante un índice adicional.
+- Mayor visibilidad de la disponibilidad del pool de base de datos.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.20`
+- App: `app@v0.6.20` — actualizado.
+- Docs: `docs@v0.6.19` — sin cambios.
+- Web: `web@v0.6.20` — actualizado.
+- Modulith: `modulith@v0.5.57` — actualizado.
+- Harness: `harness@v0.1.16` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión incorpora las integraciones OSS del milestone MIOT-0.6.20 y mejora el rendimiento de las lecturas del Control Tower junto con la fiabilidad del pool reactivo.
+
+La caché por tenant, el índice del mapa y la corrección del waiter contribuyen a consultas más eficientes y a una gestión más robusta de las conexiones.

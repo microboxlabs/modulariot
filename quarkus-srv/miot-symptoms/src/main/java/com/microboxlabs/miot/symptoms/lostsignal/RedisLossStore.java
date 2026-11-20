@@ -62,6 +62,8 @@ public class RedisLossStore implements LossStore {
     static final String RETURNED = "r";
     static final String BACKFILL = "b";
     static final Duration TIMEOUT = Duration.ofSeconds(5);
+    /** Reads that grow with the fleet go in pipelines of at most this many commands, under the client's queue. */
+    static final int CHUNK = 500;
 
     /** Takes the lease when free, renews it when held: ARGV owner, ttl ms. */
     static final String LEASE_SCRIPT = """
@@ -132,7 +134,7 @@ public class RedisLossStore implements LossStore {
         if (ids.isEmpty()) {
             return Map.of();
         }
-        Map<String, Seen> out = seen(ids, batch(seenRequests(ids)));
+        Map<String, Seen> out = seen(ids, chunked(seenRequests(ids)));
         Set<String> senders = new LinkedHashSet<>();
         out.values().forEach(s -> {
             if (!s.onTrip() && s.profile().sender() != null) {
@@ -143,7 +145,7 @@ public class RedisLossStore implements LossStore {
             return out;
         }
         List<String> names = new ArrayList<>(senders);
-        List<Response> r = batch(names.stream()
+        List<Response> r = chunked(names.stream()
                 .map(n -> Request.cmd(Command.GET).arg(senderKey(n))).toList());
         Map<String, SenderProfile> profiles = new HashMap<>();
         for (int i = 0; i < names.size(); i++) {
@@ -404,6 +406,22 @@ public class RedisLossStore implements LossStore {
 
     private List<Response> batch(List<Request> requests) {
         return redis.batch(requests).await().atMost(TIMEOUT);
+    }
+
+    /**
+     * The answers of {@code requests} in their order, sent as pipelines of at most {@link #CHUNK}. Each finishes
+     * before the next acquires a connection, so a large read does not fill the client's pool waiting queue.
+     */
+    private List<Response> chunked(List<Request> requests) {
+        if (requests.size() <= CHUNK) {
+            return batch(requests);
+        }
+        List<Response> out = new ArrayList<>(requests.size());
+        for (int from = 0; from < requests.size(); from += CHUNK) {
+            List<Request> chunk = requests.subList(from, Math.min(from + CHUNK, requests.size()));
+            out.addAll(batch(chunk));
+        }
+        return out;
     }
 
     static String write(Object value) {

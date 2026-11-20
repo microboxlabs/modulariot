@@ -31,6 +31,7 @@ import com.microboxlabs.miot.core.trips.TripGeofences;
 import com.microboxlabs.miot.core.gps.SignalStates;
 import com.microboxlabs.miot.symptoms.map.SignalStateFields;
 import java.time.Clock;
+import java.time.Duration;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -77,6 +78,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final boolean legacy;
     private final Instance<SignalStates> signals;
     private final Clock clock;
+    /** Past this silence an asset the detector no longer knows is offline since its position. */
+    private final Duration maxSilence;
     private static final String GPS_UNAVAILABLE = "GPS data is not available";
     private static final String OPERATOR = "operator";
     private static final String TREATMENT = "treatment";
@@ -99,10 +102,11 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             TripWindows tripWindows,
             Instance<TripGeofences> tripGeofences,
             Instance<SignalStates> signals,
-            @ConfigProperty(name = "miot.symptoms.legacy.enabled", defaultValue = "true") boolean legacy) {
+            @ConfigProperty(name = "miot.symptoms.legacy.enabled", defaultValue = "true") boolean legacy,
+            @ConfigProperty(name = "miot.symptoms.lost-signal.max-silence", defaultValue = "P1D") Duration maxSilence) {
         this(tenantContext, organizationContext, roleService, identity,
                 new MapServices(map, treatments, cases, caseTreatments, tripWindows, tripGeofences, signals),
-                Clock.systemUTC(), legacy);
+                Clock.systemUTC(), legacy, maxSilence);
     }
 
     record MapServices(ControlTowerMapService map, ControlTowerTreatmentService treatments,
@@ -116,7 +120,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             OrganizationRoleService roleService,
             SecurityIdentity identity,
             MapServices services,
-            Clock clock, boolean legacy) {
+            Clock clock, boolean legacy, Duration maxSilence) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
         this.map = services.map();
@@ -128,6 +132,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         this.legacy = legacy;
         this.signals = services.signals();
         this.clock = clock;
+        this.maxSilence = maxSilence;
     }
 
     @GET
@@ -141,7 +146,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         String tenant = tenantCode(organizationId);
         return answer(() -> map.positions(tenantContext.getClientId())
                 .emitOn(Infrastructure.getDefaultWorkerPool())
-                .map(p -> SignalStateFields.withSignal(p, signalStates(), clock.instant()))
+                .map(p -> SignalStateFields.withSignal(p, signalStates(), clock.instant(), maxSilence))
                 .map(p -> legacy ? p : cases.withCaseLevels(tenant, p)));
     }
 
@@ -159,7 +164,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         tenantCode(organizationId);
         return answer(() -> map.positions(tenantContext.getClientId())
                 .emitOn(Infrastructure.getDefaultWorkerPool())
-                .map(p -> SignalStateFields.one(p, assetId, signalStates(), clock.instant())));
+                .map(p -> SignalStateFields.one(p, assetId, signalStates(), clock.instant(), maxSilence)));
     }
 
     private SignalStates signalStates() {

@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -109,14 +110,40 @@ public final class FakeRedis implements Redis {
         return later(r);
     }
 
+    /**
+     * Fails a batch longer than {@code max} whole, before running any of it, as vertx-redis-client does with one
+     * longer than its waiting queue ({@code RedisOptions.maxWaitingHandlers}).
+     */
+    public FakeRedis waitingQueue(int max) {
+        this.waitingQueue = max;
+        return this;
+    }
+
+    private volatile int waitingQueue = Integer.MAX_VALUE;
+    private volatile int batchCapacity = Integer.MAX_VALUE;
+    private final AtomicInteger activeBatches = new AtomicInteger();
+
+    /** Limits pipelines awaiting replies, modelling a finite connection pool without a waiting queue. */
+    public FakeRedis batchCapacity(int max) {
+        this.batchCapacity = max;
+        return this;
+    }
+
     @Override
     public Future<List<Response>> batch(List<Request> requests) {
+        if (requests.size() > waitingQueue) {
+            return Future.failedFuture(new IllegalStateException("Redis waiting queue is full"));
+        }
+        if (activeBatches.incrementAndGet() > batchCapacity) {
+            activeBatches.decrementAndGet();
+            return Future.failedFuture(new IllegalStateException("Redis connection pool is full"));
+        }
         roundTrips.incrementAndGet();
         List<Response> out = new ArrayList<>();
         synchronized (this) {
             requests.forEach(q -> out.add(exec(q)));
         }
-        return later(out);
+        return later(out).andThen(ignored -> activeBatches.decrementAndGet());
     }
 
     private <T> Future<T> later(T value) {

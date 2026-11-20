@@ -176,7 +176,8 @@ class OrgControlTowerMapResourceTest {
                 new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments),
                         new AuditService(new InMemoryAuditStore())),
                 tripWindows,
-                geofences(tripGeofences), instance(signals)), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC), legacy);
+                geofences(tripGeofences), instance(signals)), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC), legacy,
+                java.time.Duration.ofDays(1));
     }
 
     @SuppressWarnings("unchecked")

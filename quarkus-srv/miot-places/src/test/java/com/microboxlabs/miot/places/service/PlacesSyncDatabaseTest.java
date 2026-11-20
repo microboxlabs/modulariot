@@ -69,14 +69,14 @@ class PlacesSyncDatabaseTest {
     }
 
     @Test
-    void deletingAnUnsyncedPlaceNeverDeletesALegacyGeofence() {
+    void deletingAPlaceRemovesItsCodesRowButNeverATripsLocation() {
         for (String properties : new String[] {null, "{}", "{\"created_by\":\"legacy\"}",
                 "{\"created_by\":\"miot-trips\"}", "{\"created_by\":\"miot-places\"}"}) {
             Place source = place("client-a", UUID.randomUUID().toString());
             insert(source.tenantCode(), source.externalCode(), properties);
             sync.deleted(source.tenantCode(), source.externalCode(), source);
         }
-        assertEquals(5, count());
+        assertEquals(1, count(), "only the trips location geofence is left");
     }
 
     @Test

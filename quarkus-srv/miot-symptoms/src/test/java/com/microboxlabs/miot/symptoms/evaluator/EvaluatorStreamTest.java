@@ -131,7 +131,7 @@ class EvaluatorStreamTest {
 
     @Test
     void withoutRedisATripCloseClearsTheEvaluatorsEpisodeAndInvalidatesAnInflightFrame() {
-        var redis = new EvaluatorRedis(Optional.empty(), 16, 256, null);
+        var redis = new EvaluatorRedis(Optional.empty(), 16, 256, 8192, null);
         var stores = EvaluatorStream.Stores.of(redis, Duration.ofDays(7));
         var detectorEpisodes = redis.episodes(Duration.ofDays(7));
         assertSame(detectorEpisodes, stores.episodes());

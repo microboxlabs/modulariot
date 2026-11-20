@@ -109,8 +109,22 @@ public final class FakeRedis implements Redis {
         return later(r);
     }
 
+    /**
+     * Fails a batch longer than {@code max} whole, before running any of it, as vertx-redis-client does with one
+     * longer than its waiting queue ({@code RedisOptions.maxWaitingHandlers}).
+     */
+    public FakeRedis waitingQueue(int max) {
+        this.waitingQueue = max;
+        return this;
+    }
+
+    private volatile int waitingQueue = Integer.MAX_VALUE;
+
     @Override
     public Future<List<Response>> batch(List<Request> requests) {
+        if (requests.size() > waitingQueue) {
+            return Future.failedFuture(new IllegalStateException("Redis waiting queue is full"));
+        }
         roundTrips.incrementAndGet();
         List<Response> out = new ArrayList<>();
         synchronized (this) {

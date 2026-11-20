@@ -32,11 +32,15 @@ class RedisLossStoreSeenTest {
 
     /** Even vehicles reported 30 s ago, odd ones 6 h ago; each has its own sender. */
     private List<String> fleet() {
+        return fleet(profiles);
+    }
+
+    private List<String> fleet(ArrivalProfiles arrivals) {
         List<String> ids = new ArrayList<>();
         for (int i = 0; i < FLEET; i++) {
             String id = "V" + i;
             Instant at = i % 2 == 0 ? NOW.minusSeconds(30) : NOW.minus(Duration.ofHours(6));
-            profiles.observe(new Frame(id, "S" + i, at, at.plusSeconds(1), -20.0, -69.0, 50.0, true));
+            arrivals.observe(new Frame(id, "S" + i, at, at.plusSeconds(1), -20.0, -69.0, 50.0, true));
             ids.add(id);
         }
         return ids;
@@ -69,6 +73,27 @@ class RedisLossStoreSeenTest {
             offline += state.equals("offline") ? 1 : 0;
         }
         assertEquals(FLEET / 2, offline);
+    }
+
+    @Test
+    void aSingleConnectionPoolReadsEveryChunkInOrder() {
+        FakeRedis limited = new FakeRedis(1000).waitingQueue(CLIENT_QUEUE).batchCapacity(1);
+        try {
+            RedisLossStore limitedStore = new RedisLossStore(limited.mutiny(), Duration.ofDays(7));
+            ArrivalProfiles arrivals = new ArrivalProfiles(limitedStore, LossSettings.defaults());
+            List<String> ids = fleet(arrivals);
+
+            Map<String, LossStore.Seen> seen = limitedStore.seen(ids);
+
+            assertEquals(ids, new ArrayList<>(seen.keySet()));
+            for (int i = 0; i < FLEET; i++) {
+                assertEquals("S" + i, seen.get("V" + i).profile().sender());
+                assertEquals(i % 2 == 0 ? NOW.minusSeconds(30) : NOW.minus(Duration.ofHours(6)),
+                        seen.get("V" + i).profile().at());
+            }
+        } finally {
+            limited.close();
+        }
     }
 
     @Test

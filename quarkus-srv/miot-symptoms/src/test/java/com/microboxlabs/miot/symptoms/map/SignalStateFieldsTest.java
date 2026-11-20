@@ -126,10 +126,12 @@ class SignalStateFieldsTest {
 
             @Override
             public void flush() {
+                // Records are collected in memory immediately; there is no buffer to flush.
             }
 
             @Override
             public void close() {
+                // This handler owns no external resources.
             }
         };
         Logger logger = Logger.getLogger(SignalStateFields.class.getName());

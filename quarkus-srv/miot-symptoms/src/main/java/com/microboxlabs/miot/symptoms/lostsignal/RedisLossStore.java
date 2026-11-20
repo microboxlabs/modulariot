@@ -409,21 +409,17 @@ public class RedisLossStore implements LossStore {
     }
 
     /**
-     * The answers of {@code requests} in their order, sent as concurrent pipelines of at most {@link #CHUNK}: the
-     * client fails a whole pipeline longer than its waiting queue.
+     * The answers of {@code requests} in their order, sent as pipelines of at most {@link #CHUNK}. Each finishes
+     * before the next acquires a connection, so a large read does not fill the client's pool waiting queue.
      */
     private List<Response> chunked(List<Request> requests) {
         if (requests.size() <= CHUNK) {
             return batch(requests);
         }
-        List<CompletableFuture<List<Response>>> sent = new ArrayList<>();
+        List<Response> out = new ArrayList<>(requests.size());
         for (int from = 0; from < requests.size(); from += CHUNK) {
             List<Request> chunk = requests.subList(from, Math.min(from + CHUNK, requests.size()));
-            sent.add(redis.batch(chunk).subscribeAsCompletionStage());
-        }
-        List<Response> out = new ArrayList<>(requests.size());
-        for (CompletableFuture<List<Response>> s : sent) {
-            out.addAll(Uni.createFrom().completionStage(s).await().atMost(TIMEOUT));
+            out.addAll(batch(chunk));
         }
         return out;
     }

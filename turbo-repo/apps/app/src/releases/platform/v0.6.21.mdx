@@ -1,0 +1,36 @@
+# 🔔 Release Notes v0.6.21 — ModularIoT
+
+### Fecha: 20/11/2026
+
+**Objetivo**: Mejorar la disponibilidad y precisión de las lecturas de señal del mapa en flotas grandes. Esta versión corrige también la representación de activos sin perfil cuya última posición ya supera el tiempo máximo de silencio configurado.
+
+## 🐛 Correcciones
+
+- **🐛 Lecturas de señal y estado de activos en el mapa**
+  - **Impacto**: Las lecturas podían fallar cuando la flota excedía la cola del cliente Redis, y algunos activos sin perfil aparecían como desconocidos aunque su posición fuera antigua.
+  - **Solución**: Las lecturas de vehículos y remitentes ahora procesan lotes secuenciales de hasta 500 comandos, con un límite configurable de respuestas pendientes. Si falta el perfil y la posición supera el máximo de silencio configurado, el mapa indica el activo como offline; se conservan los estados conocidos del detector. (#2712)
+
+## 📊 Beneficios
+
+- Mantiene las lecturas del mapa disponibles para flotas que superan la cola del cliente Redis.
+- Permite ajustar el límite de respuestas pendientes según las necesidades de operación.
+- Representa como offline los activos sin perfil cuando su última posición excede el máximo de silencio configurado.
+- Conserva los estados conocidos del detector para evitar perder información disponible.
+- Procesa las lecturas en lotes secuenciales de hasta 500 comandos.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.21`
+- App: `app@v0.6.21` (cambió)
+- Docs: `docs@v0.6.21` (cambió)
+- Web: `web@v0.6.20` (sin cambios)
+- Modulith: `modulith@v0.5.58` (cambió)
+- Harness: `harness@v0.1.16` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión refuerza el comportamiento del mapa ante flotas grandes y mejora la interpretación de activos cuya información de perfil ya no está disponible.
+
+Los cambios corresponden exclusivamente al milestone OSS `MIOT-0.6.21`; no se incluyen cambios de clientes.

@@ -298,6 +298,22 @@ class PgTripEndTest {
     }
 
     @Test
+    void aPendingOrRejectedArrivalOrAnotherTenantsArrivalIsNotAnArrival() {
+        for (String status : List.of("pending", "rejected")) {
+            UUID running = trip("in_progress");
+            PgIds.query(pool, "INSERT INTO miot_trips.trip_milestone VALUES ($1, $2, 'arrival', $3)",
+                    Tuple.of(running, tenant, status));
+            assertEquals(new TripEnds.State(false, false), ends.states(Map.of(tenant, running.toString()))
+                    .get(tenant), status);
+        }
+        UUID foreign = trip("in_progress");
+        PgIds.query(pool, "INSERT INTO miot_trips.trip_milestone VALUES ($1, $2, 'arrival', 'confirmed')",
+                Tuple.of(foreign, "other-" + tenant));
+        assertEquals(new TripEnds.State(false, false), ends.states(Map.of(tenant, foreign.toString())).get(tenant),
+                "another tenant's arrival for the same trip id");
+    }
+
+    @Test
     void aStateReadBeforeCompletionCannotOpenTheFirstCaseAfterTheEndNotice() {
         UUID id = trip("in_progress");
         UUID definition = symptom("opening-race");

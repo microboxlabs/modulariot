@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.signal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -137,5 +138,103 @@ class PgHistoricalDeviceTripsTest {
                 .execute(Tuple.of(trip, start.plusSeconds(900).atOffset(ZoneOffset.UTC))).await().atMost(WAIT);
         assertTrue(trips.at("tenant-demo", "vehicle-moved-demo", start.plusSeconds(901)).isEmpty(),
                 "a stale live projection cannot associate an event after the trip ended");
+    }
+
+    // ---------------------------------------------------------------- TRIPS_SQL: start and arrival from milestones
+
+    private static final String TENANT = "tenant-milestones";
+    private static final Instant T0 = Instant.parse("2026-10-26T09:00:00Z");
+
+    /** A live trip on its own vehicle, not yet seen at its destination by GPS. */
+    private static UUID live(String asset) {
+        UUID trip = UUID.randomUUID();
+        pool.preparedQuery("""
+                INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id, trip_type, status,
+                    destination_visited)
+                VALUES ($1, $2, $3, 'v', 'in_progress', false)
+                """).execute(Tuple.of(trip, TENANT, asset)).await().atMost(WAIT);
+        return trip;
+    }
+
+    private static void milestone(String tenant, UUID trip, String name, String status, Instant confirmedAt) {
+        pool.preparedQuery("INSERT INTO miot_trips.trip_milestone VALUES ($1, $2, $3, $4, $5)")
+                .execute(Tuple.of(tenant, trip, name, status,
+                        confirmedAt == null ? null : confirmedAt.atOffset(ZoneOffset.UTC)))
+                .await().atMost(WAIT);
+    }
+
+    private static void stage(UUID trip, String type, Instant start, UUID versionOf) {
+        pool.preparedQuery("""
+                INSERT INTO miot_trips.stage (tenant_code, subject_type, subject_id, stage_type, actual_start,
+                    version_of, is_active)
+                VALUES ($1, 'trip', $2, $3, $4, $5, true)
+                """).execute(Tuple.of(TENANT, trip, type, start.atOffset(ZoneOffset.UTC), versionOf))
+                .await().atMost(WAIT);
+    }
+
+    private static ReferenceCache.Trip read(String asset) {
+        var rows = new DeviceEvents.PgTrips(() -> pool).of(TENANT, asset);
+        assertEquals(1, rows.size(), asset);
+        return rows.getFirst();
+    }
+
+    @Test
+    void aConfirmedDepartureStartsTheTripWhetherAStageStartedEarlierOrLater() {
+        UUID earlier = live("ms-stage-earlier");
+        milestone(TENANT, earlier, "departure", "confirmed", T0.plusSeconds(1800));
+        stage(earlier, "transit", T0, null);
+        UUID later = live("ms-stage-later");
+        milestone(TENANT, later, "departure", "confirmed", T0);
+        stage(later, "stop", T0.plusSeconds(1800), null);
+        assertEquals(T0.plusSeconds(1800), read("ms-stage-earlier").startTime());
+        assertEquals(T0, read("ms-stage-later").startTime());
+    }
+
+    @Test
+    void aPendingRejectedOrMissingDepartureStartsAtTheEarliestCurrentTransitOrStop() {
+        for (String status : new String[] {"pending", "rejected", null}) {
+            String asset = "ms-departure-" + status;
+            UUID trip = live(asset);
+            if (status != null) {
+                milestone(TENANT, trip, "departure", status, null);
+            }
+            stage(trip, "preparation", T0.minusSeconds(7200), null);
+            stage(trip, "loading", T0.minusSeconds(3600), null);
+            stage(trip, "transit", T0.minusSeconds(5400), UUID.randomUUID());
+            stage(trip, "transit", T0.plusSeconds(600), null);
+            stage(trip, "stop", T0, null);
+            assertEquals(T0, read(asset).startTime(), asset
+                    + ": preparation, loading and a superseded transit do not count");
+        }
+    }
+
+    @Test
+    void withoutADepartureOrATransitOrStopTheTripHasNotStarted() {
+        UUID trip = live("ms-nothing");
+        stage(trip, "preparation", T0, null);
+        stage(trip, "loading", T0, null);
+        ReferenceCache.Trip read = read("ms-nothing");
+        assertNull(read.startTime());
+        assertFalse(read.inProgressAt(T0.plusSeconds(3600)));
+    }
+
+    @Test
+    void onlyAConfirmedArrivalMarksTheDestinationVisited() {
+        for (String status : new String[] {"confirmed", "pending", "rejected"}) {
+            String asset = "ms-arrival-" + status;
+            milestone(TENANT, live(asset), "arrival", status, "confirmed".equals(status) ? T0 : null);
+            assertEquals("confirmed".equals(status), read(asset).details().destinationVisited(), asset);
+        }
+    }
+
+    @Test
+    void anotherTenantsMilestonesForTheSameTripIdAreIgnored() {
+        UUID trip = live("ms-foreign");
+        milestone("tenant-other", trip, "departure", "confirmed", T0.minusSeconds(3600));
+        milestone("tenant-other", trip, "arrival", "confirmed", T0);
+        stage(trip, "transit", T0, null);
+        ReferenceCache.Trip read = read("ms-foreign");
+        assertEquals(T0, read.startTime());
+        assertFalse(read.details().destinationVisited());
     }
 }

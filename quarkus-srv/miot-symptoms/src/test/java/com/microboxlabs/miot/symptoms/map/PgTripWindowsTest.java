@@ -26,6 +26,11 @@ class PgTripWindowsTest {
     private static final UUID LOADING = new UUID(0, 1);
     private static final UUID DEPARTED = new UUID(0, 2);
     private static final UUID TRANSIT = new UUID(0, 3);
+    private static final UUID STAGE_LATER = new UUID(0, 4);
+    private static final UUID PENDING = new UUID(0, 5);
+    private static final UUID REJECTED = new UUID(0, 6);
+    private static final UUID FOREIGN = new UUID(0, 7);
+    private static final UUID NOTHING = new UUID(0, 8);
     private static Vertx vertx;
     private static PgConnection connection;
 
@@ -67,6 +72,38 @@ class PgTripWindowsTest {
                      null, false),
                     ('00000000-0000-0000-0000-000000000003', 'org-b', 'trip', 'transit', '2026-10-26T06:00:00Z',
                      null, true)
+                """);
+        // the milestone baseline: one trip per case, all on truck AB12 of org-a
+        run("""
+                INSERT INTO pg_temp.trip (id, tenant_code, actual_start)
+                SELECT id, 'org-a', '2026-10-26T09:00:00Z'::timestamptz
+                  FROM unnest(ARRAY['00000000-0000-0000-0000-000000000004',
+                                    '00000000-0000-0000-0000-000000000005',
+                                    '00000000-0000-0000-0000-000000000006',
+                                    '00000000-0000-0000-0000-000000000007',
+                                    '00000000-0000-0000-0000-000000000008']::uuid[]) id;
+                INSERT INTO pg_temp.trip_resource_assignment (trip_id, tenant_code, resource_id, resource_type)
+                SELECT id, tenant_code, '00000000-0000-0000-0000-000000000010', 'truck' FROM pg_temp.trip
+                 WHERE id >= '00000000-0000-0000-0000-000000000004';
+                INSERT INTO pg_temp.trip_milestone VALUES
+                    ('00000000-0000-0000-0000-000000000004', 'org-a', 'departure', 'confirmed', '2026-10-26T10:30:00Z'),
+                    ('00000000-0000-0000-0000-000000000005', 'org-a', 'departure', 'pending', null),
+                    ('00000000-0000-0000-0000-000000000006', 'org-a', 'departure', 'rejected', null),
+                    ('00000000-0000-0000-0000-000000000007', 'org-b', 'departure', 'confirmed', '2026-10-26T05:00:00Z');
+                INSERT INTO pg_temp.stage (subject_id, tenant_code, subject_type, stage_type, actual_start, version_of)
+                VALUES
+                    ('00000000-0000-0000-0000-000000000004', 'org-a', 'trip', 'transit', '2026-10-26T11:00:00Z', null),
+                    ('00000000-0000-0000-0000-000000000005', 'org-a', 'trip', 'transit', '2026-10-26T10:00:00Z', null),
+                    ('00000000-0000-0000-0000-000000000005', 'org-a', 'trip', 'stop', '2026-10-26T09:30:00Z', null),
+                    ('00000000-0000-0000-0000-000000000005', 'org-a', 'trip', 'preparation', '2026-10-26T08:00:00Z',
+                     null),
+                    ('00000000-0000-0000-0000-000000000005', 'org-a', 'trip', 'loading', '2026-10-26T08:30:00Z', null),
+                    ('00000000-0000-0000-0000-000000000005', 'org-a', 'trip', 'transit', '2026-10-26T07:00:00Z',
+                     '00000000-0000-0000-0000-000000000099'),
+                    ('00000000-0000-0000-0000-000000000006', 'org-a', 'trip', 'stop', '2026-10-26T09:45:00Z', null),
+                    ('00000000-0000-0000-0000-000000000007', 'org-a', 'trip', 'transit', '2026-10-26T10:00:00Z', null),
+                    ('00000000-0000-0000-0000-000000000008', 'org-a', 'trip', 'preparation', '2026-10-26T08:00:00Z',
+                     null)
                 """);
     }
 
@@ -112,5 +149,35 @@ class PgTripWindowsTest {
     void theTripAndTruckMustBelongToTheTenant() {
         assertTrue(find("org-b", DEPARTED, "AB12").isEmpty());
         assertTrue(find("org-a", DEPARTED, "ZZ99").isEmpty());
+    }
+
+    private static Instant start(UUID trip) {
+        var at = find("org-a", trip, "AB12").orElseThrow().getOffsetDateTime("actual_start");
+        return at == null ? null : at.toInstant();
+    }
+
+    @Test
+    void aConfirmedDepartureWinsOverATransitThatStartedLater() {
+        assertEquals(Instant.parse("2026-10-26T10:30:00Z"), start(STAGE_LATER));
+    }
+
+    @Test
+    void aPendingDepartureTakesTheEarliestActiveTransitOrStopIgnoringPreparationLoadingAndOldVersions() {
+        assertEquals(Instant.parse("2026-10-26T09:30:00Z"), start(PENDING));
+    }
+
+    @Test
+    void aRejectedDepartureTakesTheStageStart() {
+        assertEquals(Instant.parse("2026-10-26T09:45:00Z"), start(REJECTED));
+    }
+
+    @Test
+    void anotherTenantsDepartureForTheSameTripIdIsIgnored() {
+        assertEquals(Instant.parse("2026-10-26T10:00:00Z"), start(FOREIGN));
+    }
+
+    @Test
+    void withoutADepartureOrATransitOrStopStageThereIsNoStart() {
+        assertNull(start(NOTHING), "preparation alone does not start the range");
     }
 }

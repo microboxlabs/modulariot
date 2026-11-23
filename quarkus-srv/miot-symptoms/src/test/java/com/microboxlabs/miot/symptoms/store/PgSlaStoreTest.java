@@ -1032,4 +1032,77 @@ class PgSlaStoreTest {
     private List<SlaStore.Due> due(Instant openedAfter, Instant now, String tenant) {
         return sla.due(openedAfter, now, 100).stream().filter(d -> d.tenantCode().equals(tenant)).toList();
     }
+
+    // ---------------------------------------------------------------- ON_TRIP: departure from milestones
+
+    private static void tripMilestone(String tenant, UUID trip, String status, Instant confirmedAt) {
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.trip_milestone (trip_id, tenant_code, milestone, status, confirmed_at)
+                VALUES ($1, $2, 'departure', $3, $4)
+                """, Tuple.tuple().addUUID(trip).addString(tenant).addString(status)
+                .addOffsetDateTime(confirmedAt == null ? null : confirmedAt.atOffset(ZoneOffset.UTC)));
+    }
+
+    private static void tripStage(String tenant, UUID trip, String type, Instant start, UUID versionOf) {
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.stage (tenant_code, subject_type, subject_id, stage_type, actual_start,
+                    version_of)
+                VALUES ($1, 'trip', $2, $3, $4, $5)
+                """, Tuple.tuple().addString(tenant).addUUID(trip).addString(type)
+                .addOffsetDateTime(start.atOffset(ZoneOffset.UTC)).addUUID(versionOf));
+    }
+
+    /** How many trucks of a tenant with one trip, set up by {@code setUp}, count as on a trip. */
+    private long onTrip(java.util.function.BiConsumer<String, UUID> setUp) {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID trip = vehicleTrip(tenant, "DEMO09", null);
+        setUp.accept(tenant, trip);
+        return new PgEngineCases(() -> pool).vehiclesOnTrip(tenant, EngineCaseStore.CaseFilter.OPEN);
+    }
+
+    @Test
+    void aConfirmedDepartureDecidesWhetherTheTruckIsOnATripWhateverItsStages() {
+        Instant now = Instant.now();
+        assertEquals(1, onTrip((tenant, trip) -> {
+            tripMilestone(tenant, trip, "confirmed", now.minusSeconds(3600));
+            tripStage(tenant, trip, "transit", now.plusSeconds(3600), null);
+        }), "departed, though its transit starts later");
+        assertEquals(0, onTrip((tenant, trip) -> {
+            tripMilestone(tenant, trip, "confirmed", now.plusSeconds(3600));
+            tripStage(tenant, trip, "transit", now.minusSeconds(3600), null);
+        }), "the confirmed departure is still to come, though a transit started");
+    }
+
+    @Test
+    void aPendingRejectedOrMissingDepartureCountsTheTruckFromItsFirstTransitOrStop() {
+        Instant now = Instant.now();
+        for (String status : new String[] {"pending", "rejected", null}) {
+            assertEquals(1, onTrip((tenant, trip) -> {
+                if (status != null) {
+                    tripMilestone(tenant, trip, status, null);
+                }
+                tripStage(tenant, trip, "stop", now.minusSeconds(600), null);
+                tripStage(tenant, trip, "transit", now.plusSeconds(3600), null);
+            }), status + ": the earliest of transit and stop started");
+            assertEquals(0, onTrip((tenant, trip) -> {
+                if (status != null) {
+                    tripMilestone(tenant, trip, status, null);
+                }
+                tripStage(tenant, trip, "preparation", now.minusSeconds(7200), null);
+                tripStage(tenant, trip, "loading", now.minusSeconds(3600), null);
+                tripStage(tenant, trip, "transit", now.minusSeconds(1800), UUID.randomUUID());
+            }), status + ": preparation, loading and a superseded transit do not count");
+        }
+    }
+
+    @Test
+    void withoutADepartureOrAStageTheTruckIsNotOnATrip() {
+        assertEquals(0, onTrip((tenant, trip) -> { }));
+    }
+
+    @Test
+    void anotherTenantsDepartureForTheSameTripIdIsIgnored() {
+        assertEquals(0, onTrip((tenant, trip) -> tripMilestone("other-" + tenant, trip, "confirmed",
+                Instant.now().minusSeconds(3600))));
+    }
 }

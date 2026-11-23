@@ -111,7 +111,7 @@ function Milestones({
       {trDynamic(`milestone.${m.milestone}`, d)}
     </button>,
     trDynamic(`milestoneStatus.${m.status}`, d),
-    shortTime(plannedAt(sheet, m.milestone), lang) ?? "-",
+    shortTime(plannedAt(sheet, m), lang) ?? "-",
     m.proposedAt
       ? `${shortTime(m.proposedAt, lang)} · ${m.source ?? "-"}`
       : "-",

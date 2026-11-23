@@ -37,7 +37,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class FeedReconcilerTest {
-    private static final String LEGACY_HASH = "TBD";
+    private static final String LEGACY_HASH =
+            "577506141fe1c771da1eebc4b893f87d02015bf1d6f48e58b94ca2d14f42c376";
     private final InMemoryTripsWorld world = new InMemoryTripsWorld();
     private final Map<String, FleetResources.Match> carriersByTaxId = new HashMap<>();
     private final Map<String, UUID> carrierOfRegistered = new HashMap<>();

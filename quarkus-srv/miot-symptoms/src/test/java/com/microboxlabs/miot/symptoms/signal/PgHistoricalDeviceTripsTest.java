@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.TripProgressView;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -56,6 +57,7 @@ class PgHistoricalDeviceTripsTest {
                 CREATE TABLE miot_fleet.driver (tenant_code text, id uuid, rut text, status text, license_expires date,
                     version_of uuid, is_active boolean);
                 """).execute().await().atMost(WAIT);
+        pool.query(TripProgressView.sql()).execute().await().atMost(WAIT);
     }
 
     @AfterAll
@@ -148,6 +150,8 @@ class PgHistoricalDeviceTripsTest {
     /** A live trip on its own vehicle, not yet seen at its destination by GPS. */
     private static UUID live(String asset) {
         UUID trip = UUID.randomUUID();
+        pool.preparedQuery("INSERT INTO miot_trips.trip (id, tenant_code, status) VALUES ($1, $2, 'in_progress')")
+                .execute(Tuple.of(trip, TENANT)).await().atMost(WAIT);
         pool.preparedQuery("""
                 INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id, trip_type, status,
                     destination_visited)

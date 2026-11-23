@@ -25,7 +25,7 @@ import java.util.function.Consumer;
 
 /**
  * {@link TripEnds} on the modulith database: a trip ended when {@code miot_trips.trip} has it {@code completed} or
- * {@code cancelled}, or has no such trip; it arrived when its {@code arrival} milestone is confirmed. Without the
+ * {@code cancelled}, or has no such trip; it arrived as {@code miot_trips.trip_progress} says. Without the
  * trips module no trip ends (the signals carry none).
  */
 public class PgTripEnds implements TripEnds {
@@ -43,12 +43,10 @@ public class PgTripEnds implements TripEnds {
 
     static final String STATES = """
             SELECT r.tenant, t.id IS NULL OR t.status IN ('completed', 'cancelled') AS ended,
-                   EXISTS (SELECT 1 FROM miot_trips.trip_milestone m
-                            WHERE m.tenant_code = t.tenant_code AND m.trip_id = t.id
-                              AND m.milestone = 'arrival' AND m.status = 'confirmed') AS arrived,
-                   l.asset_id
+                   coalesce(p.arrived, false) AS arrived, l.asset_id
               FROM unnest($1::text[], $2::uuid[]) AS r(tenant, trip_id)
               LEFT JOIN miot_trips.trip t ON t.tenant_code = r.tenant AND t.id = r.trip_id
+              LEFT JOIN miot_trips.trip_progress p ON p.tenant_code = t.tenant_code AND p.trip_id = t.id
               LEFT JOIN miot_trips.trip_live l ON l.tenant_code = t.tenant_code AND l.trip_id = t.id
             """;
 

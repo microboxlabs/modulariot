@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.TripProgressView;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.SlaStore;
@@ -115,6 +116,9 @@ class PgSlaStoreTest {
                     stage_type text NOT NULL, actual_start timestamptz, version_of uuid,
                     is_active boolean NOT NULL DEFAULT true)
                 """).execute().await().atMost(WAIT);
+        pool.query("CREATE TABLE IF NOT EXISTS miot_trips.trip (id uuid PRIMARY KEY, tenant_code text NOT NULL)")
+                .execute().await().atMost(WAIT);
+        pool.query(TripProgressView.sql()).execute().await().atMost(WAIT);
         for (String file : MIGRATIONS) {
             try (InputStream in = PgSlaStoreTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
@@ -504,6 +508,7 @@ class PgSlaStoreTest {
                 VALUES ($1, $2, 'DEMO01', $3, 'Driver ' || $3, $4, $5, 'Carrier', $6, $7)
                 """, Tuple.tuple().addUUID(trip).addString(tenant).addString(driver).addString(secondDriver)
                 .addString(carrier == null ? null : carrier.toString()).addString(origin).addString(destination));
+        trip(tenant, trip);
         return trip;
     }
 
@@ -638,7 +643,13 @@ class PgSlaStoreTest {
                 INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id, end_time) VALUES ($1, $2, $3, $4)
                 """, Tuple.tuple().addUUID(trip).addString(tenant).addString(asset)
                 .addOffsetDateTime(endTime == null ? null : endTime.atOffset(java.time.ZoneOffset.UTC)));
+        trip(tenant, trip);
         return trip;
+    }
+
+    /** The trip row a live trip is projected from. */
+    private static void trip(String tenant, UUID trip) {
+        PgIds.query(pool, "INSERT INTO miot_trips.trip (id, tenant_code) VALUES ($1, $2)", Tuple.of(trip, tenant));
     }
 
     @Test

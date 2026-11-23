@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.TripProgressView;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.StaleCase;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
@@ -84,8 +85,16 @@ class PgTripEndTest {
                 """).execute().await().atMost(WAIT);
         pool.query("""
                 CREATE TABLE IF NOT EXISTS miot_trips.trip_milestone (
-                    trip_id uuid NOT NULL, tenant_code text NOT NULL, milestone text NOT NULL, status text NOT NULL)
+                    trip_id uuid NOT NULL, tenant_code text NOT NULL, milestone text NOT NULL, status text NOT NULL,
+                    confirmed_at timestamptz)
                 """).execute().await().atMost(WAIT);
+        pool.query("""
+                CREATE TABLE IF NOT EXISTS miot_trips.stage (
+                    tenant_code text NOT NULL, subject_type text NOT NULL, subject_id uuid NOT NULL,
+                    stage_type text NOT NULL, actual_start timestamptz, version_of uuid,
+                    is_active boolean NOT NULL DEFAULT true)
+                """).execute().await().atMost(WAIT);
+        pool.query(TripProgressView.sql()).execute().await().atMost(WAIT);
         for (String file : MIGRATIONS) {
             try (InputStream in = PgTripEndTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);

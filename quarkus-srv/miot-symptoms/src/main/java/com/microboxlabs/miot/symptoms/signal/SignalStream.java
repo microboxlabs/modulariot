@@ -94,26 +94,18 @@ public class SignalStream {
     static final String TRIPS_SQL = """
             SELECT row_to_json(t)::text AS trip FROM (
                 SELECT tl.trip_id, tl.tenant_code, tl.asset_id, tl.trip_type, tl.status,
-                       coalesce((SELECT m.confirmed_at FROM miot_trips.trip_milestone m
-                                  WHERE m.tenant_code = tl.tenant_code AND m.trip_id = tl.trip_id
-                                    AND m.milestone = 'departure' AND m.status = 'confirmed'),
-                                (SELECT min(s.actual_start) FROM miot_trips.stage s
-                                  WHERE s.tenant_code = tl.tenant_code AND s.subject_type = 'trip'
-                                    AND s.subject_id = tl.trip_id AND s.stage_type IN ('transit', 'stop')
-                                    AND s.version_of IS NULL AND s.is_active)) AS start_time, tl.end_time,
+                       p.departed_at AS start_time, tl.end_time,
                        tl.double_driver, tl.estimated_arrival_time,
                        (CASE jsonb_typeof(tl.mandate_codes) WHEN 'string' THEN (tl.mandate_codes #>> '{}')::jsonb
                              ELSE tl.mandate_codes END) -> 0 ->> 'code' AS code,
                        tl.origin_geofence_id, tl.origin_geofence_label, tl.origin_visited, tl.origin_is_internal,
                        tl.destination_geofence_id, tl.destination_geofence_label,
-                       tl.destination_visited OR EXISTS (
-                           SELECT 1 FROM miot_trips.trip_milestone m
-                            WHERE m.tenant_code = tl.tenant_code AND m.trip_id = tl.trip_id
-                              AND m.milestone = 'arrival' AND m.status = 'confirmed') AS destination_visited,
+                       tl.destination_visited OR coalesce(p.arrived, false) AS destination_visited,
                        tl.current_geofence_id, c.rut AS carrier_tax_id, tl.carrier_name, tl.type_load,
                        tl.rampla_plate, tl.driver_id IS NOT NULL AS driver_assigned, d.id AS driver_fleet_id,
                        d.status AS driver_status, d.license_expires AS driver_license_expires
                   FROM miot_trips.trip_live tl
+                  LEFT JOIN miot_trips.trip_progress p ON p.tenant_code = tl.tenant_code AND p.trip_id = tl.trip_id
                   LEFT JOIN miot_fleet.carrier c ON c.tenant_code = tl.tenant_code AND c.id::text = tl.carrier_id
                   LEFT JOIN LATERAL (
                        SELECT id, status, license_expires FROM miot_fleet.driver

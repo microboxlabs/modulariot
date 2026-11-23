@@ -267,7 +267,7 @@ public class PgEngineCases implements EngineCaseStore {
     /** The same rows, counted by treatment state. */
     private static final String TREATMENT_COUNTS = "SELECT m.treatment_state, count(*) AS n FROM (%s) m GROUP BY 1";
     /**
-     * The vehicles on a trips-module trip now: departed (its confirmed departure, else its first transit or stop)
+     * The vehicles on a trips-module trip now: departed (its {@code miot_trips.trip_progress} departure time)
      * and not ended, as the signal's {@code trip.active}. $2 trip id or trip code, $3 part of the vehicle id, $4 either driver's
      * RUT, $5 the carrier's RUT, $6 the carrier's id, $7 the origin name, $8 the destination name, normalized as in
      * {@link #MATCHING_BY_TRIP}.
@@ -275,15 +275,10 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String ON_TRIP = """
             SELECT count(DISTINCT tl.asset_id) AS n
               FROM miot_trips.trip_live tl
+              JOIN miot_trips.trip_progress p ON p.tenant_code = tl.tenant_code AND p.trip_id = tl.trip_id
               LEFT JOIN miot_fleet.carrier fc ON fc.tenant_code = tl.tenant_code AND fc.id::text = tl.carrier_id
              WHERE tl.tenant_code = $1 AND tl.asset_id IS NOT NULL AND tl.end_time IS NULL
-               AND coalesce((SELECT m.confirmed_at FROM miot_trips.trip_milestone m
-                              WHERE m.tenant_code = tl.tenant_code AND m.trip_id = tl.trip_id
-                                AND m.milestone = 'departure' AND m.status = 'confirmed'),
-                            (SELECT min(s.actual_start) FROM miot_trips.stage s
-                              WHERE s.tenant_code = tl.tenant_code AND s.subject_type = 'trip'
-                                AND s.subject_id = tl.trip_id AND s.stage_type IN ('transit', 'stop')
-                                AND s.version_of IS NULL AND s.is_active)) <= now()
+               AND p.departed_at <= now()
                AND ($2::text IS NULL OR tl.trip_id::text IN (%s))
                AND ($3::text IS NULL OR tl.asset_id ILIKE '%%' || $3 || '%%')
                AND ($4::text IS NULL OR %s = $4 OR %s = $4)

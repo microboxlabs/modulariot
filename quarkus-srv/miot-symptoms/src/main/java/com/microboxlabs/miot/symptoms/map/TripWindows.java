@@ -27,15 +27,9 @@ public class TripWindows {
 
     /** The truck was assigned to the trip at some time. */
     static final String TRIP = """
-            SELECT coalesce((SELECT m.confirmed_at FROM miot_trips.trip_milestone m
-                              WHERE m.tenant_code = t.tenant_code AND m.trip_id = t.id
-                                AND m.milestone = 'departure' AND m.status = 'confirmed'),
-                            (SELECT min(s.actual_start) FROM miot_trips.stage s
-                              WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip'
-                                AND s.subject_id = t.id AND s.stage_type IN ('transit', 'stop')
-                                AND s.version_of IS NULL AND s.is_active)) AS actual_start,
-                   t.actual_end, t.planned_start
+            SELECT p.departed_at AS actual_start, t.actual_end, t.planned_start
               FROM miot_trips.trip t
+              JOIN miot_trips.trip_progress p ON p.tenant_code = t.tenant_code AND p.trip_id = t.id
              WHERE t.tenant_code = $1 AND t.id = $2 AND t.version_of IS NULL AND t.is_active
                AND EXISTS (SELECT 1 FROM miot_trips.trip_resource_assignment a
                              JOIN miot_fleet.truck k ON k.id::text = a.resource_id::text

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.TripProgressView;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgConnection;
 import io.vertx.mutiny.sqlclient.Row;
@@ -48,6 +49,7 @@ class PgTripWindowsTest {
         run("CREATE TEMP TABLE trip_resource_assignment (trip_id uuid, tenant_code text, resource_id text, "
                 + "resource_type text, version_of uuid, is_active boolean DEFAULT true)");
         run("CREATE TEMP TABLE truck (id uuid, tenant_code text, license_plate text, version_of uuid)");
+        run(TripProgressView.sql("pg_temp"));
         run("""
                 INSERT INTO pg_temp.trip (id, tenant_code, actual_start)
                 SELECT id, 'org-a', '2026-10-26T09:00:00Z'::timestamptz

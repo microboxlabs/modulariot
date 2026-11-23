@@ -121,7 +121,8 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.26__geocode_cache.sql",
             "/db/migration/trips/V0.10.27__feed_country.sql",
             "/db/migration/trips/V0.10.28__recent_driver_assignments.sql",
-            "/db/migration/trips/V0.10.30__trip_live_trip_type_width.sql"};
+            "/db/migration/trips/V0.10.30__trip_live_trip_type_width.sql",
+            "/db/migration/trips/V0.10.31__trip_progress.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas and the content table. Every Pg test starts here. */
     static void recreateSchemas(Pool pool) throws IOException {

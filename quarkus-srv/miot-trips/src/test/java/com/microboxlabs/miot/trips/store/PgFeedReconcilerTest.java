@@ -21,6 +21,7 @@ import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import com.microboxlabs.miot.integrations.jobs.JobOutcome;
 import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
+import com.microboxlabs.miot.trips.domain.AuditEvent;
 import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.BoardRow;
@@ -72,6 +73,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -869,6 +871,226 @@ class PgFeedReconcilerTest {
                 at(11)));
         assertEquals(FeedReconciler.UPDATE, closure.action(), "a closed trip still records its milestones");
         assertEquals(TripMilestone.CONFIRMED, milestone(created.tripId(), TripMilestone.CLOSURE).status());
+    }
+
+    // ---------------------------------------------------------------- planned times, monitoring start, corrections
+
+    private static FeedServiceRequest.MilestoneReport plannedFor(OffsetDateTime plannedAt) {
+        return new FeedServiceRequest.MilestoneReport(null, null, plannedAt);
+    }
+
+    private static FeedServiceRequest withMonitoringStart(FeedServiceRequest d, OffsetDateTime monitoringStart) {
+        return new FeedServiceRequest(d.orderType(), d.orderRef(), d.origin(), d.destination(), d.plannedStart(),
+                d.plannedEnd(), d.actualStart(), d.actualArrival(), d.actualEnd(), d.resources(), null,
+                d.milestones(), d.slaMinutes(), d.cargo(), d.originSite(), d.destinationSite(), monitoringStart);
+    }
+
+    private void feedCorrections(boolean on) {
+        FeedProfile p = feeds.profile(tenant, FEED).orElseThrow();
+        feeds.saveProfile(new FeedProfile(tenant, FEED, p.name(), p.country(), p.stages(), p.arrivalStage(),
+                p.requiredResources(), p.registersResources(), p.active(), null, ACTOR, null, ACTOR, on));
+    }
+
+    private List<AuditEvent> audited(String tripId, String action) {
+        return audit.list(tenant, "trip", tripId, null, null, 100).stream()
+                .filter(e -> action.equals(e.action())).toList();
+    }
+
+    private static OffsetDateTime time(Object text) {
+        return OffsetDateTime.parse(String.valueOf(text));
+    }
+
+    private static StageView firstStage(TripView t) {
+        return t.stages().stream().min(Comparator.comparingInt(StageView::seq)).orElseThrow();
+    }
+
+    @Test
+    void theFeedSetsAndReplacesAPlannedTimeWithoutConfirmingTheMilestone() {
+        MonitorService monitors = new MonitorService(monitorStore, null, null, audit, tx);
+        monitors.saveDraft(tenant, ACTOR, "planned", new MonitorRequest("Planned", null, List.of(), Map.of(),
+                List.of(new MonitorRequest.Rule("presented-with-plan", null, "command", null,
+                        "event.kind == 'presentation_confirmed' && has(milestones.presentation.plannedAt)",
+                        List.of(new TripMonitor.Action("alert", "planned")), 10, true)), MonitorScope.ANY));
+        monitors.publish(tenant, ACTOR, "planned");
+        FeedServiceRequest d = desired(1, 5, "ABC-123", null, "10000001");
+        FeedResult created = send("S-060", withReports(d, Map.of("presentation", plannedFor(at(0.5)))));
+        assertEquals(List.of(), created.errors());
+        TripMilestone presentation = milestone(created.tripId(), TripMilestone.PRESENTATION);
+        assertEquals(TripMilestone.OPEN, presentation.status(), "a planned time does not ask for the milestone");
+        assertTrue(at(0.5).isEqual(presentation.plannedAt()));
+        assertNull(presentation.confirmedAt());
+        assertNull(presentation.proposedAt());
+        assertEquals(List.of(), milestones.pending(tenant, 100), "an open milestone is not pending");
+        List<AuditEvent> first = audited(created.tripId(), MilestoneService.PLANNED);
+        assertEquals(1, first.size());
+        assertTrue(at(0.5).isEqual(time(first.get(0).details().get("plannedAt"))));
+        assertNull(first.get(0).details().get("previousPlannedAt"));
+        assertEquals(List.of(), send("S-060", withReports(d, Map.of("presentation", plannedFor(at(0.5)))))
+                .operations(), "the same planned time applies nothing again");
+
+        FeedResult moved = send("S-060", withReports(d, Map.of("presentation", plannedFor(at(0.75)))));
+        assertTrue(moved.operations().stream().anyMatch(o -> o.startsWith("plan presentation at ")),
+                moved.operations().toString());
+        presentation = milestone(created.tripId(), TripMilestone.PRESENTATION);
+        assertEquals(TripMilestone.OPEN, presentation.status());
+        assertTrue(at(0.75).isEqual(presentation.plannedAt()), "a later batch replaces the planned time");
+        List<AuditEvent> planned = audited(created.tripId(), MilestoneService.PLANNED);
+        assertEquals(2, planned.size());
+        AuditEvent latest = planned.stream().filter(e -> e.details().containsKey("previousPlannedAt")).findFirst()
+                .orElseThrow();
+        assertTrue(at(0.5).isEqual(time(latest.details().get("previousPlannedAt"))), "audited with the previous");
+        assertTrue(at(0.75).isEqual(time(latest.details().get("plannedAt"))), "and the new time");
+        assertTrue(audited(created.tripId(), MilestoneService.CONFIRMED).isEmpty());
+        assertTrue(audited(created.tripId(), MilestoneService.REQUESTED).isEmpty());
+
+        UUID tripId = UUID.fromString(created.tripId());
+        milestones.confirm(tenant, ACTOR, tripId, TripMilestone.PRESENTATION, at(0.8), "ui", null);
+        presentation = milestone(created.tripId(), TripMilestone.PRESENTATION);
+        assertEquals(TripMilestone.CONFIRMED, presentation.status());
+        assertTrue(at(0.75).isEqual(presentation.plannedAt()), "confirming does not clear the planned time");
+        assertTrue(engine.transitions(tenant, tripId, 100).stream()
+                .anyMatch(t -> t.matched().contains("presented-with-plan")), "rules read the planned time");
+        FeedResult withEvidence = send("S-060", withReports(d, Map.of("presentation",
+                new FeedServiceRequest.MilestoneReport(null, Map.of("gate", "G1"), at(0.75)))));
+        assertEquals(List.of(), withEvidence.errors());
+        assertTrue(at(0.75).isEqual(milestone(created.tripId(), TripMilestone.PRESENTATION).plannedAt()));
+        assertEquals(Map.of("gate", "G1"), milestone(created.tripId(), TripMilestone.PRESENTATION).evidence());
+    }
+
+    @Test
+    void theMonitoringStartIsTheFirstStagesPlannedStartWhileItIsPending() {
+        FeedServiceRequest d = desired(2, 6, "ABC-123", null, "10000001");
+        FeedResult created = send("S-061", withMonitoringStart(d, at(0)));
+        assertEquals(List.of(), created.errors());
+        StageView first = firstStage(trip(created));
+        assertTrue(at(0).isEqual(first.plannedStart()), "the first stage starts at it");
+        assertTrue(at(2).isEqual(trip(created).plannedStart()), "the trip's planned start stays the departure");
+        assertTrue(trip(created).stages().stream().filter(s -> s.seq() != first.seq())
+                .allMatch(s -> s.plannedStart() == null), "only the first stage");
+
+        FeedResult moved = send("S-061", withMonitoringStart(d, at(0.5)));
+        assertTrue(moved.operations().contains("change monitoring start"), moved.operations().toString());
+        assertTrue(at(0.5).isEqual(firstStage(trip(created)).plannedStart()));
+        assertTrue(at(2).isEqual(trip(created).plannedStart()));
+
+        stages.start(tenant, ACTOR, UUID.fromString(first.id()));
+        FeedResult started = send("S-061", withMonitoringStart(d, at(1)));
+        assertTrue(started.operations().stream().noneMatch(o -> o.equals("change monitoring start")),
+                started.operations().toString());
+        assertEquals(List.of(), started.errors());
+        assertTrue(at(0.5).isEqual(firstStage(trip(created)).plannedStart()), "a started stage keeps its plan");
+
+        FeedResult withoutIt = send("S-062", d);
+        assertTrue(trip(withoutIt).stages().stream().allMatch(s -> s.plannedStart() == null),
+                "without a monitoring start the stages are planned as before");
+    }
+
+    @Test
+    void withFeedCorrectionsTheFeedReplacesItsOwnConfirmationWithoutRunningRules() {
+        MonitorService monitors = new MonitorService(monitorStore, null, null, audit, tx);
+        monitors.saveDraft(tenant, ACTOR, "departures", new MonitorRequest("Departures", null, List.of(), Map.of(),
+                List.of(new MonitorRequest.Rule("departed", null, "command", null,
+                        "event.kind == 'departure_confirmed'",
+                        List.of(new TripMonitor.Action("alert", "departed")), 10, true)), MonitorScope.ANY));
+        monitors.publish(tenant, ACTOR, "departures");
+        feedCorrections(true);
+        FeedServiceRequest d = desired(-1, 5, "ABC-123", null, "10000001");
+        FeedResult created = send("S-063", withActuals(d, at(-0.5), null, null));
+        UUID tripId = UUID.fromString(created.tripId());
+        assertTrue(engine.transitions(tenant, tripId, 100).stream()
+                .anyMatch(t -> t.matched().contains("departed")), "the first confirmation runs the rules");
+        int transitions = engine.transitions(tenant, tripId, 500).size();
+        List<StageView> stagesBefore = trip(created).stages();
+        OffsetDateTime tripStart = trip(created).actualStart();
+
+        FeedResult corrected = send("S-063", withActuals(d, at(-0.25), null, null));
+        assertTrue(corrected.operations().stream().anyMatch(o -> o.startsWith("correct departure from ")),
+                corrected.operations().toString());
+        assertTrue(corrected.warnings().stream().noneMatch(w -> w.startsWith("departure was confirmed at")),
+                corrected.warnings().toString());
+        TripMilestone departure = milestone(created.tripId(), TripMilestone.DEPARTURE);
+        assertEquals(TripMilestone.CONFIRMED, departure.status());
+        assertEquals("feed", departure.channel());
+        assertTrue(at(-0.25).isEqual(departure.confirmedAt()), "the feed's new time replaces the first");
+        List<AuditEvent> corrections = audited(created.tripId(), MilestoneService.CORRECTED);
+        assertEquals(1, corrections.size());
+        assertTrue(at(-0.5).isEqual(time(corrections.get(0).details().get("previousAt"))));
+        assertTrue(at(-0.25).isEqual(time(corrections.get(0).details().get("at"))));
+        assertTrue(audited(created.tripId(), MilestoneService.CONFLICT).isEmpty());
+        assertEquals(1, audited(created.tripId(), MilestoneService.CONFIRMED).size(), "no second confirmation");
+        assertEquals(transitions, engine.transitions(tenant, tripId, 500).size(), "no rule ran on the correction");
+        assertEquals(stagesBefore, trip(created).stages(), "the stages keep their times");
+        assertEquals(tripStart, trip(created).actualStart(), "the trip keeps its actual start");
+
+        feedCorrections(false);
+        FeedResult conflict = send("S-063", withActuals(d, at(-0.1), null, null));
+        assertTrue(conflict.warnings().stream().anyMatch(w -> w.startsWith("departure was confirmed at")),
+                conflict.warnings().toString());
+        assertTrue(at(-0.25).isEqual(milestone(created.tripId(), TripMilestone.DEPARTURE).confirmedAt()),
+                "without the flag the confirmation stays");
+        assertEquals(1, audited(created.tripId(), MilestoneService.CONFLICT).size());
+        assertEquals(1, audited(created.tripId(), MilestoneService.CORRECTED).size());
+    }
+
+    @Test
+    void withFeedCorrectionsAConfirmationFromAPersonOrTheApiStays() {
+        feedCorrections(true);
+        FeedServiceRequest d = desired(-1, 5, "ABC-123", null, "10000001");
+        FeedResult created = send("S-064", d);
+        UUID tripId = UUID.fromString(created.tripId());
+        milestones.confirm(tenant, ACTOR, tripId, TripMilestone.DEPARTURE, at(-0.5), "ui", null);
+        milestones.confirm(tenant, ACTOR, tripId, TripMilestone.ARRIVAL, at(0.5), "api", null);
+
+        FeedResult sent = send("S-064", withActuals(d, at(-0.25), at(0.75), null));
+        assertTrue(sent.warnings().stream().anyMatch(w -> w.startsWith("departure was confirmed at")),
+                sent.warnings().toString());
+        assertTrue(sent.warnings().stream().anyMatch(w -> w.startsWith("arrival was confirmed at")),
+                sent.warnings().toString());
+        assertTrue(sent.operations().stream().noneMatch(o -> o.startsWith("correct ")), sent.operations().toString());
+        assertTrue(at(-0.5).isEqual(milestone(created.tripId(), TripMilestone.DEPARTURE).confirmedAt()));
+        assertEquals("ui", milestone(created.tripId(), TripMilestone.DEPARTURE).channel());
+        assertTrue(at(0.5).isEqual(milestone(created.tripId(), TripMilestone.ARRIVAL).confirmedAt()));
+        assertEquals(2, audited(created.tripId(), MilestoneService.CONFLICT).size());
+        assertTrue(audited(created.tripId(), MilestoneService.CORRECTED).isEmpty());
+    }
+
+    @Test
+    void aClosedTripReportsPlannedTimesAndTheMonitoringStartButTakesCorrections() {
+        feedCorrections(true);
+        FeedServiceRequest d = withActuals(desired(2, 10, "ABC-123", null, "10000001"), null, null, at(9));
+        FeedResult created = send("S-065", d);
+        trip(created).stages().forEach(st -> {
+            stages.start(tenant, ACTOR, UUID.fromString(st.id()));
+            stages.close(tenant, ACTOR, UUID.fromString(st.id()));
+        });
+
+        FeedServiceRequest changed = withMonitoringStart(withReports(withActuals(d, null, null, at(9.5)),
+                Map.of("presentation", plannedFor(at(1)))), at(0));
+        FeedResult result = send("S-065", changed);
+        assertEquals(List.of("the trip is completed; the feed changed monitoringStart,"
+                + " milestones.presentation.plannedAt, which is not applied"), result.warnings());
+        assertNull(milestone(created.tripId(), TripMilestone.PRESENTATION).plannedAt());
+        assertEquals(TripMilestone.OPEN, milestone(created.tripId(), TripMilestone.PRESENTATION).status());
+        assertTrue(at(9.5).isEqual(milestone(created.tripId(), TripMilestone.CLOSURE).confirmedAt()),
+                "a correction is a milestone, so it applies");
+        assertEquals(1, audited(created.tripId(), MilestoneService.CORRECTED).size());
+    }
+
+    @Test
+    void aRowWithoutTheNewFieldsKeepsItsHashAndItsResult() throws Exception {
+        FeedServiceRequest d = withReports(withActuals(desired(-1, 5, "ABC-123", null, "10000001"), at(-0.5), null,
+                null), Map.of("validation", new FeedServiceRequest.MilestoneReport(at(-0.75), Map.of("doc", "ok"))));
+        String text = json.writeValueAsString(d);
+        assertFalse(text.contains("monitoringStart"), text);
+        assertFalse(text.contains("plannedAt"), text);
+        assertEquals(reconciler.hash(d), reconciler.hash(json.readValue(text, FeedServiceRequest.class)));
+        FeedResult created = send("S-066", d);
+        assertEquals(FeedReconciler.CREATE, created.action());
+        assertTrue(trip(created).stages().stream().allMatch(s -> s.plannedStart() == null));
+        assertTrue(milestones.list(tenant, UUID.fromString(created.tripId())).stream()
+                .allMatch(m -> m.plannedAt() == null));
+        assertEquals(List.of(), send("S-066", d).operations(), "the same row applies nothing again");
+        assertTrue(audited(created.tripId(), MilestoneService.PLANNED).isEmpty());
     }
 
     @Test

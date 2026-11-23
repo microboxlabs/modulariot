@@ -37,6 +37,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class FeedReconcilerTest {
+    private static final String LEGACY_HASH = "TBD";
     private final InMemoryTripsWorld world = new InMemoryTripsWorld();
     private final Map<String, FleetResources.Match> carriersByTaxId = new HashMap<>();
     private final Map<String, UUID> carrierOfRegistered = new HashMap<>();
@@ -102,6 +103,32 @@ class FeedReconcilerTest {
         assertEquals("in_progress", trips.get("test", tripId).status());
         assertEquals("preparation", stages.listByTrip("test", tripId).stream()
                 .filter(s -> "in_progress".equals(s.status())).findFirst().orElseThrow().stageType());
+    }
+
+    @Test
+    void aRowWithoutTheNewFieldsKeepsTheHashItHadBeforeThem() {
+        OffsetDateTime t0 = OffsetDateTime.parse("2026-11-20T08:00:00-03:00");
+        FeedServiceRequest row = new FeedServiceRequest("service", "test reference", "ORIGIN", "DESTINATION",
+                t0.plusHours(2), t0.plusHours(8), t0.plusHours(2), null, null,
+                new FeedServiceRequest.Resources("ABC-123", null, List.of("10000001")), null,
+                Map.of("validation", new FeedServiceRequest.MilestoneReport(t0.plusHours(1), Map.of("doc", "ok")),
+                        "presentation", new FeedServiceRequest.MilestoneReport(null, Map.of())),
+                90, List.of());
+        // computed on trunk before planned times and the monitoring start existed
+        assertEquals(LEGACY_HASH, reconciler.hash(row));
+    }
+
+    @Test
+    void feedCorrectionsAreReadAndWrittenThroughTheProfile() {
+        FeedProfileService profiles = new FeedProfileService(feeds, audit);
+        List<FeedProfile.StagePlan> plan = feeds.profile.stages();
+        assertFalse(feeds.profile.feedCorrections(), "off unless a profile turns it on");
+        assertTrue(profiles.saveView("test", "test", "test-feed", new FeedProfileRequest("Test", null, plan,
+                "closing", List.of(), null, true, true)).feedCorrections());
+        assertTrue(profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", null, plan, "closing",
+                List.of(), null, true)).feedCorrections(), "a client that does not send the flag keeps it");
+        assertFalse(profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", null, plan, "closing",
+                List.of(), null, true, false)).feedCorrections());
     }
 
     private FeedServiceRequest desired(String trailer, List<String> drivers) {

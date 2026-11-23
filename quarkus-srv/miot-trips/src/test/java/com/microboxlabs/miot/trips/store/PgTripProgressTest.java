@@ -11,9 +11,12 @@ import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
 import java.time.Duration;
+import com.microboxlabs.miot.trips.domain.TripMilestone;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -160,6 +163,49 @@ class PgTripProgressTest {
         assertEquals(at("2026-10-25T09:00:00Z"), departed(21), "an old version");
         assertEquals(List.of(true, false, false, false, true), List.of(arrived(8), arrived(9), arrived(10),
                 arrived(11), arrived(12)), "confirmed, pending, rejected, another tenant's, confirmed without a time");
+    }
+
+    @Test
+    void openRowsAndPlannedTimesDoNotChangeTheView() {
+        List<String> before = snapshot();
+        PgMilestoneStore store = new PgMilestoneStore(() -> pool);
+        OffsetDateTime planned = at("2026-10-26T06:00:00Z");
+        // open rows where nothing was recorded, and planned times on pending, rejected and confirmed rows
+        store.plan("org-a", trip(5), "departure", planned, "test");
+        store.plan("org-a", trip(16), "arrival", planned, "test");
+        store.plan("org-a", trip(17), "departure", planned, "test");
+        store.plan("org-a", trip(17), "arrival", planned, "test");
+        store.plan("org-a", trip(3), "departure", planned, "test");
+        store.plan("org-a", trip(10), "arrival", planned, "test");
+        store.plan("org-a", trip(1), "departure", planned, "test");
+        assertEquals("open", store.find("org-a", trip(5), "departure").orElseThrow().status());
+        assertEquals("pending", store.find("org-a", trip(3), "departure").orElseThrow().status(),
+                "a planned time does not change the status");
+
+        assertEquals(before, snapshot(), "open rows and planned times leave trip_progress as it was");
+        assertTrue(rows("(" + NEW + ") EXCEPT (" + OLD + ")").isEmpty());
+
+        TripMilestone pending = store.find("org-a", trip(3), "departure").orElseThrow();
+        TripMilestone confirmed = store.save(new TripMilestone(pending.tenantCode(), pending.tripId(),
+                pending.milestone(), "confirmed", pending.source(), pending.proposedAt(), pending.evidence(),
+                at("2026-10-26T08:45:00Z"), "test", "ui", null, null, "test"));
+        assertEquals(planned, confirmed.plannedAt().withOffsetSameInstant(ZoneOffset.UTC),
+                "save() keeps the planned time");
+        assertEquals(planned, store.find("org-a", trip(3), "departure").orElseThrow().plannedAt()
+                .withOffsetSameInstant(ZoneOffset.UTC));
+        assertEquals(at("2026-10-26T08:45:00Z"), departed(3), "the confirmation counts, the planned time does not");
+        store.save(pending);
+        assertEquals(before, snapshot());
+    }
+
+    private static UUID trip(int n) {
+        return UUID.fromString("00000000-0000-0000-0000-" + String.format("%012d", n));
+    }
+
+    private static List<String> snapshot() {
+        return rows(NEW + " ORDER BY tenant_code, trip_id").stream().map(r -> r.getString("tenant_code") + " "
+                + r.getUUID("trip_id") + " " + r.getOffsetDateTime("departed_at") + " " + r.getBoolean("arrived")
+                + " " + r.getOffsetDateTime("arrived_at")).toList();
     }
 
     private static OffsetDateTime at(String instant) {

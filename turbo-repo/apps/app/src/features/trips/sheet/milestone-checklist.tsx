@@ -26,14 +26,18 @@ export function nextMilestone(milestones: TripMilestone[]) {
   );
 }
 
-/** The plan time shown for each milestone. */
-export function plannedAt(sheet: TripSheet, m: Milestone) {
+/**
+ * The plan time shown for each milestone: the one the milestone has, else
+ * the trip's planned start or arrival.
+ */
+export function plannedAt(sheet: TripSheet, m: TripMilestone) {
+  if (m.plannedAt) return m.plannedAt;
   const planned: Partial<Record<Milestone, string | null>> = {
     presentation: sheet.card.plannedStart,
     departure: sheet.card.plannedStart,
     arrival: sheet.card.plannedArrival,
   };
-  return planned[m] ?? null;
+  return planned[m.milestone] ?? null;
 }
 
 /** The permission, and membership of the milestone's team when it has one. */
@@ -76,7 +80,7 @@ export function MilestoneModal({
         {m && (
           <MilestoneRow
             m={m}
-            planned={plannedAt(sheet, m.milestone)}
+            planned={plannedAt(sheet, m)}
             {...can(m.milestone)}
             d={d}
             lang={lang}

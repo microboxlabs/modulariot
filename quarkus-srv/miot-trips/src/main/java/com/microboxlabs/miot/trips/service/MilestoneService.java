@@ -40,11 +40,13 @@ public class MilestoneService {
     public static final String REJECTED = "milestone.rejected";
     public static final String CONFLICT = "milestone.conflict";
     public static final String REQUESTED = "milestone.requested";
+    public static final String PLANNED = "milestone.planned";
+    public static final String CORRECTED = "milestone.corrected";
     private static final int MAX_EVIDENCE_KEYS = 50;
     private static final int MAX_EVIDENCE_BYTES = 16 * 1024;
 
     /** What a confirm or reject did. */
-    public enum Result { CONFIRMED, UNCHANGED, CONFLICT, REJECTED, PENDING, SKIPPED }
+    public enum Result { CONFIRMED, UNCHANGED, CONFLICT, REJECTED, PENDING, SKIPPED, PLANNED, CORRECTED }
 
     public record Outcome(TripMilestone milestone, Result result) {
     }
@@ -185,6 +187,75 @@ public class MilestoneService {
                     new TripEvents.MilestoneNotice(m, current.source(), instant(current.proposedAt()),
                             when.toInstant(), null, ch, actor, null));
             return new Outcome(saved, Result.CONFIRMED);
+        });
+    }
+
+    /**
+     * Sets when the milestone is planned. A milestone without a row gets one, {@code open}; the status, the
+     * confirmation and the evidence do not change. The same time is unchanged; another is audited with the previous.
+     */
+    public Outcome plan(String tenantCode, String actor, UUID tripId, String milestone, OffsetDateTime plannedAt) {
+        String m = milestone(milestone);
+        if (plannedAt == null) {
+            throw new IllegalArgumentException("plannedAt is required");
+        }
+        OffsetDateTime when = utc(plannedAt);
+        return tx.inTransaction(() -> {
+            existing(tenantCode, tripId);
+            Optional<TripMilestone> current = store.find(tenantCode, tripId, m);
+            OffsetDateTime previous = current.map(TripMilestone::plannedAt).orElse(null);
+            if (previous != null && previous.isEqual(when)) {
+                return new Outcome(current.get(), Result.UNCHANGED);
+            }
+            TripMilestone saved = store.plan(tenantCode, tripId, m, when, actor);
+            Map<String, Object> d = new LinkedHashMap<>();
+            d.put("milestone", m);
+            d.put("plannedAt", when.toString());
+            if (previous != null) {
+                d.put("previousPlannedAt", previous.toString());
+            }
+            audit.log(tenantCode, actor, PLANNED, "trip", tripId.toString(), tripId.toString(), d);
+            return new Outcome(saved, Result.PLANNED);
+        });
+    }
+
+    /**
+     * Replaces the time of a confirmation the feed made with the feed's later one, and adds {@code evidence}. It is
+     * audited as {@code milestone.corrected} with the previous and the new time and published as
+     * {@code trip.milestone.corrected}; the monitor gets no command and the stages keep their times. A confirmation
+     * from another channel is not corrected: that is a conflict, as in {@link #confirm}.
+     */
+    public Outcome correct(String tenantCode, String actor, UUID tripId, String milestone, OffsetDateTime at,
+            Map<String, Object> evidence) {
+        String m = milestone(milestone);
+        if (at == null) {
+            throw new IllegalArgumentException("at is required");
+        }
+        Map<String, Object> e = evidence(evidence);
+        OffsetDateTime when = utc(at);
+        return tx.inTransaction(() -> {
+            existing(tenantCode, tripId);
+            TripMilestone current = store.find(tenantCode, tripId, m)
+                    .orElse(TripMilestone.unrecorded(tenantCode, tripId.toString(), m));
+            if (!current.isConfirmed() || !"feed".equals(current.channel())) {
+                return confirm(tenantCode, actor, tripId, m, when, "feed", null, e);
+            }
+            if (current.confirmedAt() != null && current.confirmedAt().isEqual(when)) {
+                return new Outcome(mergeConfirmedEvidence(current, e, actor), Result.UNCHANGED);
+            }
+            TripMilestone saved = store.save(new TripMilestone(tenantCode, tripId.toString(), m,
+                    TripMilestone.CONFIRMED, current.source(), current.proposedAt(), merge(current.evidence(), e),
+                    when, actor, current.channel(), current.note(), null, actor));
+            Map<String, Object> d = details(m, when, current.channel(), current.source());
+            d.put("previousAt", current.confirmedAt().toString());
+            if (current.confirmedBy() != null) {
+                d.put("previousBy", current.confirmedBy());
+            }
+            audit.log(tenantCode, actor, CORRECTED, "trip", tripId.toString(), tripId.toString(), d);
+            events.milestone(TripEventCatalog.MILESTONE_CORRECTED, tenantCode, tripId.toString(), now().toInstant(),
+                    new TripEvents.MilestoneNotice(m, current.source(), instant(current.proposedAt()),
+                            when.toInstant(), current.confirmedAt().toInstant(), current.channel(), actor, null));
+            return new Outcome(saved, Result.CORRECTED);
         });
     }
 

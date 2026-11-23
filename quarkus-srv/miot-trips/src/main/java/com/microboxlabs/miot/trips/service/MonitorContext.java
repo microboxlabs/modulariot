@@ -196,6 +196,7 @@ final class MonitorContext {
             putIf(v, CHANNEL, m.channel());
             putIf(v, "proposedAt", instant(m.proposedAt()));
             putIf(v, "confirmedAt", instant(m.confirmedAt()));
+            putIf(v, "plannedAt", instant(m.plannedAt()));
             v.put("evidence", m.evidence());
             out.put(m.milestone(), v);
         }

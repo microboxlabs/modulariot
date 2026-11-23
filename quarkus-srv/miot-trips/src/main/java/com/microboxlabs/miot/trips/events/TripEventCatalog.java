@@ -17,6 +17,7 @@ public class TripEventCatalog implements EventTypeCatalog {
     public static final String MILESTONE_CONFIRMED = "trip.milestone.confirmed";
     public static final String MILESTONE_REJECTED = "trip.milestone.rejected";
     public static final String MILESTONE_CONFLICT = "trip.milestone.conflict";
+    public static final String MILESTONE_CORRECTED = "trip.milestone.corrected";
     public static final String FEED_CLOSED_CHANGED = "trip.feed.closed_changed";
 
     private static final List<EventType> TYPES = List.of(
@@ -30,6 +31,9 @@ public class TripEventCatalog implements EventTypeCatalog {
                     TripEventData.class),
             new EventType(MILESTONE_CONFLICT,
                     "A milestone already confirmed was confirmed again at another time", TripEventData.class),
+            new EventType(MILESTONE_CORRECTED,
+                    "The feed corrected the time of a milestone it had confirmed; the monitor is not told",
+                    TripEventData.class),
             new EventType(FEED_CLOSED_CHANGED, "The feed changed a trip that is already closed; nothing was applied",
                     TripEventData.class));
 

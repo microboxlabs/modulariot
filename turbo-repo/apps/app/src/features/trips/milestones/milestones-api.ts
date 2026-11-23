@@ -20,6 +20,8 @@ export interface TripMilestone {
   confirmedAt: string | null;
   confirmedBy: string | null;
   channel: string | null;
+  /** When the milestone is planned, as the feed sent it. */
+  plannedAt?: string | null;
 }
 
 export interface PendingMilestone {

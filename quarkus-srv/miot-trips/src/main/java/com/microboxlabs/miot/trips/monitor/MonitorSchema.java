@@ -75,6 +75,7 @@ public record MonitorSchema(Map<String, String> fields) {
             f.put(root + ".channel", TEXT);
             f.put(root + ".proposedAt", TIME);
             f.put(root + ".confirmedAt", TIME);
+            f.put(root + ".plannedAt", TIME);
             f.put(root + ".evidence", ANY);
         }
         for (String step : DeliveryCycle.ALL_STEPS) {

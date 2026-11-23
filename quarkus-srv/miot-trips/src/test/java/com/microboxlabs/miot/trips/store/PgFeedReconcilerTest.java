@@ -1033,6 +1033,32 @@ class PgFeedReconcilerTest {
     }
 
     @Test
+    void withCorrectionsActualTimesTakePrecedenceAndResendsDoNotCorrectAgain() {
+        feedCorrections(true);
+        FeedServiceRequest d = desired(-1, 5, "ABC-123", null, "10000001");
+        FeedResult created = send("S-067", withActuals(d, at(-0.75), at(0), at(0.75)));
+        assertEquals(List.of(), created.errors());
+        FeedServiceRequest conflicting = withReports(withActuals(d, at(-0.5), at(0.25), at(1)), Map.of(
+                "departure", new FeedServiceRequest.MilestoneReport(at(-0.25), Map.of("gate", "G1")),
+                "arrival", new FeedServiceRequest.MilestoneReport(at(0.5), Map.of()),
+                "closure", new FeedServiceRequest.MilestoneReport(at(1.25), Map.of())));
+
+        FeedResult corrected = send("S-067", conflicting);
+        assertEquals(List.of(), corrected.errors());
+        assertEquals(3, audited(created.tripId(), MilestoneService.CORRECTED).size());
+        assertTrue(at(-0.5).isEqual(milestone(created.tripId(), TripMilestone.DEPARTURE).confirmedAt()));
+        assertTrue(at(0.25).isEqual(milestone(created.tripId(), TripMilestone.ARRIVAL).confirmedAt()));
+        assertTrue(at(1).isEqual(milestone(created.tripId(), TripMilestone.CLOSURE).confirmedAt()));
+        assertEquals(Map.of("gate", "G1"), milestone(created.tripId(), TripMilestone.DEPARTURE).evidence());
+
+        FeedResult resent = send("S-067", conflicting);
+        assertEquals(List.of(), resent.errors());
+        assertEquals(List.of(), resent.operations(), "one effective time per milestone makes a resend inert");
+        assertEquals(3, audited(created.tripId(), MilestoneService.CORRECTED).size());
+        assertTrue(audited(created.tripId(), MilestoneService.CONFLICT).isEmpty());
+    }
+
+    @Test
     void withFeedCorrectionsAConfirmationFromAPersonOrTheApiStays() {
         feedCorrections(true);
         FeedServiceRequest d = desired(-1, 5, "ABC-123", null, "10000001");

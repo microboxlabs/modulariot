@@ -801,7 +801,8 @@ public class FeedReconciler {
      * Confirms the milestones the feed sends an actual time for. One already confirmed at that time is left alone;
      * at another time the first confirmation stays and the difference is reported, unless the profile takes feed
      * corrections and the feed made that confirmation: then the feed's new time replaces it. With {@code plans} it
-     * also sets the planned times the feed sends.
+     * also sets the planned times the feed sends. When corrections are enabled, the actual time fields take
+     * precedence over a milestone report's time, so each milestone has one effective time per send.
      */
     private void planMilestones(Plan plan, PlanningContext context, TripView trip, boolean plans) {
         String tenantCode = context.tenantCode();
@@ -833,7 +834,8 @@ public class FeedReconciler {
             if (at != null) {
                 planMilestone(plan, tenantCode, actor, name, at, metadata, current, corrections);
             }
-            if (d.milestones().containsKey(name) && !onlyPlanned(report) && separateReport(at, report)) {
+            if (d.milestones().containsKey(name) && !onlyPlanned(report) && separateReport(at, report)
+                    && (!corrections || at == null)) {
                 planMilestone(plan, tenantCode, actor, name, report == null ? null : report.at(), metadata, current,
                         corrections);
             }

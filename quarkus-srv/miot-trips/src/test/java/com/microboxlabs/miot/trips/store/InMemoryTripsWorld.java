@@ -673,8 +673,28 @@ public class InMemoryTripsWorld {
 
         @Override
         public TripMilestone save(TripMilestone m) {
-            milestones.put(key(m.tenantCode(), m.tripId(), m.milestone()), m);
-            return m;
+            String k = key(m.tenantCode(), m.tripId(), m.milestone());
+            TripMilestone before = milestones.get(k);
+            TripMilestone saved = withPlan(m, before == null ? null : before.plannedAt(), m.updatedBy());
+            milestones.put(k, saved);
+            return saved;
+        }
+
+        @Override
+        public TripMilestone plan(String tenantCode, UUID tripId, String milestone, OffsetDateTime plannedAt,
+                String actor) {
+            String k = key(tenantCode, tripId.toString(), milestone);
+            TripMilestone before = milestones.getOrDefault(k,
+                    TripMilestone.unrecorded(tenantCode, tripId.toString(), milestone));
+            TripMilestone saved = withPlan(before, plannedAt, actor);
+            milestones.put(k, saved);
+            return saved;
+        }
+
+        private static TripMilestone withPlan(TripMilestone m, OffsetDateTime plannedAt, String actor) {
+            return new TripMilestone(m.tenantCode(), m.tripId(), m.milestone(), m.status(), m.source(),
+                    m.proposedAt(), m.evidence(), m.confirmedAt(), m.confirmedBy(), m.channel(), m.note(),
+                    m.updatedAt(), actor, plannedAt);
         }
 
         /** Without the trip's service, places and plan, which the database store joins in. */

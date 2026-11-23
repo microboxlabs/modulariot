@@ -3,7 +3,10 @@ package com.microboxlabs.miot.trips.dto;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import java.util.List;
 
-/** The rules of a feed; see {@link FeedProfile}. A missing {@code active} or {@code registersResources} means true. */
+/**
+ * The rules of a feed; see {@link FeedProfile}. A missing {@code active} or {@code registersResources} means true; a
+ * missing {@code feedCorrections} keeps the feed's current value (false for a new feed).
+ */
 public record FeedProfileRequest(
         String name,
         String country,
@@ -11,5 +14,12 @@ public record FeedProfileRequest(
         String arrivalStage,
         List<String> requiredResources,
         Boolean registersResources,
-        Boolean active) {
+        Boolean active,
+        Boolean feedCorrections) {
+
+    /** Without feed corrections. */
+    public FeedProfileRequest(String name, String country, List<FeedProfile.StagePlan> stages, String arrivalStage,
+            List<String> requiredResources, Boolean registersResources, Boolean active) {
+        this(name, country, stages, arrivalStage, requiredResources, registersResources, active, null);
+    }
 }

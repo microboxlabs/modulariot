@@ -9,7 +9,8 @@ import java.util.Map;
  * departure (the authorization to leave), arrival and closure of the monitoring. A detection (GPS, ETA, a gate system)
  * leaves it {@value #PENDING} with the time it proposes; a confirmation from the feed, the API, a notice reply or the
  * UI makes it {@value #CONFIRMED}; a rejection marks the detection as a false positive. {@value #OPEN} is a milestone
- * with nothing recorded yet. {@code evidence} keeps the metadata the sources send.
+ * with nothing recorded yet, or only its planned time. {@code evidence} keeps the metadata the sources send.
+ * {@code plannedAt} is when the milestone is planned (an appointment); setting it never changes the status.
  */
 public record TripMilestone(
         String tenantCode,
@@ -24,7 +25,8 @@ public record TripMilestone(
         String channel,
         String note,
         OffsetDateTime updatedAt,
-        String updatedBy) {
+        String updatedBy,
+        OffsetDateTime plannedAt) {
 
     public static final String PRESENTATION = "presentation";
     public static final String VALIDATION = "validation";
@@ -45,10 +47,19 @@ public record TripMilestone(
         evidence = evidence == null ? Map.of() : Map.copyOf(evidence);
     }
 
+    /** Without a planned time: the stores keep the one already saved. */
+    @SuppressWarnings("java:S107") // The row as the confirm, reject and detect paths write it.
+    public TripMilestone(String tenantCode, String tripId, String milestone, String status, String source,
+            OffsetDateTime proposedAt, Map<String, Object> evidence, OffsetDateTime confirmedAt, String confirmedBy,
+            String channel, String note, OffsetDateTime updatedAt, String updatedBy) {
+        this(tenantCode, tripId, milestone, status, source, proposedAt, evidence, confirmedAt, confirmedBy, channel,
+                note, updatedAt, updatedBy, null);
+    }
+
     /** A milestone with nothing recorded. */
     public static TripMilestone unrecorded(String tenantCode, String tripId, String milestone) {
         return new TripMilestone(tenantCode, tripId, milestone, OPEN, null, null, Map.of(), null, null, null, null,
-                null, null);
+                null, null, null);
     }
 
     public boolean isConfirmed() {

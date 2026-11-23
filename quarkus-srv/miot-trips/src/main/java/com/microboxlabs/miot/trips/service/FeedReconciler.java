@@ -85,6 +85,7 @@ public class FeedReconciler {
     private static final String DRIVER = Assignment.DRIVER;
     private static final String CARRIER = "carrier";
     private static final String EXTERNAL_CODE = "externalCode";
+    private static final String FEED_CHANNEL = "feed";
 
     private final FeedStore feeds;
     private final MandateService mandates;
@@ -172,7 +173,7 @@ public class FeedReconciler {
                 desired.origin(), desired.destination(), utc(desired.plannedStart()), utc(desired.plannedEnd()),
                 utc(desired.actualStart()), utc(desired.actualArrival()), utc(desired.actualEnd()),
                 desired.resourcesOrEmpty(), null, reports(desired.milestones()), desired.slaMinutes(),
-                desired.cargo(), desired.originSite(), desired.destinationSite());
+                desired.cargo(), desired.originSite(), desired.destinationSite(), utc(desired.monitoringStart()));
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
                     json.writeValueAsString(compared).getBytes(StandardCharsets.UTF_8)));
@@ -352,7 +353,8 @@ public class FeedReconciler {
         if (trip != null && finished(trip, mandate)) {
             planClosedChanges(plan, tenantCode, actor, code, trip, d, previous);
             int reported = plan.steps.size();
-            planMilestones(plan, tenantCode, actor, trip, d);
+            // the planned times are reported with the other changes; corrections apply, they are milestones
+            planMilestones(plan, context, trip, false);
             // a closed trip only records milestones; a change to it is reported, not applied
             return plan.decided(plan.steps.size() > reported ? UPDATE : SKIP, false);
         }
@@ -373,7 +375,7 @@ public class FeedReconciler {
         planPlaces(plan, tenantCode, actor, origin, destination);
         planRoute(plan, tenantCode, actor, trip, origin, destination);
         planChanges(plan, context, mandate.orElseThrow(), trip, resources);
-        planMilestones(plan, tenantCode, actor, trip, d);
+        planMilestones(plan, context, trip, true);
         return plan.decided(UPDATE, true);
     }
 
@@ -388,7 +390,7 @@ public class FeedReconciler {
         planRegistrations(plan, context.tenantCode(), context.actor(), resources);
         planPlaces(plan, context.tenantCode(), context.actor(), origin, destination);
         planCreate(plan, context, code, mandate, resources, origin, destination);
-        planMilestones(plan, context.tenantCode(), context.actor(), null, context.desired());
+        planMilestones(plan, context, null, true);
         return plan.decided(CREATE, true);
     }
 
@@ -414,7 +416,7 @@ public class FeedReconciler {
         planRegistrations(plan, tenantCode, actor, resources);
         planPlaces(plan, tenantCode, actor, origin, destination);
         planCreate(plan, context, code, mandate, resources, origin, destination);
-        planMilestones(plan, tenantCode, actor, null, desired);
+        planMilestones(plan, context, null, true);
         planRegularized(plan, tenantCode, actor, profile, desired);
         return plan.decided(REGULARIZE, false);
     }
@@ -656,7 +658,7 @@ public class FeedReconciler {
         }
         List<FeedProfile.StagePlan> planned = profile.stages();
         plan.step("create trip with stages " + planned.stream().map(FeedProfile.StagePlan::stageType).toList(), () -> {
-            List<StageRequest> initialStages = stageRequests(profile, plannedEnd);
+            List<StageRequest> initialStages = stageRequests(profile, plannedEnd, d.monitoringStart());
             TripRequest request = new TripRequest(plan.locationId(origin),
                     plan.locationId(destination), plannedStart, List.of(plan.mandateId), initialStages, null);
             TripView created = context.regularized() ? trips.createRegularized(tenantCode, actor, request)
@@ -677,9 +679,17 @@ public class FeedReconciler {
                 d.cargo(), Set.of());
     }
 
-    private static List<StageRequest> stageRequests(FeedProfile profile, OffsetDateTime plannedEnd) {
-        return profile.stages().stream().map(s -> new StageRequest(s.stageType(), s.serviceStatus(), null, null,
-                s.stageType().equals(profile.arrivalStage()) ? plannedEnd : null, null)).toList();
+    /** The profile's stages in order; the first starts at {@code monitoringStart} when the feed sends one. */
+    private static List<StageRequest> stageRequests(FeedProfile profile, OffsetDateTime plannedEnd,
+            OffsetDateTime monitoringStart) {
+        List<FeedProfile.StagePlan> planned = profile.stages();
+        List<StageRequest> out = new ArrayList<>();
+        for (int i = 0; i < planned.size(); i++) {
+            FeedProfile.StagePlan s = planned.get(i);
+            out.add(new StageRequest(s.stageType(), s.serviceStatus(), null, i == 0 ? monitoringStart : null,
+                    s.stageType().equals(profile.arrivalStage()) ? plannedEnd : null, null));
+        }
+        return out;
     }
 
     private void planSla(Plan plan, String tenantCode, String actor, Mandate mandate, Integer minutes) {
@@ -764,6 +774,12 @@ public class FeedReconciler {
             plan.step("change planned end", () -> stages.update(tenantCode, actor, UUID.fromString(arrival.id()),
                     new StageRequest(null, null, null, null, d.plannedEnd(), null)));
         }
+        StageView first = trip.stages().stream().min(Comparator.comparingInt(StageView::seq)).orElse(null);
+        if (d.monitoringStart() != null && first != null && Stage.PENDING.equals(first.status())
+                && differs(first.plannedStart(), d.monitoringStart())) {
+            plan.step("change monitoring start", () -> stages.update(tenantCode, actor, UUID.fromString(first.id()),
+                    new StageRequest(null, null, null, d.monitoringStart(), null, null)));
+        }
         if (d.orderRef() != null && !d.orderRef().equals(mandate.orderRef())) {
             plan.step("change order reference", () -> mandates.update(tenantCode, actor,
                     UUID.fromString(mandate.id()), new MandateRequest(null, null, d.orderRef(), null, null, null)));
@@ -783,9 +799,15 @@ public class FeedReconciler {
 
     /**
      * Confirms the milestones the feed sends an actual time for. One already confirmed at that time is left alone;
-     * at another time the first confirmation stays and the difference is reported.
+     * at another time the first confirmation stays and the difference is reported, unless the profile takes feed
+     * corrections and the feed made that confirmation: then the feed's new time replaces it. With {@code plans} it
+     * also sets the planned times the feed sends.
      */
-    private void planMilestones(Plan plan, String tenantCode, String actor, TripView trip, FeedServiceRequest d) {
+    private void planMilestones(Plan plan, PlanningContext context, TripView trip, boolean plans) {
+        String tenantCode = context.tenantCode();
+        String actor = context.actor();
+        FeedServiceRequest d = context.desired();
+        boolean corrections = context.profile().feedCorrections();
         Map<String, OffsetDateTime> actual = new LinkedHashMap<>();
         actual.put(TripMilestone.DEPARTURE, d.actualStart());
         actual.put(TripMilestone.ARRIVAL, d.actualArrival());
@@ -804,34 +826,63 @@ public class FeedReconciler {
             FeedServiceRequest.MilestoneReport report = d.milestones().get(name);
             Map<String, Object> metadata = reportEvidence(report);
             OffsetDateTime at = actual.get(name);
-            if (at != null) {
-                planMilestone(plan, tenantCode, actor, name, at, metadata, recorded.get(name));
+            TripMilestone current = recorded.get(name);
+            if (plans && report != null && report.plannedAt() != null) {
+                planPlannedAt(plan, tenantCode, actor, name, report.plannedAt(), current);
             }
-            if (d.milestones().containsKey(name) && separateReport(at, report)) {
-                planMilestone(plan, tenantCode, actor, name, report == null ? null : report.at(), metadata,
-                        recorded.get(name));
+            if (at != null) {
+                planMilestone(plan, tenantCode, actor, name, at, metadata, current, corrections);
+            }
+            if (d.milestones().containsKey(name) && !onlyPlanned(report) && separateReport(at, report)) {
+                planMilestone(plan, tenantCode, actor, name, report == null ? null : report.at(), metadata, current,
+                        corrections);
             }
         }
     }
 
+    /** Sets the milestone's planned time when it is not the one it has; it never confirms the milestone. */
+    private void planPlannedAt(Plan plan, String tenantCode, String actor, String name, OffsetDateTime plannedAt,
+            TripMilestone current) {
+        if (current != null && sameMilestoneTime(current.plannedAt(), plannedAt)) {
+            return;
+        }
+        plan.step("plan " + name + " at " + utc(plannedAt), () -> milestones.plan(tenantCode, actor,
+                UUID.fromString(plan.tripId), name, plannedAt));
+    }
+
+    /** A report that only says when the milestone is planned: it asks for nothing. */
+    private static boolean onlyPlanned(FeedServiceRequest.MilestoneReport report) {
+        return report != null && report.plannedAt() != null && report.at() == null
+                && (report.evidence() == null || report.evidence().isEmpty());
+    }
+
+    @SuppressWarnings("java:S107") // The milestone, what the feed sends and the profile's correction rule.
     private void planMilestone(Plan plan, String tenantCode, String actor, String name, OffsetDateTime at,
-            Map<String, Object> metadata, TripMilestone current) {
+            Map<String, Object> metadata, TripMilestone current, boolean corrections) {
         if (at != null || current != null && current.isConfirmed()) {
-            planMilestoneConfirmation(plan, tenantCode, actor, name, at, metadata, current);
+            planMilestoneConfirmation(plan, tenantCode, actor, name, at, metadata, current, corrections);
             return;
         }
         if (current == null || TripMilestone.OPEN.equals(current.status()) || !knownEvidence(current, metadata)) {
             plan.step("report " + name + " with " + metadata.size() + " metadata",
-                    () -> milestones.detect(tenantCode, actor, UUID.fromString(plan.tripId), name, "feed", null,
-                            metadata));
+                    () -> milestones.detect(tenantCode, actor, UUID.fromString(plan.tripId), name, FEED_CHANNEL,
+                            null, metadata));
         }
     }
 
+    @SuppressWarnings("java:S107") // The milestone, what the feed sends and the profile's correction rule.
     private void planMilestoneConfirmation(Plan plan, String tenantCode, String actor, String name,
-            OffsetDateTime at, Map<String, Object> metadata, TripMilestone current) {
+            OffsetDateTime at, Map<String, Object> metadata, TripMilestone current, boolean corrections) {
         String operation = at == null ? "merge " + name + " metadata" : "confirm " + name + " at " + utc(at);
         if (current != null && current.isConfirmed()) {
             if ((at == null || sameMilestoneTime(current.confirmedAt(), at)) && knownEvidence(current, metadata)) {
+                return;
+            }
+            if (at != null && !sameMilestoneTime(current.confirmedAt(), at) && corrections
+                    && FEED_CHANNEL.equals(current.channel())) {
+                plan.step("correct " + name + " from " + utc(current.confirmedAt()) + " to " + utc(at),
+                        () -> milestones.correct(tenantCode, actor, UUID.fromString(plan.tripId), name, at,
+                                metadata));
                 return;
             }
             if (at != null && !sameMilestoneTime(current.confirmedAt(), at)) {
@@ -840,7 +891,7 @@ public class FeedReconciler {
             }
         }
         plan.step(operation, () -> milestones.confirm(tenantCode, actor, UUID.fromString(plan.tripId), name, at,
-                "feed", null, metadata));
+                FEED_CHANNEL, null, metadata));
     }
 
     private static Map<String, Object> reportEvidence(FeedServiceRequest.MilestoneReport report) {
@@ -865,7 +916,7 @@ public class FeedReconciler {
             Map<String, FeedServiceRequest.MilestoneReport> in) {
         Map<String, FeedServiceRequest.MilestoneReport> out = new java.util.TreeMap<>();
         in.forEach((k, v) -> out.put(k, v == null ? null
-                : new FeedServiceRequest.MilestoneReport(utc(v.at()), sorted(v.evidence()))));
+                : new FeedServiceRequest.MilestoneReport(utc(v.at()), sorted(v.evidence()), utc(v.plannedAt()))));
         return out;
     }
 
@@ -958,7 +1009,10 @@ public class FeedReconciler {
         });
     }
 
-    /** The planned fields the feed changed since its last send; the actual times are milestones, not changes. */
+    /**
+     * The planned fields the feed changed since its last send, the monitoring start and the milestones' planned times
+     * included; the actual times are milestones, not changes.
+     */
     static List<String> changedFields(FeedServiceRequest before, FeedServiceRequest after) {
         if (before == null) {
             return List.of();
@@ -991,6 +1045,16 @@ public class FeedReconciler {
         if (!after.cargo().isEmpty() && !Objects.equals(before.cargo(), after.cargo())) {
             out.add("cargo");
         }
+        if (after.monitoringStart() != null && !sameTime(before.monitoringStart(), after.monitoringStart())) {
+            out.add("monitoringStart");
+        }
+        after.milestones().forEach((name, report) -> {
+            OffsetDateTime planned = report == null ? null : report.plannedAt();
+            FeedServiceRequest.MilestoneReport was = before.milestones().get(name);
+            if (planned != null && !sameTime(was == null ? null : was.plannedAt(), planned)) {
+                out.add("milestones." + name + ".plannedAt");
+            }
+        });
         return out;
     }
 

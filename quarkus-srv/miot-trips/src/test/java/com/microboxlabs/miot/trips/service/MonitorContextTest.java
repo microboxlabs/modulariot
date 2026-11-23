@@ -60,6 +60,12 @@ class MonitorContextTest {
                             public List<PendingMilestone> pending(String tenantCode, int limit) {
                                 return List.of();
                             }
+
+                            @Override
+                            public TripMilestone plan(String tenantCode, UUID tripId, String milestone,
+                                    java.time.OffsetDateTime plannedAt, String actor) {
+                                throw new UnsupportedOperationException();
+                            }
                         }, world.tripStore, new AuditService(world.auditStore), Transactions.none()), fleet);
         Map<String, Object> result = context.of(trip,
                 new MonitorRun.Event("test", trip.id(), "plan", "resources", later, "test", Map.of()), Map.of());

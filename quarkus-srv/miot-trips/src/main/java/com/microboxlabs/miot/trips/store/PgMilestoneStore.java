@@ -13,6 +13,7 @@ import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +26,7 @@ import java.util.function.Supplier;
 public class PgMilestoneStore implements MilestoneStore {
 
     private static final String COLUMNS = "trip_id, milestone, tenant_code, status, source, proposed_at, evidence,"
-            + " confirmed_at, confirmed_by, channel, note, updated_at, updated_by";
+            + " confirmed_at, confirmed_by, channel, note, updated_at, updated_by, planned_at";
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {
     };
 
@@ -60,6 +61,7 @@ public class PgMilestoneStore implements MilestoneStore {
         return query(pool.get(), """
                 SELECT ms.trip_id, ms.milestone, ms.tenant_code, ms.status, ms.source, ms.proposed_at, ms.evidence,
                     ms.confirmed_at, ms.confirmed_by, ms.channel, ms.note, ms.updated_at, ms.updated_by,
+                    ms.planned_at,
                     (SELECT m.external_code FROM miot_trips.trip_mandate tm
                         JOIN miot_trips.mandate m ON m.id = tm.mandate_id
                         WHERE tm.trip_id = ms.trip_id AND tm.version_of IS NULL AND tm.is_active
@@ -101,10 +103,25 @@ public class PgMilestoneStore implements MilestoneStore {
         return saved;
     }
 
+    @Override
+    public TripMilestone plan(String tenantCode, UUID tripId, String milestone, OffsetDateTime plannedAt,
+            String actor) {
+        return query(pool.get(), """
+                INSERT INTO miot_trips.trip_milestone (trip_id, milestone, tenant_code, status, planned_at,
+                    updated_by)
+                VALUES ($1, $2, $3, 'open', $4::timestamptz, $5)
+                ON CONFLICT (trip_id, milestone) DO UPDATE SET planned_at = EXCLUDED.planned_at, updated_at = now(),
+                    updated_by = EXCLUDED.updated_by
+                RETURNING\s""" + COLUMNS,
+                Tuple.tuple().addUUID(tripId).addString(milestone).addString(tenantCode)
+                        .addOffsetDateTime(plannedAt).addString(actor))
+                .stream().map(PgMilestoneStore::milestone).findFirst().orElseThrow();
+    }
+
     private static TripMilestone milestone(Row r) {
         return new TripMilestone(r.getString("tenant_code"), Pg.text(r, "trip_id"), r.getString("milestone"),
                 r.getString("status"), r.getString("source"), time(r, "proposed_at"), Pg.json(r, "evidence", MAP),
                 time(r, "confirmed_at"), r.getString("confirmed_by"), r.getString("channel"), r.getString("note"),
-                time(r, "updated_at"), r.getString("updated_by"));
+                time(r, "updated_at"), r.getString("updated_by"), time(r, "planned_at"));
     }
 }

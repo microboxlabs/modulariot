@@ -87,12 +87,22 @@ public class FeedProfileService {
         FeedProfile profile = new FeedProfile(tenantCode, key,
                 Check.required(body.name(), "name", 255), country(body.country()), stages, arrival, required,
                 body.registersResources() == null || body.registersResources(),
-                body.active() == null || body.active(), null, actor, null, actor);
+                body.active() == null || body.active(), null, actor, null, actor,
+                feedCorrections(tenantCode, key, body.feedCorrections()));
         FeedProfile saved = createOnly ? feeds.createProfile(profile)
                 .orElseThrow(() -> new IllegalStateException("feed " + key + " already exists"))
                 : feeds.saveProfile(profile);
-        audit.log(tenantCode, actor, "feed.profile_saved", "feed", key, null, Map.of(STAGES, types.toString()));
+        audit.log(tenantCode, actor, "feed.profile_saved", "feed", key, null, Map.of(STAGES, types.toString(),
+                "feedCorrections", saved.feedCorrections()));
         return saved;
+    }
+
+    /** A missing value keeps the feed's current one, so a client that does not know the flag does not clear it. */
+    private boolean feedCorrections(String tenantCode, String feedKey, Boolean requested) {
+        if (requested != null) {
+            return requested;
+        }
+        return feeds.profile(tenantCode, feedKey).map(FeedProfile::feedCorrections).orElse(false);
     }
 
     private static String country(String value) {

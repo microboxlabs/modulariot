@@ -20,7 +20,10 @@ import java.util.Map;
  * {@code source} is the original record (a spreadsheet row), kept for audit and not compared.
  * {@code originSite} and {@code destinationSite} say where each place is; a location that is not resolved yet is
  * located from them after the service is applied (see {@link Site}). Without a site, address and Plus Code cells
- * use the feed's country; a full Plus Code can be located without one.
+ * use the feed's country; a full Plus Code can be located without one. {@code monitoringStart} is when the
+ * monitoring of the trip starts (before the presentation): the planned start of the trip's first stage, while that
+ * stage is pending; {@code plannedStart} stays the planned departure. Fields added after the first version are left
+ * out of the JSON when empty, so the hash of a service that does not send them does not change.
  */
 @RegisterForReflection
 public record FeedServiceRequest(
@@ -39,12 +42,23 @@ public record FeedServiceRequest(
         @JsonInclude(JsonInclude.Include.NON_NULL) Integer slaMinutes,
         @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CargoItem> cargo,
         @JsonInclude(JsonInclude.Include.NON_NULL) Site originSite,
-        @JsonInclude(JsonInclude.Include.NON_NULL) Site destinationSite) {
+        @JsonInclude(JsonInclude.Include.NON_NULL) Site destinationSite,
+        @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime monitoringStart) {
 
     public FeedServiceRequest {
         milestones = milestones == null ? Map.of()
                 : java.util.Collections.unmodifiableMap(new java.util.TreeMap<>(milestones));
         cargo = cargo == null ? List.of() : List.copyOf(cargo);
+    }
+
+    @SuppressWarnings("java:S107") // The feed row without the monitoring start.
+    public FeedServiceRequest(String orderType, String orderRef, String origin, String destination,
+            OffsetDateTime plannedStart, OffsetDateTime plannedEnd, OffsetDateTime actualStart,
+            OffsetDateTime actualArrival, OffsetDateTime actualEnd, Resources resources, JsonNode source,
+            Map<String, MilestoneReport> milestones, Integer slaMinutes, List<CargoItem> cargo, Site originSite,
+            Site destinationSite) {
+        this(orderType, orderRef, origin, destination, plannedStart, plannedEnd, actualStart, actualArrival,
+                actualEnd, resources, source, milestones, slaMinutes, cargo, originSite, destinationSite, null);
     }
 
     @SuppressWarnings("java:S107") // The feed row without sites.
@@ -110,8 +124,15 @@ public record FeedServiceRequest(
     /**
      * One milestone as the source knows it. With {@code at} it confirms the milestone at that time; without it the
      * milestone waits for a confirmation. {@code evidence} is kept with the milestone; empty ones are left out.
+     * {@code plannedAt} is when the milestone is planned (an appointment); it never confirms the milestone. A report
+     * with only {@code plannedAt} records the planned time and nothing else.
      */
-    public record MilestoneReport(OffsetDateTime at, Map<String, Object> evidence) {
+    public record MilestoneReport(OffsetDateTime at, Map<String, Object> evidence,
+            @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime plannedAt) {
+
+        public MilestoneReport(OffsetDateTime at, Map<String, Object> evidence) {
+            this(at, evidence, null);
+        }
     }
 
     /**

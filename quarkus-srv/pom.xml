@@ -24,6 +24,7 @@
         <module>miot-places</module>
         <module>miot-trips</module>
         <module>miot-gateway</module>
+        <module>miot-teltonika</module>
         <module>miot-cli</module>
     </modules>
 
@@ -186,6 +187,11 @@
             <dependency>
                 <groupId>com.microboxlabs.miot</groupId>
                 <artifactId>miot-gateway</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-teltonika</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

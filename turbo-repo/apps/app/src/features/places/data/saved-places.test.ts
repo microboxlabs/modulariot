@@ -398,6 +398,89 @@ describe("saved places", () => {
     expect(placeRequestSchema.safeParse(body).success).toBe(true);
   });
 
+  it("keeps the saved GeoJSON properties the form does not edit through a rename", () => {
+    // an imported geofence: StreamHub's properties came with it
+    const {
+      lugares: [importada],
+      propiedades,
+    } = guardadosDesdePlaces([
+      placeViewSchema.parse({
+        ...vista("p-1", requestDesdeLugar(lugar(), null)),
+        geojson: {
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [-70, -33],
+                [-70, -32],
+                [-69, -32],
+                [-70, -33],
+              ],
+            ],
+          },
+          properties: {
+            geofence_type: 0,
+            schedule: { lun: "08-18" },
+            center: [-70, -33],
+          },
+        },
+      }),
+    ]);
+    if (!importada) throw new Error("missing place");
+    const body = conMetadataGuardada(
+      "p-1",
+      requestDesdeLugar({ ...importada, name: "MINTRAL SANTIAGO" }, null),
+      undefined,
+      propiedades
+    );
+    expect(body.geojson.properties).toMatchObject({
+      geofence_type: 0,
+      schedule: { lun: "08-18" },
+    });
+    expect(placeRequestSchema.safeParse(body).success).toBe(true);
+  });
+
+  it("sends the shape's properties as the form builds them, never the old ones", () => {
+    const saved = {
+      geofence_type: 0,
+      shape: "circle",
+      radius_m: 200,
+      center: [-70, -33],
+    };
+    // a circle redrawn as a polygon: no radius or circle left behind
+    const poligono = requestDesdeLugar(lugar({ center: [-33.5, -70.5] }), null);
+    const out = conMetadataGuardada("p-1", poligono, undefined, {
+      "p-1": saved,
+    });
+    expect(out.geojson.properties).toEqual({
+      geofence_type: 0,
+      center: [-70.5, -33.5],
+    });
+    // a new place has nothing saved to keep
+    expect(
+      conMetadataGuardada(null, poligono, undefined, { "p-1": saved }).geojson
+        .properties
+    ).toEqual({ center: [-70.5, -33.5] });
+  });
+
+  it("keeps each saved inner geofence's properties when the parent is saved", () => {
+    const parent = lugar({ place_id: "p-1", metadata: null });
+    const inner = lugarHijoDesdeInner(
+      innerDesdeLugar(lugar({ place_id: "i-1" })),
+      parent
+    );
+    const body = conMetadataGuardada(
+      "p-1",
+      requestDesdeGeocerca(parent, [{ lugar: inner, id: "i-1" }]),
+      undefined,
+      { "i-1": { geofence_type: 2 } }
+    );
+    expect(body.inners?.[0]?.geojson.properties).toMatchObject({
+      geofence_type: 2,
+    });
+  });
+
   it("sends a route's saved metadata as it is: the form does not edit it", () => {
     const body = requestDesdeTrayecto(trayecto);
     const out = conMetadataGuardada("t-1", body, { "t-1": { carril: 2 } });

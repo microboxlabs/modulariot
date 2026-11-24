@@ -130,16 +130,28 @@ export type PlaceRequest = z.infer<typeof placeRequestSchema>;
 /** Metadata tal como está guardada, con sus tipos, por id del lugar o trayecto. */
 export type MetadatosGuardados = Record<string, Record<string, unknown>>;
 
+/** Las properties del GeoJSON tal como están guardadas, por id de la geocerca o geocerca interior. */
+export type PropiedadesGuardadas = Record<string, Record<string, unknown>>;
+
 /**
  * Lo guardado, ya con la forma que usa Lugares. `metadatos`: la metadata de
  * cada uno con sus tipos, que el formulario lee como texto (ver
- * {@link conMetadataGuardada}).
+ * {@link conMetadataGuardada}). `propiedades`: las properties del GeoJSON de
+ * cada geocerca, que el formulario no edita salvo su forma (ver
+ * {@link propiedadesConGuardadas}).
  */
 export type Guardados = {
   lugares: Lugar[];
   trayectos: Trayecto[];
   metadatos?: MetadatosGuardados;
+  propiedades?: PropiedadesGuardadas;
 };
+
+/**
+ * Las properties que el formulario arma desde la forma (ver geometriaDeLugar):
+ * esas van como las manda; el resto de lo guardado no lo toca.
+ */
+const PROPIEDADES_DE_FORMA = new Set(["center", "radius_m", "shape"]);
 
 const CLAVES_PROPIAS = new Set([
   ICON_KEY,
@@ -341,23 +353,48 @@ export function metadataConTipos(
 }
 
 /**
- * El cuerpo a guardar sin perder los tipos de la metadata guardada: la de la
- * geocerca y la de cada interior ya guardada, por su id. Un trayecto no edita
- * su metadata: va la guardada tal cual.
+ * El GeoJSON a enviar sin perder las properties guardadas que el formulario no
+ * edita (por ejemplo `geofence_type` o el horario de una zona, o lo que trajo
+ * la importación desde StreamHub). Las de la forma (centro, radio, círculo)
+ * van como las arma el formulario: cambiar la forma no deja las viejas.
+ */
+export function propiedadesConGuardadas(
+  geojson: PlaceRequest["geojson"],
+  guardadas: Record<string, unknown> | null | undefined
+): PlaceRequest["geojson"] {
+  const conservadas: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(guardadas ?? {})) {
+    if (!PROPIEDADES_DE_FORMA.has(k)) conservadas[k] = v;
+  }
+  return { ...geojson, properties: { ...conservadas, ...geojson.properties } };
+}
+
+/**
+ * El cuerpo a guardar sin perder lo guardado que el formulario no muestra con
+ * su forma: los tipos de la metadata y las properties del GeoJSON, de la
+ * geocerca y de cada interior ya guardada, por su id. Un trayecto no edita su
+ * metadata: va la guardada tal cual; sus properties las arma el formulario.
  */
 export function conMetadataGuardada(
   id: string | null,
   body: PlaceRequest,
-  metadatos: MetadatosGuardados | undefined
+  metadatos: MetadatosGuardados | undefined,
+  propiedades?: PropiedadesGuardadas
 ): PlaceRequest {
   const guardada = id ? metadatos?.[id] : undefined;
   const metadata =
     body.kind === "route"
       ? (guardada ?? body.metadata)
       : metadataConTipos(body.metadata, guardada);
+  const propiedadesGuardadas = id ? propiedades?.[id] : undefined;
+  const geojson =
+    body.kind === "route"
+      ? body.geojson
+      : propiedadesConGuardadas(body.geojson, propiedadesGuardadas);
   return {
     ...body,
     metadata,
+    geojson,
     inners: body.inners?.map((inner) => ({
       ...inner,
       metadata: metadataConTipos(
@@ -366,6 +403,10 @@ export function conMetadataGuardada(
           ...inner.metadata,
         },
         inner.id ? metadatos?.[inner.id] : undefined
+      ),
+      geojson: propiedadesConGuardadas(
+        inner.geojson,
+        inner.id ? propiedades?.[inner.id] : undefined
       ),
     })),
   };
@@ -480,13 +521,17 @@ export function guardadosDesdePlaces(vs: PlaceView[]): Guardados {
   const lugares: Lugar[] = [];
   const trayectos: Trayecto[] = [];
   const metadatos: MetadatosGuardados = {};
+  const propiedades: PropiedadesGuardadas = {};
   for (const v of vs) {
     if (v.metadata && Object.keys(v.metadata).length > 0)
       metadatos[v.id] = v.metadata;
+    const props = v.geojson.properties;
+    if (v.kind !== "route" && props && Object.keys(props).length > 0)
+      propiedades[v.id] = props;
     const lugar = lugarDesdePlace(v);
     if (lugar) lugares.push(lugar);
     const trayecto = trayectoDesdePlace(v);
     if (trayecto) trayectos.push(trayecto);
   }
-  return { lugares, trayectos, metadatos };
+  return { lugares, trayectos, metadatos, propiedades };
 }

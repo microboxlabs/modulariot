@@ -67,10 +67,23 @@ public record OrgRoles(AccessRegistry registry, Map<String, Set<String>> custom)
         return Optional.of(known);
     }
 
-    /** The permissions of the base role plus these roles, ignoring role keys the organization does not have. */
+    /**
+     * The permissions of the base role plus these roles, ignoring role keys the organization does not have. Holding
+     * one of its roles adds {@link AccessRegistry#anyRolePermissions}.
+     */
     public Set<String> permissionsOf(BaseRole base, Collection<String> roleKeys) {
         Set<String> granted = new TreeSet<>(registry.permissionsOf(base));
-        roleKeys.forEach(key -> permissions(key).ifPresent(granted::addAll));
+        boolean holdsRole = false;
+        for (String key : roleKeys) {
+            Optional<Set<String>> given = permissions(key);
+            if (given.isPresent()) {
+                granted.addAll(given.get());
+                holdsRole = true;
+            }
+        }
+        if (holdsRole) {
+            granted.addAll(registry.anyRolePermissions());
+        }
         return granted;
     }
 }

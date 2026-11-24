@@ -146,6 +146,10 @@ jobs:
         run: npx turbo run lint --filter='!@modulariot/web-admin'
         working-directory: turbo-repo
 
+      - name: Test dependency security and compatibility
+        run: npm run test:dependencies
+        working-directory: turbo-repo
+
       - name: Run type checking
         run: npx turbo run check-types --filter='!@modulariot/web-admin'
         working-directory: turbo-repo

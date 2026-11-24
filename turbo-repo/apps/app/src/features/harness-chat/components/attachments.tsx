@@ -3,16 +3,15 @@
 import {
   AttachmentPrimitive,
   type Attachment,
-  type CompleteAttachment,
 } from "@assistant-ui/react";
 import { LuFile, LuX } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import { ImageLightbox } from "./image-lightbox";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 
-export function SentAttachment({ attachment }: Readonly<{ attachment: CompleteAttachment }>) {
+export function SentAttachment({ attachment }: Readonly<{ attachment: Attachment }>) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const part = attachment.content[0];
+  const part = attachment.content?.[0];
   const name = attachment.name;
 
   if (attachment.type === "image" && part?.type === "image") {

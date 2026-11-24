@@ -18,7 +18,8 @@
     "prepare": "husky",
     "postinstall": "patch-package",
     "sonarcloud:issues": "node packages/sonarcloud-tools/dist/cli.js issues -k microboxlabs_modulariot",
-    "sonarcloud:rule-doc": "node packages/sonarcloud-tools/dist/cli.js rule-doc"
+    "sonarcloud:rule-doc": "node packages/sonarcloud-tools/dist/cli.js rule-doc",
+    "test:dependencies": "node --test tests/dependency-security.test.mjs"
   },
   "devDependencies": {
     "husky": "^9.1.7",
@@ -26,7 +27,8 @@
     "prettier": "^3.5.3",
     "sharp": "0.35.5",
     "turbo": "^2.9.18",
-    "typescript": "5.8.2"
+    "typescript": "5.8.2",
+    "magicast": "0.3.5"
   },
   "engines": {
     "node": ">=24.0.0"
@@ -41,7 +43,22 @@
     "@luma.gl/webgl": "9.3.6",
     "esbuild": "0.28.1",
     "postcss": "8.5.32",
-    "sharp": "$sharp"
+    "sharp": "$sharp",
+    "dompurify": "^3.4.17",
+    "fast-jwt": "^6.3.4",
+    "fast-xml-parser": "^5.12.0",
+    "postcss-selector-parser@6": "6.1.5",
+    "brace-expansion@1": "1.1.21",
+    "brace-expansion@2": "2.1.7",
+    "brace-expansion@>=4": "5.0.13",
+    "fflate@0.7": "0.7.5",
+    "fflate@0.8": "0.8.3",
+    "image-size": "2.0.3",
+    "deepmerge-ts": "8.0.2",
+    "uuid@>=7 <9": "11.1.1",
+    "katex": "0.18.2",
+    "vite": "8.1.6",
+    "minimatch@>=7 <11": "11.0.8"
   },
   "packageManager": "npm@10.2.4",
   "dependencies": {

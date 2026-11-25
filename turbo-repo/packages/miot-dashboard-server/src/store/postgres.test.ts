@@ -65,9 +65,10 @@ describe.skipIf(!postgresUrl)("PostgreSQL startup and recovery", () => {
     expect(results.map((result) => result.status)).toEqual(
       Array(8).fill("fulfilled"),
     );
-    expect(opened.flatMap((store) => store.applied).sort()).toEqual(
-      MIGRATIONS.map((migration) => migration.version),
-    );
+    // Numerically: as text, 10 would sort before 2.
+    expect(
+      opened.flatMap((store) => store.applied).sort((a, b) => a - b),
+    ).toEqual(MIGRATIONS.map((migration) => migration.version));
   });
 
   it("pins the same document backend when servers first open together", async () => {

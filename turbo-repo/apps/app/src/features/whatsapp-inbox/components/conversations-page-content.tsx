@@ -8,6 +8,7 @@ import { useConversations } from "../use-conversations";
 import type { GroupBy } from "../grouping";
 import ConversationList from "./conversation-list";
 import MessageThread from "./message-thread";
+import HeaderIconTile from "@/features/common/components/header-icon-tile";
 
 interface ConversationsPageContentProps {
   readonly dict: I18nRecord;
@@ -28,8 +29,8 @@ export default function ConversationsPageContent({ dict, locale }: Conversations
 
   return (
     <div className="flex flex-col h-full p-6 gap-4">
-      <div className="flex items-center gap-3">
-        <FaWhatsapp className="h-6 w-6 text-green-500" />
+      <div className="flex items-center gap-4">
+        <HeaderIconTile icon={FaWhatsapp} iconClassName="text-green-500" />
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             {tr("title", dict)}

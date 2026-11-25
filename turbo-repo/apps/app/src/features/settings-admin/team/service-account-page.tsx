@@ -42,6 +42,7 @@ import {
 } from "./team-model";
 import { formatDate } from "./team-members-tab";
 import type { AccessCatalog, ServiceAccount } from "./team.types";
+import HeaderIconTile from "@/features/common/components/header-icon-tile";
 
 const OAUTH_TYPES = new Set(["AUTH0_M2M", "OAUTH2_CLIENT_CREDENTIALS"]);
 
@@ -264,9 +265,7 @@ function AccountHeader({ account, lang, d, onDelete }: AccountHeaderProps) {
     <div className={`${CARD} p-5`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200">
-            <HiOutlineChip className="h-6 w-6" />
-          </div>
+          <HeaderIconTile icon={HiOutlineChip} />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="truncate text-xl font-semibold text-gray-900 dark:text-white">

@@ -12,6 +12,10 @@ interface SectionHeaderProps {
   filterDict: I18nRecord;
   lang?: string;
   rootIcon?: React.ReactNode;
+  /** Makes the first crumb a link back to the page this one is inside. */
+  rootHref?: string;
+  /** Links for the crumbs after the first, by index in `path`. */
+  crumbHrefs?: readonly (string | undefined)[];
   rightContent?: React.ReactNode;
   /** When true, clicking the last breadcrumb crumb turns it into an editable text field. */
   editableLastCrumb?: boolean;
@@ -25,6 +29,8 @@ export function SectionHeader({
   filterDict,
   lang,
   rootIcon,
+  rootHref,
+  crumbHrefs,
   rightContent,
   editableLastCrumb,
   onEditLastCrumb,
@@ -38,6 +44,8 @@ export function SectionHeader({
               path={path}
               lang={lang}
               rootIcon={rootIcon}
+              rootHref={rootHref}
+              crumbHrefs={crumbHrefs}
               dict={breadcrumbDict}
               disableLinks
               editableLast={editableLastCrumb}

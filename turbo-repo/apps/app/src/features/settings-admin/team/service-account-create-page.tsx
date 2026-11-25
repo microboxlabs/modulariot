@@ -36,6 +36,7 @@ import {
   selectedRoles,
 } from "./team-model";
 import type { AccessCatalog, CreatedServiceAccount } from "./team.types";
+import HeaderIconTile from "@/features/common/components/header-icon-tile";
 
 interface ServiceAccountCreatePageProps {
   readonly dict: I18nRecord;
@@ -164,9 +165,7 @@ function CreateForm({
   return (
     <>
       <div className={`${CARD} flex items-center gap-4 p-5`}>
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200">
-          <HiOutlineChip className="h-6 w-6" />
-        </div>
+        <HeaderIconTile icon={HiOutlineChip} />
         <div>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
             {tr("accountCreateTitle", d)}

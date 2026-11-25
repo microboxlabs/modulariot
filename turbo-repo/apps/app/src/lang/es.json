@@ -2909,8 +2909,8 @@
           "QA": "QA",
           "PRODUCTION": "Producción"
         },
-        "viewCards": "▦ Tarjetas",
-        "viewList": "☰ Lista",
+        "viewCards": "Tarjetas",
+        "viewList": "Lista",
         "usageKinds": {
           "DATA_SOURCE": "Fuente de datos",
           "INTEGRATION": "Integración",
@@ -3917,8 +3917,8 @@
         "withDraft": "Con borrador",
         "draft": "Borrador",
         "unpublished": "Sin publicar",
-        "viewCards": "▦ Tarjetas",
-        "viewList": "☰ Lista",
+        "viewCards": "Tarjetas",
+        "viewList": "Lista",
         "empty": "Aún no hay síntomas.",
         "emptyFiltered": "Ningún síntoma coincide.",
         "loadFailed": "No se pudieron cargar los síntomas.",
@@ -4663,8 +4663,8 @@
         "templatesDescription": "Lo que envían las reglas de comunicación de todas las organizaciones, por WhatsApp y por correo.",
         "backToTemplates": "Volver a las plantillas",
         "colTemplate": "Plantilla",
-        "viewCards": "▦ Tarjetas",
-        "viewList": "☰ Lista",
+        "viewCards": "Tarjetas",
+        "viewList": "Lista",
         "filterAll": "Todos",
         "filterState": "Estado",
         "filterEvent": "Evento",
@@ -5734,8 +5734,8 @@
         "addPin": "Agregar valor fijo",
         "loadFailed": "No se pudieron leer las funciones. Prueba la conexión."
       },
-      "viewCards": "▦ Tarjetas",
-      "viewList": "☰ Lista",
+      "viewCards": "Tarjetas",
+      "viewList": "Lista",
       "filters": {
         "searchPlaceholder": "Buscar por nombre, tipo o URL",
         "type": "Tipo",

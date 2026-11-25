@@ -337,15 +337,21 @@ describe("capabilities by role", () => {
     expect(decision.dashboard?.capabilities).toEqual(FULL_CAPABILITIES);
   });
 
-  it("Contributor: creates in the scope, edits what they created, nothing else", async () => {
+  it("Contributor: creates in the scope and controls what they created", async () => {
     const h = harness({ memberships, seed });
     const carl = user("carl", "acme");
 
-    // Owns "fleet" (seeded createdBy: carl).
+    // Created "fleet" (seeded createdBy: carl), so is its Coordinator.
     await expect(
       h.control.authorize(carl, target("dashboard.save")),
     ).resolves.toMatchObject({
-      dashboard: { capabilities: { canEdit: true, canDelete: false } },
+      dashboard: {
+        capabilities: {
+          canEdit: true,
+          canDelete: true,
+          canManagePermissions: true,
+        },
+      },
     });
 
     // May create a dashboard that does not exist yet.
@@ -366,6 +372,69 @@ describe("capabilities by role", () => {
         slug: "brand-new",
         action: "dashboard.save",
       }),
+    );
+    expect(error.reason).toBe("CAPABILITY");
+  });
+
+  it("a dashboard's creator manages its permissions; another Editor does not", async () => {
+    const h = harness({
+      memberships,
+      seed: [{ ref: A, record: { createdBy: "eve" } }],
+    });
+    await expect(
+      h.control.authorize(
+        user("eve", "acme"),
+        target("dashboard.permissions.write"),
+      ),
+    ).resolves.toMatchObject({
+      dashboard: { capabilities: FULL_CAPABILITIES },
+    });
+    const other = harness({
+      memberships: { acme: { ops: { ...memberships.acme?.ops, ed: "Editor" } } },
+      seed: [{ ref: A, record: { createdBy: "eve" } }],
+    });
+    const error = await expectError(
+      other.control.authorize(
+        user("ed", "acme"),
+        target("dashboard.permissions.read"),
+      ),
+    );
+    expect(error.reason).toBe("CAPABILITY");
+  });
+
+  it("a scope Coordinator still manages a dashboard someone else created", async () => {
+    const h = harness({ memberships, seed });
+    await expect(
+      h.control.authorize(
+        user("alice", "acme"),
+        target("dashboard.permissions.write"),
+      ),
+    ).resolves.toBeDefined();
+  });
+
+  it("a creator demoted to Consumer loses control of what they created", async () => {
+    const h = harness({
+      memberships,
+      seed: [{ ref: A, record: { createdBy: "con" } }],
+    });
+    const error = await expectError(
+      h.control.authorize(
+        user("con", "acme"),
+        target("dashboard.permissions.read"),
+      ),
+    );
+    expect(error.reason).toBe("CAPABILITY");
+  });
+
+  it("the ceiling still narrows a creator", async () => {
+    const h = harness({ memberships, seed });
+    const error = await expectError(
+      h.control.authorize(
+        user("carl", "acme", {
+          capabilities: { ...FULL_CAPABILITIES, canManagePermissions: false },
+        }),
+        target("dashboard.permissions.write"),
+      ),
     );
     expect(error.reason).toBe("CAPABILITY");
   });

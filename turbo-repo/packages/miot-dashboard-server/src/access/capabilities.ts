@@ -23,7 +23,12 @@ import type {
   PermissionAssignment,
   ServerDashboardRef,
 } from "../seams/store";
-import { capabilitiesForRole, highestRole, type DashboardRole } from "./roles";
+import {
+  capabilitiesForRole,
+  highestRole,
+  roleAtLeast,
+  type DashboardRole,
+} from "./roles";
 
 export interface CapabilityContext {
   identity: DashboardIdentity;
@@ -48,14 +53,42 @@ export interface CapabilityPolicy {
 }
 
 /** Authority ids the principal can be matched against: their own id plus every group. */
-function authoritiesOf(identity: DashboardIdentity): Set<string> {
+export function authoritiesOf(identity: DashboardIdentity): Set<string> {
   return new Set([identity.userId, ...(identity.groups ?? [])]);
 }
 
 /**
+ * The least scope standing at which a creator still controls what they made:
+ * the standing that may create dashboards at all. Below it — demoted to a
+ * reader — the scope's role decides alone, so the organization's permissions
+ * keep priority over a creator's.
+ */
+export const CREATOR_FLOOR: DashboardRole = "Contributor";
+
+/**
+ * Whether the principal created an existing item and still holds the scope
+ * standing to keep it: such a creator is its Coordinator, on that item only.
+ * Someone removed from the organization never gets this far — the host stops
+ * them before a scope role is ever asserted.
+ */
+export function ownsAsCreator(
+  identity: DashboardIdentity,
+  scopeRole: DashboardRole,
+  createdBy: string | undefined,
+): boolean {
+  return (
+    createdBy !== undefined &&
+    createdBy === identity.userId &&
+    roleAtLeast(scopeRole, CREATOR_FLOOR)
+  );
+}
+
+/**
  * Default policy: the strongest role among scope membership and any
- * assignment naming the principal or one of its groups. A Contributor is
- * additionally treated as owner of dashboards it created.
+ * assignment naming the principal or one of its groups. The creator of a
+ * dashboard is its Coordinator (see `ownsAsCreator`), so they decide who may
+ * use it; a Contributor is otherwise treated as owner of a dashboard it is
+ * about to create.
  */
 export const roleCapabilityPolicy: CapabilityPolicy = {
   resolve({ identity, scopeRole, assignments, record }) {
@@ -63,6 +96,12 @@ export const roleCapabilityPolicy: CapabilityPolicy = {
     const roles: DashboardRole[] = [scopeRole];
     for (const assignment of assignments) {
       if (authorities.has(assignment.authorityId)) roles.push(assignment.role);
+    }
+    if (
+      record !== null &&
+      ownsAsCreator(identity, scopeRole, record.createdBy)
+    ) {
+      roles.push("Coordinator");
     }
     const role = highestRole(roles) ?? scopeRole;
     // A new document will be owned by its creator. The access control still

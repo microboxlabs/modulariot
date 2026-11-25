@@ -1,4 +1,3 @@
-// import { auth } from "@/auth";
 import {
   login,
   createContent,
@@ -8,125 +7,171 @@ import {
   ContentRequest,
   SignIdCardRequest,
 } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
+import { describeError } from "@/features/common/providers/fetcher-error";
+import { maskRut } from "@/features/totem/diagnostics/totem-diagnostics";
+import { createLogger } from "@/lib/logger";
+import { generateRequestId } from "@/features/common/utils/access-log";
 
 import { NextRequest, NextResponse } from "next/server";
 import { readPDFAsBase64 } from "@/utils/pdf-utils";
 
+export type ValidateIdCardStep =
+  | "PARSE"
+  | "CAP_LOGIN"
+  | "CAP_CONTENT"
+  | "CAP_SIGN";
+
+export type ValidateIdCardResponse =
+  | { success: true; requestId: string; response: unknown }
+  | {
+      success: false;
+      requestId: string;
+      step: ValidateIdCardStep;
+      status: number;
+      code: string;
+      message: string;
+    };
+
+const totemLogger = createLogger("totem");
+
+class StepError extends Error {
+  step: ValidateIdCardStep;
+  status: number;
+  code: string;
+  constructor(step: ValidateIdCardStep, status: number, message: string, code = "CAP_ERROR") {
+    super(message);
+    this.step = step;
+    this.status = status;
+    this.code = code;
+  }
+}
+
+function failure(
+  requestId: string,
+  step: ValidateIdCardStep,
+  status: number,
+  code: string,
+  message: string
+) {
+  return NextResponse.json<ValidateIdCardResponse>({
+    success: false,
+    requestId,
+    step,
+    status,
+    code,
+    message,
+  });
+}
+
 export async function POST(request: NextRequest) {
-  /* const session = await auth();
-  if (!session) {
-    return NextResponse.json({
-      status: 401,
-    });
-  } */
+  const requestId =
+    request.headers.get("x-request-id") ?? generateRequestId();
+  const startedAt = Date.now();
+  let step: ValidateIdCardStep = "PARSE";
+  let stepStartedAt = startedAt;
+  let rutForLog = "";
+
+  const enter = (next: ValidateIdCardStep) => {
+    step = next;
+    stepStartedAt = Date.now();
+  };
+  const leave = (status: number) => {
+    totemLogger.info(
+      { requestId, step, status, rut: rutForLog, durationMs: Date.now() - stepStartedAt },
+      `validate-id-card ${step} done`
+    );
+  };
+
   try {
-    const result = await login();
-    if (result.status !== 200) {
-      return NextResponse.json({
-        success: false,
-        status: result.status,
-        message: result.message,
-      });
+    const json = (await request.json()) as {
+      user_rut?: string;
+      nro_serie?: string;
+    };
+    if (!json.user_rut || !json.nro_serie) {
+      return failure(requestId, "PARSE", 400, "MISSING_FIELDS", "user_rut and nro_serie are required");
     }
-    const sessionId = result.session_id!;
+    rutForLog = maskRut(json.user_rut);
+    totemLogger.info(
+      { requestId, rut: rutForLog, serialLength: json.nro_serie.length },
+      "validate-id-card start"
+    );
+
+    enter("CAP_LOGIN");
+    const loginResult = await login();
+    if (loginResult.status !== 200 || !loginResult.session_id) {
+      throw new StepError(step, loginResult.status, loginResult.message, "CAP_LOGIN_REJECTED");
+    }
+    leave(loginResult.status);
+    const sessionId = loginResult.session_id;
     const institutionId = process.env.DEC5_INSTITUTION!;
     const targetContentType = process.env.DEC5_TARGET_CONTENT_TYPE!;
 
-    const json = (await request.json()) as {
-      user_rut: string;
-      nro_serie: string;
-    };
-
-    let signersRoles: string[] = [];
-    let signersInstitutions: string[] = [];
-    let signersEmails: string[] = [];
-    let signersRuts: string[] = [];
-    let signersType: number[] = [];
-    let signersOrder: number[] = [];
-    let signersNotify: number[] = [];
-    let signersAudit: string[] = [];
-
-    signersRoles.push(json.user_rut);
-    signersInstitutions.push(json.user_rut);
-    signersEmails.push("michel@microboxlabs.com");
-    signersRuts.push(json.user_rut);
-    signersType.push(0);
-    signersOrder.push(1);
-    signersNotify.push(2);
-    signersRoles.push("Admin");
-    signersInstitutions.push(institutionId);
-    signersEmails.push("any");
-    signersRuts.push("any");
-    signersType.push(5);
-    signersOrder.push(1);
-    signersNotify.push(0);
-    signersAudit.push("");
+    enter("CAP_CONTENT");
     const fileContent = await readPDFAsBase64("servicios-mineros.pdf");
     const createContentRequest: ContentRequest = {
       type_code: targetContentType,
       institution: institutionId,
       name: "Servicios Mineros",
       session_id: sessionId,
-      signers_roles: signersRoles,
-      signers_institutions: signersInstitutions,
-      signers_emails: signersEmails,
-      signers_ruts: signersRuts,
-      signers_type: signersType,
-      signers_order: signersOrder,
-      signers_notify: signersNotify,
-      signers_audit: signersAudit,
+      signers_roles: [json.user_rut, "Admin"],
+      signers_institutions: [json.user_rut, institutionId],
+      signers_emails: ["michel@microboxlabs.com", "any"],
+      signers_ruts: [json.user_rut, "any"],
+      signers_type: [0, 5],
+      signers_order: [1, 1],
+      signers_notify: [2, 0],
+      signers_audit: [""],
       file: fileContent,
       file_mime: "application/pdf",
       return_file: 1,
     };
-
-    const response = await createContent(createContentRequest);
-    if (response.status !== 200) {
-      return NextResponse.json({
-        success: false,
-        status: response.status,
-        message: response.message,
-      });
+    const contentResult = await createContent(createContentRequest);
+    if (contentResult.status !== 200 || !contentResult.result?.code) {
+      throw new StepError(step, contentResult.status, contentResult.message, "CAP_CONTENT_REJECTED");
     }
+    leave(contentResult.status);
 
-    const documentCode = response.result.code!;
+    enter("CAP_SIGN");
     const signIdCardRequest: SignIdCardRequest = {
       user_rut: json.user_rut,
       nro_serie: json.nro_serie,
       user_role: json.user_rut,
       user_institution: institutionId,
-      code: documentCode,
+      code: contentResult.result.code,
       session_id: sessionId,
     };
-
-    const signIdCardResponse = await signIdCard(signIdCardRequest);
-    if (signIdCardResponse.status !== 200) {
-      return NextResponse.json({
-        success: false,
-        status: signIdCardResponse.status,
-        message: signIdCardResponse.message,
-      });
+    const signResult = await signIdCard(signIdCardRequest);
+    if (signResult.status !== 200) {
+      throw new StepError(step, signResult.status, signResult.message, "CAP_SIGN_REJECTED");
     }
+    leave(signResult.status);
 
-    if (signIdCardResponse.status !== 200) {
-      return NextResponse.json({
-        success: false,
-        status: signIdCardResponse.status,
-        message: "Error al firmar el contenido",
-      });
-    }
-
-    return NextResponse.json({
+    totemLogger.info(
+      { requestId, rut: rutForLog, durationMs: Date.now() - startedAt },
+      "validate-id-card ok"
+    );
+    return NextResponse.json<ValidateIdCardResponse>({
       success: true,
-      // status: 200,
-      response,
+      requestId,
+      response: contentResult,
     });
-  } catch (error: any) {
-    console.error(error);
-    return NextResponse.json({
-      success: false,
-      status: error.status,
-      message: error.info ? JSON.parse(error.info).message as string : error.message,
-    });
+  } catch (error) {
+    const described =
+      error instanceof StepError
+        ? { status: error.status, code: error.code, message: error.message }
+        : describeError(error);
+    totemLogger.error(
+      {
+        requestId,
+        step,
+        rut: rutForLog,
+        durationMs: Date.now() - startedAt,
+        stepDurationMs: Date.now() - stepStartedAt,
+        ...described,
+        err: error instanceof StepError ? undefined : (error as Error),
+      },
+      `validate-id-card failed at ${step}`
+    );
+    return failure(requestId, step, described.status, described.code, described.message);
   }
 }

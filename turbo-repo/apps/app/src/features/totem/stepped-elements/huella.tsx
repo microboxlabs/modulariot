@@ -7,9 +7,15 @@ import QrCode from "@assets/icons/totem/qr-code.svg";
 import SmartLockCard from "@assets/icons/totem/id-card.svg";
 
 import {
+  AutentiaError,
   fakeValidateRut,
   validateRut,
 } from "@/features/sovos-fingerprint/services/autentia";
+import {
+  errorToFields,
+  totemEvent,
+  withTimeout,
+} from "@/features/totem/diagnostics/totem-diagnostics";
 
 import { FaIdCard } from "react-icons/fa";
 import { validateIdCard } from "@/features/common/providers/client-api.provider";
@@ -18,6 +24,34 @@ import { isWindows } from "@/features/common/hooks/use-device-detection";
 import Image from "next/image";
 import { logger } from "@/lib/logger";
 
+const ID_CARD_TIMEOUT_MS = 55_000;
+
+type IdCardFailure = "invalid" | "unavailable" | "timeout";
+
+function classifyIdCardFailure(
+  status: number | undefined,
+  code: string | undefined
+): IdCardFailure {
+  if (code === "TIMEOUT" || status === 504) return "timeout";
+  if (status === 400 || code === "CAP_LOGIN_REJECTED") return "unavailable";
+  if (status !== undefined && status >= 500) return "unavailable";
+  return "invalid";
+}
+
+const ID_CARD_FAILURE_KEY: Record<IdCardFailure, string> = {
+  timeout: "id_card_manual_access_error_timeout",
+  unavailable: "id_card_manual_access_error_400",
+  invalid: "id_card_manual_access_error",
+};
+
+function idCardFailureText(
+  dict: I18nRecord,
+  failure: IdCardFailure | null
+): string {
+  const key = ID_CARD_FAILURE_KEY[failure ?? "invalid"];
+  return (dict.totem as I18nRecord)[key] as string;
+}
+
 export default function Huella({
   setCurrentStep,
   currentStep,
@@ -25,6 +59,7 @@ export default function Huella({
   rutData,
   setRutData,
   pluginReady,
+  pluginError,
   onBiometricResult,
   idCardNumber,
   setIdCardNumber,
@@ -35,6 +70,7 @@ export default function Huella({
   rutData: { rut: string } | null;
   setRutData: (rutData: { rut: string; rut_validated: boolean }) => void;
   pluginReady: boolean;
+  pluginError?: string | null;
   onBiometricResult: (result: any) => void;
   idCardNumber: string;
   setIdCardNumber: (idCardNumber: string) => void;
@@ -52,7 +88,12 @@ export default function Huella({
     useState(false);
   const [verificatioSuccess, setVerificatioSuccess] = useState(false);
   const [qrMessage, setQrMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [idCardFailure, setIdCardFailure] = useState<IdCardFailure | null>(
+    null
+  );
+  const [fingerprintErrorText, setFingerprintErrorText] = useState<
+    string | null
+  >(null);
   let idCardNumberOnce = false;
 
   // Device detection hook
@@ -105,6 +146,12 @@ export default function Huella({
   }, [isWindowsDevice]);
 
   useEffect(() => {
+    if (pluginError) {
+      setQrCode(true);
+    }
+  }, [pluginError]);
+
+  useEffect(() => {
     if (
       isWindowsDevice &&
       !idCard &&
@@ -116,7 +163,15 @@ export default function Huella({
     }
   }, []);
 
-  if (!pluginReady) return null;
+  if (!pluginReady && !pluginError) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800 w-full">
+        <p className="text-xl font-light text-gray-800 dark:text-gray-200">
+          {(dict.totem as I18nRecord).loading as string}
+        </p>
+      </div>
+    );
+  }
 
   const validator =
     process.env.NEXT_PUBLIC_SIMULATE_AUTENTIA === "true"
@@ -143,46 +198,104 @@ export default function Huella({
     }
 
     setStatus("scanning");
+    setFingerprintErrorText(null);
+    const startedAt = Date.now();
+    totemEvent("fingerprint.start", { rut: rutData.rut, step: currentStep });
 
     try {
       const result = await validator(rutData.rut);
-      if (result) {
-        setStatus("success");
-        onBiometricResult(result);
-        setRutData({
-          rut: rutData?.rut as string,
-          rut_validated: true,
-        });
+      totemEvent("fingerprint.ok", {
+        rut: rutData.rut,
+        step: currentStep,
+        durationMs: Date.now() - startedAt,
+        message: result?.NroAudit ? `audit ${result.NroAudit}` : undefined,
+      });
+      setStatus("success");
+      onBiometricResult(result);
+      setRutData({
+        rut: rutData.rut,
+        rut_validated: true,
+      });
+    } catch (err: unknown) {
+      totemEvent("fingerprint.error", {
+        rut: rutData.rut,
+        step: currentStep,
+        durationMs: Date.now() - startedAt,
+        ...errorToFields(err),
+      });
+      if (err instanceof AutentiaError && err.ercText) {
+        setFingerprintErrorText(err.ercText);
       }
-    } catch (err: any) {
       setStatus("error");
       setCount(count + 1);
     }
   };
 
   const handleValidateIdCard = async (idCardCaptured: string = "") => {
+    const serial = idCardCaptured.length > 0 ? idCardCaptured : idCardNumber;
+    if (!rutData?.rut || !serial.trim()) {
+      setStatus("error-id-card");
+      setIdCardFailure("invalid");
+      return;
+    }
     setManualVerificationLoading(true);
     setStatus("scanning");
-    setCountIdCard(countIdCard + 1);
-    const response = await validateIdCard({
-      user_rut: rutData?.rut as string,
-      nro_serie: idCardCaptured.length > 0 ? idCardCaptured : idCardNumber,
-    });
-    if (response.success) {
-      setVerificatioSuccess(true);
-      setStatus("success");
-    } else {
-      setStatus("error-id-card");
-      setErrorMessage(response.status);//response.message
-      if (countIdCard >= 2) {
-        setCurrentStep(currentStep + 1);
-        setRutData({
-          rut: rutData?.rut as string,
-          rut_validated: false,
+    setIdCardFailure(null);
+    const attempt = countIdCard + 1;
+    setCountIdCard(attempt);
+    const startedAt = Date.now();
+    totemEvent("idcard.start", { rut: rutData.rut, step: currentStep });
+
+    let failure: IdCardFailure | null = null;
+    try {
+      const response = await withTimeout(
+        validateIdCard({ user_rut: rutData.rut, nro_serie: serial }),
+        ID_CARD_TIMEOUT_MS,
+        () =>
+          Object.assign(new Error("validate-id-card timed out"), {
+            code: "TIMEOUT",
+          })
+      );
+      if (response?.success) {
+        totemEvent("idcard.ok", {
+          rut: rutData.rut,
+          step: currentStep,
+          durationMs: Date.now() - startedAt,
+        });
+        setVerificatioSuccess(true);
+        setStatus("success");
+      } else {
+        failure = classifyIdCardFailure(response?.status, response?.code);
+        totemEvent("idcard.error", {
+          rut: rutData.rut,
+          step: currentStep,
+          durationMs: Date.now() - startedAt,
+          status: response?.status,
+          code: response?.code ?? response?.step,
+          message: response?.message,
         });
       }
+    } catch (err: unknown) {
+      const fields = errorToFields(err);
+      failure = classifyIdCardFailure(fields.status, fields.code);
+      totemEvent("idcard.error", {
+        rut: rutData.rut,
+        step: currentStep,
+        durationMs: Date.now() - startedAt,
+        ...fields,
+      });
+    } finally {
+      setManualVerificationLoading(false);
     }
-    setManualVerificationLoading(false);
+
+    if (failure) {
+      setStatus("error-id-card");
+      setIdCardFailure(failure);
+      if (attempt >= 3) {
+        setRutData({ rut: rutData.rut, rut_validated: false });
+        setCurrentStep(currentStep + 1);
+      }
+    }
   };
 
   const status_icon = {
@@ -302,21 +415,14 @@ export default function Huella({
           </div>
           {status === "error-id-card" && (
             <p className="text-xs text-red-500 text-center px-14">
-              {/*errorMessage ? errorMessage : (dict.totem as I18nRecord).id_card_manual_access_error as string*/}
-              {errorMessage && errorMessage == "400" ? (dict.totem as I18nRecord).id_card_manual_access_error_400 as string : (dict.totem as I18nRecord).id_card_manual_access_error as string}
+              {idCardFailureText(dict, idCardFailure)}
             </p>
           )}
           <Button
             onClick={async () => {
               handleValidateIdCard();
             }}
-            disabled={
-              status !== "idle" &&
-              status !== "success" &&
-              status !== "error" &&
-              status !== "error-id-card" &&
-              manualVerificationLoading
-            }
+            disabled={manualVerificationLoading}
             className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
             color="white"
           >
@@ -493,6 +599,11 @@ export default function Huella({
         >
           {status_icon[status].text}
         </p>
+        {status === "error" && fingerprintErrorText && (
+          <p className="text-xs text-red-400 text-center px-4">
+            {fingerprintErrorText}
+          </p>
+        )}
         <p
           className={`text-lg font-light text-gray-800 dark:text-gray-200 transition-all duration-300 rounded-xl ${status == "success" ? "text-green-500 opacity-100" : "opacity-0"}`}
         >

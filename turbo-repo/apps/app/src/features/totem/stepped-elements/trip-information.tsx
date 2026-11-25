@@ -12,6 +12,10 @@ import ErrorImage from "@assets/icons/totem/alert-hexagon.svg";
 import { Congratulation, GotoBox } from "./tests";
 import { FormattedDate } from "@/features/common/components/formatted-date/formatted-date";
 import { tr } from "@/features/i18n/tr.service";
+import {
+  errorToFields,
+  totemEvent,
+} from "@/features/totem/diagnostics/totem-diagnostics";
 
 export default function TripInformation({
   setCurrentStep,
@@ -66,6 +70,8 @@ export default function TripInformation({
         return;
       }
 
+      const startedAt = Date.now();
+      totemEvent("biometric.start", { rut: rutData.rut, step: 2 });
       try {
         const response = await fetch("/app/api/biometric/verify", {
           method: "POST",
@@ -81,7 +87,15 @@ export default function TripInformation({
           }),
         });        
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => null);
+          totemEvent("biometric.error", {
+            rut: rutData.rut,
+            step: 2,
+            durationMs: Date.now() - startedAt,
+            status: response.status,
+            code: errorData?.error?.code ?? errorData?.code,
+            message: errorData?.message ?? errorData?.errorMessage,
+          });
           if (errorData?.error?.code === "multiple_tasks") {
             setError((dict.totem as I18nRecord).multiple_tasks as string);
             return;
@@ -113,12 +127,28 @@ export default function TripInformation({
                   .biometric_verification_error as string)
           );
         }
-        const data = await response.json();        
+        const data = await response.json();
+        totemEvent("biometric.ok", {
+          rut: rutData.rut,
+          step: 2,
+          durationMs: Date.now() - startedAt,
+          message: data?.tripInfo?.tripInfo?.tripId
+            ? `trip ${data.tripInfo.tripInfo.tripId}`
+            : "no trip",
+        });
         setTripData({
           ...data,
         });
-      } catch (err) {        
-        // setError(err instanceof Error ? err.message : "Unknown error occurred");
+      } catch (err) {
+        totemEvent("biometric.error", {
+          rut: rutData.rut,
+          step: 2,
+          durationMs: Date.now() - startedAt,
+          ...errorToFields(err),
+        });
+        setError(
+          (dict.totem as I18nRecord).biometric_verification_error as string
+        );
       } finally {
         setIsLoading(false);
       }

@@ -28,6 +28,16 @@
   50% { opacity: 0; }
 }
 
+/* A stepper's next panel fading in, as in the sign-up flow. */
+@keyframes step-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes story-enter {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -97,6 +107,11 @@
   }
   .animate-story-enter {
     animation: story-enter 0.4s ease-out both;
+  }
+  /* No fill: a finished animation must not keep the panel a stacking
+     context, or a floating list inside it slides under the footer. */
+  .animate-step-fade-in {
+    animation: step-fade-in 0.2s ease-out;
   }
 }
 

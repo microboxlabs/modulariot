@@ -7087,7 +7087,9 @@
       "dateFilterLabel": "Date",
       "textFilterPlaceholder": "Add value, press Enter…",
       "textFilterHint": "Enter to add · Esc to close",
-      "reorderFilter": "Reorder filter"
+      "reorderFilter": "Reorder filter",
+      "tagsTitle": "Tags",
+      "tagsDescription": "They help find this dashboard in the list"
     },
     "permissions": {
       "modalTitle": "Manage permissions — {name}",
@@ -7444,6 +7446,83 @@
         "confirmSave": "Replace the dashboard local permission assignments with this list?",
         "error": "Permission operation failed. Reload before retrying; the write may have succeeded.",
         "reload": "Reload permissions"
+      }
+    },
+    "explorer": {
+      "tagsDialog": {
+        "title": "Tags for \"{name}\"",
+        "save": "Save",
+        "cancel": "Cancel"
+      }
+    },
+    "setup": {
+      "next": "Continue",
+      "back": "Back",
+      "steps": {
+        "permissions": "Permissions",
+        "tags": "Tags",
+        "dashlet": "First dashlet"
+      },
+      "permissions": {
+        "heading": "Who can use this dashboard?",
+        "body": "Give access to members of the organization or to whole teams.",
+        "removePerson": "Remove {name}",
+        "roleOf": "Access for {name}",
+        "locked": "Only an administrator of this dashboard can decide who uses it. You can continue.",
+        "roles": {
+          "Consumer": "Reader",
+          "Contributor": "Contributor",
+          "Editor": "Editor",
+          "Coordinator": "Administrator"
+        },
+        "roleHints": {
+          "Consumer": "Sees the dashboard",
+          "Contributor": "Sees it; edits it only if they created it",
+          "Editor": "Sees, edits and shares it",
+          "Coordinator": "Edits, deletes and manages access"
+        },
+        "search": "Search for a member or a team…",
+        "membersHeader": "Members",
+        "teamsHeader": "Teams",
+        "teamSize": "{count} members",
+        "noResults": "No members or teams match.",
+        "loading": "Loading…",
+        "noAccess": "Only you have access. Search for a member or team above to share it.",
+        "unknownTeam": "Team no longer available",
+        "saveError": "The permissions could not be saved. Try again.",
+        "minCharacters": "Type at least 2 characters",
+        "noResultsFor": "No results for",
+        "visibility": {
+          "label": "Who sees it",
+          "organization": "Whole organization",
+          "restricted": "Only people with access",
+          "organizationHelp": "Everyone in the organization sees it, each with their own role. The list gives extra permissions.",
+          "restrictedHelp": "Only who is on the list, whoever created it and the organization owners see it.",
+          "note": "People and teams you add get the role you pick on this dashboard."
+        }
+      },
+      "tags": {
+        "heading": "Tags",
+        "body": "They help find this dashboard in the list.",
+        "placeholder": "Type a tag and press Enter",
+        "create": "Create \"{name}\"",
+        "empty": "No tags yet. Type one above or pick a suggestion.",
+        "suggestions": "Suggestions",
+        "suggested": "Operations, Fleet, Finance, Sales",
+        "remove": "Remove {tag}"
+      },
+      "dashlet": {
+        "heading": "Add content",
+        "body": "Start with one dashlet, or from a template.",
+        "addTitle": "Add a dashlet",
+        "addBody": "Charts, metrics and tables with your data.",
+        "templateTitle": "Use a template",
+        "templateBody": "Start from a ready-made dashboard.",
+        "soon": "Coming soon"
+      },
+      "readOnly": {
+        "title": "This dashboard is still empty",
+        "body": "Whoever edits it will add its content here."
       }
     }
   },

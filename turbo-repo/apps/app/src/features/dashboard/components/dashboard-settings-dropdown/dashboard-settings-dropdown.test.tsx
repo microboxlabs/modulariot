@@ -13,8 +13,12 @@ import DashboardSettingsDropdown, {
 const state = vi.hoisted(() => ({
   importDashboard: vi.fn(() => ({ success: true })),
   deleteLegacy: vi.fn(),
+  setDetails: vi.fn(),
 }));
-vi.mock("@/features/i18n/tr.service", () => ({ tr: (key: string) => key }));
+vi.mock("@/features/i18n/tr.service", () => ({
+  tr: (key: string) => key,
+  trDynamic: (key: string) => key,
+}));
 vi.mock("@/features/notifications/notification", () => ({
   ShowNotification: vi.fn(),
 }));
@@ -31,6 +35,34 @@ vi.mock("../planner-manager/planner-manager", () => ({
 vi.mock("../dashboard-permissions-modal", () => ({
   DashboardPermissionsModal: () => null,
 }));
+const perms = vi.hoisted(() => ({
+  dirty: false,
+  save: vi.fn(async () => true),
+}));
+vi.mock("../dashboard-setup/use-setup-permissions", () => ({
+  useSetupPermissions: () => ({
+    assignments: [{ authorityId: "ana@acme.io", role: "Consumer" }],
+    onChange: vi.fn(),
+    save: perms.save,
+    dirty: perms.dirty,
+    busy: false,
+    canManage: true,
+    loading: false,
+  }),
+}));
+vi.mock(
+  "../dashboard-setup/use-principal-directory",
+  async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    usePrincipalDirectory: () => ({ principals: [], isLoading: false }),
+  })
+);
+const PERMISSIONS = {
+  client: {},
+  slug: "fleet",
+  sessionKey: "s",
+} as unknown as NonNullable<DashboardSettingsHost["permissions"]>;
+
 vi.mock("../../context/planner-context", () => ({
   useOptionalPlannerContext: () => ({ schemas: new Map() }),
 }));
@@ -47,7 +79,9 @@ vi.mock("../../context/dashboard-context", () => ({
     ],
     setFilters: vi.fn(),
     setFilterDefinitions: vi.fn(() => true),
-    queries: [{ id: "costs", variableName: "billing", schema: ["service", "total"] }],
+    queries: [
+      { id: "costs", variableName: "billing", schema: ["service", "total"] },
+    ],
     plannerDefinitions: [],
     exportDashboard: () => "{}",
     importDashboard: state.importDashboard,
@@ -58,6 +92,9 @@ vi.mock("../../context/dashboard-context", () => ({
     setOrder: vi.fn(),
     dictionary: {},
     siteId: null,
+    tags: ["night"],
+    visibility: "organization",
+    setDetails: state.setDetails,
   }),
 }));
 
@@ -76,21 +113,29 @@ function open(settings: DashboardSettingsHost) {
   fireEvent.click(screen.getByTitle("Dashboard settings"));
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  perms.dirty = false;
+});
 
 it("replaces the legacy planner with saved queries, which also feed select filters", () => {
   open(host());
-  fireEvent.click(screen.getByRole("button", { name: /dashboard\.settings\.filterBarTitle/ }));
+  fireEvent.click(
+    screen.getByRole("button", { name: /dashboard\.settings\.filterBarTitle/ })
+  );
   fireEvent.click(screen.getByText("Service"));
   const source = screen.getByLabelText("dashboard.settings.optionsSourceLabel");
-  expect(within(source).getByRole("option", { name: "billing" })).toBeInTheDocument();
   expect(
-    within(screen.getByLabelText("dashboard.settings.optionsSourceValueField")).getByRole(
-      "option",
-      { name: "total" },
-    ),
+    within(source).getByRole("option", { name: "billing" })
   ).toBeInTheDocument();
-  expect(screen.getByLabelText("dashboard.settings.filterSingle")).toBeInTheDocument();
+  expect(
+    within(
+      screen.getByLabelText("dashboard.settings.optionsSourceValueField")
+    ).getByRole("option", { name: "total" })
+  ).toBeInTheDocument();
+  expect(
+    screen.getByLabelText("dashboard.settings.filterSingle")
+  ).toBeInTheDocument();
   expect(screen.queryByText("Legacy planner")).not.toBeInTheDocument();
   expect(screen.queryByText("Saved queries")).not.toBeInTheDocument();
   fireEvent.click(
@@ -109,7 +154,9 @@ it("routes permissions, delete and import to the host", async () => {
 
   fireEvent.click(screen.getByTitle("Dashboard settings"));
   fireEvent.click(
-    screen.getByRole("button", { name: "dashboard.landing.delete_confirm_title" })
+    screen.getByRole("button", {
+      name: "dashboard.landing.delete_confirm_title",
+    })
   );
   const confirm = screen.getAllByRole("button", {
     name: "dashboard.landing.delete_confirm_title",
@@ -126,4 +173,79 @@ it("hides delete when the host does not allow it", () => {
       name: "dashboard.landing.delete_confirm_title",
     })
   ).not.toBeInTheDocument();
+});
+
+it("edits the dashboard's tags in its settings, with the setup's tags step", () => {
+  open(host());
+  fireEvent.click(
+    screen.getByRole("button", { name: /dashboard\.settings\.tagsTitle/ })
+  );
+  const save = screen.getByRole("button", {
+    name: "dashboard.explorer.tagsDialog.save",
+  });
+  expect(save).toBeDisabled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.setup.tags.remove" })
+  );
+  fireEvent.click(save);
+  expect(state.setDetails).toHaveBeenCalledWith({ tags: [] });
+});
+
+it("edits who may use the dashboard in its settings, with the setup's permissions step", async () => {
+  open(host({ permissions: PERMISSIONS }));
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: /dashboard\.settings\.accessControlTitle/,
+    })
+  );
+  expect(
+    screen.queryByRole("button", { name: "dashboard.permissions.manageButton" })
+  ).not.toBeInTheDocument();
+  expect(screen.getByText("ana@acme.io")).toBeInTheDocument();
+  // Nothing changed yet: nothing to save.
+  expect(
+    screen.getByRole("button", { name: "dashboard.permissions.save" })
+  ).toBeDisabled();
+});
+
+it("saves the permissions edited in the settings", async () => {
+  perms.dirty = true;
+  open(host({ permissions: PERMISSIONS }));
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: /dashboard\.settings\.accessControlTitle/,
+    })
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.permissions.save" })
+  );
+  await waitFor(() => expect(perms.save).toHaveBeenCalledOnce());
+});
+
+it("leaves tags to the legacy store's own pages", () => {
+  render(<DashboardSettingsDropdown canManagePermissions={false} />);
+  fireEvent.click(screen.getByTitle("Dashboard settings"));
+  expect(
+    screen.queryByRole("button", { name: "dashboard.settings.tagsButton" })
+  ).not.toBeInTheDocument();
+});
+
+it("keeps the dashboard to who it names from its settings", async () => {
+  open(host({ permissions: PERMISSIONS }));
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: /dashboard\.settings\.accessControlTitle/,
+    })
+  );
+  fireEvent.click(
+    screen.getByRole("radio", {
+      name: "dashboard.setup.permissions.visibility.restricted",
+    })
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.permissions.save" })
+  );
+  await waitFor(() =>
+    expect(state.setDetails).toHaveBeenCalledWith({ visibility: "restricted" })
+  );
 });

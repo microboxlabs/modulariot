@@ -1,5 +1,6 @@
 "use client";
 
+import type { DashboardPermissionsOptions } from "@microboxlabs/miot-dashboard-ui/react";
 import {
   useState,
   useCallback,
@@ -40,6 +41,8 @@ import { deleteDashboardConfigClient } from "@/features/common/providers/client-
 import { DashboardPermissionsModal } from "../dashboard-permissions-modal";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
+import { SettingsPermissionsForm } from "./settings-permissions-form";
+import { SettingsTagsForm } from "./settings-tags-form";
 import type {
   DashboardFilterParam,
   DashboardFilterOption,
@@ -72,6 +75,7 @@ type SettingOption =
   | "queries"
   | "filters"
   | "refresh"
+  | "tags"
   | "access"
   | "delete"
   | null;
@@ -771,299 +775,386 @@ function FilterManagerForm({
                 setDragSrcIndex(null);
               }}
             >
-            <li
-              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden"
-            >
-              {/* Card header */}
-              <div className="flex items-center gap-2">
-                {/* Drag handle */}
-                <button
-                  type="button"
-                  aria-label={t("reorderFilter")}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowUp" && index > 0) { e.preventDefault(); reorderFilter(index, index - 1); }
-                    if (e.key === "ArrowDown" && index < localFilters.length - 1) { e.preventDefault(); reorderFilter(index, index + 1); }
-                  }}
-                  className="cursor-grab pl-2 text-gray-300 dark:text-gray-600 active:cursor-grabbing"
-                >
-                  <HiBars3 className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleExpanded(id)}
-                  className="flex flex-1 items-center gap-2 py-2.5 pr-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                >
-                  <HiChevronDown
-                    className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                  />
-                  <span className="flex-1 text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                    {title}
-                  </span>
-                  <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                    {TYPE_LABEL[filter.type]}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removeFilter(index)}
-                  className="mr-2 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
-                  title={t("removeFilter")}
-                >
-                  <HiTrash className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Card body */}
-              {isOpen && (
-                <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-3 space-y-3">
-
-                  {/* Type */}
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1">
-                      <Label htmlFor={`type-${id}`}>{t("filterType")}</Label>
-                      <Tooltip content={<MdTooltip>{t("filterTypeTooltip")}</MdTooltip>}>
-                        <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
-                      </Tooltip>
-                    </div>
-                    <Select
-                      id={`type-${id}`}
-                      sizing="sm"
-                      value={filter.type}
-                      onChange={(e) =>
-                        updateFilter(index, {
-                          type: e.target.value as DashboardFilterParam["type"],
-                          options: e.target.value === "select" ? (filter.options ?? []) : undefined,
-                          optionsSource:
-                            e.target.value === "select" ? filter.optionsSource : undefined,
-                        })
+              <li className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden">
+                {/* Card header */}
+                <div className="flex items-center gap-2">
+                  {/* Drag handle */}
+                  <button
+                    type="button"
+                    aria-label={t("reorderFilter")}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowUp" && index > 0) {
+                        e.preventDefault();
+                        reorderFilter(index, index - 1);
                       }
-                    >
-                      <option value="text">{t("textSearch")}</option>
-                      <option value="date_range">{t("dateRange")}</option>
-                      <option value="select">{t("selectType")}</option>
-                    </Select>
-                  </div>
-
-                  {/* Label */}
-                  <div className="space-y-1">
-                    <Label htmlFor={`label-${id}`}>{t("displayLabel")}</Label>
-                    <TextInput
-                      id={`label-${id}`}
-                      sizing="sm"
-                      placeholder={t("displayLabelPlaceholder")}
-                      value={filter.label}
-                      onChange={(e) => updateFilter(index, { label: e.target.value })}
-                    />
-                  </div>
-
-                  {/* Key */}
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1">
-                      <Label htmlFor={`key-${id}`}>{t("parameterKey")}</Label>
-                      <Tooltip content={<MdTooltip>{t("parameterKeyTooltip")}</MdTooltip>}>
-                        <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
-                      </Tooltip>
-                    </div>
-                    <TextInput
-                      id={`key-${id}`}
-                      sizing="sm"
-                      placeholder={t("parameterKeyPlaceholder")}
-                      value={filter.key}
-                      onChange={(e) => updateFilter(index, { key: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`unique-${id}`}
-                      checked={filter.unique === true}
-                      onChange={(e) =>
-                        updateFilter(index, { unique: e.target.checked || undefined })
+                      if (
+                        e.key === "ArrowDown" &&
+                        index < localFilters.length - 1
+                      ) {
+                        e.preventDefault();
+                        reorderFilter(index, index + 1);
                       }
+                    }}
+                    className="cursor-grab pl-2 text-gray-300 dark:text-gray-600 active:cursor-grabbing"
+                  >
+                    <HiBars3 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(id)}
+                    className="flex flex-1 items-center gap-2 py-2.5 pr-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  >
+                    <HiChevronDown
+                      className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                     />
-                    <Label htmlFor={`unique-${id}`}>{t("filterUnique")}</Label>
-                  </div>
+                    <span className="flex-1 text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                      {title}
+                    </span>
+                    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                      {TYPE_LABEL[filter.type]}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeFilter(index)}
+                    className="mr-2 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
+                    title={t("removeFilter")}
+                  >
+                    <HiTrash className="h-4 w-4" />
+                  </button>
+                </div>
 
-                  {filter.type === "select" && (
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id={`single-${id}`}
-                        checked={filter.single === true}
-                        onChange={(e) =>
-                          updateFilter(index, { single: e.target.checked || undefined })
-                        }
-                      />
-                      <Label htmlFor={`single-${id}`}>{t("filterSingle")}</Label>
-                    </div>
-                  )}
-
-                  {/* Where the select options come from */}
-                  {filter.type === "select" && (
+                {/* Card body */}
+                {isOpen && (
+                  <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-3 space-y-3">
+                    {/* Type */}
                     <div className="space-y-1">
                       <div className="flex items-center gap-1">
-                        <Label htmlFor={`opt-source-${id}`}>{t("optionsSourceLabel")}</Label>
-                        <Tooltip content={<MdTooltip>{t("optionsSourceTooltip")}</MdTooltip>}>
+                        <Label htmlFor={`type-${id}`}>{t("filterType")}</Label>
+                        <Tooltip
+                          content={
+                            <MdTooltip>{t("filterTypeTooltip")}</MdTooltip>
+                          }
+                        >
                           <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
                         </Tooltip>
                       </div>
                       <Select
-                        id={`opt-source-${id}`}
+                        id={`type-${id}`}
                         sizing="sm"
-                        value={filter.optionsSource?.variableName ?? ""}
+                        value={filter.type}
                         onChange={(e) =>
                           updateFilter(index, {
-                            optionsSource: e.target.value
-                              ? { variableName: e.target.value, valueField: "" }
-                              : undefined,
+                            type: e.target
+                              .value as DashboardFilterParam["type"],
+                            options:
+                              e.target.value === "select"
+                                ? (filter.options ?? [])
+                                : undefined,
+                            optionsSource:
+                              e.target.value === "select"
+                                ? filter.optionsSource
+                                : undefined,
                           })
                         }
                       >
-                        <option value="">{t("optionsSourceManual")}</option>
-                        {plannerDefinitions
-                          .filter((d) => d.variableName)
-                          .map((d) => (
-                            <option key={d.id} value={d.variableName}>
-                              {d.variableName}
-                            </option>
-                          ))}
-                        {/* A deleted or renamed variable would otherwise fall
-                            back to showing "Manual", hiding the dangling
-                            reference behind a plausible value. */}
-                        {optionsSource && isStaleSource && (
-                          <option value={optionsSource.variableName}>
-                            {optionsSource.variableName}
-                          </option>
-                        )}
+                        <option value="text">{t("textSearch")}</option>
+                        <option value="date_range">{t("dateRange")}</option>
+                        <option value="select">{t("selectType")}</option>
                       </Select>
-                      {isStaleSource && (
-                        <p className="text-xs text-red-500 dark:text-red-400">
-                          {t("optionsSourceMissingVariable")}
-                        </p>
-                      )}
-                      {plannerDefinitions.length === 0 && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                          {t("optionsSourceNoVariables")}
-                        </p>
-                      )}
                     </div>
-                  )}
 
-                  {/* Which fields of the variable become label and value */}
-                  {filter.type === "select" && optionsSource && (
-                    <div className="space-y-2">
-                      {fieldsFor(optionsSource.variableName).length === 0 && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                          {t("optionsSourceNoFields")}
-                        </p>
-                      )}
-                      {([
-                        { field: "valueField" as const, labelKey: "optionsSourceValueField" },
-                        { field: "labelField" as const, labelKey: "optionsSourceLabelField" },
-                      ]).map(({ field, labelKey }) => (
-                        <div key={field} className="space-y-1">
-                          <Label htmlFor={`opt-${field}-${id}`}>{t(labelKey)}</Label>
-                          <Select
-                            id={`opt-${field}-${id}`}
-                            sizing="sm"
-                            value={optionsSource[field] ?? ""}
-                            onChange={(e) =>
-                              updateOptionsSource(index, field, e.target.value)
-                            }
-                          >
-                            <option value="">
-                              {field === "valueField"
-                                ? t("optionsSourceFieldPlaceholder")
-                                : t("optionsSourceSameAsValue")}
-                            </option>
-                            {fieldChoicesFor(optionsSource.variableName, optionsSource[field]).map((col) => (
-                              <option key={col} value={col}>
-                                {col}
-                              </option>
-                            ))}
-                          </Select>
-                        </div>
-                      ))}
+                    {/* Label */}
+                    <div className="space-y-1">
+                      <Label htmlFor={`label-${id}`}>{t("displayLabel")}</Label>
+                      <TextInput
+                        id={`label-${id}`}
+                        sizing="sm"
+                        placeholder={t("displayLabelPlaceholder")}
+                        value={filter.label}
+                        onChange={(e) =>
+                          updateFilter(index, { label: e.target.value })
+                        }
+                      />
                     </div>
-                  )}
 
-                  {/* Select options */}
-                  {filter.type === "select" && !optionsSource && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1">
-                        <Label>{t("selectOptionsLabel")}</Label>
-                        <Tooltip content={<MdTooltip>{t("selectOptionsTooltip")}</MdTooltip>}>
-                          <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
-                        </Tooltip>
-                      </div>
-                      {(filter.options ?? []).length === 0 && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500">{t("noOptionsYet")}</p>
-                      )}
-                      {(filter.options ?? []).map((opt, optIdx) => (
-                        <div key={(optionIds[id] ?? [])[optIdx] ?? optIdx} className="flex items-center gap-2">
-                          <TextInput
-                            sizing="sm"
-                            placeholder={t("optionLabelPlaceholder")}
-                            value={opt.label}
-                            onChange={(e) => updateOption(index, optIdx, "label", e.target.value)}
-                            className="flex-1"
-                          />
-                          <TextInput
-                            sizing="sm"
-                            placeholder={t("optionValuePlaceholder")}
-                            value={opt.value}
-                            onChange={(e) => updateOption(index, optIdx, "value", e.target.value)}
-                            className="flex-1"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeOption(index, optIdx)}
-                            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
-                          >
-                            <HiTrash className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        size="xs"
-                        color="light"
-                        onClick={() => addOption(index)}
-                      >
-                        <HiPlus className="mr-1 h-3 w-3" />
-                        {t("addOption")}
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Date range auto-generated param info */}
-                  {filter.type === "date_range" && filter.key && (
+                    {/* Key */}
                     <div className="space-y-1">
                       <div className="flex items-center gap-1">
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                          {t("autoGeneratedParams")}
-                        </p>
-                        <Tooltip content={<MdTooltip>{t("autoGeneratedParamsTooltip")}</MdTooltip>}>
+                        <Label htmlFor={`key-${id}`}>{t("parameterKey")}</Label>
+                        <Tooltip
+                          content={
+                            <MdTooltip>{t("parameterKeyTooltip")}</MdTooltip>
+                          }
+                        >
                           <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
                         </Tooltip>
                       </div>
-                      {[`${filter.key}_from`, `${filter.key}_to`].map((derived) => (
-                        <div
-                          key={derived}
-                          className="flex items-center gap-2 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-600 dark:bg-gray-700/50"
-                        >
-                          <code className="flex-1 text-xs font-mono text-gray-500 dark:text-gray-400">
-                            {`{{filter.${derived}}}`}
-                          </code>
-                          <span className="text-xs italic text-gray-400 dark:text-gray-500">
-                            {t("autoGenerated")}
-                          </span>
-                        </div>
-                      ))}
+                      <TextInput
+                        id={`key-${id}`}
+                        sizing="sm"
+                        placeholder={t("parameterKeyPlaceholder")}
+                        value={filter.key}
+                        onChange={(e) =>
+                          updateFilter(index, { key: e.target.value })
+                        }
+                      />
                     </div>
-                  )}
-                </div>
-              )}
-            </li>
+
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`unique-${id}`}
+                        checked={filter.unique === true}
+                        onChange={(e) =>
+                          updateFilter(index, {
+                            unique: e.target.checked || undefined,
+                          })
+                        }
+                      />
+                      <Label htmlFor={`unique-${id}`}>
+                        {t("filterUnique")}
+                      </Label>
+                    </div>
+
+                    {filter.type === "select" && (
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`single-${id}`}
+                          checked={filter.single === true}
+                          onChange={(e) =>
+                            updateFilter(index, {
+                              single: e.target.checked || undefined,
+                            })
+                          }
+                        />
+                        <Label htmlFor={`single-${id}`}>
+                          {t("filterSingle")}
+                        </Label>
+                      </div>
+                    )}
+
+                    {/* Where the select options come from */}
+                    {filter.type === "select" && (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1">
+                          <Label htmlFor={`opt-source-${id}`}>
+                            {t("optionsSourceLabel")}
+                          </Label>
+                          <Tooltip
+                            content={
+                              <MdTooltip>{t("optionsSourceTooltip")}</MdTooltip>
+                            }
+                          >
+                            <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                          </Tooltip>
+                        </div>
+                        <Select
+                          id={`opt-source-${id}`}
+                          sizing="sm"
+                          value={filter.optionsSource?.variableName ?? ""}
+                          onChange={(e) =>
+                            updateFilter(index, {
+                              optionsSource: e.target.value
+                                ? {
+                                    variableName: e.target.value,
+                                    valueField: "",
+                                  }
+                                : undefined,
+                            })
+                          }
+                        >
+                          <option value="">{t("optionsSourceManual")}</option>
+                          {plannerDefinitions
+                            .filter((d) => d.variableName)
+                            .map((d) => (
+                              <option key={d.id} value={d.variableName}>
+                                {d.variableName}
+                              </option>
+                            ))}
+                          {/* A deleted or renamed variable would otherwise fall
+                            back to showing "Manual", hiding the dangling
+                            reference behind a plausible value. */}
+                          {optionsSource && isStaleSource && (
+                            <option value={optionsSource.variableName}>
+                              {optionsSource.variableName}
+                            </option>
+                          )}
+                        </Select>
+                        {isStaleSource && (
+                          <p className="text-xs text-red-500 dark:text-red-400">
+                            {t("optionsSourceMissingVariable")}
+                          </p>
+                        )}
+                        {plannerDefinitions.length === 0 && (
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
+                            {t("optionsSourceNoVariables")}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Which fields of the variable become label and value */}
+                    {filter.type === "select" && optionsSource && (
+                      <div className="space-y-2">
+                        {fieldsFor(optionsSource.variableName).length === 0 && (
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
+                            {t("optionsSourceNoFields")}
+                          </p>
+                        )}
+                        {[
+                          {
+                            field: "valueField" as const,
+                            labelKey: "optionsSourceValueField",
+                          },
+                          {
+                            field: "labelField" as const,
+                            labelKey: "optionsSourceLabelField",
+                          },
+                        ].map(({ field, labelKey }) => (
+                          <div key={field} className="space-y-1">
+                            <Label htmlFor={`opt-${field}-${id}`}>
+                              {t(labelKey)}
+                            </Label>
+                            <Select
+                              id={`opt-${field}-${id}`}
+                              sizing="sm"
+                              value={optionsSource[field] ?? ""}
+                              onChange={(e) =>
+                                updateOptionsSource(
+                                  index,
+                                  field,
+                                  e.target.value
+                                )
+                              }
+                            >
+                              <option value="">
+                                {field === "valueField"
+                                  ? t("optionsSourceFieldPlaceholder")
+                                  : t("optionsSourceSameAsValue")}
+                              </option>
+                              {fieldChoicesFor(
+                                optionsSource.variableName,
+                                optionsSource[field]
+                              ).map((col) => (
+                                <option key={col} value={col}>
+                                  {col}
+                                </option>
+                              ))}
+                            </Select>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Select options */}
+                    {filter.type === "select" && !optionsSource && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1">
+                          <Label>{t("selectOptionsLabel")}</Label>
+                          <Tooltip
+                            content={
+                              <MdTooltip>{t("selectOptionsTooltip")}</MdTooltip>
+                            }
+                          >
+                            <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                          </Tooltip>
+                        </div>
+                        {(filter.options ?? []).length === 0 && (
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
+                            {t("noOptionsYet")}
+                          </p>
+                        )}
+                        {(filter.options ?? []).map((opt, optIdx) => (
+                          <div
+                            key={(optionIds[id] ?? [])[optIdx] ?? optIdx}
+                            className="flex items-center gap-2"
+                          >
+                            <TextInput
+                              sizing="sm"
+                              placeholder={t("optionLabelPlaceholder")}
+                              value={opt.label}
+                              onChange={(e) =>
+                                updateOption(
+                                  index,
+                                  optIdx,
+                                  "label",
+                                  e.target.value
+                                )
+                              }
+                              className="flex-1"
+                            />
+                            <TextInput
+                              sizing="sm"
+                              placeholder={t("optionValuePlaceholder")}
+                              value={opt.value}
+                              onChange={(e) =>
+                                updateOption(
+                                  index,
+                                  optIdx,
+                                  "value",
+                                  e.target.value
+                                )
+                              }
+                              className="flex-1"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeOption(index, optIdx)}
+                              className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              <HiTrash className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          size="xs"
+                          color="light"
+                          onClick={() => addOption(index)}
+                        >
+                          <HiPlus className="mr-1 h-3 w-3" />
+                          {t("addOption")}
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Date range auto-generated param info */}
+                    {filter.type === "date_range" && filter.key && (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1">
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                            {t("autoGeneratedParams")}
+                          </p>
+                          <Tooltip
+                            content={
+                              <MdTooltip>
+                                {t("autoGeneratedParamsTooltip")}
+                              </MdTooltip>
+                            }
+                          >
+                            <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                          </Tooltip>
+                        </div>
+                        {[`${filter.key}_from`, `${filter.key}_to`].map(
+                          (derived) => (
+                            <div
+                              key={derived}
+                              className="flex items-center gap-2 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-600 dark:bg-gray-700/50"
+                            >
+                              <code className="flex-1 text-xs font-mono text-gray-500 dark:text-gray-400">
+                                {`{{filter.${derived}}}`}
+                              </code>
+                              <span className="text-xs italic text-gray-400 dark:text-gray-500">
+                                {t("autoGenerated")}
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </li>
             </div>
           );
         })}
@@ -1236,6 +1327,8 @@ export interface DashboardSettingsHost {
   /** From the server's capabilities; the context cannot know it. */
   canManagePermissions: boolean;
   onManagePermissions: () => void;
+  /** Where the permissions live, for the new dashboard's setup steps. */
+  permissions?: DashboardPermissionsOptions;
   onDelete?: () => Promise<void>;
 }
 
@@ -1254,6 +1347,9 @@ export default function DashboardSettingsDropdown({
     downloadDashboard,
     dictionary,
     siteId,
+    tags,
+    visibility,
+    setDetails,
   } = useDashboard();
 
   const router = useRouter();
@@ -1482,6 +1578,25 @@ export default function DashboardSettingsDropdown({
             </SettingsSection>
           )}
 
+          {host && (
+            <SettingsSection
+              option="tags"
+              selected={selected}
+              setSelected={setSelected}
+              title={tr("dashboard.settings.tagsTitle", dictionary)}
+              description={tr("dashboard.settings.tagsDescription", dictionary)}
+              maxHeight="max-h-[60vh]"
+            >
+              {selected === "tags" && (
+                <SettingsTagsForm
+                  tags={tags}
+                  onSave={(next) => setDetails({ tags: next })}
+                  dictionary={dictionary}
+                />
+              )}
+            </SettingsSection>
+          )}
+
           {canManagePermissions && (
             <SettingsSection
               option="access"
@@ -1492,14 +1607,28 @@ export default function DashboardSettingsDropdown({
                 "dashboard.settings.accessControlDescription",
                 dictionary
               )}
+              maxHeight="max-h-[60vh]"
             >
-              <ManagePermissionsForm
-                onOpenModal={() => {
-                  if (host) host.onManagePermissions();
-                  else setShowPermissionsModal(true);
-                  closePanel();
-                }}
-              />
+              {host?.permissions ? (
+                selected === "access" && (
+                  <SettingsPermissionsForm
+                    permissions={host.permissions}
+                    visibility={visibility}
+                    onVisibilityChange={(next) =>
+                      setDetails({ visibility: next })
+                    }
+                    dictionary={dictionary}
+                  />
+                )
+              ) : (
+                <ManagePermissionsForm
+                  onOpenModal={() => {
+                    if (host) host.onManagePermissions();
+                    else setShowPermissionsModal(true);
+                    closePanel();
+                  }}
+                />
+              )}
             </SettingsSection>
           )}
 

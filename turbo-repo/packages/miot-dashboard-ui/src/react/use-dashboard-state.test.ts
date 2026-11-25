@@ -333,3 +333,44 @@ it("denies saved-query mutation for read-only or unloaded documents",()=>{
   act(()=>{expect(view.result.current.setQueries([])).toBe(false);});
   expect(onChange).not.toHaveBeenCalled();
 });
+
+describe("dashboard details", () => {
+  function controlled(started?: boolean) {
+    const original = makeDashboardStorage(
+      started === undefined ? {} : { started },
+    );
+    return renderHook(() => {
+      const [config, onChange] = useState(original);
+      return {
+        config,
+        state: useDashboardState({
+          config,
+          onChange,
+          isLoaded: true,
+          readOnly: false,
+        }),
+      };
+    });
+  }
+
+  it("counts a dashboard without the field as started", () => {
+    const { result } = controlled();
+    expect(result.current.state.started).toBe(true);
+    expect(result.current.state.tags).toEqual([]);
+  });
+
+  it("sets tags and the start together, keeping the rest", () => {
+    const { result } = controlled(false);
+    expect(result.current.state.started).toBe(false);
+    act(() =>
+      result.current.state.setDetails({ tags: ["fleet"], started: true }),
+    );
+    expect(result.current.state.started).toBe(true);
+    expect(result.current.state.tags).toEqual(["fleet"]);
+    expect(result.current.config).toMatchObject({
+      tags: ["fleet"],
+      started: true,
+      name: makeDashboardStorage().name,
+    });
+  });
+});

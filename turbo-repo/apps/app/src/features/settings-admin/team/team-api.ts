@@ -43,8 +43,8 @@ const customRolesKey = `${TEAM}/custom-roles`;
 const CATALOG = "/app/api/access/catalog";
 const MY_ACCESS = "/app/api/me/access";
 
-export function useTeam() {
-  return useSWR<TeamView>(membersKey, getJson);
+export function useTeam(enabled = true) {
+  return useSWR<TeamView>(enabled ? membersKey : null, getJson);
 }
 
 /** The pending invitations' emails, lower-cased. */

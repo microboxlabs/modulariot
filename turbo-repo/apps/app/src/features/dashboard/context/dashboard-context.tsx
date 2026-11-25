@@ -9,10 +9,16 @@ import {
   type PropsWithChildren,
   type ComponentType,
 } from "react";
-import type { DashboardGeneralSettingsValue } from "@microboxlabs/miot-dashboard-ui/react";
+import type {
+  DashboardDetails,
+  DashboardGeneralSettingsValue,
+} from "@microboxlabs/miot-dashboard-ui/react";
 import type { DashboardQueryDefinition } from "@microboxlabs/miot-dashboard-contract/document";
 import { mutate as mutateGlobal } from "swr";
-import { useDashboardStorage, type DashboardStorageController } from "../hooks/use-dashboard-storage";
+import {
+  useDashboardStorage,
+  type DashboardStorageController,
+} from "../hooks/use-dashboard-storage";
 import {
   type Widget,
   type GridLayoutItem,
@@ -67,6 +73,14 @@ interface DashboardContextValue {
   allowedGroups: string[];
   /** Update allowed groups */
   setAllowedGroups: (groups: string[]) => void;
+  /** Labels for finding the dashboard in the list */
+  tags: string[];
+  /** False while a new dashboard is still in its setup; see `started` in the contract. */
+  started: boolean;
+  /** Who sees it: the whole organization, or only who its permissions name */
+  visibility: "organization" | "restricted";
+  /** Writes the tags, whether the setup has started and who sees it, together */
+  setDetails: (details: DashboardDetails) => void;
 
   // Widget actions
   createWidget: (
@@ -178,6 +192,10 @@ export function DashboardProvider({
     setOrder: setOrderStorage,
     allowedGroups,
     setAllowedGroups,
+    tags,
+    started,
+    visibility,
+    setDetails,
     findWidget,
     exportDashboard,
     importDashboard,
@@ -448,6 +466,10 @@ export function DashboardProvider({
       setOrder,
       allowedGroups,
       setAllowedGroups,
+      tags,
+      started,
+      visibility,
+      setDetails,
       dashboardName,
       createWidget,
       updateWidgetConfig,
@@ -494,6 +516,10 @@ export function DashboardProvider({
       setOrder,
       allowedGroups,
       setAllowedGroups,
+      tags,
+      started,
+      visibility,
+      setDetails,
       dashboardName,
       createWidget,
       updateWidgetConfig,
@@ -561,6 +587,10 @@ const DASHBOARD_FALLBACK: DashboardContextValue = {
   setOrder: NOOP,
   allowedGroups: [],
   setAllowedGroups: NOOP,
+  tags: [],
+  started: true,
+  visibility: "organization",
+  setDetails: NOOP,
   createWidget: () => null,
   updateWidgetConfig: NOOP,
   updateWidgetLayouts: NOOP,

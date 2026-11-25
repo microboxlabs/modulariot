@@ -226,6 +226,7 @@ function ServerDashboardEditor({
     ),
     canManagePermissions: document.capabilities?.canManagePermissions === true,
     onManagePermissions: () => setPermissionsOpen(true),
+    permissions: { client: document.client, slug, sessionKey },
     onDelete: document.capabilities?.canDelete ? remove : undefined,
   };
   // Changes save on their own; a failed save keeps the draft and offers a reload.

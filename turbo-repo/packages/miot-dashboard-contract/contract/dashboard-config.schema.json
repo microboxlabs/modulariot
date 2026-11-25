@@ -381,6 +381,9 @@
           },
           "maxItems": 20
         },
+        "started": {
+          "type": "boolean"
+        },
         "visibility": {
           "type": "string",
           "enum": [

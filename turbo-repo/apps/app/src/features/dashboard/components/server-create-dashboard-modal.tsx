@@ -64,7 +64,18 @@ export function ServerCreateDashboardModal({
     setSaving(true);
     setError(null);
     try {
-      await client.save(slug, { ...DEFAULT_STORAGE, name: trimmed }, '"0"');
+      await client.save(
+        slug,
+        {
+          ...DEFAULT_STORAGE,
+          name: trimmed,
+          // Created into its setup, kept to who its creator names until they
+          // open it up.
+          started: false,
+          visibility: "restricted",
+        },
+        '"0"'
+      );
       setName("");
       onCreated(slug);
     } catch (e) {

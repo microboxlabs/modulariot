@@ -128,6 +128,18 @@ export interface DashboardStorageSchema {
    *  at least one listed group (in addition to GROUP_DASHBOARD) to view this
    *  dashboard. When empty/undefined, any GROUP_DASHBOARD user can access. */
   allowedGroups?: string[];
+  /** Labels for finding the dashboard in the list. */
+  tags?: string[];
+  /**
+   * False while a new dashboard is still in its setup; absent counts as
+   * started. See `started` in the dashboard contract.
+   */
+  started?: boolean;
+  /**
+   * Who sees it: "organization" (also when absent) or "restricted", only who
+   * its permissions name. See `visibility` in the dashboard contract.
+   */
+  visibility?: "organization" | "restricted";
 }
 
 /** Default storage state */

@@ -13,6 +13,7 @@ import {
   HiArrowUturnLeft,
   HiArrowUturnRight,
   HiArrowsPointingOut,
+  HiOutlineSquares2X2,
   HiPencilSquare,
 } from "react-icons/hi2";
 import { DashboardGrid } from "@microboxlabs/miot-dashboard-ui/react";
@@ -25,38 +26,53 @@ import { tr } from "@/features/i18n/tr.service";
 import { useDashboardAccess } from "@/features/common/providers/client-api.provider";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { EmptyState } from "../empty-state";
+import type { Visibility } from "../dashboard-setup/setup.types";
+import { DashboardGridSkeleton } from "../dashboard-skeleton";
+import type { DashboardPermissionsOptions } from "@microboxlabs/miot-dashboard-ui/react";
 
 // ── Placeholder (skeleton or empty state) ──────────────────────────────
 
 interface DashboardPlaceholderProps {
   isLoaded: boolean;
+  dictionary: I18nRecord;
   onAdd?: () => void;
+  canManagePermissions: boolean;
+  permissions?: DashboardPermissionsOptions;
+  started: boolean;
+  tags: readonly string[];
+  onFinishSetup: (tags: string[]) => void;
+  visibility: Visibility;
+  onVisibilityChange: (visibility: Visibility) => void;
 }
 
 function DashboardPlaceholder({
   isLoaded,
+  dictionary,
   onAdd,
+  canManagePermissions,
+  permissions,
+  started,
+  tags,
+  onFinishSetup,
+  visibility,
+  onVisibilityChange,
 }: Readonly<DashboardPlaceholderProps>) {
   if (isLoaded) {
-    return <EmptyState onAdd={onAdd} />;
+    return (
+      <EmptyState
+        dictionary={dictionary}
+        onAdd={onAdd}
+        canManagePermissions={canManagePermissions}
+        permissions={permissions}
+        started={started}
+        tags={tags}
+        onFinishSetup={onFinishSetup}
+        visibility={visibility}
+        onVisibilityChange={onVisibilityChange}
+      />
+    );
   }
-  return (
-    <div
-      className="grid gap-4"
-      style={{
-        gridTemplateColumns: "repeat(24, minmax(0, 1fr))",
-        gridAutoRows: "minmax(150px, 1fr)",
-      }}
-    >
-      <div className="col-span-12 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-      <div className="col-span-12 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-      <div className="col-span-16 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-    </div>
-  );
+  return <DashboardGridSkeleton />;
 }
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
@@ -67,6 +83,16 @@ import type { DashboardSettingsHost } from "../dashboard-settings-dropdown/dashb
 import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
 import { DashboardFilterBadges } from "../dashboard-filters-card/dashboard-filters-card";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
+
+/**
+ * Whether the setup's permissions step is the caller's to take. The legacy
+ * host keeps permissions inside its settings dropdown, so not there.
+ */
+function canManagePermissionsIn(
+  host: DashboardSettingsHost | undefined
+): boolean {
+  return host?.canManagePermissions === true && !!host.onManagePermissions;
+}
 
 function renderRootWidget(widget: Widget) {
   return <WidgetRenderer widget={widget} isRoot />;
@@ -80,11 +106,20 @@ interface DashboardViewProps {
   /** Rendered before the edit-mode button, e.g. a host's save controls. */
   headerActions?: ReactNode;
   settingsHost?: DashboardSettingsHost;
+  /**
+   * The breadcrumb's first crumb, a sidebar label key: "home" for the legacy
+   * dashboards, "dashboardServer" ("Dashboards") for the organization's.
+   */
+  breadcrumbRoot?: string;
+  /** Where the first crumb leads back to; plain text without it. */
+  breadcrumbRootHref?: string;
 }
 
 export function DashboardView({
   headerActions,
   settingsHost,
+  breadcrumbRoot = "home",
+  breadcrumbRootHref,
 }: Readonly<DashboardViewProps> = {}) {
   const {
     registry,
@@ -97,6 +132,10 @@ export function DashboardView({
     dictionary,
     siteId,
     hostAccess,
+    started,
+    tags,
+    visibility,
+    setDetails,
     toggleEditMode,
     setEditMode,
     updateWidgetLayouts,
@@ -153,17 +192,32 @@ export function DashboardView({
     return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, [editMode, undo, redo]);
 
+  const handleLayoutCommit = useCallback(
+    (items: GridLayoutItem[]) => {
+      if (canEdit && editMode) updateWidgetLayouts(null, items);
+    },
+    [canEdit, editMode, updateWidgetLayouts]
+  );
 
-  const handleLayoutCommit = useCallback((items: GridLayoutItem[]) => {
-    if (canEdit && editMode) updateWidgetLayouts(null, items);
-  }, [canEdit, editMode, updateWidgetLayouts]);
+  /** Leaving the setup's tags step: its tags are saved and the setup is over. */
+  const finishSetup = useCallback(
+    (nextTags: string[]) => setDetails({ tags: nextTags, started: true }),
+    [setDetails]
+  );
+
+  const changeVisibility = useCallback(
+    (next: Visibility) => setDetails({ visibility: next }),
+    [setDetails]
+  );
 
   return (
     <div className="flex h-full w-full flex-col">
       {/* Header (hidden in kiosk mode) */}
       {!isKiosk && (
         <SectionHeader
-          path={["home", dashboardName]}
+          path={[breadcrumbRoot, dashboardName]}
+          rootIcon={<HiOutlineSquares2X2 className="mr-2 h-4 w-4" />}
+          rootHref={breadcrumbRootHref}
           breadcrumbDict={
             (((dictionary as I18nRecord)["layout"] as I18nRecord)["secured"] as I18nRecord)["sidebar"] as I18nRecord
           }
@@ -250,7 +304,15 @@ export function DashboardView({
           ) : (
             <DashboardPlaceholder
               isLoaded={isLoaded}
+              dictionary={dictionary}
               onAdd={canEdit ? () => setIsAddModalOpen(true) : undefined}
+              canManagePermissions={canManagePermissionsIn(settingsHost)}
+              permissions={settingsHost?.permissions}
+              started={started}
+              tags={tags}
+              onFinishSetup={finishSetup}
+              visibility={visibility}
+              onVisibilityChange={changeVisibility}
             />
           )}
 

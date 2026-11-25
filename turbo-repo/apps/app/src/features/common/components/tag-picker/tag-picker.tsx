@@ -164,6 +164,9 @@ function TagNameEditor({
 }>) {
   const [name, setName] = useState(initial);
   const [error, setError] = useState(false);
+  const field = useRef<HTMLInputElement>(null);
+  // Focused once it opens, without the autoFocus attribute.
+  useEffect(() => field.current?.focus(), []);
   const save = () => {
     if (!onSave(name)) setError(true);
   };
@@ -180,7 +183,7 @@ function TagNameEditor({
   return (
     <span className="flex items-center gap-1">
       <input
-        autoFocus
+        ref={field}
         aria-label={labels.rename}
         aria-invalid={error}
         value={name}
@@ -379,6 +382,7 @@ export default function TagPicker({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const field = useRef<HTMLInputElement | null>(null);
   const key = normalizeTag(query);
   const showList = open && key.length > 0;
   // The list floats under the field, as wide as it, instead of pushing the
@@ -398,6 +402,13 @@ export default function TagPicker({
       }),
     ],
   });
+
+  // Focused on mount when asked, without the autoFocus attribute.
+  useEffect(() => {
+    if (autoFocus) field.current?.focus();
+    // Only when it mounts, as the attribute would.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A click anywhere else closes the list; the list is inside `root`.
   useEffect(() => {
@@ -465,11 +476,13 @@ export default function TagPicker({
           </span>
         )}
         <input
-          ref={refs.setReference}
+          ref={(node) => {
+            refs.setReference(node);
+            field.current = node;
+          }}
           className={twMerge(TAG_FIELD_CLASS, Icon && "pl-10", inputClassName)}
           placeholder={labels.placeholder}
           aria-label={labels.placeholder}
-          autoFocus={autoFocus}
           value={query}
           maxLength={maxLength}
           onChange={(event) => {

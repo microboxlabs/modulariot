@@ -5,7 +5,6 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import TagPicker, {
   matchingExtras,
-  TAG_CHIP_CLASS,
 } from "@/features/common/components/tag-picker/tag-picker";
 import type { TowerTripPlace } from "@/features/symptoms/control-tower/control-tower-api";
 import { SECTION_INPUT_CLASS } from "./contact-person-section";
@@ -39,7 +38,7 @@ export function placeDetail(place: TowerTripPlace, d: I18nRecord): string {
 }
 
 /** A contact's tag chip; the contact table draws them the same way. */
-export const BADGE_CLASS = TAG_CHIP_CLASS;
+export { TAG_CHIP_CLASS as BADGE_CLASS } from "@/features/common/components/tag-picker/tag-picker";
 
 /**
  * Agrupación card — badges are shared descriptors ([transportista] [norte]

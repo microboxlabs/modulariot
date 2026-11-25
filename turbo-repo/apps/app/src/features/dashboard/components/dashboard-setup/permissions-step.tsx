@@ -319,11 +319,11 @@ export function PermissionsStep({
 
   if (checkingAccess) {
     return (
-      <div role="status" aria-busy="true" className="flex flex-col gap-4">
+      <output aria-busy="true" className="flex flex-col gap-4">
         <span className="sr-only">{t("loading")}</span>
         <div className="h-[38px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700" />
         <div className="h-9 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700" />
-      </div>
+      </output>
     );
   }
   if (!canManage) {

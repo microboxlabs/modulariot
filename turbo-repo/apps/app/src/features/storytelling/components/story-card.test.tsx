@@ -59,7 +59,7 @@ describe("StoryCard", () => {
     const checkbox = screen.getByRole("checkbox", {
       name: "Select Q3 delivery report",
     });
-    expect(checkbox).toHaveAttribute("aria-checked", "true");
+    expect(checkbox).toBeChecked();
     await user.click(checkbox);
     expect(onToggleSelect).toHaveBeenCalledWith(
       expect.objectContaining({ id: "s1" })

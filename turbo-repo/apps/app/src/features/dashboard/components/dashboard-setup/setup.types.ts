@@ -7,9 +7,7 @@ export type DashboardRole = PermissionAssignment["role"];
  * The roles the setup offers: the dashboard server's own four, the same ones
  * the dashboard permissions have always had, from least to most.
  */
-export type SetupRole = DashboardRole;
-
-export const SETUP_ROLES: readonly SetupRole[] = [
+export const SETUP_ROLES: readonly DashboardRole[] = [
   "Consumer",
   "Contributor",
   "Editor",

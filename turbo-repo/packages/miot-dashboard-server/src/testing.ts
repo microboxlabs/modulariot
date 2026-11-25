@@ -694,7 +694,11 @@ export function createMemoryStarStore(): DashboardStarStore {
     JSON.stringify([scope.tenantId, scope.scopeId]).slice(0, -1) + ",";
   return {
     list: (scope, userId) =>
-      Promise.resolve([...(stars.get(keyOf(scope, userId)) ?? [])].sort()),
+      Promise.resolve(
+        [...(stars.get(keyOf(scope, userId)) ?? [])].sort((a, b) =>
+          a.localeCompare(b),
+        ),
+      ),
     star(scope, userId, slug) {
       const key = keyOf(scope, userId);
       stars.set(key, new Set([...(stars.get(key) ?? []), slug]));

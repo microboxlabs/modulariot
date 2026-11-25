@@ -83,6 +83,9 @@ import type { DashboardSettingsHost } from "../dashboard-settings-dropdown/dashb
 import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
 import { DashboardFilterBadges } from "../dashboard-filters-card/dashboard-filters-card";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
+import { nameInFolder } from "../dashboard-explorer/explorer-tree";
+
+const NO_FOLDERS: readonly { name: string; href: string }[] = [];
 
 /**
  * Whether the setup's permissions step is the caller's to take. The legacy
@@ -113,6 +116,12 @@ interface DashboardViewProps {
   breadcrumbRoot?: string;
   /** Where the first crumb leads back to; plain text without it. */
   breadcrumbRootHref?: string;
+  /**
+   * The folders the dashboard is in, top first, as crumbs between the first
+   * one and its name. A name saved with them in front ("Ops/Fleet") shows
+   * without them, as in the list.
+   */
+  breadcrumbFolders?: readonly { name: string; href: string }[];
 }
 
 export function DashboardView({
@@ -120,6 +129,7 @@ export function DashboardView({
   settingsHost,
   breadcrumbRoot = "home",
   breadcrumbRootHref,
+  breadcrumbFolders = NO_FOLDERS,
 }: Readonly<DashboardViewProps> = {}) {
   const {
     registry,
@@ -215,7 +225,15 @@ export function DashboardView({
       {/* Header (hidden in kiosk mode) */}
       {!isKiosk && (
         <SectionHeader
-          path={[breadcrumbRoot, dashboardName]}
+          path={[
+            breadcrumbRoot,
+            ...breadcrumbFolders.map((folder) => folder.name),
+            nameInFolder(dashboardName, breadcrumbFolders),
+          ]}
+          crumbHrefs={[
+            undefined,
+            ...breadcrumbFolders.map((folder) => folder.href),
+          ]}
           rootIcon={<HiOutlineSquares2X2 className="mr-2 h-4 w-4" />}
           rootHref={breadcrumbRootHref}
           breadcrumbDict={

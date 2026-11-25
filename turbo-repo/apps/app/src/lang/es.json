@@ -7339,7 +7339,14 @@
     "server": {
       "title": "Dashboards",
       "loading": "Cargando dashboard…",
-      "loadError": "No se pudieron cargar los dashboards. Revisa tu organización y acceso.",
+      "loadError": "No se pudieron cargar los dashboards",
+      "loadErrorBody": "Puede ser un problema de conexión o de acceso a tu organización. Inténtalo de nuevo en un momento.",
+      "retry": "Reintentar",
+      "openError": "No se pudo abrir este dashboard",
+      "openErrorBody": "Puede ser un problema de conexión o de acceso. Inténtalo de nuevo o vuelve a la lista.",
+      "missing": "Este dashboard no existe",
+      "missingBody": "Puede que lo hayan eliminado o que el enlace no sea correcto.",
+      "backToList": "Volver a dashboards",
       "newName": "Nuevo dashboard",
       "empty": "Esta organización aún no tiene dashboards.",
       "name": "Nombre del dashboard",
@@ -7449,10 +7456,146 @@
       }
     },
     "explorer": {
+      "title": "Dashboards",
+      "description": "Organiza, busca y abre los dashboards de tu organización.",
+      "new": "Nuevo",
+      "name": "Nombre",
+      "nameSearch": "Buscar por nombre",
+      "clearSearch": "Borrar búsqueda",
+      "breadcrumb": "Ruta de la carpeta",
+      "addTag": "Agregar etiqueta",
+      "editTagsOf": "Editar etiquetas de \"{name}\"",
+      "parentFolder": "Subir a \"{name}\"",
+      "emptyFolder": "Esta carpeta está vacía.",
+      "expandFolder": "Expandir \"{name}\"",
+      "collapseFolder": "Contraer \"{name}\"",
+      "view": {
+        "cards": "Tarjetas",
+        "list": "Lista"
+      },
+      "cards": {
+        "filters": "Filtros",
+        "starredOnly": "Destacados",
+        "recent": "Abiertos recientemente",
+        "all": "Todos",
+        "folders": "Carpetas",
+        "dashboards": "Dashboards",
+        "oneItem": "1 elemento",
+        "items": "{count} elementos",
+        "created": "Creado {when}",
+        "opened": "Abierto {when}",
+        "edited": "Editado {when}",
+        "sortByName": "Ordenar por nombre",
+        "sortedNameAsc": "Ordenado por nombre, de la A a la Z",
+        "sortedNameDesc": "Ordenado por nombre, de la Z a la A",
+        "sortByCreated": "Ordenar por fecha de creación",
+        "sortedCreatedAsc": "Ordenado por fecha de creación, más antiguos primero",
+        "sortedCreatedDesc": "Ordenado por fecha de creación, más recientes primero"
+      },
+      "columns": {
+        "selectAll": "Seleccionar todo",
+        "select": "Seleccionar \"{name}\"",
+        "tags": "Etiquetas",
+        "created": "Creado",
+        "createdUnknown": "Fecha de creación desconocida",
+        "folder": "Carpeta",
+        "folderNoDate": "Las carpetas no tienen fecha de creación",
+        "filterCreated": "Filtrar por fecha de creación",
+        "clearCreated": "Quitar el filtro de fecha",
+        "new": "Nuevo",
+        "filterTags": "Filtrar por etiqueta",
+        "clearFilter": "Quitar filtro",
+        "noTags": "Aún no hay etiquetas",
+        "starredOnly": "Mostrar solo favoritos",
+        "star": "Marcar como favorito",
+        "unstar": "Quitar de favoritos"
+      },
       "tagsDialog": {
         "title": "Etiquetas de \"{name}\"",
         "save": "Guardar",
         "cancel": "Cancelar"
+      },
+      "newFile": "Nuevo dashboard",
+      "newFolder": "Nueva carpeta",
+      "untitledFile": "Dashboard sin título",
+      "untitledFolder": "Nueva carpeta",
+      "namePlaceholder": "Escribe un nombre…",
+      "empty": "Aún no hay dashboards",
+      "createFirst": "Crear dashboard",
+      "noResults": "Sin resultados",
+      "menu": {
+        "clone": "Clonar",
+        "copy": "Copiar",
+        "cut": "Cortar",
+        "paste": "Pegar",
+        "rename": "Renombrar",
+        "editTags": "Editar etiquetas",
+        "delete": "Eliminar",
+        "permissions": "Permisos"
+      },
+      "confirm": {
+        "deleteTitle": "¿Eliminar \"{name}\"?",
+        "deleteManyTitle": "¿Eliminar {count} elementos?",
+        "moveManyTitle": "¿Mover {count} elementos?",
+        "deleteBody": "El dashboard se eliminará para todos en esta organización.",
+        "deleteFolderBody": "La carpeta y todo lo que contiene ({count}) se eliminarán para todos en esta organización.",
+        "moveTitle": "¿Mover \"{name}\"?",
+        "moveInto": "Se moverá a \"{target}\".",
+        "moveToTop": "Se moverá al nivel superior.",
+        "move": "Mover",
+        "cancel": "Cancelar"
+      },
+      "loading": "Cargando…",
+      "loadError": "No se pudieron cargar los dashboards",
+      "loadErrorBody": "Puede ser un problema de conexión. Inténtalo de nuevo en un momento.",
+      "retry": "Reintentar",
+      "errors": {
+        "forbidden": "No tienes permiso para hacer eso.",
+        "conflict": "Ese nombre ya existe, o el elemento cambió. Inténtalo de nuevo.",
+        "generic": "No se pudo guardar el cambio. Inténtalo de nuevo."
+      },
+      "toasts": {
+        "dashboardCreated": "Dashboard \"{name}\" creado",
+        "folderCreated": "Carpeta \"{name}\" creada",
+        "dashboardRenamed": "Dashboard renombrado a \"{name}\"",
+        "folderRenamed": "Carpeta renombrada a \"{name}\"",
+        "copied": "\"{name}\" copiado",
+        "copiedMany": "{count} dashboards copiados",
+        "movedInto": "\"{name}\" movido a \"{target}\"",
+        "movedToTop": "\"{name}\" movido al nivel superior",
+        "movedManyInto": "{count} elementos movidos a \"{target}\"",
+        "movedManyToTop": "{count} elementos movidos al nivel superior",
+        "deleted": "\"{name}\" eliminado",
+        "deletedMany": "{count} elementos eliminados",
+        "tagsSaved": "Etiquetas guardadas en \"{name}\"",
+        "starring": {
+          "loading": "Agregando \"{name}\" a destacados…",
+          "ok": "\"{name}\" agregado a destacados"
+        },
+        "unstarring": {
+          "loading": "Quitando \"{name}\" de destacados…",
+          "ok": "\"{name}\" quitado de destacados"
+        }
+      },
+      "folderPermissions": {
+        "title": "Permisos de \"{name}\"",
+        "body": "Quién ve esta carpeta y qué puede hacer en ella. Es aparte de los permisos de cada dashboard.",
+        "roleHints": {
+          "Consumer": "Ve la carpeta",
+          "Contributor": "Ve la carpeta",
+          "Editor": "Crea dentro, la renombra y la mueve",
+          "Coordinator": "La elimina y gestiona el acceso"
+        },
+        "noAccess": "Nadie tiene acceso propio. Busca un miembro o equipo arriba para darle acceso.",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "saved": "Permisos de \"{name}\" guardados",
+        "loadError": "No se pudieron cargar los permisos de la carpeta.",
+        "visibility": {
+          "organizationHelp": "Todos en la organización ven la carpeta, cada uno con su rol.",
+          "restrictedHelp": "Solo ven la carpeta, y lo que contiene, quienes estén en la lista, quien la creó y los dueños.",
+          "note": "Las personas y equipos que agregues reciben el rol que elijas en esta carpeta."
+        }
       }
     },
     "setup": {

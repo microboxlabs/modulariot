@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { HiCalendar, HiClock, HiSearch, HiChevronDown } from "react-icons/hi";
 import dayjs from "dayjs";
@@ -34,6 +34,11 @@ interface TimeRangePickerProps {
   size?: "sm" | "md";
   fullWidth?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * The host's own button face, in place of the calendar icon: what it
+   * shows, its classes, and its accessible name.
+   */
+  trigger?: { content: ReactNode; className: string; label: string };
 }
 
 const T_PREFIX = "dashboard.filterBar";
@@ -76,6 +81,7 @@ export default function TimeRangePicker({
   size = "md",
   fullWidth = false,
   onOpenChange,
+  trigger,
 }: Readonly<TimeRangePickerProps>) {
   const t = (key: string) => tr(`${T_PREFIX}.${key}`, dictionary);
   const storageKey = `${RECENT_RANGES_KEY}:${mode}`;
@@ -279,29 +285,54 @@ export default function TimeRangePicker({
     sizeClass = "h-10.5 w-10.5 justify-center rounded-lg";
   }
 
+  const rangeTitle =
+    fromDate && toDate
+      ? `${getDisplayValue(fromDate)} - ${getDisplayValue(toDate)}`
+      : t("selectDateRange");
+
   return (
-    <div className={`relative flex items-center ${fullWidth ? "w-full" : ""} ${className}`}>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={handleToggle}
-        className={`flex cursor-pointer items-center border border-gray-300 bg-white text-sm transition-colors hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500 ${sizeClass}`}
-        title={
-          fromDate && toDate
-            ? `${getDisplayValue(fromDate)} - ${getDisplayValue(toDate)}`
-            : t("selectDateRange")
-        }
-      >
-        <span className="flex min-w-0 items-center gap-1.5">
-          <HiCalendar className={`shrink-0 text-gray-500 dark:text-gray-400 ${fullWidth ? "h-3.5 w-3.5" : "h-5 w-5"}`} />
+    <div
+      className={`relative flex items-center ${fullWidth ? "w-full" : ""} ${className}`}
+    >
+      {trigger ? (
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={handleToggle}
+          aria-label={trigger.label}
+          aria-expanded={isOpen}
+          title={fromDate && toDate ? rangeTitle : trigger.label}
+          className={trigger.className}
+        >
+          {trigger.content}
+        </button>
+      ) : (
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={handleToggle}
+          className={`flex cursor-pointer items-center border border-gray-300 bg-white text-sm transition-colors hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500 ${sizeClass}`}
+          title={rangeTitle}
+        >
+          <span className="flex min-w-0 items-center gap-1.5">
+            <HiCalendar
+              className={`shrink-0 text-gray-500 dark:text-gray-400 ${fullWidth ? "h-3.5 w-3.5" : "h-5 w-5"}`}
+            />
+            {fullWidth && (
+              <span className="truncate text-xs text-gray-500 dark:text-gray-400">
+                {fromDate && toDate
+                  ? `${getDisplayValue(fromDate)} – ${getDisplayValue(toDate)}`
+                  : t("selectDateRange")}
+              </span>
+            )}
+          </span>
           {fullWidth && (
-            <span className="truncate text-xs text-gray-500 dark:text-gray-400">
-              {fromDate && toDate ? `${getDisplayValue(fromDate)} – ${getDisplayValue(toDate)}` : t("selectDateRange")}
-            </span>
+            <HiChevronDown
+              className={`h-3 w-3 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+            />
           )}
-        </span>
-        {fullWidth && <HiChevronDown className={`h-3 w-3 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />}
-      </button>
+        </button>
+      )}
 
       {isOpen &&
         createPortal(
@@ -325,10 +356,14 @@ export default function TimeRangePicker({
                   : t("absoluteTimeRange")}
               </h3>
 
-              {([
-                { labelKey: "from" as const, value: fromDate, setter: setFromDate },
+              {[
+                {
+                  labelKey: "from" as const,
+                  value: fromDate,
+                  setter: setFromDate,
+                },
                 { labelKey: "to" as const, value: toDate, setter: setToDate },
-              ]).map(({ labelKey, value, setter }) => (
+              ].map(({ labelKey, value, setter }) => (
                 <div key={labelKey} className="mb-4">
                   <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
                     {t(labelKey)}

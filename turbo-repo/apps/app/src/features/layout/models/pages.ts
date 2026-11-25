@@ -12,7 +12,7 @@ import {
   HiOutlineMap,
   HiOutlineTruck,
 } from "react-icons/hi";
-import { HiSparkles } from "react-icons/hi2";
+import { HiOutlineSquares2X2, HiSparkles } from "react-icons/hi2";
 import { LuTowerControl } from "react-icons/lu";
 import type { FC, ComponentProps } from "react";
 import pagesConfig from "./pages-config.json";
@@ -25,7 +25,7 @@ import { dashboardModuleEnabled } from "./dashboard-module";
 
 const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   home: HomeIcon,
-  dashboardServer: HomeIcon,
+  dashboardServer: HiOutlineSquares2X2 as FC<ComponentProps<"svg">>,
   calendar: CalendarIcon,
   kanban: ClipboardIcon,
   tasks: FaBookIcon,

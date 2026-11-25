@@ -90,6 +90,22 @@ describe("createTrustedProxyIdentityResolver", () => {
     });
   });
 
+  it("adds the asserted groups, such as the caller's teams", async () => {
+    const principal = await resolver().resolve(
+      asserting({ "x-miot-asserted-groups": " team:a , team:b,team:a,, " }),
+    );
+    expect(principal?.groups).toEqual(["team:a", "team:b"]);
+    const none = await resolver().resolve(asserting());
+    expect(none?.groups).toBeUndefined();
+  });
+
+  it("refuses an assertion with too many groups", async () => {
+    const many = Array.from({ length: 201 }, (_, i) => `team:${i}`).join(",");
+    await expect(
+      resolver().resolve(asserting({ "x-miot-asserted-groups": many })),
+    ).rejects.toThrow(/at most 200/);
+  });
+
   it("throws on a wrong key rather than treating the caller as anonymous", async () => {
     await expect(
       resolver().resolve(asserting({ "x-miot-proxy-key": "wrong" })),

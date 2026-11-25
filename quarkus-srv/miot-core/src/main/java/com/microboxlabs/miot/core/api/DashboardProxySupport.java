@@ -20,18 +20,24 @@ public class DashboardProxySupport {
     /** Alfresco's site groups are named for the site they belong to. */
     private static final String SITE_GROUP_PREFIX = "GROUP_site_";
 
+    /** How a team is named in a dashboard permission; the app saves the same. */
+    static final String TEAM_AUTHORITY_PREFIX = "team:";
+
     private final OrganizationContext organizationContext;
+    private final DashboardTeamsContext teamsContext;
     private final String defaultScopeId;
     private final String proxyKey;
 
     @Inject
     public DashboardProxySupport(OrganizationContext organizationContext,
+                                 DashboardTeamsContext teamsContext,
                                  @ConfigProperty(name = "miot.dashboards.default-scope",
                                          defaultValue = "default")
                                  String defaultScopeId,
                                  @ConfigProperty(name = "miot.dashboards.proxy-key")
                                  Optional<String> proxyKey) {
         this.organizationContext = organizationContext;
+        this.teamsContext = teamsContext;
         this.defaultScopeId = defaultScopeId;
         this.proxyKey = proxyKey.filter(key -> !key.isBlank()).orElse(null);
     }
@@ -86,7 +92,16 @@ public class DashboardProxySupport {
             return DashboardAssertion.none();
         }
         return new DashboardAssertion(proxyKey, email, tenantIdFor(slug),
-                scopeIdFor(), dashboardRoleFrom(organizationContext.getBaseRole()));
+                scopeIdFor(), dashboardRoleFrom(organizationContext.getBaseRole()),
+                groupsHeader(teamsContext.teamIds()));
+    }
+
+    /** The teams as {@code team:<id>}, comma-separated; null for none. */
+    static String groupsHeader(java.util.List<String> teamIds) {
+        if (teamIds == null || teamIds.isEmpty()) {
+            return null;
+        }
+        return String.join(",", teamIds.stream().map(id -> TEAM_AUTHORITY_PREFIX + id).toList());
     }
 
     /**

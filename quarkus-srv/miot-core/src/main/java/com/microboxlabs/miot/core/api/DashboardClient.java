@@ -48,6 +48,8 @@ public interface DashboardClient {
     String ASSERTED_TENANT_HEADER = "X-Miot-Asserted-Tenant";
     String ASSERTED_SCOPE_HEADER = "X-Miot-Asserted-Scope";
     String ASSERTED_ROLE_HEADER = "X-Miot-Asserted-Role";
+    /** The caller's teams, as {@code team:<id>}, comma-separated; absent when none. */
+    String ASSERTED_GROUPS_HEADER = "X-Miot-Asserted-Groups";
 
     @GET
     Uni<Response> list(

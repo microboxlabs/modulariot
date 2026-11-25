@@ -39,6 +39,13 @@ export interface TrustedProxyHeaders {
   scope?: string;
   /** Carries a `DashboardRole`. Default `x-miot-asserted-role`. */
   role?: string;
+  /**
+   * Optional: comma-separated authority ids the caller holds besides its own
+   * user id, such as the teams it belongs to (`team:<id>`). They are matched
+   * against dashboard permissions like a token's groups. Default
+   * `x-miot-asserted-groups`.
+   */
+  groups?: string;
 }
 
 /**
@@ -72,7 +79,32 @@ const DEFAULT_HEADERS: Required<TrustedProxyHeaders> = {
   tenant: "x-miot-asserted-tenant",
   scope: "x-miot-asserted-scope",
   role: "x-miot-asserted-role",
+  groups: "x-miot-asserted-groups",
 };
+
+/** The most groups an assertion may carry; a longer list is refused. */
+const MAX_ASSERTED_GROUPS = 200;
+
+/** The asserted groups, trimmed and without blanks or repeats. */
+function assertedGroups(request: Request, header: string): string[] {
+  const raw = request.headers.get(header);
+  if (raw === null) return [];
+  const groups = [
+    ...new Set(
+      raw
+        .split(",")
+        .map((group) => group.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (groups.length > MAX_ASSERTED_GROUPS) {
+    throw new ProxyAssertionError(
+      `"${header}" names ${groups.length} groups; at most ` +
+        `${MAX_ASSERTED_GROUPS} may be asserted.`,
+    );
+  }
+  return groups;
+}
 
 /**
  * Constant-time comparison. `timingSafeEqual` throws when the two buffers
@@ -163,7 +195,13 @@ export function createTrustedProxyIdentityResolver(
         scopeId: required(request, headers.scope),
         role,
       };
-      return { ...principal, asserted };
+      const groups = assertedGroups(request, headers.groups);
+      if (groups.length === 0) return { ...principal, asserted };
+      return {
+        ...principal,
+        groups: [...new Set([...(principal.groups ?? []), ...groups])],
+        asserted,
+      };
     },
   };
 }

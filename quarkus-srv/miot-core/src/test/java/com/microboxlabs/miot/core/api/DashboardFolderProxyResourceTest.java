@@ -25,7 +25,8 @@ import org.junit.jupiter.api.Test;
 /**
  * The folder proxy sits behind the same membership chain as the dashboard
  * proxy, maps the org onto the upstream's tenant and scope, and passes the
- * upstream answer through, including the dashboard filing route.
+ * upstream answer through, including the dashboard filing route. The star
+ * routes ride along: they share the setup and the same membership chain.
  */
 @QuarkusTest
 @TestProfile(DashboardProxyTestProfile.class)
@@ -83,6 +84,27 @@ class DashboardFolderProxyResourceTest {
                         .willReturn(WireMock.aResponse().withStatus(204)));
         DashboardWireMock.server().stubFor(
                 WireMock.put(WireMock.urlEqualTo(scope("/dashboards/fleet/folder")))
+                        .willReturn(WireMock.aResponse().withStatus(204)));
+        DashboardWireMock.server().stubFor(
+                WireMock.get(WireMock.urlEqualTo(scope("/stars")))
+                        .willReturn(WireMock.aResponse()
+                                .withStatus(200)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"data\":[\"fleet\"]}")));
+        DashboardWireMock.server().stubFor(
+                WireMock.put(WireMock.urlEqualTo(scope("/dashboards/fleet/star")))
+                        .willReturn(WireMock.aResponse().withStatus(204)));
+        DashboardWireMock.server().stubFor(
+                WireMock.delete(WireMock.urlEqualTo(scope("/dashboards/fleet/star")))
+                        .willReturn(WireMock.aResponse().withStatus(204)));
+        DashboardWireMock.server().stubFor(
+                WireMock.get(WireMock.urlEqualTo(scope("/recents?limit=5")))
+                        .willReturn(WireMock.aResponse()
+                                .withStatus(200)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"data\":[{\"slug\":\"fleet\",\"openedAt\":\"2026-11-23T12:00:00Z\"}]}")));
+        DashboardWireMock.server().stubFor(
+                WireMock.put(WireMock.urlEqualTo(scope("/dashboards/fleet/open")))
                         .willReturn(WireMock.aResponse().withStatus(204)));
         DashboardWireMock.server().stubFor(
                 WireMock.get(WireMock.urlEqualTo(scope("/folders/f1/permissions")))
@@ -167,6 +189,49 @@ class DashboardFolderProxyResourceTest {
         DashboardWireMock.server().verify(
                 WireMock.putRequestedFor(WireMock.urlEqualTo(scope("/dashboards/fleet/folder")))
                         .withRequestBody(WireMock.equalToJson(body)));
+    }
+
+    @Test
+    void starsAreListedStarredAndUnstarredThroughTheProxy() {
+        Response list = given()
+                .header("Authorization", "Bearer " + memberToken())
+                .when()
+                .get("/api/v1/orgs/" + SITE_ORG + "/dashboard-stars");
+        assertThat(list.statusCode(), is(200));
+        assertThat(list.body().asString(), containsString("fleet"));
+
+        given().header("Authorization", "Bearer " + memberToken())
+                .when()
+                .put("/api/v1/orgs/" + SITE_ORG + "/dashboards/fleet/star")
+                .then()
+                .statusCode(204);
+        given().header("Authorization", "Bearer " + memberToken())
+                .when()
+                .delete("/api/v1/orgs/" + SITE_ORG + "/dashboards/fleet/star")
+                .then()
+                .statusCode(204);
+        DashboardWireMock.server().verify(
+                WireMock.putRequestedFor(WireMock.urlEqualTo(scope("/dashboards/fleet/star"))));
+        DashboardWireMock.server().verify(
+                WireMock.deleteRequestedFor(WireMock.urlEqualTo(scope("/dashboards/fleet/star"))));
+    }
+
+    @Test
+    void recentsAreListedAndRecordedThroughTheProxy() {
+        Response list = given()
+                .header("Authorization", "Bearer " + memberToken())
+                .when()
+                .get("/api/v1/orgs/" + SITE_ORG + "/dashboard-recents?limit=5");
+        assertThat(list.statusCode(), is(200));
+        assertThat(list.body().asString(), containsString("openedAt"));
+
+        given().header("Authorization", "Bearer " + memberToken())
+                .when()
+                .put("/api/v1/orgs/" + SITE_ORG + "/dashboards/fleet/open")
+                .then()
+                .statusCode(204);
+        DashboardWireMock.server().verify(
+                WireMock.putRequestedFor(WireMock.urlEqualTo(scope("/dashboards/fleet/open"))));
     }
 
     @Test

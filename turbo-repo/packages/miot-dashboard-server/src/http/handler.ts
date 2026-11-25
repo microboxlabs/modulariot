@@ -65,7 +65,11 @@ import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
 import { createFolderRoutes } from "./folder-routes";
 import { parseAssignments } from "./parse-assignments";
+import { createStarRoutes } from "./star-routes";
+import { createRecentRoutes } from "./recent-routes";
 import type { DashboardFolderStore } from "../seams/folders";
+import type { DashboardStarStore } from "../seams/stars";
+import type { DashboardRecentStore } from "../seams/recents";
 import { restrictedConfig, scopeVisibilityLoader } from "../access/visibility";
 import { withCors, type CorsOptions } from "./cors";
 
@@ -99,6 +103,10 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    * carries no `folderId`.
    */
   folders?: DashboardFolderStore;
+  /** Omit it and the star routes answer 404. */
+  stars?: DashboardStarStore;
+  /** Omit it and the recents routes answer 404. */
+  recents?: DashboardRecentStore;
   /** Limits, clock and fetch of the query editor. */
   authoringOptions?: Omit<QueryWorkbenchOptions, "authoring">;
   /** Clock, fetch and timeout for the connection test. For tests. */
@@ -251,9 +259,13 @@ export function createDashboardHandler(
       access,
       store: options.store,
       folders: options.folders,
+      stars: options.stars,
+      recents: options.recents,
       visibility,
       readBody,
     }),
+    ...createStarRoutes({ access, stars: options.stars }),
+    ...createRecentRoutes({ access, recents: options.recents }),
     async dashboards(request, match) {
       const method = request.method.toUpperCase();
       if (method !== "GET") return methodNotAllowed();
@@ -334,6 +346,8 @@ export function createDashboardHandler(
         }
         const ref = refOf(decision.identity.tenantId, match.scopeId, slug);
         await options.store.remove(ref);
+        await options.stars?.forget(ref, slug);
+        await options.recents?.forget(ref, slug);
         return noContentResponse();
       }
       return methodNotAllowed();

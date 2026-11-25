@@ -24,6 +24,21 @@ describe("matchRoute", () => {
     expect(matchRoute(`${base}/folders/f1/extra`)).toBeNull();
     expect(matchRoute(`${base}/folders/..`)).toBeNull();
   });
+  it("matches the star routes", () => {
+    const base = "/tenants/acme/scopes/ops";
+    expect(matchRoute(`${base}/stars`)).toEqual({
+      route: "stars",
+      tenantId: "acme",
+      scopeId: "ops",
+    });
+    expect(matchRoute(`${base}/dashboards/fleet/star`)).toEqual({
+      route: "dashboardStar",
+      tenantId: "acme",
+      scopeId: "ops",
+      slug: "fleet",
+    });
+    expect(matchRoute(`${base}/stars/fleet`)).toBeNull();
+  });
   it("keeps scope capabilities separate from a dashboard named capabilities", () => {
     expect(matchRoute("/tenants/acme/scopes/ops/capabilities")).toEqual({
       route: "scopeCapabilities", tenantId: "acme", scopeId: "ops",

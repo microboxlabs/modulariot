@@ -214,6 +214,18 @@ describe.each(BACKENDS)("$name", ({ open }) => {
     expect(second.updatedBy).toBe("bo");
   });
 
+  it("records when a dashboard was created and keeps it across writes", async () => {
+    const s = await store();
+    const created = await s.save(ref, config, { updatedBy: "ana" });
+    expect(created.createdAt).toBe(created.updatedAt);
+    const createdAt = created.createdAt;
+    expect(Number.isNaN(Date.parse(createdAt ?? ""))).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const edited = await s.save(ref, config, { updatedBy: "bo" });
+    expect(edited.createdAt).toBe(createdAt);
+    expect((await s.load(ref))?.createdAt).toBe(createdAt);
+  });
+
   it("lists a scope by the name in the config, falling back to the slug", async () => {
     const s = await store();
     await s.save(ref, config, { updatedBy: "ana" });

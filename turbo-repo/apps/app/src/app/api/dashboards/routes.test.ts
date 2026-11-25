@@ -22,6 +22,10 @@ import {
   PUT as setPermissions,
 } from "./[dashboard]/permissions/route";
 import { PUT as fileInFolder } from "./[dashboard]/folder/route";
+import { PUT as star, DELETE as unstar } from "./[dashboard]/star/route";
+import { GET as listStars } from "../dashboard-stars/route";
+import { PUT as recordOpen } from "./[dashboard]/open/route";
+import { GET as listRecents } from "../dashboard-recents/route";
 import {
   GET as listFolders,
   POST as createFolder,
@@ -55,6 +59,9 @@ describe("new dashboard product routes", () => {
     ["GET", permissions, "/fleet%20report/permissions"],
     ["PUT", setPermissions, "/fleet%20report/permissions"],
     ["PUT", fileInFolder, "/fleet%20report/folder"],
+    ["PUT", star, "/fleet%20report/star"],
+    ["DELETE", unstar, "/fleet%20report/star"],
+    ["PUT", recordOpen, "/fleet%20report/open"],
   ] as const)(
     "forwards %s through the authenticated org",
     async (method, route, suffix) => {
@@ -269,6 +276,81 @@ describe("saved dashboard query route", () => {
   );
 });
 
+describe("dashboard stars", () => {
+  it("lists the signed-in user's stars in the active organization", async () => {
+    await listStars(
+      new Request("https://app.test/api/dashboard-stars?org=acme%20org")
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/dashboard-stars",
+      { method: "GET" }
+    );
+  });
+
+  it("stars with an empty body, as Next hands a bodiless PUT", async () => {
+    await star(
+      new Request("https://app.test/api/dashboards/fleet/star", {
+        method: "PUT",
+        body: "",
+      }),
+      context
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/dashboards/fleet%20report/star",
+      { method: "PUT", body: undefined, ifMatch: undefined }
+    );
+  });
+
+  it("stars without a body", async () => {
+    await star(
+      new Request("https://app.test/api/dashboards/fleet/star", {
+        method: "PUT",
+      }),
+      context
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/dashboards/fleet%20report/star",
+      { method: "PUT", body: undefined, ifMatch: undefined }
+    );
+  });
+});
+
+describe("dashboard recents", () => {
+  it("lists the signed-in user's recent opens, passing a plain limit on", async () => {
+    await listRecents(
+      new Request(
+        "https://app.test/api/dashboard-recents?org=acme%20org&limit=8"
+      )
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/dashboard-recents?limit=8",
+      { method: "GET" }
+    );
+  });
+
+  it("drops a limit that is not a plain number", async () => {
+    await listRecents(
+      new Request("https://app.test/api/dashboard-recents?limit=8%26x%3D1")
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/dashboard-recents",
+      { method: "GET" }
+    );
+  });
+
+  it("records an open without a body", async () => {
+    await recordOpen(
+      new Request("https://app.test/api/dashboards/fleet/open", {
+        method: "PUT",
+      }),
+      context
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/dashboards/fleet%20report/open",
+      { method: "PUT", body: undefined, ifMatch: undefined }
+    );
+  });
+});
 
 describe("scope capabilities proxy", () => {
   it("uses authenticated organization context instead of browser identity or tenant headers", async () => {

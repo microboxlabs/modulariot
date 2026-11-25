@@ -133,6 +133,35 @@ public interface DashboardClient {
             @BeanParam DashboardAssertion assertion,
             Map<String, Object> body);
 
+    /** Stars the dashboard for the caller; stars are personal. */
+    @PUT
+    @Path("/{slug}/star")
+    Uni<Response> star(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("scopeId") String scopeId,
+            @PathParam("slug") String slug,
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion);
+
+    @DELETE
+    @Path("/{slug}/star")
+    Uni<Response> unstar(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("scopeId") String scopeId,
+            @PathParam("slug") String slug,
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion);
+
+    /** Notes that the caller opened the dashboard; opens are personal. */
+    @PUT
+    @Path("/{slug}/open")
+    Uni<Response> recordOpen(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("scopeId") String scopeId,
+            @PathParam("slug") String slug,
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion);
+
     @GET
     @Path("/{slug}/permissions")
     Uni<Response> getPermissions(

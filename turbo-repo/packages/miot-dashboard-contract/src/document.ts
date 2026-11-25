@@ -149,6 +149,8 @@ export interface DashboardStorageSchema {
    * group is; this package never resolves one.
    */
   allowedGroups?: string[];
+  /** Labels for finding the dashboard in the list; at most 20. */
+  tags?: string[];
   /**
    * Who sees it. "organization": everyone in the scope, each with their own
    * role there. "restricted": only its creator, whoever its permissions name,

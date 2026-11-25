@@ -25,6 +25,8 @@ export interface DashboardMetadataRow {
   updatedBy: string;
   /** Set once, on creation, and preserved by every later write. */
   createdBy?: string;
+  /** ISO-8601. Set once, like `createdBy`; absent on rows from before it was. */
+  createdAt?: string;
 }
 
 /** The fields a write supplies. */

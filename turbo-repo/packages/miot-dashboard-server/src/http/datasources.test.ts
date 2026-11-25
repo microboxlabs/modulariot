@@ -314,6 +314,10 @@ describe("the serialization gate", () => {
       folders: "answers folder names and ids, never credentials",
       folder: "answers folder names and ids, never credentials",
       folderPermissions: "answers authority ids and roles, never credentials",
+      stars: "answers dashboard slugs, never credentials",
+      dashboardStar: "answers nothing but a status, never credentials",
+      recents: "answers dashboard slugs and times, never credentials",
+      dashboardOpen: "answers nothing but a status, never credentials",
       datasources: [
         { method: "GET", path: DS, user: "alice" },
         { method: "POST", path: DS, user: "alice", body: pgrest },

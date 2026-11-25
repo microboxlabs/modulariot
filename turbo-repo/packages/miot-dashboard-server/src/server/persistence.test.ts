@@ -74,7 +74,14 @@ describe("a restart", () => {
         },
       );
       expect(await listed.json()).toEqual({
-        data: [{ slug: "fleet", name: "Fleet" }],
+        data: [
+          {
+            slug: "fleet",
+            name: "Fleet",
+            createdAt: expect.any(String),
+            updatedAt: expect.any(String),
+          },
+        ],
       });
     } finally {
       await first.running.close();

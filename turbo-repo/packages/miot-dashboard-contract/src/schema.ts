@@ -157,6 +157,7 @@ export const dashboardConfigSchema = z
     refreshInterval: refreshIntervalSchema.optional(),
     order: z.number().optional(),
     allowedGroups: z.array(z.string()).optional(),
+    tags: z.array(z.string().max(40)).max(20).optional(),
     visibility: dashboardVisibilitySchema.optional(),
   })
   .passthrough();

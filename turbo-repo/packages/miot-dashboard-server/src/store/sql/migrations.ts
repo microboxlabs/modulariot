@@ -197,6 +197,46 @@ export const MIGRATIONS: readonly Migration[] = [
       `ALTER TABLE dashboard_folders ADD COLUMN visibility TEXT`,
     ],
   },
+  {
+    version: 11,
+    name: "dashboard stars",
+    statements: [
+      // One row per member and starred dashboard. Not a foreign key, like
+      // `folder_id`: deleting a dashboard forgets its stars explicitly.
+      `CREATE TABLE dashboard_stars (
+         tenant_id  TEXT NOT NULL,
+         scope_id   TEXT NOT NULL,
+         user_id    TEXT NOT NULL,
+         slug       TEXT NOT NULL,
+         created_at TEXT NOT NULL,
+         PRIMARY KEY (tenant_id, scope_id, user_id, slug)
+       )`,
+    ],
+  },
+  {
+    version: 12,
+    name: "dashboard creation time",
+    // Nullable: when a dashboard saved before this version was created is not
+    // known, and `updated_at` would date every edited one as new.
+    statements: [`ALTER TABLE dashboards ADD COLUMN created_at TEXT`],
+  },
+  {
+    version: 13,
+    name: "recently opened dashboards",
+    statements: [
+      // One row per member and opened dashboard, holding the latest open.
+      // Not a foreign key, like the stars: deleting a dashboard forgets its
+      // opens explicitly.
+      `CREATE TABLE dashboard_opens (
+         tenant_id TEXT NOT NULL,
+         scope_id  TEXT NOT NULL,
+         user_id   TEXT NOT NULL,
+         slug      TEXT NOT NULL,
+         opened_at TEXT NOT NULL,
+         PRIMARY KEY (tenant_id, scope_id, user_id, slug)
+       )`,
+    ],
+  },
 ];
 
 export const DEFAULT_HISTORY_TABLE = "schema_migrations";

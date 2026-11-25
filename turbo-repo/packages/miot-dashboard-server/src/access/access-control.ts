@@ -28,6 +28,7 @@
 import {
   dashboardDisplayName,
   dashboardSortOrder,
+  dashboardTags,
 } from "../store/display-name";
 import type { AuditAction, AuditSink } from "../seams/audit";
 import { noopAuditSink } from "../seams/audit";
@@ -186,6 +187,14 @@ const ACTION_RULES: Readonly<Record<DashboardAction, ActionRule>> = {
   "dashboard.move": { level: "dashboard", capability: "canEdit" },
   // Folders hold no data of their own: every member may see the tree.
   "folder.list": { level: "scope", floor: "Consumer", capability: null },
+  // Stars are personal: whoever may open a dashboard may star it, and each
+  // member sees only their own.
+  "dashboard.star": { level: "dashboard", capability: null },
+  "star.list": { level: "scope", floor: "Consumer", capability: null },
+  // Recents too: whoever may open a dashboard has their open noted, and each
+  // member sees only their own.
+  "dashboard.open": { level: "dashboard", capability: null },
+  "recent.list": { level: "scope", floor: "Consumer", capability: null },
   // Folders have their own permissions, so these only need standing in the
   // scope here: the folder routes then check the caller's role on the folder
   // itself (Editor to create inside, rename or move it; Coordinator to delete
@@ -487,10 +496,16 @@ export function createAccessControl<TRequest>(
         )
           return;
         const order = dashboardSortOrder(record.config);
+        const tags = dashboardTags(record.config);
         visible.push({
           slug: summary.slug,
           name: dashboardDisplayName(record.config, summary.slug),
           ...(order === undefined ? {} : { order }),
+          ...(tags.length === 0 ? {} : { tags }),
+          ...(record.createdAt === undefined
+            ? {}
+            : { createdAt: record.createdAt }),
+          updatedAt: record.updatedAt,
         });
       });
     }

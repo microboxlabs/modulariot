@@ -20,7 +20,17 @@ function isSafeIdentifier(value: string | undefined): value is string {
 
 const SCOPE_PATHS = {
   scopeCapabilities: "dashboard-capabilities",
+  stars: "dashboard-stars",
+  recents: "dashboard-recents",
 } as const;
+
+/** `?limit=` passed on when it is a plain positive number, else nothing. */
+function limitQuery(request: Request): string {
+  const limit = new URL(request.url).searchParams.get("limit");
+  return limit !== null && /^[1-9]\d{0,2}$/.test(limit)
+    ? `?limit=${limit}`
+    : "";
+}
 
 /** Active-org selection and session authentication stay on the server. */
 export async function forwardDashboard(
@@ -33,6 +43,10 @@ export async function forwardDashboard(
     | "scopeCapabilities"
     | "query-catalog"
     | "folder"
+    | "star"
+    | "stars"
+    | "open"
+    | "recents"
 ) {
   const tenant = await resolveTenantScope();
   if (!tenant.resolved) return tenant.response;
@@ -45,10 +59,15 @@ export async function forwardDashboard(
     );
   }
   // Scope-wide reads with paths of their own, apart from /dashboards so a
-  // dashboard named "capabilities" keeps its address.
-  if (action === "scopeCapabilities") {
+  // dashboard named "capabilities", "stars" or "recents" keeps its address.
+  if (
+    action === "scopeCapabilities" ||
+    action === "stars" ||
+    action === "recents"
+  ) {
     return forwardToQuarkus(
-      orgPath(tenant.scope.activeOrg.slug, [SCOPE_PATHS[action]]),
+      orgPath(tenant.scope.activeOrg.slug, [SCOPE_PATHS[action]]) +
+        (action === "recents" ? limitQuery(request) : ""),
       { method: "GET" }
     );
   }

@@ -39,6 +39,8 @@ import {
 } from "./authoring/local";
 import { createSqlQueryPlanStore } from "./store/sql/query-plans";
 import { createSqlFolderStore } from "./store/sql/folders";
+import { createSqlStarStore } from "./store/sql/stars";
+import { createSqlRecentStore } from "./store/sql/recents";
 import { createRefusalLog } from "./server/refusal-log";
 import { startSweepSchedule } from "./server/sweep-schedule";
 import { seedDashboards } from "./server/seed";
@@ -384,6 +386,8 @@ async function main(): Promise<void> {
     ...(assembled.driver
       ? {
           folders: createSqlFolderStore(assembled.driver),
+          stars: createSqlStarStore(assembled.driver),
+          recents: createSqlRecentStore(assembled.driver),
         }
       : {}),
     ...queryServices.options,

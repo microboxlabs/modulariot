@@ -137,6 +137,36 @@ public class DashboardProxyResource {
                 support.assertionFor(slug, authorization), body));
     }
 
+    @PUT
+    @Path("/{dashboard}/star")
+    public Uni<Response> star(@PathParam("slug") String slug,
+                              @PathParam("dashboard") String dashboard,
+                              @HeaderParam("Authorization") String authorization) {
+        return DashboardProxySupport.passThrough(dashboards.star(
+                support.tenantIdFor(slug), support.scopeIdFor(), dashboard, authorization,
+                support.assertionFor(slug, authorization)));
+    }
+
+    @DELETE
+    @Path("/{dashboard}/star")
+    public Uni<Response> unstar(@PathParam("slug") String slug,
+                                @PathParam("dashboard") String dashboard,
+                                @HeaderParam("Authorization") String authorization) {
+        return DashboardProxySupport.passThrough(dashboards.unstar(
+                support.tenantIdFor(slug), support.scopeIdFor(), dashboard, authorization,
+                support.assertionFor(slug, authorization)));
+    }
+
+    @PUT
+    @Path("/{dashboard}/open")
+    public Uni<Response> recordOpen(@PathParam("slug") String slug,
+                                    @PathParam("dashboard") String dashboard,
+                                    @HeaderParam("Authorization") String authorization) {
+        return DashboardProxySupport.passThrough(dashboards.recordOpen(
+                support.tenantIdFor(slug), support.scopeIdFor(), dashboard, authorization,
+                support.assertionFor(slug, authorization)));
+    }
+
     @GET
     @Path("/{dashboard}/permissions")
     public Uni<Response> getPermissions(@PathParam("slug") String slug,

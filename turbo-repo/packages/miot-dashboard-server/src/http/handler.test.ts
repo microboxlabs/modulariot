@@ -337,7 +337,7 @@ describe.each([
     );
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      data: [{ slug: "fleet", name: "Fleet" }],
+      data: [{ slug: "fleet", name: "Fleet", updatedAt: expect.any(String) }],
     });
   });
 

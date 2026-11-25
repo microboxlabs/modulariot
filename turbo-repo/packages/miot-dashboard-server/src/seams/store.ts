@@ -26,6 +26,12 @@ export interface DashboardSummary {
   name: string;
   /** Lower sorts first; `list` puts dashboards without one last. */
   order?: number;
+  /** The config's tags, when it has any. */
+  tags?: string[];
+  /** ISO-8601, when the store knows when the dashboard was first saved. */
+  createdAt?: string;
+  /** ISO-8601, when it was last saved: an edit or a rename, not a move. */
+  updatedAt?: string;
 }
 
 /**
@@ -45,6 +51,11 @@ export interface DashboardRecord {
    * Contributors then get view-only access.
    */
   createdBy?: string;
+  /**
+   * ISO-8601, when it was first saved. Set once, like `createdBy`; absent
+   * for dashboards a store saved before it recorded this.
+   */
+  createdAt?: string;
   /**
    * Monotonic revision counter, never reused after deletion/recreation of this
    * address, used for optimistic concurrency. Two editors

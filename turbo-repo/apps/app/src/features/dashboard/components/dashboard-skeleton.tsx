@@ -31,8 +31,7 @@ export function DashboardGridSkeleton() {
 /** A whole dashboard page: header bar, then the grid. */
 export function DashboardSkeleton({ label }: Readonly<{ label: string }>) {
   return (
-    <div
-      role="status"
+    <output
       aria-busy="true"
       className="flex h-full w-full flex-col overflow-hidden"
     >
@@ -54,6 +53,6 @@ export function DashboardSkeleton({ label }: Readonly<{ label: string }>) {
       <div className="min-h-0 flex-1 p-4">
         <DashboardGridSkeleton />
       </div>
-    </div>
+    </output>
   );
 }

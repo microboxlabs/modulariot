@@ -6,12 +6,17 @@
  * folder (`?folder=<id>`) and the list or card view (`?view=cards`). The
  * view is also remembered per browser, for a link that names none.
  */
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useReducer, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 
 export type ExplorerViewMode = "list" | "cards";
 
 /** The search parameter that holds the open folder. */
+/** A reducer that only counts: dispatching it renders the component again. */
+function countUp(count: number): number {
+  return count + 1;
+}
+
 export const FOLDER_PARAM = "folder";
 /** The search parameter that holds the view, "list" or "cards". */
 export const VIEW_PARAM = "view";
@@ -94,11 +99,11 @@ export function useExplorerViewMode(): [
   );
   const view = viewOf(searchParams?.get(VIEW_PARAM)) ?? remembered;
   // Renders again at once, wherever the URL update lands a moment later.
-  const [, setSwitches] = useState(0);
+  const [, rerender] = useReducer(countUp, 0);
   const setView = useCallback((next: ExplorerViewMode) => {
     writeParam(VIEW_PARAM, next, "replace");
     writeView(next);
-    setSwitches((count) => count + 1);
+    rerender();
   }, []);
   return [view, setView];
 }
@@ -114,10 +119,10 @@ export function useOpenFolder(): [string | null, (id: string | null) => void] {
   const searchParams = useSearchParams();
   const folderId = searchParams?.get(FOLDER_PARAM) || null;
   // Renders again at once, wherever the URL update lands a moment later.
-  const [, setPushes] = useState(0);
+  const [, rerender] = useReducer(countUp, 0);
   const open = useCallback((id: string | null) => {
     writeParam(FOLDER_PARAM, id, "push");
-    setPushes((count) => count + 1);
+    rerender();
   }, []);
   return [folderId, open];
 }

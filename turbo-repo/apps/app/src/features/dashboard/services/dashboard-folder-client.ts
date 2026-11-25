@@ -73,8 +73,10 @@ export function createDashboardFolderClient(
   if (!orgSlug) throw new DashboardApiError(400);
   const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "/app";
   const query = `?org=${encodeURIComponent(orgSlug)}`;
-  const folders = (id?: string) =>
-    `${base}/api/dashboard-folders${id ? `/${encodeURIComponent(id)}` : ""}${query}`;
+  const folders = (id?: string) => {
+    const one = id ? `/${encodeURIComponent(id)}` : "";
+    return `${base}/api/dashboard-folders${one}${query}`;
+  };
   const dashboardFolder = (slug: string) =>
     `${base}/api/dashboards/${encodeURIComponent(slug)}/folder${query}`;
   const folderPermissions = (id: string) =>

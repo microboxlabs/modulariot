@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import type { DragEvent, KeyboardEvent, MouseEvent, ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  type DragEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import {
   HiChevronRight,
   HiOutlineFolder,
@@ -135,10 +142,12 @@ export function RenameInput({
     if (event.key === "Enter") commit(event.currentTarget.value);
     if (event.key === "Escape") handlers.onStopRename();
   };
+  const field = useRef<HTMLInputElement>(null);
+  // Focus lands on a row the user just created or double-clicked.
+  useEffect(() => field.current?.focus(), []);
   return (
     <input
-      // Focus lands on a row the user just created or double-clicked.
-      autoFocus
+      ref={field}
       defaultValue={startEmpty ? "" : node.name}
       placeholder={startEmpty ? placeholder : undefined}
       aria-label={node.name}
@@ -336,39 +345,18 @@ function rowClassName(tone: RowTone, isDropTarget: boolean, isFaded: boolean) {
   );
 }
 
-export default function ExplorerNode({
-  node,
-  parentId,
-  view,
-  handlers,
-}: Readonly<ExplorerNodeProps>) {
-  const localize = useLocalizedHref();
-  const isFolder = node.kind === "folder";
-  const isExpanded = isFolder && view.isExpanded(node.id);
-  const isEditing = view.editingId === node.id;
+/** The drag, drop and right-click wiring of a row. */
+function rowDragProps(
+  node: ExplorerTreeNode,
+  parentId: string | null,
+  view: ExplorerViewState,
+  handlers: ExplorerNodeHandlers
+) {
   // Dropping on a file drops into the folder that holds it.
-  const dropFolderId = isFolder ? node.id : parentId;
-  const isDropTarget =
-    view.isDragging && isFolder && view.dropTargetId === node.id;
-  const isActive = Boolean(node.href) && view.activeHref === node.href;
-  const isSelected = view.selectedIds.has(node.id);
-  const className = rowClassName(
-    rowTone(isActive, isSelected),
-    isDropTarget,
-    view.fadedIds.has(node.id)
-  );
+  const dropFolderId = node.kind === "folder" ? node.id : parentId;
   const target: ExplorerMenuTarget = { node, parentId };
-  const onContextMenu = (event: MouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    handlers.onOpenMenu(target, event.clientX, event.clientY);
-  };
-  const onKeyDown = (event: KeyboardEvent<HTMLLIElement>) =>
-    handleRowKey(event, target, handlers);
-  const style = { paddingLeft: ROW_PADDING_PX };
-
-  const dragProps = {
-    draggable: !isEditing,
+  return {
+    draggable: view.editingId !== node.id,
     onDragStart: (event: DragEvent<HTMLElement>) => {
       event.stopPropagation();
       event.dataTransfer.effectAllowed = "move";
@@ -377,7 +365,11 @@ export default function ExplorerNode({
       handlers.onDragStart(node.id);
     },
     onDragEnd: handlers.onDragEnd,
-    onContextMenu,
+    onContextMenu: (event: MouseEvent<HTMLElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      handlers.onOpenMenu(target, event.clientX, event.clientY);
+    },
     onDragOver: (event: DragEvent<HTMLElement>) => {
       if (!view.isDragging) return;
       event.preventDefault();
@@ -391,27 +383,147 @@ export default function ExplorerNode({
       handlers.onDropOn(dropFolderId);
     },
   };
+}
 
-  const label: ReactNode = isEditing ? (
-    <RenameInput
-      node={node}
-      startEmpty={view.isNamingNew}
-      placeholder={view.namePlaceholder}
-      handlers={handlers}
-    />
-  ) : (
-    <span className="min-w-0 flex-1 truncate">{node.name}</span>
-  );
-  // A plain click opens: it opens a folder (the list then shows what is
-  // inside it) or a dashboard, and leaves the selection alone, which the
-  // checkbox is for. The chevron expands a folder in place. Ctrl/⌘ and Shift
-  // still build a selection.
-  const onFolderClick = (event: MouseEvent<HTMLElement>) => {
-    if (isEditing) return;
+/** What every kind of row shares, worked out once by `ExplorerNode`. */
+interface RowProps {
+  node: ExplorerTreeNode;
+  parentId: string | null;
+  view: ExplorerViewState;
+  handlers: ExplorerNodeHandlers;
+  isSelected: boolean;
+  isEditing: boolean;
+  className: string;
+  dragProps: ReturnType<typeof rowDragProps>;
+  onKeyDown: (event: KeyboardEvent<HTMLLIElement>) => void;
+  /** The name, or its rename box while it is being renamed. */
+  label: ReactNode;
+  toggleSelected: () => void;
+}
+
+/** The name as the row's button: a native one, so it takes focus and keys. */
+const NAME_BUTTON_CLASS =
+  "flex min-w-0 flex-1 cursor-pointer items-center self-stretch text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500";
+
+/**
+ * A folder. A plain click on its name opens it (the list then shows what is
+ * inside it) and leaves the selection alone, which the checkbox is for;
+ * Ctrl/⌘ and Shift still build a selection. The chevron, or Space on the
+ * name, expands it in place.
+ */
+function FolderRow({
+  node,
+  view,
+  handlers,
+  isSelected,
+  isEditing,
+  className,
+  dragProps,
+  onKeyDown,
+  label,
+  toggleSelected,
+}: Readonly<RowProps>) {
+  const isExpanded = view.isExpanded(node.id);
+  const FolderIcon = isExpanded ? HiOutlineFolderOpen : HiOutlineFolder;
+  const expandLabel = isExpanded
+    ? view.expandLabels.collapse(node.name)
+    : view.expandLabels.expand(node.name);
+  const onNameClick = (event: MouseEvent<HTMLElement>) => {
     const mode = selectModeOf(event);
     if (mode === "single") handlers.onOpenFolder(node.id);
     else handlers.onSelect(node.id, mode);
   };
+  const onNameKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== " ") return;
+    event.preventDefault();
+    handlers.onToggleFolder(node.id);
+  };
+  return (
+    <li
+      role="treeitem"
+      aria-expanded={isExpanded}
+      aria-selected={isSelected}
+      onKeyDown={onKeyDown}
+    >
+      <div
+        {...dragProps}
+        style={{ paddingLeft: ROW_PADDING_PX }}
+        className={twMerge(className, "group")}
+      >
+        <button
+          type="button"
+          aria-label={expandLabel}
+          aria-expanded={isExpanded}
+          title={expandLabel}
+          onClick={() => handlers.onToggleFolder(node.id)}
+          className="-m-1 flex shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+        >
+          <HiChevronRight
+            className={twMerge(
+              "h-4 w-4 transition-transform",
+              isExpanded && "rotate-90"
+            )}
+          />
+        </button>
+        <RowMarker
+          icon={
+            <FolderIcon className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+          }
+          selected={isSelected}
+          label={view.selectLabel(node.name)}
+          onToggle={toggleSelected}
+        />
+        {isEditing ? (
+          label
+        ) : (
+          <button
+            type="button"
+            onClick={onNameClick}
+            onKeyDown={onNameKeyDown}
+            className={NAME_BUTTON_CLASS}
+          >
+            {label}
+          </button>
+        )}
+        <FolderCells folder={view.folder} />
+      </div>
+      {isExpanded && node.children.length > 0 && (
+        // The left border is the guide from the folder down to its last
+        // item, so it is clear what sits inside it.
+        <ul
+          style={{ marginLeft: NEST_INDENT_PX }}
+          className="border-l border-gray-200 dark:border-gray-700"
+        >
+          {node.children.map((child) => (
+            <ExplorerNode
+              key={child.id}
+              node={child}
+              parentId={node.id}
+              view={view}
+              handlers={handlers}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+/** A saved dashboard: its name is the link that opens it. */
+function DashboardRow({
+  node,
+  view,
+  handlers,
+  isSelected,
+  isEditing,
+  className,
+  dragProps,
+  onKeyDown,
+  label,
+  toggleSelected,
+}: Readonly<RowProps>) {
+  const localize = useLocalizedHref();
+  const isActive = view.activeHref === node.href;
   const onLinkClick = (event: MouseEvent<HTMLElement>) => {
     const mode = selectModeOf(event);
     if (mode === "single") return;
@@ -419,177 +531,91 @@ export default function ExplorerNode({
     event.preventDefault();
     handlers.onSelect(node.id, mode);
   };
-  const onDraftClick = (event: MouseEvent<HTMLElement>) => {
-    if (!isEditing) handlers.onSelect(node.id, selectModeOf(event));
-  };
-  const toggleSelected = () => handlers.onSelect(node.id, "toggle");
-
-  if (isFolder) {
-    const FolderIcon = isExpanded ? HiOutlineFolderOpen : HiOutlineFolder;
-    return (
-      <li
-        role="treeitem"
-        aria-expanded={isExpanded}
-        aria-selected={isSelected}
-        onKeyDown={onKeyDown}
+  return (
+    <li role="treeitem" aria-selected={isSelected} onKeyDown={onKeyDown}>
+      {/* The row drags as a whole; the link only opens the dashboard. */}
+      <div
+        {...dragProps}
+        style={{ paddingLeft: FILE_PADDING_PX }}
+        className={twMerge(className, "group")}
       >
-        <div
-          {...dragProps}
-          role="button"
-          tabIndex={0}
-          style={style}
-          className={twMerge(className, "group cursor-pointer")}
-          onClick={onFolderClick}
-          onKeyDown={(event) => {
-            if (isEditing || event.target !== event.currentTarget) return;
-            if (event.key === "Enter") {
-              event.preventDefault();
-              handlers.onOpenFolder(node.id);
-            } else if (event.key === " ") {
-              event.preventDefault();
-              handlers.onToggleFolder(node.id);
-            }
-          }}
-        >
-          <button
-            type="button"
-            aria-label={
-              isExpanded
-                ? view.expandLabels.collapse(node.name)
-                : view.expandLabels.expand(node.name)
-            }
-            aria-expanded={isExpanded}
-            title={
-              isExpanded
-                ? view.expandLabels.collapse(node.name)
-                : view.expandLabels.expand(node.name)
-            }
-            onClick={(event) => {
-              // Expands in place, without opening the folder.
-              event.stopPropagation();
-              handlers.onToggleFolder(node.id);
-            }}
-            className="-m-1 flex shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-          >
-            <HiChevronRight
+        <RowMarker
+          icon={
+            <HiOutlineViewGrid
               className={twMerge(
-                "h-4 w-4 transition-transform",
-                isExpanded && "rotate-90"
+                "h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400",
+                isActive && "text-blue-600 dark:text-blue-300"
               )}
             />
-          </button>
-          <RowMarker
-            icon={
-              <FolderIcon className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
-            }
-            selected={isSelected}
-            label={view.selectLabel(node.name)}
-            onToggle={toggleSelected}
-          />
-          {label}
-          <FolderCells folder={view.folder} />
-        </div>
-        {isExpanded && node.children.length > 0 && (
-          // The left border is the guide from the folder down to its last
-          // item, so it is clear what sits inside it.
-          <ul
-            role="group"
-            style={{ marginLeft: NEST_INDENT_PX }}
-            className="border-l border-gray-200 dark:border-gray-700"
+          }
+          selected={isSelected}
+          label={view.selectLabel(node.name)}
+          onToggle={toggleSelected}
+        />
+        {isEditing ? (
+          // Outside the link, so clicking into the box doesn't open it.
+          <div className="flex min-w-0 flex-1 items-center self-stretch">
+            {label}
+          </div>
+        ) : (
+          <Link
+            draggable={false}
+            href={localize(node.href ?? "")}
+            onClick={onLinkClick}
+            className="flex min-w-0 flex-1 items-center self-stretch"
           >
-            {node.children.map((child) => (
-              <ExplorerNode
-                key={child.id}
-                node={child}
-                parentId={node.id}
-                view={view}
-                handlers={handlers}
-              />
-            ))}
-          </ul>
+            <DashboardName
+              name={node.name}
+              badge={
+                view.created.isNew(node.createdAt)
+                  ? view.created.newLabel
+                  : null
+              }
+            />
+          </Link>
         )}
-      </li>
-    );
-  }
-
-  const fileStyle = { paddingLeft: FILE_PADDING_PX };
-
-  if (node.href) {
-    return (
-      <li role="treeitem" aria-selected={isSelected} onKeyDown={onKeyDown}>
-        {/* The row drags as a whole; the link only opens the dashboard. */}
-        <div
-          {...dragProps}
-          style={fileStyle}
-          className={twMerge(className, "group")}
-        >
-          <RowMarker
-            icon={
-              <HiOutlineViewGrid
-                className={twMerge(
-                  "h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400",
-                  isActive && "text-blue-600 dark:text-blue-300"
-                )}
-              />
-            }
-            selected={isSelected}
-            label={view.selectLabel(node.name)}
-            onToggle={toggleSelected}
+        <div className={twMerge(COLUMN_CLASSES.tags, CELL_INSET_CLASS)}>
+          <TagsButton
+            tags={node.tags ?? []}
+            label={view.tagLabels.edit(node.name)}
+            addLabel={view.tagLabels.add}
+            onEdit={() => handlers.onEditTags(node.id)}
           />
-          {isEditing ? (
-            // Outside the link, so clicking into the box doesn't open it.
-            <div className="flex min-w-0 flex-1 items-center self-stretch">
-              {label}
-            </div>
-          ) : (
-            <Link
-              draggable={false}
-              href={localize(node.href)}
-              onClick={onLinkClick}
-              className="flex min-w-0 flex-1 items-center self-stretch"
-            >
-              <DashboardName
-                name={node.name}
-                badge={
-                  view.created.isNew(node.createdAt)
-                    ? view.created.newLabel
-                    : null
-                }
-              />
-            </Link>
-          )}
-          <div className={twMerge(COLUMN_CLASSES.tags, CELL_INSET_CLASS)}>
-            <TagsButton
-              tags={node.tags ?? []}
-              label={view.tagLabels.edit(node.name)}
-              addLabel={view.tagLabels.add}
-              onEdit={() => handlers.onEditTags(node.id)}
-            />
-          </div>
-          <div className={twMerge(COLUMN_CLASSES.created, CELL_INSET_CLASS)}>
-            <CreatedCell createdAt={node.createdAt} created={view.created} />
-          </div>
-          <div className={COLUMN_CLASSES.star}>
-            <StarButton
-              starred={node.starred === true}
-              labels={view.starLabels}
-              onToggle={() => handlers.onToggleStar(node.id)}
-            />
-          </div>
         </div>
-      </li>
-    );
-  }
+        <div className={twMerge(COLUMN_CLASSES.created, CELL_INSET_CLASS)}>
+          <CreatedCell createdAt={node.createdAt} created={view.created} />
+        </div>
+        <div className={COLUMN_CLASSES.star}>
+          <StarButton
+            starred={node.starred === true}
+            labels={view.starLabels}
+            onToggle={() => handlers.onToggleStar(node.id)}
+          />
+        </div>
+      </div>
+    </li>
+  );
+}
 
+/** A dashboard not saved yet: its name only selects it. */
+function DraftRow({
+  node,
+  handlers,
+  view,
+  isSelected,
+  isEditing,
+  className,
+  dragProps,
+  onKeyDown,
+  label,
+  toggleSelected,
+}: Readonly<RowProps>) {
   return (
     <li role="treeitem" aria-selected={isSelected} onKeyDown={onKeyDown}>
       <div
         {...dragProps}
-        role="button"
-        tabIndex={0}
-        style={fileStyle}
+        style={{ paddingLeft: FILE_PADDING_PX }}
         className={twMerge(className, "group")}
-        onClick={onDraftClick}
       >
         <RowMarker
           icon={
@@ -599,10 +625,63 @@ export default function ExplorerNode({
           label={view.selectLabel(node.name)}
           onToggle={toggleSelected}
         />
-        {label}
+        {isEditing ? (
+          label
+        ) : (
+          <button
+            type="button"
+            onClick={(event) => handlers.onSelect(node.id, selectModeOf(event))}
+            className={NAME_BUTTON_CLASS}
+          >
+            {label}
+          </button>
+        )}
       </div>
     </li>
   );
+}
+
+export default function ExplorerNode({
+  node,
+  parentId,
+  view,
+  handlers,
+}: Readonly<ExplorerNodeProps>) {
+  const isEditing = view.editingId === node.id;
+  const isSelected = view.selectedIds.has(node.id);
+  const isActive = Boolean(node.href) && view.activeHref === node.href;
+  const isDropTarget =
+    view.isDragging && node.kind === "folder" && view.dropTargetId === node.id;
+  const target: ExplorerMenuTarget = { node, parentId };
+  const row: RowProps = {
+    node,
+    parentId,
+    view,
+    handlers,
+    isSelected,
+    isEditing,
+    className: rowClassName(
+      rowTone(isActive, isSelected),
+      isDropTarget,
+      view.fadedIds.has(node.id)
+    ),
+    dragProps: rowDragProps(node, parentId, view, handlers),
+    onKeyDown: (event) => handleRowKey(event, target, handlers),
+    label: isEditing ? (
+      <RenameInput
+        node={node}
+        startEmpty={view.isNamingNew}
+        placeholder={view.namePlaceholder}
+        handlers={handlers}
+      />
+    ) : (
+      <span className="min-w-0 flex-1 truncate">{node.name}</span>
+    ),
+    toggleSelected: () => handlers.onSelect(node.id, "toggle"),
+  };
+  if (node.kind === "folder") return <FolderRow {...row} />;
+  if (node.href) return <DashboardRow {...row} />;
+  return <DraftRow {...row} />;
 }
 
 /**
@@ -622,17 +701,11 @@ export function ParentRow({
 }>) {
   return (
     <li role="treeitem" aria-selected={false}>
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         aria-label={label}
         title={label}
         onClick={onOpen}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
-          event.preventDefault();
-          onOpen();
-        }}
         onDragOver={(event) => {
           if (!drop) return;
           event.preventDefault();
@@ -659,7 +732,7 @@ export function ParentRow({
         <span className="font-medium tracking-widest text-gray-600 dark:text-gray-300">
           ..
         </span>
-      </div>
+      </button>
     </li>
   );
 }

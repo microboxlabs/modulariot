@@ -24,17 +24,20 @@ export default function StepProgress({
   const roundedClass = rounded ? "rounded-full" : "rounded-none";
   return (
     <div
-      role="progressbar"
-      aria-valuemin={1}
-      aria-valuemax={totalSteps}
-      aria-valuenow={currentStepIndex + 1}
       className={twMerge(
-        "h-0.5 w-full overflow-hidden bg-gray-100 dark:bg-gray-800",
+        "relative h-0.5 w-full overflow-hidden bg-gray-100 dark:bg-gray-800",
         roundedClass,
         className
       )}
     >
+      {/* The native element carries the progress; the bar below draws it. */}
+      <progress
+        className="sr-only"
+        value={currentStepIndex + 1}
+        max={totalSteps}
+      />
       <div
+        aria-hidden
         style={{ width: `${percent}%` }}
         className={twMerge(
           "h-full bg-blue-700 transition-[width] duration-300 ease-in-out",

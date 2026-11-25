@@ -18,7 +18,7 @@ describe("InteractiveCard", () => {
       </InteractiveCard>
     );
     const checkbox = screen.getByRole("checkbox", { name: 'Select "Fleet"' });
-    expect(checkbox).toHaveAttribute("aria-checked", "false");
+    expect(checkbox).not.toBeChecked();
     await user.click(checkbox);
     expect(onToggle).toHaveBeenCalledTimes(1);
     expect(onClick).not.toHaveBeenCalled();

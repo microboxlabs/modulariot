@@ -21,7 +21,7 @@ const NAME_WIDTHS = ["w-40", "w-56", "w-44", "w-60", "w-48", "w-36", "w-52"];
 /** Placeholder rows, aligned with the list's columns; every one complete. */
 export function ExplorerSkeletonRows({ label }: Readonly<{ label: string }>) {
   return (
-    <div role="status" aria-busy="true">
+    <output aria-busy="true" className="block">
       <span className="sr-only">{label}</span>
       <ul aria-hidden>
         {NAME_WIDTHS.map((width) => (
@@ -45,7 +45,7 @@ export function ExplorerSkeletonRows({ label }: Readonly<{ label: string }>) {
           </li>
         ))}
       </ul>
-    </div>
+    </output>
   );
 }
 

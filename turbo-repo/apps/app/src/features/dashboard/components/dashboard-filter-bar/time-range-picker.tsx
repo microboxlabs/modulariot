@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, type ReactNode } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 import { HiCalendar, HiClock, HiSearch, HiChevronDown } from "react-icons/hi";
 import dayjs from "dayjs";
@@ -68,6 +75,77 @@ const RECENT_RANGES_KEY = "time-range-picker-recent";
 const DAY_START = "00:00:00";
 const DAY_END = "23:59:59";
 const MAX_RECENT_RANGES = 5;
+
+/** The trigger's shape: a field in a full-width row, else an icon button. */
+function triggerSizeClass(fullWidth: boolean, size: "sm" | "md"): string {
+  if (fullWidth) return "h-7 w-full justify-between gap-1.5 rounded px-2";
+  if (size === "sm") return "h-8 w-8 justify-center rounded-md";
+  return "h-10.5 w-10.5 justify-center rounded-lg";
+}
+
+/** The button that opens the picker: the host's own face, or the calendar. */
+function PickerTrigger({
+  buttonRef,
+  onToggle,
+  isOpen,
+  trigger,
+  range,
+  placeholder,
+  size,
+  fullWidth,
+}: Readonly<{
+  buttonRef: RefObject<HTMLButtonElement | null>;
+  onToggle: () => void;
+  isOpen: boolean;
+  trigger: TimeRangePickerProps["trigger"];
+  /** The chosen range, as displayed; null when none is. */
+  range: { from: string; to: string } | null;
+  placeholder: string;
+  size: "sm" | "md";
+  fullWidth: boolean;
+}>) {
+  const rangeTitle = range ? `${range.from} - ${range.to}` : placeholder;
+  if (trigger) {
+    return (
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={onToggle}
+        aria-label={trigger.label}
+        aria-expanded={isOpen}
+        title={range ? rangeTitle : trigger.label}
+        className={trigger.className}
+      >
+        {trigger.content}
+      </button>
+    );
+  }
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      onClick={onToggle}
+      className={`flex cursor-pointer items-center border border-gray-300 bg-white text-sm transition-colors hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500 ${triggerSizeClass(fullWidth, size)}`}
+      title={rangeTitle}
+    >
+      <span className="flex min-w-0 items-center gap-1.5">
+        <HiCalendar
+          className={`shrink-0 text-gray-500 dark:text-gray-400 ${fullWidth ? "h-3.5 w-3.5" : "h-5 w-5"}`}
+        />
+        {fullWidth && (
+          <span className="truncate text-xs text-gray-500 dark:text-gray-400">
+            {range ? `${range.from} – ${range.to}` : placeholder}
+          </span>
+        )}
+      </span>
+      {fullWidth && (
+        <HiChevronDown
+          className={`h-3 w-3 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+        />
+      )}
+    </button>
+  );
+}
 
 export default function TimeRangePicker({
   onDateChange,
@@ -276,63 +354,25 @@ export default function TimeRangePicker({
     return `UTC${sign}${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
   }, []);
 
-  let sizeClass: string;
-  if (fullWidth) {
-    sizeClass = "h-7 w-full justify-between gap-1.5 rounded px-2";
-  } else if (size === "sm") {
-    sizeClass = "h-8 w-8 justify-center rounded-md";
-  } else {
-    sizeClass = "h-10.5 w-10.5 justify-center rounded-lg";
-  }
-
-  const rangeTitle =
+  const range =
     fromDate && toDate
-      ? `${getDisplayValue(fromDate)} - ${getDisplayValue(toDate)}`
-      : t("selectDateRange");
+      ? { from: getDisplayValue(fromDate), to: getDisplayValue(toDate) }
+      : null;
 
   return (
     <div
       className={`relative flex items-center ${fullWidth ? "w-full" : ""} ${className}`}
     >
-      {trigger ? (
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={handleToggle}
-          aria-label={trigger.label}
-          aria-expanded={isOpen}
-          title={fromDate && toDate ? rangeTitle : trigger.label}
-          className={trigger.className}
-        >
-          {trigger.content}
-        </button>
-      ) : (
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={handleToggle}
-          className={`flex cursor-pointer items-center border border-gray-300 bg-white text-sm transition-colors hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500 ${sizeClass}`}
-          title={rangeTitle}
-        >
-          <span className="flex min-w-0 items-center gap-1.5">
-            <HiCalendar
-              className={`shrink-0 text-gray-500 dark:text-gray-400 ${fullWidth ? "h-3.5 w-3.5" : "h-5 w-5"}`}
-            />
-            {fullWidth && (
-              <span className="truncate text-xs text-gray-500 dark:text-gray-400">
-                {fromDate && toDate
-                  ? `${getDisplayValue(fromDate)} – ${getDisplayValue(toDate)}`
-                  : t("selectDateRange")}
-              </span>
-            )}
-          </span>
-          {fullWidth && (
-            <HiChevronDown
-              className={`h-3 w-3 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-            />
-          )}
-        </button>
-      )}
+      <PickerTrigger
+        buttonRef={buttonRef}
+        onToggle={handleToggle}
+        isOpen={isOpen}
+        trigger={trigger}
+        range={range}
+        placeholder={t("selectDateRange")}
+        size={size}
+        fullWidth={fullWidth}
+      />
 
       {isOpen &&
         createPortal(

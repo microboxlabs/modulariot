@@ -107,10 +107,7 @@ describe("EmptyState setup steps", () => {
   it("opens each step only after the one before it", async () => {
     const { user } = setup();
     expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
-    expect(screen.getByRole("progressbar")).toHaveAttribute(
-      "aria-valuenow",
-      "1"
-    );
+    expect(screen.getByRole("progressbar")).toHaveAttribute("value", "1");
     expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
     expect(step("2 Tags")).toBeDisabled();
     expect(step("3 First dashlet")).toBeDisabled();

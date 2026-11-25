@@ -12,6 +12,7 @@
  */
 import Link from "next/link";
 import {
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -154,13 +155,16 @@ function cardInDirection(
     (card) => Math.abs(card.getBoundingClientRect().top - nearestTop) < 1
   );
   const center = box.left + box.width / 2;
-  return row.reduce((best, card) => {
-    const distance = (el: HTMLElement) => {
-      const r = el.getBoundingClientRect();
-      return Math.abs(r.left + r.width / 2 - center);
-    };
-    return distance(card) < distance(best) ? card : best;
-  });
+  const distance = (el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    return Math.abs(r.left + r.width / 2 - center);
+  };
+  const [first, ...others] = row;
+  if (!first) return undefined;
+  return others.reduce(
+    (best, card) => (distance(card) < distance(best) ? card : best),
+    first
+  );
 }
 
 const ARROW_KEYS = new Set([
@@ -173,16 +177,16 @@ const ARROW_KEYS = new Set([
 ]);
 
 /** Moves the focus between the section's cards with the arrow keys. */
-function onSectionKeyDown(event: KeyboardEvent<HTMLElement>) {
+function moveFocusInSection(
+  event: globalThis.KeyboardEvent,
+  section: HTMLElement
+) {
   if (!ARROW_KEYS.has(event.key)) return;
   if (event.target instanceof HTMLInputElement) return;
-  const from = (event.target as HTMLElement).closest<HTMLElement>(
-    CARD_SELECTOR
-  );
+  if (!(event.target instanceof HTMLElement)) return;
+  const from = event.target.closest<HTMLElement>(CARD_SELECTOR);
   if (!from) return;
-  const cards = [
-    ...event.currentTarget.querySelectorAll<HTMLElement>(CARD_SELECTOR),
-  ];
+  const cards = [...section.querySelectorAll<HTMLElement>(CARD_SELECTOR)];
   const next = cardInDirection(cards, from, event.key);
   if (!next) return;
   event.preventDefault();
@@ -245,6 +249,28 @@ function cardSelection(
   };
 }
 
+const FOLDER_TILE_CLASS =
+  "flex min-w-0 flex-1 select-none items-center gap-3 text-left";
+
+function FolderTileIcon() {
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+      <HiOutlineFolder aria-hidden className="h-5 w-5" />
+    </span>
+  );
+}
+
+function FolderTileCount({
+  count,
+  view,
+}: Readonly<{ count: number; view: ExplorerCardsView }>) {
+  return (
+    <span className="text-[11px] text-gray-500 dark:text-gray-400">
+      {view.itemCount(count)}
+    </span>
+  );
+}
+
 /** A folder, as a tile: its icon, its name and how much it holds. */
 function FolderCard({
   node,
@@ -259,7 +285,6 @@ function FolderCard({
 }>) {
   const isEditing = view.editingId === node.id;
   const onClick = (event: MouseEvent<HTMLElement>) => {
-    if (isEditing) return;
     const mode = selectModeOf(event);
     if (mode === "single") handlers.onOpenFolder(node.id);
     else handlers.onSelect(node.id, mode);
@@ -276,44 +301,40 @@ function FolderCard({
       faded={view.fadedIds.has(node.id)}
       selection={cardSelection(node, view, handlers)}
     >
-      <div
-        role="button"
-        tabIndex={0}
-        data-explorer-card
-        onClick={onClick}
-        onKeyDown={(event) => {
-          if (isEditing || event.key !== "Enter") return;
-          if (event.target !== event.currentTarget) return;
-          event.preventDefault();
-          handlers.onOpenFolder(node.id);
-        }}
-        className={twMerge(
-          "flex min-w-0 flex-1 cursor-pointer select-none items-center gap-3 text-left",
-          // While renaming, the input must take the clicks.
-          !isEditing && INTERACTIVE_CARD_TARGET
-        )}
-      >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
-          <HiOutlineFolder aria-hidden className="h-5 w-5" />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          {isEditing ? (
+      {isEditing ? (
+        // While renaming, the input takes the clicks: no button around it.
+        <div className={FOLDER_TILE_CLASS}>
+          <FolderTileIcon />
+          <span className="flex min-w-0 flex-1 flex-col">
             <RenameInput
               node={node}
               startEmpty={view.isNamingNew}
               placeholder={view.namePlaceholder}
               handlers={handlers}
             />
-          ) : (
+            <FolderTileCount count={node.children.length} view={view} />
+          </span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          data-explorer-card
+          onClick={onClick}
+          className={twMerge(
+            FOLDER_TILE_CLASS,
+            "cursor-pointer",
+            INTERACTIVE_CARD_TARGET
+          )}
+        >
+          <FolderTileIcon />
+          <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-[13px] font-medium text-gray-900 dark:text-white">
               {node.name}
             </span>
-          )}
-          <span className="text-[11px] text-gray-500 dark:text-gray-400">
-            {view.itemCount(node.children.length)}
+            <FolderTileCount count={node.children.length} view={view} />
           </span>
-        </span>
-      </div>
+        </button>
+      )}
     </InteractiveCard>
   );
 }
@@ -353,18 +374,12 @@ function ParentCard({ parent }: Readonly<{ parent: ExplorerCardsParent }>) {
       }}
     >
       {/* One area, the card's full height: the icon with ".." under it. */}
-      <span
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         aria-label={parent.label}
         title={parent.label}
         data-explorer-card
         onClick={parent.onOpen}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
-          event.preventDefault();
-          parent.onOpen();
-        }}
         className={twMerge(
           "flex min-h-40 flex-1 cursor-pointer select-none flex-col items-center justify-center gap-2.5 text-gray-400 dark:text-gray-500",
           INTERACTIVE_CARD_TARGET
@@ -376,7 +391,7 @@ function ParentCard({ parent }: Readonly<{ parent: ExplorerCardsParent }>) {
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
         </span>
-      </span>
+      </button>
     </InteractiveCard>
   );
 }
@@ -605,12 +620,23 @@ function Section({
   title,
   children,
 }: Readonly<{ title: string; children: ReactNode }>) {
+  // Arrow keys move between the cards: one listener for the whole section,
+  // added directly, since the box itself is not something to interact with.
+  const cards = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const section = cards.current;
+    if (!section) return;
+    const onKeyDown = (event: globalThis.KeyboardEvent) =>
+      moveFocusInSection(event, section);
+    section.addEventListener("keydown", onKeyDown);
+    return () => section.removeEventListener("keydown", onKeyDown);
+  }, []);
   return (
     <section aria-label={title} className="flex flex-col gap-3">
       <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300">
         {title}
       </h2>
-      <div onKeyDown={onSectionKeyDown} className="flex flex-col gap-3">
+      <div ref={cards} className="flex flex-col gap-3">
         {children}
       </div>
     </section>
@@ -842,8 +868,19 @@ function SkeletonFolderCard({ nameWidth }: Readonly<{ nameWidth: string }>) {
   );
 }
 
+/** A placeholder card: a fixed id, and a name width so they differ. */
+interface SkeletonSlot {
+  id: string;
+  width: string;
+}
+
+/** Each list's placeholders, with the ids React keys them by. */
+function slots(prefix: string, widths: readonly string[]): SkeletonSlot[] {
+  return widths.map((width, n) => ({ id: `${prefix}${n}`, width }));
+}
+
 /** Name widths, so the cards don't look stamped out. */
-const RECENT_WIDTHS = [
+const RECENT_SLOTS = slots("r", [
   "w-2/3",
   "w-1/2",
   "w-3/5",
@@ -852,17 +889,24 @@ const RECENT_WIDTHS = [
   "w-1/2",
   "w-2/3",
   "w-3/5",
-];
-const FOLDER_WIDTHS = ["w-1/2", "w-2/3", "w-2/5"];
-const FILE_WIDTHS = ["w-3/5", "w-2/3", "w-1/2", "w-3/4", "w-2/5", "w-3/5"];
+]);
+const FOLDER_SLOTS = slots("d", ["w-1/2", "w-2/3", "w-2/5"]);
+const FILE_SLOTS = slots("f", [
+  "w-3/5",
+  "w-2/3",
+  "w-1/2",
+  "w-3/4",
+  "w-2/5",
+  "w-3/5",
+]);
 
 /** The recent cards' placeholders, in one row like the real ones. */
 function SkeletonRecentRow() {
-  const [ref, shown] = useOneRow(RECENT_WIDTHS);
+  const [ref, shown] = useOneRow(RECENT_SLOTS);
   return (
     <ul ref={ref} className={`${CARD_GRID} gap-4`}>
-      {shown.map((width, i) => (
-        <SkeletonDashboardCard key={`r${i}`} nameWidth={width} />
+      {shown.map((slot) => (
+        <SkeletonDashboardCard key={slot.id} nameWidth={slot.width} />
       ))}
     </ul>
   );
@@ -878,7 +922,7 @@ export function ExplorerCardsSkeleton({
   withRecent,
 }: Readonly<{ label: string; withRecent: boolean }>) {
   return (
-    <div role="status" aria-busy="true">
+    <output aria-busy="true" className="block">
       <span className="sr-only">{label}</span>
       <div aria-hidden className="flex flex-col gap-6">
         {withRecent && (
@@ -890,17 +934,17 @@ export function ExplorerCardsSkeleton({
         <div data-skeleton-section="all" className="flex flex-col gap-3">
           <SkeletonHeading width="w-12" />
           <ul className={`${CARD_GRID} gap-3`}>
-            {FOLDER_WIDTHS.map((width, i) => (
-              <SkeletonFolderCard key={`d${i}`} nameWidth={width} />
+            {FOLDER_SLOTS.map((slot) => (
+              <SkeletonFolderCard key={slot.id} nameWidth={slot.width} />
             ))}
           </ul>
           <ul className={`${CARD_GRID} gap-4`}>
-            {FILE_WIDTHS.map((width, i) => (
-              <SkeletonDashboardCard key={`f${i}`} nameWidth={width} />
+            {FILE_SLOTS.map((slot) => (
+              <SkeletonDashboardCard key={slot.id} nameWidth={slot.width} />
             ))}
           </ul>
         </div>
       </div>
-    </div>
+    </output>
   );
 }

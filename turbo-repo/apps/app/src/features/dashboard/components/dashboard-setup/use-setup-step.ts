@@ -9,10 +9,8 @@ export const SETUP_STEP_PARAM = "step";
 
 /** The step's index, or the first step for a missing or unknown one. */
 export function setupStepIndex(value: string | null): number {
-  return Math.max(
-    SETUP_STEPS.findIndex((step) => step === value),
-    0
-  );
+  const steps: readonly (string | null)[] = SETUP_STEPS;
+  return Math.max(steps.indexOf(value), 0);
 }
 
 /**

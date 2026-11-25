@@ -26,9 +26,7 @@ export interface ExplorerMenuTarget {
 
 /** Modifier shown in shortcut hints: ⌘ on macOS, Ctrl elsewhere. */
 export function modifierLabel(): string {
-  const isMac =
-    globalThis.navigator !== undefined &&
-    globalThis.navigator.userAgent.includes("Mac");
+  const isMac = globalThis.navigator?.userAgent.includes("Mac") === true;
   return isMac ? "⌘" : "Ctrl+";
 }
 

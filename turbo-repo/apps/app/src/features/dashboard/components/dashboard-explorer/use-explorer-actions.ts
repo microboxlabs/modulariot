@@ -87,6 +87,20 @@ function errorKeyOf(error: unknown): ExplorerErrorKey {
   return "generic";
 }
 
+/**
+ * Runs `step` for each item, one after the other: each server change sees
+ * the ones before it (a copy's free name, a folder already moved).
+ */
+function inSequence<T>(
+  items: readonly T[],
+  step: (item: T) => Promise<unknown>
+): Promise<void> {
+  return items.reduce<Promise<void>>(
+    (previous, item) => previous.then(() => step(item)).then(() => undefined),
+    Promise.resolve()
+  );
+}
+
 function withoutTemporary(local: ExplorerLayout, id: string): ExplorerLayout {
   const keep = <T>(record: Record<string, T>) =>
     Object.fromEntries(Object.entries(record).filter(([key]) => key !== id));
@@ -127,10 +141,10 @@ export function useExplorerActions({
       try {
         await change();
         if (success) ShowNotification({ type: "success", message: success });
-      } catch (failure) {
+      } catch (error_) {
         ShowNotification({
           type: "error",
-          message: trDynamic(`explorer.errors.${errorKeyOf(failure)}`, dict),
+          message: trDynamic(`explorer.errors.${errorKeyOf(error_)}`, dict),
         });
       } finally {
         setBusy(false);
@@ -285,15 +299,15 @@ export function useExplorerActions({
           : toast("copiedMany", { count: String(dashboards.length) });
       void run(async () => {
         const takenBy = new Map<string | null, Set<string>>();
-        for (const id of dashboards) {
+        await inSequence(dashboards, (id) => {
           const folderId = target === undefined ? parentOf(layout, id) : target;
           const taken =
             takenBy.get(folderId) ?? namesInFolder(layout, folderId, sources);
           takenBy.set(folderId, taken);
           const name = uniqueName(nameOf(layout, id, sources) ?? "", taken);
           taken.add(name);
-          await server.copyDashboard(id, name, folderId);
-        }
+          return server.copyDashboard(id, name, folderId);
+        });
       }, success);
     },
     [layout, sources, update, run, server, toast]
@@ -322,21 +336,23 @@ export function useExplorerActions({
               target:
                 target === null ? "" : (nameOf(layout, target, sources) ?? ""),
             });
-      void run(async () => {
-        for (const id of moving) {
-          const folder = layout.folders[id];
-          if (!folder) {
-            await server.fileDashboard(id, target);
-            continue;
-          }
-          if (folder.parentId === target) continue;
-          const name = moved.folders[id]?.name ?? folder.name;
-          await server.updateFolder(id, {
-            parentId: target,
-            ...(name === folder.name ? {} : { name }),
-          });
-        }
-      }, success);
+      void run(
+        () =>
+          inSequence(moving, async (id) => {
+            const folder = layout.folders[id];
+            if (!folder) {
+              await server.fileDashboard(id, target);
+              return;
+            }
+            if (folder.parentId === target) return;
+            const name = moved.folders[id]?.name ?? folder.name;
+            await server.updateFolder(id, {
+              parentId: target,
+              ...(name === folder.name ? {} : { name }),
+            });
+          }),
+        success
+      );
     },
     [layout, sources, update, run, server, toast]
   );
@@ -399,10 +415,11 @@ export function useExplorerActions({
         ? toast("deleted", { name: pending.name })
         : toast("deletedMany", { count: String(pending.ids.length) });
     void run(async () => {
-      for (const id of pending.ids) {
-        if (layout.folders[id]) await server.deleteFolder(id);
-        else await server.deleteDashboard(id);
-      }
+      await inSequence(pending.ids, (id) =>
+        layout.folders[id]
+          ? server.deleteFolder(id)
+          : server.deleteDashboard(id)
+      );
       onDeleted();
     }, success);
   }, [pending, moveInto, run, layout, server, onDeleted, toast]);

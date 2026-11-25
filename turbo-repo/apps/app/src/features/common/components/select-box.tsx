@@ -1,9 +1,14 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { HiCheck } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 
-/** A small checkbox; "mixed" draws a dash, for a partial select-all. */
+/**
+ * A small checkbox; "mixed" draws a dash, for a partial select-all. A native
+ * checkbox, transparent over the drawn box, so it keeps the platform's
+ * keyboard and assistive-technology behavior.
+ */
 export default function SelectBox({
   checked,
   label,
@@ -13,27 +18,35 @@ export default function SelectBox({
   label: string;
   onToggle: () => void;
 }>) {
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    // Only settable from script: there is no attribute for it.
+    if (input.current) input.current.indeterminate = checked === "mixed";
+  }, [checked]);
   return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      aria-label={label}
-      title={label}
-      onClick={(event) => {
-        // Selecting must not also open, expand or drag what holds it.
-        event.stopPropagation();
-        onToggle();
-      }}
+    <span
       className={twMerge(
-        "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+        "relative flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
         checked
           ? "border-blue-600 bg-blue-600 text-white dark:border-blue-500 dark:bg-blue-500"
           : "border-gray-400 bg-white hover:border-blue-500 dark:border-gray-500 dark:bg-gray-800"
       )}
     >
-      {checked === true && <HiCheck className="h-3 w-3" />}
-      {checked === "mixed" && <span className="h-0.5 w-2 rounded bg-white" />}
-    </button>
+      <input
+        ref={input}
+        type="checkbox"
+        checked={checked === true}
+        aria-label={label}
+        title={label}
+        // Selecting must not also open, expand or drag what holds it.
+        onClick={(event) => event.stopPropagation()}
+        onChange={onToggle}
+        className="absolute inset-0 m-0 h-full w-full cursor-pointer appearance-none opacity-0"
+      />
+      {checked === true && <HiCheck className="pointer-events-none h-3 w-3" />}
+      {checked === "mixed" && (
+        <span className="pointer-events-none h-0.5 w-2 rounded bg-white" />
+      )}
+    </span>
   );
 }

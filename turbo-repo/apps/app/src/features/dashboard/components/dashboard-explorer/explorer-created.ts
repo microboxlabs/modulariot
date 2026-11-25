@@ -57,11 +57,11 @@ export interface Activity {
 
 /** Every date a card knows about a dashboard; any of them may be missing. */
 export interface ActivityDates {
-  createdAt?: string | undefined;
+  createdAt?: string;
   /** The viewer's own last open of it. */
-  openedAt?: string | undefined;
+  openedAt?: string;
   /** Its last save. */
-  updatedAt?: string | undefined;
+  updatedAt?: string;
 }
 
 /**

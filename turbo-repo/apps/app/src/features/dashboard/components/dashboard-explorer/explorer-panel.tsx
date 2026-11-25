@@ -253,6 +253,80 @@ function FolderHeading({ folder }: Readonly<{ folder: ExplorerPageFolder }>) {
   );
 }
 
+/**
+ * The folder the URL opens. Until the folders load, it is taken on trust;
+ * after, one that is gone (deleted, or a stale link) is the top level.
+ */
+function openFolderOf(
+  openParam: string | null,
+  isLoading: boolean,
+  layout: ExplorerLayout
+): string | null {
+  if (openParam === null) return null;
+  return isLoading || layout.folders[openParam] ? openParam : null;
+}
+
+/** "All" means every row in view: those inside closed folders are not. */
+function selectAllStateOf(
+  order: readonly string[],
+  selected: readonly string[]
+): SelectAllState["state"] {
+  const inView = order.filter((id) => selected.includes(id)).length;
+  if (inView === 0) return "none";
+  return inView === order.length ? "all" : "some";
+}
+
+/** What shows where the items go when there are none: loading, an error, or empty. */
+function ExplorerEmptyBody({
+  t,
+  isLoading,
+  loadError,
+  isCards,
+  isSearching,
+  currentFolderId,
+  onRetry,
+  onCreate,
+  createDisabled,
+}: Readonly<{
+  t: (key: string) => string;
+  isLoading: boolean;
+  loadError: boolean;
+  isCards: boolean;
+  isSearching: boolean;
+  currentFolderId: string | null;
+  onRetry: () => Promise<unknown>;
+  onCreate: () => void;
+  createDisabled: boolean;
+}>) {
+  if (isLoading && isCards) {
+    return (
+      <ExplorerCardsSkeleton
+        label={t("loading")}
+        // "Recently opened" shows only at the top level, when not filtering.
+        withRecent={!isSearching && currentFolderId === null}
+      />
+    );
+  }
+  if (isLoading) return <ExplorerSkeletonRows label={t("loading")} />;
+  if (loadError) {
+    return (
+      <LoadErrorState
+        title={t("loadError")}
+        description={t("loadErrorBody")}
+        retry={{ label: t("retry"), onRetry }}
+      />
+    );
+  }
+  return (
+    <EmptyTree
+      message={t(emptyMessageKey(isSearching, currentFolderId))}
+      createLabel={t("createFirst")}
+      onCreate={isSearching ? undefined : onCreate}
+      createDisabled={createDisabled}
+    />
+  );
+}
+
 export default function ExplorerPanel({
   dict,
   renderPage,
@@ -284,12 +358,7 @@ export default function ExplorerPanel({
   const [sort, setSort] = useState<ExplorerSort | null>(null);
   const [viewMode, setViewMode] = useExplorerViewMode();
   const [openParam, openFolderParam] = useOpenFolder();
-  // Until the folders load, the one in the URL is taken on trust; after, one
-  // that is gone (deleted, or a stale link) is the top level.
-  const currentFolderId =
-    openParam !== null && (server.isLoading || layout.folders[openParam])
-      ? openParam
-      : null;
+  const currentFolderId = openFolderOf(openParam, server.isLoading, layout);
   const path = useMemo(
     () => folderPath(layout, currentFolderId),
     [layout, currentFolderId]
@@ -443,13 +512,7 @@ export default function ExplorerPanel({
 
   const cutIds = actions.clipboard?.mode === "cut" ? actions.clipboard.ids : [];
   // "All" means every row in view: those inside closed folders are not.
-  const selectedInView = order.filter((id) => selection.ids.includes(id));
-  let selectAllState: SelectAllState["state"] = "none";
-  if (order.length > 0 && selectedInView.length === order.length) {
-    selectAllState = "all";
-  } else if (selectedInView.length > 0) {
-    selectAllState = "some";
-  }
+  const selectAllState = selectAllStateOf(order, selection.ids);
   const selectAll: SelectAllState = {
     state: selectAllState,
     onToggle: () =>
@@ -558,38 +621,18 @@ export default function ExplorerPanel({
     </div>
   );
   const isEmpty = (isCards ? cardNodes : tree).length === 0;
-  const emptyState = (
-    <>
-      {isEmpty && server.isLoading && !isCards && (
-        <ExplorerSkeletonRows label={t("loading")} />
-      )}
-      {isEmpty && server.isLoading && isCards && (
-        <ExplorerCardsSkeleton
-          label={t("loading")}
-          // "Recently opened" shows only at the top level, when not filtering.
-          withRecent={!isSearching && currentFolderId === null}
-        />
-      )}
-      {isEmpty && !server.isLoading && server.loadError && (
-        <LoadErrorState
-          title={t("loadError")}
-          description={t("loadErrorBody")}
-          retry={{ label: t("retry"), onRetry: server.refresh }}
-        />
-      )}
-      {isEmpty && !server.isLoading && !server.loadError && (
-        <EmptyTree
-          message={t(emptyMessageKey(isSearching, currentFolderId))}
-          createLabel={t("createFirst")}
-          onCreate={
-            isSearching ? undefined : () => actions.createFile(currentFolderId)
-          }
-          createDisabled={
-            !actions.canCreateFile || actions.busy || !canCreateHere
-          }
-        />
-      )}
-    </>
+  const emptyState = isEmpty && (
+    <ExplorerEmptyBody
+      t={t}
+      isLoading={server.isLoading}
+      loadError={server.loadError}
+      isCards={isCards}
+      isSearching={isSearching}
+      currentFolderId={currentFolderId}
+      onRetry={server.refresh}
+      onCreate={() => actions.createFile(currentFolderId)}
+      createDisabled={!actions.canCreateFile || actions.busy || !canCreateHere}
+    />
   );
   // The folder above the open one, for its ".." row: the top level at first.
   const parentCrumb = path.at(-2) ?? { id: null, name: t("title") };

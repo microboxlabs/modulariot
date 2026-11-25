@@ -993,7 +993,7 @@ describe("ExplorerPanel", () => {
       expect(selectedNames()).toEqual(["Fleet", "Yard"]);
       expect(
         screen.getByRole("checkbox", { name: 'Select "Fleet"' })
-      ).toHaveAttribute("aria-checked", "true");
+      ).toBeChecked();
       expect(push).not.toHaveBeenCalled();
 
       await user.click(
@@ -1006,17 +1006,17 @@ describe("ExplorerPanel", () => {
       const user = userEvent.setup();
       renderPanel();
       const all = screen.getByRole("checkbox", { name: "Select all" });
-      expect(all).toHaveAttribute("aria-checked", "false");
+      expect(all).not.toBeChecked();
 
       await user.click(screen.getByRole("checkbox", { name: 'Select "Yard"' }));
-      expect(all).toHaveAttribute("aria-checked", "mixed");
+      expect(all).toBePartiallyChecked();
 
       await user.click(all);
-      expect(all).toHaveAttribute("aria-checked", "true");
+      expect(all).toBeChecked();
       expect(selectedNames()).toEqual(["Fleet", "Sales", "Yard"]);
 
       await user.click(all);
-      expect(all).toHaveAttribute("aria-checked", "false");
+      expect(all).not.toBeChecked();
       expect(selectedNames()).toEqual([]);
     });
   });
@@ -1189,7 +1189,7 @@ describe("ExplorerPanel", () => {
     expect(folder).toHaveAttribute("aria-selected", "false");
     expect(
       screen.getByRole("checkbox", { name: 'Select "Untitled folder"' })
-    ).toHaveAttribute("aria-checked", "false");
+    ).not.toBeChecked();
   });
 
   it("builds a selection with Ctrl/⌘-click without navigating", async () => {
@@ -1649,7 +1649,7 @@ describe("ExplorerPanel", () => {
       expect(push).not.toHaveBeenCalled();
       expect(
         within(card("Fleet")).getByRole("checkbox", { name: 'Select "Fleet"' })
-      ).toHaveAttribute("aria-checked", "true");
+      ).toBeChecked();
 
       await user.click(within(card("Ops")).getByText("Ops"));
       expect(globalThis.location.search).toBe("?view=cards&folder=ops");

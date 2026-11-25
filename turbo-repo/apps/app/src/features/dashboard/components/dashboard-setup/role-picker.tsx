@@ -1,9 +1,9 @@
 "use client";
 
 import { Select } from "flowbite-react";
-import { SETUP_ROLES, type SetupRole } from "./setup.types";
+import { SETUP_ROLES, type DashboardRole } from "./setup.types";
 
-function isSetupRole(value: string): value is SetupRole {
+function isDashboardRole(value: string): value is DashboardRole {
   return (SETUP_ROLES as readonly string[]).includes(value);
 }
 
@@ -14,8 +14,8 @@ export function RolePicker({
   label,
   t,
 }: Readonly<{
-  value: SetupRole;
-  onChange: (role: SetupRole) => void;
+  value: DashboardRole;
+  onChange: (role: DashboardRole) => void;
   label: string;
   t: (key: string) => string;
 }>) {
@@ -26,7 +26,7 @@ export function RolePicker({
       title={t(`roleHints.${value}`)}
       value={value}
       onChange={(event) => {
-        if (isSetupRole(event.target.value)) onChange(event.target.value);
+        if (isDashboardRole(event.target.value)) onChange(event.target.value);
       }}
       className="ml-auto w-40 shrink-0"
     >

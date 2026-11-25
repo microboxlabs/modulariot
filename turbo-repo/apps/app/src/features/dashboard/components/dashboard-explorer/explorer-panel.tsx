@@ -266,6 +266,24 @@ function openFolderOf(
   return isLoading || layout.folders[openParam] ? openParam : null;
 }
 
+/** The open folder's tint while something is dragged over it, not a row. */
+function dropHereClassOf(
+  draggingIds: readonly string[] | null,
+  dropTargetId: string | null | undefined,
+  currentFolderId: string | null
+): string | undefined {
+  if (draggingIds === null || dropTargetId !== currentFolderId)
+    return undefined;
+  return "bg-primary-50/60 dark:bg-primary-900/20";
+}
+
+/** What a cut leaves faded until it is pasted; nothing after a copy. */
+function cutIdsOf(
+  clipboard: { mode: string; ids: readonly string[] } | null
+): readonly string[] {
+  return clipboard?.mode === "cut" ? clipboard.ids : [];
+}
+
 /** "All" means every row in view: those inside closed folders are not. */
 function selectAllStateOf(
   order: readonly string[],
@@ -510,9 +528,14 @@ export default function ExplorerPanel({
     openFolder,
   ]);
 
-  const cutIds = actions.clipboard?.mode === "cut" ? actions.clipboard.ids : [];
+  const cutIds = cutIdsOf(actions.clipboard);
   // "All" means every row in view: those inside closed folders are not.
   const selectAllState = selectAllStateOf(order, selection.ids);
+  const dropHereClass = dropHereClassOf(
+    draggingIds,
+    dropTargetId,
+    currentFolderId
+  );
   const selectAll: SelectAllState = {
     state: selectAllState,
     onToggle: () =>
@@ -700,9 +723,7 @@ export default function ExplorerPanel({
           // The padding keeps a selected card's ring from being clipped; the
           // margin takes it back, so the cards line up with the filters.
           "-m-1 min-h-48 flex-1 overflow-y-auto rounded-xl p-1",
-          draggingIds !== null &&
-            dropTargetId === currentFolderId &&
-            "bg-primary-50/60 dark:bg-primary-900/20"
+          dropHereClass
         )}
       >
         {(!isEmpty || folder) && (
@@ -728,12 +749,7 @@ export default function ExplorerPanel({
         onDragOver={onRootDragOver}
         onDrop={onRootDrop}
         onContextMenu={onRootContextMenu}
-        className={twMerge(
-          LIST_FRAME_CLASS,
-          draggingIds !== null &&
-            dropTargetId === currentFolderId &&
-            "bg-primary-50/60 dark:bg-primary-900/20"
-        )}
+        className={twMerge(LIST_FRAME_CLASS, dropHereClass)}
       >
         <ExplorerHeader
           selectAll={selectAll}

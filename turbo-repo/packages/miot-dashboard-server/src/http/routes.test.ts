@@ -2,6 +2,28 @@ import { describe, expect, it } from "vitest";
 import { matchRoute } from "./routes";
 
 describe("matchRoute", () => {
+  it("matches the folder routes", () => {
+    const base = "/tenants/acme/scopes/ops";
+    expect(matchRoute(`${base}/folders`)).toEqual({
+      route: "folders",
+      tenantId: "acme",
+      scopeId: "ops",
+    });
+    expect(matchRoute(`${base}/folders/f1`)).toEqual({
+      route: "folder",
+      tenantId: "acme",
+      scopeId: "ops",
+      id: "f1",
+    });
+    expect(matchRoute(`${base}/dashboards/fleet/folder`)).toEqual({
+      route: "dashboardFolder",
+      tenantId: "acme",
+      scopeId: "ops",
+      slug: "fleet",
+    });
+    expect(matchRoute(`${base}/folders/f1/extra`)).toBeNull();
+    expect(matchRoute(`${base}/folders/..`)).toBeNull();
+  });
   it("keeps scope capabilities separate from a dashboard named capabilities", () => {
     expect(matchRoute("/tenants/acme/scopes/ops/capabilities")).toEqual({
       route: "scopeCapabilities", tenantId: "acme", scopeId: "ops",

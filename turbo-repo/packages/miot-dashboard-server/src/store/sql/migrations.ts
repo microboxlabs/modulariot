@@ -147,6 +147,56 @@ export const MIGRATIONS: readonly Migration[] = [
        )`,
     ],
   },
+  {
+    version: 8,
+    name: "dashboard folders",
+    statements: [
+      // `parent_id` is '' at the top level rather than NULL, so the unique
+      // constraint also covers top-level names: NULLs never compare equal.
+      // `name_key` is the trimmed, lower-cased name.
+      `CREATE TABLE dashboard_folders (
+         tenant_id  TEXT NOT NULL,
+         scope_id   TEXT NOT NULL,
+         id         TEXT NOT NULL,
+         name       TEXT NOT NULL,
+         name_key   TEXT NOT NULL,
+         parent_id  TEXT NOT NULL,
+         created_at TEXT NOT NULL,
+         created_by TEXT NOT NULL,
+         PRIMARY KEY (tenant_id, scope_id, id),
+         UNIQUE (tenant_id, scope_id, parent_id, name_key)
+       )`,
+      // Null at the top level. Not a foreign key: a folder is removed in the
+      // same transaction that moves its stragglers back to the top level.
+      `ALTER TABLE dashboards ADD COLUMN folder_id TEXT`,
+    ],
+  },
+  {
+    version: 9,
+    name: "folder permissions",
+    statements: [
+      // A folder's own permissions, apart from its dashboards'. Removed with
+      // the folder, in the same transaction.
+      `CREATE TABLE folder_permissions (
+         tenant_id    TEXT NOT NULL,
+         scope_id     TEXT NOT NULL,
+         folder_id    TEXT NOT NULL,
+         authority_id TEXT NOT NULL,
+         role         TEXT NOT NULL,
+         PRIMARY KEY (tenant_id, scope_id, folder_id, authority_id)
+       )`,
+    ],
+  },
+  {
+    version: 10,
+    name: "folder visibility",
+    statements: [
+      // Who sees a folder: null (every folder before this) is the whole
+      // scope; "restricted" is its creator, whoever it names, and the scope's
+      // Coordinators. A dashboard keeps its own in its config.
+      `ALTER TABLE dashboard_folders ADD COLUMN visibility TEXT`,
+    ],
+  },
 ];
 
 export const DEFAULT_HISTORY_TABLE = "schema_migrations";

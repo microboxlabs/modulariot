@@ -372,6 +372,13 @@
           "items": {
             "type": "string"
           }
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "organization",
+            "restricted"
+          ]
         }
       },
       "required": [

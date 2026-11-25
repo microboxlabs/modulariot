@@ -126,6 +126,17 @@ public class DashboardProxyResource {
                 support.assertionFor(slug, authorization)));
     }
 
+    @PUT
+    @Path("/{dashboard}/folder")
+    public Uni<Response> fileInFolder(@PathParam("slug") String slug,
+                                      @PathParam("dashboard") String dashboard,
+                                      @HeaderParam("Authorization") String authorization,
+                                      Map<String, Object> body) {
+        return DashboardProxySupport.passThrough(dashboards.fileInFolder(
+                support.tenantIdFor(slug), support.scopeIdFor(), dashboard, authorization,
+                support.assertionFor(slug, authorization), body));
+    }
+
     @GET
     @Path("/{dashboard}/permissions")
     public Uni<Response> getPermissions(@PathParam("slug") String slug,

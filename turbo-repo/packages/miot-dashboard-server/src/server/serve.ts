@@ -22,6 +22,7 @@ import type {
   TenantAuthority,
 } from "../seams/identity";
 import type { ServerDashboardStore } from "../seams/store";
+import type { DashboardFolderStore } from "../seams/folders";
 import { createDocsHandler, DOCS_PATH, SPEC_PATH } from "./docs";
 import { toNodeListener } from "./node-adapter";
 import type { CorsOptions } from "../http/cors";
@@ -33,6 +34,8 @@ export interface ServeOptions {
   store: ServerDashboardStore;
   /** Omit and the datasource routes answer 404. */
   dataSources?: DataSourceStore;
+  /** Omit and the folder routes answer 404. */
+  folders?: DashboardFolderStore;
   /** Omit, or pass a read-only vault, and the credential routes answer 404. */
   credentials?: CredentialsVault;
   audit?: AuditSink;
@@ -141,6 +144,7 @@ export function createRequestHandler(options: ServeOptions) {
     ...(options.basePath ? { basePath: options.basePath } : {}),
     ...(options.dataSources ? { dataSources: options.dataSources } : {}),
     ...(options.credentials ? { credentials: options.credentials } : {}),
+    ...(options.folders ? { folders: options.folders } : {}),
   });
 
   const docs =

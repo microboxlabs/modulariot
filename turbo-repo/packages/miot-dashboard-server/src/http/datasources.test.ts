@@ -310,6 +310,10 @@ describe("the serialization gate", () => {
       queryCatalog: "answers projected public metadata, never credential fields",
       capabilities: CONFIG_NOT_CREDENTIALS,
       permissions: CONFIG_NOT_CREDENTIALS,
+      dashboardFolder: "answers nothing but a status, never credentials",
+      folders: "answers folder names and ids, never credentials",
+      folder: "answers folder names and ids, never credentials",
+      folderPermissions: "answers authority ids and roles, never credentials",
       datasources: [
         { method: "GET", path: DS, user: "alice" },
         { method: "POST", path: DS, user: "alice", body: pgrest },

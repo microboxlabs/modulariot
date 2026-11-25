@@ -35,9 +35,9 @@ import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/s
 import {
   createAccessControl,
   type AccessControlOptions,
+  type AccessDecision,
 } from "../access/access-control";
 import { DashboardServerError, isDashboardServerError } from "../access/errors";
-import { isDashboardRole } from "../access/roles";
 import {
   applyCredential,
   isCredentialsStore,
@@ -50,7 +50,6 @@ import type {
   DataSourceInput,
   DataSourceStore,
 } from "../seams/datasources";
-import type { PermissionAssignment } from "../seams/store";
 import {
   parseCredentialInput,
   parseDataSourceInput,
@@ -64,6 +63,10 @@ import {
 } from "./test-connection";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
+import { createFolderRoutes } from "./folder-routes";
+import { parseAssignments } from "./parse-assignments";
+import type { DashboardFolderStore } from "../seams/folders";
+import { restrictedConfig, scopeVisibilityLoader } from "../access/visibility";
 import { withCors, type CorsOptions } from "./cors";
 
 export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
@@ -91,6 +94,11 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
   credentials?: CredentialsVault;
   /** Omit it and the query-source routes answer 404. */
   authoring?: QueryAuthoring;
+  /**
+   * Omit it and the folder routes answer 404, and the dashboard listing
+   * carries no `folderId`.
+   */
+  folders?: DashboardFolderStore;
   /** Limits, clock and fetch of the query editor. */
   authoringOptions?: Omit<QueryWorkbenchOptions, "authoring">;
   /** Clock, fetch and timeout for the connection test. For tests. */
@@ -122,6 +130,25 @@ export type DashboardHandler = (request: Request) => Promise<Response>;
  * so a host mounting it under a prefix gets a consistent body even for a
  * mistyped path.
  */
+/**
+ * Who sees a dashboard is part of who may use it, so only who manages its
+ * permissions changes it. A first save sets it freely: its creator is about
+ * to manage them.
+ */
+function requireVisibilityUnchangedOrManaged(
+  decision: AccessDecision,
+  config: unknown,
+): void {
+  const record = decision.dashboard?.record;
+  if (!record) return;
+  if (restrictedConfig(record.config) === restrictedConfig(config)) return;
+  if (decision.dashboard?.capabilities.canManagePermissions) return;
+  throw DashboardServerError.forbidden(
+    "CAPABILITY",
+    "Only who manages this dashboard's permissions may change who sees it",
+  );
+}
+
 export function createDashboardHandler(
   options: DashboardHandlerOptions,
 ): DashboardHandler {
@@ -130,7 +157,9 @@ export function createDashboardHandler(
     throw new TypeError("maxBodyBytes must be a positive safe integer");
   }
   const readBody = (request: Request) => readJsonBody(request, maxBodyBytes);
-  const access = createAccessControl<Request>(options);
+  const visibility =
+    options.visibility ?? scopeVisibilityLoader(options.folders);
+  const access = createAccessControl<Request>({ ...options, visibility });
   const queries =
     options.queries === undefined
       ? null
@@ -218,6 +247,13 @@ export function createDashboardHandler(
     RouteMatch["route"],
     (request: Request, match: RouteMatch) => Promise<Response>
   > = {
+    ...createFolderRoutes({
+      access,
+      store: options.store,
+      folders: options.folders,
+      visibility,
+      readBody,
+    }),
     async dashboards(request, match) {
       const method = request.method.toUpperCase();
       if (method !== "GET") return methodNotAllowed();
@@ -225,7 +261,20 @@ export function createDashboardHandler(
         tenantId: match.tenantId,
         scopeId: match.scopeId,
       });
-      return jsonResponse({ data });
+      if (options.folders === undefined || data.length === 0) {
+        return jsonResponse({ data });
+      }
+      // `list` has authorized the scope, so its tenant check already ran.
+      const placements = await options.folders.placements({
+        tenantId: match.tenantId,
+        scopeId: match.scopeId,
+      });
+      return jsonResponse({
+        data: data.map((summary) => {
+          const folderId = placements.get(summary.slug);
+          return folderId === undefined ? summary : { ...summary, folderId };
+        }),
+      });
     },
 
     async dashboard(request, match) {
@@ -256,6 +305,7 @@ export function createDashboardHandler(
         });
         const config = await readBody(request);
         requireValidConfig(config);
+        requireVisibilityUnchangedOrManaged(decision, config);
         const expectedRevision = readExpectedRevision(request);
         const saved = await options.store.save(
           refOf(decision.identity.tenantId, match.scopeId, slug),
@@ -282,9 +332,8 @@ export function createDashboardHandler(
         if (decision.dashboard?.record == null) {
           throw DashboardServerError.notFound("Dashboard not found");
         }
-        await options.store.remove(
-          refOf(decision.identity.tenantId, match.scopeId, slug),
-        );
+        const ref = refOf(decision.identity.tenantId, match.scopeId, slug);
+        await options.store.remove(ref);
         return noContentResponse();
       }
       return methodNotAllowed();
@@ -308,21 +357,33 @@ export function createDashboardHandler(
 
     async queryCatalog(request, match) {
       if (request.method !== "GET") return methodNotAllowed();
-      if (!options.queryCatalog) throw DashboardServerError.notFound("Query catalog is not configured");
+      if (!options.queryCatalog)
+        throw DashboardServerError.notFound("Query catalog is not configured");
       const ref = refOf(match.tenantId, match.scopeId, requireSlug(match));
-      const decision = await access.authorize(request, { ...ref, action: "dashboard.save" });
-      if (!decision.dashboard?.record) throw DashboardServerError.notFound("Dashboard not found");
+      const decision = await access.authorize(request, {
+        ...ref,
+        action: "dashboard.save",
+      });
+      if (!decision.dashboard?.record)
+        throw DashboardServerError.notFound("Dashboard not found");
       request.signal.throwIfAborted();
-      const catalog = await options.queryCatalog.list({ identity: decision.identity, ref, signal: request.signal });
+      const catalog = await options.queryCatalog.list({
+        identity: decision.identity,
+        ref,
+        signal: request.signal,
+      });
       request.signal.throwIfAborted();
       return jsonResponse({ connections: projectQueryCatalog(catalog) });
     },
 
     async scopeCapabilities(request, match) {
       if (request.method.toUpperCase() !== "GET") return methodNotAllowed();
-      return jsonResponse(await access.scopeCapabilities(request, {
-        tenantId: match.tenantId, scopeId: match.scopeId,
-      }));
+      return jsonResponse(
+        await access.scopeCapabilities(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+        }),
+      );
     },
 
     async capabilities(request, match) {
@@ -562,9 +623,14 @@ export function createDashboardHandler(
       );
       const url = new URL(request.url, "http://localhost");
       const projectId = url.searchParams.get("projectId") ?? "";
-      const data = await workbench.schema(context, requireId(match), projectId, {
-        refresh: url.searchParams.get("refresh") === "1",
-      });
+      const data = await workbench.schema(
+        context,
+        requireId(match),
+        projectId,
+        {
+          refresh: url.searchParams.get("refresh") === "1",
+        },
+      );
       return jsonResponse({ data });
     },
 
@@ -858,35 +924,6 @@ function readExpectedRevision(request: Request): number | undefined {
     );
   }
   return value;
-}
-
-function parseAssignments(body: unknown): PermissionAssignment[] {
-  if (typeof body !== "object" || body === null || Array.isArray(body)) {
-    throw DashboardServerError.badRequest("Body must be a JSON object");
-  }
-  const raw = (body as { assignments?: unknown }).assignments;
-  if (!Array.isArray(raw)) {
-    throw DashboardServerError.badRequest("'assignments' must be an array");
-  }
-  return raw.map((entry, index) => {
-    if (typeof entry !== "object" || entry === null) {
-      throw DashboardServerError.badRequest(
-        `'assignments[${index}]' must be an object`,
-      );
-    }
-    const { authorityId, role } = entry as Record<string, unknown>;
-    if (typeof authorityId !== "string" || authorityId.length === 0) {
-      throw DashboardServerError.badRequest(
-        `'assignments[${index}].authorityId' must be a non-empty string`,
-      );
-    }
-    if (!isDashboardRole(role)) {
-      throw DashboardServerError.badRequest(
-        `'assignments[${index}].role' must be one of Consumer, Contributor, Editor, Coordinator`,
-      );
-    }
-    return { authorityId, role };
-  });
 }
 
 function queryFilters(body: unknown): unknown {

@@ -142,6 +142,9 @@ export const refreshIntervalSchema = z.union([
 ]);
 
 /** The persisted document, version 2. */
+/** Who sees a dashboard or folder: the whole scope, or only who it names. */
+export const dashboardVisibilitySchema = z.enum(["organization", "restricted"]);
+
 export const dashboardConfigSchema = z
   .object({
     version: z.literal(CURRENT_DASHBOARD_CONFIG_VERSION),
@@ -154,6 +157,7 @@ export const dashboardConfigSchema = z
     refreshInterval: refreshIntervalSchema.optional(),
     order: z.number().optional(),
     allowedGroups: z.array(z.string()).optional(),
+    visibility: dashboardVisibilitySchema.optional(),
   })
   .passthrough();
 

@@ -14,6 +14,10 @@ export type RouteName =
   | "queryCatalog"
   | "capabilities"
   | "permissions"
+  | "dashboardFolder"
+  | "folders"
+  | "folder"
+  | "folderPermissions"
   | "datasources"
   | "datasourcesTest"
   | "datasource"
@@ -43,7 +47,7 @@ export interface RouteMatch {
   scopeId: string;
   /** Absent only for the collection route. */
   slug?: string;
-  /** Query id, datasource id, credential ref or query source id, on the routes that address one. */
+  /** Query id, datasource id, credential ref, query source id or folder id, on the routes that address one. */
   id?: string;
   /** Saved query id under a query source. */
   planId?: string;
@@ -81,6 +85,9 @@ export function matchRoute(pathname: string): RouteMatch | null {
   if (collection === "query-sources") {
     return matchQuerySources(segments, tenantId, scopeId);
   }
+  if (collection === "folders") {
+    return matchFolders(segments, tenantId, scopeId);
+  }
   if (collection !== "dashboards") return null;
   return matchDashboards(segments, tenantId, scopeId);
 }
@@ -112,8 +119,25 @@ function matchDashboards(
       return { route: "capabilities", tenantId, scopeId, slug };
     if (tail === "permissions")
       return { route: "permissions", tenantId, scopeId, slug };
+    if (tail === "folder")
+      return { route: "dashboardFolder", tenantId, scopeId, slug };
   }
 
+  return null;
+}
+
+function matchFolders(
+  segments: readonly string[],
+  tenantId: string,
+  scopeId: string,
+): RouteMatch | null {
+  if (segments.length === 5) return { route: "folders", tenantId, scopeId };
+  const id = decodeSegment(segments[5]);
+  if (id === null) return null;
+  if (segments.length === 6) return { route: "folder", tenantId, scopeId, id };
+  if (segments.length === 7 && segments[6] === "permissions") {
+    return { route: "folderPermissions", tenantId, scopeId, id };
+  }
   return null;
 }
 

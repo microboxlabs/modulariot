@@ -47,6 +47,11 @@ import type {
   ServerDashboardStore,
 } from "../seams/store";
 import { roleCapabilityPolicy, type CapabilityPolicy } from "./capabilities";
+import {
+  dashboardHidden,
+  OPEN_SCOPE,
+  type ScopeVisibility,
+} from "./visibility";
 import { DashboardServerError, type ForbiddenReason } from "./errors";
 import {
   capabilitiesForRole,
@@ -100,6 +105,14 @@ export interface AccessControlOptions<TRequest> {
   onAuditError?: (error: unknown) => void;
   /** Clock, for tests. */
   now?: () => Date;
+  /**
+   * Reads a scope's access mode, folders and folder permissions. Without it
+   * every scope is open: nothing is hidden for want of a permission.
+   */
+  visibility?: (scope: {
+    tenantId: string;
+    scopeId: string;
+  }) => Promise<ScopeVisibility>;
 }
 
 export interface AccessControl<TRequest> {
@@ -167,6 +180,27 @@ const ACTION_RULES: Readonly<Record<DashboardAction, ActionRule>> = {
   "dashboard.permissions.write": {
     level: "dashboard",
     capability: "canManagePermissions",
+  },
+  // Filing a dashboard in a folder changes where it lists, not what it is,
+  // so it needs edit rights on that dashboard and nothing at scope level.
+  "dashboard.move": { level: "dashboard", capability: "canEdit" },
+  // Folders hold no data of their own: every member may see the tree.
+  "folder.list": { level: "scope", floor: "Consumer", capability: null },
+  // Folders have their own permissions, so these only need standing in the
+  // scope here: the folder routes then check the caller's role on the folder
+  // itself (Editor to create inside, rename or move it; Coordinator to delete
+  // it or manage its permissions), and the scope role for the top level.
+  "folder.write": { level: "scope", floor: "Consumer", capability: null },
+  "folder.delete": { level: "scope", floor: "Consumer", capability: null },
+  "folder.permissions.read": {
+    level: "scope",
+    floor: "Consumer",
+    capability: null,
+  },
+  "folder.permissions.write": {
+    level: "scope",
+    floor: "Consumer",
+    capability: null,
   },
   "datasource.list": { level: "scope", floor: "Consumer", capability: null },
   "datasource.query": { level: "scope", floor: "Consumer", capability: null },
@@ -257,7 +291,11 @@ export function createAccessControl<TRequest>(
     audit = noopAuditSink,
     onAuditError,
     now = () => new Date(),
+    visibility: readVisibility,
   } = options;
+
+  const visibilityOf = (scope: { tenantId: string; scopeId: string }) =>
+    readVisibility ? readVisibility(scope) : Promise.resolve(OPEN_SCOPE);
 
   async function record(
     principal: DashboardPrincipal | null,
@@ -416,6 +454,10 @@ export function createAccessControl<TRequest>(
       decision.identity.tenantId,
       target.scopeId,
     );
+    const scopeVisibility = await visibilityOf({
+      tenantId: decision.identity.tenantId,
+      scopeId: target.scopeId,
+    });
     const visible: DashboardSummary[] = [];
     // Bound policy/store work without re-verifying the credential for each item.
     for (let offset = 0; offset < summaries.length; offset += 4) {
@@ -430,8 +472,20 @@ export function createAccessControl<TRequest>(
         ),
       );
       batch.forEach((summary, index) => {
-        const record = access[index]?.record;
+        const granted = access[index];
+        const record = granted?.record;
         if (!record) return;
+        if (
+          dashboardHidden(
+            decision.identity,
+            decision.scopeRole,
+            summary.slug,
+            record,
+            granted.assignments,
+            scopeVisibility,
+          )
+        )
+          return;
         const order = dashboardSortOrder(record.config);
         visible.push({
           slug: summary.slug,
@@ -493,7 +547,23 @@ export function createAccessControl<TRequest>(
     }
 
     const slugTarget = { ...target, slug: target.slug };
-    const dashboard = await loadUserDashboard(identity, slugTarget, scopeRole);
+    const loaded = await loadUserDashboard(identity, slugTarget, scopeRole);
+    // A restricted scope hides it as if the caller had no access at all.
+    const dashboard =
+      loaded &&
+      dashboardHidden(
+        identity,
+        scopeRole,
+        target.slug,
+        loaded.record,
+        loaded.assignments,
+        await visibilityOf({
+          tenantId: identity.tenantId,
+          scopeId: target.scopeId,
+        }),
+      )
+        ? null
+        : loaded;
     if (dashboard === null) {
       return deny(
         identity,

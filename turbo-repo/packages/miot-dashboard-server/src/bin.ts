@@ -38,6 +38,7 @@ import {
   createLocalQueryOperations,
 } from "./authoring/local";
 import { createSqlQueryPlanStore } from "./store/sql/query-plans";
+import { createSqlFolderStore } from "./store/sql/folders";
 import { createRefusalLog } from "./server/refusal-log";
 import { startSweepSchedule } from "./server/sweep-schedule";
 import { seedDashboards } from "./server/seed";
@@ -379,6 +380,12 @@ async function main(): Promise<void> {
     tenants: tenants.tenants,
     scopes: scopes.scopes,
     store: assembled.store,
+    // Same database as the dashboards: moving one is an update of its row.
+    ...(assembled.driver
+      ? {
+          folders: createSqlFolderStore(assembled.driver),
+        }
+      : {}),
     ...queryServices.options,
     audit: createRecordingAuditSink(),
     port: config.port,

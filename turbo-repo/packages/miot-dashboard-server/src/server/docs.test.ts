@@ -30,6 +30,7 @@ import {
   createInsecureHeaderIdentityResolver,
   createMemoryCredentialsStore,
   createMemoryDataSourceStore,
+  createMemoryFolderStore,
   createMemoryScopeAuthority,
   createMemoryTenantAuthority,
   createMemoryStore,
@@ -476,6 +477,12 @@ describe("the spec against the router", () => {
       "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/capabilities",
     permissions:
       "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/permissions",
+    dashboardFolder:
+      "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/folder",
+    folders: "/tenants/{tenantId}/scopes/{scopeId}/folders",
+    folder: "/tenants/{tenantId}/scopes/{scopeId}/folders/{folderId}",
+    folderPermissions:
+      "/tenants/{tenantId}/scopes/{scopeId}/folders/{folderId}/permissions",
     datasources: "/tenants/{tenantId}/scopes/{scopeId}/datasources",
     datasourcesTest: "/tenants/{tenantId}/scopes/{scopeId}/datasources/test",
     datasource:
@@ -507,7 +514,8 @@ describe("the spec against the router", () => {
       .replace("{credentialRef}", EXAMPLE.credentialRef)
       .replace("{queryId}", EXAMPLE.queryId)
       .replace("{sourceId}", "warehouse")
-      .replace("{planId}", "daily");
+      .replace("{planId}", "daily")
+      .replace("{folderId}", "reports");
 
   const spec = readSpecPaths();
 
@@ -540,6 +548,7 @@ describe("the spec against the router", () => {
       // optional adapters answer 404 when omitted.
       dataSources: createMemoryDataSourceStore(),
       credentials: createMemoryCredentialsStore(),
+      folders: createMemoryFolderStore(),
       queries: { operations: { execute: async () => ({ rows: [] }) } },
       queryCatalog: { list: async () => [] },
       authoring: {

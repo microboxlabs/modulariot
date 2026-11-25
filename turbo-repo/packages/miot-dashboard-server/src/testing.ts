@@ -33,6 +33,13 @@ import type {
   DataSourceInput,
   DataSourceStore,
 } from "./seams/datasources";
+import type { DashboardFolder, DashboardFolderStore } from "./seams/folders";
+import {
+  applyFolderPatch,
+  folderSubtree,
+  requireFreeName,
+  requireParent,
+} from "./store/folder-tree";
 import type {
   DashboardPrincipal,
   IdentityResolver,
@@ -149,9 +156,10 @@ export function createMemoryStore(
           ),
         );
       }
+      const at = now().toISOString();
       const record: DashboardRecord = {
         config,
-        updatedAt: now().toISOString(),
+        updatedAt: at,
         updatedBy: saveOptions.updatedBy,
         revision: (revisions.get(key(ref)) ?? current) + 1,
         // Set once, on creation, and preserved from then on: the default
@@ -204,7 +212,8 @@ export function createMemoryStore(
     },
 
     removeIfRevision(ref, revision) {
-      if (!Number.isSafeInteger(revision) || revision < 1) return Promise.resolve(false);
+      if (!Number.isSafeInteger(revision) || revision < 1)
+        return Promise.resolve(false);
       if (entries.get(key(ref))?.record.revision !== revision)
         return Promise.resolve(false);
       entries.delete(key(ref));
@@ -488,6 +497,137 @@ export function createMemoryDataSourceStore(
     remove(tenantId, id) {
       byTenant.get(tenantId)?.delete(id);
       return Promise.resolve();
+    },
+  };
+}
+
+// ------------------------------------------------------------- folders ----
+
+/**
+ * Folders and placements in memory, with the same rules as the SQL store.
+ * It cannot see the dashboard store, so `placeDashboard` trusts that the
+ * dashboard exists (the handler has already loaded it) and a deleted
+ * dashboard keeps its placement until it is filed again.
+ */
+export function createMemoryFolderStore(): DashboardFolderStore {
+  const folders = new Map<string, DashboardFolder[]>();
+  const placements = new Map<string, Map<string, string>>();
+  /** Scope key → folder id → its permissions. */
+  const grants = new Map<string, Map<string, PermissionAssignment[]>>();
+  const grantsOf = (scope: { tenantId: string; scopeId: string }) => {
+    const key = keyOf(scope);
+    let rows = grants.get(key);
+    if (rows === undefined) {
+      rows = new Map();
+      grants.set(key, rows);
+    }
+    return rows;
+  };
+  let counter = 0;
+  const keyOf = (s: { tenantId: string; scopeId: string }) =>
+    JSON.stringify([s.tenantId, s.scopeId]);
+  const foldersOf = (scope: { tenantId: string; scopeId: string }) => {
+    const key = keyOf(scope);
+    let rows = folders.get(key);
+    if (rows === undefined) {
+      rows = [];
+      folders.set(key, rows);
+    }
+    return rows;
+  };
+  const placementsOf = (scope: { tenantId: string; scopeId: string }) => {
+    const key = keyOf(scope);
+    let rows = placements.get(key);
+    if (rows === undefined) {
+      rows = new Map();
+      placements.set(key, rows);
+    }
+    return rows;
+  };
+
+  return {
+    list: (scope) => Promise.resolve(foldersOf(scope).map((f) => ({ ...f }))),
+    placements: (scope) => Promise.resolve(new Map(placementsOf(scope))),
+    // async, so a rule that throws rejects the promise as the SQL store does.
+    async create(scope, input, createdBy) {
+      const rows = foldersOf(scope);
+      requireParent(rows, input.parentId);
+      requireFreeName(rows, input.parentId, input.name);
+      const folder = {
+        id: `folder-${++counter}`,
+        name: input.name.trim(),
+        parentId: input.parentId,
+        createdBy,
+        ...(input.visibility === "restricted"
+          ? { visibility: input.visibility }
+          : {}),
+      };
+      rows.push(folder);
+      return { ...folder };
+    },
+    async update(scope, id, patch) {
+      const rows = foldersOf(scope);
+      const next = applyFolderPatch(rows, id, patch);
+      rows.splice(
+        rows.findIndex((f) => f.id === id),
+        1,
+        next,
+      );
+      return { ...next };
+    },
+    subtree: (scope, id) =>
+      Promise.resolve(folderSubtree(foldersOf(scope), placementsOf(scope), id)),
+    removeFolders(scope, ids) {
+      const gone = new Set(ids);
+      const key = keyOf(scope);
+      folders.set(
+        key,
+        foldersOf(scope).filter((f) => !gone.has(f.id)),
+      );
+      const placed = placementsOf(scope);
+      for (const [slug, folderId] of placed) {
+        if (gone.has(folderId)) placed.delete(slug);
+      }
+      const granted = grantsOf(scope);
+      for (const id of gone) granted.delete(id);
+      return Promise.resolve();
+    },
+    permissions: (scope) =>
+      Promise.resolve(
+        new Map(
+          [...grantsOf(scope)].map(([id, list]) => [
+            id,
+            list.map((a) => ({ ...a })),
+          ]),
+        ),
+      ),
+    async setPermissions(scope, folderId, assignments) {
+      requireParent(foldersOf(scope), folderId);
+      const granted = grantsOf(scope);
+      if (assignments.length === 0) granted.delete(folderId);
+      else
+        granted.set(
+          folderId,
+          assignments.map((a) => ({ ...a })),
+        );
+    },
+    async setVisibility(scope, folderId, visibility) {
+      const rows = foldersOf(scope);
+      requireParent(rows, folderId);
+      const index = rows.findIndex((f) => f.id === folderId);
+      const { visibility: _previous, ...folder } = rows[index]!;
+      rows.splice(
+        index,
+        1,
+        visibility === "restricted" ? { ...folder, visibility } : folder,
+      );
+    },
+    async placeDashboard(scope, slug, folderId) {
+      requireParent(foldersOf(scope), folderId);
+      const placed = placementsOf(scope);
+      if (folderId === null) placed.delete(slug);
+      else placed.set(slug, folderId);
+      return true;
     },
   };
 }

@@ -13,6 +13,8 @@ export { createSqlMetadataStore } from "./store/sql/metadata";
 export { createSqlDataSourceStore } from "./store/sql/datasources";
 export type { SqlDataSourceStoreOptions } from "./store/sql/datasources";
 export { createSqlQueryPlanStore } from "./store/sql/query-plans";
+export { createSqlFolderStore } from "./store/sql/folders";
+export type { SqlFolderStoreOptions } from "./store/sql/folders";
 export type { SqlQueryPlanStoreOptions } from "./store/sql/query-plans";
 export { createSqlDocumentStore } from "./store/sql/documents";
 export type { SqlDocumentStoreOptions } from "./store/sql/documents";

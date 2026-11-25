@@ -8,11 +8,19 @@ export type DashboardRouteContext = {
   params: Promise<{ dashboard: string; query?: string }>;
 };
 
+export type DashboardFolderRouteContext = {
+  params: Promise<{ folder: string }>;
+};
+
 function isSafeIdentifier(value: string | undefined): value is string {
   return (
     !!value && !value.split("/").some((part) => part === "." || part === "..")
   );
 }
+
+const SCOPE_PATHS = {
+  scopeCapabilities: "dashboard-capabilities",
+} as const;
 
 /** Active-org selection and session authentication stay on the server. */
 export async function forwardDashboard(
@@ -24,6 +32,7 @@ export async function forwardDashboard(
     | "query"
     | "scopeCapabilities"
     | "query-catalog"
+    | "folder"
 ) {
   const tenant = await resolveTenantScope();
   if (!tenant.resolved) return tenant.response;
@@ -35,9 +44,11 @@ export async function forwardDashboard(
       { status: 409 }
     );
   }
+  // Scope-wide reads with paths of their own, apart from /dashboards so a
+  // dashboard named "capabilities" keeps its address.
   if (action === "scopeCapabilities") {
     return forwardToQuarkus(
-      orgPath(tenant.scope.activeOrg.slug, ["dashboard-capabilities"]),
+      orgPath(tenant.scope.activeOrg.slug, [SCOPE_PATHS[action]]),
       { method: "GET" }
     );
   }
@@ -63,17 +74,8 @@ export async function forwardDashboard(
     }
     segments.push("queries", query);
   } else if (action) segments.push(action);
-  let body: unknown;
-  if (request.method === "PUT" || request.method === "POST") {
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json(
-        { error: "Request body must be valid JSON" },
-        { status: 400 }
-      );
-    }
-  }
+  const body = await readJsonBody(request);
+  if (body instanceof NextResponse) return body;
   return forwardToQuarkus(orgPath(tenant.scope.activeOrg.slug, segments), {
     method: request.method,
     ...(action === "query"
@@ -81,5 +83,60 @@ export async function forwardDashboard(
       : {}),
     body,
     ifMatch: request.headers.get("if-match") ?? undefined,
+  });
+}
+
+/** The parsed body of a write, undefined for a read, or a 400 response. */
+async function readJsonBody(request: Request): Promise<unknown> {
+  if (!["PUT", "POST", "PATCH"].includes(request.method)) return undefined;
+  try {
+    // Starring is a PUT with nothing to say. Next hands such a request an
+    // empty body stream rather than none, so read the text to tell.
+    const text = await request.text();
+    if (text.trim() === "") return undefined;
+    return JSON.parse(text) as unknown;
+  } catch {
+    return NextResponse.json(
+      { error: "Request body must be valid JSON" },
+      { status: 400 }
+    );
+  }
+}
+
+/**
+ * The dashboard folders of the active organization: the collection without
+ * a context, one folder with it. Same session and org checks as above.
+ */
+export async function forwardDashboardFolders(
+  request: Request,
+  context?: DashboardFolderRouteContext,
+  action?: "permissions"
+) {
+  const tenant = await resolveTenantScope();
+  if (!tenant.resolved) return tenant.response;
+  const expectedOrg = new URL(request.url).searchParams.get("org");
+  if (expectedOrg !== null && expectedOrg !== tenant.scope.activeOrg.slug) {
+    return NextResponse.json(
+      { error: "Active organization changed" },
+      { status: 409 }
+    );
+  }
+  const segments = ["dashboard-folders"];
+  if (context) {
+    const { folder } = await context.params;
+    if (!isSafeIdentifier(folder)) {
+      return NextResponse.json(
+        { error: "Invalid folder identifier" },
+        { status: 400 }
+      );
+    }
+    segments.push(folder);
+    if (action) segments.push(action);
+  }
+  const body = await readJsonBody(request);
+  if (body instanceof NextResponse) return body;
+  return forwardToQuarkus(orgPath(tenant.scope.activeOrg.slug, segments), {
+    method: request.method,
+    body,
   });
 }

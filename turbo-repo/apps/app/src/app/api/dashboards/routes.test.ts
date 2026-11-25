@@ -21,6 +21,19 @@ import {
   GET as permissions,
   PUT as setPermissions,
 } from "./[dashboard]/permissions/route";
+import { PUT as fileInFolder } from "./[dashboard]/folder/route";
+import {
+  GET as listFolders,
+  POST as createFolder,
+} from "../dashboard-folders/route";
+import {
+  PATCH as updateFolder,
+  DELETE as deleteFolder,
+} from "../dashboard-folders/[folder]/route";
+import {
+  GET as folderPermissions,
+  PUT as setFolderPermissions,
+} from "../dashboard-folders/[folder]/permissions/route";
 
 const context = { params: Promise.resolve({ dashboard: "fleet report" }) };
 beforeEach(() => {
@@ -41,6 +54,7 @@ describe("new dashboard product routes", () => {
     ["GET", queryCatalog, "/fleet%20report/query-catalog"],
     ["GET", permissions, "/fleet%20report/permissions"],
     ["PUT", setPermissions, "/fleet%20report/permissions"],
+    ["PUT", fileInFolder, "/fleet%20report/folder"],
   ] as const)(
     "forwards %s through the authenticated org",
     async (method, route, suffix) => {
@@ -122,6 +136,98 @@ describe("new dashboard product routes", () => {
       expect(forwardMock).not.toHaveBeenCalled();
     }
   );
+});
+
+describe("dashboard folder routes", () => {
+  const folder = { params: Promise.resolve({ folder: "f 1" }) };
+  it.each([
+    [
+      "GET",
+      () => listFolders(new Request("https://app.test/x")),
+      "",
+      undefined,
+    ],
+    [
+      "POST",
+      () =>
+        createFolder(
+          new Request("https://app.test/x", {
+            method: "POST",
+            body: JSON.stringify({ name: "Ops" }),
+          })
+        ),
+      "",
+      { name: "Ops" },
+    ],
+    [
+      "PATCH",
+      () =>
+        updateFolder(
+          new Request("https://app.test/x", {
+            method: "PATCH",
+            body: JSON.stringify({ name: "Daily" }),
+          }),
+          folder
+        ),
+      "/f%201",
+      { name: "Daily" },
+    ],
+    [
+      "DELETE",
+      () =>
+        deleteFolder(
+          new Request("https://app.test/x", { method: "DELETE" }),
+          folder
+        ),
+      "/f%201",
+      undefined,
+    ],
+  ] as const)(
+    "forwards %s to the org's folders",
+    async (method, call, suffix, body) => {
+      await call();
+      expect(forwardMock).toHaveBeenCalledWith(
+        `/api/v1/orgs/acme%20org/dashboard-folders${suffix}`,
+        { method, body }
+      );
+    }
+  );
+
+  it("rejects a traversal folder id and a stale organization", async () => {
+    const traversal = await deleteFolder(
+      new Request("https://app.test/x", { method: "DELETE" }),
+      { params: Promise.resolve({ folder: ".." }) }
+    );
+    expect(traversal.status).toBe(400);
+    const stale = await listFolders(
+      new Request("https://app.test/x?org=other")
+    );
+    expect(stale.status).toBe(409);
+    expect(forwardMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("folder permissions and the access mode", () => {
+  const folder = { params: Promise.resolve({ folder: "f 1" }) };
+  it("forwards a folder's own permissions", async () => {
+    await folderPermissions(new Request("https://app.test/x"), folder);
+    expect(forwardMock).toHaveBeenLastCalledWith(
+      "/api/v1/orgs/acme%20org/dashboard-folders/f%201/permissions",
+      { method: "GET", body: undefined }
+    );
+    const assignments = [{ authorityId: "team:7", role: "Editor" }];
+    await setFolderPermissions(
+      new Request("https://app.test/x", {
+        method: "PUT",
+        body: JSON.stringify({ assignments }),
+      }),
+      folder
+    );
+    expect(forwardMock).toHaveBeenLastCalledWith(
+      "/api/v1/orgs/acme%20org/dashboard-folders/f%201/permissions",
+      { method: "PUT", body: { assignments } }
+    );
+  });
 });
 
 describe("saved dashboard query route", () => {

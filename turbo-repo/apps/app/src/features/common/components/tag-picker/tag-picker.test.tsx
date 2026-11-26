@@ -175,4 +175,36 @@ describe("TagPicker", () => {
     await user.keyboard("{Enter}");
     expect(screen.queryByRole("button", { name: "Remove two" })).toBeNull();
   });
+
+  it("respects the limit for existing tags and still lets selected tags be removed", async () => {
+    const user = userEvent.setup();
+    render(
+      <Page
+        max={1}
+        initialOptions={[
+          { id: "a", name: "north" },
+          { id: "b", name: "south" },
+        ]}
+      />
+    );
+    await user.type(field(), "north{Enter}south");
+    const south = screen.getByRole("button", { name: "south" });
+    expect(south).toBeDisabled();
+    await user.click(south);
+    expect(screen.queryByRole("button", { name: "Remove south" })).toBeNull();
+
+    await user.clear(field());
+    await user.type(field(), "north");
+    const north = screen.getByRole("button", { name: "north", pressed: true });
+    expect(north).toBeEnabled();
+    await user.click(north);
+    expect(screen.queryByRole("button", { name: "Remove north" })).toBeNull();
+
+    await user.clear(field());
+    await user.type(field(), "south");
+    await user.click(screen.getByRole("button", { name: "south" }));
+    expect(
+      screen.getByRole("button", { name: "Remove south" })
+    ).toBeInTheDocument();
+  });
 });

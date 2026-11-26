@@ -1,5 +1,6 @@
 import {
   fireEvent,
+  act,
   render,
   screen,
   waitFor,
@@ -14,13 +15,15 @@ const state = vi.hoisted(() => ({
   importDashboard: vi.fn(() => ({ success: true })),
   deleteLegacy: vi.fn(),
   setDetails: vi.fn(),
+  saveDetails: vi.fn(async () => true),
+  notify: vi.fn(),
 }));
 vi.mock("@/features/i18n/tr.service", () => ({
   tr: (key: string) => key,
   trDynamic: (key: string) => key,
 }));
 vi.mock("@/features/notifications/notification", () => ({
-  ShowNotification: vi.fn(),
+  ShowNotification: state.notify,
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -48,6 +51,8 @@ vi.mock("../dashboard-setup/use-setup-permissions", () => ({
     busy: false,
     canManage: true,
     loading: false,
+    error: null,
+    retry: vi.fn(),
   }),
 }));
 vi.mock(
@@ -104,6 +109,7 @@ function host(overrides: Partial<DashboardSettingsHost> = {}) {
     canManagePermissions: true,
     onManagePermissions: vi.fn(),
     onDelete: vi.fn().mockResolvedValue(undefined),
+    saveDetails: state.saveDetails,
     ...overrides,
   };
 }
@@ -175,7 +181,7 @@ it("hides delete when the host does not allow it", () => {
   ).not.toBeInTheDocument();
 });
 
-it("edits the dashboard's tags in its settings, with the setup's tags step", () => {
+it("edits the dashboard's tags in its settings, with the setup's tags step", async () => {
   open(host());
   fireEvent.click(
     screen.getByRole("button", { name: /dashboard\.settings\.tagsTitle/ })
@@ -188,7 +194,72 @@ it("edits the dashboard's tags in its settings, with the setup's tags step", () 
     screen.getByRole("button", { name: "dashboard.setup.tags.remove" })
   );
   fireEvent.click(save);
-  expect(state.setDetails).toHaveBeenCalledWith({ tags: [] });
+  await waitFor(() =>
+    expect(state.saveDetails).toHaveBeenCalledWith({ tags: [] })
+  );
+});
+
+it("retains tag edits and a retry when persistence fails", async () => {
+  state.saveDetails.mockResolvedValueOnce(false);
+  open(host());
+  fireEvent.click(
+    screen.getByRole("button", { name: /dashboard\.settings\.tagsTitle/ })
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.setup.tags.remove" })
+  );
+  const save = screen.getByRole("button", {
+    name: "dashboard.explorer.tagsDialog.save",
+  });
+  fireEvent.click(save);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "dashboard.server.saveError"
+  );
+  expect(save).toBeEnabled();
+  fireEvent.click(save);
+  await waitFor(() =>
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  );
+  expect(state.saveDetails).toHaveBeenCalledTimes(2);
+});
+
+it("retains pending tag edits and failure after closing and reopening settings", async () => {
+  let finish!: (saved: boolean) => void;
+  state.saveDetails.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      })
+  );
+  open(host());
+  const openTags = () =>
+    fireEvent.click(
+      screen.getByRole("button", { name: /dashboard\.settings\.tagsTitle/ })
+    );
+  openTags();
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.setup.tags.remove" })
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.explorer.tagsDialog.save" })
+  );
+  fireEvent.click(screen.getByTitle("Dashboard settings"));
+  await act(async () => finish(false));
+  fireEvent.click(screen.getByTitle("Dashboard settings"));
+  openTags();
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "dashboard.server.saveError"
+  );
+  expect(
+    screen.queryByRole("button", { name: "dashboard.setup.tags.remove" })
+  ).not.toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.explorer.tagsDialog.save" })
+  );
+  await waitFor(() =>
+    expect(state.saveDetails).toHaveBeenLastCalledWith({ tags: [] })
+  );
+  expect(state.saveDetails).toHaveBeenCalledTimes(2);
 });
 
 it("edits who may use the dashboard in its settings, with the setup's permissions step", async () => {
@@ -204,7 +275,9 @@ it("edits who may use the dashboard in its settings, with the setup's permission
   expect(screen.getByText("ana@acme.io")).toBeInTheDocument();
   // Nothing changed yet: nothing to save.
   expect(
-    screen.getByRole("button", { name: "dashboard.permissions.save" })
+    screen.getByRole("button", {
+      name: "dashboard.permissions.saveAssignments",
+    })
   ).toBeDisabled();
 });
 
@@ -217,16 +290,19 @@ it("saves the permissions edited in the settings", async () => {
     })
   );
   fireEvent.click(
-    screen.getByRole("button", { name: "dashboard.permissions.save" })
+    screen.getByRole("button", {
+      name: "dashboard.permissions.saveAssignments",
+    })
   );
   await waitFor(() => expect(perms.save).toHaveBeenCalledOnce());
+  expect(state.saveDetails).not.toHaveBeenCalled();
 });
 
 it("leaves tags to the legacy store's own pages", () => {
   render(<DashboardSettingsDropdown canManagePermissions={false} />);
   fireEvent.click(screen.getByTitle("Dashboard settings"));
   expect(
-    screen.queryByRole("button", { name: "dashboard.settings.tagsButton" })
+    screen.queryByRole("button", { name: /dashboard\.settings\.tagsTitle/ })
   ).not.toBeInTheDocument();
 });
 
@@ -243,9 +319,75 @@ it("keeps the dashboard to who it names from its settings", async () => {
     })
   );
   fireEvent.click(
-    screen.getByRole("button", { name: "dashboard.permissions.save" })
+    screen.getByRole("button", { name: "dashboard.permissions.saveVisibility" })
   );
   await waitFor(() =>
-    expect(state.setDetails).toHaveBeenCalledWith({ visibility: "restricted" })
+    expect(state.saveDetails).toHaveBeenCalledWith({ visibility: "restricted" })
   );
+});
+
+it("reports failed visibility persistence and keeps a retry available", async () => {
+  state.saveDetails.mockResolvedValueOnce(false);
+  open(host({ permissions: PERMISSIONS }));
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: /dashboard\.settings\.accessControlTitle/,
+    })
+  );
+  fireEvent.click(
+    screen.getByRole("radio", {
+      name: "dashboard.setup.permissions.visibility.restricted",
+    })
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.permissions.saveVisibility" })
+  );
+  await waitFor(() =>
+    expect(state.notify).toHaveBeenCalledWith({
+      type: "error",
+      message: "dashboard.permissions.visibilitySaveError",
+    })
+  );
+  const retry = screen.getByRole("button", {
+    name: "dashboard.permissions.saveVisibility",
+  });
+  expect(retry).toBeEnabled();
+  fireEvent.click(retry);
+  await waitFor(() =>
+    expect(state.notify).toHaveBeenCalledWith({
+      type: "success",
+      message: "dashboard.permissions.visibilitySaveSuccess",
+    })
+  );
+});
+
+it("confirms assignments and visibility through separate save actions", async () => {
+  perms.dirty = true;
+  open(host({ permissions: PERMISSIONS }));
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: /dashboard\.settings\.accessControlTitle/,
+    })
+  );
+  fireEvent.click(
+    screen.getByRole("radio", {
+      name: "dashboard.setup.permissions.visibility.restricted",
+    })
+  );
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "dashboard.permissions.saveAssignments",
+    })
+  );
+  await waitFor(() => expect(perms.save).toHaveBeenCalledOnce());
+  expect(state.saveDetails).not.toHaveBeenCalled();
+  const visibilitySave = screen.getByRole("button", {
+    name: "dashboard.permissions.saveVisibility",
+  });
+  await waitFor(() => expect(visibilitySave).toBeEnabled());
+  fireEvent.click(visibilitySave);
+  await waitFor(() =>
+    expect(state.saveDetails).toHaveBeenCalledWith({ visibility: "restricted" })
+  );
+  expect(perms.save).toHaveBeenCalledOnce();
 });

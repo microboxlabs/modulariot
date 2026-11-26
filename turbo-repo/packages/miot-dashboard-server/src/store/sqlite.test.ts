@@ -24,9 +24,83 @@ import { MIGRATIONS, runMigrations } from "./sql/migrations";
 import { SQLITE_DIALECT, type SqlDriver } from "./sql/driver";
 import { createSqliteDriver } from "./sqlite-driver";
 import { openSqliteStore, SQLITE_MEMORY } from "./sqlite";
+import { createSqlFolderStore } from "./sql/folders";
 
 const ref = { tenantId: "acme", scopeId: "ops", slug: "fleet" };
 const config = { version: 2, name: "Fleet" };
+
+it("lets committed cleanup open another SQLite transaction", async () => {
+  const driver = createSqliteDriver({ path: SQLITE_MEMORY });
+  try {
+    await driver.transaction(async () => {
+      await driver.exec("CREATE TABLE cleanup_test (value INTEGER)");
+      await driver.afterCommit!(() =>
+        driver.transaction(() =>
+          driver.exec("INSERT INTO cleanup_test VALUES (1)"),
+        ),
+      );
+    });
+    expect(await driver.all("SELECT value FROM cleanup_test")).toEqual([
+      { value: 1 },
+    ]);
+  } finally {
+    await driver.close();
+  }
+});
+
+it("keeps external documents on rollback and cleans them after commit", async () => {
+  const documents = createFsDocumentStore({ root: temporaryDirectory() });
+  const opened = await openSqliteStore({
+    path: SQLITE_MEMORY,
+    documents,
+    documentBackend: "fs",
+    newDocumentKey: () => "acme/fleet.json",
+  });
+  const folders = createSqlFolderStore(opened.driver);
+  try {
+    await opened.store.save(ref, config, { updatedBy: "ana" });
+    await expect(
+      folders.transaction(ref, async () => {
+        await opened.store.remove(ref);
+        throw new Error("Folder deletion failed");
+      }),
+    ).rejects.toThrow("Folder deletion failed");
+    expect((await opened.store.load(ref))?.config).toEqual(config);
+    expect(await documents.get("acme/fleet.json")).not.toBeNull();
+    await folders.transaction(ref, () => opened.store.remove(ref));
+    expect(await documents.get("acme/fleet.json")).toBeNull();
+  } finally {
+    await opened.close();
+  }
+});
+
+it("retains external documents when the metadata adapter has no completion hook", async () => {
+  const documents = createFsDocumentStore({ root: temporaryDirectory() });
+  const driver = createSqliteDriver({ path: SQLITE_MEMORY });
+  await runMigrations(driver);
+  const metadata = createSqlMetadataStore(driver);
+  metadata.afterCommit = undefined;
+  const store = createCompositeStore({
+    metadata,
+    documents,
+    newDocumentKey: () => "acme/retained.json",
+  });
+  const folders = createSqlFolderStore(driver);
+  try {
+    await store.save(ref, config, { updatedBy: "ana" });
+    await expect(
+      folders.transaction(ref, async () => {
+        await store.remove(ref);
+        throw new Error("Abort");
+      }),
+    ).rejects.toThrow("Abort");
+    expect((await store.load(ref))?.config).toEqual(config);
+    await folders.transaction(ref, () => store.remove(ref));
+    expect(await documents.get("acme/retained.json")).not.toBeNull();
+  } finally {
+    await driver.close();
+  }
+});
 
 const temporaryDirectories: string[] = [];
 function temporaryDirectory(): string {

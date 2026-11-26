@@ -19,6 +19,8 @@ export interface StarRouteOptions {
   access: AccessControl<Request>;
   /** Omitted: every star route answers 404. */
   stars: DashboardStarStore | undefined;
+  /** The handler can serialize these writes with dashboard deletion. */
+  atomic: boolean;
 }
 
 const notFound = () => DashboardServerError.notFound("No such endpoint");
@@ -80,6 +82,11 @@ export function createStarRoutes(
       }
       if (decision.dashboard?.record == null) {
         throw DashboardServerError.notFound("Dashboard not found");
+      }
+      if (!options.atomic) {
+        throw DashboardServerError.badRequest(
+          "Starring dashboards requires a store with scope transactions",
+        );
       }
       await stars.star(scope, decision.identity.userId, slug);
       return noContentResponse();

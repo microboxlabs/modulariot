@@ -151,8 +151,8 @@ export function createRequestHandler(options: ServeOptions) {
     ...(options.dataSources ? { dataSources: options.dataSources } : {}),
     ...(options.credentials ? { credentials: options.credentials } : {}),
     ...(options.folders ? { folders: options.folders } : {}),
-    ...(options.stars ? { stars: options.stars } : {}),
-    ...(options.recents ? { recents: options.recents } : {}),
+    stars: options.stars,
+    recents: options.recents,
   });
 
   const docs =

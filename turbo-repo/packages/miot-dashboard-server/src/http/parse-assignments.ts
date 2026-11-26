@@ -12,6 +12,7 @@ export function parseAssignments(body: unknown): PermissionAssignment[] {
   if (!Array.isArray(raw)) {
     throw DashboardServerError.badRequest("'assignments' must be an array");
   }
+  const authorities = new Set<string>();
   return raw.map((entry, index) => {
     if (typeof entry !== "object" || entry === null) {
       throw DashboardServerError.badRequest(
@@ -24,11 +25,22 @@ export function parseAssignments(body: unknown): PermissionAssignment[] {
         `'assignments[${index}].authorityId' must be a non-empty string`,
       );
     }
+    if (authorityId.includes("\0")) {
+      throw DashboardServerError.badRequest(
+        "Authority ids must not contain a null character",
+      );
+    }
     if (!isDashboardRole(role)) {
       throw DashboardServerError.badRequest(
         `'assignments[${index}].role' must be one of Consumer, Contributor, Editor, Coordinator`,
       );
     }
+    if (authorities.has(authorityId)) {
+      throw DashboardServerError.badRequest(
+        `Duplicate authority "${authorityId}"`,
+      );
+    }
+    authorities.add(authorityId);
     return { authorityId, role };
   });
 }

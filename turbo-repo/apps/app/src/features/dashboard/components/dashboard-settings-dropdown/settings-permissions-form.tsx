@@ -16,7 +16,7 @@ interface SettingsPermissionsFormProps {
   /** Who sees the dashboard now. */
   visibility: Visibility;
   /** Saves who sees it, with the dashboard. */
-  onVisibilityChange: (visibility: Visibility) => void;
+  onVisibilityChange: (visibility: Visibility) => Promise<boolean>;
   dictionary: I18nRecord;
 }
 
@@ -32,24 +32,40 @@ export function SettingsPermissionsForm({
 }: Readonly<SettingsPermissionsFormProps>) {
   const state = useSetupPermissions(permissions);
   const directory = usePrincipalDirectory(state.canManage);
-  const [visibilityDraft, setVisibilityDraft] = useState(visibility);
-  const dirty = state.dirty || visibilityDraft !== visibility;
-  const save = async () => {
-    if (await state.save()) {
-      if (visibilityDraft !== visibility) onVisibilityChange(visibilityDraft);
-      ShowNotification({
-        type: "success",
-        message: tr("dashboard.permissions.saveSuccess", dictionary),
-      });
-      return;
-    }
+  const [draft, setDraft] = useState<Visibility | null>(null);
+  const visibilityDraft = draft ?? visibility;
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const visibilityDirty = saveFailed || visibilityDraft !== visibility;
+  const saveAssignments = async () => {
+    setSaving(true);
+    const saved = await state.save();
+    setSaving(false);
     ShowNotification({
-      type: "error",
-      message: tr("dashboard.permissions.saveError", dictionary),
+      type: saved ? "success" : "error",
+      message: saved
+        ? tr("dashboard.permissions.saveSuccess", dictionary)
+        : tr("dashboard.permissions.saveError", dictionary),
+    });
+  };
+  const saveVisibility = async () => {
+    setSaving(true);
+    const saved = await onVisibilityChange(visibilityDraft);
+    setSaving(false);
+    setSaveFailed(!saved);
+    if (saved) setDraft(null);
+    ShowNotification({
+      type: saved ? "success" : "error",
+      message: saved
+        ? tr("dashboard.permissions.visibilitySaveSuccess", dictionary)
+        : tr("dashboard.permissions.visibilitySaveError", dictionary),
     });
   };
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <fieldset
+      disabled={saving || state.busy}
+      className="flex min-w-0 flex-col gap-4 p-4"
+    >
       <PermissionsStep
         assignments={state.assignments}
         onChange={state.onChange}
@@ -57,8 +73,14 @@ export function SettingsPermissionsForm({
         loading={directory.isLoading || state.busy}
         canManage={state.canManage}
         checkingAccess={state.loading}
+        error={state.error}
+        onRetry={() => void state.retry()}
         visibility={visibilityDraft}
-        onVisibilityChange={state.canManage ? setVisibilityDraft : undefined}
+        onVisibilityChange={
+          state.canManage
+            ? (next) => setDraft(next === visibility ? null : next)
+            : undefined
+        }
         t={(key, params) =>
           trDynamic(`dashboard.setup.permissions.${key}`, dictionary, params)
         }
@@ -67,13 +89,24 @@ export function SettingsPermissionsForm({
         <Button
           type="button"
           size="sm"
-          disabled={!dirty || state.busy}
-          onClick={() => void save()}
+          disabled={!state.dirty || saving || state.busy}
+          onClick={() => void saveAssignments()}
           className="self-end"
         >
-          {tr("dashboard.permissions.save", dictionary)}
+          {tr("dashboard.permissions.saveAssignments", dictionary)}
         </Button>
       )}
-    </div>
+      {state.canManage && (
+        <Button
+          type="button"
+          size="sm"
+          disabled={!visibilityDirty || saving || state.busy}
+          onClick={() => void saveVisibility()}
+          className="self-end"
+        >
+          {tr("dashboard.permissions.saveVisibility", dictionary)}
+        </Button>
+      )}
+    </fieldset>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { DashboardPermissionsOptions } from "@microboxlabs/miot-dashboard-ui/react";
+import type { DashboardDetails, DashboardPermissionsOptions } from "@microboxlabs/miot-dashboard-ui/react";
 import {
   useState,
   useCallback,
@@ -42,7 +42,10 @@ import { DashboardPermissionsModal } from "../dashboard-permissions-modal";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import { SettingsPermissionsForm } from "./settings-permissions-form";
-import { SettingsTagsForm } from "./settings-tags-form";
+import {
+  SettingsTagsForm,
+  useSettingsTagsForm,
+} from "./settings-tags-form";
 import type {
   DashboardFilterParam,
   DashboardFilterOption,
@@ -1329,6 +1332,8 @@ export interface DashboardSettingsHost {
   onManagePermissions: () => void;
   /** Where the permissions live, for the new dashboard's setup steps. */
   permissions?: DashboardPermissionsOptions;
+  /** Confirms the document's visibility was persisted before reporting success. */
+  saveDetails?: (details: DashboardDetails) => Promise<boolean>;
   onDelete?: () => Promise<void>;
 }
 
@@ -1349,7 +1354,6 @@ export default function DashboardSettingsDropdown({
     siteId,
     tags,
     visibility,
-    setDetails,
   } = useDashboard();
 
   const router = useRouter();
@@ -1360,6 +1364,10 @@ export default function DashboardSettingsDropdown({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const tagsForm = useSettingsTagsForm(
+    tags,
+    (next) => host?.saveDetails?.({ tags: next }) ?? Promise.resolve(false)
+  );
 
   const togglePanel = () => {
     setSelected(null);
@@ -1589,8 +1597,7 @@ export default function DashboardSettingsDropdown({
             >
               {selected === "tags" && (
                 <SettingsTagsForm
-                  tags={tags}
-                  onSave={(next) => setDetails({ tags: next })}
+                  state={tagsForm}
                   dictionary={dictionary}
                 />
               )}
@@ -1614,8 +1621,8 @@ export default function DashboardSettingsDropdown({
                   <SettingsPermissionsForm
                     permissions={host.permissions}
                     visibility={visibility}
-                    onVisibilityChange={(next) =>
-                      setDetails({ visibility: next })
+                    onVisibilityChange={(visibility) =>
+                      host.saveDetails?.({ visibility }) ?? Promise.resolve(false)
                     }
                     dictionary={dictionary}
                   />

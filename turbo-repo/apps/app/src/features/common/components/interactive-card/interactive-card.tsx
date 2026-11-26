@@ -74,7 +74,7 @@ function Selector({
         // Shown on hover and focus, and always once checked. In a row it
         // keeps its space, so the content doesn't move when it shows.
         !selection.checked &&
-          "invisible group-focus-within:visible group-hover:visible"
+          "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
       )}
     >
       <SelectBox

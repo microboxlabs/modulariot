@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/lang/en.json";
@@ -9,6 +9,9 @@ import { EmptyState } from "./empty-state";
 const perms = vi.hoisted(() => ({
   assignments: [] as { authorityId: string; role: string }[],
   loaded: true,
+  busy: false,
+  error: null as number | null,
+  retry: vi.fn(async () => true),
   save: vi.fn<(draft: unknown) => Promise<boolean>>(async () => true),
 }));
 vi.mock("@microboxlabs/miot-dashboard-ui/react", async (importOriginal) => ({
@@ -16,12 +19,12 @@ vi.mock("@microboxlabs/miot-dashboard-ui/react", async (importOriginal) => ({
   useDashboardPermissions: () => ({
     assignments: perms.assignments,
     editorKey: "k",
-    editable: true,
+    editable: !perms.busy,
     loaded: perms.loaded,
-    busy: false,
-    error: null,
+    busy: perms.busy,
+    error: perms.error,
     save: perms.save,
-    reload: vi.fn(),
+    reload: perms.retry,
   }),
 }));
 vi.mock("@/features/settings-admin/team/team-api", () => ({
@@ -61,31 +64,53 @@ const PERMISSIONS = {
 function setup(
   canManagePermissions = true,
   started = false,
-  tags: readonly string[] = []
+  tags: readonly string[] = [],
+  visibility: "organization" | "restricted" = "restricted"
 ) {
   const onAdd = vi.fn();
-  const onFinishSetup = vi.fn<(tags: string[]) => void>();
-  const onVisibilityChange =
-    vi.fn<(visibility: "organization" | "restricted") => void>();
-  const view = (isStarted: boolean) => (
+  let currentTags = tags;
+  let refresh = () => {};
+  const onFinishSetup = vi.fn<
+    (
+      tags: string[] | undefined,
+      visibility?: "organization" | "restricted"
+    ) => Promise<boolean>
+  >(async (next) => {
+    if (next !== undefined) currentTags = next;
+    refresh();
+    return true;
+  });
+  const onVisibilityChange = vi.fn<
+    (visibility: "organization" | "restricted") => Promise<boolean>
+  >(async () => true);
+  const view = (isStarted: boolean, currentVisibility = visibility) => (
     <EmptyState
       dictionary={dictionary}
       onAdd={onAdd}
       canManagePermissions={canManagePermissions}
       permissions={PERMISSIONS}
       started={isStarted}
-      tags={tags}
+      tags={currentTags}
       onFinishSetup={onFinishSetup}
-      visibility="restricted"
+      visibility={currentVisibility}
       onVisibilityChange={onVisibilityChange}
     />
   );
-  const { rerender } = render(view(started));
+  const { rerender, unmount } = render(view(started));
+  refresh = () => rerender(view(started));
   return {
     user: userEvent.setup(),
     onAdd,
     onFinishSetup,
     onVisibilityChange,
+    unmount,
+    changeSavedTags: (next: string[]) => {
+      currentTags = next;
+      refresh();
+    },
+    refreshUrl: () => refresh(),
+    changeSavedVisibility: (next: "organization" | "restricted") =>
+      rerender(view(started, next)),
     /** The dashboard as saved after `onFinishSetup`, rendered again. */
     markStarted: () => rerender(view(true)),
   };
@@ -98,6 +123,9 @@ const search = () =>
 beforeEach(() => {
   perms.assignments = [];
   perms.loaded = true;
+  perms.busy = false;
+  perms.error = null;
+  perms.retry.mockClear();
   perms.save.mockReset().mockResolvedValue(true);
   notify.mockReset();
   openAt("");
@@ -107,7 +135,9 @@ describe("EmptyState setup steps", () => {
   it("opens each step only after the one before it", async () => {
     const { user } = setup();
     expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
-    expect(screen.getByRole("progressbar")).toHaveAttribute("value", "1");
+    expect(
+      screen.getByRole("progressbar", { name: "Dashboard setup progress" })
+    ).toHaveAttribute("value", "1");
     expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
     expect(step("2 Tags")).toBeDisabled();
     expect(step("3 First dashlet")).toBeDisabled();
@@ -153,6 +183,19 @@ describe("EmptyState setup steps", () => {
     openAt("?step=nope");
     setup();
     expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+  });
+
+  it("follows client-side changes of the step query while the wizard stays mounted", async () => {
+    const { refreshUrl } = setup();
+    openAt("?step=tags");
+    refreshUrl();
+    await waitFor(() =>
+      expect(step("2 Tags")).toHaveAttribute("aria-current", "step")
+    );
+    openAt("?step=permissions");
+    refreshUrl();
+    expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+    expect(step("2 Tags")).toBeEnabled();
   });
 
   it("lists every member and team that matches, under their headers", async () => {
@@ -274,6 +317,285 @@ describe("EmptyState setup steps", () => {
     setup();
     expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
     expect(screen.queryByText(/Only an administrator/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+  });
+
+  it("shows progress and blocks editing while permissions are being saved", () => {
+    perms.busy = true;
+    setup();
+    expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByText(/Only an administrator/)).toBeNull();
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+  });
+
+  it("offers retry and prevents advancing after a permission load error", async () => {
+    perms.loaded = false;
+    perms.error = 503;
+    const { user } = setup();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Access could not be confirmed"
+    );
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+    await user.click(
+      screen.getByRole("button", { name: "Reload permissions" })
+    );
+    expect(perms.retry).toHaveBeenCalledOnce();
+  });
+
+  it.each(["tags", "dashlet"])(
+    "offers permission retry when a direct URL opens %s",
+    async (target) => {
+      openAt(`?step=${target}`);
+      perms.loaded = false;
+      perms.error = 503;
+      const { user } = setup();
+      await user.click(
+        screen.getByRole("button", { name: "Reload permissions" })
+      );
+      expect(perms.retry).toHaveBeenCalledOnce();
+      for (const button of screen.getAllByRole("button", {
+        name: /Continue|Add a dashlet/,
+      })) {
+        expect(button).toBeDisabled();
+      }
+    }
+  );
+
+  it("does not overwrite visibility changed from settings when saving tags", async () => {
+    const { user, onFinishSetup, onVisibilityChange, changeSavedVisibility } =
+      setup(true, false, [], "organization");
+    await user.click(
+      screen.getByRole("radio", { name: /Only people with access/ })
+    );
+    await user.click(screen.getByRole("radio", { name: /Whole organization/ }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    changeSavedVisibility("restricted");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(onFinishSetup).toHaveBeenLastCalledWith(undefined, undefined);
+    expect(onVisibilityChange).not.toHaveBeenCalled();
+  });
+
+  it("drops a tag draft when its edits are undone before settings changes tags", async () => {
+    const { user, changeSavedTags, onFinishSetup } = setup(true, false, [
+      "old",
+    ]);
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Type a tag and press Enter" }),
+      "temp{Enter}"
+    );
+    await user.click(screen.getByRole("button", { name: "Remove temp" }));
+    changeSavedTags(["new"]);
+    expect(screen.getByRole("button", { name: "Remove new" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(onFinishSetup).toHaveBeenLastCalledWith(undefined, undefined);
+  });
+
+  it("rebases tag edits over tags saved from settings", async () => {
+    const { user, changeSavedTags, onFinishSetup } = setup(true, false, [
+      "old",
+      "removed-elsewhere",
+    ]);
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Remove old" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Type a tag and press Enter" }),
+      "local{Enter}"
+    );
+    changeSavedTags(["old", "remote"]);
+    expect(
+      screen.queryByRole("button", { name: "Remove removed-elsewhere" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove remote" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(onFinishSetup).toHaveBeenLastCalledWith(
+      ["remote", "local"],
+      undefined
+    );
+  });
+
+  it.each([true, false])(
+    "cancels an abandoned URL transition when the pending save returns %s",
+    async (saved) => {
+      const { user, refreshUrl, onFinishSetup } = setup();
+      await user.click(search());
+      await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+      let finish!: (value: boolean) => void;
+      perms.save.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          })
+      );
+      openAt("?step=dashlet");
+      refreshUrl();
+      await waitFor(() => expect(perms.save).toHaveBeenCalledOnce());
+      openAt("?step=permissions");
+      refreshUrl();
+      await act(async () => finish(saved));
+      expect(onFinishSetup).not.toHaveBeenCalled();
+      expect(globalThis.location.search).toBe("?step=permissions");
+      expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+    }
+  );
+
+  it("routes a URL step change through the pending permission save", async () => {
+    const { user, refreshUrl, onFinishSetup } = setup();
+    await user.click(search());
+    await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+    perms.save.mockResolvedValueOnce(false);
+    openAt("?step=dashlet");
+    refreshUrl();
+    await waitFor(() =>
+      expect(perms.save).toHaveBeenCalledWith([
+        { authorityId: "team:t1", role: "Consumer" },
+      ])
+    );
+    await waitFor(() =>
+      expect(globalThis.location.search).toBe("?step=permissions")
+    );
+    expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+    expect(onFinishSetup).not.toHaveBeenCalled();
+  });
+
+  it("stays on permissions or tags when the document save fails", async () => {
+    const { user, onVisibilityChange, onFinishSetup } = setup();
+    onVisibilityChange.mockResolvedValueOnce(false);
+    await user.click(screen.getByRole("radio", { name: /Whole organization/ }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    onFinishSetup.mockResolvedValueOnce(false);
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(step("2 Tags")).toHaveAttribute("aria-current", "step");
+  });
+
+  it("confirms setup before adding a dashlet through a direct step URL", async () => {
+    openAt("?step=dashlet");
+    const { user, onAdd, onFinishSetup } = setup();
+    onFinishSetup.mockResolvedValueOnce(false);
+    await user.click(
+      screen.getAllByRole("button", { name: /Add a dashlet/ })[0]!
+    );
+    expect(onAdd).not.toHaveBeenCalled();
+    await user.click(
+      screen.getAllByRole("button", { name: /Add a dashlet/ })[0]!
+    );
+    expect(onAdd).toHaveBeenCalledOnce();
+  });
+
+  it("leaves the destination URL alone after unmounting during a save", async () => {
+    const { user, unmount } = setup();
+    await user.click(search());
+    await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+    let finish!: (value: boolean) => void;
+    perms.save.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    unmount();
+    globalThis.history.replaceState(null, "", "/en/another-page?view=list");
+    await act(async () => finish(true));
+    await waitFor(() =>
+      expect(globalThis.location.href).toContain("/en/another-page?view=list")
+    );
+    expect(globalThis.location.search).toBe("?view=list");
+  });
+
+  it("saves edited tags when the stepper opens the reached dashlet step", async () => {
+    const { user, onFinishSetup } = setup();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    onFinishSetup.mockClear();
+    await user.click(step("Tags"));
+    await user.type(
+      screen.getByRole("textbox", { name: "Type a tag and press Enter" }),
+      "night{Enter}"
+    );
+    await user.click(step("3 First dashlet"));
+    expect(onFinishSetup).toHaveBeenCalledWith(["night"], undefined);
+  });
+
+  it("keeps failed permission edits on screen when advancing with the stepper", async () => {
+    const { user } = setup();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(step("Permissions"));
+    await user.click(search());
+    await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+    perms.save.mockResolvedValue(false);
+    await user.click(step("3 First dashlet"));
+    await waitFor(() => expect(perms.save).toHaveBeenCalled());
+    expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+  });
+
+  it("does not include untouched tags captured before a slow permission save", async () => {
+    const { user, onFinishSetup, changeSavedTags } = setup(true, false, [
+      "old",
+    ]);
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(step("Permissions"));
+    await user.click(search());
+    await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+    let finish!: (value: boolean) => void;
+    perms.save.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    await user.click(step("3 First dashlet"));
+    changeSavedTags(["new"]);
+    await act(async () => finish(true));
+    expect(onFinishSetup).toHaveBeenLastCalledWith(undefined, undefined);
+  });
+
+  it("blocks navigation until a permission save finishes", async () => {
+    const { user } = setup();
+    await user.click(search());
+    await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+    let finish!: (saved: boolean) => void;
+    perms.save.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        })
+    );
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+    expect(step("1 Permissions")).toBeDisabled();
+    expect(
+      screen.getByRole("radio", { name: /Whole organization/ })
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("combobox", { name: "Access for Operaciones" })
+    ).toBeDisabled();
+    finish(false);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled()
+    );
+    expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+  });
+
+  it("finishes skipped steps with tags and visibility in one document change", async () => {
+    const { user, onFinishSetup, onVisibilityChange } = setup();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Type a tag and press Enter" }),
+      "night{Enter}"
+    );
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    onFinishSetup.mockClear();
+    await user.click(step("Permissions"));
+    await user.click(screen.getByRole("radio", { name: /Whole organization/ }));
+    await user.click(step("3 First dashlet"));
+    expect(onFinishSetup).toHaveBeenCalledWith(undefined, "organization");
+    expect(onVisibilityChange).not.toHaveBeenCalled();
   });
 
   it("explains, without the controls, when access is not the caller's to set", () => {
@@ -328,7 +650,7 @@ describe("EmptyState setup steps", () => {
       "night{Enter}"
     );
     await user.click(screen.getByRole("button", { name: "Continue" }));
-    expect(onFinishSetup).toHaveBeenCalledWith(["fleet", "night"]);
+    expect(onFinishSetup).toHaveBeenCalledWith(["fleet", "night"], undefined);
     // Saved as started, the steps stay on screen on their last one.
     markStarted();
     expect(step("3 First dashlet")).toHaveAttribute("aria-current", "step");

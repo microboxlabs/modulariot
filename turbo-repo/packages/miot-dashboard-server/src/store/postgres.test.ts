@@ -46,6 +46,20 @@ describe.skipIf(!postgresUrl)("PostgreSQL startup and recovery", () => {
     return store;
   };
 
+  it("does not clean documents after a swallowed SQL error aborts the transaction", async () => {
+    let cleaned = false;
+    await expect(
+      driver.transaction(async () => {
+        await driver.afterCommit!(async () => {
+          cleaned = true;
+        });
+        await driver.all("SELECT 1 / 0").catch(() => {});
+      }),
+    ).rejects.toThrow("did not commit");
+    expect(cleaned).toBe(false);
+    expect(await driver.all("SELECT 1 AS value")).toEqual([{ value: 1 }]);
+  });
+
   it("reconnects after the database terminates an idle connection", async () => {
     const [connection] = await driver.all<{ pid: number }>(
       "SELECT pg_backend_pid() AS pid",

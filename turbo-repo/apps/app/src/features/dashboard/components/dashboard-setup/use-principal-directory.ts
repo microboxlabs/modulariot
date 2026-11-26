@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { z } from "zod";
 import { useTeam, useTeams } from "@/features/settings-admin/team/team-api";
 
 export type PrincipalKind = "member" | "team";
@@ -29,6 +30,23 @@ export function teamAuthority(teamId: string): string {
 
 const EMPTY: Principal[] = [];
 
+// Validate the fields this view consumes; each response can fail independently.
+const membersSchema = z.object({
+  members: z.array(
+    z.object({
+      email: z.string().nullish(),
+      name: z.string().nullish(),
+    })
+  ),
+});
+const teamsSchema = z.array(
+  z.object({
+    id: z.string(),
+    name: z.string(),
+    members: z.array(z.string()),
+  })
+);
+
 /**
  * The organization's members and teams, from Settings › Equipo. A caller who
  * may not list them gets an empty directory, and can still add an email.
@@ -38,19 +56,26 @@ export function usePrincipalDirectory(enabled: boolean) {
   const teams = useTeams(enabled);
   const principals = useMemo(() => {
     if (!enabled) return EMPTY;
-    const people: Principal[] = (members.data?.members ?? []).flatMap((m) =>
-      m.email
-        ? [
-            {
-              authorityId: m.email,
-              kind: "member" as const,
-              name: m.name?.trim() || m.email,
-              ...(m.name?.trim() ? { detail: m.email } : {}),
-            },
-          ]
-        : []
+    const validMembers = membersSchema.safeParse(
+      members.error ? undefined : members.data
     );
-    const groups: Principal[] = (teams.data ?? []).map((team) => ({
+    const validTeams = teamsSchema.safeParse(
+      teams.error ? undefined : teams.data
+    );
+    const people: Principal[] = (validMembers.data?.members ?? []).flatMap(
+      (m) =>
+        m.email
+          ? [
+              {
+                authorityId: m.email,
+                kind: "member" as const,
+                name: m.name?.trim() || m.email,
+                ...(m.name?.trim() ? { detail: m.email } : {}),
+              },
+            ]
+          : []
+    );
+    const groups: Principal[] = (validTeams.data ?? []).map((team) => ({
       authorityId: teamAuthority(team.id),
       kind: "team" as const,
       name: team.name,
@@ -60,7 +85,7 @@ export function usePrincipalDirectory(enabled: boolean) {
     const byName = (a: Principal, b: Principal) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
     return [...people.sort(byName), ...groups.sort(byName)];
-  }, [enabled, members.data, teams.data]);
+  }, [enabled, members.data, members.error, teams.data, teams.error]);
   return {
     principals,
     isLoading: enabled && (members.isLoading || teams.isLoading),

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps, FC } from "react";
+import { useRef, type ComponentProps, type FC, type KeyboardEvent } from "react";
 import { Tooltip } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 
@@ -10,6 +10,25 @@ export interface SegmentOption<K extends string> {
   icon?: FC<ComponentProps<"svg">>;
   /** Shown on hover, e.g. what a role allows. */
   title?: string;
+}
+
+type SegmentKind = "toggle" | "tabs" | "radio";
+
+function getNavigationIndex(
+  key: string,
+  index: number,
+  count: number,
+  kind: "tabs" | "radio"
+): number | undefined {
+  if (key === "Home") return 0;
+  if (key === "End") return count - 1;
+  if (key === "ArrowRight" || (kind === "radio" && key === "ArrowDown")) {
+    return (index + 1) % count;
+  }
+  if (key === "ArrowLeft" || (kind === "radio" && key === "ArrowUp")) {
+    return (index + count - 1) % count;
+  }
+  return undefined;
 }
 
 /**
@@ -38,12 +57,13 @@ export function SegmentedControl<K extends string>({
   value: K;
   onChange: (key: K) => void;
   label?: string;
-  kind?: "toggle" | "tabs" | "radio";
+  kind?: SegmentKind;
   size?: "sm" | "md";
   fill?: boolean;
   tooltip?: boolean;
   className?: string;
 }>) {
+  const optionButtons = useRef<(HTMLButtonElement | null)[]>([]);
   const groupRole = { toggle: undefined, tabs: "tablist", radio: "radiogroup" }[
     kind
   ];
@@ -53,6 +73,18 @@ export function SegmentedControl<K extends string>({
     tabs: "aria-selected",
     radio: "aria-checked",
   }[kind];
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (kind === "toggle") return;
+    const nextIndex = getNavigationIndex(event.key, index, options.length, kind);
+    if (nextIndex === undefined) return;
+    const nextOption = options[nextIndex];
+    if (!nextOption) return;
+    event.preventDefault();
+    optionButtons.current[nextIndex]?.focus();
+    onChange(nextOption.key);
+  }
+
   return (
     <div
       role={groupRole}
@@ -64,15 +96,20 @@ export function SegmentedControl<K extends string>({
         className
       )}
     >
-      {options.map((option) => {
+      {options.map((option, index) => {
         const button = (
           <button
             key={option.key}
             type="button"
             role={optionRole}
+            ref={(element) => {
+              optionButtons.current[index] = element;
+            }}
+            tabIndex={kind === "toggle" || value === option.key ? 0 : -1}
             {...{ [stateProp]: value === option.key }}
             title={tooltip ? undefined : option.title}
             onClick={() => onChange(option.key)}
+            onKeyDown={(event) => handleKeyDown(event, index)}
             className={twMerge(
               "inline-flex items-center gap-1 rounded-md px-2.5 text-xs transition-colors",
               fill && "flex-1 justify-center gap-1.5 text-sm",

@@ -33,7 +33,7 @@ function setup(withFolders = true) {
     tenants: createMemoryTenantAuthority(memberships),
     scopes: createMemoryScopeAuthority(memberships),
     store,
-    ...(withFolders ? { folders: createMemoryFolderStore() } : {}),
+    ...(withFolders ? { folders: createMemoryFolderStore(store) } : {}),
   });
   const call = (user: string, method: string, path: string, body?: unknown) =>
     handler(

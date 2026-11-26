@@ -7,7 +7,7 @@
  * every member and team that matches under its header ("Miembros (2)",
  * "Equipos (1)"); picking one gives it access, then its role is chosen.
  */
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   HiOutlineTrash,
   HiOutlineUser,
@@ -46,6 +46,64 @@ const ICON = "h-4 w-4 text-gray-600 dark:text-gray-400";
 
 /** How many members and teams a click on the empty search shows of each. */
 const SHOWN_BEFORE_TYPING = 5;
+
+/** Domain names are case insensitive; preserve the mailbox's spelling. */
+function canonicalEmail(value: string) {
+  const email = value.trim();
+  const at = email.lastIndexOf("@");
+  return at < 0
+    ? email
+    : email.slice(0, at + 1) + email.slice(at + 1).toLowerCase();
+}
+
+function principalKey(authorityId: string) {
+  return authorityId.startsWith(TEAM_AUTHORITY_PREFIX)
+    ? authorityId
+    : canonicalEmail(authorityId);
+}
+
+/** Sharing still works when organization directory access is unavailable. */
+function EmailPermissionForm({
+  taken,
+  onAdd,
+  t,
+}: Readonly<{
+  taken: ReadonlySet<string>;
+  onAdd: (email: string) => void;
+  t: T;
+}>) {
+  const [email, setEmail] = useState("");
+  const trimmed = canonicalEmail(email);
+  const existing = new Set([...taken].map(canonicalEmail));
+  return (
+    <form
+      className="flex gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!trimmed || existing.has(trimmed)) return;
+        onAdd(trimmed);
+        setEmail("");
+      }}
+    >
+      <input
+        type="email"
+        required
+        aria-label={t("email")}
+        placeholder={t("email")}
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white text-sm dark:border-gray-600 dark:bg-gray-700"
+      />
+      <button
+        type="submit"
+        disabled={!trimmed || existing.has(trimmed)}
+        className="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50"
+      >
+        {t("addEmail")}
+      </button>
+    </form>
+  );
+}
 
 /** What a kind of principal is searched by. */
 function searchText(principal: Principal, kind: PrincipalKind) {
@@ -105,10 +163,14 @@ function principalOf(
   directory: ReadonlyMap<string, Principal>,
   t: T
 ): Principal {
-  const known = directory.get(authorityId);
+  const known = directory.get(principalKey(authorityId));
   if (known) return known;
   return authorityId.startsWith(TEAM_AUTHORITY_PREFIX)
-    ? { authorityId, kind: "team", name: t("unknownTeam") }
+    ? {
+        authorityId,
+        kind: "team",
+        name: `${t("unknownTeam")} (${authorityId})`,
+      }
     : { authorityId, kind: "member", name: authorityId };
 }
 
@@ -231,6 +293,8 @@ interface PermissionsStepProps {
   canManage: boolean;
   /** Still finding out; shows the step's shape rather than "not yours". */
   checkingAccess?: boolean;
+  error?: number | null;
+  onRetry?: () => void;
   /** Who sees it; the switch shows only with `onVisibilityChange`. */
   visibility?: Visibility;
   onVisibilityChange?: (visibility: Visibility) => void;
@@ -278,18 +342,20 @@ export function PermissionsStep({
   loading,
   canManage,
   checkingAccess = false,
+  error = null,
+  onRetry,
   visibility = "organization",
   onVisibilityChange,
   t,
 }: Readonly<PermissionsStepProps>) {
   const taken = useMemo(
-    () => new Set(assignments.map((a) => a.authorityId)),
+    () => new Set(assignments.map((a) => principalKey(a.authorityId))),
     [assignments]
   );
   const items = useMemo<SearchItem[]>(
     () =>
       principals
-        .filter((p) => !taken.has(p.authorityId))
+        .filter((p) => !taken.has(principalKey(p.authorityId)))
         .map((p) => ({ ...p, id: p.authorityId })),
     [principals, taken]
   );
@@ -326,17 +392,29 @@ export function PermissionsStep({
       </output>
     );
   }
+  if (error !== null) {
+    return (
+      <div role="alert" className="space-y-2 text-sm text-red-600">
+        <p>{t(error === 409 ? "conflictError" : "loadError")}</p>
+        <button type="button" onClick={onRetry} className="underline">
+          {t(error === 409 ? "discardAndReload" : "retry")}
+        </button>
+      </div>
+    );
+  }
   if (!canManage) {
     return (
       <p className="text-sm text-gray-500 dark:text-gray-400">{t("locked")}</p>
     );
   }
-  const directory = new Map(principals.map((p) => [p.authorityId, p]));
-  const add = (principal: Principal) =>
-    onChange([
-      ...assignments,
-      { authorityId: principal.authorityId, role: "Consumer" },
-    ]);
+  const directory = new Map(
+    principals.map((p) => [principalKey(p.authorityId), p])
+  );
+  const add = (principal: Principal) => {
+    const authorityId = principalKey(principal.authorityId);
+    if (taken.has(authorityId)) return;
+    onChange([...assignments, { authorityId, role: "Consumer" }]);
+  };
   const setRole = (authorityId: string, role: PermissionAssignment["role"]) =>
     onChange(
       assignments.map((a) =>
@@ -364,6 +442,15 @@ export function PermissionsStep({
         showWhenEmpty={SHOWN_BEFORE_TYPING}
         renderItem={(item) => <PrincipalOption principal={item} t={t} />}
       />
+      {!loading && (
+        <EmailPermissionForm
+          taken={taken}
+          onAdd={(email) =>
+            add({ authorityId: email, kind: "member", name: email })
+          }
+          t={t}
+        />
+      )}
       {/* With the switch, its box below says what the empty list means. */}
       {assignments.length === 0 && !onVisibilityChange && (
         <EmptyBox>{t("noAccess")}</EmptyBox>

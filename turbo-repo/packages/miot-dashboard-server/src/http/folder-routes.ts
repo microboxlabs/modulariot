@@ -23,13 +23,17 @@ import { roleAtLeast, type DashboardRole } from "../access/roles";
 import {
   folderRoleOf,
   folderVisible,
+  movementChangesVisibility,
   OPEN_SCOPE,
   type ScopeVisibility,
 } from "../access/visibility";
 import type { DashboardFolderStore, FolderScope } from "../seams/folders";
 import type { DashboardStarStore } from "../seams/stars";
 import type { DashboardRecentStore } from "../seams/recents";
-import type { ServerDashboardStore } from "../seams/store";
+import type {
+  PermissionAssignment,
+  ServerDashboardStore,
+} from "../seams/store";
 import { parseAssignments, parseVisibility } from "./parse-assignments";
 import {
   parseFolderPatch,
@@ -38,6 +42,8 @@ import {
 } from "./parse-folder";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import type { RouteMatch } from "./routes";
+import type { DashboardVisibility } from "@microboxlabs/miot-dashboard-contract/document";
+import { removeAuthorizedDashboard } from "./remove-dashboard";
 
 type Route = (request: Request, match: RouteMatch) => Promise<Response>;
 
@@ -76,6 +82,53 @@ const NEEDS: Readonly<Record<"see" | "edit" | "manage", DashboardRole>> = {
   manage: "Coordinator",
 };
 
+function folderAudienceChanges(
+  before: DashboardVisibility,
+  after: DashboardVisibility,
+  previous: readonly PermissionAssignment[],
+  next: readonly PermissionAssignment[],
+): boolean {
+  if (before !== after) return true;
+  if (before === "organization") return false;
+  const oldIds = new Set(previous.map((a) => a.authorityId));
+  const newIds = new Set(next.map((a) => a.authorityId));
+  return (
+    oldIds.size !== newIds.size || [...oldIds].some((id) => !newIds.has(id))
+  );
+}
+
+/**
+ * Refuses unless the caller may `need` on the folder (or, for null, at the
+ * top level). A folder the caller cannot see answers 404, as if absent.
+ */
+function requireOn(
+  decision: AccessDecision,
+  folderId: string | null,
+  need: keyof typeof NEEDS,
+  scope: ScopeVisibility,
+): void {
+  const { identity, scopeRole } = decision;
+  if (folderId === null) {
+    if (!roleAtLeast(scopeRole, NEEDS[need])) {
+      throw DashboardServerError.forbidden(
+        "CAPABILITY",
+        "Your role in this scope does not allow this at the top level",
+      );
+    }
+    return;
+  }
+  if (!folderVisible(identity, scopeRole, folderId, scope)) {
+    throw DashboardServerError.notFound("Folder not found");
+  }
+  const role = folderRoleOf(identity, scopeRole, folderId, scope);
+  if (!roleAtLeast(role, NEEDS[need])) {
+    throw DashboardServerError.forbidden(
+      "CAPABILITY",
+      "Your role on this folder does not allow this",
+    );
+  }
+}
+
 export function createFolderRoutes(
   options: FolderRouteOptions,
 ): Record<
@@ -101,35 +154,29 @@ export function createFolderRoutes(
       ? options.visibility(scope)
       : Promise.resolve(OPEN_SCOPE);
 
-  /**
-   * Refuses unless the caller may `need` on the folder (or, for null, at the
-   * top level). A folder the caller cannot see answers 404, as if absent.
-   */
-  function requireOn(
+  /** Folder grants never confer permission-management rights on their contents. */
+  async function requireSubtreeSharing(
+    request: Request,
+    match: RouteMatch,
     decision: AccessDecision,
-    folderId: string | null,
-    need: keyof typeof NEEDS,
-    scope: ScopeVisibility,
-  ): void {
-    const { identity, scopeRole } = decision;
-    if (folderId === null) {
-      if (!roleAtLeast(scopeRole, NEEDS[need])) {
-        throw DashboardServerError.forbidden(
-          "CAPABILITY",
-          "Your role in this scope does not allow this at the top level",
-        );
-      }
-      return;
-    }
-    if (!folderVisible(identity, scopeRole, folderId, scope)) {
+    visibility: ScopeVisibility,
+  ): Promise<void> {
+    const scope = scopeOf(decision.identity.tenantId, match);
+    const subtree = await requireFolders().subtree(
+      scope,
+      requireFolderId(match),
+    );
+    if (subtree === null)
       throw DashboardServerError.notFound("Folder not found");
-    }
-    const role = folderRoleOf(identity, scopeRole, folderId, scope);
-    if (!roleAtLeast(role, NEEDS[need])) {
-      throw DashboardServerError.forbidden(
-        "CAPABILITY",
-        "Your role on this folder does not allow this",
-      );
+    for (const id of subtree.folderIds)
+      requireOn(decision, id, "manage", visibility);
+    for (const slug of subtree.slugs) {
+      await access.authorize(request, {
+        tenantId: scope.tenantId,
+        scopeId: scope.scopeId,
+        slug,
+        action: "dashboard.permissions.read",
+      });
     }
   }
 
@@ -150,12 +197,15 @@ export function createFolderRoutes(
     });
     const scope = scopeOf(decision.identity.tenantId, match);
     const folderId = requireFolderId(match);
-    requireOn(decision, folderId, "manage", await visibilityOf(scope));
+    const visibility = await visibilityOf(scope);
+    requireOn(decision, folderId, "manage", visibility);
     const subtree = await folders.subtree(scope, folderId);
     if (subtree === null) {
       throw DashboardServerError.notFound("Folder not found");
     }
-    const existing: string[] = [];
+    for (const id of subtree.folderIds)
+      requireOn(decision, id, "manage", visibility);
+    const existing: { slug: string; revision: number }[] = [];
     for (const slug of subtree.slugs) {
       const dashboard = await access.authorize(request, {
         tenantId: match.tenantId,
@@ -163,12 +213,17 @@ export function createFolderRoutes(
         slug,
         action: "dashboard.delete",
       });
-      if (dashboard.dashboard?.record != null) existing.push(slug);
+      if (dashboard.dashboard?.record != null)
+        existing.push({ slug, revision: dashboard.dashboard.record.revision });
     }
-    for (const slug of existing) {
-      await options.store.remove({ ...scope, slug });
-      await options.stars?.forget(scope, slug);
-      await options.recents?.forget(scope, slug);
+    for (const { slug, revision } of existing) {
+      await removeAuthorizedDashboard(
+        options.store,
+        { ...scope, slug },
+        revision,
+        true,
+        options,
+      );
     }
     await folders.removeFolders(scope, subtree.folderIds);
     return noContentResponse();
@@ -187,7 +242,7 @@ export function createFolderRoutes(
         const scope = scopeOf(decision.identity.tenantId, match);
         const visibility = await visibilityOf(scope);
         const { identity, scopeRole } = decision;
-        const all = await folders.list(scope);
+        const all = [...visibility.folders.values()];
         // Who made a folder stays on the server; the caller's role on each
         // is what the client needs to offer the right actions.
         const data = all
@@ -216,6 +271,14 @@ export function createFolderRoutes(
           { ...input, visibility: "restricted" },
           decision.identity.userId,
         );
+        if (!roleAtLeast(decision.scopeRole, "Contributor")) {
+          // A delegated Editor may create here despite Consumer scope standing.
+          // Explicit rights let them manage the new restricted child; ordinary
+          // creators still use the revocable Contributor-standing policy.
+          await folders.setPermissions(scope, data.id, [
+            { authorityId: decision.identity.userId, role: "Coordinator" },
+          ]);
+        }
         return jsonResponse(
           { data: { id: data.id, name: data.name, parentId: data.parentId } },
           201,
@@ -241,6 +304,24 @@ export function createFolderRoutes(
         if (patch.parentId !== undefined) {
           // Moving also needs the right to put things where it goes.
           requireOn(decision, patch.parentId, "edit", visibility);
+          const previousParent =
+            visibility.folders.get(folderId)?.parentId ?? null;
+          if (
+            movementChangesVisibility(
+              previousParent,
+              patch.parentId,
+              visibility,
+            )
+          ) {
+            if (!decision.identity.capabilities.canManagePermissions) {
+              throw DashboardServerError.forbidden(
+                "CAPABILITY",
+                "Your credentials do not allow changing who sees this folder",
+              );
+            }
+            requireOn(decision, folderId, "manage", visibility);
+            await requireSubtreeSharing(request, match, decision, visibility);
+          }
         }
         const data = await folders.update(scope, folderId, patch);
         return jsonResponse({
@@ -277,10 +358,24 @@ export function createFolderRoutes(
       const body = await readBody(request);
       const assignments = parseAssignments(body);
       const nextVisibility = parseVisibility(body);
-      await folders.setPermissions(scope, folderId, assignments);
-      if (nextVisibility !== undefined) {
-        await folders.setVisibility(scope, folderId, nextVisibility);
+      const previous =
+        visibility.folders.get(folderId)?.visibility ?? "organization";
+      if (
+        folderAudienceChanges(
+          previous,
+          nextVisibility ?? previous,
+          visibility.folderPermissions.get(folderId) ?? [],
+          assignments,
+        )
+      ) {
+        await requireSubtreeSharing(request, match, decision, visibility);
       }
+      await folders.setPermissions(
+        scope,
+        folderId,
+        assignments,
+        nextVisibility,
+      );
       return noContentResponse();
     },
 
@@ -301,8 +396,20 @@ export function createFolderRoutes(
       }
       const scope = scopeOf(decision.identity.tenantId, match);
       const folderId = parsePlacement(await readBody(request));
-      if (folderId !== null) {
-        requireOn(decision, folderId, "edit", await visibilityOf(scope));
+      const visibility = await visibilityOf(scope);
+      if (folderId !== null) requireOn(decision, folderId, "edit", visibility);
+      if (
+        movementChangesVisibility(
+          visibility.placements.get(match.slug) ?? null,
+          folderId,
+          visibility,
+        ) &&
+        !decision.dashboard.capabilities.canManagePermissions
+      ) {
+        throw DashboardServerError.forbidden(
+          "CAPABILITY",
+          "Only who manages this dashboard's permissions may change its audience by moving it",
+        );
       }
       const placed = await folders.placeDashboard(scope, match.slug, folderId);
       if (!placed) throw DashboardServerError.notFound("Dashboard not found");

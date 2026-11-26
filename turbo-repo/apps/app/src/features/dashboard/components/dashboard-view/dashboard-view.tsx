@@ -40,9 +40,12 @@ interface DashboardPlaceholderProps {
   permissions?: DashboardPermissionsOptions;
   started: boolean;
   tags: readonly string[];
-  onFinishSetup: (tags: string[]) => void;
+  onFinishSetup: (
+    tags: string[] | undefined,
+    visibility?: Visibility
+  ) => Promise<boolean>;
   visibility: Visibility;
-  onVisibilityChange: (visibility: Visibility) => void;
+  onVisibilityChange: (visibility: Visibility) => Promise<boolean>;
 }
 
 function DashboardPlaceholder({
@@ -210,14 +213,28 @@ export function DashboardView({
   );
 
   /** Leaving the setup's tags step: its tags are saved and the setup is over. */
+  const saveDetails = settingsHost?.saveDetails;
   const finishSetup = useCallback(
-    (nextTags: string[]) => setDetails({ tags: nextTags, started: true }),
-    [setDetails]
+    async (nextTags: string[] | undefined, nextVisibility?: Visibility) => {
+      const details = {
+        ...(nextTags === undefined ? {} : { tags: nextTags }),
+        started: true,
+        ...(nextVisibility === undefined ? {} : { visibility: nextVisibility }),
+      };
+      if (saveDetails) return saveDetails(details);
+      setDetails(details);
+      return true;
+    },
+    [setDetails, saveDetails]
   );
 
   const changeVisibility = useCallback(
-    (next: Visibility) => setDetails({ visibility: next }),
-    [setDetails]
+    async (next: Visibility) => {
+      if (saveDetails) return saveDetails({ visibility: next });
+      setDetails({ visibility: next });
+      return true;
+    },
+    [setDetails, saveDetails]
   );
 
   return (
@@ -237,7 +254,11 @@ export function DashboardView({
           rootIcon={<HiOutlineSquares2X2 className="mr-2 h-4 w-4" />}
           rootHref={breadcrumbRootHref}
           breadcrumbDict={
-            (((dictionary as I18nRecord)["layout"] as I18nRecord)["secured"] as I18nRecord)["sidebar"] as I18nRecord
+            (
+              ((dictionary as I18nRecord)["layout"] as I18nRecord)[
+                "secured"
+              ] as I18nRecord
+            )["sidebar"] as I18nRecord
           }
           lang={params.lang}
           filterDict={dictionary}
@@ -316,9 +337,14 @@ export function DashboardView({
       {/* Content */}
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
         <div className="w-full min-h-full">
-
           {hasWidgets ? (
-            <DashboardGrid widgets={widgets} registry={registry} editMode={canEdit && editMode} onLayoutCommit={handleLayoutCommit} renderWidget={renderRootWidget} />
+            <DashboardGrid
+              widgets={widgets}
+              registry={registry}
+              editMode={canEdit && editMode}
+              onLayoutCommit={handleLayoutCommit}
+              renderWidget={renderRootWidget}
+            />
           ) : (
             <DashboardPlaceholder
               isLoaded={isLoaded}

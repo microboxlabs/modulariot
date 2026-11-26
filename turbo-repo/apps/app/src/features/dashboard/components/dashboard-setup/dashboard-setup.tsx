@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "flowbite-react";
 import { HiArrowLeft, HiArrowRight, HiPlus } from "react-icons/hi2";
 import type { DashboardPermissionsOptions } from "@microboxlabs/miot-dashboard-ui/react";
@@ -39,11 +39,14 @@ interface DashboardSetupProps {
   /** The dashboard's tags, where the tags step starts from. */
   initialTags: readonly string[];
   /** Saves the tags and ends the setup, on leaving the tags step. */
-  onFinish?: (tags: string[]) => void;
+  onFinish?: (
+    tags: string[] | undefined,
+    visibility?: Visibility
+  ) => Promise<boolean>;
   /** Who sees the dashboard, where the permissions step starts from. */
   visibility: Visibility;
   /** Saves who sees it, on leaving the permissions step. */
-  onVisibilityChange?: (visibility: Visibility) => void;
+  onVisibilityChange?: (visibility: Visibility) => Promise<boolean>;
 }
 
 /**
@@ -106,6 +109,19 @@ function FirstDashletCard({
   );
 }
 
+function rebaseTags(
+  draft: { base: readonly string[]; tags: readonly string[] },
+  current: readonly string[]
+) {
+  const removed = new Set(
+    draft.base.filter((tag) => !draft.tags.includes(tag))
+  );
+  const added = draft.tags.filter((tag) => !draft.base.includes(tag));
+  return [
+    ...new Set([...current.filter((tag) => !removed.has(tag)), ...added]),
+  ];
+}
+
 function SetupFlow({
   dictionary,
   onAdd,
@@ -114,6 +130,7 @@ function SetupFlow({
   onFinish,
   visibility,
   onVisibilityChange,
+  started,
 }: Readonly<DashboardSetupProps & { permissionsState: PermissionsState }>) {
   const t: T = (key, params) =>
     trDynamic(`dashboard.setup.${key}`, dictionary, params);
@@ -121,44 +138,134 @@ function SetupFlow({
     (prefix: string): T =>
     (key, params) =>
       t(`${prefix}.${key}`, params);
-  const [active, setActive] = useSetupStep();
+  const navigation = useRef<((target: number) => Promise<boolean>) | null>(
+    null
+  );
+  const [active, setActive] = useSetupStep(
+    (target) => navigation.current?.(target) ?? Promise.resolve(false)
+  );
   // Opened at a later step (a reload, a shared link): the ones before it
   // count as done.
   const [unlocked, setUnlocked] = useState(active);
+  useEffect(() => {
+    setUnlocked((current) => Math.max(current, active));
+  }, [active]);
   const [saving, setSaving] = useState(false);
   const directory = usePrincipalDirectory(permissionsState.canManage);
-  const [tags, setTags] = useState<string[]>(() => [...initialTags]);
-  const [visibilityDraft, setVisibilityDraft] = useState(visibility);
+  const [tagsDraft, setTagsDraft] = useState<{
+    base: readonly string[];
+    tags: string[];
+  } | null>(null);
+  const tags =
+    tagsDraft === null ? [...initialTags] : rebaseTags(tagsDraft, initialTags);
+  const latestTags = useRef(tags);
+  latestTags.current = tags;
+  const transition = useRef(0);
+  useEffect(
+    () => () => {
+      transition.current += 1;
+    },
+    []
+  );
+  const [visibilityDraft, setVisibilityDraft] = useState<Visibility | null>(
+    null
+  );
   const step: SetupStep = SETUP_STEPS[active] ?? "permissions";
   const isLast = active === SETUP_STEPS.length - 1;
+  const busy = saving || permissionsState.busy || permissionsState.loading;
+  const blocked = busy || permissionsState.error !== null;
+  const visibilityChange =
+    permissionsState.canManage && visibilityDraft !== visibility
+      ? (visibilityDraft ?? undefined)
+      : undefined;
 
-  const advance = () => {
-    setUnlocked((current) => Math.max(current, active + 1));
-    setActive(active + 1);
-  };
-  /** Leaving the permissions step saves them; a failure keeps you there. */
-  const next = async () => {
-    if (step === "tags") {
-      onFinish?.(tags);
-      advance();
-      return;
+  const savePermissions = async () => {
+    if (!permissionsState.canManage) return true;
+    const saved = await permissionsState.save();
+    if (!saved) {
+      ShowNotification({ type: "error", message: t("permissions.saveError") });
     }
-    if (step !== "permissions" || !permissionsState.canManage) {
-      advance();
+    return saved;
+  };
+
+  /** Every forward route saves the steps it leaves, including stepper links. */
+  const select = async (target: number) => {
+    const attempt = ++transition.current;
+    const requestedUrl = globalThis.location.href;
+    const isCurrent = () =>
+      attempt === transition.current &&
+      globalThis.location.href === requestedUrl;
+    if (target === active) return true;
+    if (blocked) return false;
+    if (target < active) {
+      setActive(target);
+      return true;
+    }
+    setSaving(true);
+    try {
+      if (step === "permissions" && !(await savePermissions())) return false;
+      if (!isCurrent()) return false;
+      let saved = true;
+      if (SETUP_STEPS[target] === "dashlet") {
+        saved =
+          (await onFinish?.(
+            tagsDraft === null ? undefined : latestTags.current,
+            visibilityChange
+          )) ?? true;
+      } else if (visibilityChange !== undefined) {
+        saved = (await onVisibilityChange?.(visibilityChange)) ?? true;
+      }
+      if (!isCurrent()) return false;
+      if (!saved) {
+        ShowNotification({
+          type: "error",
+          message: t("permissions.saveError"),
+        });
+        return false;
+      }
+      setVisibilityDraft(null);
+      if (SETUP_STEPS[target] === "dashlet") setTagsDraft(null);
+      setUnlocked((current) => Math.max(current, target));
+      setActive(target);
+      return true;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  navigation.current = select;
+  const changeTags = (next: string[]) =>
+    setTagsDraft(
+      JSON.stringify(next) === JSON.stringify(initialTags)
+        ? null
+        : { base: initialTags, tags: next }
+    );
+  const changeVisibility = (next: Visibility) =>
+    setVisibilityDraft(next === visibility ? null : next);
+
+  const addFirstDashlet = async () => {
+    if (blocked) return;
+    if (started) {
+      onAdd();
       return;
     }
     setSaving(true);
-    const saved = await permissionsState.save();
-    setSaving(false);
-    if (saved) {
-      if (visibilityDraft !== visibility) onVisibilityChange?.(visibilityDraft);
-      advance();
-      return;
+    try {
+      const saved =
+        (await onFinish?.(
+          tagsDraft === null ? undefined : latestTags.current,
+          visibilityChange
+        )) ?? true;
+      if (saved) onAdd();
+      else
+        ShowNotification({
+          type: "error",
+          message: t("permissions.saveError"),
+        });
+    } finally {
+      setSaving(false);
     }
-    ShowNotification({ type: "error", message: t("permissions.saveError") });
   };
-
-  const back = () => setActive(Math.max(active - 1, 0));
 
   return (
     <section className="mx-auto w-full px-4 py-10 md:max-w-2xl">
@@ -166,14 +273,41 @@ function SetupFlow({
         steps={SETUP_STEPS.map((id) => ({ title: t(`steps.${id}`) }))}
         currentStepIndex={active}
         reachedStepIndex={unlocked}
-        onSelect={setActive}
+        onSelect={(index) => void select(index)}
+        disabled={blocked}
       />
+      {permissionsState.error !== null && step !== "permissions" && (
+        <div role="alert" className="mb-4 space-y-2 text-sm text-red-600">
+          <p>
+            {t(
+              permissionsState.error === 409
+                ? "permissions.conflictError"
+                : "permissions.loadError"
+            )}
+          </p>
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void permissionsState.retry()}
+          >
+            {t(
+              permissionsState.error === 409
+                ? "permissions.discardAndReload"
+                : "permissions.retry"
+            )}
+          </button>
+        </div>
+      )}
       {/* Nothing in the card clips: the search's list has to float out of it.
           The sign-up flow's card: content, then a footer with the progress
           bar on its edge and the back / next buttons. */}
       <div className="flex w-full flex-col rounded-2xl border border-gray-200 bg-white transition-colors duration-200 dark:border-gray-700 dark:bg-gray-800">
         <div className="relative px-6 py-4 pt-6 sm:px-8 lg:px-10">
-          <div key={step} className="animate-step-fade-in">
+          <fieldset
+            key={step}
+            disabled={busy}
+            className="min-w-0 animate-step-fade-in"
+          >
             <div className="mb-6">
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -192,26 +326,32 @@ function SetupFlow({
                 loading={directory.isLoading || permissionsState.busy}
                 canManage={permissionsState.canManage}
                 checkingAccess={permissionsState.loading}
-                visibility={visibilityDraft}
+                error={permissionsState.error}
+                onRetry={() => void permissionsState.retry()}
+                visibility={visibilityDraft ?? visibility}
                 onVisibilityChange={
                   onVisibilityChange && permissionsState.canManage
-                    ? setVisibilityDraft
+                    ? changeVisibility
                     : undefined
                 }
                 t={scoped("permissions")}
               />
             )}
             {step === "tags" && (
-              <TagsStep tags={tags} onChange={setTags} t={scoped("tags")} />
+              <TagsStep tags={tags} onChange={changeTags} t={scoped("tags")} />
             )}
             {step === "dashlet" && (
-              <DashletStep onAdd={onAdd} t={scoped("dashlet")} />
+              <DashletStep
+                onAdd={blocked ? undefined : () => void addFirstDashlet()}
+                t={scoped("dashlet")}
+              />
             )}
-          </div>
+          </fieldset>
         </div>
 
         <div className="rounded-b-2xl bg-gray-50 dark:bg-gray-900/40">
           <StepProgress
+            label={t("progress")}
             currentStepIndex={active}
             totalSteps={SETUP_STEPS.length}
             rounded={false}
@@ -221,8 +361,8 @@ function SetupFlow({
               color="light"
               size="sm"
               type="button"
-              disabled={active === 0}
-              onClick={back}
+              disabled={blocked || active === 0}
+              onClick={() => void select(Math.max(active - 1, 0))}
               className={`w-1/3 ${BUTTON_SHAPE}`}
             >
               <span className="flex items-center gap-1.5">
@@ -235,7 +375,8 @@ function SetupFlow({
                 color="blue"
                 size="sm"
                 type="button"
-                onClick={onAdd}
+                disabled={blocked}
+                onClick={() => void addFirstDashlet()}
                 className={`w-2/3 ${BUTTON_SHAPE}`}
               >
                 <span className="flex items-center gap-1.5">
@@ -248,8 +389,8 @@ function SetupFlow({
                 color="blue"
                 size="sm"
                 type="button"
-                disabled={saving}
-                onClick={() => void next()}
+                disabled={blocked}
+                onClick={() => void select(active + 1)}
                 className={`w-2/3 ${BUTTON_SHAPE}`}
               >
                 <span className="flex items-center gap-1.5">

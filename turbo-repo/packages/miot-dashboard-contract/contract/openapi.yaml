@@ -180,15 +180,19 @@ paths:
       tags: [dashboards]
       summary: Create or replace a dashboard's configuration
       description: >
-        The body replaces the stored configuration outright; there is no merge.
+        The body replaces the stored configuration. When updating a restricted
+        dashboard, omitting `visibility` preserves its restriction. Opening it
+        requires explicit `visibility: "organization"` and permission-management
+        rights.
 
 
         Send `If-Match` with the revision you loaded. A write whose expected
         revision is stale is refused with `409`, which is what stops two
         editors — or an editor and the AI generation skill — from silently
         overwriting one another. For a first write, load the absent address and
-        send its `ETag` (`"0"`). Omitting the header is the unconditional
-        compatibility path and does not protect against concurrent creation.
+        send its `ETag` (`"0"`). Without the header, the write still compares
+        against the revision authorized for this request (zero when absent),
+        so a concurrent update or creation is refused with `409`.
 
 
         Creating a dashboard that does not exist yet is decided by scope
@@ -248,6 +252,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -472,7 +478,9 @@ paths:
       description: >
         Moves the dashboard into the folder, or to the top level with
         `folderId: null`. Requires `canEdit` on the dashboard, and the Editor
-        role on the folder it goes into. Neither the
+        role on the folder it goes into. Adding or removing a restricted
+        ancestor also requires permission-management rights on the dashboard.
+        Neither the
         config nor the revision changes, so an editor with the dashboard open
         is not put into conflict by someone moving it.
       parameters:
@@ -508,7 +516,8 @@ paths:
       summary: Star a dashboard
       description: >
         Stars the dashboard for the caller. Anyone who may open the dashboard
-        may star it. Starring twice is the same as starring once.
+        may star it. Starring twice is the same as starring once. Requires
+        a host store that serializes the write with dashboard deletion.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
@@ -516,6 +525,12 @@ paths:
       responses:
         "204":
           description: Starred. No body.
+        "400":
+          description: The host store cannot serialize personal writes with deletion.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -595,7 +610,8 @@ paths:
       description: >
         Records the caller's open of the dashboard now, moving it to the front
         of their recents. Anyone who may open the dashboard may record it.
-        Only the latest open of each dashboard is kept.
+        Only the latest open of each dashboard is kept. Requires a host store
+        that serializes the write with dashboard deletion.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
@@ -603,6 +619,12 @@ paths:
       responses:
         "204":
           description: Recorded. No body.
+        "400":
+          description: The host store cannot serialize personal writes with deletion.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -757,6 +779,9 @@ paths:
         into (the scope's, for the top level). A folder moves with everything
         inside it. Moving one inside itself, or into one of its own folders,
         is a `409`.
+        Adding or removing a restricted ancestor requires Coordinator on
+        every folder in the moved subtree and permission-management rights
+        on every dashboard it contains.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
@@ -795,7 +820,8 @@ paths:
       summary: Delete a folder and everything inside it
       description: >
         Deletes the folder, every folder below it and every dashboard in any
-        of them. Requires the Coordinator role on the folder, and `canDelete`
+        of them. Requires the Coordinator role on every folder in that
+        subtree, including empty descendants, and `canDelete`
         on each of those dashboards: every one is checked before anything is
         removed, so a refusal leaves the folder as it was.
       parameters:
@@ -847,6 +873,9 @@ paths:
       description: >
         The list replaces what is stored; `visibility`, when given, too.
         Requires the Coordinator role on the folder.
+        Changing its effective audience also requires Coordinator on every
+        descendant folder and permission-management rights on every contained
+        dashboard. Those checks and the replacement are atomic.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"

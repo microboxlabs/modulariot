@@ -7120,6 +7120,10 @@
       "roleEditorHelp": "Can edit configuration and filters",
       "roleCoordinatorHelp": "Full control, including managing permissions",
       "saveSuccess": "Permissions updated",
+      "saveVisibility": "Save visibility",
+      "saveAssignments": "Save permissions for people and teams",
+      "visibilitySaveSuccess": "Visibility updated",
+      "visibilitySaveError": "Visibility could not be saved. Retry saving visibility.",
       "saveError": "Failed to update permissions",
       "loadError": "Failed to load permissions",
       "notAuthorized": "You are not authorized to manage permissions for this dashboard.",
@@ -7599,6 +7603,7 @@
       }
     },
     "setup": {
+      "progress": "Dashboard setup progress",
       "next": "Continue",
       "back": "Back",
       "steps": {
@@ -7625,14 +7630,20 @@
           "Coordinator": "Edits, deletes and manages access"
         },
         "search": "Search for a member or a team…",
+        "email": "Member email",
+        "addEmail": "Add by email",
         "membersHeader": "Members",
         "teamsHeader": "Teams",
         "teamSize": "{count} members",
         "noResults": "No members or teams match.",
         "loading": "Loading…",
-        "noAccess": "Only you have access. Search for a member or team above to share it.",
+        "noAccess": "No explicit access grants. Add a member or team to share it.",
         "unknownTeam": "Team no longer available",
         "saveError": "The permissions could not be saved. Try again.",
+        "loadError": "Access could not be confirmed. Changes may already be saved. Reload permissions to confirm.",
+        "conflictError": "Another administrator changed the same access grant. Discard your pending permission edits and reload before trying again.",
+        "discardAndReload": "Discard edits and reload permissions",
+        "retry": "Reload permissions",
         "minCharacters": "Type at least 2 characters",
         "noResultsFor": "No results for",
         "visibility": {

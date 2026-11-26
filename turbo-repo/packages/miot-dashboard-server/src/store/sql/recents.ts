@@ -34,7 +34,8 @@ export function createSqlRecentStore(
            (tenant_id, scope_id, user_id, slug, opened_at)
          VALUES (${p()}, ${p()}, ${p()}, ${p()}, ${p()})
          ON CONFLICT (tenant_id, scope_id, user_id, slug)
-         DO UPDATE SET opened_at = excluded.opened_at`,
+         DO UPDATE SET opened_at = excluded.opened_at
+         WHERE excluded.opened_at > dashboard_opens.opened_at`,
         [scope.tenantId, scope.scopeId, userId, slug, now().toISOString()],
       );
     },

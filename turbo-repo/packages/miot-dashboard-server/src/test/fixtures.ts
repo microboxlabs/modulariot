@@ -179,7 +179,7 @@ export function harness(
     memberships?: Memberships;
     seed?: SeedDashboard[];
   } & Partial<
-    Pick<AccessControlOptions<TestRequest>, "policy" | "onAuditError">
+    Pick<AccessControlOptions<TestRequest>, "policy" | "onAuditError" | "visibility">
   > = {},
 ): Harness {
   const store = memoryStore(options.seed);
@@ -192,6 +192,7 @@ export function harness(
     store,
     audit,
     ...(options.policy ? { policy: options.policy } : {}),
+    ...(options.visibility ? { visibility: options.visibility } : {}),
     ...(options.onAuditError ? { onAuditError: options.onAuditError } : {}),
     now: () => new Date("2026-09-02T12:00:00.000Z"),
   });

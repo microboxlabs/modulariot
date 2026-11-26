@@ -56,7 +56,10 @@ export interface DashboardPrincipal {
   userId: string;
   kind: DashboardPrincipalKind;
   displayName?: string;
-  /** Host authority ids (groups, roles) used to evaluate dashboard permissions. */
+  /**
+   * Host authority ids (groups, roles) used to evaluate permissions. User and
+   * group ids share an authority namespace; hosts must keep their ids distinct.
+   */
   groups?: string[];
   /**
    * Set only for `kind: "embed"` — the single dashboard the token was minted

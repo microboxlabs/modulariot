@@ -56,6 +56,16 @@ export type {
   DataSourceStore,
 } from "./seams/datasources";
 
+// ---- Seam: folders ----
+export type {
+  DashboardFolder,
+  DashboardFolderStore,
+  FolderPatch,
+  FolderScope,
+  FolderSubtree,
+  NewFolder,
+} from "./seams/folders";
+
 // ---- Seam: query authoring ----
 export type {
   AuthoringRequest,

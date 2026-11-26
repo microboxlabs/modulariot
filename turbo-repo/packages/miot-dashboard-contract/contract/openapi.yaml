@@ -39,6 +39,12 @@ tags:
     description: Reading, writing and removing dashboard configurations.
   - name: access
     description: What the caller may do, and who else may do what.
+  - name: folders
+    description: >
+      How a scope's dashboards are arranged for browsing. A folder groups
+      dashboards and nothing else: it holds no config and grants no access.
+      Served only where the host keeps folders; every route here answers
+      `404` elsewhere.
   - name: datasources
     description: Where a dashboard's data comes from. Tenant-level.
   - name: credentials
@@ -164,15 +170,19 @@ paths:
       tags: [dashboards]
       summary: Create or replace a dashboard's configuration
       description: >
-        The body replaces the stored configuration outright; there is no merge.
+        The body replaces the stored configuration. When updating a restricted
+        dashboard, omitting `visibility` preserves its restriction. Opening it
+        requires explicit `visibility: "organization"` and permission-management
+        rights.
 
 
         Send `If-Match` with the revision you loaded. A write whose expected
         revision is stale is refused with `409`, which is what stops two
         editors — or an editor and the AI generation skill — from silently
         overwriting one another. For a first write, load the absent address and
-        send its `ETag` (`"0"`). Omitting the header is the unconditional
-        compatibility path and does not protect against concurrent creation.
+        send its `ETag` (`"0"`). Without the header, the write still compares
+        against the revision authorized for this request (zero when absent),
+        so a concurrent update or creation is refused with `409`.
 
 
         Creating a dashboard that does not exist yet is decided by scope
@@ -232,6 +242,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -447,6 +459,251 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+
+  /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/folder:
+    put:
+      operationId: fileDashboard
+      tags: [folders]
+      summary: File a dashboard in a folder
+      description: >
+        Moves the dashboard into the folder, or to the top level with
+        `folderId: null`. Requires `canEdit` on the dashboard, and the Editor
+        role on the folder it goes into. Adding or removing a restricted
+        ancestor also requires permission-management rights on the dashboard.
+        Neither the
+        config nor the revision changes, so an editor with the dashboard open
+        is not put into conflict by someone moving it.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FolderPlacement"
+      responses:
+        "204":
+          description: Filed. No body.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The dashboard, the folder, or folders at all, do not exist here.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /tenants/{tenantId}/scopes/{scopeId}/folders:
+    get:
+      operationId: listFolders
+      tags: [folders]
+      summary: Folders in one scope
+      description: >
+        The folders the caller sees in the scope, in no particular order,
+        each with the caller's `role` on it. A restricted folder (see
+        `Visibility`) is listed only to the scope's Coordinators, to whoever
+        created it and to whoever its permissions name, and a folder only when
+        every folder above it is listed too. The tree is rebuilt from
+        `parentId`. Which
+        dashboard sits in which folder is the `folderId` of the dashboard
+        listing.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+      responses:
+        "200":
+          description: The folders in this scope. An empty list is a 200.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DashboardFolder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      operationId: createFolder
+      tags: [folders]
+      summary: Create a folder
+      description: >
+        At the top level, requires the Editor role in the scope; inside a
+        folder, the Editor role on that folder. Names are unique among a
+        folder's direct children, ignoring case; a taken name is a `409`, and
+        it is the client's choice what to call it instead.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FolderInput"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DashboardFolder"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/FolderConflict"
+
+  /tenants/{tenantId}/scopes/{scopeId}/folders/{folderId}:
+    patch:
+      operationId: updateFolder
+      tags: [folders]
+      summary: Rename or move a folder
+      description: >
+        Requires the Editor role on the folder, and on the folder it moves
+        into (the scope's, for the top level). A folder moves with everything
+        inside it. Moving one inside itself, or into one of its own folders,
+        is a `409`.
+        Adding or removing a restricted ancestor requires Coordinator on
+        every folder in the moved subtree and permission-management rights
+        on every dashboard it contains.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/folderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FolderPatch"
+      responses:
+        "200":
+          description: The folder as it now is.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DashboardFolder"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/FolderConflict"
+
+    delete:
+      operationId: deleteFolder
+      tags: [folders]
+      summary: Delete a folder and everything inside it
+      description: >
+        Deletes the folder, every folder below it and every dashboard in any
+        of them. Requires the Coordinator role on every folder in that
+        subtree, including empty descendants, and `canDelete`
+        on each of those dashboards: every one is checked before anything is
+        removed, so a refusal leaves the folder as it was.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/folderId"
+      responses:
+        "204":
+          description: Removed. No body.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/scopes/{scopeId}/folders/{folderId}/permissions:
+    get:
+      operationId: getFolderPermissions
+      tags: [folders]
+      summary: Role assignments on one folder
+      description: >
+        A folder's own assignments, apart from its dashboards'. Viewer (the
+        Consumer role) sees it, Editor creates inside it, renames and moves
+        it, Coordinator deletes it and manages these. Nothing passes down to
+        what is inside. Requires the Coordinator role on the folder.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/folderId"
+      responses:
+        "200":
+          description: The folder's assignments, and who sees it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderPermissions"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: setFolderPermissions
+      tags: [folders]
+      summary: Replace the role assignments on one folder
+      description: >
+        The list replaces what is stored; `visibility`, when given, too.
+        Requires the Coordinator role on the folder.
+        Changing its effective audience also requires Coordinator on every
+        descendant folder and permission-management rights on every contained
+        dashboard. Those checks and the replacement are atomic.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/folderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FolderPermissions"
+      responses:
+        "204":
+          description: Replaced. No body.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /tenants/{tenantId}/scopes/{scopeId}/datasources:
     get:
@@ -1251,6 +1508,14 @@ components:
       required: true
       schema: { type: string }
       description: A saved query of the source.
+    folderId:
+      name: folderId
+      in: path
+      required: true
+      description: A folder id, as the folder listing returns it.
+      schema:
+        type: string
+        minLength: 1
     ifMatch:
       name: If-Match
       in: header
@@ -1265,6 +1530,18 @@ components:
       example: "3"
 
   responses:
+    FolderConflict:
+      description: >
+        A sibling folder already has the name, or the move would put a folder
+        inside itself.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: A folder named "Reports" already exists there
+            status: 409
+            code: CONFLICT
     BadRequest:
       description: >
         The request could not be understood: a body that is not JSON, an
@@ -1560,6 +1837,85 @@ components:
           description: >
             The config's `order`. Lists are sorted by it, lowest first;
             dashboards without one come last.
+        folderId:
+          type: string
+          description: >
+            The folder the dashboard is filed in. Absent at the top level, and
+            always absent where the host keeps no folders.
+    DashboardFolder:
+      type: object
+      required: [id, name, parentId]
+      properties:
+        id:
+          type: string
+          description: Assigned by the server.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        parentId:
+          type: [string, "null"]
+          description: The folder this one is in; null at the top level.
+        role:
+          $ref: "#/components/schemas/Role"
+          description: >
+            The caller's role on this folder, in the listing only: the higher
+            of their scope role and the folder's permissions naming them.
+    Visibility:
+      type: string
+      enum: [organization, restricted]
+      description: >
+        Who sees a dashboard or folder. `organization`: everyone in the scope,
+        each with their own role there. `restricted`: only the scope's
+        Coordinators, whoever created it and whoever its permissions name.
+        Whatever is in a folder the caller cannot see is hidden with it. A
+        dashboard keeps its own in its config; absent is `organization`.
+    FolderPermissions:
+      type: object
+      required: [assignments]
+      properties:
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/PermissionAssignment"
+        visibility:
+          $ref: "#/components/schemas/Visibility"
+          description: >
+            Always in a response. In a request, leaving it out leaves who sees
+            the folder as it is.
+    FolderInput:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Trimmed before it is stored.
+        parentId:
+          type: [string, "null"]
+          description: Where to create it. Absent or null is the top level.
+    FolderPatch:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        parentId:
+          type: [string, "null"]
+          description: Where to move it. Null is the top level.
+    FolderPlacement:
+      type: object
+      required: [folderId]
+      additionalProperties: false
+      properties:
+        folderId:
+          type: [string, "null"]
+          description: The folder to file the dashboard in; null is the top level.
     DashboardConfig:
       description: >
         The dashboard document — layout, widgets and their datasource

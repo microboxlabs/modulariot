@@ -31,6 +31,8 @@ export interface SqlDialect {
    * both run `CREATE TABLE`.
    */
   readonly migrationLock: string | null;
+  /** Transaction-scoped lock; parameter 1 is a namespaced tenant/scope key. */
+  readonly folderLock?: string;
 }
 
 export const SQLITE_DIALECT: SqlDialect = {
@@ -54,6 +56,7 @@ export const POSTGRES_DIALECT: SqlDialect = {
   // `_xact_` so the lock is released by COMMIT or ROLLBACK rather than needing
   // a matching unlock, which a crash mid-migration would never run.
   migrationLock: `SELECT pg_advisory_xact_lock(${MIGRATION_LOCK_KEY})`,
+  folderLock: "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
 };
 
 export interface SqlDriver {
@@ -67,6 +70,9 @@ export interface SqlDriver {
 
   /** Run `body` in a transaction, rolling back if it throws. */
   transaction<T>(body: () => Promise<T>): Promise<T>;
+
+  /** Defer irreversible cleanup until the outer transaction commits. */
+  afterCommit?(body: () => Promise<void>): Promise<void>;
 
   close(): Promise<void>;
 }

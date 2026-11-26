@@ -38,6 +38,12 @@ export interface DashboardMetadataWrite {
 }
 
 export interface DashboardMetadataStore {
+  scopeTransaction?<T>(
+    scope: Pick<ServerDashboardRef, "tenantId" | "scopeId">,
+    body: () => Promise<T>,
+  ): Promise<T>;
+  /** Defer cleanup until commit. Without it, obsolete blobs remain for orphan collection. */
+  afterCommit?(body: () => Promise<void>): Promise<void>;
   read(ref: ServerDashboardRef): Promise<DashboardMetadataRow | null>;
 
   list(tenantId: string, scopeId: string): Promise<DashboardMetadataRow[]>;

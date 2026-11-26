@@ -30,6 +30,7 @@ import {
   createInsecureHeaderIdentityResolver,
   createMemoryCredentialsStore,
   createMemoryDataSourceStore,
+  createMemoryFolderStore,
   createMemoryScopeAuthority,
   createMemoryTenantAuthority,
   createMemoryStore,
@@ -476,6 +477,12 @@ describe("the spec against the router", () => {
       "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/capabilities",
     permissions:
       "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/permissions",
+    dashboardFolder:
+      "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/folder",
+    folders: "/tenants/{tenantId}/scopes/{scopeId}/folders",
+    folder: "/tenants/{tenantId}/scopes/{scopeId}/folders/{folderId}",
+    folderPermissions:
+      "/tenants/{tenantId}/scopes/{scopeId}/folders/{folderId}/permissions",
     datasources: "/tenants/{tenantId}/scopes/{scopeId}/datasources",
     datasourcesTest: "/tenants/{tenantId}/scopes/{scopeId}/datasources/test",
     datasource:
@@ -507,7 +514,8 @@ describe("the spec against the router", () => {
       .replace("{credentialRef}", EXAMPLE.credentialRef)
       .replace("{queryId}", EXAMPLE.queryId)
       .replace("{sourceId}", "warehouse")
-      .replace("{planId}", "daily");
+      .replace("{planId}", "daily")
+      .replace("{folderId}", "reports");
 
   const spec = readSpecPaths();
 
@@ -527,19 +535,25 @@ describe("the spec against the router", () => {
 
   let running: RunningServer;
   /** 404 is how the handler answers a path or method it does not serve. */
-  const served = async (path: string, method: string) =>
-    (await fetch(`${running.url}${path}`, { method })).status !== 404;
+  const served = async (path: string, method: string) => {
+    const { status } = await fetch(`${running.url}${path}`, { method });
+    if (status !== 401 && status !== 404)
+      throw new Error(`Unexpected status ${status} for ${method} ${path}`);
+    return status === 401;
+  };
 
   beforeAll(async () => {
+    const store = createMemoryStore();
     running = await serve({
       identity: createInsecureHeaderIdentityResolver(),
       tenants: createMemoryTenantAuthority({}),
       scopes: createMemoryScopeAuthority({}),
-      store: createMemoryStore(),
+      store,
       // The document describes a server with every route mounted. Left out,
       // optional adapters answer 404 when omitted.
       dataSources: createMemoryDataSourceStore(),
       credentials: createMemoryCredentialsStore(),
+      folders: createMemoryFolderStore(store),
       queries: { operations: { execute: async () => ({ rows: [] }) } },
       queryCatalog: { list: async () => [] },
       authoring: {

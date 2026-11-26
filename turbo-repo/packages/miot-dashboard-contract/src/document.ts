@@ -149,7 +149,17 @@ export interface DashboardStorageSchema {
    * group is; this package never resolves one.
    */
   allowedGroups?: string[];
+  /**
+   * Who sees it. "organization": everyone in the scope, each with their own
+   * role there. "restricted": only its creator, whoever its permissions name,
+   * and the scope's Coordinators. Absent counts as "organization", so a
+   * dashboard saved before this field existed stays visible to everyone.
+   */
+  visibility?: DashboardVisibility;
 }
+
+/** Who sees a dashboard or folder; see `DashboardStorageSchema.visibility`. */
+export type DashboardVisibility = "organization" | "restricted";
 
 /** A new, empty dashboard. */
 export const DEFAULT_STORAGE: DashboardStorageSchema = {

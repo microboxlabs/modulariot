@@ -122,6 +122,17 @@ public interface DashboardClient {
             @HeaderParam("Authorization") String authorization,
             @BeanParam DashboardAssertion assertion);
 
+    /** Files the dashboard in a folder; the body is {@code {"folderId": "..." | null}}. */
+    @PUT
+    @Path("/{slug}/folder")
+    Uni<Response> fileInFolder(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("scopeId") String scopeId,
+            @PathParam("slug") String slug,
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion,
+            Map<String, Object> body);
+
     @GET
     @Path("/{slug}/permissions")
     Uni<Response> getPermissions(

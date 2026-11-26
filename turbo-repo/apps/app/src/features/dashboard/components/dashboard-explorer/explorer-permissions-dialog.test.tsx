@@ -51,9 +51,7 @@ describe("folder permission saves", () => {
         name: "Only people with access",
       });
       const role = screen.getByRole("combobox");
-      await user.click(
-        screen.getByRole("button", { name: "Save", exact: true })
-      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
       expect(visibility).toBeDisabled();
       expect(role).toBeDisabled();
       await user.click(visibility);

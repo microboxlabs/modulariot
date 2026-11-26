@@ -61,15 +61,6 @@ export default function StoryCard({
             }
           : undefined
       }
-      // The story's kind, which decides the previewer it opens into.
-      actions={
-        <span
-          className={`pointer-events-none inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${typeMeta.badgeClassName}`}
-        >
-          <TypeIcon className="h-3 w-3" />
-          {trDynamic(typeMeta.labelKey, dict)}
-        </span>
-      }
       media={
         <div className="flex h-40 w-full items-center justify-center bg-indigo-50 text-indigo-300 dark:bg-indigo-900/10 dark:text-indigo-500/50">
           <HiSparkles className="h-14 w-14" />
@@ -83,6 +74,13 @@ export default function StoryCard({
         aria-label={story.title}
         className={`cursor-pointer text-left ${INTERACTIVE_CARD_TARGET}`}
       />
+      {/* The kind is decorative: clicks pass through to the card's link. */}
+      <span
+        className={`pointer-events-none absolute right-1.5 top-1.5 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${typeMeta.badgeClassName}`}
+      >
+        <TypeIcon className="h-3 w-3" />
+        {trDynamic(typeMeta.labelKey, dict)}
+      </span>
       <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 dark:border-gray-700">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-normal text-gray-900 dark:text-white">

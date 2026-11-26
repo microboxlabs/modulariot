@@ -1,6 +1,6 @@
 {
   "name": "@microboxlabs/miot-dashboard-contract",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -41,6 +41,14 @@
     "./authoring": {
       "types": "./dist/authoring.d.ts",
       "import": "./dist/authoring.js"
+    },
+    "./catalog": {
+      "types": "./dist/catalog.d.ts",
+      "import": "./dist/catalog.js"
+    },
+    "./lint": {
+      "types": "./dist/lint.d.ts",
+      "import": "./dist/lint.js"
     },
     "./openapi.yaml": "./contract/openapi.yaml",
     "./dashboard-config.schema.json": "./contract/dashboard-config.schema.json",

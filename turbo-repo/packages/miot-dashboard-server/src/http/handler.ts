@@ -63,6 +63,9 @@ import {
 } from "./test-connection";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
+import { withoutVisibilitySnapshot } from "../access/visibility-snapshot";
+import { createScopedRouteRunner, type ScopedRoute } from "./folder-transaction";
+import { removeAuthorizedDashboard } from "./remove-dashboard";
 import { createFolderRoutes } from "./folder-routes";
 import { parseAssignments } from "./parse-assignments";
 import { createStarRoutes } from "./star-routes";
@@ -146,15 +149,32 @@ export type DashboardHandler = (request: Request) => Promise<Response>;
 function requireVisibilityUnchangedOrManaged(
   decision: AccessDecision,
   config: unknown,
+  atomic: boolean,
 ): void {
   const record = decision.dashboard?.record;
+  requireAtomicPrivateMutation(record?.config, atomic);
+  requireAtomicPrivateMutation(config, atomic);
   if (!record) return;
   if (restrictedConfig(record.config) === restrictedConfig(config)) return;
-  if (decision.dashboard?.capabilities.canManagePermissions) return;
+  if (decision.dashboard?.capabilities.canManagePermissions) {
+    if (!atomic)
+      throw DashboardServerError.badRequest(
+        "Changing dashboard visibility is unavailable for this store",
+      );
+    return;
+  }
   throw DashboardServerError.forbidden(
     "CAPABILITY",
     "Only who manages this dashboard's permissions may change who sees it",
   );
+}
+
+function requireAtomicPrivateMutation(config: unknown, atomic: boolean): void {
+  if (!atomic && restrictedConfig(config)) {
+    throw DashboardServerError.badRequest(
+      "Changing restricted dashboards is unavailable for this store",
+    );
+  }
 }
 
 export function createDashboardHandler(
@@ -164,14 +184,26 @@ export function createDashboardHandler(
   if (!Number.isSafeInteger(maxBodyBytes) || maxBodyBytes < 1) {
     throw new TypeError("maxBodyBytes must be a positive safe integer");
   }
-  const readBody = (request: Request) => readJsonBody(request, maxBodyBytes);
+  const readBody = cachedBodyReader(maxBodyBytes);
   const visibility =
     options.visibility ?? scopeVisibilityLoader(options.folders);
-  const access = createAccessControl<Request>({ ...options, visibility });
+  const scopeTransaction = scopeTransactionFor(options);
+  const snapshot: AccessControlOptions<Request>["snapshot"] =
+    options.snapshot ?? scopeTransaction;
+  const access = createAccessControl<Request>({
+    ...options,
+    visibility,
+    snapshot,
+  });
   const queries =
     options.queries === undefined
       ? null
-      : createDashboardQueryService({ ...options, ...options.queries });
+      : createDashboardQueryService({
+          ...options,
+          ...options.queries,
+          visibility,
+          snapshot,
+        });
 
   /**
    * The hook belongs to the host, so it is not trusted to return. A logger
@@ -251,10 +283,7 @@ export function createDashboardHandler(
   }
 
   // Build once. Each route keeps its authorization before parsing and storage.
-  const routes: Record<
-    RouteMatch["route"],
-    (request: Request, match: RouteMatch) => Promise<Response>
-  > = {
+  const routes: Record<RouteMatch["route"], ScopedRoute> = {
     ...createFolderRoutes({
       access,
       store: options.store,
@@ -273,23 +302,10 @@ export function createDashboardHandler(
         tenantId: match.tenantId,
         scopeId: match.scopeId,
       });
-      if (options.folders === undefined || data.length === 0) {
-        return jsonResponse({ data });
-      }
-      // `list` has authorized the scope, so its tenant check already ran.
-      const placements = await options.folders.placements({
-        tenantId: match.tenantId,
-        scopeId: match.scopeId,
-      });
-      return jsonResponse({
-        data: data.map((summary) => {
-          const folderId = placements.get(summary.slug);
-          return folderId === undefined ? summary : { ...summary, folderId };
-        }),
-      });
+      return jsonResponse({ data });
     },
 
-    async dashboard(request, match) {
+    async dashboard(request, match, initialRevision) {
       const method = request.method.toUpperCase();
       const slug = requireSlug(match);
       if (method === "GET") {
@@ -315,16 +331,38 @@ export function createDashboardHandler(
           slug,
           action: "dashboard.save",
         });
-        const config = await readBody(request);
+        let config = await readBody(request);
         requireValidConfig(config);
-        requireVisibilityUnchangedOrManaged(decision, config);
-        const expectedRevision = readExpectedRevision(request);
+        // Older clients omit this field; omission cannot open a private item.
+        if (
+          restrictedConfig(decision.dashboard?.record?.config) &&
+          config !== null &&
+          typeof config === "object" &&
+          !("visibility" in config)
+        )
+          config = { ...config, visibility: "restricted" };
+        requireVisibilityUnchangedOrManaged(
+          decision,
+          config,
+          scopeTransaction !== undefined,
+        );
+        const expectedRevision =
+          initialRevision ?? decision.dashboard?.record?.revision ?? 0;
+        const requestedRevision = readExpectedRevision(request);
+        if (
+          requestedRevision !== undefined &&
+          requestedRevision !== expectedRevision
+        ) {
+          throw DashboardServerError.conflict(
+            "The dashboard changed; reload before saving it",
+          );
+        }
         const saved = await options.store.save(
           refOf(decision.identity.tenantId, match.scopeId, slug),
           config,
           {
             updatedBy: decision.identity.userId,
-            ...(expectedRevision === undefined ? {} : { expectedRevision }),
+            expectedRevision,
           },
         );
         const response = jsonResponse(
@@ -345,7 +383,16 @@ export function createDashboardHandler(
           throw DashboardServerError.notFound("Dashboard not found");
         }
         const ref = refOf(decision.identity.tenantId, match.scopeId, slug);
-        await options.store.remove(ref);
+        requireAtomicPrivateMutation(
+          decision.dashboard.record.config,
+          scopeTransaction !== undefined,
+        );
+        await removeAuthorizedDashboard(
+          options.store,
+          ref,
+          decision.dashboard.record.revision,
+          scopeTransaction !== undefined,
+        );
         await options.stars?.forget(ref, slug);
         await options.recents?.forget(ref, slug);
         return noContentResponse();
@@ -436,6 +483,10 @@ export function createDashboardHandler(
           slug,
           action: "dashboard.permissions.write",
         });
+        requireAtomicPrivateMutation(
+          decision.dashboard?.record?.config,
+          scopeTransaction !== undefined,
+        );
         const assignments = parseAssignments(await readBody(request));
         await options.store.setPermissions(
           refOf(decision.identity.tenantId, match.scopeId, slug),
@@ -750,26 +801,62 @@ export function createDashboardHandler(
     },
   };
 
+  const runRoute = createScopedRouteRunner({
+    access,
+    audit: options.audit,
+    now: options.now,
+    onAuditError: options.onAuditError,
+    folders: options.folders,
+    transaction: scopeTransaction,
+    readBody,
+    routes,
+  });
+
   const handle = async function handle(request: Request): Promise<Response> {
-    try {
-      const pathname = pathnameOf(request.url);
-      const routable = stripBasePath(pathname, basePath);
-      if (routable === null) return errorResponse(notFound());
-      const match = matchRoute(routable);
-      if (match === null) return errorResponse(notFound());
-      return await routes[match.route](request, match);
-    } catch (error) {
-      // A DashboardServerError is an answer this code chose — a 404, a 403, a
-      // 409 — and says so on the wire. Anything else reached here by
-      // surprise, and is the only kind worth waking someone for.
-      if (!isDashboardServerError(error)) reportError(error, request);
-      return errorResponse(error);
-    }
+    return withoutVisibilitySnapshot(async () => {
+      try {
+        const pathname = pathnameOf(request.url);
+        const routable = stripBasePath(pathname, basePath);
+        if (routable === null) return errorResponse(notFound());
+        const match = matchRoute(routable);
+        if (match === null) return errorResponse(notFound());
+        return await runRoute(request, match);
+      } catch (error) {
+        // A DashboardServerError is an answer this code chose — a 404, a 403, a
+        // 409 — and says so on the wire. Anything else reached here by
+        // surprise, and is the only kind worth waking someone for.
+        if (!isDashboardServerError(error)) reportError(error, request);
+        return errorResponse(error);
+      }
+    });
   };
   return options.cors ? withCors(handle, options.cors) : handle;
 }
 
 // ------------------------------------------------------------- helpers ----
+
+function scopeTransactionFor(
+  options: DashboardHandlerOptions,
+): DashboardFolderStore["transaction"] | undefined {
+  const folders = options.folders;
+  if (folders) return (scope, body) => folders.transaction(scope, body);
+  const store = options.store;
+  if (store.scopeTransaction)
+    return (scope, body) => store.scopeTransaction!(scope, body);
+  return undefined;
+}
+
+function cachedBodyReader(maxBodyBytes: number) {
+  const bodies = new WeakMap<Request, Promise<unknown>>();
+  return (request: Request) => {
+    let body = bodies.get(request);
+    if (body === undefined) {
+      body = readJsonBody(request, maxBodyBytes);
+      bodies.set(request, body);
+    }
+    return body;
+  };
+}
 
 const refOf = (tenantId: string, scopeId: string, slug: string) => ({
   tenantId,

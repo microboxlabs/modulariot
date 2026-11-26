@@ -30,17 +30,20 @@ public class DashboardTeamsFilter {
     private final OrganizationContext organizationContext;
     private final DashboardTeamsContext teamsContext;
     private final TeamsService teamsService;
+    private final DashboardProxySupport proxySupport;
     private final String orgPathPrefix;
 
     @Inject
     public DashboardTeamsFilter(OrganizationContext organizationContext,
                                 DashboardTeamsContext teamsContext,
                                 TeamsService teamsService,
+                                DashboardProxySupport proxySupport,
                                 @ConfigProperty(name = "miot.auth.org-path-prefix",
                                         defaultValue = "/api/v1/orgs/") String orgPathPrefix) {
         this.organizationContext = organizationContext;
         this.teamsContext = teamsContext;
         this.teamsService = teamsService;
+        this.proxySupport = proxySupport;
         this.orgPathPrefix = orgPathPrefix;
     }
 
@@ -49,7 +52,8 @@ public class DashboardTeamsFilter {
         String path = requestContext.getUriInfo().getPath();
         String slug = organizationContext.getOrganizationId();
         String email = organizationContext.getUserEmail();
-        if (!isDashboardPath(path, orgPathPrefix) || slug == null || email == null) {
+        if (!proxySupport.assertionsEnabled() || !isDashboardPath(path, orgPathPrefix)
+                || slug == null || email == null) {
             return Uni.createFrom().nullItem();
         }
         return teamsService.teamsOf(slug, Caller.user(email))

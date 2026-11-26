@@ -99,6 +99,11 @@ export function createCompositeStore(
     onOrphan = () => {},
   } = options;
 
+  const scopeTransaction: ServerDashboardStore["scopeTransaction"] =
+    metadata.scopeTransaction
+      ? (scope, body) => metadata.scopeTransaction!(scope, body)
+      : undefined;
+
   /** Best-effort delete. The caller's outcome is already decided. */
   const forget = async (key: string): Promise<void> => {
     try {
@@ -112,6 +117,13 @@ export function createCompositeStore(
       }
     }
   };
+
+  // Without a completion hook, the adapter cannot prove that an enclosing
+  // transaction has committed. Leave unreferenced blobs for the orphan sweep.
+  const forgetAfterCommit = (key: string) =>
+    metadata.afterCommit
+      ? metadata.afterCommit(() => forget(key))
+      : Promise.resolve();
 
   const toRecord = (
     row: {
@@ -132,6 +144,7 @@ export function createCompositeStore(
   });
 
   return {
+    ...(scopeTransaction ? { scopeTransaction } : {}),
     async load(ref: ServerDashboardRef): Promise<DashboardRecord | null> {
       let row = await metadata.read(ref);
       if (row === null) return null;
@@ -195,7 +208,7 @@ export function createCompositeStore(
       }
 
       if (previous !== null && previous.documentKey !== key) {
-        await forget(previous.documentKey);
+        await forgetAfterCommit(previous.documentKey);
       }
 
       return toRecord(row, config);
@@ -212,16 +225,19 @@ export function createCompositeStore(
 
     async remove(ref: ServerDashboardRef): Promise<void> {
       const row = await metadata.remove(ref);
-      if (row !== null) await forget(row.documentKey);
+      if (row !== null) await forgetAfterCommit(row.documentKey);
     },
 
-    async removeIfRevision(ref, revision) {
-      if (!metadata.removeIfRevision) return false;
-      const row = await metadata.removeIfRevision(ref, revision);
-      if (row === null) return false;
-      await forget(row.documentKey);
-      return true;
-    },
+    ...(metadata.removeIfRevision
+      ? {
+          async removeIfRevision(ref: ServerDashboardRef, revision: number) {
+            const row = await metadata.removeIfRevision!(ref, revision);
+            if (row === null) return false;
+            await forgetAfterCommit(row.documentKey);
+            return true;
+          },
+        }
+      : {}),
 
     getPermissions(ref: ServerDashboardRef) {
       return metadata.getPermissions(ref);

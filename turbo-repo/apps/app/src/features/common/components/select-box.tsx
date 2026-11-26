@@ -26,7 +26,7 @@ export default function SelectBox({
   return (
     <span
       className={twMerge(
-        "relative flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+        "relative flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 dark:focus-within:ring-offset-gray-800",
         checked
           ? "border-blue-600 bg-blue-600 text-white dark:border-blue-500 dark:bg-blue-500"
           : "border-gray-400 bg-white hover:border-blue-500 dark:border-gray-500 dark:bg-gray-800"

@@ -78,7 +78,7 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
    * caller's rollback silently discards the second caller's writes while the
    * second caller is told it succeeded.
    */
-  const open = new AsyncLocalStorage<true>();
+  const open = new AsyncLocalStorage<(() => Promise<void>)[]>();
 
   /**
    * Independent transactions run one at a time. SQLite allows one write
@@ -114,24 +114,32 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
       }
     },
 
+    async afterCommit(body) {
+      const cleanup = open.getStore();
+      if (cleanup) cleanup.push(body);
+      else await body();
+    },
+
     transaction<T>(body: () => Promise<T>): Promise<T> {
       // Called from inside a transaction this driver opened: join it, because
       // SQLite rejects a second BEGIN on the same connection.
-      if (open.getStore() === true) return body();
+      if (open.getStore() !== undefined) return body();
 
-      const run = async (): Promise<T> => {
+      const run = async () => {
+        const cleanup: (() => Promise<void>)[] = [];
         // IMMEDIATE takes the write lock now. With DEFERRED, two transactions
         // that read and then write both try to upgrade, and one gets
         // SQLITE_BUSY.
         db.exec("BEGIN IMMEDIATE");
+        let result: T;
         try {
-          const result = await open.run(true, body);
+          result = await open.run(cleanup, body);
           db.exec("COMMIT");
-          return result;
         } catch (error) {
           db.exec("ROLLBACK");
           throw error;
         }
+        return { result, cleanup };
       };
 
       // Wait for the transaction ahead of this one, whether it committed or
@@ -141,7 +149,12 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
         () => undefined,
         () => undefined,
       );
-      return result;
+      // Release the write queue before cleanup: a host's document backend
+      // may itself open a transaction on this driver.
+      return result.then(async (committed) => {
+        for (const work of committed.cleanup) await work();
+        return committed.result;
+      });
     },
 
     close() {

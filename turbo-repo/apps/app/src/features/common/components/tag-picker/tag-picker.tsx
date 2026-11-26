@@ -221,6 +221,7 @@ function TagNameEditor({
 function TagSuggestion({
   tag,
   selected,
+  disabled,
   labels,
   onToggle,
   onRename,
@@ -228,6 +229,7 @@ function TagSuggestion({
 }: Readonly<{
   tag: TagOption;
   selected: boolean;
+  disabled: boolean;
   labels: TagPickerLabels;
   onToggle: () => void;
   onRename?: (name: string) => boolean;
@@ -255,8 +257,9 @@ function TagSuggestion({
       <button
         type="button"
         aria-pressed={selected}
+        disabled={disabled}
         onClick={onToggle}
-        className="flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 text-left text-sm text-gray-700 dark:text-gray-200"
+        className="flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 text-left text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-200"
       >
         <span className={TAG_CHIP_CLASS}>{tag.name}</span>
         {selected && (
@@ -432,12 +435,15 @@ export default function TagPicker({
   );
   const full = max !== undefined && selectedIds.length >= max;
 
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
+    const isSelected = selectedIds.includes(id);
+    if (full && !isSelected) return;
     onChange(
-      selectedIds.includes(id)
+      isSelected
         ? selectedIds.filter((x) => x !== id)
         : [...selectedIds, id]
     );
+  };
   const add = (tag: TagOption) => {
     if (!selectedIds.includes(tag.id) && !full) {
       onChange([...selectedIds, tag.id]);
@@ -505,6 +511,7 @@ export default function TagPicker({
                 key={tag.id}
                 tag={tag}
                 selected={selectedIds.includes(tag.id)}
+                disabled={full && !selectedIds.includes(tag.id)}
                 labels={labels}
                 onToggle={() => toggle(tag.id)}
                 onRename={onRename && ((name) => onRename(tag.id, name))}

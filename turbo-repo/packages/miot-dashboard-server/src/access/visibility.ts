@@ -25,6 +25,7 @@ import type { DashboardIdentity } from "../seams/identity";
 import type { DashboardRecord, PermissionAssignment } from "../seams/store";
 import { authoritiesOf, ownsAsCreator } from "./capabilities";
 import { highestRole, roleAtLeast, type DashboardRole } from "./roles";
+import { cachedVisibility } from "./visibility-snapshot";
 
 /** What the rules read about one scope, loaded once per request. */
 export interface ScopeVisibility {
@@ -91,6 +92,7 @@ export function folderVisible(
   folderId: string,
   scope: ScopeVisibility,
 ): boolean {
+  if (!scope.folders.has(folderId)) return false;
   if (roleAtLeast(scopeRole, "Coordinator")) return true;
   const seen = new Set<string>();
   let current: string | null = folderId;
@@ -121,6 +123,30 @@ function namedOrCreator(
 ): boolean {
   return (
     createdBy === identity.userId || named(identity, assignments).length > 0
+  );
+}
+
+/** Changing the set of restricted ancestors changes the effective audience. */
+export function movementChangesVisibility(
+  from: string | null,
+  to: string | null,
+  scope: ScopeVisibility,
+): boolean {
+  const restrictedAncestors = (id: string | null) => {
+    const restricted = new Set<string>();
+    const seen = new Set<string>();
+    while (id !== null && !seen.has(id)) {
+      seen.add(id);
+      const folder = scope.folders.get(id);
+      if (folder?.visibility === "restricted") restricted.add(id);
+      id = folder?.parentId ?? null;
+    }
+    return restricted;
+  };
+  const previous = restrictedAncestors(from);
+  const next = restrictedAncestors(to);
+  return (
+    previous.size !== next.size || [...previous].some((id) => !next.has(id))
   );
 }
 
@@ -160,15 +186,19 @@ export function scopeVisibilityLoader(
 ): (scope: FolderScope) => Promise<ScopeVisibility> {
   return async (scope) => {
     if (folders === undefined) return OPEN_SCOPE;
-    const [list, folderPermissions, placements] = await Promise.all([
-      folders.list(scope),
-      folders.permissions(scope),
-      folders.placements(scope),
-    ]);
-    return {
-      folders: new Map(list.map((f) => [f.id, f])),
-      folderPermissions,
-      placements,
-    };
+    return cachedVisibility(folders, scope, () =>
+      folders.transaction(scope, async () => {
+        const [list, folderPermissions, placements] = await Promise.all([
+          folders.list(scope),
+          folders.permissions(scope),
+          folders.placements(scope),
+        ]);
+        return {
+          folders: new Map(list.map((f) => [f.id, f])),
+          folderPermissions,
+          placements,
+        };
+      }),
+    );
   };
 }

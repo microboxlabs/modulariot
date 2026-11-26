@@ -192,6 +192,36 @@ describe("SQL folder store", () => {
     expect((await folders.permissions(other)).size).toBe(1);
   });
 
+  it("rolls back permissions when the visibility write fails", async () => {
+    const { folders } = await setup();
+    const folder = await folders.create(
+      scope,
+      { name: "Private", parentId: null },
+      "ana",
+    );
+    const previous = [{ authorityId: "ana", role: "Editor" as const }];
+    await folders.setPermissions(scope, folder.id, previous, "restricted");
+    const driver = opened!.driver;
+    const failing = createSqlFolderStore({
+      ...driver,
+      all(sql, params) {
+        if (sql.includes("SET visibility"))
+          return Promise.reject(new Error("Visibility unavailable"));
+        return driver.all(sql, params);
+      },
+    });
+    await expect(
+      failing.setPermissions(
+        scope,
+        folder.id,
+        [{ authorityId: "bo", role: "Coordinator" }],
+        "organization",
+      ),
+    ).rejects.toThrow("Visibility unavailable");
+    expect((await folders.permissions(scope)).get(folder.id)).toEqual(previous);
+    expect((await folders.list(scope))[0]?.visibility).toBe("restricted");
+  });
+
   it("keeps who sees a folder, per tenant, the whole scope by default", async () => {
     const { folders } = await setup();
     const a = await folders.create(scope, { name: "A", parentId: null }, "ana");

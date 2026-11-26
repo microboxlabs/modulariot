@@ -102,6 +102,15 @@ export function matchRoute(pathname: string): RouteMatch | null {
   return matchDashboards(segments, tenantId, scopeId);
 }
 
+const DASHBOARD_ACTIONS = {
+  "query-catalog": "queryCatalog",
+  capabilities: "capabilities",
+  permissions: "permissions",
+  folder: "dashboardFolder",
+  star: "dashboardStar",
+  open: "dashboardOpen",
+} as const;
+
 function matchDashboards(
   segments: readonly string[],
   tenantId: string,
@@ -123,18 +132,10 @@ function matchDashboards(
 
   if (segments.length === 7) {
     const tail = segments[6];
-    if (tail === "query-catalog")
-      return { route: "queryCatalog", tenantId, scopeId, slug };
-    if (tail === "capabilities")
-      return { route: "capabilities", tenantId, scopeId, slug };
-    if (tail === "permissions")
-      return { route: "permissions", tenantId, scopeId, slug };
-    if (tail === "folder")
-      return { route: "dashboardFolder", tenantId, scopeId, slug };
-    if (tail === "star")
-      return { route: "dashboardStar", tenantId, scopeId, slug };
-    if (tail === "open")
-      return { route: "dashboardOpen", tenantId, scopeId, slug };
+    if (tail !== undefined && Object.hasOwn(DASHBOARD_ACTIONS, tail)) {
+      const route = DASHBOARD_ACTIONS[tail as keyof typeof DASHBOARD_ACTIONS];
+      return { route, tenantId, scopeId, slug };
+    }
   }
 
   return null;

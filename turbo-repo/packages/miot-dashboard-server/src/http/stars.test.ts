@@ -58,6 +58,32 @@ function setup(withStars = true) {
 }
 
 describe("star routes", () => {
+  it.each(["star", "open"])(
+    "rejects a personal %s without scope transactions",
+    async (action) => {
+      const { options, store } = setup();
+      const stars = createMemoryStarStore();
+      const recents = createMemoryRecentStore();
+      const writeStar = vi.spyOn(stars, "star");
+      const writeOpen = vi.spyOn(recents, "record");
+      const handler = createDashboardHandler({
+        ...options,
+        store: { ...store, scopeTransaction: undefined },
+        stars,
+        recents,
+      });
+      const response = await handler(
+        new Request(`${BASE}/dashboards/fleet/${action}`, {
+          method: "PUT",
+          headers: { "x-dev-user": "lector" },
+        }),
+      );
+      expect(response.status).toBe(400);
+      expect(writeStar).not.toHaveBeenCalled();
+      expect(writeOpen).not.toHaveBeenCalled();
+    },
+  );
+
   it("retries personal cleanup after a nontransactional delete failed", async () => {
     const { options, store } = setup();
     const recents = createMemoryRecentStore();

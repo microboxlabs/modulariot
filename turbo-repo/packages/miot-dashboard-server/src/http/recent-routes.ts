@@ -18,6 +18,8 @@ export interface RecentRouteOptions {
   access: AccessControl<Request>;
   /** Omitted: every recents route answers 404. */
   recents: DashboardRecentStore | undefined;
+  /** The handler can serialize these writes with dashboard deletion. */
+  atomic: boolean;
 }
 
 /** How many opens a listing returns unless `?limit=` asks for fewer or more. */
@@ -86,6 +88,11 @@ export function createRecentRoutes(
       });
       if (decision.dashboard?.record == null) {
         throw DashboardServerError.notFound("Dashboard not found");
+      }
+      if (!options.atomic) {
+        throw DashboardServerError.badRequest(
+          "Recording dashboard opens requires a store with scope transactions",
+        );
       }
       await recents.record(
         { tenantId: decision.identity.tenantId, scopeId: match.scopeId },

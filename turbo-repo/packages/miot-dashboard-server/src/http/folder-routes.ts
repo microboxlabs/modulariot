@@ -222,9 +222,8 @@ export function createFolderRoutes(
         { ...scope, slug },
         revision,
         true,
+        options,
       );
-      await options.stars?.forget(scope, slug);
-      await options.recents?.forget(scope, slug);
     }
     await folders.removeFolders(scope, subtree.folderIds);
     return noContentResponse();

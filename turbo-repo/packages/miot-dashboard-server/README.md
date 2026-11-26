@@ -25,6 +25,11 @@ Mount it in your backend, or run the standalone server. Same code either way.
 
 Import only the layer you need.
 
+Creating stars and recording opens require `store.scopeTransaction`, or a folder
+adapter whose transaction also serializes dashboard writes. Without that support,
+those PUT requests return 400. Build SQL adapters on the same driver. Bind memory
+stars and recents with `{ store }` so deletion and rollback cover them too.
+
 ### Mounting it
 
 ```ts

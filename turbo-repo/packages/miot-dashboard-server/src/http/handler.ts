@@ -64,8 +64,14 @@ import {
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
 import { withoutVisibilitySnapshot } from "../access/visibility-snapshot";
-import { createScopedRouteRunner, type ScopedRoute } from "./folder-transaction";
-import { removeAuthorizedDashboard } from "./remove-dashboard";
+import {
+  createScopedRouteRunner,
+  type ScopedRoute,
+} from "./folder-transaction";
+import {
+  forgetPersonalDashboard,
+  removeAuthorizedDashboard,
+} from "./remove-dashboard";
 import { createFolderRoutes } from "./folder-routes";
 import { parseAssignments } from "./parse-assignments";
 import { createStarRoutes } from "./star-routes";
@@ -293,8 +299,16 @@ export function createDashboardHandler(
       visibility,
       readBody,
     }),
-    ...createStarRoutes({ access, stars: options.stars }),
-    ...createRecentRoutes({ access, recents: options.recents }),
+    ...createStarRoutes({
+      access,
+      stars: options.stars,
+      atomic: scopeTransaction !== undefined,
+    }),
+    ...createRecentRoutes({
+      access,
+      recents: options.recents,
+      atomic: scopeTransaction !== undefined,
+    }),
     async dashboards(request, match) {
       const method = request.method.toUpperCase();
       if (method !== "GET") return methodNotAllowed();
@@ -383,8 +397,7 @@ export function createDashboardHandler(
         if (decision.dashboard?.record == null) {
           // A nontransactional host may have removed the dashboard before a
           // cleanup failed. An authorized retry still finishes that cleanup.
-          await options.stars?.forget(ref, slug);
-          await options.recents?.forget(ref, slug);
+          await forgetPersonalDashboard(options, ref);
           throw DashboardServerError.notFound("Dashboard not found");
         }
         requireAtomicPrivateMutation(
@@ -396,9 +409,8 @@ export function createDashboardHandler(
           ref,
           decision.dashboard.record.revision,
           scopeTransaction !== undefined,
+          options,
         );
-        await options.stars?.forget(ref, slug);
-        await options.recents?.forget(ref, slug);
         return noContentResponse();
       }
       return methodNotAllowed();

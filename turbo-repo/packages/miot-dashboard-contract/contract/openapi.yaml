@@ -516,7 +516,8 @@ paths:
       summary: Star a dashboard
       description: >
         Stars the dashboard for the caller. Anyone who may open the dashboard
-        may star it. Starring twice is the same as starring once.
+        may star it. Starring twice is the same as starring once. Requires
+        a host store that serializes the write with dashboard deletion.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
@@ -524,6 +525,12 @@ paths:
       responses:
         "204":
           description: Starred. No body.
+        "400":
+          description: The host store cannot serialize personal writes with deletion.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -603,7 +610,8 @@ paths:
       description: >
         Records the caller's open of the dashboard now, moving it to the front
         of their recents. Anyone who may open the dashboard may record it.
-        Only the latest open of each dashboard is kept.
+        Only the latest open of each dashboard is kept. Requires a host store
+        that serializes the write with dashboard deletion.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
@@ -611,6 +619,12 @@ paths:
       responses:
         "204":
           description: Recorded. No body.
+        "400":
+          description: The host store cannot serialize personal writes with deletion.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":

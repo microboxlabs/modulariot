@@ -64,11 +64,21 @@ import {
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
 import { withoutVisibilitySnapshot } from "../access/visibility-snapshot";
-import { createScopedRouteRunner, type ScopedRoute } from "./folder-transaction";
-import { removeAuthorizedDashboard } from "./remove-dashboard";
+import {
+  createScopedRouteRunner,
+  type ScopedRoute,
+} from "./folder-transaction";
+import {
+  forgetPersonalDashboard,
+  removeAuthorizedDashboard,
+} from "./remove-dashboard";
 import { createFolderRoutes } from "./folder-routes";
 import { parseAssignments } from "./parse-assignments";
+import { createStarRoutes } from "./star-routes";
+import { createRecentRoutes } from "./recent-routes";
 import type { DashboardFolderStore } from "../seams/folders";
+import type { DashboardStarStore } from "../seams/stars";
+import type { DashboardRecentStore } from "../seams/recents";
 import { restrictedConfig, scopeVisibilityLoader } from "../access/visibility";
 import { withCors, type CorsOptions } from "./cors";
 
@@ -102,6 +112,10 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    * carries no `folderId`.
    */
   folders?: DashboardFolderStore;
+  /** Omit it and the star routes answer 404. */
+  stars?: DashboardStarStore;
+  /** Omit it and the recents routes answer 404. */
+  recents?: DashboardRecentStore;
   /** Limits, clock and fetch of the query editor. */
   authoringOptions?: Omit<QueryWorkbenchOptions, "authoring">;
   /** Clock, fetch and timeout for the connection test. For tests. */
@@ -280,8 +294,20 @@ export function createDashboardHandler(
       access,
       store: options.store,
       folders: options.folders,
+      stars: options.stars,
+      recents: options.recents,
       visibility,
       readBody,
+    }),
+    ...createStarRoutes({
+      access,
+      stars: options.stars,
+      atomic: scopeTransaction !== undefined,
+    }),
+    ...createRecentRoutes({
+      access,
+      recents: options.recents,
+      atomic: scopeTransaction !== undefined,
     }),
     async dashboards(request, match) {
       const method = request.method.toUpperCase();
@@ -367,10 +393,13 @@ export function createDashboardHandler(
           slug,
           action: "dashboard.delete",
         });
+        const ref = refOf(decision.identity.tenantId, match.scopeId, slug);
         if (decision.dashboard?.record == null) {
+          // A nontransactional host may have removed the dashboard before a
+          // cleanup failed. An authorized retry still finishes that cleanup.
+          await forgetPersonalDashboard(options, ref);
           throw DashboardServerError.notFound("Dashboard not found");
         }
-        const ref = refOf(decision.identity.tenantId, match.scopeId, slug);
         requireAtomicPrivateMutation(
           decision.dashboard.record.config,
           scopeTransaction !== undefined,
@@ -380,6 +409,7 @@ export function createDashboardHandler(
           ref,
           decision.dashboard.record.revision,
           scopeTransaction !== undefined,
+          options,
         );
         return noContentResponse();
       }

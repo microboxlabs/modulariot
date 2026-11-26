@@ -66,6 +66,16 @@ export type {
   NewFolder,
 } from "./seams/folders";
 
+// ---- Seam: stars ----
+export type { DashboardStarStore, StarScope } from "./seams/stars";
+
+// ---- Seam: recents ----
+export type {
+  DashboardRecentStore,
+  RecentOpen,
+  RecentScope,
+} from "./seams/recents";
+
 // ---- Seam: query authoring ----
 export type {
   AuthoringRequest,

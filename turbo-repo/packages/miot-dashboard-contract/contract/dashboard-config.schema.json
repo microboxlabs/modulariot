@@ -373,6 +373,14 @@
             "type": "string"
           }
         },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "maxItems": 20
+        },
         "visibility": {
           "type": "string",
           "enum": [

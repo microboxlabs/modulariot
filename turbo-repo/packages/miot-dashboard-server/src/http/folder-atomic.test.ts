@@ -10,11 +10,15 @@ import {
   createMemoryScopeAuthority,
   createMemoryStore,
   createMemoryTenantAuthority,
+  createMemoryStarStore,
+  createMemoryRecentStore,
 } from "../testing";
 import { openSqliteStore, SQLITE_MEMORY } from "../store/sqlite";
 import { openPostgresStore } from "../store/postgres";
 import { createPostgresDriver } from "../store/postgres-driver";
 import { createSqlFolderStore } from "../store/sql/folders";
+import { createSqlStarStore } from "../store/sql/stars";
+import { createSqlRecentStore } from "../store/sql/recents";
 import type { OpenedStore } from "../store/sql/open";
 import type { SqlDriver } from "../store/sql/driver";
 import { sampleConfig } from "../test/fixtures";
@@ -70,6 +74,12 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
           const folders = opened
             ? createSqlFolderStore(opened.driver)
             : createMemoryFolderStore(memory);
+          const stars = opened
+            ? createSqlStarStore(opened.driver)
+            : createMemoryStarStore({ store: memory });
+          const recents = opened
+            ? createSqlRecentStore(opened.driver)
+            : createMemoryRecentStore({ store: memory });
           await store.save(ref, sampleConfig(), { updatedBy: "owner" });
           const parent = await folders.create(
             scope,
@@ -89,6 +99,8 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
           };
           const options = {
             store,
+            stars,
+            recents,
             ...(withFolders ? { folders } : {}),
             identity: createInsecureHeaderIdentityResolver(),
             tenants: createMemoryTenantAuthority(memberships),
@@ -130,8 +142,54 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
             pauseAuthorization,
             handler,
             access,
+            stars,
+            recents,
           };
         }
+
+        it.each(["star", "open"] as const)(
+          "serializes a personal %s with dashboard deletion",
+          async (action) => {
+            const { handler, store, stars, recents } = await setup();
+            const entered = gate();
+            const finish = gate();
+            const write = action === "star" ? stars.star : recents.record;
+            const paused = async (...args: Parameters<typeof write>) => {
+              entered.release();
+              await finish.promise;
+              return write(...args);
+            };
+            if (action === "star") stars.star = paused;
+            else recents.record = paused;
+            const personal = handler(
+              new Request(
+                `http://localhost/tenants/acme/scopes/ops/dashboards/fleet/${action}`,
+                { method: "PUT", headers: { "x-dev-user": "bob" } },
+              ),
+            );
+            await entered.promise;
+            const deletion = handler(
+              new Request(
+                "http://localhost/tenants/acme/scopes/ops/dashboards/fleet",
+                { method: "DELETE", headers: { "x-dev-user": "owner" } },
+              ),
+            );
+            try {
+              // Give an incorrectly unlocked delete time to finish first.
+              await Promise.race([
+                deletion,
+                new Promise((resolve) => setTimeout(resolve, 100)),
+              ]);
+            } finally {
+              finish.release();
+            }
+            expect((await personal).status).toBe(204);
+            expect((await deletion).status).toBe(204);
+            await store.save(ref, sampleConfig(), { updatedBy: "owner" });
+            expect(await stars.list(scope, "bob")).toEqual([]);
+            expect(await recents.list(scope, "bob", 10)).toEqual([]);
+          },
+        );
 
         it.each(["http", "access"] as const)(
           "does not combine an old public config with a new public placement via %s",
@@ -357,7 +415,10 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
         });
 
         it("rolls back dashboard deletion and placement when folder deletion fails", async () => {
-          const { store, folders, child, remove } = await setup();
+          const { store, folders, child, remove, stars, recents } =
+            await setup();
+          await stars.star(scope, "bob", ref.slug);
+          await recents.record(scope, "bob", ref.slug);
           folders.removeFolders = async () => {
             throw new Error("Folder deletion failed");
           };
@@ -367,6 +428,10 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
             child.id,
           );
           expect(await folders.list(scope)).toHaveLength(2);
+          expect(await stars.list(scope, "bob")).toEqual([ref.slug]);
+          expect(await recents.list(scope, "bob", 10)).toEqual([
+            { slug: ref.slug, openedAt: expect.any(String) },
+          ]);
         });
 
         it("refuses to delete a revision changed after authorization", async () => {

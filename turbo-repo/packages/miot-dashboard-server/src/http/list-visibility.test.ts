@@ -58,10 +58,38 @@ describe("dashboard list visibility", () => {
     const response = await request();
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      data: [{ slug: "open", name: "Open" }],
+      data: [{ slug: "open", name: "Open", updatedAt: expect.any(String) }],
     });
     expect(resolve).toHaveBeenCalledTimes(1);
     expect((await request("/secret")).status).toBe(403);
+  });
+
+  it("returns when each dashboard was created, where the store knows, and last saved", async () => {
+    const { store, request } = setup();
+    const ref = { tenantId: "acme", scopeId: "ops" };
+    const created = await store.save(
+      { ...ref, slug: "fresh" },
+      sampleConfig({ name: "Fresh" }),
+      { updatedBy: "viewer" },
+    );
+    // Seeded without a creation time, as rows saved before it was recorded:
+    // a later save does not invent one.
+    const open = await store.save(
+      { ...ref, slug: "open" },
+      sampleConfig({ name: "Open" }),
+      { updatedBy: "viewer" },
+    );
+    expect(await (await request()).json()).toEqual({
+      data: expect.arrayContaining([
+        {
+          slug: "fresh",
+          name: "Fresh",
+          createdAt: created.createdAt,
+          updatedAt: created.updatedAt,
+        },
+        { slug: "open", name: "Open", updatedAt: open.updatedAt },
+      ]),
+    });
   });
 
   it("returns each dashboard's order and lists by it, unordered last", async () => {
@@ -82,9 +110,20 @@ describe("dashboard list visibility", () => {
     });
     expect(await (await request()).json()).toEqual({
       data: [
-        { slug: "first", name: "Zeta", order: 1 },
-        { slug: "open", name: "Open", order: 3 },
-        { slug: "plain", name: "Alpha" },
+        {
+          slug: "first",
+          name: "Zeta",
+          order: 1,
+          createdAt: expect.any(String),
+          updatedAt: expect.any(String),
+        },
+        { slug: "open", name: "Open", order: 3, updatedAt: expect.any(String) },
+        {
+          slug: "plain",
+          name: "Alpha",
+          createdAt: expect.any(String),
+          updatedAt: expect.any(String),
+        },
       ],
     });
   });
@@ -117,8 +156,8 @@ describe("dashboard list visibility", () => {
     const response = await request();
     expect(await response.json()).toEqual({
       data: [
-        { slug: "open", name: "Open" },
-        { slug: "secret", name: "Now public" },
+        { slug: "open", name: "Open", updatedAt: expect.any(String) },
+        { slug: "secret", name: "Now public", updatedAt: expect.any(String) },
       ],
     });
   });

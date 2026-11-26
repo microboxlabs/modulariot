@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import Ajv from "ajv";
 
 import { ARTIFACT_URL, buildJsonSchema } from "../scripts/generate-json-schema";
 import { DEFAULT_STORAGE, type Widget } from "./document";
@@ -22,6 +23,26 @@ function widget(id: string, children?: Widget[]): Widget {
 }
 
 describe("validateDashboardConfig", () => {
+  it.each(["x", "😀"])(
+    "counts tag characters consistently for %s",
+    (character) => {
+      const validateJson = new Ajv({ strict: false }).compile(
+        JSON.parse(buildJsonSchema()),
+      );
+      for (const length of [40, 41]) {
+        const config = { ...DEFAULT_STORAGE, tags: [character.repeat(length)] };
+        expect(validateDashboardConfig(config).valid).toBe(length <= 40);
+        expect(validateJson(config)).toBe(length <= 40);
+      }
+      expect(
+        validateDashboardConfig({
+          ...DEFAULT_STORAGE,
+          tags: Array(21).fill("tag"),
+        }).valid,
+      ).toBe(false);
+    },
+  );
+
   it("accepts the default document", () => {
     const result = validateDashboardConfig(DEFAULT_STORAGE);
     expect(result.valid).toBe(true);

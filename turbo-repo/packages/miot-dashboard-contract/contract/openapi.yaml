@@ -45,6 +45,16 @@ tags:
       dashboards and nothing else: it holds no config and grants no access.
       Served only where the host keeps folders; every route here answers
       `404` elsewhere.
+  - name: stars
+    description: >
+      Each member's starred dashboards. A star is personal: nobody else sees
+      it and it changes nothing about the dashboard. Served only where the
+      host keeps stars; every route here answers `404` elsewhere.
+  - name: recents
+    description: >
+      The dashboards each member opened lately. Like a star, an open is
+      personal: nobody else sees it. Served only where the host keeps
+      recents; every route here answers `404` elsewhere.
   - name: datasources
     description: Where a dashboard's data comes from. Tenant-level.
   - name: credentials
@@ -494,6 +504,189 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           description: The dashboard, the folder, or folders at all, do not exist here.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/star:
+    put:
+      operationId: starDashboard
+      tags: [stars]
+      summary: Star a dashboard
+      description: >
+        Stars the dashboard for the caller. Anyone who may open the dashboard
+        may star it. Starring twice is the same as starring once. Requires
+        a host store that serializes the write with dashboard deletion.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+      responses:
+        "204":
+          description: Starred. No body.
+        "400":
+          description: The host store cannot serialize personal writes with deletion.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The dashboard, or stars at all, do not exist here.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: unstarDashboard
+      tags: [stars]
+      summary: Unstar a dashboard
+      description: >
+        Removes the caller's star. Unstarring a dashboard that is not starred,
+        or no longer exists, succeeds.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+      responses:
+        "204":
+          description: Not starred. No body.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Stars do not exist here.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /tenants/{tenantId}/scopes/{scopeId}/stars:
+    get:
+      operationId: listStars
+      tags: [stars]
+      summary: The caller's starred dashboards
+      description: >
+        The slugs of the dashboards the caller has starred in the scope,
+        sorted. A slug may name a dashboard the caller can no longer see;
+        match it against the dashboard listing.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+      responses:
+        "200":
+          description: The starred slugs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Stars do not exist here.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/open:
+    put:
+      operationId: openDashboard
+      tags: [recents]
+      summary: Note that the caller opened a dashboard
+      description: >
+        Records the caller's open of the dashboard now, moving it to the front
+        of their recents. Anyone who may open the dashboard may record it.
+        Only the latest open of each dashboard is kept. Requires a host store
+        that serializes the write with dashboard deletion.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+      responses:
+        "204":
+          description: Recorded. No body.
+        "400":
+          description: The host store cannot serialize personal writes with deletion.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: The dashboard, or recents at all, do not exist here.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /tenants/{tenantId}/scopes/{scopeId}/recents:
+    get:
+      operationId: listRecents
+      tags: [recents]
+      summary: The caller's recently opened dashboards
+      description: >
+        The dashboards the caller opened in the scope, newest first, each
+        once with its latest open. A slug may name a dashboard the caller can
+        no longer see; match it against the dashboard listing.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - name: limit
+          in: query
+          required: false
+          description: How many to return; 12 when absent, at most 500.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: The latest opens.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [slug, openedAt]
+                      properties:
+                        slug:
+                          type: string
+                        openedAt:
+                          type: string
+                          format: date-time
+        "400":
+          description: The limit is not a positive integer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Recents do not exist here.
           content:
             application/json:
               schema:
@@ -1842,6 +2035,25 @@ components:
           description: >
             The folder the dashboard is filed in. Absent at the top level, and
             always absent where the host keeps no folders.
+        tags:
+          type: array
+          items:
+            type: string
+          description: >
+            The config's `tags`, trimmed and without repeats. Absent when the
+            dashboard has none.
+        createdAt:
+          type: string
+          format: date-time
+          description: >
+            When the dashboard was first saved. Absent where the host does not
+            record it, including dashboards saved before it did.
+        updatedAt:
+          type: string
+          format: date-time
+          description: >
+            When the dashboard was last saved: an edit to its config, a rename
+            included. Filing it in a folder or starring it does not count.
     DashboardFolder:
       type: object
       required: [id, name, parentId]

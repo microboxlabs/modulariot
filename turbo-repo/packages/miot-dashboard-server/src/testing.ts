@@ -38,6 +38,8 @@ import type {
   DataSourceStore,
 } from "./seams/datasources";
 import type { DashboardFolder, DashboardFolderStore } from "./seams/folders";
+import type { DashboardStarStore } from "./seams/stars";
+import type { DashboardRecentStore, RecentOpen } from "./seams/recents";
 import {
   applyFolderPatch,
   folderSubtree,
@@ -189,6 +191,7 @@ export function createMemoryStore(
         );
       }
       const at = now().toISOString();
+      const createdAt = existing === undefined ? at : existing.record.createdAt;
       const record: DashboardRecord = {
         config,
         updatedAt: at,
@@ -199,6 +202,9 @@ export function createMemoryStore(
         ...(existing?.record.createdBy !== undefined
           ? { createdBy: existing.record.createdBy }
           : { createdBy: saveOptions.updatedBy }),
+        // Set once as well, as the SQL store does. An entry seeded without
+        // one stays without one, like a row saved before it was recorded.
+        ...(createdAt === undefined ? {} : { createdAt }),
       };
       revisions.set(key(ref), record.revision);
       entries.set(key(ref), {
@@ -730,6 +736,105 @@ export function createMemoryFolderStore(
       transaction(scope, () => adapter.setVisibility(scope, id, visibility)),
     placeDashboard: (scope, slug, id) =>
       transaction(scope, () => adapter.placeDashboard(scope, slug, id)),
+  };
+}
+
+// ------------------------------------------------------------- recents ----
+
+/** Opens in memory, keyed by tenant, scope and member. */
+export function createMemoryRecentStore(
+  options: { now?: () => Date; store?: MemoryStore } = {},
+): DashboardRecentStore {
+  const now = options.now ?? (() => new Date());
+  const opens = new Map<string, Map<string, string>>();
+  const keyOf = (
+    scope: { tenantId: string; scopeId: string },
+    userId: string,
+  ) => JSON.stringify([scope.tenantId, scope.scopeId, userId]);
+  const scopePrefix = (scope: { tenantId: string; scopeId: string }) =>
+    JSON.stringify([scope.tenantId, scope.scopeId]).slice(0, -1) + ",";
+  const forget = (scope: { tenantId: string; scopeId: string }, slug: string) => {
+    const prefix = scopePrefix(scope);
+    for (const [key, mine] of opens) {
+      if (key.startsWith(prefix)) mine.delete(slug);
+    }
+  };
+  // A bound adapter joins dashboard deletion and its rollback boundary.
+  options.store?.onRemove(
+    (ref) => forget(ref, ref.slug),
+    () => snapshotMap(opens, (mine) => new Map(mine)),
+  );
+  return {
+    list(scope, userId, limit) {
+      const mine = opens.get(keyOf(scope, userId)) ?? new Map();
+      const listed: RecentOpen[] = [...mine]
+        .map(([slug, openedAt]) => ({ slug, openedAt }))
+        .sort(
+          (a, b) =>
+            b.openedAt.localeCompare(a.openedAt) ||
+            a.slug.localeCompare(b.slug),
+        );
+      return Promise.resolve(listed.slice(0, limit));
+    },
+    record(scope, userId, slug) {
+      const key = keyOf(scope, userId);
+      const mine = opens.get(key) ?? new Map<string, string>();
+      const openedAt = now().toISOString();
+      const previous = mine.get(slug);
+      if (previous === undefined || openedAt > previous) mine.set(slug, openedAt);
+      opens.set(key, mine);
+      return Promise.resolve();
+    },
+    forget(scope, slug) {
+      forget(scope, slug);
+      return Promise.resolve();
+    },
+  };
+}
+
+// --------------------------------------------------------------- stars ----
+
+/** Stars in memory, keyed by tenant, scope and member. */
+export function createMemoryStarStore(
+  options: { store?: MemoryStore } = {},
+): DashboardStarStore {
+  const stars = new Map<string, Set<string>>();
+  const keyOf = (
+    scope: { tenantId: string; scopeId: string },
+    userId: string,
+  ) => JSON.stringify([scope.tenantId, scope.scopeId, userId]);
+  const scopePrefix = (scope: { tenantId: string; scopeId: string }) =>
+    JSON.stringify([scope.tenantId, scope.scopeId]).slice(0, -1) + ",";
+  const forget = (scope: { tenantId: string; scopeId: string }, slug: string) => {
+    const prefix = scopePrefix(scope);
+    for (const [key, slugs] of stars) {
+      if (key.startsWith(prefix)) slugs.delete(slug);
+    }
+  };
+  options.store?.onRemove(
+    (ref) => forget(ref, ref.slug),
+    () => snapshotMap(stars, (slugs) => new Set(slugs)),
+  );
+  return {
+    list: (scope, userId) =>
+      Promise.resolve(
+        [...(stars.get(keyOf(scope, userId)) ?? [])].sort((a, b) =>
+          a.localeCompare(b),
+        ),
+      ),
+    star(scope, userId, slug) {
+      const key = keyOf(scope, userId);
+      stars.set(key, new Set([...(stars.get(key) ?? []), slug]));
+      return Promise.resolve();
+    },
+    unstar(scope, userId, slug) {
+      stars.get(keyOf(scope, userId))?.delete(slug);
+      return Promise.resolve();
+    },
+    forget(scope, slug) {
+      forget(scope, slug);
+      return Promise.resolve();
+    },
   };
 }
 

@@ -28,6 +28,8 @@ import {
   type ScopeVisibility,
 } from "../access/visibility";
 import type { DashboardFolderStore, FolderScope } from "../seams/folders";
+import type { DashboardStarStore } from "../seams/stars";
+import type { DashboardRecentStore } from "../seams/recents";
 import type {
   PermissionAssignment,
   ServerDashboardStore,
@@ -50,6 +52,10 @@ export interface FolderRouteOptions {
   store: ServerDashboardStore;
   /** Omitted: every folder route answers 404. */
   folders: DashboardFolderStore | undefined;
+  /** Forgets the stars on the dashboards a folder delete removes. */
+  stars?: DashboardStarStore;
+  /** Forgets the opens of the dashboards a folder delete removes. */
+  recents?: DashboardRecentStore;
   /** The scope's folders, their permissions and where dashboards are. */
   visibility?: (scope: FolderScope) => Promise<ScopeVisibility>;
   readBody: (request: Request) => Promise<unknown>;
@@ -216,6 +222,7 @@ export function createFolderRoutes(
         { ...scope, slug },
         revision,
         true,
+        options,
       );
     }
     await folders.removeFolders(scope, subtree.folderIds);

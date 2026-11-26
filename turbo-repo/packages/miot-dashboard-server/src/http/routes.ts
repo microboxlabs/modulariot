@@ -18,6 +18,10 @@ export type RouteName =
   | "folders"
   | "folder"
   | "folderPermissions"
+  | "stars"
+  | "dashboardStar"
+  | "recents"
+  | "dashboardOpen"
   | "datasources"
   | "datasourcesTest"
   | "datasource"
@@ -88,6 +92,12 @@ export function matchRoute(pathname: string): RouteMatch | null {
   if (collection === "folders") {
     return matchFolders(segments, tenantId, scopeId);
   }
+  if (collection === "stars" && segments.length === 5) {
+    return { route: "stars", tenantId, scopeId };
+  }
+  if (collection === "recents" && segments.length === 5) {
+    return { route: "recents", tenantId, scopeId };
+  }
   if (collection !== "dashboards") return null;
   return matchDashboards(segments, tenantId, scopeId);
 }
@@ -97,6 +107,8 @@ const DASHBOARD_ACTIONS = {
   capabilities: "capabilities",
   permissions: "permissions",
   folder: "dashboardFolder",
+  star: "dashboardStar",
+  open: "dashboardOpen",
 } as const;
 
 function matchDashboards(

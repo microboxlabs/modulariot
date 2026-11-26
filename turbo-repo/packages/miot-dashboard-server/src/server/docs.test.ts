@@ -31,6 +31,8 @@ import {
   createMemoryCredentialsStore,
   createMemoryDataSourceStore,
   createMemoryFolderStore,
+  createMemoryStarStore,
+  createMemoryRecentStore,
   createMemoryScopeAuthority,
   createMemoryTenantAuthority,
   createMemoryStore,
@@ -483,6 +485,12 @@ describe("the spec against the router", () => {
     folder: "/tenants/{tenantId}/scopes/{scopeId}/folders/{folderId}",
     folderPermissions:
       "/tenants/{tenantId}/scopes/{scopeId}/folders/{folderId}/permissions",
+    stars: "/tenants/{tenantId}/scopes/{scopeId}/stars",
+    recents: "/tenants/{tenantId}/scopes/{scopeId}/recents",
+    dashboardOpen:
+      "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/open",
+    dashboardStar:
+      "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/star",
     datasources: "/tenants/{tenantId}/scopes/{scopeId}/datasources",
     datasourcesTest: "/tenants/{tenantId}/scopes/{scopeId}/datasources/test",
     datasource:
@@ -554,6 +562,8 @@ describe("the spec against the router", () => {
       dataSources: createMemoryDataSourceStore(),
       credentials: createMemoryCredentialsStore(),
       folders: createMemoryFolderStore(store),
+      stars: createMemoryStarStore(),
+      recents: createMemoryRecentStore(),
       queries: { operations: { execute: async () => ({ rows: [] }) } },
       queryCatalog: { list: async () => [] },
       authoring: {

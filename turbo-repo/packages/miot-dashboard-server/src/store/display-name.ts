@@ -11,6 +11,20 @@ export function dashboardSortOrder(config: unknown): number | undefined {
     : undefined;
 }
 
+/** The config's tags: trimmed, non-empty, each once, in the order given. */
+export function dashboardTags(config: unknown): string[] {
+  if (typeof config !== "object" || config === null) return [];
+  const tags: unknown = (config as { tags?: unknown }).tags;
+  if (!Array.isArray(tags)) return [];
+  const seen = new Set<string>();
+  for (const tag of tags) {
+    if (typeof tag !== "string") continue;
+    const trimmed = tag.trim();
+    if (trimmed.length > 0) seen.add(trimmed);
+  }
+  return [...seen];
+}
+
 export function dashboardDisplayName(config: unknown, slug: string): string {
   if (typeof config === "object" && config !== null) {
     const named: unknown = (config as { name?: unknown }).name;

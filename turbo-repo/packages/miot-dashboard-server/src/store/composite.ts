@@ -131,6 +131,7 @@ export function createCompositeStore(
       updatedAt: string;
       updatedBy: string;
       createdBy?: string;
+      createdAt?: string;
     },
     config: unknown,
   ): DashboardRecord => ({
@@ -139,6 +140,7 @@ export function createCompositeStore(
     updatedBy: row.updatedBy,
     revision: row.revision,
     ...(row.createdBy !== undefined ? { createdBy: row.createdBy } : {}),
+    ...(row.createdAt !== undefined ? { createdAt: row.createdAt } : {}),
   });
 
   return {

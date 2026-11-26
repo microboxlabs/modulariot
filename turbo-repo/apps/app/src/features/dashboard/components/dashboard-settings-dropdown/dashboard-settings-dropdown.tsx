@@ -42,7 +42,10 @@ import { DashboardPermissionsModal } from "../dashboard-permissions-modal";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import { SettingsPermissionsForm } from "./settings-permissions-form";
-import { SettingsTagsForm } from "./settings-tags-form";
+import {
+  SettingsTagsForm,
+  useSettingsTagsForm,
+} from "./settings-tags-form";
 import type {
   DashboardFilterParam,
   DashboardFilterOption,
@@ -1361,6 +1364,10 @@ export default function DashboardSettingsDropdown({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const tagsForm = useSettingsTagsForm(
+    tags,
+    (next) => host?.saveDetails?.({ tags: next }) ?? Promise.resolve(false)
+  );
 
   const togglePanel = () => {
     setSelected(null);
@@ -1590,8 +1597,7 @@ export default function DashboardSettingsDropdown({
             >
               {selected === "tags" && (
                 <SettingsTagsForm
-                  tags={tags}
-                  onSave={(tags) => host.saveDetails?.({ tags }) ?? Promise.resolve(false)}
+                  state={tagsForm}
                   dictionary={dictionary}
                 />
               )}

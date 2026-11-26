@@ -56,8 +56,12 @@ export function usePrincipalDirectory(enabled: boolean) {
   const teams = useTeams(enabled);
   const principals = useMemo(() => {
     if (!enabled) return EMPTY;
-    const validMembers = membersSchema.safeParse(members.data);
-    const validTeams = teamsSchema.safeParse(teams.data);
+    const validMembers = membersSchema.safeParse(
+      members.error ? undefined : members.data
+    );
+    const validTeams = teamsSchema.safeParse(
+      teams.error ? undefined : teams.data
+    );
     const people: Principal[] = (validMembers.data?.members ?? []).flatMap(
       (m) =>
         m.email
@@ -81,7 +85,7 @@ export function usePrincipalDirectory(enabled: boolean) {
     const byName = (a: Principal, b: Principal) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
     return [...people.sort(byName), ...groups.sort(byName)];
-  }, [enabled, members.data, teams.data]);
+  }, [enabled, members.data, members.error, teams.data, teams.error]);
   return {
     principals,
     isLoading: enabled && (members.isLoading || teams.isLoading),

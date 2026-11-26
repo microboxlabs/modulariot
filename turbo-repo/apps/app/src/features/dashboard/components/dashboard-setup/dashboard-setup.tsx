@@ -109,6 +109,19 @@ function FirstDashletCard({
   );
 }
 
+function rebaseTags(
+  draft: { base: readonly string[]; tags: readonly string[] },
+  current: readonly string[]
+) {
+  const removed = new Set(
+    draft.base.filter((tag) => !draft.tags.includes(tag))
+  );
+  const added = draft.tags.filter((tag) => !draft.base.includes(tag));
+  return [
+    ...new Set([...current.filter((tag) => !removed.has(tag)), ...added]),
+  ];
+}
+
 function SetupFlow({
   dictionary,
   onAdd,
@@ -139,8 +152,21 @@ function SetupFlow({
   }, [active]);
   const [saving, setSaving] = useState(false);
   const directory = usePrincipalDirectory(permissionsState.canManage);
-  const [tagsDraft, setTagsDraft] = useState<string[] | null>(null);
-  const tags = tagsDraft ?? [...initialTags];
+  const [tagsDraft, setTagsDraft] = useState<{
+    base: readonly string[];
+    tags: string[];
+  } | null>(null);
+  const tags =
+    tagsDraft === null ? [...initialTags] : rebaseTags(tagsDraft, initialTags);
+  const latestTags = useRef(tags);
+  latestTags.current = tags;
+  const transition = useRef(0);
+  useEffect(
+    () => () => {
+      transition.current += 1;
+    },
+    []
+  );
   const [visibilityDraft, setVisibilityDraft] = useState<Visibility | null>(
     null
   );
@@ -164,6 +190,11 @@ function SetupFlow({
 
   /** Every forward route saves the steps it leaves, including stepper links. */
   const select = async (target: number) => {
+    const attempt = ++transition.current;
+    const requestedUrl = globalThis.location.href;
+    const isCurrent = () =>
+      attempt === transition.current &&
+      globalThis.location.href === requestedUrl;
     if (target === active) return true;
     if (blocked) return false;
     if (target < active) {
@@ -173,13 +204,18 @@ function SetupFlow({
     setSaving(true);
     try {
       if (step === "permissions" && !(await savePermissions())) return false;
+      if (!isCurrent()) return false;
       let saved = true;
       if (SETUP_STEPS[target] === "dashlet") {
         saved =
-          (await onFinish?.(tagsDraft ?? undefined, visibilityChange)) ?? true;
+          (await onFinish?.(
+            tagsDraft === null ? undefined : latestTags.current,
+            visibilityChange
+          )) ?? true;
       } else if (visibilityChange !== undefined) {
         saved = (await onVisibilityChange?.(visibilityChange)) ?? true;
       }
+      if (!isCurrent()) return false;
       if (!saved) {
         ShowNotification({
           type: "error",
@@ -200,7 +236,9 @@ function SetupFlow({
   navigation.current = select;
   const changeTags = (next: string[]) =>
     setTagsDraft(
-      JSON.stringify(next) === JSON.stringify(initialTags) ? null : next
+      JSON.stringify(next) === JSON.stringify(initialTags)
+        ? null
+        : { base: initialTags, tags: next }
     );
   const changeVisibility = (next: Visibility) =>
     setVisibilityDraft(next === visibility ? null : next);
@@ -214,7 +252,10 @@ function SetupFlow({
     setSaving(true);
     try {
       const saved =
-        (await onFinish?.(tagsDraft ?? undefined, visibilityChange)) ?? true;
+        (await onFinish?.(
+          tagsDraft === null ? undefined : latestTags.current,
+          visibilityChange
+        )) ?? true;
       if (saved) onAdd();
       else
         ShowNotification({

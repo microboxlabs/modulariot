@@ -1,5 +1,6 @@
 import {
   fireEvent,
+  act,
   render,
   screen,
   waitFor,
@@ -218,6 +219,45 @@ it("retains tag edits and a retry when persistence fails", async () => {
   fireEvent.click(save);
   await waitFor(() =>
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  );
+  expect(state.saveDetails).toHaveBeenCalledTimes(2);
+});
+
+it("retains pending tag edits and failure after closing and reopening settings", async () => {
+  let finish!: (saved: boolean) => void;
+  state.saveDetails.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      })
+  );
+  open(host());
+  const openTags = () =>
+    fireEvent.click(
+      screen.getByRole("button", { name: /dashboard\.settings\.tagsTitle/ })
+    );
+  openTags();
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.setup.tags.remove" })
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.explorer.tagsDialog.save" })
+  );
+  fireEvent.click(screen.getByTitle("Dashboard settings"));
+  await act(async () => finish(false));
+  fireEvent.click(screen.getByTitle("Dashboard settings"));
+  openTags();
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "dashboard.server.saveError"
+  );
+  expect(
+    screen.queryByRole("button", { name: "dashboard.setup.tags.remove" })
+  ).not.toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.explorer.tagsDialog.save" })
+  );
+  await waitFor(() =>
+    expect(state.saveDetails).toHaveBeenLastCalledWith({ tags: [] })
   );
   expect(state.saveDetails).toHaveBeenCalledTimes(2);
 });

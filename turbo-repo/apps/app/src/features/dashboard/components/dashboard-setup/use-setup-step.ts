@@ -42,6 +42,7 @@ export function useSetupStep(
   const previousRequested = useRef(requested);
   const urlSelect = useRef(onUrlSelect);
   urlSelect.current = onUrlSelect;
+  const transition = useRef(0);
   const activeStep = useRef(active);
   activeStep.current = active;
   const select = useCallback((index: number) => {
@@ -60,10 +61,12 @@ export function useSetupStep(
   useEffect(() => {
     if (previousRequested.current === requested) return;
     previousRequested.current = requested;
+    const attempt = ++transition.current;
     const target = setupStepIndex(requested);
     if (urlSelect.current) {
       void urlSelect.current(target).then((saved) => {
-        if (!saved) select(activeStep.current);
+        if (!saved && attempt === transition.current)
+          select(activeStep.current);
       });
     } else {
       setActive(target);

@@ -392,6 +392,54 @@ describe("EmptyState setup steps", () => {
     expect(onFinishSetup).toHaveBeenLastCalledWith(undefined, undefined);
   });
 
+  it("rebases tag edits over tags saved from settings", async () => {
+    const { user, changeSavedTags, onFinishSetup } = setup(true, false, [
+      "old",
+      "removed-elsewhere",
+    ]);
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Remove old" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Type a tag and press Enter" }),
+      "local{Enter}"
+    );
+    changeSavedTags(["old", "remote"]);
+    expect(
+      screen.queryByRole("button", { name: "Remove removed-elsewhere" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove remote" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(onFinishSetup).toHaveBeenLastCalledWith(
+      ["remote", "local"],
+      undefined
+    );
+  });
+
+  it.each([true, false])(
+    "cancels an abandoned URL transition when the pending save returns %s",
+    async (saved) => {
+      const { user, refreshUrl, onFinishSetup } = setup();
+      await user.click(search());
+      await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+      let finish!: (value: boolean) => void;
+      perms.save.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          })
+      );
+      openAt("?step=dashlet");
+      refreshUrl();
+      await waitFor(() => expect(perms.save).toHaveBeenCalledOnce());
+      openAt("?step=permissions");
+      refreshUrl();
+      await act(async () => finish(saved));
+      expect(onFinishSetup).not.toHaveBeenCalled();
+      expect(globalThis.location.search).toBe("?step=permissions");
+      expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+    }
+  );
+
   it("routes a URL step change through the pending permission save", async () => {
     const { user, refreshUrl, onFinishSetup } = setup();
     await user.click(search());

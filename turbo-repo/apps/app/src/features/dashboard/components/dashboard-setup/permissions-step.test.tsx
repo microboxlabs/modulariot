@@ -33,7 +33,7 @@ it("shares by email when the directory is unavailable, validating input and dupl
       assignments={[{ authorityId: "ana@acme.io", role: "Consumer" }]}
     />
   );
-  await user.type(email, "ana@acme.io");
+  await user.type(email, "ana@Acme.io");
   expect(screen.getByRole("button", { name: "addEmail" })).toBeDisabled();
 });
 

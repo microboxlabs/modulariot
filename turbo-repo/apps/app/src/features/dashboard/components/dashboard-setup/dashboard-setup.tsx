@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "flowbite-react";
 import { HiArrowLeft, HiArrowRight, HiPlus } from "react-icons/hi2";
 import type { DashboardPermissionsOptions } from "@microboxlabs/miot-dashboard-ui/react";
@@ -39,7 +39,10 @@ interface DashboardSetupProps {
   /** The dashboard's tags, where the tags step starts from. */
   initialTags: readonly string[];
   /** Saves the tags and ends the setup, on leaving the tags step. */
-  onFinish?: (tags: string[], visibility?: Visibility) => Promise<boolean>;
+  onFinish?: (
+    tags: string[] | undefined,
+    visibility?: Visibility
+  ) => Promise<boolean>;
   /** Who sees the dashboard, where the permissions step starts from. */
   visibility: Visibility;
   /** Saves who sees it, on leaving the permissions step. */
@@ -126,9 +129,12 @@ function SetupFlow({
   // Opened at a later step (a reload, a shared link): the ones before it
   // count as done.
   const [unlocked, setUnlocked] = useState(active);
+  useEffect(() => {
+    setUnlocked((current) => Math.max(current, active));
+  }, [active]);
   const [saving, setSaving] = useState(false);
   const directory = usePrincipalDirectory(permissionsState.canManage);
-  const [tagsDraft, setTags] = useState<string[] | null>(null);
+  const [tagsDraft, setTagsDraft] = useState<string[] | null>(null);
   const tags = tagsDraft ?? [...initialTags];
   const [visibilityDraft, setVisibilityDraft] = useState<Visibility | null>(
     null
@@ -163,7 +169,8 @@ function SetupFlow({
       if (step === "permissions" && !(await savePermissions())) return;
       let saved = true;
       if (SETUP_STEPS[target] === "dashlet") {
-        saved = (await onFinish?.(tags, visibilityChange)) ?? true;
+        saved =
+          (await onFinish?.(tagsDraft ?? undefined, visibilityChange)) ?? true;
       } else if (visibilityChange !== undefined) {
         saved = (await onVisibilityChange?.(visibilityChange)) ?? true;
       }
@@ -175,7 +182,7 @@ function SetupFlow({
         return;
       }
       setVisibilityDraft(null);
-      if (SETUP_STEPS[target] === "dashlet") setTags(null);
+      if (SETUP_STEPS[target] === "dashlet") setTagsDraft(null);
       setUnlocked((current) => Math.max(current, target));
       setActive(target);
     } finally {
@@ -191,7 +198,8 @@ function SetupFlow({
     }
     setSaving(true);
     try {
-      const saved = (await onFinish?.(tags, visibilityChange)) ?? true;
+      const saved =
+        (await onFinish?.(tagsDraft ?? undefined, visibilityChange)) ?? true;
       if (saved) onAdd();
       else
         ShowNotification({
@@ -274,7 +282,11 @@ function SetupFlow({
               />
             )}
             {step === "tags" && (
-              <TagsStep tags={tags} onChange={setTags} t={scoped("tags")} />
+              <TagsStep
+                tags={tags}
+                onChange={setTagsDraft}
+                t={scoped("tags")}
+              />
             )}
             {step === "dashlet" && (
               <DashletStep

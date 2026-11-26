@@ -34,6 +34,10 @@ export function useSetupStep(): [number, (index: number) => void] {
   const [active, setActive] = useState(() =>
     setupStepIndex(searchParams.get(SETUP_STEP_PARAM))
   );
+  const requested = searchParams.get(SETUP_STEP_PARAM);
+  useEffect(() => {
+    setActive(setupStepIndex(requested));
+  }, [requested]);
   const select = useCallback((index: number) => {
     if (
       location.current === null ||

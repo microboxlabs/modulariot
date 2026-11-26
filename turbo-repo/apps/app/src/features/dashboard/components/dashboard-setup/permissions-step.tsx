@@ -47,6 +47,15 @@ const ICON = "h-4 w-4 text-gray-600 dark:text-gray-400";
 /** How many members and teams a click on the empty search shows of each. */
 const SHOWN_BEFORE_TYPING = 5;
 
+/** Domain names are case insensitive; preserve the mailbox's spelling. */
+function canonicalEmail(value: string) {
+  const email = value.trim();
+  const at = email.lastIndexOf("@");
+  return at < 0
+    ? email
+    : email.slice(0, at + 1) + email.slice(at + 1).toLowerCase();
+}
+
 /** Sharing still works when organization directory access is unavailable. */
 function EmailPermissionForm({
   taken,
@@ -58,13 +67,14 @@ function EmailPermissionForm({
   t: T;
 }>) {
   const [email, setEmail] = useState("");
-  const trimmed = email.trim();
+  const trimmed = canonicalEmail(email);
+  const existing = new Set([...taken].map(canonicalEmail));
   return (
     <form
       className="flex gap-2"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!trimmed || taken.has(trimmed)) return;
+        if (!trimmed || existing.has(trimmed)) return;
         onAdd(trimmed);
         setEmail("");
       }}
@@ -80,7 +90,7 @@ function EmailPermissionForm({
       />
       <button
         type="submit"
-        disabled={!trimmed || taken.has(trimmed)}
+        disabled={!trimmed || existing.has(trimmed)}
         className="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50"
       >
         {t("addEmail")}

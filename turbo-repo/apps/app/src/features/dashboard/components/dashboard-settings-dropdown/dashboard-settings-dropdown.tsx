@@ -1351,7 +1351,6 @@ export default function DashboardSettingsDropdown({
     siteId,
     tags,
     visibility,
-    setDetails,
   } = useDashboard();
 
   const router = useRouter();
@@ -1592,7 +1591,7 @@ export default function DashboardSettingsDropdown({
               {selected === "tags" && (
                 <SettingsTagsForm
                   tags={tags}
-                  onSave={(next) => setDetails({ tags: next })}
+                  onSave={(tags) => host.saveDetails?.({ tags }) ?? Promise.resolve(false)}
                   dictionary={dictionary}
                 />
               )}

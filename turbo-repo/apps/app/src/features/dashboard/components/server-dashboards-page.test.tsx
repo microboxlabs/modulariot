@@ -239,6 +239,10 @@ describe("parallel dashboard pages", () => {
     const write = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
     expect(write?.[0]).toBe("/app/api/dashboards/demo-validacion?org=acme");
     expect(write?.[1]?.headers).toMatchObject({ "if-match": '"0"' });
+    expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
+      visibility: "restricted",
+      started: false,
+    });
   });
   it("refuses a name whose id is already listed, without writing", async () => {
     state.canEdit = true;

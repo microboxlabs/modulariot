@@ -40,7 +40,10 @@ interface DashboardPlaceholderProps {
   permissions?: DashboardPermissionsOptions;
   started: boolean;
   tags: readonly string[];
-  onFinishSetup: (tags: string[], visibility?: Visibility) => Promise<boolean>;
+  onFinishSetup: (
+    tags: string[] | undefined,
+    visibility?: Visibility
+  ) => Promise<boolean>;
   visibility: Visibility;
   onVisibilityChange: (visibility: Visibility) => Promise<boolean>;
 }
@@ -200,28 +203,28 @@ export function DashboardView({
   );
 
   /** Leaving the setup's tags step: its tags are saved and the setup is over. */
+  const saveDetails = settingsHost?.saveDetails;
   const finishSetup = useCallback(
-    async (nextTags: string[], nextVisibility?: Visibility) => {
+    async (nextTags: string[] | undefined, nextVisibility?: Visibility) => {
       const details = {
-        tags: nextTags,
+        ...(nextTags === undefined ? {} : { tags: nextTags }),
         started: true,
         ...(nextVisibility === undefined ? {} : { visibility: nextVisibility }),
       };
-      if (settingsHost?.saveDetails) return settingsHost.saveDetails(details);
+      if (saveDetails) return saveDetails(details);
       setDetails(details);
       return true;
     },
-    [setDetails, settingsHost?.saveDetails]
+    [setDetails, saveDetails]
   );
 
   const changeVisibility = useCallback(
     async (next: Visibility) => {
-      if (settingsHost?.saveDetails)
-        return settingsHost.saveDetails({ visibility: next });
+      if (saveDetails) return saveDetails({ visibility: next });
       setDetails({ visibility: next });
       return true;
     },
-    [setDetails, settingsHost?.saveDetails]
+    [setDetails, saveDetails]
   );
 
   return (

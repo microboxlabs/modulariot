@@ -180,7 +180,7 @@ it("hides delete when the host does not allow it", () => {
   ).not.toBeInTheDocument();
 });
 
-it("edits the dashboard's tags in its settings, with the setup's tags step", () => {
+it("edits the dashboard's tags in its settings, with the setup's tags step", async () => {
   open(host());
   fireEvent.click(
     screen.getByRole("button", { name: /dashboard\.settings\.tagsTitle/ })
@@ -193,7 +193,33 @@ it("edits the dashboard's tags in its settings, with the setup's tags step", () 
     screen.getByRole("button", { name: "dashboard.setup.tags.remove" })
   );
   fireEvent.click(save);
-  expect(state.setDetails).toHaveBeenCalledWith({ tags: [] });
+  await waitFor(() =>
+    expect(state.saveDetails).toHaveBeenCalledWith({ tags: [] })
+  );
+});
+
+it("retains tag edits and a retry when persistence fails", async () => {
+  state.saveDetails.mockResolvedValueOnce(false);
+  open(host());
+  fireEvent.click(
+    screen.getByRole("button", { name: /dashboard\.settings\.tagsTitle/ })
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.setup.tags.remove" })
+  );
+  const save = screen.getByRole("button", {
+    name: "dashboard.explorer.tagsDialog.save",
+  });
+  fireEvent.click(save);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "dashboard.server.saveError"
+  );
+  expect(save).toBeEnabled();
+  fireEvent.click(save);
+  await waitFor(() =>
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  );
+  expect(state.saveDetails).toHaveBeenCalledTimes(2);
 });
 
 it("edits who may use the dashboard in its settings, with the setup's permissions step", async () => {

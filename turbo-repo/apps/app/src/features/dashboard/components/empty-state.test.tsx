@@ -72,11 +72,11 @@ function setup(
   let refresh = () => {};
   const onFinishSetup = vi.fn<
     (
-      tags: string[],
+      tags: string[] | undefined,
       visibility?: "organization" | "restricted"
     ) => Promise<boolean>
   >(async (next) => {
-    currentTags = next;
+    if (next !== undefined) currentTags = next;
     refresh();
     return true;
   });
@@ -104,6 +104,11 @@ function setup(
     onFinishSetup,
     onVisibilityChange,
     unmount,
+    changeSavedTags: (next: string[]) => {
+      currentTags = next;
+      refresh();
+    },
+    refreshUrl: () => refresh(),
     changeSavedVisibility: (next: "organization" | "restricted") =>
       rerender(view(started, next)),
     /** The dashboard as saved after `onFinishSetup`, rendered again. */
@@ -178,6 +183,17 @@ describe("EmptyState setup steps", () => {
     openAt("?step=nope");
     setup();
     expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+  });
+
+  it("follows client-side changes of the step query while the wizard stays mounted", () => {
+    const { refreshUrl } = setup();
+    openAt("?step=tags");
+    refreshUrl();
+    expect(step("2 Tags")).toHaveAttribute("aria-current", "step");
+    openAt("?step=permissions");
+    refreshUrl();
+    expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+    expect(step("2 Tags")).toBeEnabled();
   });
 
   it("lists every member and team that matches, under their headers", async () => {
@@ -350,7 +366,7 @@ describe("EmptyState setup steps", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
     changeSavedVisibility("restricted");
     await user.click(screen.getByRole("button", { name: "Continue" }));
-    expect(onFinishSetup).toHaveBeenLastCalledWith([], undefined);
+    expect(onFinishSetup).toHaveBeenLastCalledWith(undefined, undefined);
     expect(onVisibilityChange).not.toHaveBeenCalled();
   });
 
@@ -428,6 +444,28 @@ describe("EmptyState setup steps", () => {
     expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
   });
 
+  it("does not include untouched tags captured before a slow permission save", async () => {
+    const { user, onFinishSetup, changeSavedTags } = setup(true, false, [
+      "old",
+    ]);
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(step("Permissions"));
+    await user.click(search());
+    await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+    let finish!: (value: boolean) => void;
+    perms.save.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    await user.click(step("3 First dashlet"));
+    changeSavedTags(["new"]);
+    await act(async () => finish(true));
+    expect(onFinishSetup).toHaveBeenLastCalledWith(undefined, undefined);
+  });
+
   it("blocks navigation until a permission save finishes", async () => {
     const { user } = setup();
     await user.click(search());
@@ -467,7 +505,7 @@ describe("EmptyState setup steps", () => {
     await user.click(step("Permissions"));
     await user.click(screen.getByRole("radio", { name: /Whole organization/ }));
     await user.click(step("3 First dashlet"));
-    expect(onFinishSetup).toHaveBeenCalledWith(["night"], "organization");
+    expect(onFinishSetup).toHaveBeenCalledWith(undefined, "organization");
     expect(onVisibilityChange).not.toHaveBeenCalled();
   });
 

@@ -32,7 +32,7 @@ export function SettingsPermissionsForm({
 }: Readonly<SettingsPermissionsFormProps>) {
   const state = useSetupPermissions(permissions);
   const directory = usePrincipalDirectory(state.canManage);
-  const [draft, setVisibilityDraft] = useState<Visibility | null>(null);
+  const [draft, setDraft] = useState<Visibility | null>(null);
   const visibilityDraft = draft ?? visibility;
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -53,7 +53,7 @@ export function SettingsPermissionsForm({
     const saved = await onVisibilityChange(visibilityDraft);
     setSaving(false);
     setSaveFailed(!saved);
-    if (saved) setVisibilityDraft(null);
+    if (saved) setDraft(null);
     ShowNotification({
       type: saved ? "success" : "error",
       message: saved
@@ -76,7 +76,7 @@ export function SettingsPermissionsForm({
         error={state.error}
         onRetry={() => void state.retry()}
         visibility={visibilityDraft}
-        onVisibilityChange={state.canManage ? setVisibilityDraft : undefined}
+        onVisibilityChange={state.canManage ? setDraft : undefined}
         t={(key, params) =>
           trDynamic(`dashboard.setup.permissions.${key}`, dictionary, params)
         }

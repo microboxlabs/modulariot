@@ -116,17 +116,19 @@ export default function ExplorerPermissionsDialog({
         <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
           {own("body")}
         </p>
-        <PermissionsStep
-          assignments={assignments}
-          onChange={setAssignments}
-          principals={directory.principals}
-          loading={directory.isLoading || saving}
-          canManage
-          checkingAccess={loading}
-          visibility={visibility}
-          onVisibilityChange={setVisibility}
-          t={t}
-        />
+        <fieldset disabled={saving}>
+          <PermissionsStep
+            assignments={assignments}
+            onChange={setAssignments}
+            principals={directory.principals}
+            loading={directory.isLoading || saving}
+            canManage
+            checkingAccess={loading}
+            visibility={visibility}
+            onVisibilityChange={setVisibility}
+            t={t}
+          />
+        </fieldset>
       </ModalBody>
       <ModalFooter className="justify-end">
         <Button color="light" size="sm" onClick={onClose}>

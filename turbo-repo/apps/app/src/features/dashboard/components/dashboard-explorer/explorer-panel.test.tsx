@@ -603,6 +603,33 @@ describe("ExplorerPanel", () => {
     expect(fake.get().dashboards[1]?.folderId).toBeUndefined();
   });
 
+  it("excludes collapsed selected dashboards from keyboard deletion", async () => {
+    const user = userEvent.setup();
+    await fake.set({
+      ...fake.get(),
+      folders: [{ id: "ops", name: "Ops", parentId: null }],
+      dashboards: [
+        { slug: "sales", name: "Sales", folderId: "ops" },
+        { slug: "fleet", name: "Fleet" },
+        { slug: "yard", name: "Yard" },
+      ],
+    });
+    renderPanel();
+    await user.click(screen.getByRole("button", { name: 'Expand "Ops"' }));
+    await user.click(checkbox("Sales"));
+    await user.click(checkbox("Fleet"));
+    await user.click(checkbox("Yard"));
+    await user.click(screen.getByRole("button", { name: 'Collapse "Ops"' }));
+    fireEvent.keyDown(link("Fleet"), { key: "Delete" });
+    expect(screen.getByText("Delete 2 items?")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() =>
+      expect(fake.get().dashboards).toEqual([
+        { slug: "sales", name: "Sales", folderId: "ops" },
+      ])
+    );
+  });
+
   it("shows the dashboards as files and offers new files and folders", async () => {
     const user = userEvent.setup();
     renderPanel();

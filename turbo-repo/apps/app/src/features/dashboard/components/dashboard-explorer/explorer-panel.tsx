@@ -120,8 +120,16 @@ function runCommand(
 }
 
 /** The selection if `id` is part of it, otherwise just `id`. */
-function idsFor(selection: ExplorerSelection, id: string): string[] {
-  return selection.ids.includes(id) ? selection.ids : [id];
+function idsFor(
+  selection: ExplorerSelection,
+  id: string,
+  order: readonly string[]
+): string[] {
+  return selection.ids.includes(id)
+    ? selection.ids.filter(
+        (selected) => selected === id || order.includes(selected)
+      )
+    : [id];
 }
 
 /**
@@ -492,7 +500,7 @@ export default function ExplorerPanel({
     const focusOn = (id: string) => {
       if (!selection.ids.includes(id))
         setSelection({ ids: [id], anchorId: id });
-      return idsFor(selection, id);
+      return idsFor(selection, id, order);
     };
     return {
       onToggleFolder: (id) => update((current) => toggleFolder(current, id)),

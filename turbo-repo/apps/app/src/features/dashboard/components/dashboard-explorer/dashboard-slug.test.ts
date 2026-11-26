@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { serverDashboardSlug } from "./server-create-dashboard-modal";
+import { serverDashboardSlug } from "./dashboard-slug";
 
 describe("serverDashboardSlug", () => {
   it("turns a name into the server's id format", () => {

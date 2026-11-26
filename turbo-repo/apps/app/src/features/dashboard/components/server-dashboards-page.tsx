@@ -1,17 +1,15 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { HiPlus } from "react-icons/hi";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import { useRouter } from "next/navigation";
-import useSWR, { SWRConfig } from "swr";
+import { SWRConfig, useSWRConfig } from "swr";
 import { useDashboardAutosave } from "@microboxlabs/miot-dashboard-ui/react";
 import { useSession } from "next-auth/react";
 import { Button } from "flowbite-react";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { createDashboardServerClient } from "../services/dashboard-server-client";
 import { DEFAULT_STORAGE } from "../types/dashboard.types";
 import { useDashboardDocument } from "../hooks/use-dashboard-document";
 import { DashboardProvider } from "../context/dashboard-context";
@@ -23,21 +21,130 @@ import { ServerDashboardQueries } from "./server-dashboard-queries";
 import { DashboardView } from "./dashboard-view";
 import type { DashboardSettingsHost } from "./dashboard-settings-dropdown/dashboard-settings-dropdown";
 import { ServerDashboardPermissions } from "./server-dashboard-permissions";
-import { ServerCreateDashboardModal } from "./server-create-dashboard-modal";
-import { DashboardLandingHero } from "./dashboard-landing/dashboard-landing-hero";
-import { DashboardCard } from "./dashboard-landing/dashboard-card";
+import ExplorerPanel, {
+  type ExplorerPageFolder,
+} from "./dashboard-explorer/explorer-panel";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
+import {
+  HiOutlineDocumentMagnifyingGlass,
+  HiOutlineFolder,
+  HiOutlineSquares2X2,
+} from "react-icons/hi2";
+import {
+  ExplorerNewMenuSkeleton,
+  ExplorerPageSkeleton,
+} from "./dashboard-explorer/explorer-skeleton";
+import { LIST_FRAME_CLASS } from "./dashboard-explorer/explorer-columns";
+import { DashboardSkeleton } from "./dashboard-skeleton";
+import { createDashboardFolderClient } from "../services/dashboard-folder-client";
+import { recentsKey } from "./dashboard-explorer/use-explorer-server";
+import { useDashboardFolderPath } from "../hooks/use-dashboard-folder-path";
+import { LoadErrorState } from "./load-error-state";
 
 type Props = { lang: string; slug?: string; dictionary: I18nRecord };
 const EMPTY_QUERIES: NonNullable<typeof DEFAULT_STORAGE.queries> = [];
+/**
+ * The list page's frame, as on the settings pages (Conexiones): the
+ * breadcrumb bar, then the icon, title and description with the "New" menu
+ * beside them, then the list. Inside a folder the header is the folder's,
+ * with a back arrow, and the breadcrumb leads back up through its parents.
+ */
+function ListPage({
+  lang,
+  dictionary,
+  action,
+  folder,
+  children,
+}: Readonly<{
+  lang: string;
+  dictionary: I18nRecord;
+  action: ReactNode;
+  folder?: ExplorerPageFolder | null;
+  children: ReactNode;
+}>) {
+  const layout = dictionary.layout as I18nRecord | undefined;
+  const secured = layout?.secured as I18nRecord | undefined;
+  return (
+    <SettingsPageShell
+      breadcrumbDict={(secured?.sidebar as I18nRecord | undefined) ?? {}}
+      lang={lang}
+      path={["dashboardServer"]}
+      icon={folder ? HiOutlineFolder : HiOutlineSquares2X2}
+      rootIcon={<HiOutlineSquares2X2 className="mr-2 h-4 w-4" />}
+      title={folder?.name ?? tr("dashboard.explorer.title", dictionary)}
+      description={
+        folder?.summary ?? tr("dashboard.explorer.description", dictionary)
+      }
+      breadcrumb={folder?.breadcrumb}
+      actions={action}
+    >
+      {children}
+    </SettingsPageShell>
+  );
+}
+
+/** The shape of the page about to load, rather than a "Loading…" line. */
+function PageSkeleton({
+  slug,
+  lang,
+  dictionary,
+}: Readonly<{ slug?: string; lang: string; dictionary: I18nRecord }>) {
+  const label = tr("dashboard.server.loading", dictionary);
+  if (slug) return <DashboardSkeleton label={label} />;
+  const t = (key: string) => tr(`dashboard.explorer.${key}`, dictionary);
+  return (
+    <ListPage
+      lang={lang}
+      dictionary={dictionary}
+      action={<ExplorerNewMenuSkeleton t={t} />}
+    >
+      <ExplorerPageSkeleton t={t} label={label} />
+    </ListPage>
+  );
+}
+
+/**
+ * The organization could not be read, so neither the list nor a dashboard
+ * can be: the list page keeps its frame, with the error where the list goes.
+ */
+function ScopesError({
+  slug,
+  lang,
+  dictionary,
+  onRetry,
+}: Readonly<{
+  slug?: string;
+  lang: string;
+  dictionary: I18nRecord;
+  onRetry: () => Promise<unknown>;
+}>) {
+  const t = (key: string) => tr(`dashboard.server.${key}`, dictionary);
+  const state = (
+    <LoadErrorState
+      title={t("loadError")}
+      description={t("loadErrorBody")}
+      retry={{ label: t("retry"), onRetry }}
+      className={slug ? "h-full" : undefined}
+    />
+  );
+  if (slug) return state;
+  return (
+    <ListPage lang={lang} dictionary={dictionary} action={null}>
+      <div className={LIST_FRAME_CLASS}>{state}</div>
+    </ListPage>
+  );
+}
 
 /** Parallel entry point: organization membership replaces legacy site discovery. */
 export function ServerDashboardsPage(props: Readonly<Props>) {
   const { data: session, status } = useSession();
   if (status !== "authenticated" || !session?.user?.id || session.error)
     return (
-      <output className="block p-6">
-        {tr("dashboard.server.loading", props.dictionary)}
-      </output>
+      <PageSkeleton
+        slug={props.slug}
+        lang={props.lang}
+        dictionary={props.dictionary}
+      />
     );
   return <AuthenticatedWorkspace key={session.user.id} {...props} />;
 }
@@ -56,16 +163,24 @@ function AuthenticatedWorkspace(props: Readonly<Props>) {
 function OrganizationDashboards(
   props: Readonly<Props & { sessionKey: string }>
 ) {
-  const { activeOrg, error, isLoading } = useOrgScopes();
-  const t = (key: string) => tr(`dashboard.server.${key}`, props.dictionary);
+  const { activeOrg, error, isLoading, refresh } = useOrgScopes();
   if (error)
     return (
-      <p role="alert" className="p-6">
-        {t("loadError")}
-      </p>
+      <ScopesError
+        slug={props.slug}
+        lang={props.lang}
+        dictionary={props.dictionary}
+        onRetry={refresh}
+      />
     );
   if (isLoading || !activeOrg)
-    return <output className="block p-6">{t("loading")}</output>;
+    return (
+      <PageSkeleton
+        slug={props.slug}
+        lang={props.lang}
+        dictionary={props.dictionary}
+      />
+    );
   return props.slug ? (
     <ServerDashboardEditor
       key={`${activeOrg.slug}/${props.slug}`}
@@ -74,86 +189,42 @@ function OrganizationDashboards(
       org={activeOrg.slug}
     />
   ) : (
-    <ServerDashboardList key={activeOrg.slug} {...props} org={activeOrg.slug} />
+    <ServerDashboardList key={activeOrg.slug} {...props} />
   );
 }
 
-function ServerDashboardList({
-  org,
-  lang,
-  dictionary,
-}: Readonly<Props & { org: string }>) {
-  const client = useMemo(() => createDashboardServerClient(org), [org]);
-  const { data, error, isLoading } = useSWR(client.key(), () => client.list(), {
-    shouldRetryOnError: false,
-  });
-  const {
-    data: scope,
-    error: scopeError,
-    isValidating: checkingScope,
-  } = useSWR(client.scopeKey, () => client.scopeCapabilities(), {
-    shouldRetryOnError: false,
-    revalidateOnMount: true,
-  });
-  const canCreate = !scopeError && !checkingScope && scope?.canCreate === true;
-  const [creating, setCreating] = useState(false);
-  const router = useRouter();
-  const t = (key: string) => tr(`dashboard.server.${key}`, dictionary);
+/** The organization's dashboards and folders, and the menu that creates them. */
+function ServerDashboardList({ lang, dictionary }: Readonly<Props>) {
   return (
-    <div className="flex h-full w-full flex-col items-center overflow-y-auto px-4 py-16">
-      <DashboardLandingHero dict={dictionary} />
-      {canCreate && (
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+    <ExplorerPanel
+      dict={dictionary.dashboard as I18nRecord}
+      renderPage={({ newMenu, list, folder }) => (
+        <ListPage
+          lang={lang}
+          dictionary={dictionary}
+          action={newMenu}
+          folder={folder}
         >
-          <HiPlus className="mr-2 h-4 w-4" />
-          {tr("dashboard.landing.cta", dictionary)}
-        </button>
+          {list}
+        </ListPage>
       )}
-      <ServerCreateDashboardModal
-        isOpen={creating && canCreate}
-        onClose={() => setCreating(false)}
-        onCreated={(slug) =>
-          router.push(`/${lang}/dashboards/${encodeURIComponent(slug)}`)
-        }
-        client={client}
-        existingSlugs={data?.map((d) => d.slug) ?? []}
-        dict={dictionary}
-      />
-      <div className="mt-12 w-full max-w-3xl">
-        {(error || scopeError) && (
-          <p role="alert" className="py-4 text-center text-sm text-red-600">
-            {t("loadError")}
-          </p>
-        )}
-        {isLoading && (
-          <output className="flex justify-center py-8">
-            <span className="sr-only">{t("loading")}</span>
-            <span className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-          </output>
-        )}
-        {data?.length === 0 && (
-          <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-            {t("empty")}
-          </p>
-        )}
-        {!!data?.length && (
-          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {data.map((dashboard) => (
-              <DashboardCard
-                key={dashboard.slug}
-                slug={dashboard.slug}
-                name={dashboard.name}
-                href={`/${lang}/dashboards/${encodeURIComponent(dashboard.slug)}`}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+    />
   );
+}
+
+/**
+ * Notes that the caller opened the dashboard, once it has loaded, for their
+ * "Recently opened" cards. Best effort: a failure changes nothing on the page.
+ */
+function useRecordOpen(org: string, slug: string, opened: boolean) {
+  const { mutate } = useSWRConfig();
+  useEffect(() => {
+    if (!opened) return;
+    createDashboardFolderClient(org)
+      .recordOpen(slug)
+      .then(() => mutate(recentsKey(org)))
+      .catch(() => undefined);
+  }, [org, slug, opened, mutate]);
 }
 
 function ServerDashboardEditor({
@@ -164,6 +235,15 @@ function ServerDashboardEditor({
   sessionKey,
 }: Readonly<Props & { org: string; slug: string; sessionKey: string }>) {
   const t = (key: string) => tr(`dashboard.server.${key}`, dictionary);
+  const folderPath = useDashboardFolderPath(org, slug);
+  const folderCrumbs = useMemo(
+    () =>
+      folderPath.map((folder) => ({
+        name: folder.name,
+        href: `/${lang}/dashboards?folder=${encodeURIComponent(folder.id)}`,
+      })),
+    [folderPath, lang]
+  );
   const empty = useMemo(
     () => ({
       ...DEFAULT_STORAGE,
@@ -179,6 +259,7 @@ function ServerDashboardEditor({
   const [permissionsOpen, setPermissionsOpen] = useState(false);
   const [removeError, setRemoveError] = useState(false);
   useUnsavedNavigation(document.dirty, t("leave"));
+  useRecordOpen(org, slug, document.isLoaded && document.exists);
   useDashboardAutosave({
     ...document,
     enabled:
@@ -203,17 +284,29 @@ function ServerDashboardEditor({
       setRemoving(false);
     }
   }
+  if (!document.isLoaded && !document.error)
+    return <DashboardSkeleton label={t("loading")} />;
+  const backToList = { label: t("backToList"), href: `/${lang}/dashboards` };
   if (!document.isLoaded)
     return (
-      <p className="p-6" role={document.error ? "alert" : "status"}>
-        {t(document.error ? "loadError" : "loading")}
-      </p>
+      <LoadErrorState
+        className="h-full"
+        title={t("openError")}
+        description={t("openErrorBody")}
+        retry={{ label: t("retry"), onRetry: document.discardAndReload }}
+        back={backToList}
+      />
     );
   if (!document.exists)
     return (
-      <p role="alert" className="p-6">
-        {t("loadError")}
-      </p>
+      <LoadErrorState
+        className="h-full"
+        tone="neutral"
+        icon={HiOutlineDocumentMagnifyingGlass}
+        title={t("missing")}
+        description={t("missingBody")}
+        back={backToList}
+      />
     );
   const editable = !document.readOnly && !removing;
   const settingsHost: DashboardSettingsHost = {
@@ -321,6 +414,9 @@ function ServerDashboardEditor({
           <DashboardView
             headerActions={headerActions}
             settingsHost={settingsHost}
+            breadcrumbRoot="dashboardServer"
+            breadcrumbRootHref={`/${lang}/dashboards`}
+            breadcrumbFolders={folderCrumbs}
           />
         </DashboardProvider>
       </DashboardQuerySession>

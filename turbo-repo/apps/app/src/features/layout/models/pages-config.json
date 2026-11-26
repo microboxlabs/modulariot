@@ -2,9 +2,6 @@
   {
     "label": "dashboardServer",
     "href": "/dashboards",
-    "dynamicItemsSource": "serverDashboards",
-    "searchable": true,
-    "createAction": { "href": "/dashboards", "label": "createDashboard" },
     "items": []
   },
   {

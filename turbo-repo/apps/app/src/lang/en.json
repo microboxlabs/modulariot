@@ -7343,7 +7343,14 @@
     "server": {
       "title": "Dashboards",
       "loading": "Loading dashboard…",
-      "loadError": "Could not load dashboards. Check your organization and access.",
+      "loadError": "Couldn't load the dashboards",
+      "loadErrorBody": "It may be a connection problem or your access to the organization. Try again in a moment.",
+      "retry": "Try again",
+      "openError": "Couldn't open this dashboard",
+      "openErrorBody": "It may be a connection problem or your access to it. Try again, or go back to the list.",
+      "missing": "This dashboard doesn't exist",
+      "missingBody": "It may have been deleted, or the link may be wrong.",
+      "backToList": "Back to dashboards",
       "newName": "New dashboard",
       "empty": "No dashboards in this organization yet.",
       "name": "Dashboard name",
@@ -7453,10 +7460,146 @@
       }
     },
     "explorer": {
+      "title": "Dashboards",
+      "description": "Organize, find and open your organization's dashboards.",
+      "new": "New",
+      "name": "Name",
+      "nameSearch": "Search by name",
+      "clearSearch": "Clear search",
+      "breadcrumb": "Folder path",
+      "addTag": "Add tag",
+      "editTagsOf": "Edit tags of \"{name}\"",
+      "parentFolder": "Up to \"{name}\"",
+      "emptyFolder": "This folder is empty.",
+      "expandFolder": "Expand \"{name}\"",
+      "collapseFolder": "Collapse \"{name}\"",
+      "view": {
+        "cards": "Cards",
+        "list": "List"
+      },
+      "cards": {
+        "filters": "Filters",
+        "starredOnly": "Starred",
+        "recent": "Recently opened",
+        "all": "All",
+        "folders": "Folders",
+        "dashboards": "Dashboards",
+        "oneItem": "1 item",
+        "items": "{count} items",
+        "created": "Created {when}",
+        "opened": "Opened {when}",
+        "edited": "Edited {when}",
+        "sortByName": "Sort by name",
+        "sortedNameAsc": "Sorted by name, A to Z",
+        "sortedNameDesc": "Sorted by name, Z to A",
+        "sortByCreated": "Sort by creation date",
+        "sortedCreatedAsc": "Sorted by creation date, oldest first",
+        "sortedCreatedDesc": "Sorted by creation date, newest first"
+      },
+      "columns": {
+        "selectAll": "Select all",
+        "select": "Select \"{name}\"",
+        "tags": "Tags",
+        "created": "Created",
+        "createdUnknown": "Creation date unknown",
+        "folder": "Folder",
+        "folderNoDate": "Folders have no creation date",
+        "filterCreated": "Filter by creation date",
+        "clearCreated": "Clear the date filter",
+        "new": "New",
+        "filterTags": "Filter by tag",
+        "clearFilter": "Clear filter",
+        "noTags": "No tags yet",
+        "starredOnly": "Show starred only",
+        "star": "Star",
+        "unstar": "Unstar"
+      },
       "tagsDialog": {
         "title": "Tags for \"{name}\"",
         "save": "Save",
         "cancel": "Cancel"
+      },
+      "newFile": "New dashboard",
+      "newFolder": "New folder",
+      "untitledFile": "Untitled dashboard",
+      "untitledFolder": "New folder",
+      "namePlaceholder": "Type a name…",
+      "empty": "No dashboards yet",
+      "createFirst": "Create dashboard",
+      "noResults": "No matches",
+      "menu": {
+        "clone": "Clone",
+        "copy": "Copy",
+        "cut": "Cut",
+        "paste": "Paste",
+        "rename": "Rename",
+        "editTags": "Edit tags",
+        "delete": "Delete",
+        "permissions": "Permissions"
+      },
+      "confirm": {
+        "deleteTitle": "Delete \"{name}\"?",
+        "deleteManyTitle": "Delete {count} items?",
+        "moveManyTitle": "Move {count} items?",
+        "deleteBody": "The dashboard will be deleted for everyone in this organization.",
+        "deleteFolderBody": "The folder and everything inside it ({count}) will be deleted for everyone in this organization.",
+        "moveTitle": "Move \"{name}\"?",
+        "moveInto": "It will be moved into \"{target}\".",
+        "moveToTop": "It will be moved to the top level.",
+        "move": "Move",
+        "cancel": "Cancel"
+      },
+      "loading": "Loading…",
+      "loadError": "Couldn't load the dashboards",
+      "loadErrorBody": "It may be a connection problem. Try again in a moment.",
+      "retry": "Try again",
+      "errors": {
+        "forbidden": "You don't have permission to do that.",
+        "conflict": "That name is already taken, or the item changed. Try again.",
+        "generic": "The change couldn't be saved. Try again."
+      },
+      "toasts": {
+        "dashboardCreated": "Dashboard \"{name}\" created",
+        "folderCreated": "Folder \"{name}\" created",
+        "dashboardRenamed": "Dashboard renamed to \"{name}\"",
+        "folderRenamed": "Folder renamed to \"{name}\"",
+        "copied": "\"{name}\" copied",
+        "copiedMany": "{count} dashboards copied",
+        "movedInto": "\"{name}\" moved to \"{target}\"",
+        "movedToTop": "\"{name}\" moved to the top level",
+        "movedManyInto": "{count} items moved to \"{target}\"",
+        "movedManyToTop": "{count} items moved to the top level",
+        "deleted": "\"{name}\" deleted",
+        "deletedMany": "{count} items deleted",
+        "tagsSaved": "Tags saved for \"{name}\"",
+        "starring": {
+          "loading": "Starring \"{name}\"…",
+          "ok": "\"{name}\" starred"
+        },
+        "unstarring": {
+          "loading": "Unstarring \"{name}\"…",
+          "ok": "\"{name}\" unstarred"
+        }
+      },
+      "folderPermissions": {
+        "title": "Permissions for \"{name}\"",
+        "body": "Who sees this folder and what they can do in it. Separate from each dashboard's permissions.",
+        "roleHints": {
+          "Consumer": "Sees the folder",
+          "Contributor": "Sees the folder",
+          "Editor": "Creates inside, renames and moves it",
+          "Coordinator": "Deletes it and manages access"
+        },
+        "noAccess": "Nobody has access of their own. Search for a member or team above to give it.",
+        "save": "Save",
+        "cancel": "Cancel",
+        "saved": "Permissions for \"{name}\" saved",
+        "loadError": "The folder's permissions could not be loaded.",
+        "visibility": {
+          "organizationHelp": "Everyone in the organization sees the folder, each with their own role.",
+          "restrictedHelp": "Only who is on the list, whoever created it and the owners see the folder and what is inside it.",
+          "note": "People and teams you add get the role you pick on this folder."
+        }
       }
     },
     "setup": {

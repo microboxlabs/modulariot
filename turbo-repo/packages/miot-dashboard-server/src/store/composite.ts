@@ -118,10 +118,12 @@ export function createCompositeStore(
     }
   };
 
+  // Without a completion hook, the adapter cannot prove that an enclosing
+  // transaction has committed. Leave unreferenced blobs for the orphan sweep.
   const forgetAfterCommit = (key: string) =>
     metadata.afterCommit
       ? metadata.afterCommit(() => forget(key))
-      : forget(key);
+      : Promise.resolve();
 
   const toRecord = (
     row: {

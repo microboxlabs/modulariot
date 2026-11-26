@@ -619,6 +619,9 @@ used to enumerate tenants.
 
 Denials are audited. Embed tokens are read-only and locked to one dashboard
 (`403` `EMBED_SCOPE` otherwise).
+They also obey the current dashboard and folder visibility, including datasource
+requests that omit the dashboard slug. A session whose subject is no longer
+included in that visibility is denied.
 
 `access.capabilities(request, { tenantId, scopeId, slug })` tells an embed host
 what the caller can do.

@@ -17,7 +17,7 @@ interface PoolClient {
   query(
     text: string,
     values?: readonly SqlValue[],
-  ): Promise<{ rows: unknown[] }>;
+  ): Promise<{ rows: unknown[]; command: string }>;
   release(destroy?: boolean): void;
 }
 
@@ -27,7 +27,7 @@ interface Pool {
   query(
     text: string,
     values?: readonly SqlValue[],
-  ): Promise<{ rows: unknown[] }>;
+  ): Promise<{ rows: unknown[]; command: string }>;
   end(): Promise<void>;
 }
 
@@ -159,7 +159,10 @@ export function createPostgresDriver(
         await client.query("BEGIN");
         try {
           result = await current.run({ client, cleanup }, body);
-          await client.query("COMMIT");
+          const committed = await client.query("COMMIT");
+          if (committed.command !== "COMMIT") {
+            throw new Error("PostgreSQL did not commit the transaction");
+          }
         } catch (error) {
           // A ROLLBACK that itself throws means the connection is no longer
           // usable. Swallowing it here would lose the original error, which is

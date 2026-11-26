@@ -74,6 +74,34 @@ it("keeps external documents on rollback and cleans them after commit", async ()
   }
 });
 
+it("retains external documents when the metadata adapter has no completion hook", async () => {
+  const documents = createFsDocumentStore({ root: temporaryDirectory() });
+  const driver = createSqliteDriver({ path: SQLITE_MEMORY });
+  await runMigrations(driver);
+  const metadata = createSqlMetadataStore(driver);
+  metadata.afterCommit = undefined;
+  const store = createCompositeStore({
+    metadata,
+    documents,
+    newDocumentKey: () => "acme/retained.json",
+  });
+  const folders = createSqlFolderStore(driver);
+  try {
+    await store.save(ref, config, { updatedBy: "ana" });
+    await expect(
+      folders.transaction(ref, async () => {
+        await store.remove(ref);
+        throw new Error("Abort");
+      }),
+    ).rejects.toThrow("Abort");
+    expect((await store.load(ref))?.config).toEqual(config);
+    await folders.transaction(ref, () => store.remove(ref));
+    expect(await documents.get("acme/retained.json")).not.toBeNull();
+  } finally {
+    await driver.close();
+  }
+});
+
 const temporaryDirectories: string[] = [];
 function temporaryDirectory(): string {
   const path = mkdtempSync(join(tmpdir(), "miot-store-"));

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDashboardHandler } from "./handler";
 import {
   createInsecureHeaderIdentityResolver,
@@ -207,6 +207,21 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
           expect((await deleting).status).toBe(204);
           expect(await moving).toBe(false);
           expect(await store.load(ref)).toBeNull();
+        });
+
+        it("loads one scope visibility snapshot for all recursive authorizations", async () => {
+          const { store, folders, child, remove } = await setup();
+          await store.save({ ...scope, slug: "other" }, sampleConfig(), {
+            updatedBy: "owner",
+          });
+          await folders.placeDashboard(scope, "other", child.id);
+          const list = vi.spyOn(folders, "list");
+          const permissions = vi.spyOn(folders, "permissions");
+          const placements = vi.spyOn(folders, "placements");
+          expect((await remove()).status).toBe(204);
+          expect(list).toHaveBeenCalledTimes(1);
+          expect(permissions).toHaveBeenCalledTimes(1);
+          expect(placements).toHaveBeenCalledTimes(1);
         });
 
         it("rejects a new child queued behind deletion instead of orphaning it", async () => {

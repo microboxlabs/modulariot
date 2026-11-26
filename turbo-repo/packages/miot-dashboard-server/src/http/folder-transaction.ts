@@ -1,6 +1,7 @@
 import type { AccessControl, DashboardAction } from "../access/access-control";
 import type { DashboardFolderStore } from "../seams/folders";
 import type { RouteMatch } from "./routes";
+import { withVisibilitySnapshot } from "../access/visibility-snapshot";
 
 type Route = (request: Request, match: RouteMatch) => Promise<Response>;
 const FOLDER_ROUTES = new Set<RouteMatch["route"]>([
@@ -46,7 +47,7 @@ export function createScopedRouteRunner(options: {
     if (request.method !== "DELETE") await options.readBody(request);
     return options.transaction(
       { tenantId: decision.identity.tenantId, scopeId: match.scopeId },
-      () => route(request, match),
+      () => withVisibilitySnapshot(() => route(request, match)),
     );
   };
 }

@@ -11,6 +11,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { NO_CAPABILITIES } from "../seams/identity";
 import type { ServerDashboardRef } from "../seams/store";
+import type { DashboardFolder } from "../seams/folders";
 import {
   embed,
   harness,
@@ -202,6 +203,64 @@ describe("unauthenticated requests", () => {
 
 describe("embed principals", () => {
   const token = embed("acme", "ops", "fleet");
+
+  it.each(["dashboard.load", "dashboard.query", "datasource.query"] as const)(
+    "rechecks dashboard privacy for %s on an existing embed session",
+    async (action) => {
+      const h = harness({ memberships, seed });
+      const target = {
+        scopeId: "ops",
+        action,
+        ...(action === "datasource.query" ? {} : { slug: "fleet" }),
+      };
+      await h.control.authorize(token, target);
+      await h.store.save(
+        A,
+        { version: 2, visibility: "restricted" },
+        { updatedBy: "carl", expectedRevision: 1 },
+      );
+      expect(
+        (await expectError(h.control.authorize(token, target))).reason,
+      ).toBe("CAPABILITY");
+      await h.store.setPermissions(A, [
+        { authorityId: token.userId, role: "Consumer" },
+      ]);
+      await expect(h.control.authorize(token, target)).resolves.toMatchObject({
+        scopeRole: "Consumer",
+      });
+    },
+  );
+
+  it.each(["dashboard.load", "datasource.query"] as const)(
+    "rechecks a restricted ancestor for an existing embed %s",
+    async (action) => {
+      const folder: DashboardFolder = {
+        id: "private",
+        name: "Private",
+        parentId: null,
+        createdBy: "alice",
+      };
+      const h = harness({
+        memberships,
+        seed,
+        visibility: async () => ({
+          folders: new Map([[folder.id, folder]]),
+          folderPermissions: new Map(),
+          placements: new Map([["fleet", folder.id]]),
+        }),
+      });
+      const target = {
+        scopeId: "ops",
+        action,
+        ...(action === "datasource.query" ? {} : { slug: "fleet" }),
+      };
+      await h.control.authorize(token, target);
+      folder.visibility = "restricted";
+      expect(
+        (await expectError(h.control.authorize(token, target))).reason,
+      ).toBe("CAPABILITY");
+    },
+  );
 
   it("may load the one dashboard the token names, read-only whatever the token claims", async () => {
     const h = harness({ memberships, seed });

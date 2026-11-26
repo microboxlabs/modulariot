@@ -417,26 +417,50 @@ export function createAccessControl<TRequest>(
         "This embed token does not grant access to the requested resource",
       );
     }
-    // Embedded viewers are read-only at this phase whatever the token says;
-    // the ceiling still applies on top, so a narrower token stays narrower.
-    const viewer = capabilitiesForRole("Consumer");
-    const decision: AccessDecision = {
-      identity,
-      scopeId: target.scopeId,
-      scopeRole: "Consumer",
-    };
-    if (target.slug !== undefined) {
-      const dashboard = await loadDashboard(
-        identity,
-        { ...target, slug: target.slug },
-        "Consumer",
-        async () => viewer,
-      );
-      // The policy is bypassed above, so this branch cannot deny.
-      if (dashboard) decision.dashboard = dashboard;
-    }
-    await record(identity, target, "allowed", { principal: identity.kind });
-    return decision;
+    return snapshot(
+      { tenantId: identity.tenantId, scopeId: scope.scopeId },
+      async () => {
+        const viewer = capabilitiesForRole("Consumer");
+        const decision: AccessDecision = {
+          identity,
+          scopeId: target.scopeId,
+          scopeRole: "Consumer",
+        };
+        // Even datasource requests without a slug remain bound to the token's
+        // dashboard. Recheck its current privacy on every render operation.
+        const dashboard = await loadDashboard(
+          identity,
+          { ...target, slug: scope.slug },
+          "Consumer",
+          async () => viewer,
+        );
+        if (
+          dashboard &&
+          dashboardHidden(
+            identity,
+            "Consumer",
+            scope.slug,
+            dashboard.record,
+            dashboard.assignments,
+            await visibilityOf({
+              tenantId: identity.tenantId,
+              scopeId: scope.scopeId,
+            }),
+          )
+        ) {
+          return deny(
+            identity,
+            target,
+            "CAPABILITY",
+            "This embedded session no longer has access to the dashboard",
+          );
+        }
+        if (target.slug !== undefined && dashboard)
+          decision.dashboard = dashboard;
+        await record(identity, target, "allowed", { principal: identity.kind });
+        return decision;
+      },
+    );
   }
 
   function loadUserDashboard(

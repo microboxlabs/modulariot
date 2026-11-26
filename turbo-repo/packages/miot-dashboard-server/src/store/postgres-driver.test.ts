@@ -29,7 +29,9 @@ interface Issued {
 }
 
 /** A pool that hands out numbered clients and records what ran on each. */
-function fakePool(options: { rollbackThrows?: boolean } = {}) {
+function fakePool(
+  options: { rollbackThrows?: boolean; commitRollsBack?: boolean } = {},
+) {
   const events = new EventEmitter();
   const issued: Issued[] = [];
   const released: { client: number; destroyed: boolean }[] = [];
@@ -42,7 +44,13 @@ function fakePool(options: { rollbackThrows?: boolean } = {}) {
       if (options.rollbackThrows === true && sql === "ROLLBACK") {
         return Promise.reject(new Error("connection lost"));
       }
-      return Promise.resolve({ rows: [] as unknown[] });
+      return Promise.resolve({
+        rows: [] as unknown[],
+        command:
+          sql === "COMMIT" && options.commitRollsBack
+            ? "ROLLBACK"
+            : sql.split(" ")[0]!,
+      });
     };
 
   return {
@@ -77,6 +85,19 @@ const open = (fake: ReturnType<typeof fakePool>) =>
   createPostgresDriver({ url: "postgres://ignored", poolImpl: fake.pool });
 
 describe("createPostgresDriver", () => {
+  it("discards cleanup when COMMIT actually reports ROLLBACK", async () => {
+    const fake = fakePool({ commitRollsBack: true });
+    const driver = open(fake);
+    const cleanup = [] as string[];
+    await expect(
+      driver.transaction(async () => {
+        await driver.afterCommit!(async () => {
+          cleanup.push("deleted");
+        });
+      }),
+    ).rejects.toThrow("did not commit");
+    expect(cleanup).toEqual([]);
+  });
   it("runs nested cleanup after commit and release, discarding it on rollback", async () => {
     const fake = fakePool();
     const driver = open(fake);

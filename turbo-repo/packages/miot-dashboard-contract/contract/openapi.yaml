@@ -462,7 +462,9 @@ paths:
       description: >
         Moves the dashboard into the folder, or to the top level with
         `folderId: null`. Requires `canEdit` on the dashboard, and the Editor
-        role on the folder it goes into. Neither the
+        role on the folder it goes into. Adding or removing a restricted
+        ancestor also requires permission-management rights on the dashboard.
+        Neither the
         config nor the revision changes, so an editor with the dashboard open
         is not put into conflict by someone moving it.
       parameters:
@@ -578,6 +580,9 @@ paths:
         into (the scope's, for the top level). A folder moves with everything
         inside it. Moving one inside itself, or into one of its own folders,
         is a `409`.
+        Adding or removing a restricted ancestor requires Coordinator on
+        every folder in the moved subtree and permission-management rights
+        on every dashboard it contains.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"

@@ -63,6 +63,7 @@ import {
 } from "./test-connection";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
+import { withoutVisibilitySnapshot } from "../access/visibility-snapshot";
 import { createScopedRouteRunner } from "./folder-transaction";
 import { removeAuthorizedDashboard } from "./remove-dashboard";
 import { createFolderRoutes } from "./folder-routes";
@@ -783,20 +784,22 @@ export function createDashboardHandler(
   });
 
   const handle = async function handle(request: Request): Promise<Response> {
-    try {
-      const pathname = pathnameOf(request.url);
-      const routable = stripBasePath(pathname, basePath);
-      if (routable === null) return errorResponse(notFound());
-      const match = matchRoute(routable);
-      if (match === null) return errorResponse(notFound());
-      return await runRoute(request, match);
-    } catch (error) {
-      // A DashboardServerError is an answer this code chose — a 404, a 403, a
-      // 409 — and says so on the wire. Anything else reached here by
-      // surprise, and is the only kind worth waking someone for.
-      if (!isDashboardServerError(error)) reportError(error, request);
-      return errorResponse(error);
-    }
+    return withoutVisibilitySnapshot(async () => {
+      try {
+        const pathname = pathnameOf(request.url);
+        const routable = stripBasePath(pathname, basePath);
+        if (routable === null) return errorResponse(notFound());
+        const match = matchRoute(routable);
+        if (match === null) return errorResponse(notFound());
+        return await runRoute(request, match);
+      } catch (error) {
+        // A DashboardServerError is an answer this code chose — a 404, a 403, a
+        // 409 — and says so on the wire. Anything else reached here by
+        // surprise, and is the only kind worth waking someone for.
+        if (!isDashboardServerError(error)) reportError(error, request);
+        return errorResponse(error);
+      }
+    });
   };
   return options.cors ? withCors(handle, options.cors) : handle;
 }

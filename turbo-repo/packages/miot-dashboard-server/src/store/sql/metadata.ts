@@ -197,7 +197,7 @@ export function createSqlMetadataStore(
 
   return {
     scopeTransaction: (scope, body) => sqlScopeTransaction(driver, scope, body),
-    ...(driver.afterCommit ? { afterCommit: driver.afterCommit } : {}),
+    ...(driver.afterCommit ? { afterCommit: (work: () => Promise<void>) => driver.afterCommit!(work) } : {}),
     // Wrapped rather than passed through, so `lock` stays internal: it is not
     // part of the seam, and a caller of a method called `read` should not be
     // able to hold rows for the length of its transaction.

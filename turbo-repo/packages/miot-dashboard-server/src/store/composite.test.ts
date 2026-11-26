@@ -46,6 +46,7 @@ function recorder(
     calls,
     bodies,
     metadata: {
+      afterCommit: (work) => work(),
       read: () => {
         calls.push("read");
         return Promise.resolve(row);

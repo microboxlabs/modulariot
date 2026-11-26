@@ -42,7 +42,7 @@ export interface DashboardMetadataStore {
     scope: Pick<ServerDashboardRef, "tenantId" | "scopeId">,
     body: () => Promise<T>,
   ): Promise<T>;
-  /** Defer document cleanup until an enclosing metadata transaction commits. */
+  /** Defer cleanup until commit. Without it, obsolete blobs remain for orphan collection. */
   afterCommit?(body: () => Promise<void>): Promise<void>;
   read(ref: ServerDashboardRef): Promise<DashboardMetadataRow | null>;
 

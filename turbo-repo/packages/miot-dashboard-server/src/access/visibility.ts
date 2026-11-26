@@ -25,6 +25,7 @@ import type { DashboardIdentity } from "../seams/identity";
 import type { DashboardRecord, PermissionAssignment } from "../seams/store";
 import { authoritiesOf, ownsAsCreator } from "./capabilities";
 import { highestRole, roleAtLeast, type DashboardRole } from "./roles";
+import { cachedVisibility } from "./visibility-snapshot";
 
 /** What the rules read about one scope, loaded once per request. */
 export interface ScopeVisibility {
@@ -185,17 +186,19 @@ export function scopeVisibilityLoader(
 ): (scope: FolderScope) => Promise<ScopeVisibility> {
   return async (scope) => {
     if (folders === undefined) return OPEN_SCOPE;
-    return folders.transaction(scope, async () => {
-      const [list, folderPermissions, placements] = await Promise.all([
-        folders.list(scope),
-        folders.permissions(scope),
-        folders.placements(scope),
-      ]);
-      return {
-        folders: new Map(list.map((f) => [f.id, f])),
-        folderPermissions,
-        placements,
-      };
-    });
+    return cachedVisibility(folders, scope, () =>
+      folders.transaction(scope, async () => {
+        const [list, folderPermissions, placements] = await Promise.all([
+          folders.list(scope),
+          folders.permissions(scope),
+          folders.placements(scope),
+        ]);
+        return {
+          folders: new Map(list.map((f) => [f.id, f])),
+          folderPermissions,
+          placements,
+        };
+      }),
+    );
   };
 }

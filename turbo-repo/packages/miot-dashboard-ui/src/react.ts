@@ -5,6 +5,7 @@ export {
   applyLayoutToWidget,
   updateChildrenLayouts,
   stripEphemeralState,
+  type DashboardDetails,
   type DashboardStorageController,
   type WidgetDefaultResolver,
 } from "./react/use-dashboard-state";

@@ -190,6 +190,11 @@ export function stripEphemeralState(
   };
 }
 
+/** A dashboard's own details, set together through `setDetails`. */
+export type DashboardDetails = Partial<
+  Pick<DashboardStorageSchema, "tags" | "started" | "visibility">
+>;
+
 /** Controlled document state supplied by a host with its own persistence protocol. */
 export interface DashboardStorageController {
   config: DashboardStorageSchema;
@@ -506,6 +511,17 @@ export function useDashboardState(
     [updateConfig],
   );
 
+  /**
+   * Writes the dashboard's own details — its tags, whether its setup has
+   * started, who sees it — in one change, so two set together do not race.
+   */
+  const setDetails = useCallback(
+    (details: DashboardDetails) => {
+      updateConfig(details);
+    },
+    [updateConfig],
+  );
+
   // ── Planner CRUD ──────────────────────────────────────────────────────────
 
   const getPlannerDefinitions = useCallback(
@@ -627,6 +643,12 @@ export function useDashboardState(
     refreshInterval: resolvedConfig.refreshInterval ?? 0,
     order: resolvedConfig.order,
     allowedGroups: normalizeAllowedGroups(resolvedConfig.allowedGroups) ?? [],
+    tags: resolvedConfig.tags ?? [],
+    // Absent counts as started: only a dashboard created into the setup
+    // says false.
+    started: resolvedConfig.started !== false,
+    // Absent is the whole organization, as for every dashboard saved before.
+    visibility: resolvedConfig.visibility ?? "organization",
     isLoaded,
     addWidget,
     addChildWidget,
@@ -643,6 +665,7 @@ export function useDashboardState(
     setRefreshInterval,
     setOrder,
     setAllowedGroups,
+    setDetails,
     findWidget,
     findParent,
     exportDashboard,

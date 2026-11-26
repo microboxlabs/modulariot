@@ -239,6 +239,10 @@ describe("parallel dashboard pages", () => {
     const write = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
     expect(write?.[0]).toBe("/app/api/dashboards/demo-validacion?org=acme");
     expect(write?.[1]?.headers).toMatchObject({ "if-match": '"0"' });
+    expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
+      visibility: "restricted",
+      started: false,
+    });
   });
   it("refuses a name whose id is already listed, without writing", async () => {
     state.canEdit = true;
@@ -469,6 +473,64 @@ describe("parallel dashboard pages", () => {
     expect(removal?.[0]).toBe("/app/api/dashboards/fleet?org=acme");
     expect(state.push).toHaveBeenCalledWith("/en/dashboards");
   });
+  it.each([200, 503])(
+    "confirms visibility only after the server responds %s",
+    async (status) => {
+      state.canEdit = true;
+      show("fleet");
+      await screen.findByText("Widget canvas");
+      act(() =>
+        state.storage!.onChange({
+          ...state.storage!.config,
+          name: "Latest draft",
+          started: false,
+        })
+      );
+      const response = deferredResponse();
+      fetcher.mockReturnValueOnce(response.promise);
+      let saving!: Promise<boolean>;
+      act(() => {
+        saving = state.host!.saveDetails!({
+          visibility: "restricted",
+          started: true,
+        });
+      });
+      const write = fetcher.mock.calls.find(
+        ([, init]) => init?.method === "PUT"
+      );
+      expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
+        name: "Latest draft",
+        visibility: "restricted",
+      });
+      expect(write?.[1]?.headers).toMatchObject({ "if-match": '"7"' });
+      await act(async () => {
+        response.resolve(
+          status === 200
+            ? Response.json(
+                { data: { revision: 8, updatedAt: "now" } },
+                { headers: { ETag: '"8"' } }
+              )
+            : new Response(null, { status })
+        );
+        expect(await saving).toBe(status === 200);
+      });
+      expect(state.storage!.config.started).toBe(status === 200);
+      expect(state.storage!.config.visibility).toBe(
+        status === 200 ? "restricted" : undefined
+      );
+      if (status === 503) {
+        await act(async () => {
+          expect(
+            await state.host!.saveDetails!({
+              visibility: "restricted",
+              started: true,
+            })
+          ).toBe(true);
+        });
+        expect(state.storage!.config.visibility).toBe("restricted");
+      }
+    }
+  );
   it("does not expose an editor for a missing dashboard", async () => {
     state.canEdit = true;
     state.missing = true;

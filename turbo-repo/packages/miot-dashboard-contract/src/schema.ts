@@ -163,6 +163,7 @@ export const dashboardConfigSchema = z
     order: z.number().optional(),
     allowedGroups: z.array(z.string()).optional(),
     tags: z.array(dashboardTagSchema).max(20).optional(),
+    started: z.boolean().optional(),
     visibility: dashboardVisibilitySchema.optional(),
   })
   .passthrough();

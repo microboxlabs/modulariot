@@ -7087,7 +7087,9 @@
       "dateFilterLabel": "Fecha",
       "textFilterPlaceholder": "Añadir valor, Enter para confirmar…",
       "textFilterHint": "Enter para añadir · Esc para cerrar",
-      "reorderFilter": "Reordenar filtro"
+      "reorderFilter": "Reordenar filtro",
+      "tagsTitle": "Etiquetas",
+      "tagsDescription": "Ayudan a encontrar este dashboard en la lista"
     },
     "permissions": {
       "modalTitle": "Gestionar permisos — {name}",
@@ -7118,6 +7120,10 @@
       "roleEditorHelp": "Puede modificar configuración y filtros",
       "roleCoordinatorHelp": "Control total, incluyendo gestión de permisos",
       "saveSuccess": "Permisos actualizados",
+      "saveVisibility": "Guardar visibilidad",
+      "saveAssignments": "Guardar permisos de personas y equipos",
+      "visibilitySaveSuccess": "Visibilidad actualizada",
+      "visibilitySaveError": "No se pudo guardar la visibilidad. Reintenta guardar la visibilidad.",
       "saveError": "No se pudieron actualizar los permisos",
       "loadError": "No se pudieron cargar los permisos",
       "notAuthorized": "No tienes autorización para gestionar los permisos de este dashboard.",
@@ -7444,6 +7450,90 @@
         "confirmSave": "¿Reemplazar las asignaciones locales de permisos del dashboard con esta lista?",
         "error": "La operación de permisos falló. Recargue antes de reintentar; la escritura puede haberse completado.",
         "reload": "Recargar permisos"
+      }
+    },
+    "explorer": {
+      "tagsDialog": {
+        "title": "Etiquetas de \"{name}\"",
+        "save": "Guardar",
+        "cancel": "Cancelar"
+      }
+    },
+    "setup": {
+      "progress": "Progreso de configuración del dashboard",
+      "next": "Continuar",
+      "back": "Atrás",
+      "steps": {
+        "permissions": "Permisos",
+        "tags": "Etiquetas",
+        "dashlet": "Primer dashlet"
+      },
+      "permissions": {
+        "heading": "¿Quién puede usar este dashboard?",
+        "body": "Da acceso a miembros de la organización o a equipos completos.",
+        "removePerson": "Quitar {name}",
+        "roleOf": "Acceso de {name}",
+        "locked": "Solo un administrador de este dashboard puede decidir quién lo usa. Puedes continuar.",
+        "roles": {
+          "Consumer": "Lector",
+          "Contributor": "Colaborador",
+          "Editor": "Editor",
+          "Coordinator": "Administrador"
+        },
+        "roleHints": {
+          "Consumer": "Ve el dashboard",
+          "Contributor": "Lo ve; lo edita solo si lo creó",
+          "Editor": "Lo ve, lo edita y lo comparte",
+          "Coordinator": "Edita, elimina y gestiona el acceso"
+        },
+        "search": "Busca un miembro o un equipo…",
+        "email": "Correo del miembro",
+        "addEmail": "Añadir por correo",
+        "membersHeader": "Miembros",
+        "teamsHeader": "Equipos",
+        "teamSize": "{count} miembros",
+        "noResults": "Ningún miembro ni equipo coincide.",
+        "loading": "Cargando…",
+        "noAccess": "No hay permisos explícitos. Añade un miembro o equipo para compartirlo.",
+        "unknownTeam": "Equipo que ya no existe",
+        "saveError": "No se pudieron guardar los permisos. Inténtalo de nuevo.",
+        "loadError": "No se pudo confirmar el acceso. Los cambios podrían estar guardados. Recarga los permisos para confirmarlo.",
+        "conflictError": "Otro administrador modificó la misma concesión de acceso. Descarta tus cambios pendientes de permisos y recarga antes de reintentar.",
+        "discardAndReload": "Descartar cambios y recargar permisos",
+        "retry": "Recargar permisos",
+        "minCharacters": "Escribe al menos 2 caracteres",
+        "noResultsFor": "Sin resultados para",
+        "visibility": {
+          "label": "Quién lo ve",
+          "organization": "Toda la organización",
+          "restricted": "Solo personas con acceso",
+          "organizationHelp": "Todos en la organización lo ven, cada uno con su rol. La lista da permisos adicionales.",
+          "restrictedHelp": "Solo lo ven quienes estén en la lista, quien lo creó y los dueños de la organización.",
+          "note": "Las personas y equipos que agregues reciben el rol que elijas en este dashboard."
+        }
+      },
+      "tags": {
+        "heading": "Etiquetas",
+        "body": "Ayudan a encontrar este dashboard en la lista.",
+        "placeholder": "Escribe una etiqueta y presiona Enter",
+        "create": "Crear \"{name}\"",
+        "empty": "Aún sin etiquetas. Escribe una arriba o elige una sugerencia.",
+        "suggestions": "Sugerencias",
+        "suggested": "Operaciones, Flota, Finanzas, Ventas",
+        "remove": "Quitar {tag}"
+      },
+      "dashlet": {
+        "heading": "Agrega contenido",
+        "body": "Parte con un dashlet, o desde una plantilla.",
+        "addTitle": "Agregar un dashlet",
+        "addBody": "Gráficos, métricas y tablas con tus datos.",
+        "templateTitle": "Usar una plantilla",
+        "templateBody": "Parte de un dashboard ya armado.",
+        "soon": "Próximamente"
+      },
+      "readOnly": {
+        "title": "Este dashboard aún está vacío",
+        "body": "Quien lo edite agregará aquí su contenido."
       }
     }
   },

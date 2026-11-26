@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { HiPlus } from "react-icons/hi";
 import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import { useRouter } from "next/navigation";
@@ -172,6 +172,8 @@ function ServerDashboardEditor({
     [dictionary]
   );
   const document = useDashboardDocument(org, slug, empty, sessionKey);
+  const documentRef = useRef(document);
+  documentRef.current = document;
   const router = useRouter();
   const [removing, setRemoving] = useState(false);
   const [permissionsOpen, setPermissionsOpen] = useState(false);
@@ -226,6 +228,37 @@ function ServerDashboardEditor({
     ),
     canManagePermissions: document.capabilities?.canManagePermissions === true,
     onManagePermissions: () => setPermissionsOpen(true),
+    permissions: { client: document.client, slug, sessionKey },
+    saveDetails: async (details) => {
+      const current = documentRef.current;
+      if (
+        removing ||
+        current.readOnly ||
+        current.busy ||
+        current.editorKey !== document.editorKey
+      )
+        return false;
+      const attempted = { ...current.config, ...details };
+      if (!current.onChange(attempted)) return false;
+      documentRef.current = { ...current, config: attempted };
+      const saved = await current.save();
+      const latest = documentRef.current;
+      if (!saved && latest.editorKey === current.editorKey) {
+        // Restore only the attempted details, keeping unrelated edits made
+        // while the request was pending. Setup decisions use confirmed values.
+        const restored = { ...latest.config };
+        for (const field of ["tags", "started", "visibility"] as const) {
+          if (!(field in details) || latest.config[field] !== details[field])
+            continue;
+          Object.assign(restored, { [field]: current.config[field] });
+          if (current.config[field] === undefined) delete restored[field];
+        }
+        if (latest.onChange(restored)) {
+          documentRef.current = { ...latest, config: restored };
+        }
+      }
+      return saved;
+    },
     onDelete: document.capabilities?.canDelete ? remove : undefined,
   };
   // Changes save on their own; a failed save keeps the draft and offers a reload.

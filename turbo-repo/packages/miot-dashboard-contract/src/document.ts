@@ -152,6 +152,12 @@ export interface DashboardStorageSchema {
   /** Labels for finding the dashboard in the list; at most 20. */
   tags?: string[];
   /**
+   * False while a new dashboard is still in its setup (who may use it, its
+   * tags); true once that is done. Absent counts as started, so a dashboard
+   * saved before this field existed never goes back through the setup.
+   */
+  started?: boolean;
+  /**
    * Who sees it. "organization": everyone in the scope, each with their own
    * role there. "restricted": only its creator, whoever its permissions name,
    * and the scope's Coordinators. Absent counts as "organization", so a

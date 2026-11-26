@@ -69,7 +69,13 @@ function setup(
       },
     })),
   });
+  const events: AuditEvent[] = [];
   const handler = createDashboardHandler({
+    audit: {
+      record(event) {
+        events.push(event);
+      },
+    },
     identity: identityWithCeiling(ceiling),
     tenants: createMemoryTenantAuthority(memberships),
     scopes: createMemoryScopeAuthority(memberships),
@@ -158,6 +164,7 @@ function setup(
     memberships,
     store,
     handler,
+    events,
   };
 }
 
@@ -373,6 +380,78 @@ describe("visibility", () => {
         })
       ).status,
     ).toBe(204);
+  });
+
+  it("keeps restricted visibility when an update omits the field", async () => {
+    const { call, store } = setup(["sales"]);
+    const ref = { tenantId: "acme", scopeId: "ops", slug: "sales" };
+    expect(
+      (
+        await call(
+          "owner",
+          "PUT",
+          "/dashboards/sales",
+          sampleConfig({ name: "Renamed" }),
+        )
+      ).status,
+    ).toBe(200);
+    expect((await store.load(ref))?.config).toMatchObject({
+      name: "Renamed",
+      visibility: "restricted",
+    });
+    expect((await call("otro", "GET", "/dashboards/sales")).status).toBe(403);
+    expect(
+      (
+        await call(
+          "owner",
+          "PUT",
+          "/dashboards/sales",
+          sampleConfig({ visibility: "organization" }),
+        )
+      ).status,
+    ).toBe(200);
+    expect((await call("otro", "GET", "/dashboards/sales")).status).toBe(200);
+  });
+
+  it("audits the final dashboard visibility denial", async () => {
+    const { call, store, events } = setup(["sales"]);
+    await store.setPermissions(
+      { tenantId: "acme", scopeId: "ops", slug: "sales" },
+      [{ authorityId: "editor", role: "Editor" }],
+    );
+    expect(
+      (
+        await call(
+          "editor",
+          "PUT",
+          "/dashboards/sales",
+          sampleConfig({ visibility: "organization" }),
+        )
+      ).status,
+    ).toBe(403);
+    expect(events.at(-1)).toMatchObject({
+      action: "dashboard.save",
+      outcome: "denied",
+      userId: "editor",
+      target: "ops/sales",
+    });
+  });
+
+  it("rejects null characters in dashboard and folder authority ids", async () => {
+    const { call, createFolder } = setup();
+    const folder = await createFolder("owner", "Team");
+    for (const path of [
+      "/dashboards/sales/permissions",
+      `/folders/${folder.id}/permissions`,
+    ]) {
+      expect(
+        (
+          await call("owner", "PUT", path, {
+            assignments: [{ authorityId: "bad\0id", role: "Consumer" }],
+          })
+        ).status,
+      ).toBe(400);
+    }
   });
 
   it("audits the final folder denial after successful scope authorization", async () => {

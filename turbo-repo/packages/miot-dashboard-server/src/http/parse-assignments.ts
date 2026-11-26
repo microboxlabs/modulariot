@@ -25,6 +25,11 @@ export function parseAssignments(body: unknown): PermissionAssignment[] {
         `'assignments[${index}].authorityId' must be a non-empty string`,
       );
     }
+    if (authorityId.includes("\0")) {
+      throw DashboardServerError.badRequest(
+        "Authority ids must not contain a null character",
+      );
+    }
     if (!isDashboardRole(role)) {
       throw DashboardServerError.badRequest(
         `'assignments[${index}].role' must be one of Consumer, Contributor, Editor, Coordinator`,

@@ -322,8 +322,16 @@ export function createDashboardHandler(
           slug,
           action: "dashboard.save",
         });
-        const config = await readBody(request);
+        let config = await readBody(request);
         requireValidConfig(config);
+        // Older clients omit this field; omission cannot open a private item.
+        if (
+          restrictedConfig(decision.dashboard?.record?.config) &&
+          config !== null &&
+          typeof config === "object" &&
+          !("visibility" in config)
+        )
+          config = { ...config, visibility: "restricted" };
         requireVisibilityUnchangedOrManaged(
           decision,
           config,

@@ -57,8 +57,10 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
             await admin.exec(`CREATE SCHEMA ${schema}`);
             const url = new URL(postgresUrl!);
             url.searchParams.set("options", `-c search_path=${schema}`);
-            url.searchParams.set("application_name", schema);
-            opened = await openPostgresStore({ url: url.toString() });
+            opened = await openPostgresStore({
+              url: url.toString(),
+              applicationName: schema,
+            });
           }
           const memory = createMemoryStore();
           const store = opened?.store ?? memory;
@@ -162,7 +164,7 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
             if (admin) {
               await vi.waitFor(async () => {
                 const waiting = await admin!.all<{ count: number }>(
-                  "SELECT count(*)::int AS count FROM pg_stat_activity WHERE application_name = ? AND wait_event = 'advisory'",
+                  "SELECT count(*)::int AS count FROM pg_stat_activity WHERE application_name = $1 AND wait_event = 'advisory'",
                   [schema],
                 );
                 expect(written || waiting[0]!.count > 0).toBe(true);

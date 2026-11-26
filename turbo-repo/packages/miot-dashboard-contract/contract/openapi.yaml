@@ -170,15 +170,19 @@ paths:
       tags: [dashboards]
       summary: Create or replace a dashboard's configuration
       description: >
-        The body replaces the stored configuration outright; there is no merge.
+        The body replaces the stored configuration. When updating a restricted
+        dashboard, omitting `visibility` preserves its restriction. Opening it
+        requires explicit `visibility: "organization"` and permission-management
+        rights.
 
 
         Send `If-Match` with the revision you loaded. A write whose expected
         revision is stale is refused with `409`, which is what stops two
         editors — or an editor and the AI generation skill — from silently
         overwriting one another. For a first write, load the absent address and
-        send its `ETag` (`"0"`). Omitting the header is the unconditional
-        compatibility path and does not protect against concurrent creation.
+        send its `ETag` (`"0"`). Without the header, the write still compares
+        against the revision authorized for this request (zero when absent),
+        so a concurrent update or creation is refused with `409`.
 
 
         Creating a dashboard that does not exist yet is decided by scope
@@ -238,6 +242,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "404":
           $ref: "#/components/responses/NotFound"
 

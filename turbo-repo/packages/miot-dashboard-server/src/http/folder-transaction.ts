@@ -91,11 +91,7 @@ export function createScopedRouteRunner(options: {
         () => withVisibilitySnapshot(() => route(request, match)),
       );
     } catch (error) {
-      if (
-        FOLDER_ROUTES.has(match.route) &&
-        isDashboardServerError(error) &&
-        [403, 404].includes(error.status)
-      ) {
+      if (isDashboardServerError(error) && [403, 404].includes(error.status)) {
         await auditDenial(decision, action, match, error);
       }
       throw error;

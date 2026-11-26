@@ -38,10 +38,12 @@ export function SettingsPermissionsForm({
   const dirty = saveFailed || state.dirty || visibilityDraft !== visibility;
   const save = async () => {
     setSaving(true);
+    const needsVisibilitySave = visibilityDraft !== visibility || saveFailed;
     const saved =
-      (await state.save()) && (await onVisibilityChange(visibilityDraft));
+      (await state.save()) &&
+      (!needsVisibilitySave || (await onVisibilityChange(visibilityDraft)));
     setSaving(false);
-    setSaveFailed(!saved);
+    setSaveFailed(needsVisibilitySave && !saved);
     ShowNotification({
       type: saved ? "success" : "error",
       message: saved

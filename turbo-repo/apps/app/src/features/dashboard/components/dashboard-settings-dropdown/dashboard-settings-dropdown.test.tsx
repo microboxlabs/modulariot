@@ -223,6 +223,7 @@ it("saves the permissions edited in the settings", async () => {
     screen.getByRole("button", { name: "dashboard.permissions.save" })
   );
   await waitFor(() => expect(perms.save).toHaveBeenCalledOnce());
+  expect(state.saveVisibility).not.toHaveBeenCalled();
 });
 
 it("leaves tags to the legacy store's own pages", () => {

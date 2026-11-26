@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { Dropdown, DropdownItem } from "flowbite-react";
 import {
-  HiCheck,
   HiEllipsisVertical,
   HiInformationCircle,
   HiOutlinePencilSquare,
   HiSparkles,
   HiTrash,
 } from "react-icons/hi2";
+import InteractiveCard, {
+  INTERACTIVE_CARD_TARGET,
+} from "@/features/common/components/interactive-card/interactive-card";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -46,62 +48,39 @@ export default function StoryCard({
   );
 
   return (
-    <div
-      // No overflow-hidden on the card itself: flowbite's kebab Dropdown
-      // below doesn't portal its floating panel (it renders inline,
-      // absolutely positioned), so a clipped ancestor can cut it off. The
-      // thumbnail below carries its own rounded-t-lg instead, so its
-      // background still respects the card's rounded corners without
-      // needing the parent to clip.
-      className={`group relative flex flex-col rounded-lg border bg-white transition-colors focus-within:ring-2 focus-within:ring-blue-500 dark:bg-gray-800 ${
-        selected
-          ? "border-blue-500 dark:border-blue-500"
-          : "border-gray-200 hover:border-gray-400 dark:border-gray-700 dark:hover:border-gray-500"
-      }`}
+    <InteractiveCard
+      selected={selected}
+      // Only stories the caller owns can be deleted, so only those can be
+      // selected for a mass delete.
+      selection={
+        story.owned
+          ? {
+              checked: selected,
+              label: tr("selection.selectAria", dict, { name: story.title }),
+              onToggle: () => onToggleSelect(story),
+            }
+          : undefined
+      }
+      media={
+        <div className="flex h-40 w-full items-center justify-center bg-indigo-50 text-indigo-300 dark:bg-indigo-900/10 dark:text-indigo-500/50">
+          <HiSparkles className="h-14 w-14" />
+        </div>
+      }
     >
-      {/* Whole-card hit area: an invisible `after`-stretched anchor, with the
-          kebab and selection square below stacking above it as later,
-          positioned siblings. */}
+      {/* Covers the whole card; the checkbox and the kebab below stay
+          above it. */}
       <Link
         href={`/${lang}/storytelling/${encodeURIComponent(story.id)}`}
         aria-label={story.title}
-        className="cursor-pointer text-left after:absolute after:inset-0 after:rounded-lg focus:outline-none"
+        className={`cursor-pointer text-left ${INTERACTIVE_CARD_TARGET}`}
       />
-
-      <div className="flex h-40 w-full items-center justify-center rounded-t-lg bg-indigo-50 text-indigo-300 dark:bg-indigo-900/10 dark:text-indigo-500/50">
-        <HiSparkles className="h-14 w-14" />
-      </div>
-      {/* The story's kind, which decides the previewer it opens into. */}
-      <div className="pointer-events-none absolute top-2 left-2">
-        <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${typeMeta.badgeClassName}`}
-        >
-          <TypeIcon className="h-3 w-3" />
-          {trDynamic(typeMeta.labelKey, dict)}
-        </span>
-      </div>
-      {/* Mass-delete selection — hidden until hovered/focused, except once
-          checked (stays visible so the selection state doesn't disappear
-          under the pointer). Only stories the caller owns can be deleted. */}
-      {story.owned && (
-      <button
-        type="button"
-        aria-pressed={selected}
-        aria-label={tr("selection.selectAria", dict, { name: story.title })}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onToggleSelect(story);
-        }}
-        className={`absolute top-2 right-2 z-10 flex h-5 w-5 items-center justify-center rounded-md border transition-colors ${
-          selected
-            ? "border-blue-600 bg-blue-600 text-white"
-            : "border-gray-300 bg-white/90 text-transparent opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:border-gray-400 dark:border-gray-500 dark:bg-gray-800/90"
-        }`}
+      {/* The kind is decorative: clicks pass through to the card's link. */}
+      <span
+        className={`pointer-events-none absolute right-1.5 top-1.5 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${typeMeta.badgeClassName}`}
       >
-        <HiCheck className="h-3.5 w-3.5" />
-      </button>
-      )}
+        <TypeIcon className="h-3 w-3" />
+        {trDynamic(typeMeta.labelKey, dict)}
+      </span>
       <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 dark:border-gray-700">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-normal text-gray-900 dark:text-white">
@@ -167,6 +146,6 @@ export default function StoryCard({
           </Dropdown>
         </div>
       </div>
-    </div>
+    </InteractiveCard>
   );
 }

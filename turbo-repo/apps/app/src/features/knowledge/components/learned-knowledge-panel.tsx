@@ -8,6 +8,7 @@ import { useKnowledgeCards } from "../hooks/use-knowledge-cards";
 import { useKnowledgeTrainer } from "../hooks/use-knowledge-trainer";
 import LearnedFacts from "./learned-facts";
 import PendingCandidates from "./pending-candidates";
+import HeaderIconTile from "@/features/common/components/header-icon-tile";
 
 /**
  * What the chat agent learned: facts pending review and the approved facts it
@@ -23,13 +24,20 @@ export default function LearnedKnowledgePanel({
 
   return (
     <Card className="mt-6">
-      <div className="flex items-center gap-2">
-        <HiOutlineLightBulb className="h-5 w-5 text-yellow-400" />
-        <h2 className="text-xl font-bold dark:text-white">{tr("title", kn)}</h2>
+      <div className="flex items-center gap-4">
+        <HeaderIconTile
+          icon={HiOutlineLightBulb}
+          iconClassName="text-yellow-500"
+        />
+        <div>
+          <h2 className="text-xl font-bold dark:text-white">
+            {tr("title", kn)}
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {tr("description", kn)}
+          </p>
+        </div>
       </div>
-      <p className="-mt-2 text-sm text-gray-500 dark:text-gray-400">
-        {tr("description", kn)}
-      </p>
 
       <PendingCandidates
         kn={kn}

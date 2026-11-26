@@ -1,5 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Breadcrumb as FlowbiteBreadcrumb,
   BreadcrumbItem,
@@ -23,6 +24,16 @@ interface BreadcrumbProps {
   rightContent?: React.ReactNode[];
   dict: I18nRecord;
   disableLinks?: boolean;
+  /**
+   * Makes the first crumb a link, for a page that is one step inside another
+   * (a dashboard inside "Dashboards"). Kept even with `disableLinks`.
+   */
+  rootHref?: string;
+  /**
+   * Links for crumbs after the first, by their index in `path` (the first is
+   * `rootHref`'s). Kept even with `disableLinks`; the last crumb is never one.
+   */
+  crumbHrefs?: readonly (string | undefined)[];
   /** When true, clicking the last crumb turns it into an editable text field. */
   editableLast?: boolean;
   onEditLast?: (value: string) => void;
@@ -35,6 +46,8 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
   rightContent = [],
   dict,
   disableLinks = false,
+  rootHref,
+  crumbHrefs,
   editableLast = false,
   onEditLast,
 }) => {
@@ -79,7 +92,16 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
     if (index === 0) {
       return (
         <BreadcrumbItem icon={() => rootIcon} key={key}>
-          {item}
+          {rootHref ? (
+            <Link
+              href={rootHref}
+              className="underline-offset-2 hover:text-gray-900 hover:underline dark:hover:text-white"
+            >
+              {item}
+            </Link>
+          ) : (
+            item
+          )}
         </BreadcrumbItem>
       );
     }
@@ -113,6 +135,20 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
               <HiPencilSquare className="h-3.5 w-3.5 text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" />
             </button>
           )}
+        </BreadcrumbItem>
+      );
+    }
+
+    const crumbHref = index < lastIndex ? crumbHrefs?.[index] : undefined;
+    if (crumbHref) {
+      return (
+        <BreadcrumbItem key={key}>
+          <Link
+            href={crumbHref}
+            className="underline-offset-2 hover:text-gray-900 hover:underline dark:hover:text-white"
+          >
+            {item}
+          </Link>
         </BreadcrumbItem>
       );
     }

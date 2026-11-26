@@ -45,6 +45,7 @@ import {
   sourceKey,
 } from "./team-model";
 import type { AccessCatalog, Team, TeamMember } from "./team.types";
+import HeaderIconTile from "@/features/common/components/header-icon-tile";
 
 const CELL = "px-4 py-3 align-middle";
 const HEAD = "px-4 py-3 text-left text-xs font-medium uppercase text-gray-500";
@@ -335,9 +336,7 @@ function TeamHeader({
     <div className={`${CARD} p-5`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200">
-            <HiOutlineUserGroup className="h-6 w-6" />
-          </div>
+          <HeaderIconTile icon={HiOutlineUserGroup} />
           <div className="min-w-0">
             <h1 className="truncate text-xl font-semibold text-gray-900 dark:text-white">
               {team.name}

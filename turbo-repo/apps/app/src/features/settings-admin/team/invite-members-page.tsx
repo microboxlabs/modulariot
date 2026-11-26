@@ -47,6 +47,7 @@ import {
   selectedRoles,
 } from "./team-model";
 import type { AccessCatalog, BaseRole } from "./team.types";
+import HeaderIconTile from "@/features/common/components/header-icon-tile";
 
 const EXPIRY_DAYS = [7, 30, 90];
 
@@ -259,9 +260,7 @@ function InviteForm({
       <div className={`${CARD} p-5`}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200">
-              <HiUserAdd className="h-6 w-6" />
-            </div>
+            <HeaderIconTile icon={HiUserAdd} />
             <div>
               <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
                 {tr("inviteTitle", d)}

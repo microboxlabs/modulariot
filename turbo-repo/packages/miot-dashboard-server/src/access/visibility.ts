@@ -91,6 +91,7 @@ export function folderVisible(
   folderId: string,
   scope: ScopeVisibility,
 ): boolean {
+  if (!scope.folders.has(folderId)) return false;
   if (roleAtLeast(scopeRole, "Coordinator")) return true;
   const seen = new Set<string>();
   let current: string | null = folderId;
@@ -122,6 +123,27 @@ function namedOrCreator(
   return (
     createdBy === identity.userId || named(identity, assignments).length > 0
   );
+}
+
+/** Moving outside any restricted ancestor can expose its contents to new callers. */
+export function movementWidensVisibility(
+  from: string | null,
+  to: string | null,
+  scope: ScopeVisibility,
+): boolean {
+  const restrictedAncestors = (id: string | null) => {
+    const restricted = new Set<string>();
+    const seen = new Set<string>();
+    while (id !== null && !seen.has(id)) {
+      seen.add(id);
+      const folder = scope.folders.get(id);
+      if (folder?.visibility === "restricted") restricted.add(id);
+      id = folder?.parentId ?? null;
+    }
+    return restricted;
+  };
+  const remaining = restrictedAncestors(to);
+  return [...restrictedAncestors(from)].some((id) => !remaining.has(id));
 }
 
 /**

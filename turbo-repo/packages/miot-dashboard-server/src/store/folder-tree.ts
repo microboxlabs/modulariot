@@ -52,8 +52,7 @@ export function descendantIds(
   id: string,
 ): string[] {
   const result = [id];
-  for (let i = 0; i < result.length; i++) {
-    const current = result[i];
+  for (const current of result) {
     for (const folder of folders) {
       if (folder.parentId === current) result.push(folder.id);
     }

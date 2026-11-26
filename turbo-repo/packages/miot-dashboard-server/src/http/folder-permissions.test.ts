@@ -8,6 +8,7 @@ import {
   createMemoryTenantAuthority,
 } from "../testing";
 import { sampleConfig } from "../test/fixtures";
+import type { DashboardCapabilities } from "../seams/identity";
 
 const BASE = "http://localhost/tenants/acme/scopes/ops";
 
@@ -18,7 +19,25 @@ interface Folder {
   role: string;
 }
 
-function setup(restricted: readonly string[] = []) {
+function identityWithCeiling(ceiling: Partial<DashboardCapabilities>) {
+  const identities = createInsecureHeaderIdentityResolver();
+  return {
+    async resolve(request: Request) {
+      const principal = await identities.resolve(request);
+      return principal === null
+        ? null
+        : {
+            ...principal,
+            capabilities: { ...principal.capabilities, ...ceiling },
+          };
+    },
+  };
+}
+
+function setup(
+  restricted: readonly string[] = [],
+  ceiling: Partial<DashboardCapabilities> = {},
+) {
   const memberships: {
     acme: { ops: Record<string, "Consumer" | "Editor" | "Coordinator"> };
   } = {
@@ -48,7 +67,7 @@ function setup(restricted: readonly string[] = []) {
     })),
   });
   const handler = createDashboardHandler({
-    identity: createInsecureHeaderIdentityResolver(),
+    identity: identityWithCeiling(ceiling),
     tenants: createMemoryTenantAuthority(memberships),
     scopes: createMemoryScopeAuthority(memberships),
     store,
@@ -121,10 +140,58 @@ function setup(restricted: readonly string[] = []) {
     slugsOf,
     restrictFolder,
     memberships,
+    store,
   };
 }
 
 describe("folder permissions", () => {
+  it("answers 404 for missing permissions even for a scope Coordinator", async () => {
+    const { call } = setup();
+    expect(
+      (await call("owner", "GET", "/folders/missing/permissions")).status,
+    ).toBe(404);
+  });
+
+  it("rejects repeated authorities before replacing permissions", async () => {
+    const { call, createFolder } = setup();
+    const folder = await createFolder("owner", "Ops");
+    expect(
+      (
+        await call("owner", "PUT", `/folders/${folder.id}/permissions`, {
+          assignments: [
+            { authorityId: "lector", role: "Consumer" },
+            { authorityId: "lector", role: "Coordinator" },
+          ],
+        })
+      ).status,
+    ).toBe(400);
+  });
+
+  it.each([
+    ["POST", "/folders", "canEdit", { name: "Blocked" }],
+    ["PATCH", "/folders/:id", "canEdit", { name: "Blocked" }],
+    ["DELETE", "/folders/:id", "canDelete", undefined],
+    ["GET", "/folders/:id/permissions", "canManagePermissions", undefined],
+    [
+      "PUT",
+      "/folders/:id/permissions",
+      "canManagePermissions",
+      { assignments: [] },
+    ],
+  ] as const)(
+    "applies the principal's %s %s ceiling",
+    async (method, path, capability, body) => {
+      const ceiling: Partial<DashboardCapabilities> = {};
+      const { call, createFolder } = setup([], ceiling);
+      const folder = await createFolder("owner", "Ops");
+      ceiling[capability] = false;
+      expect(
+        (await call("owner", method, path.replace(":id", folder.id), body))
+          .status,
+      ).toBe(403);
+    },
+  );
+
   it("gives each folder the caller's role, scope or folder, the higher", async () => {
     const { call, createFolder, foldersOf } = setup();
     const ops = await createFolder("editor", "Ops");
@@ -241,6 +308,86 @@ describe("folder permissions", () => {
 });
 
 describe("visibility", () => {
+  it("requires permission management to expose a dashboard outside its restricted folder", async () => {
+    const { call, createFolder, restrictFolder, slugsOf } = setup();
+    const folder = await createFolder("owner", "Private");
+    await call("owner", "PUT", "/dashboards/sales/folder", {
+      folderId: folder.id,
+    });
+    await restrictFolder("owner", folder.id, [
+      { authorityId: "editor", role: "Editor" },
+    ]);
+    expect(
+      (
+        await call("editor", "PUT", "/dashboards/sales/folder", {
+          folderId: null,
+        })
+      ).status,
+    ).toBe(403);
+    expect(await slugsOf("otro")).toEqual(["fleet"]);
+    expect(
+      (
+        await call("owner", "PUT", "/dashboards/sales/folder", {
+          folderId: null,
+        })
+      ).status,
+    ).toBe(204);
+  });
+
+  it("requires managing a subtree to move it outside a restricted ancestor", async () => {
+    const { call, createFolder, restrictFolder, foldersOf } = setup();
+    const parent = await createFolder("owner", "Private");
+    const child = await createFolder("owner", "Child", parent.id);
+    await restrictFolder("owner", parent.id, [
+      { authorityId: "editor", role: "Editor" },
+    ]);
+    expect(
+      (
+        await call("editor", "PATCH", `/folders/${child.id}`, {
+          parentId: null,
+        })
+      ).status,
+    ).toBe(403);
+    expect(await foldersOf("otro")).toEqual([]);
+    expect(
+      (await call("owner", "PATCH", `/folders/${child.id}`, { parentId: null }))
+        .status,
+    ).toBe(200);
+  });
+
+  it("clears placement when a dashboard is deleted and its slug reused", async () => {
+    const { call, createFolder, slugsOf } = setup();
+    const folder = await createFolder("owner", "Private");
+    await call("owner", "PUT", "/dashboards/sales/folder", {
+      folderId: folder.id,
+    });
+    expect((await call("owner", "DELETE", "/dashboards/sales")).status).toBe(
+      204,
+    );
+    expect(
+      (await call("owner", "PUT", "/dashboards/sales", sampleConfig())).status,
+    ).toBe(200);
+    expect(await slugsOf("otro")).toContain("sales");
+  });
+
+  it("refuses a stale authorized save when another writer restricts the dashboard", async () => {
+    const { call, store } = setup();
+    const save = store.save.bind(store);
+    store.save = async (ref, config, options) => {
+      await save(ref, sampleConfig({ visibility: "restricted" }), {
+        updatedBy: "owner",
+      });
+      return save(ref, config, options);
+    };
+    expect(
+      (await call("editor", "PUT", "/dashboards/sales", sampleConfig())).status,
+    ).toBe(409);
+    expect(
+      (await store.load({ tenantId: "acme", scopeId: "ops", slug: "sales" }))
+        ?.config,
+    ).toMatchObject({ visibility: "restricted" });
+  });
+
   it("starts a new folder restricted to who its creator names", async () => {
     const { call, foldersOf } = setup();
     const created = await call("editor", "POST", "/folders", { name: "Mine" });

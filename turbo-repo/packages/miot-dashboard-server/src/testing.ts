@@ -601,7 +601,7 @@ export function createMemoryFolderStore(): DashboardFolderStore {
           ]),
         ),
       ),
-    async setPermissions(scope, folderId, assignments) {
+    async setPermissions(scope, folderId, assignments, visibility) {
       requireParent(foldersOf(scope), folderId);
       const granted = grantsOf(scope);
       if (assignments.length === 0) granted.delete(folderId);
@@ -610,6 +610,11 @@ export function createMemoryFolderStore(): DashboardFolderStore {
           folderId,
           assignments.map((a) => ({ ...a })),
         );
+      if (visibility !== undefined) {
+        const rows = foldersOf(scope);
+        const index = rows.findIndex((f) => f.id === folderId);
+        rows[index] = { ...rows[index]!, visibility };
+      }
     },
     async setVisibility(scope, folderId, visibility) {
       const rows = foldersOf(scope);

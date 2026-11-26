@@ -261,20 +261,7 @@ export function createDashboardHandler(
         tenantId: match.tenantId,
         scopeId: match.scopeId,
       });
-      if (options.folders === undefined || data.length === 0) {
-        return jsonResponse({ data });
-      }
-      // `list` has authorized the scope, so its tenant check already ran.
-      const placements = await options.folders.placements({
-        tenantId: match.tenantId,
-        scopeId: match.scopeId,
-      });
-      return jsonResponse({
-        data: data.map((summary) => {
-          const folderId = placements.get(summary.slug);
-          return folderId === undefined ? summary : { ...summary, folderId };
-        }),
-      });
+      return jsonResponse({ data });
     },
 
     async dashboard(request, match) {
@@ -306,7 +293,8 @@ export function createDashboardHandler(
         const config = await readBody(request);
         requireValidConfig(config);
         requireVisibilityUnchangedOrManaged(decision, config);
-        const expectedRevision = readExpectedRevision(request);
+        const expectedRevision =
+          readExpectedRevision(request) ?? decision.dashboard?.record?.revision ?? 0;
         const saved = await options.store.save(
           refOf(decision.identity.tenantId, match.scopeId, slug),
           config,
@@ -334,6 +322,9 @@ export function createDashboardHandler(
         }
         const ref = refOf(decision.identity.tenantId, match.scopeId, slug);
         await options.store.remove(ref);
+        // Independent folder adapters (including the memory adapter) do not
+        // observe dashboard deletion. Clear the placement before slug reuse.
+        await options.folders?.placeDashboard(ref, slug, null);
         return noContentResponse();
       }
       return methodNotAllowed();

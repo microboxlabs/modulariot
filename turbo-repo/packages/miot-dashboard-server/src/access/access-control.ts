@@ -190,17 +190,17 @@ const ACTION_RULES: Readonly<Record<DashboardAction, ActionRule>> = {
   // scope here: the folder routes then check the caller's role on the folder
   // itself (Editor to create inside, rename or move it; Coordinator to delete
   // it or manage its permissions), and the scope role for the top level.
-  "folder.write": { level: "scope", floor: "Consumer", capability: null },
-  "folder.delete": { level: "scope", floor: "Consumer", capability: null },
+  "folder.write": { level: "scope", floor: "Consumer", capability: "canEdit" },
+  "folder.delete": { level: "scope", floor: "Consumer", capability: "canDelete" },
   "folder.permissions.read": {
     level: "scope",
     floor: "Consumer",
-    capability: null,
+    capability: "canManagePermissions",
   },
   "folder.permissions.write": {
     level: "scope",
     floor: "Consumer",
-    capability: null,
+    capability: "canManagePermissions",
   },
   "datasource.list": { level: "scope", floor: "Consumer", capability: null },
   "datasource.query": { level: "scope", floor: "Consumer", capability: null },
@@ -487,10 +487,12 @@ export function createAccessControl<TRequest>(
         )
           return;
         const order = dashboardSortOrder(record.config);
+        const folderId = scopeVisibility.placements.get(summary.slug);
         visible.push({
           slug: summary.slug,
           name: dashboardDisplayName(record.config, summary.slug),
           ...(order === undefined ? {} : { order }),
+          ...(folderId === undefined ? {} : { folderId }),
         });
       });
     }

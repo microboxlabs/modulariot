@@ -1,10 +1,10 @@
 /**
  * Folder seam — how a scope's dashboards are arranged for browsing.
  *
- * A folder only groups dashboards: it carries no config, no data and no
- * permissions of its own. Filing a dashboard in one changes where it lists,
- * never what it is or who may open it, so moving a dashboard does not touch
- * its config or bump its revision.
+ * A folder groups dashboards and has its own permissions and visibility.
+ * Its role grants no rights on the dashboards inside; hiding a folder hides
+ * its contents too. Moving a dashboard changes its placement without touching
+ * its config or bumping its revision.
  *
  * Implementations throw `DashboardServerError`s: `notFound` for a folder or
  * parent that does not exist, `conflict` for a sibling name that is taken or
@@ -94,11 +94,12 @@ export interface DashboardFolderStore {
    * may see and change the folder, not what is inside it.
    */
   permissions(scope: FolderScope): Promise<Map<string, PermissionAssignment[]>>;
-  /** Replaces one folder's permissions. Throws `notFound` for no such folder. */
+  /** Replaces permissions and optional visibility atomically; `notFound` if absent. */
   setPermissions(
     scope: FolderScope,
     folderId: string,
     assignments: readonly PermissionAssignment[],
+    visibility?: DashboardVisibility,
   ): Promise<void>;
   /** Sets who sees one folder. Throws `notFound` for no such folder. */
   setVisibility(

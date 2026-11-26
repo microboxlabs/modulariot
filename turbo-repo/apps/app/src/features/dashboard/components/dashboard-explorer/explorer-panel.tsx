@@ -414,8 +414,14 @@ export default function ExplorerPanel({
     () => new Map(server.recent.map((open) => [open.id, open.openedAt])),
     [server.recent]
   );
-  /** Drops the search, so a new item is not hidden by it. */
-  const clearQuery = useCallback(() => setQuery(""), []);
+  const revealForNaming = useCallback(
+    (parentId: string | null) => {
+      setQuery("");
+      setFacets(NO_FACETS);
+      if (isCards && parentId !== currentFolderId) openFolderParam(parentId);
+    },
+    [isCards, currentFolderId, openFolderParam]
+  );
   const clearSelection = useCallback(() => setSelection(EMPTY_SELECTION), []);
   const openDashboard = useCallback(
     (id: string) => {
@@ -431,7 +437,7 @@ export default function ExplorerPanel({
     sources,
     server,
     dict,
-    onCreated: clearQuery,
+    onReveal: revealForNaming,
     onDeleted: clearSelection,
     onOpen: openDashboard,
   });
@@ -731,7 +737,7 @@ export default function ExplorerPanel({
             parent={folder ? parentLink : null}
             t={t}
             nodes={cardNodes}
-            recent={recent}
+            recent={actions.editingId === null ? recent : []}
             parentId={isSearching ? null : currentFolderId}
             parentOf={parentOfNode}
             view={cardsView}

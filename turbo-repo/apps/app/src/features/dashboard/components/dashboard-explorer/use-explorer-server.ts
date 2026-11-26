@@ -6,7 +6,7 @@
  * dashboard server and then reloads both lists, so what the tree shows is
  * always what the server holds.
  */
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import useSWR from "swr";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import {
@@ -49,8 +49,12 @@ export function freeSlug(name: string, taken: ReadonlySet<string>): string {
   const base = serverDashboardSlug(name) || "dashboard";
   if (!taken.has(base)) return base;
   let n = 1;
-  while (taken.has(`${base}-${n}`)) n++;
-  return `${base}-${n}`;
+  const candidate = () => {
+    const suffix = `-${n}`;
+    return `${base.slice(0, 80 - suffix.length).replace(/-$/, "")}${suffix}`;
+  };
+  while (taken.has(candidate())) n++;
+  return candidate();
 }
 
 export interface ExplorerServer extends ExplorerSnapshot {
@@ -185,35 +189,33 @@ export function useExplorerServer(): ExplorerServer {
     return clients;
   }, [clients]);
 
-  const takenSlugs = useMemo(
-    () =>
-      new Set(
-        snapshot.sources.map((s) => slugOfHref(s.id)).filter((s) => s !== null)
-      ),
-    [snapshot.sources]
-  );
+  const pendingChange = useRef(Promise.resolve());
 
-  /**
-   * Writes one change. The list shows `optimistic` at once and the answer
-   * the write returns as soon as it lands; the full reload runs afterwards
-   * without holding anything up. A failed write puts the list back.
-   */
   const change = useCallback(
-    async (
+    (
       write: (current: ExplorerSnapshot) => Promise<ExplorerSnapshot>,
       optimistic?: (current: ExplorerSnapshot) => ExplorerSnapshot
     ) => {
-      await mutate((current) => write(current ?? EMPTY_SNAPSHOT), {
-        ...(optimistic
-          ? {
-              optimisticData: (current?: ExplorerSnapshot) =>
-                optimistic(current ?? EMPTY_SNAPSHOT),
-            }
-          : {}),
-        rollbackOnError: true,
-        populateCache: true,
-        revalidate: true,
+      const next = pendingChange.current.then(async () => {
+        try {
+          await mutate((current) => write(current ?? EMPTY_SNAPSHOT), {
+            ...(optimistic
+              ? {
+                  optimisticData: (current?: ExplorerSnapshot) =>
+                    optimistic(current ?? EMPTY_SNAPSHOT),
+                }
+              : {}),
+            rollbackOnError: true,
+            populateCache: true,
+            revalidate: true,
+          });
+        } catch (error) {
+          await mutate();
+          throw error;
+        }
       });
+      pendingChange.current = next.catch(() => undefined);
+      return next;
     },
     [mutate]
   );
@@ -222,13 +224,22 @@ export function useExplorerServer(): ExplorerServer {
     /** Saves `config` under a new slug and files it; returns its explorer id. */
     const saveNew = async (
       config: typeof DEFAULT_STORAGE,
-      folderId: string | null
+      folderId: string | null,
+      current: ExplorerSnapshot
     ) => {
       const { dashboards, folders } = requireClients();
-      const slug = freeSlug(config.name ?? "", takenSlugs);
+      const slug = freeSlug(
+        config.name ?? "",
+        new Set(current.sources.map((source) => requireSlug(source.id)))
+      );
       // '"0"' is "create only": an existing slug is a 409, never overwritten.
       await dashboards.save(slug, config, '"0"');
-      if (folderId !== null) await folders.fileDashboard(slug, folderId);
+      try {
+        if (folderId !== null) await folders.fileDashboard(slug, folderId);
+      } catch (error) {
+        await dashboards.remove(slug).catch(() => undefined);
+        throw error;
+      }
       return dashboardHref(slug);
     };
     /** A new dashboard as the list shows it until the reload. */
@@ -272,7 +283,8 @@ export function useExplorerServer(): ExplorerServer {
               // Kept to who its creator names until they open it up.
               visibility: "restricted",
             },
-            folderId
+            folderId,
+            current
           );
           return addDashboard(current, sourceOf(id, name), folderId);
         });
@@ -286,7 +298,8 @@ export function useExplorerServer(): ExplorerServer {
           const copy = await saveNew(
             // A copy is its maker's: kept to who they name, like a new one.
             { ...(config ?? DEFAULT_STORAGE), name, visibility: "restricted" },
-            folderId
+            folderId,
+            current
           );
           return addDashboard(
             current,
@@ -370,7 +383,6 @@ export function useExplorerServer(): ExplorerServer {
     error,
     scope,
     requireClients,
-    takenSlugs,
     change,
     refresh,
   ]);

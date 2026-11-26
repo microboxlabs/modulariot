@@ -7,7 +7,7 @@
  * survives switching sections. Folders and dashboards themselves come from
  * the server (see use-explorer-server.ts) and are merged in by the panel.
  */
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import type { ExplorerLayout } from "./explorer-tree.types";
 import { EMPTY_LAYOUT } from "./explorer-tree";
 
@@ -43,6 +43,7 @@ export function useExplorerLayout(): readonly [
   ExplorerLayout,
   (update: (current: ExplorerLayout) => ExplorerLayout) => void,
 ] {
+  useEffect(() => () => setLayout({ ...layout, folders: {}, drafts: {} }), []);
   const current = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const update = useCallback(
     (fn: (current: ExplorerLayout) => ExplorerLayout) => setLayout(fn(layout)),

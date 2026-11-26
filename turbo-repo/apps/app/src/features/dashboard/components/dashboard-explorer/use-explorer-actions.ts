@@ -65,8 +65,8 @@ interface UseExplorerActionsArgs {
   sources: readonly ExplorerSourceFile[];
   server: ExplorerServer;
   dict: PropsWithI18nDict["dict"];
-  /** Called after creating an item, so a search does not hide it. */
-  onCreated: () => void;
+  /** Shows the destination and clears filters before naming an item. */
+  onReveal: (parentId: string | null) => void;
   /** Called after a delete, so the selection drops what is gone. */
   onDeleted: () => void;
   /** Opens a dashboard just created, by its explorer id. */
@@ -114,7 +114,7 @@ export function useExplorerActions({
   sources,
   server,
   dict,
-  onCreated,
+  onReveal,
   onDeleted,
   onOpen,
 }: UseExplorerActionsArgs) {
@@ -182,7 +182,7 @@ export function useExplorerActions({
           expanded: added.expanded,
         };
       });
-      onCreated();
+      onReveal(parentId);
       setEditingId(id);
     },
     [
@@ -194,7 +194,7 @@ export function useExplorerActions({
       sources,
       update,
       merge,
-      onCreated,
+      onReveal,
     ]
   );
 
@@ -281,9 +281,7 @@ export function useExplorerActions({
   /** Dashboards are copied; folders cannot be copied yet. */
   const copyInto = useCallback(
     (ids: string[], target: string | null | undefined) => {
-      const dashboards = topLevelIds(layout, ids).filter(
-        (id) => !layout.folders[id]
-      );
+      const dashboards = ids.filter((id) => !layout.folders[id]);
       if (dashboards.length === 0) return;
       if (target) {
         update((local) => ({
@@ -322,7 +320,9 @@ export function useExplorerActions({
           ? local
           : { ...local, expanded: { ...local.expanded, [target]: true } }
       );
-      const moving = topLevelIds(layout, ids);
+      const moving = topLevelIds(layout, ids).filter(
+        (id) => parentOf(moved, id) !== parentOf(layout, id)
+      );
       const where = target === null ? "ToTop" : "Into";
       const success =
         moving.length === 1
@@ -487,11 +487,18 @@ export function useExplorerActions({
   );
   const closePermissions = useCallback(() => setPermissionsEditing(null), []);
   const cancelPending = useCallback(() => setPending(null), []);
+  const beginRename = useCallback(
+    (id: string | null) => {
+      if (id !== null) onReveal(parentOf(layout, id));
+      setEditingId(id);
+    },
+    [layout, onReveal]
+  );
 
   return useMemo(
     () => ({
       editingId,
-      setEditingId,
+      setEditingId: beginRename,
       rename,
       stopRename,
       isNamingNew,
@@ -526,6 +533,7 @@ export function useExplorerActions({
     }),
     [
       editingId,
+      beginRename,
       rename,
       stopRename,
       isNamingNew,

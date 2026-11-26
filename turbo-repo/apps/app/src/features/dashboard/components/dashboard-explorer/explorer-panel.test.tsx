@@ -496,6 +496,113 @@ describe("ExplorerPanel", () => {
     globalThis.history.replaceState(null, "", "/en/dashboards");
   });
 
+  it("discards abandoned drafts when the workspace unmounts", async () => {
+    const user = userEvent.setup();
+    const mounted = renderPanel();
+    await newItem(user, "New folder");
+    expect(Object.keys(readExplorerLayout().folders)).toHaveLength(1);
+    mounted.unmount();
+    renderPanel();
+    expect(Object.keys(readExplorerLayout().folders)).toHaveLength(0);
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
+  it("clears facets before naming a new folder", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(screen.getByRole("button", { name: "Show starred only" }));
+    await newItem(user, "New folder");
+    expect(
+      screen.getByRole("textbox", { name: "Untitled folder" })
+    ).toBeVisible();
+  });
+
+  it.each(["New file", "New folder"])(
+    "reveals the destination of %s in cards",
+    async (action) => {
+      const user = userEvent.setup();
+      await fake.set({
+        ...fake.get(),
+        folders: [{ id: "ops", name: "Ops", parentId: null }],
+      });
+      renderPanel();
+      await user.click(screen.getByRole("button", { name: "Cards" }));
+      await pick(user, screen.getByText("Ops"), action);
+      expect(globalThis.location.search).toContain("folder=ops");
+      expect(screen.getByRole("textbox")).toBeVisible();
+    }
+  );
+
+  it.each([undefined, "ops"])(
+    "renames a recent dashboard with one editor, parent %s",
+    async (folderId) => {
+      const user = userEvent.setup();
+      await fake.set({
+        ...fake.get(),
+        folders: [{ id: "ops", name: "Ops", parentId: null }],
+        dashboards: [{ slug: "sales", name: "Sales", folderId }],
+        recent: [{ id: "/dashboards/sales", openedAt: "2026-11-23T14:05:00Z" }],
+      });
+      renderPanel();
+      await user.click(screen.getByRole("button", { name: "Cards" }));
+      const recent = screen.getByRole("region", { name: "Recently opened" });
+      await pick(
+        user,
+        within(recent).getByRole("link", { name: "Sales" }),
+        "Rename"
+      );
+      const input = screen.getByRole("textbox", { name: "Sales" });
+      expect(input).toHaveFocus();
+      await user.clear(input);
+      await user.type(input, "Revenue{Enter}");
+      await waitFor(() =>
+        expect(fake.get().dashboards[0]?.name).toBe("Revenue")
+      );
+    }
+  );
+
+  it("moves valid selected files without moving a folder into its descendant", async () => {
+    const user = userEvent.setup();
+    await fake.set({
+      ...fake.get(),
+      folders: [
+        { id: "ops", name: "Ops", parentId: null },
+        { id: "daily", name: "Daily", parentId: "ops" },
+      ],
+    });
+    renderPanel();
+    await user.click(screen.getByRole("button", { name: 'Expand "Ops"' }));
+    await user.click(checkbox("Ops"));
+    await user.click(checkbox("Sales"));
+    dragOnto(link("Sales"), screen.getByText("Daily"));
+    await user.click(screen.getByRole("button", { name: "Move" }));
+    await waitFor(() =>
+      expect(
+        fake.get().dashboards.find((d) => d.slug === "sales")?.folderId
+      ).toBe("daily")
+    );
+    expect(
+      fake.get().folders.find((folder) => folder.id === "ops")?.parentId
+    ).toBeNull();
+  });
+
+  it("copies a selected dashboard when its parent is also selected", async () => {
+    const user = userEvent.setup();
+    await fake.set({
+      ...fake.get(),
+      folders: [{ id: "ops", name: "Ops", parentId: null }],
+      dashboards: [{ slug: "sales", name: "Sales", folderId: "ops" }],
+    });
+    renderPanel();
+    await user.click(screen.getByRole("button", { name: 'Expand "Ops"' }));
+    await user.click(checkbox("Ops"));
+    await user.click(checkbox("Sales"));
+    await pick(user, link("Sales"), "Copy");
+    await pick(user, screen.getByTestId("explorer-root"), "Paste");
+    await waitFor(() => expect(fake.get().dashboards).toHaveLength(2));
+    expect(fake.get().dashboards[1]?.folderId).toBeUndefined();
+  });
+
   it("shows the dashboards as files and offers new files and folders", async () => {
     const user = userEvent.setup();
     renderPanel();

@@ -252,6 +252,14 @@ async function newMenuItem(user: User, name: string) {
   return screen.getByRole("menuitem", { name });
 }
 
+function deferredResponse() {
+  let resolve!: (response: Response) => void;
+  const promise = new Promise<Response>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
+
 describe("parallel dashboard pages", () => {
   it("discards cached lists when the authenticated identity changes", async () => {
     const page = render(
@@ -599,7 +607,9 @@ describe("parallel dashboard pages", () => {
         });
       });
       const write = fetcher.mock.calls.find(
-        ([, init]) => init?.method === "PUT"
+        ([input, init]) =>
+          String(input) === "/app/api/dashboards/fleet?org=acme" &&
+          init?.method === "PUT"
       );
       expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
         name: "Latest draft",

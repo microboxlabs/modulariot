@@ -24,9 +24,36 @@ import { MIGRATIONS, runMigrations } from "./sql/migrations";
 import { SQLITE_DIALECT, type SqlDriver } from "./sql/driver";
 import { createSqliteDriver } from "./sqlite-driver";
 import { openSqliteStore, SQLITE_MEMORY } from "./sqlite";
+import { createSqlFolderStore } from "./sql/folders";
 
 const ref = { tenantId: "acme", scopeId: "ops", slug: "fleet" };
 const config = { version: 2, name: "Fleet" };
+
+it("keeps external documents on rollback and cleans them after commit", async () => {
+  const documents = createFsDocumentStore({ root: temporaryDirectory() });
+  const opened = await openSqliteStore({
+    path: SQLITE_MEMORY,
+    documents,
+    documentBackend: "fs",
+    newDocumentKey: () => "acme/fleet.json",
+  });
+  const folders = createSqlFolderStore(opened.driver);
+  try {
+    await opened.store.save(ref, config, { updatedBy: "ana" });
+    await expect(
+      folders.transaction(ref, async () => {
+        await opened.store.remove(ref);
+        throw new Error("Folder deletion failed");
+      }),
+    ).rejects.toThrow("Folder deletion failed");
+    expect((await opened.store.load(ref))?.config).toEqual(config);
+    expect(await documents.get("acme/fleet.json")).not.toBeNull();
+    await folders.transaction(ref, () => opened.store.remove(ref));
+    expect(await documents.get("acme/fleet.json")).toBeNull();
+  } finally {
+    await opened.close();
+  }
+});
 
 const temporaryDirectories: string[] = [];
 function temporaryDirectory(): string {

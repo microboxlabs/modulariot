@@ -108,13 +108,16 @@ export function createPostgresDriver(
    * connection — issued on another pooled client it would land outside the
    * transaction, and be committed even when the transaction rolls back.
    */
-  const current = new AsyncLocalStorage<PoolClient>();
+  const current = new AsyncLocalStorage<{
+    client: PoolClient;
+    cleanup: (() => Promise<void>)[];
+  }>();
 
   const run = async <T>(
     sql: string,
     params: readonly SqlValue[],
   ): Promise<T[]> => {
-    const client = current.getStore();
+    const client = current.getStore()?.client;
     // Outside a transaction, `pool.query` checks a connection out and returns
     // it, which is what a pool is for.
     const result =
@@ -135,6 +138,12 @@ export function createPostgresDriver(
       return run<T>(sql, params);
     },
 
+    async afterCommit(body) {
+      const active = current.getStore();
+      if (active) active.cleanup.push(body);
+      else await body();
+    },
+
     async transaction<T>(body: () => Promise<T>): Promise<T> {
       // Already inside one this driver opened: join it. A second BEGIN on the
       // same connection is a warning and a no-op in PostgreSQL, and the inner
@@ -143,13 +152,14 @@ export function createPostgresDriver(
       if (joined !== undefined) return body();
 
       const client = await pool.connect();
+      const cleanup: (() => Promise<void>)[] = [];
       let failed = false;
+      let result: T;
       try {
         await client.query("BEGIN");
         try {
-          const result = await current.run(client, body);
+          result = await current.run({ client, cleanup }, body);
           await client.query("COMMIT");
-          return result;
         } catch (error) {
           // A ROLLBACK that itself throws means the connection is no longer
           // usable. Swallowing it here would lose the original error, which is
@@ -163,6 +173,9 @@ export function createPostgresDriver(
       } finally {
         client.release(failed);
       }
+      // The connection is committed and released before external cleanup.
+      for (const work of cleanup) await work();
+      return result;
     },
 
     close() {

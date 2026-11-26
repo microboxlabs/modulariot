@@ -539,16 +539,17 @@ describe("the spec against the router", () => {
     (await fetch(`${running.url}${path}`, { method })).status !== 404;
 
   beforeAll(async () => {
+    const store = createMemoryStore();
     running = await serve({
       identity: createInsecureHeaderIdentityResolver(),
       tenants: createMemoryTenantAuthority({}),
       scopes: createMemoryScopeAuthority({}),
-      store: createMemoryStore(),
+      store,
       // The document describes a server with every route mounted. Left out,
       // optional adapters answer 404 when omitted.
       dataSources: createMemoryDataSourceStore(),
       credentials: createMemoryCredentialsStore(),
-      folders: createMemoryFolderStore(),
+      folders: createMemoryFolderStore(store),
       queries: { operations: { execute: async () => ({ rows: [] }) } },
       queryCatalog: { list: async () => [] },
       authoring: {

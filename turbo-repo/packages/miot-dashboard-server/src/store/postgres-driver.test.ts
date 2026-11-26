@@ -77,6 +77,30 @@ const open = (fake: ReturnType<typeof fakePool>) =>
   createPostgresDriver({ url: "postgres://ignored", poolImpl: fake.pool });
 
 describe("createPostgresDriver", () => {
+  it("runs nested cleanup after commit and release, discarding it on rollback", async () => {
+    const fake = fakePool();
+    const driver = open(fake);
+    const cleaned: string[] = [];
+    await driver.transaction(() =>
+      driver.transaction(async () => {
+        await driver.afterCommit!(async () => {
+          expect(fake.issued.at(-1)?.sql).toBe("COMMIT");
+          expect(fake.released).toHaveLength(1);
+          cleaned.push("committed");
+        });
+        expect(cleaned).toEqual([]);
+      }),
+    );
+    await expect(
+      driver.transaction(async () => {
+        await driver.afterCommit!(async () => {
+          cleaned.push("rolled back");
+        });
+        throw new Error("Rejected");
+      }),
+    ).rejects.toThrow("Rejected");
+    expect(cleaned).toEqual(["committed"]);
+  });
   it("handles a lost idle connection without an uncaught error event", () => {
     const fake = fakePool();
     open(fake);

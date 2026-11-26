@@ -37,6 +37,7 @@ function identityWithCeiling(ceiling: Partial<DashboardCapabilities>) {
 function setup(
   restricted: readonly string[] = [],
   ceiling: Partial<DashboardCapabilities> = {},
+  withFolders = true,
 ) {
   const memberships: {
     acme: { ops: Record<string, "Consumer" | "Editor" | "Coordinator"> };
@@ -71,7 +72,7 @@ function setup(
     tenants: createMemoryTenantAuthority(memberships),
     scopes: createMemoryScopeAuthority(memberships),
     store,
-    folders: createMemoryFolderStore(),
+    ...(withFolders ? { folders: createMemoryFolderStore(store) } : {}),
   });
   const call = (
     user: string,
@@ -141,6 +142,7 @@ function setup(
     restrictFolder,
     memberships,
     store,
+    handler,
   };
 }
 
@@ -308,6 +310,29 @@ describe("folder permissions", () => {
 });
 
 describe("visibility", () => {
+  it("requires rights on contained dashboards before exposing a folder subtree", async () => {
+    const { call, createFolder, restrictFolder, slugsOf } = setup();
+    const parent = await createFolder("owner", "Private");
+    const child = await createFolder("editor", "Child", parent.id);
+    await call("owner", "PUT", "/dashboards/sales/folder", {
+      folderId: child.id,
+    });
+    await restrictFolder("owner", parent.id, [
+      { authorityId: "editor", role: "Editor" },
+    ]);
+    expect(
+      (
+        await call("editor", "PATCH", `/folders/${child.id}`, {
+          parentId: null,
+        })
+      ).status,
+    ).toBe(403);
+    expect(await slugsOf("otro")).toEqual(["fleet"]);
+    expect(
+      (await call("owner", "PATCH", `/folders/${child.id}`, { parentId: null }))
+        .status,
+    ).toBe(200);
+  });
   it("requires permission management to expose a dashboard outside its restricted folder", async () => {
     const { call, createFolder, restrictFolder, slugsOf } = setup();
     const folder = await createFolder("owner", "Private");
@@ -370,23 +395,44 @@ describe("visibility", () => {
     expect(await slugsOf("otro")).toContain("sales");
   });
 
-  it("refuses a stale authorized save when another writer restricts the dashboard", async () => {
-    const { call, store } = setup();
-    const save = store.save.bind(store);
-    store.save = async (ref, config, options) => {
-      await save(ref, sampleConfig({ visibility: "restricted" }), {
-        updatedBy: "owner",
+  it.each([undefined, '"2"'])(
+    "refuses a stale authorization even with If-Match %s",
+    async (ifMatch) => {
+      const { handler, store } = setup([], {}, false);
+      const ref = { tenantId: "acme", scopeId: "ops", slug: "sales" };
+      // Pull only when the handler reads the body, after its authorization.
+      const body = new ReadableStream<Uint8Array>(
+        {
+          async pull(controller) {
+            await store.save(ref, sampleConfig({ visibility: "restricted" }), {
+              updatedBy: "owner",
+            });
+            controller.enqueue(
+              new TextEncoder().encode(JSON.stringify(sampleConfig())),
+            );
+            controller.close();
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      const init: RequestInit = {
+        method: "PUT",
+        duplex: "half",
+        headers: {
+          "x-dev-user": "editor",
+          "content-type": "application/json",
+          ...(ifMatch ? { "if-match": ifMatch } : {}),
+        },
+        body,
+      };
+      expect(
+        (await handler(new Request(`${BASE}/dashboards/sales`, init))).status,
+      ).toBe(409);
+      expect((await store.load(ref))?.config).toMatchObject({
+        visibility: "restricted",
       });
-      return save(ref, config, options);
-    };
-    expect(
-      (await call("editor", "PUT", "/dashboards/sales", sampleConfig())).status,
-    ).toBe(409);
-    expect(
-      (await store.load({ tenantId: "acme", scopeId: "ops", slug: "sales" }))
-        ?.config,
-    ).toMatchObject({ visibility: "restricted" });
-  });
+    },
+  );
 
   it("starts a new folder restricted to who its creator names", async () => {
     const { call, foldersOf } = setup();

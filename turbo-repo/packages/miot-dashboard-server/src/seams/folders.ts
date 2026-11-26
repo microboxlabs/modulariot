@@ -56,6 +56,12 @@ export interface FolderSubtree {
 }
 
 export interface DashboardFolderStore {
+  /**
+   * Serialize scope mutations with authorization and dashboard writes, rolling
+   * back both stores if the callback fails. The dashboard store mounted with
+   * this adapter must use the same transaction/backend. Nested calls join it.
+   */
+  transaction<T>(scope: FolderScope, body: () => Promise<T>): Promise<T>;
   /** Every folder in the scope, in no particular order. */
   list(scope: FolderScope): Promise<DashboardFolder[]>;
   /** Slug → folder id, for the dashboards that are in a folder. */

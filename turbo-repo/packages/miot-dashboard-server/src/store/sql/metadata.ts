@@ -195,6 +195,7 @@ export function createSqlMetadataStore(
   }
 
   return {
+    ...(driver.afterCommit ? { afterCommit: driver.afterCommit } : {}),
     // Wrapped rather than passed through, so `lock` stays internal: it is not
     // part of the seam, and a caller of a method called `read` should not be
     // able to hold rows for the length of its transaction.
@@ -245,7 +246,10 @@ export function createSqlMetadataStore(
     },
 
     remove: (ref) => remove(ref),
-    removeIfRevision: (ref, revision) => Number.isSafeInteger(revision) && revision > 0 ? remove(ref, revision) : Promise.resolve(null),
+    removeIfRevision: (ref, revision) =>
+      Number.isSafeInteger(revision) && revision > 0
+        ? remove(ref, revision)
+        : Promise.resolve(null),
 
     async getPermissions(ref) {
       const p = placeholders(driver.dialect);

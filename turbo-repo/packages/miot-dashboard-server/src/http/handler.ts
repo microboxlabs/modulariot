@@ -63,6 +63,8 @@ import {
 } from "./test-connection";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
+import { createScopedRouteRunner } from "./folder-transaction";
+import { removeAuthorizedDashboard } from "./remove-dashboard";
 import { createFolderRoutes } from "./folder-routes";
 import { parseAssignments } from "./parse-assignments";
 import type { DashboardFolderStore } from "../seams/folders";
@@ -156,7 +158,7 @@ export function createDashboardHandler(
   if (!Number.isSafeInteger(maxBodyBytes) || maxBodyBytes < 1) {
     throw new TypeError("maxBodyBytes must be a positive safe integer");
   }
-  const readBody = (request: Request) => readJsonBody(request, maxBodyBytes);
+  const readBody = cachedBodyReader(maxBodyBytes);
   const visibility =
     options.visibility ?? scopeVisibilityLoader(options.folders);
   const access = createAccessControl<Request>({ ...options, visibility });
@@ -293,14 +295,22 @@ export function createDashboardHandler(
         const config = await readBody(request);
         requireValidConfig(config);
         requireVisibilityUnchangedOrManaged(decision, config);
-        const expectedRevision =
-          readExpectedRevision(request) ?? decision.dashboard?.record?.revision ?? 0;
+        const expectedRevision = decision.dashboard?.record?.revision ?? 0;
+        const requestedRevision = readExpectedRevision(request);
+        if (
+          requestedRevision !== undefined &&
+          requestedRevision !== expectedRevision
+        ) {
+          throw DashboardServerError.conflict(
+            "The dashboard changed; reload before saving it",
+          );
+        }
         const saved = await options.store.save(
           refOf(decision.identity.tenantId, match.scopeId, slug),
           config,
           {
             updatedBy: decision.identity.userId,
-            ...(expectedRevision === undefined ? {} : { expectedRevision }),
+            expectedRevision,
           },
         );
         const response = jsonResponse(
@@ -321,10 +331,11 @@ export function createDashboardHandler(
           throw DashboardServerError.notFound("Dashboard not found");
         }
         const ref = refOf(decision.identity.tenantId, match.scopeId, slug);
-        await options.store.remove(ref);
-        // Independent folder adapters (including the memory adapter) do not
-        // observe dashboard deletion. Clear the placement before slug reuse.
-        await options.folders?.placeDashboard(ref, slug, null);
+        await removeAuthorizedDashboard(
+          options.store,
+          ref,
+          decision.dashboard.record.revision,
+        );
         return noContentResponse();
       }
       return methodNotAllowed();
@@ -727,6 +738,13 @@ export function createDashboardHandler(
     },
   };
 
+  const runRoute = createScopedRouteRunner({
+    access,
+    folders: options.folders,
+    readBody,
+    routes,
+  });
+
   const handle = async function handle(request: Request): Promise<Response> {
     try {
       const pathname = pathnameOf(request.url);
@@ -734,7 +752,7 @@ export function createDashboardHandler(
       if (routable === null) return errorResponse(notFound());
       const match = matchRoute(routable);
       if (match === null) return errorResponse(notFound());
-      return await routes[match.route](request, match);
+      return await runRoute(request, match);
     } catch (error) {
       // A DashboardServerError is an answer this code chose — a 404, a 403, a
       // 409 — and says so on the wire. Anything else reached here by
@@ -747,6 +765,18 @@ export function createDashboardHandler(
 }
 
 // ------------------------------------------------------------- helpers ----
+
+function cachedBodyReader(maxBodyBytes: number) {
+  const bodies = new WeakMap<Request, Promise<unknown>>();
+  return (request: Request) => {
+    let body = bodies.get(request);
+    if (body === undefined) {
+      body = readJsonBody(request, maxBodyBytes);
+      bodies.set(request, body);
+    }
+    return body;
+  };
+}
 
 const refOf = (tenantId: string, scopeId: string, slug: string) => ({
   tenantId,

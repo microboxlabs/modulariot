@@ -113,6 +113,11 @@ export function createCompositeStore(
     }
   };
 
+  const forgetAfterCommit = (key: string) =>
+    metadata.afterCommit
+      ? metadata.afterCommit(() => forget(key))
+      : forget(key);
+
   const toRecord = (
     row: {
       revision: number;
@@ -193,7 +198,7 @@ export function createCompositeStore(
       }
 
       if (previous !== null && previous.documentKey !== key) {
-        await forget(previous.documentKey);
+        await forgetAfterCommit(previous.documentKey);
       }
 
       return toRecord(row, config);
@@ -210,14 +215,14 @@ export function createCompositeStore(
 
     async remove(ref: ServerDashboardRef): Promise<void> {
       const row = await metadata.remove(ref);
-      if (row !== null) await forget(row.documentKey);
+      if (row !== null) await forgetAfterCommit(row.documentKey);
     },
 
     async removeIfRevision(ref, revision) {
       if (!metadata.removeIfRevision) return false;
       const row = await metadata.removeIfRevision(ref, revision);
       if (row === null) return false;
-      await forget(row.documentKey);
+      await forgetAfterCommit(row.documentKey);
       return true;
     },
 

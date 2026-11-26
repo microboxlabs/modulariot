@@ -37,6 +37,7 @@ import {
 } from "./parse-folder";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import type { RouteMatch } from "./routes";
+import { removeAuthorizedDashboard } from "./remove-dashboard";
 
 type Route = (request: Request, match: RouteMatch) => Promise<Response>;
 
@@ -128,6 +129,32 @@ export function createFolderRoutes(
       ? options.visibility(scope)
       : Promise.resolve(OPEN_SCOPE);
 
+  /** Folder grants never confer permission-management rights on their contents. */
+  async function requireSubtreeSharing(
+    request: Request,
+    match: RouteMatch,
+    decision: AccessDecision,
+    visibility: ScopeVisibility,
+  ): Promise<void> {
+    const scope = scopeOf(decision.identity.tenantId, match);
+    const subtree = await requireFolders().subtree(
+      scope,
+      requireFolderId(match),
+    );
+    if (subtree === null)
+      throw DashboardServerError.notFound("Folder not found");
+    for (const id of subtree.folderIds)
+      requireOn(decision, id, "manage", visibility);
+    for (const slug of subtree.slugs) {
+      await access.authorize(request, {
+        tenantId: scope.tenantId,
+        scopeId: scope.scopeId,
+        slug,
+        action: "dashboard.permissions.read",
+      });
+    }
+  }
+
   /**
    * Every dashboard inside is authorized for deletion before any of them is
    * removed, so a folder holding one dashboard the caller may not delete is
@@ -145,12 +172,15 @@ export function createFolderRoutes(
     });
     const scope = scopeOf(decision.identity.tenantId, match);
     const folderId = requireFolderId(match);
-    requireOn(decision, folderId, "manage", await visibilityOf(scope));
+    const visibility = await visibilityOf(scope);
+    requireOn(decision, folderId, "manage", visibility);
     const subtree = await folders.subtree(scope, folderId);
     if (subtree === null) {
       throw DashboardServerError.notFound("Folder not found");
     }
-    const existing: string[] = [];
+    for (const id of subtree.folderIds)
+      requireOn(decision, id, "manage", visibility);
+    const existing: { slug: string; revision: number }[] = [];
     for (const slug of subtree.slugs) {
       const dashboard = await access.authorize(request, {
         tenantId: match.tenantId,
@@ -158,10 +188,15 @@ export function createFolderRoutes(
         slug,
         action: "dashboard.delete",
       });
-      if (dashboard.dashboard?.record != null) existing.push(slug);
+      if (dashboard.dashboard?.record != null)
+        existing.push({ slug, revision: dashboard.dashboard.record.revision });
     }
-    for (const slug of existing) {
-      await options.store.remove({ ...scope, slug });
+    for (const { slug, revision } of existing) {
+      await removeAuthorizedDashboard(
+        options.store,
+        { ...scope, slug },
+        revision,
+      );
     }
     await folders.removeFolders(scope, subtree.folderIds);
     return noContentResponse();
@@ -246,6 +281,7 @@ export function createFolderRoutes(
               );
             }
             requireOn(decision, folderId, "manage", visibility);
+            await requireSubtreeSharing(request, match, decision, visibility);
           }
         }
         const data = await folders.update(scope, folderId, patch);

@@ -38,6 +38,8 @@ export interface DashboardMetadataWrite {
 }
 
 export interface DashboardMetadataStore {
+  /** Defer document cleanup until an enclosing metadata transaction commits. */
+  afterCommit?(body: () => Promise<void>): Promise<void>;
   read(ref: ServerDashboardRef): Promise<DashboardMetadataRow | null>;
 
   list(tenantId: string, scopeId: string): Promise<DashboardMetadataRow[]>;

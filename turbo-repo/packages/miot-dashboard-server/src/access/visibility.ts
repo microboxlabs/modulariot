@@ -182,15 +182,17 @@ export function scopeVisibilityLoader(
 ): (scope: FolderScope) => Promise<ScopeVisibility> {
   return async (scope) => {
     if (folders === undefined) return OPEN_SCOPE;
-    const [list, folderPermissions, placements] = await Promise.all([
-      folders.list(scope),
-      folders.permissions(scope),
-      folders.placements(scope),
-    ]);
-    return {
-      folders: new Map(list.map((f) => [f.id, f])),
-      folderPermissions,
-      placements,
-    };
+    return folders.transaction(scope, async () => {
+      const [list, folderPermissions, placements] = await Promise.all([
+        folders.list(scope),
+        folders.permissions(scope),
+        folders.placements(scope),
+      ]);
+      return {
+        folders: new Map(list.map((f) => [f.id, f])),
+        folderPermissions,
+        placements,
+      };
+    });
   };
 }

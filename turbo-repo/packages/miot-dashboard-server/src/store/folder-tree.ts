@@ -25,6 +25,26 @@ export function requireParent(
   }
 }
 
+/** A captured folder set cannot be removed after it gained another child. */
+export function requireCompleteFolderRemoval(
+  folders: readonly DashboardFolder[],
+  ids: readonly string[],
+): void {
+  const gone = new Set(ids);
+  if (
+    folders.some(
+      (folder) =>
+        folder.parentId !== null &&
+        gone.has(folder.parentId) &&
+        !gone.has(folder.id),
+    )
+  ) {
+    throw DashboardServerError.conflict(
+      "The folder subtree changed; reload before deleting it",
+    );
+  }
+}
+
 /** Throws when a sibling other than `selfId` already has the name. */
 export function requireFreeName(
   folders: readonly DashboardFolder[],

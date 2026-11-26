@@ -13,7 +13,15 @@ const scope = { tenantId: "acme", scopeId: "ops" };
 
 async function setup() {
   const memberships = { acme: { ops: { viewer: "Consumer" as const } } };
-  const folders = createMemoryFolderStore();
+  const store = createMemoryStore({
+    seed: [
+      {
+        ref: { ...scope, slug: "fleet" },
+        record: { config: sampleConfig() },
+      },
+    ],
+  });
+  const folders = createMemoryFolderStore(store);
   const privateFolder = await folders.create(
     scope,
     {
@@ -28,14 +36,6 @@ async function setup() {
     { name: "Public", parentId: null },
     "owner",
   );
-  const store = createMemoryStore({
-    seed: [
-      {
-        ref: { ...scope, slug: "fleet" },
-        record: { config: sampleConfig() },
-      },
-    ],
-  });
   const handler = createDashboardHandler({
     identity: createInsecureHeaderIdentityResolver(),
     tenants: createMemoryTenantAuthority(memberships),

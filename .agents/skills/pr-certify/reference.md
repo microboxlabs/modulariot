@@ -88,7 +88,7 @@ form, and the gate passes that selector straight through.
 | `status --settled` | every active reviewer has a verdict on head and no check is running | 0 settled, 3 waiting |
 | `classify` | `lite` / `balanced` + reasons; `--json` | 0 |
 | `findings` | open items from all sources; `--json`, `--limit N`, `--include-outdated`, `--with-rule-docs` | 0 |
-| `request` | `--copilot`, `--coderabbit`, `--full`, `--all`; a reviewer it must not ping is reported `skipped` with a `reason` | 0 |
+| `request` | `--copilot`, `--coderabbit`, `--codex`, `--full`, `--all`; a reviewer it must not ping is reported `skipped` with a `reason`; `--codex` runs `codex-review-pr` where Copilot is off, within `maxIndependentRounds` | 0 |
 | `reply` | `--thread-id ID` or `--comment-id ID`, `--body TEXT\|-` | 0 |
 | `resolve` | `--thread-id ID` (repeatable) | 0 |
 | `stamp` | `--rounds N`, `--notes TEXT\|-` | 0 |
@@ -108,7 +108,10 @@ form, and the gate passes that selector straight through.
   "providers": {
     "copilot":    { "available": true, "fresh": false, "verdict": "changes",
                     "pending": false, "headline": "### 🟡 Changes recommended",
-                    "effort": "lite", "reviewedSha": "...", "reviewedAt": "..." },
+                    "effort": "lite", "reviewedSha": "...", "reviewedAt": "...",
+                    "rounds": 1, "cap": 1 },
+    "codex":      { "available": true, "fresh": false, "verdict": "reviewed",
+                    "reviewedSha": "...", "rounds": 1, "cap": 1, "url": "..." },
     "coderabbit": { "available": false, "reason": "Review rate limited", ... },
     "sonar":      { "available": true, "verdict": "clean",
                     "projects": [ { "key": "...", "gate": "OK", "openIssues": 0,
@@ -125,7 +128,8 @@ form, and the gate passes that selector straight through.
 }
 ```
 
-`verdict` is one of `clean`, `changes`, `unclear`, or `null` (no review yet). A verdict counts only
+`verdict` is one of `clean`, `changes`, `unclear`, or `null` (no review yet). Codex's is
+`reviewed` or `null`: `prcert` counts its rounds but does not read its findings. A verdict counts only
 when `fresh` is true, which means `reviewedSha == head`.
 
 ## `findings --json` shape
@@ -143,6 +147,8 @@ when `fresh` is true, which means `reviewedSha == head`.
       "id": "...", "rule": "typescript:S1854", "severity": "major", "type": "CODE_SMELL",
       "path": "turbo-repo/apps/app/...", "line": 51, "title": "...", "url": "..." },
     { "source": "sonar", "kind": "hotspot", "severity": "high", "type": "SECURITY_HOTSPOT", ... },
+    { "source": "codex", "kind": "review-comment", "title": "codex-review-pr findings on head ...",
+      "body": "...", "url": "..." },
     { "source": "checks", "kind": "failing-check", "title": "Lint & Test",
       "severity": "major", "state": "FAILURE", "url": "..." }
   ],
@@ -159,15 +165,16 @@ when `fresh` is true, which means `reviewedSha == head`.
 {
   "orgs": {
     "microboxlabs": {
-      "maxRounds": 5,
+      "maxRounds": 2,                       // one review round + one to confirm the fix push
       "maxCopilotRounds": 1,                // Copilot passes before `request` skips it; 0 = never
+      "maxIndependentRounds": 1,            // codex-review-pr passes where Copilot is off; 0 = never
       "requestCodeRabbit": true,            // false = `request` never pings CodeRabbit
       "sonarOrg": "microboxlabs",           // defaults to the project key's prefix
       "balanced": { "loc": 300, "files": 20, "pathHints": [...], "labels": [...] }
     }
   },
   "gate": { "enforce": true },
-  "defaults": { "maxRounds": 5, "maxCopilotRounds": 1, "sonarHost": "https://sonarcloud.io",
+  "defaults": { "maxRounds": 2, "maxCopilotRounds": 1, "maxIndependentRounds": 1, "sonarHost": "https://sonarcloud.io",
                 "sonarTokenEnv": "SONAR_TOKEN", "balanced": { ... } }
 }
 ```
@@ -177,7 +184,10 @@ merge. Onboarding an org is one command: `prcert config --enable-org <org>`.
 
 Per-org keys: `maxRounds`, `maxCopilotRounds` (Copilot review passes before `request` starts
 skipping it and `status` downgrades its stale verdict to a warning; one round by default; `0`
-means `request` never asks Copilot), `requestCodeRabbit` (default `true`; `false` means `request`
+means `request` never asks Copilot, and `codex-review-pr` is the independent review),
+`maxIndependentRounds` (`codex-review-pr` rounds where Copilot is off; one by default; after
+that `request --codex` skips it and `status` warns, naming the commits it did not review; `0`
+means never run it), `requestCodeRabbit` (default `true`; `false` means `request`
 never pings CodeRabbit), `sonarHost`, `sonarOrg`,
 `sonarTokenEnv`, `requireCopilot` (set it
 `false` where Copilot code review is not available, so a missing Copilot verdict is a warning
@@ -195,6 +205,7 @@ rollup, reviews, review threads and comments.
 | action | call |
 |---|---|
 | request Copilot | GraphQL `requestReviews(botIds:[<copilot bot node id>], union:true)` |
+| run Codex review | `codex-review-pr owner/name#N` (installed by cot); it posts one comment per head with `<!-- codex-review head=<sha> -->`, which `prcert` counts |
 | request CodeRabbit | `POST /repos/{o}/{r}/issues/{n}/comments` with `@coderabbitai review` (`full review` only with `--full`) |
 | reply in a thread | `addPullRequestReviewThreadReply`, or `POST /pulls/{n}/comments/{id}/replies` |
 | resolve a thread | `resolveReviewThread` |

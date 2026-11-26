@@ -27,12 +27,16 @@ CODERABBIT_BOT = "coderabbitai"
 STAMP_MARK = "<!-- pr-certify:v1"
 
 DEFAULTS = {
-    "maxRounds": 5,
+    # One review round, plus one to confirm CI and threads after the fix push.
+    "maxRounds": 2,
     # Copilot reviews the diff, you fix what it found, and the fix is new code
     # for it to review. That has no natural end: on one PR it ran eight rounds,
     # each finding something real and narrower than the last. One round, then
     # hand over.
     "maxCopilotRounds": 1,
+    # The same cap for codex-review-pr, the independent review where Copilot is
+    # off (maxCopilotRounds 0). One PR ran it five times and still ended blocked.
+    "maxIndependentRounds": 1,
     "sonarHost": "https://sonarcloud.io",
     "sonarTokenEnv": "SONAR_TOKEN",
     "balanced": {
@@ -154,7 +158,7 @@ query($owner:String!, $name:String!, $number:Int!) {
         ... on Bot { login id }
         ... on Team { slug }
       } } }
-      comments(last:100) { nodes { databaseId author { login } authorAssociation body createdAt updatedAt } }
+      comments(last:100) { nodes { databaseId author { login } authorAssociation body url createdAt updatedAt } }
     }
   }
 }
@@ -386,6 +390,59 @@ def copilot_state(pr):
             "pending": requested, "headline": headline, "reviewedSha": sha,
             "effort": effort.group(1).lower() if effort else None,
             "reviewedAt": rev.get("submittedAt"), "rounds": copilot_rounds(pr)}
+
+
+# codex-review-pr (vialabs-net/cot runners/codex-review-pr) posts one PR comment per head.
+CODEX_TITLE = "## Revisi\u00f3n independiente (codex review)"
+CODEX_HEAD = re.compile(r"<!-- codex-review head=([0-9a-f]{7,40}) -->")
+# A comment that only reports a broken environment is not a review.
+CODEX_BROKEN = re.compile(r"socket directory|Read-only file system|failed to initialize")
+
+
+def codex_reviews(pr):
+    """codex-review-pr comments, oldest first: from someone with write access or cot's app."""
+    app = bot_login(os.environ.get("COT_GITHUB_APP_LOGIN", "cot-bot[bot]"))
+    out = []
+    for c in ((pr.get("comments") or {}).get("nodes") or []):
+        body = c.get("body") or ""
+        if not body.startswith(CODEX_TITLE):
+            continue
+        author = bot_login((c.get("author") or {}).get("login"))
+        if c.get("authorAssociation") not in TRUSTED and author != app:
+            continue
+        m = CODEX_HEAD.search(body)
+        if not m or CODEX_BROKEN.search(body):
+            continue
+        out.append({"sha": m.group(1), "body": body, "url": c.get("url"),
+                    "createdAt": c.get("createdAt"), "commentId": c.get("databaseId")})
+    out.sort(key=lambda r: r.get("createdAt") or "")
+    return out
+
+
+def codex_rounds(pr):
+    """Heads codex-review-pr has reviewed. One head is one round."""
+    return len({r["sha"] for r in codex_reviews(pr)})
+
+
+def codex_state(pr, settings):
+    head = pr.get("headRefOid") or ""
+    cap = settings.get("maxIndependentRounds", 1)
+    revs = codex_reviews(pr)
+    st = {"provider": "codex", "cap": cap, "rounds": codex_rounds(pr), "pending": False}
+    if settings.get("maxCopilotRounds", 1) > 0:
+        st.update(available=False, off=True, reason="Copilot is the independent review here")
+        return st
+    if cap <= 0:
+        st.update(available=False, off=True, reason="maxIndependentRounds is 0")
+        return st
+    last = revs[-1] if revs else None
+    fresh = any(head.startswith(r["sha"]) for r in revs) if head else False
+    st.update(available=True, fresh=fresh,
+              verdict="reviewed" if last else None,
+              reviewedSha=last["sha"] if last else None,
+              reviewedAt=last["createdAt"] if last else None,
+              url=last["url"] if last else None)
+    return st
 
 
 CR_ACTIONABLE = re.compile(r"Actionable comments posted:\s*(\d+)")
@@ -782,6 +839,8 @@ def read_stamp(pr, viewer=None):
 def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, deep_review=False):
     head = pr["headRefOid"]
     cop = copilot_state(pr)
+    cop["cap"] = settings.get("maxCopilotRounds", 1)
+    cdx = codex_state(pr, settings)
     crb = coderabbit_state(pr)
     son = sonar_state(pr, settings, repo_root, skip=skip_sonar)
     chk = checks_summary(pr)
@@ -870,6 +929,25 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, de
     copilot_cap = settings.get("maxCopilotRounds", 1)
     judge("copilot", cop, required=require_copilot,
           capped=cop.get("rounds", 0) >= copilot_cap)
+    # codex-review-pr findings sit in one comment, not in threads: the agent answers
+    # them in the loop, so the review itself only warns. The cap is what it enforces.
+    if cdx.get("available"):
+        ref = "%s#%d" % (pr["url"].split("/pull/")[0].replace("https://github.com/", ""),
+                         pr["number"])
+        if not cdx["rounds"]:
+            warnings.append("codex: no independent review yet - run codex-review-pr %s once "
+                            "(round 1 of %d)" % (ref, cdx["cap"]))
+        elif not cdx["fresh"] and cdx["rounds"] >= cdx["cap"]:
+            warnings.append(
+                "codex reviewed head %s and its round cap is spent (%d of %d) - commits %s..%s "
+                "were not re-reviewed" % (cdx["reviewedSha"][:8], cdx["rounds"], cdx["cap"],
+                                          cdx["reviewedSha"][:8], head[:8]))
+        elif not cdx["fresh"]:
+            warnings.append("codex has not reviewed head %s (last: %s) - round %d of %d is left"
+                            % (head[:8], cdx["reviewedSha"][:8], cdx["rounds"] + 1, cdx["cap"]))
+        if cdx["rounds"] > cdx["cap"]:
+            warnings.append("codex ran %d rounds, over the cap of %d (maxIndependentRounds)"
+                            % (cdx["rounds"], cdx["cap"]))
     judge("coderabbit", crb, required=settings.get("requireCodeRabbit", True))
     judge("sonar", son, required=settings.get("requireSonar", True) and not skip_sonar)
 
@@ -906,7 +984,7 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, de
         "head": head, "base": pr.get("baseRefName"), "defaultBranch": pr.get("_defaultBranch"),
         "isDraft": pr.get("isDraft"), "mergeable": pr.get("mergeable"),
         "classification": depth,
-        "providers": {"copilot": cop, "coderabbit": crb, "sonar": son},
+        "providers": {"copilot": cop, "codex": cdx, "coderabbit": crb, "sonar": son},
         "checks": {k: chk[k] for k in ("total", "ran", "skipped", "failing", "pending",
                                        "settled", "truncated", "green")},
         "unresolvedThreads": live_threads,
@@ -1044,6 +1122,13 @@ def collect_findings(pr, settings, repo_root, args):
         p["source"] = "copilot" if t["source"] == COPILOT_BOT else "coderabbit"
         p["kind"] = "review-thread"
         items.append(p)
+    cdx = codex_state(pr, settings)
+    if cdx.get("available") and cdx.get("fresh"):
+        last = codex_reviews(pr)[-1]
+        items.append({"source": "codex", "kind": "review-comment", "severity": None,
+                      "path": None, "line": None,
+                      "title": "codex-review-pr findings on head %s" % last["sha"][:8],
+                      "body": last["body"], "url": last["url"]})
     items += sonar_findings(pr, settings, repo_root, args.limit)
     chk = checks_summary(pr)
     for c in chk["failing"]:
@@ -1068,6 +1153,38 @@ def copilot_bot_id(pr):
     return COPILOT_BOT_ID
 
 
+def codex_skip(pr, settings):
+    cap = settings.get("maxIndependentRounds", 1)
+    rounds = codex_rounds(pr)
+    if settings.get("maxCopilotRounds", 1) > 0:
+        return "Copilot is the independent review for this org"
+    if cap <= 0:
+        return "maxIndependentRounds is 0 for this org"
+    if any((pr.get("headRefOid") or "").startswith(r["sha"]) for r in codex_reviews(pr)):
+        return "already reviewed this head"
+    if rounds >= cap:
+        return ("round cap spent (%d of %d) - triage what it already said, then hand over; "
+                "raise maxIndependentRounds to ask again" % (rounds, cap))
+    return None
+
+
+def request_codex(pr, owner, name, settings):
+    """Run codex-review-pr within maxIndependentRounds; it posts its own comment."""
+    reason = codex_skip(pr, settings)
+    if reason:
+        return {"provider": "codex", "ok": False, "skipped": True, "reason": reason}
+    ref = "%s/%s#%d" % (owner, name, pr["number"])
+    try:
+        p = subprocess.run(["codex-review-pr", ref], capture_output=True, text=True)
+    except FileNotFoundError:
+        return {"provider": "codex", "ok": False,
+                "error": "codex-review-pr is not on PATH; run it where cot is installed: "
+                         "codex-review-pr %s" % ref}
+    return {"provider": "codex", "ok": p.returncode == 0, "ref": ref,
+            "output": (p.stdout or "")[-20000:],
+            "error": None if p.returncode == 0 else (p.stderr or p.stdout).strip()[-300:]}
+
+
 def cmd_request(args, ctx):
     pr, owner, name, settings = ctx["pr"], ctx["owner"], ctx["name"], ctx["settings"]
     done = []
@@ -1084,6 +1201,8 @@ def cmd_request(args, ctx):
         if reason:
             done.append({"provider": "copilot", "ok": False, "skipped": True, "reason": reason})
             args.copilot = False
+    if getattr(args, "codex", False):
+        done.append(request_codex(pr, owner, name, settings))
     if args.copilot:
         bot = copilot_bot_id(pr)
         q = ("mutation($pr:ID!,$bot:ID!){requestReviews(input:{pullRequestId:$pr,botIds:[$bot],"
@@ -1157,6 +1276,8 @@ def render_stamp(state, rounds, notes):
             extra = st.get("headline") or ""
             if st.get("effort"):
                 extra += " (effort: %s)" % st["effort"]
+        elif key == "codex":
+            extra = "rounds %d of %d" % (st.get("rounds", 0), st.get("cap", 1))
         elif key == "coderabbit":
             extra = "actionable: %s" % st.get("actionable")
         elif key == "sonar":
@@ -1180,6 +1301,7 @@ def render_stamp(state, rounds, notes):
         "| reviewer | verdict | detail |",
         "| --- | --- | --- |",
         line("copilot", p["copilot"]),
+        line("codex", p["codex"]),
         line("coderabbit", p["coderabbit"]),
         line("sonar", p["sonar"]),
         "| checks | %s | %d ran, %d skipped, %d failing, %d pending |" % (
@@ -1316,8 +1438,10 @@ def human_status(s):
         s["head"][:8], s["base"], s["classification"]["level"],
         (" <- " + "; ".join(s["classification"]["reasons"])) if s["classification"]["reasons"] else ""))
     lines.append("")
-    for key in ("copilot", "coderabbit", "sonar"):
-        p = s["providers"][key]
+    for key in ("copilot", "codex", "coderabbit", "sonar"):
+        p = s["providers"].get(key)
+        if p is None:
+            continue
         if not p.get("available"):
             lines.append("  %-11s n/a       %s" % (key, p.get("reason") or "not enabled"))
             continue
@@ -1331,6 +1455,8 @@ def human_status(s):
         extra = "  effort: %s" % p["effort"] if p.get("effort") else ""
         if p.get("rounds"):
             extra += "  rounds: %d" % p["rounds"]
+            if p.get("cap") is not None:
+                extra += "/%d" % p["cap"]
         lines.append("  %-11s %-9s %s%s" % (key, verdict, fresh, extra))
     c = s["checks"]
     lines.append("  %-11s %-9s %d ran / %d skipped / %d failing / %d pending" % (
@@ -1405,6 +1531,8 @@ def main():
     p = sub.add_parser("request", help="request or re-request reviews on the current head")
     p.add_argument("--copilot", action="store_true")
     p.add_argument("--coderabbit", action="store_true")
+    p.add_argument("--codex", action="store_true",
+                   help="run codex-review-pr where Copilot is off, within maxIndependentRounds")
     p.add_argument("--full", action="store_true",
                    help="CodeRabbit: full review; only when a person asks for it")
     p.add_argument("--all", action="store_true")
@@ -1443,10 +1571,10 @@ def main():
 
     if args.cmd == "request":
         ctx = build_ctx(args, need_state=False)
-        if args.all or not (args.copilot or args.coderabbit):
-            # cmd_request decides what to skip: org settings, rate limits, declines
-            # and a ping already sent for this head.
-            args.copilot = args.coderabbit = True
+        if args.all or not (args.copilot or args.coderabbit or args.codex):
+            # cmd_request decides what to skip: org settings, rate limits, declines,
+            # round caps and a ping already sent for this head.
+            args.copilot = args.coderabbit = args.codex = True
         cmd_request(args, ctx)
         return 0
 

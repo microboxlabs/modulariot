@@ -244,6 +244,14 @@ export function createFolderRoutes(
           { ...input, visibility: "restricted" },
           decision.identity.userId,
         );
+        if (!roleAtLeast(decision.scopeRole, "Contributor")) {
+          // A delegated Editor may create here despite Consumer scope standing.
+          // Explicit rights let them manage the new restricted child; ordinary
+          // creators still use the revocable Contributor-standing policy.
+          await folders.setPermissions(scope, data.id, [
+            { authorityId: decision.identity.userId, role: "Coordinator" },
+          ]);
+        }
         return jsonResponse(
           { data: { id: data.id, name: data.name, parentId: data.parentId } },
           201,
@@ -319,6 +327,20 @@ export function createFolderRoutes(
       const body = await readBody(request);
       const assignments = parseAssignments(body);
       const nextVisibility = parseVisibility(body);
+      const previous =
+        visibility.folders.get(folderId)?.visibility ?? "organization";
+      const previousAuthorities = new Set(
+        (visibility.folderPermissions.get(folderId) ?? []).map(
+          (a) => a.authorityId,
+        ),
+      );
+      if (
+        previous === "restricted" &&
+        (nextVisibility === "organization" ||
+          assignments.some((a) => !previousAuthorities.has(a.authorityId)))
+      ) {
+        await requireSubtreeSharing(request, match, decision, visibility);
+      }
       await folders.setPermissions(
         scope,
         folderId,

@@ -29,6 +29,25 @@ import { createSqlFolderStore } from "./sql/folders";
 const ref = { tenantId: "acme", scopeId: "ops", slug: "fleet" };
 const config = { version: 2, name: "Fleet" };
 
+it("lets committed cleanup open another SQLite transaction", async () => {
+  const driver = createSqliteDriver({ path: SQLITE_MEMORY });
+  try {
+    await driver.transaction(async () => {
+      await driver.exec("CREATE TABLE cleanup_test (value INTEGER)");
+      await driver.afterCommit!(() =>
+        driver.transaction(() =>
+          driver.exec("INSERT INTO cleanup_test VALUES (1)"),
+        ),
+      );
+    });
+    expect(await driver.all("SELECT value FROM cleanup_test")).toEqual([
+      { value: 1 },
+    ]);
+  } finally {
+    await driver.close();
+  }
+});
+
 it("keeps external documents on rollback and cleans them after commit", async () => {
   const documents = createFsDocumentStore({ root: temporaryDirectory() });
   const opened = await openSqliteStore({

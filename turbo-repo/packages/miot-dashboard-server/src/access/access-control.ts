@@ -90,6 +90,11 @@ export interface AccessDecision {
 }
 
 export interface AccessControlOptions<TRequest> {
+  /** Read dashboard records, grants and folder visibility in one consistent scope view. */
+  snapshot?<T>(
+    scope: { tenantId: string; scopeId: string },
+    read: () => Promise<T>,
+  ): Promise<T>;
   identity: IdentityResolver<TRequest>;
   tenants: TenantAuthority;
   scopes: ScopeAuthority;
@@ -191,7 +196,11 @@ const ACTION_RULES: Readonly<Record<DashboardAction, ActionRule>> = {
   // itself (Editor to create inside, rename or move it; Coordinator to delete
   // it or manage its permissions), and the scope role for the top level.
   "folder.write": { level: "scope", floor: "Consumer", capability: "canEdit" },
-  "folder.delete": { level: "scope", floor: "Consumer", capability: "canDelete" },
+  "folder.delete": {
+    level: "scope",
+    floor: "Consumer",
+    capability: "canDelete",
+  },
   "folder.permissions.read": {
     level: "scope",
     floor: "Consumer",
@@ -214,8 +223,16 @@ const ACTION_RULES: Readonly<Record<DashboardAction, ActionRule>> = {
   "embed.token.issue": { level: "dashboard", capability: "canShare" },
   // Writing queries reads source metadata and spends the source's BigQuery
   // budget, so it needs more standing than building a dashboard.
-  "query.author.read": { level: "scope", floor: "Editor", capability: "canEdit" },
-  "query.author.run": { level: "scope", floor: "Editor", capability: "canEdit" },
+  "query.author.read": {
+    level: "scope",
+    floor: "Editor",
+    capability: "canEdit",
+  },
+  "query.author.run": {
+    level: "scope",
+    floor: "Editor",
+    capability: "canEdit",
+  },
   "query.author.write": {
     level: "scope",
     floor: "Coordinator",
@@ -255,7 +272,10 @@ function dashboardActionAllowed(
   return capability === null || access.capabilities[capability];
 }
 
-function canCreateInScope(identity: DashboardIdentity, role: DashboardRole): boolean {
+function canCreateInScope(
+  identity: DashboardIdentity,
+  role: DashboardRole,
+): boolean {
   return roleAtLeast(role, "Contributor") && identity.capabilities.canEdit;
 }
 
@@ -293,6 +313,9 @@ export function createAccessControl<TRequest>(
     now = () => new Date(),
     visibility: readVisibility,
   } = options;
+
+  const snapshot: NonNullable<AccessControlOptions<TRequest>["snapshot"]> =
+    options.snapshot ?? ((_scope, read) => read());
 
   const visibilityOf = (scope: { tenantId: string; scopeId: string }) =>
     readVisibility ? readVisibility(scope) : Promise.resolve(OPEN_SCOPE);
@@ -450,60 +473,65 @@ export function createAccessControl<TRequest>(
       ...target,
       action: "dashboard.list",
     });
-    const summaries = await store.list(
-      decision.identity.tenantId,
-      target.scopeId,
-    );
-    const scopeVisibility = await visibilityOf({
-      tenantId: decision.identity.tenantId,
-      scopeId: target.scopeId,
-    });
-    const visible: DashboardSummary[] = [];
-    // Bound policy/store work without re-verifying the credential for each item.
-    for (let offset = 0; offset < summaries.length; offset += 4) {
-      const batch = summaries.slice(offset, offset + 4);
-      const access = await Promise.all(
-        batch.map((summary) =>
-          loadUserDashboard(
-            decision.identity,
-            { ...target, slug: summary.slug, action: "dashboard.load" },
-            decision.scopeRole,
-          ),
-        ),
-      );
-      batch.forEach((summary, index) => {
-        const granted = access[index];
-        const record = granted?.record;
-        if (!record) return;
-        if (
-          dashboardHidden(
-            decision.identity,
-            decision.scopeRole,
-            summary.slug,
-            record,
-            granted.assignments,
-            scopeVisibility,
-          )
-        )
-          return;
-        const order = dashboardSortOrder(record.config);
-        const folderId = scopeVisibility.placements.get(summary.slug);
-        visible.push({
-          slug: summary.slug,
-          name: dashboardDisplayName(record.config, summary.slug),
-          ...(order === undefined ? {} : { order }),
-          ...(folderId === undefined ? {} : { folderId }),
+    return snapshot(
+      { tenantId: decision.identity.tenantId, scopeId: target.scopeId },
+      async () => {
+        const summaries = await store.list(
+          decision.identity.tenantId,
+          target.scopeId,
+        );
+        const scopeVisibility = await visibilityOf({
+          tenantId: decision.identity.tenantId,
+          scopeId: target.scopeId,
         });
-      });
-    }
-    // Stable: equal orders, and unordered dashboards, keep the store's name order.
-    visible.sort((a, b) => {
-      if (a.order === b.order) return 0;
-      if (a.order === undefined) return 1;
-      if (b.order === undefined) return -1;
-      return a.order - b.order;
-    });
-    return visible;
+        const visible: DashboardSummary[] = [];
+        // Bound policy/store work without re-verifying the credential for each item.
+        for (let offset = 0; offset < summaries.length; offset += 4) {
+          const batch = summaries.slice(offset, offset + 4);
+          const access = await Promise.all(
+            batch.map((summary) =>
+              loadUserDashboard(
+                decision.identity,
+                { ...target, slug: summary.slug, action: "dashboard.load" },
+                decision.scopeRole,
+              ),
+            ),
+          );
+          batch.forEach((summary, index) => {
+            const granted = access[index];
+            const record = granted?.record;
+            if (!record) return;
+            if (
+              dashboardHidden(
+                decision.identity,
+                decision.scopeRole,
+                summary.slug,
+                record,
+                granted.assignments,
+                scopeVisibility,
+              )
+            )
+              return;
+            const order = dashboardSortOrder(record.config);
+            const folderId = scopeVisibility.placements.get(summary.slug);
+            visible.push({
+              slug: summary.slug,
+              name: dashboardDisplayName(record.config, summary.slug),
+              ...(order === undefined ? {} : { order }),
+              ...(folderId === undefined ? {} : { folderId }),
+            });
+          });
+        }
+        // Stable: equal orders, and unordered dashboards, keep the store's name order.
+        visible.sort((a, b) => {
+          if (a.order === b.order) return 0;
+          if (a.order === undefined) return 1;
+          if (b.order === undefined) return -1;
+          return a.order - b.order;
+        });
+        return visible;
+      },
+    );
   }
 
   async function authorizeUser(
@@ -549,44 +577,49 @@ export function createAccessControl<TRequest>(
     }
 
     const slugTarget = { ...target, slug: target.slug };
-    const loaded = await loadUserDashboard(identity, slugTarget, scopeRole);
-    // A restricted scope hides it as if the caller had no access at all.
-    const dashboard =
-      loaded &&
-      dashboardHidden(
-        identity,
-        scopeRole,
-        target.slug,
-        loaded.record,
-        loaded.assignments,
-        await visibilityOf({
-          tenantId: identity.tenantId,
-          scopeId: target.scopeId,
-        }),
-      )
-        ? null
-        : loaded;
-    if (dashboard === null) {
-      return deny(
-        identity,
-        target,
-        "CAPABILITY",
-        "You do not have access to this dashboard",
-      );
-    }
-    if (!dashboardActionAllowed(target.action, dashboard, scopeRole)) {
-      return deny(
-        identity,
-        target,
-        "CAPABILITY",
-        `Your capabilities on this dashboard do not allow ${target.action}`,
-      );
-    }
-    await record(identity, target, "allowed", {
-      principal: identity.kind,
-      scopeRole,
-    });
-    return { identity, scopeId: target.scopeId, scopeRole, dashboard };
+    return snapshot(
+      { tenantId: identity.tenantId, scopeId: target.scopeId },
+      async () => {
+        const loaded = await loadUserDashboard(identity, slugTarget, scopeRole);
+        // A restricted scope hides it as if the caller had no access at all.
+        const dashboard =
+          loaded &&
+          dashboardHidden(
+            identity,
+            scopeRole,
+            slugTarget.slug,
+            loaded.record,
+            loaded.assignments,
+            await visibilityOf({
+              tenantId: identity.tenantId,
+              scopeId: target.scopeId,
+            }),
+          )
+            ? null
+            : loaded;
+        if (dashboard === null) {
+          return deny(
+            identity,
+            target,
+            "CAPABILITY",
+            "You do not have access to this dashboard",
+          );
+        }
+        if (!dashboardActionAllowed(target.action, dashboard, scopeRole)) {
+          return deny(
+            identity,
+            target,
+            "CAPABILITY",
+            `Your capabilities on this dashboard do not allow ${target.action}`,
+          );
+        }
+        await record(identity, target, "allowed", {
+          principal: identity.kind,
+          scopeRole,
+        });
+        return { identity, scopeId: target.scopeId, scopeRole, dashboard };
+      },
+    );
   }
 
   async function authorize(
@@ -647,7 +680,9 @@ export function createAccessControl<TRequest>(
       scopeId: target.scopeId,
       action: "dashboard.list",
     });
-    return { canCreate: canCreateInScope(decision.identity, decision.scopeRole) };
+    return {
+      canCreate: canCreateInScope(decision.identity, decision.scopeRole),
+    };
   }
 
   return { authorize, capabilities, scopeCapabilities, list };

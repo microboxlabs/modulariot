@@ -161,7 +161,15 @@ export function createDashboardHandler(
   const readBody = cachedBodyReader(maxBodyBytes);
   const visibility =
     options.visibility ?? scopeVisibilityLoader(options.folders);
-  const access = createAccessControl<Request>({ ...options, visibility });
+  const folders = options.folders;
+  const snapshot: AccessControlOptions<Request>["snapshot"] =
+    options.snapshot ??
+    (folders ? (scope, read) => folders.transaction(scope, read) : undefined);
+  const access = createAccessControl<Request>({
+    ...options,
+    visibility,
+    snapshot,
+  });
   const queries =
     options.queries === undefined
       ? null

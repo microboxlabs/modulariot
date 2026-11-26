@@ -125,7 +125,7 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
       // SQLite rejects a second BEGIN on the same connection.
       if (open.getStore() !== undefined) return body();
 
-      const run = async (): Promise<T> => {
+      const run = async () => {
         const cleanup: (() => Promise<void>)[] = [];
         // IMMEDIATE takes the write lock now. With DEFERRED, two transactions
         // that read and then write both try to upgrade, and one gets
@@ -139,8 +139,7 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
           db.exec("ROLLBACK");
           throw error;
         }
-        for (const work of cleanup) await work();
-        return result;
+        return { result, cleanup };
       };
 
       // Wait for the transaction ahead of this one, whether it committed or
@@ -150,7 +149,12 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
         () => undefined,
         () => undefined,
       );
-      return result;
+      // Release the write queue before cleanup: a host's document backend
+      // may itself open a transaction on this driver.
+      return result.then(async (committed) => {
+        for (const work of committed.cleanup) await work();
+        return committed.result;
+      });
     },
 
     close() {

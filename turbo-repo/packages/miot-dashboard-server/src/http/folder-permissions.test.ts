@@ -9,6 +9,7 @@ import {
 } from "../testing";
 import { sampleConfig } from "../test/fixtures";
 import type { DashboardCapabilities } from "../seams/identity";
+import type { PermissionAssignment } from "../seams/store";
 
 const BASE = "http://localhost/tenants/acme/scopes/ops";
 
@@ -101,11 +102,24 @@ function setup(
     expect(response.status).toBe(201);
     const { data } = (await response.json()) as { data: Folder };
     // New folders start restricted; most tests here want one the whole
-    // scope sees, and restrict it themselves.
-    await call(user, "PUT", `/folders/${data.id}/permissions`, {
-      assignments: [],
-      visibility: "organization",
-    });
+    // scope sees. Preserve any explicit creator grant while changing visibility.
+    const permissions = await call(
+      user,
+      "GET",
+      `/folders/${data.id}/permissions`,
+    );
+    expect(permissions.status).toBe(200);
+    const { assignments } = (await permissions.json()) as {
+      assignments: PermissionAssignment[];
+    };
+    expect(
+      (
+        await call(user, "PUT", `/folders/${data.id}/permissions`, {
+          assignments,
+          visibility: "organization",
+        })
+      ).status,
+    ).toBe(204);
     return data;
   };
   const foldersOf = async (user: string, groups?: string) => {
@@ -212,7 +226,17 @@ describe("folder permissions", () => {
     expect((await foldersOf("owner"))[0]?.role).toBe("Coordinator");
 
     // Editor on the folder: creates inside it, but not at the top level.
-    await createFolder("lector", "Daily", ops.id);
+    const daily = await createFolder("lector", "Daily", ops.id);
+    expect(
+      (
+        await call("lector", "PATCH", `/folders/${daily.id}`, {
+          name: "Renamed",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (await call("lector", "GET", `/folders/${daily.id}/permissions`)).status,
+    ).toBe(200);
     expect(
       (
         await call("lector", "POST", "/folders", {
@@ -310,6 +334,36 @@ describe("folder permissions", () => {
 });
 
 describe("visibility", () => {
+  it("requires rights on contents before opening a folder or adding recipients", async () => {
+    const { call, createFolder, restrictFolder, slugsOf } = setup();
+    const folder = await createFolder("editor", "Mine");
+    await call("owner", "PUT", "/dashboards/sales/folder", {
+      folderId: folder.id,
+    });
+    await restrictFolder("editor", folder.id);
+    for (const body of [
+      { assignments: [], visibility: "organization" },
+      {
+        assignments: [{ authorityId: "otro", role: "Consumer" }],
+        visibility: "restricted",
+      },
+    ]) {
+      expect(
+        (await call("editor", "PUT", `/folders/${folder.id}/permissions`, body))
+          .status,
+      ).toBe(403);
+    }
+    expect(await slugsOf("otro")).toEqual(["fleet"]);
+    expect(
+      (
+        await call("owner", "PUT", `/folders/${folder.id}/permissions`, {
+          assignments: [{ authorityId: "otro", role: "Consumer" }],
+          visibility: "restricted",
+        })
+      ).status,
+    ).toBe(204);
+    expect(await slugsOf("otro")).toEqual(["fleet", "sales"]);
+  });
   it("requires rights on contained dashboards before exposing a folder subtree", async () => {
     const { call, createFolder, restrictFolder, slugsOf } = setup();
     const parent = await createFolder("owner", "Private");

@@ -110,8 +110,48 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
             };
             return { entered, finish };
           };
-          return { store, folders, parent, child, remove, pauseAuthorization };
+          return {
+            store,
+            folders,
+            parent,
+            child,
+            remove,
+            pauseAuthorization,
+            handler,
+          };
         }
+
+        it("does not combine an old public config with a new public placement", async () => {
+          const { store, folders, parent, handler } = await setup();
+          await folders.setVisibility(scope, parent.id, "restricted");
+          const entered = gate();
+          const finish = gate();
+          const load = store.load.bind(store);
+          store.load = async (target) => {
+            const record = await load(target);
+            entered.release();
+            await finish.promise;
+            return record;
+          };
+          const reading = handler(
+            new Request(
+              "http://localhost/tenants/acme/scopes/ops/dashboards/fleet",
+              {
+                headers: { "x-dev-user": "bob" },
+              },
+            ),
+          );
+          await entered.promise;
+          const writing = folders.transaction(scope, async () => {
+            await store.save(ref, sampleConfig({ visibility: "restricted" }), {
+              updatedBy: "owner",
+            });
+            await folders.placeDashboard(scope, ref.slug, null);
+          });
+          finish.release();
+          expect((await reading).status).toBe(403);
+          await writing;
+        });
 
         it("serializes a move out of the subtree with its authorized deletion", async () => {
           const { store, folders, remove, pauseAuthorization } = await setup();

@@ -99,6 +99,14 @@ describe("createTrustedProxyIdentityResolver", () => {
     expect(none?.groups).toBeUndefined();
   });
 
+  it("accepts exactly 200 asserted groups", async () => {
+    const groups = Array.from({ length: 200 }, (_, i) => `team:${i}`);
+    const principal = await resolver().resolve(
+      asserting({ "x-miot-asserted-groups": groups.join(",") }),
+    );
+    expect(principal?.groups).toEqual(groups);
+  });
+
   it("refuses an assertion with too many groups", async () => {
     const many = Array.from({ length: 201 }, (_, i) => `team:${i}`).join(",");
     await expect(

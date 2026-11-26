@@ -88,6 +88,8 @@ export {
 } from "./access/roles";
 
 export {
+  CREATOR_FLOOR,
+  ownsAsCreator,
   roleCapabilityPolicy,
   type CapabilityContext,
   type CapabilityPolicy,

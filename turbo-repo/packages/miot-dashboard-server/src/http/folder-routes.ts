@@ -23,7 +23,7 @@ import { roleAtLeast, type DashboardRole } from "../access/roles";
 import {
   folderRoleOf,
   folderVisible,
-  movementWidensVisibility,
+  movementChangesVisibility,
   OPEN_SCOPE,
   type ScopeVisibility,
 } from "../access/visibility";
@@ -37,6 +37,8 @@ import {
 } from "./parse-folder";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import type { RouteMatch } from "./routes";
+import type { PermissionAssignment } from "../seams/store";
+import type { DashboardVisibility } from "@microboxlabs/miot-dashboard-contract/document";
 import { removeAuthorizedDashboard } from "./remove-dashboard";
 
 type Route = (request: Request, match: RouteMatch) => Promise<Response>;
@@ -71,6 +73,21 @@ const NEEDS: Readonly<Record<"see" | "edit" | "manage", DashboardRole>> = {
   edit: "Editor",
   manage: "Coordinator",
 };
+
+function folderAudienceChanges(
+  before: DashboardVisibility,
+  after: DashboardVisibility,
+  previous: readonly PermissionAssignment[],
+  next: readonly PermissionAssignment[],
+): boolean {
+  if (before !== after) return true;
+  if (before === "organization") return false;
+  const oldIds = new Set(previous.map((a) => a.authorityId));
+  const newIds = new Set(next.map((a) => a.authorityId));
+  return (
+    oldIds.size !== newIds.size || [...oldIds].some((id) => !newIds.has(id))
+  );
+}
 
 /**
  * Refuses unless the caller may `need` on the folder (or, for null, at the
@@ -280,7 +297,11 @@ export function createFolderRoutes(
           const previousParent =
             visibility.folders.get(folderId)?.parentId ?? null;
           if (
-            movementWidensVisibility(previousParent, patch.parentId, visibility)
+            movementChangesVisibility(
+              previousParent,
+              patch.parentId,
+              visibility,
+            )
           ) {
             if (!decision.identity.capabilities.canManagePermissions) {
               throw DashboardServerError.forbidden(
@@ -329,15 +350,13 @@ export function createFolderRoutes(
       const nextVisibility = parseVisibility(body);
       const previous =
         visibility.folders.get(folderId)?.visibility ?? "organization";
-      const previousAuthorities = new Set(
-        (visibility.folderPermissions.get(folderId) ?? []).map(
-          (a) => a.authorityId,
-        ),
-      );
       if (
-        previous === "restricted" &&
-        (nextVisibility === "organization" ||
-          assignments.some((a) => !previousAuthorities.has(a.authorityId)))
+        folderAudienceChanges(
+          previous,
+          nextVisibility ?? previous,
+          visibility.folderPermissions.get(folderId) ?? [],
+          assignments,
+        )
       ) {
         await requireSubtreeSharing(request, match, decision, visibility);
       }
@@ -369,7 +388,7 @@ export function createFolderRoutes(
       const folderId = parsePlacement(await readBody(request));
       const visibility = await visibilityOf(scope);
       if (
-        movementWidensVisibility(
+        movementChangesVisibility(
           visibility.placements.get(match.slug) ?? null,
           folderId,
           visibility,
@@ -378,7 +397,7 @@ export function createFolderRoutes(
       ) {
         throw DashboardServerError.forbidden(
           "CAPABILITY",
-          "Only who manages this dashboard's permissions may expose it outside a restricted folder",
+          "Only who manages this dashboard's permissions may change its audience by moving it",
         );
       }
       if (folderId !== null) {

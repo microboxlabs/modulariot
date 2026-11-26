@@ -70,6 +70,15 @@ export interface PermissionAssignment {
 }
 
 export interface ServerDashboardStore {
+  /**
+   * Atomic boundary for authorization and ACL/config mutations, including
+   * without folders. Required for restricted-dashboard mutations and visibility changes.
+   * All ACL/config writers must participate in this same scope boundary.
+   */
+  scopeTransaction?<T>(
+    scope: Pick<ServerDashboardRef, "tenantId" | "scopeId">,
+    body: () => Promise<T>,
+  ): Promise<T>;
   load(ref: ServerDashboardRef): Promise<DashboardRecord | null>;
   save(
     ref: ServerDashboardRef,

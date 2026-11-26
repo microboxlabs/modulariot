@@ -38,6 +38,10 @@ export interface DashboardMetadataWrite {
 }
 
 export interface DashboardMetadataStore {
+  scopeTransaction?<T>(
+    scope: Pick<ServerDashboardRef, "tenantId" | "scopeId">,
+    body: () => Promise<T>,
+  ): Promise<T>;
   /** Defer document cleanup until an enclosing metadata transaction commits. */
   afterCommit?(body: () => Promise<void>): Promise<void>;
   read(ref: ServerDashboardRef): Promise<DashboardMetadataRow | null>;

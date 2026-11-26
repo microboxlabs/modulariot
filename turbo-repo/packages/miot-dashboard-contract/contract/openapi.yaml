@@ -616,7 +616,8 @@ paths:
       summary: Delete a folder and everything inside it
       description: >
         Deletes the folder, every folder below it and every dashboard in any
-        of them. Requires the Coordinator role on the folder, and `canDelete`
+        of them. Requires the Coordinator role on every folder in that
+        subtree, including empty descendants, and `canDelete`
         on each of those dashboards: every one is checked before anything is
         removed, so a refusal leaves the folder as it was.
       parameters:
@@ -668,6 +669,9 @@ paths:
       description: >
         The list replaces what is stored; `visibility`, when given, too.
         Requires the Coordinator role on the folder.
+        Changing its effective audience also requires Coordinator on every
+        descendant folder and permission-management rights on every contained
+        dashboard. Those checks and the replacement are atomic.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"

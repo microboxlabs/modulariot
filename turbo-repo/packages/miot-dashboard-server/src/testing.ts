@@ -265,6 +265,7 @@ export function createMemoryStore(
   return {
     ...store,
     transaction: tx.run,
+    scopeTransaction: (_scope, body) => tx.run(body),
     onRemove(listener, snapshot) {
       removed.set(listener, snapshot);
       return () => removed.delete(listener);

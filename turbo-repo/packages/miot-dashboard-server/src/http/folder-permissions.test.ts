@@ -334,13 +334,143 @@ describe("folder permissions", () => {
 });
 
 describe("visibility", () => {
+  it("requires management rights when a dashboard or subtree move narrows access", async () => {
+    const { call, createFolder, restrictFolder } = setup();
+    const destination = await createFolder("editor", "Private");
+    await restrictFolder("editor", destination.id);
+    const contents = await createFolder("editor", "Contents");
+    await call("owner", "PUT", "/dashboards/sales/folder", {
+      folderId: contents.id,
+    });
+    expect(
+      (
+        await call("editor", "PUT", `/folders/${contents.id}/permissions`, {
+          assignments: [],
+          visibility: "restricted",
+        })
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await call("editor", "PUT", "/dashboards/sales/folder", {
+          folderId: destination.id,
+        })
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await call("editor", "PATCH", `/folders/${contents.id}`, {
+          parentId: destination.id,
+        })
+      ).status,
+    ).toBe(403);
+    expect((await call("lector", "GET", "/dashboards/sales")).status).toBe(200);
+    expect(
+      (
+        await call("owner", "PUT", "/dashboards/sales/folder", {
+          folderId: destination.id,
+        })
+      ).status,
+    ).toBe(204);
+  });
+
+  it("checks a permission revoked during the body read even without folders", async () => {
+    const { handler, store } = setup(["sales"], {}, false);
+    const ref = { tenantId: "acme", scopeId: "ops", slug: "sales" };
+    await store.setPermissions(ref, [
+      { authorityId: "editor", role: "Coordinator" },
+    ]);
+    const body = new ReadableStream<Uint8Array>(
+      {
+        async pull(controller) {
+          await store.setPermissions(ref, []);
+          controller.enqueue(
+            new TextEncoder().encode(JSON.stringify(sampleConfig())),
+          );
+          controller.close();
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const init: RequestInit = {
+      method: "PUT",
+      duplex: "half",
+      body,
+      headers: { "x-dev-user": "editor", "content-type": "application/json" },
+    };
+    expect(
+      (await handler(new Request(`${BASE}/dashboards/sales`, init))).status,
+    ).toBe(403);
+    const record = await store.load(ref);
+    expect(record?.revision).toBe(1);
+    expect(record?.config).toMatchObject({ visibility: "restricted" });
+  });
+
+  it("rejects an If-Match that is ahead of the authorization revision", async () => {
+    const { handler } = setup([], {}, false);
+    const response = await handler(
+      new Request(`${BASE}/dashboards/sales`, {
+        method: "PUT",
+        body: JSON.stringify(sampleConfig()),
+        headers: {
+          "x-dev-user": "editor",
+          "content-type": "application/json",
+          "if-match": '"2"',
+        },
+      }),
+    );
+    expect(response.status).toBe(409);
+  });
+
+  it("fails closed for visibility changes on stores without atomic scope support", async () => {
+    const { store, memberships } = setup([], {}, false);
+    const handler = createDashboardHandler({
+      identity: createInsecureHeaderIdentityResolver(),
+      tenants: createMemoryTenantAuthority(memberships),
+      scopes: createMemoryScopeAuthority(memberships),
+      store: { ...store, scopeTransaction: undefined },
+    });
+    const response = await handler(
+      new Request(`${BASE}/dashboards/sales`, {
+        method: "PUT",
+        body: JSON.stringify(sampleConfig({ visibility: "restricted" })),
+        headers: { "x-dev-user": "owner", "content-type": "application/json" },
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(
+      (await store.load({ tenantId: "acme", scopeId: "ops", slug: "sales" }))
+        ?.revision,
+    ).toBe(1);
+    await store.save(
+      { tenantId: "acme", scopeId: "ops", slug: "sales" },
+      sampleConfig({ visibility: "restricted" }),
+      { updatedBy: "owner" },
+    );
+    for (const [method, suffix, body] of [
+      ["PUT", "", sampleConfig({ visibility: "restricted" })],
+      ["PUT", "/permissions", { assignments: [] }],
+      ["DELETE", "", undefined],
+    ] as const) {
+      const request = new Request(`${BASE}/dashboards/sales${suffix}`, {
+        method,
+        headers: { "x-dev-user": "owner", "content-type": "application/json" },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+      expect((await handler(request)).status).toBe(400);
+    }
+    expect(
+      (await store.load({ tenantId: "acme", scopeId: "ops", slug: "sales" }))
+        ?.revision,
+    ).toBe(2);
+  });
   it("requires rights on contents before opening a folder or adding recipients", async () => {
     const { call, createFolder, restrictFolder, slugsOf } = setup();
     const folder = await createFolder("editor", "Mine");
     await call("owner", "PUT", "/dashboards/sales/folder", {
       folderId: folder.id,
     });
-    await restrictFolder("editor", folder.id);
+    await restrictFolder("owner", folder.id);
     for (const body of [
       { assignments: [], visibility: "organization" },
       {
@@ -437,9 +567,19 @@ describe("visibility", () => {
   it("clears placement when a dashboard is deleted and its slug reused", async () => {
     const { call, createFolder, slugsOf } = setup();
     const folder = await createFolder("owner", "Private");
-    await call("owner", "PUT", "/dashboards/sales/folder", {
-      folderId: folder.id,
-    });
+    expect(
+      (
+        await call("owner", "PUT", "/dashboards/sales/folder", {
+          folderId: folder.id,
+        })
+      ).status,
+    ).toBe(204);
+    const initial = (await (
+      await call("owner", "GET", "/dashboards")
+    ).json()) as { data: { slug: string; folderId?: string }[] };
+    expect(initial.data.find((item) => item.slug === "sales")?.folderId).toBe(
+      folder.id,
+    );
     expect((await call("owner", "DELETE", "/dashboards/sales")).status).toBe(
       204,
     );
@@ -447,6 +587,12 @@ describe("visibility", () => {
       (await call("owner", "PUT", "/dashboards/sales", sampleConfig())).status,
     ).toBe(200);
     expect(await slugsOf("otro")).toContain("sales");
+    const recreated = (await (
+      await call("owner", "GET", "/dashboards")
+    ).json()) as { data: { slug: string; folderId?: string }[] };
+    const sales = recreated.data.find((item) => item.slug === "sales");
+    expect(sales).toMatchObject({ slug: "sales" });
+    expect(sales).not.toHaveProperty("folderId");
   });
 
   it.each([undefined, '"2"'])(
@@ -481,7 +627,7 @@ describe("visibility", () => {
       };
       expect(
         (await handler(new Request(`${BASE}/dashboards/sales`, init))).status,
-      ).toBe(409);
+      ).toBe(403);
       expect((await store.load(ref))?.config).toMatchObject({
         visibility: "restricted",
       });

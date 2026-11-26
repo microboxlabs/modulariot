@@ -99,6 +99,11 @@ export function createCompositeStore(
     onOrphan = () => {},
   } = options;
 
+  const scopeTransaction: ServerDashboardStore["scopeTransaction"] =
+    metadata.scopeTransaction
+      ? (scope, body) => metadata.scopeTransaction!(scope, body)
+      : undefined;
+
   /** Best-effort delete. The caller's outcome is already decided. */
   const forget = async (key: string): Promise<void> => {
     try {
@@ -135,6 +140,7 @@ export function createCompositeStore(
   });
 
   return {
+    ...(scopeTransaction ? { scopeTransaction } : {}),
     async load(ref: ServerDashboardRef): Promise<DashboardRecord | null> {
       let row = await metadata.read(ref);
       if (row === null) return null;

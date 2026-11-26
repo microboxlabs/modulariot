@@ -48,7 +48,7 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
           }
         });
 
-        async function setup() {
+        async function setup(withFolders = true) {
           if (backend === "sqlite")
             opened = await openSqliteStore({ path: SQLITE_MEMORY });
           if (backend === "postgres") {
@@ -83,7 +83,7 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
           };
           const handler = createDashboardHandler({
             store,
-            folders,
+            ...(withFolders ? { folders } : {}),
             identity: createInsecureHeaderIdentityResolver(),
             tenants: createMemoryTenantAuthority(memberships),
             scopes: createMemoryScopeAuthority(memberships),
@@ -151,6 +151,50 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
           finish.release();
           expect((await reading).status).toBe(403);
           await writing;
+        });
+
+        it("checks an ACL revoked during the request body without a folder adapter", async () => {
+          const { store, handler } = await setup(false);
+          await store.save(ref, sampleConfig({ visibility: "restricted" }), {
+            updatedBy: "owner",
+          });
+          await store.setPermissions(ref, [
+            { authorityId: "bob", role: "Coordinator" },
+          ]);
+          const body = new ReadableStream<Uint8Array>(
+            {
+              async pull(controller) {
+                await store.setPermissions(ref, []);
+                controller.enqueue(
+                  new TextEncoder().encode(JSON.stringify(sampleConfig())),
+                );
+                controller.close();
+              },
+            },
+            { highWaterMark: 0 },
+          );
+          const init: RequestInit = {
+            method: "PUT",
+            duplex: "half",
+            body,
+            headers: {
+              "x-dev-user": "bob",
+              "content-type": "application/json",
+            },
+          };
+          expect(
+            (
+              await handler(
+                new Request(
+                  "http://localhost/tenants/acme/scopes/ops/dashboards/fleet",
+                  init,
+                ),
+              )
+            ).status,
+          ).toBe(403);
+          const record = await store.load(ref);
+          expect(record?.config).toMatchObject({ visibility: "restricted" });
+          expect(record?.revision).toBe(2);
         });
 
         it("serializes a move out of the subtree with its authorized deletion", async () => {

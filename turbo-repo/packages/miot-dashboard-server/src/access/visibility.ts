@@ -125,8 +125,8 @@ function namedOrCreator(
   );
 }
 
-/** Moving outside any restricted ancestor can expose its contents to new callers. */
-export function movementWidensVisibility(
+/** Changing the set of restricted ancestors changes the effective audience. */
+export function movementChangesVisibility(
   from: string | null,
   to: string | null,
   scope: ScopeVisibility,
@@ -142,8 +142,11 @@ export function movementWidensVisibility(
     }
     return restricted;
   };
-  const remaining = restrictedAncestors(to);
-  return [...restrictedAncestors(from)].some((id) => !remaining.has(id));
+  const previous = restrictedAncestors(from);
+  const next = restrictedAncestors(to);
+  return (
+    previous.size !== next.size || [...previous].some((id) => !next.has(id))
+  );
 }
 
 /**

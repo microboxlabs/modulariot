@@ -26,6 +26,7 @@ import {
   requireCompleteFolderRemoval,
   requireParent,
 } from "../folder-tree";
+import { sqlScopeTransaction } from "./scope";
 import { placeholders, type SqlDriver } from "./driver";
 import type { PermissionAssignment } from "../../seams/store";
 import { isDashboardRole } from "../../access/roles";
@@ -111,19 +112,7 @@ export function createSqlFolderStore(
     scope: FolderScope,
     body: () => Promise<T>,
   ): Promise<T> {
-    return driver.transaction(async () => {
-      const lock = driver.dialect.folderLock;
-      if (lock) {
-        await driver.all(lock, [
-          JSON.stringify([
-            "miot-dashboard-folders",
-            scope.tenantId,
-            scope.scopeId,
-          ]),
-        ]);
-      }
-      return body();
-    });
+    return sqlScopeTransaction(driver, scope, body);
   }
 
   return {

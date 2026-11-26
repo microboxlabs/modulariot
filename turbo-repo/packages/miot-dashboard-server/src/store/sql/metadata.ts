@@ -6,6 +6,7 @@
  * decides the outcome without a second read.
  */
 
+import { sqlScopeTransaction } from "./scope";
 import { DashboardServerError } from "../../access/errors";
 import { isDashboardRole } from "../../access/roles";
 import type {
@@ -169,7 +170,7 @@ export function createSqlMetadataStore(
   }
 
   async function remove(ref: ServerDashboardRef, revision?: number) {
-    return driver.transaction(async () => {
+    return sqlScopeTransaction(driver, ref, async () => {
       const p = placeholders(driver.dialect);
       const values = refValues(ref);
       const predicate =
@@ -195,6 +196,7 @@ export function createSqlMetadataStore(
   }
 
   return {
+    scopeTransaction: (scope, body) => sqlScopeTransaction(driver, scope, body),
     ...(driver.afterCommit ? { afterCommit: driver.afterCommit } : {}),
     // Wrapped rather than passed through, so `lock` stays internal: it is not
     // part of the seam, and a caller of a method called `read` should not be
@@ -217,7 +219,7 @@ export function createSqlMetadataStore(
       // the same address, so a recreated dashboard cannot reuse an old ETag.
       const conflict = new Error("Dashboard revision conflict");
       try {
-        return await driver.transaction(async () => {
+        return await sqlScopeTransaction(driver, ref, async () => {
           const p = placeholders(driver.dialect);
           const [counter] = await driver.all<{ revision: number }>(
             `INSERT INTO dashboard_revisions (tenant_id, scope_id, slug, revision)
@@ -277,7 +279,7 @@ export function createSqlMetadataStore(
         byAuthority.set(assignment.authorityId, assignment);
       }
 
-      await driver.transaction(async () => {
+      await sqlScopeTransaction(driver, ref, async () => {
         // The caller authorized against a dashboard that may have been deleted
         // since. The foreign key rejects the inserts either way; reading first
         // makes that a 404 instead of a driver error. Locked, because on

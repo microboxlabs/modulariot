@@ -140,15 +140,32 @@ export type DashboardHandler = (request: Request) => Promise<Response>;
 function requireVisibilityUnchangedOrManaged(
   decision: AccessDecision,
   config: unknown,
+  atomic: boolean,
 ): void {
   const record = decision.dashboard?.record;
+  requireAtomicPrivateMutation(record?.config, atomic);
+  requireAtomicPrivateMutation(config, atomic);
   if (!record) return;
   if (restrictedConfig(record.config) === restrictedConfig(config)) return;
-  if (decision.dashboard?.capabilities.canManagePermissions) return;
+  if (decision.dashboard?.capabilities.canManagePermissions) {
+    if (!atomic)
+      throw DashboardServerError.badRequest(
+        "Changing dashboard visibility is unavailable for this store",
+      );
+    return;
+  }
   throw DashboardServerError.forbidden(
     "CAPABILITY",
     "Only who manages this dashboard's permissions may change who sees it",
   );
+}
+
+function requireAtomicPrivateMutation(config: unknown, atomic: boolean): void {
+  if (!atomic && restrictedConfig(config)) {
+    throw DashboardServerError.badRequest(
+      "Changing restricted dashboards is unavailable for this store",
+    );
+  }
 }
 
 export function createDashboardHandler(
@@ -161,10 +178,9 @@ export function createDashboardHandler(
   const readBody = cachedBodyReader(maxBodyBytes);
   const visibility =
     options.visibility ?? scopeVisibilityLoader(options.folders);
-  const folders = options.folders;
+  const scopeTransaction = scopeTransactionFor(options);
   const snapshot: AccessControlOptions<Request>["snapshot"] =
-    options.snapshot ??
-    (folders ? (scope, read) => folders.transaction(scope, read) : undefined);
+    options.snapshot ?? scopeTransaction;
   const access = createAccessControl<Request>({
     ...options,
     visibility,
@@ -302,7 +318,11 @@ export function createDashboardHandler(
         });
         const config = await readBody(request);
         requireValidConfig(config);
-        requireVisibilityUnchangedOrManaged(decision, config);
+        requireVisibilityUnchangedOrManaged(
+          decision,
+          config,
+          scopeTransaction !== undefined,
+        );
         const expectedRevision = decision.dashboard?.record?.revision ?? 0;
         const requestedRevision = readExpectedRevision(request);
         if (
@@ -339,6 +359,10 @@ export function createDashboardHandler(
           throw DashboardServerError.notFound("Dashboard not found");
         }
         const ref = refOf(decision.identity.tenantId, match.scopeId, slug);
+        requireAtomicPrivateMutation(
+          decision.dashboard.record.config,
+          scopeTransaction !== undefined,
+        );
         await removeAuthorizedDashboard(
           options.store,
           ref,
@@ -432,6 +456,10 @@ export function createDashboardHandler(
           slug,
           action: "dashboard.permissions.write",
         });
+        requireAtomicPrivateMutation(
+          decision.dashboard?.record?.config,
+          scopeTransaction !== undefined,
+        );
         const assignments = parseAssignments(await readBody(request));
         await options.store.setPermissions(
           refOf(decision.identity.tenantId, match.scopeId, slug),
@@ -749,6 +777,7 @@ export function createDashboardHandler(
   const runRoute = createScopedRouteRunner({
     access,
     folders: options.folders,
+    transaction: scopeTransaction,
     readBody,
     routes,
   });
@@ -773,6 +802,17 @@ export function createDashboardHandler(
 }
 
 // ------------------------------------------------------------- helpers ----
+
+function scopeTransactionFor(
+  options: DashboardHandlerOptions,
+): DashboardFolderStore["transaction"] | undefined {
+  const folders = options.folders;
+  if (folders) return (scope, body) => folders.transaction(scope, body);
+  const store = options.store;
+  if (store.scopeTransaction)
+    return (scope, body) => store.scopeTransaction!(scope, body);
+  return undefined;
+}
 
 function cachedBodyReader(maxBodyBytes: number) {
   const bodies = new WeakMap<Request, Promise<unknown>>();

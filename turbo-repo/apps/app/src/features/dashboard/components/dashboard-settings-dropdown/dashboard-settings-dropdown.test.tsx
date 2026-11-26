@@ -14,13 +14,15 @@ const state = vi.hoisted(() => ({
   importDashboard: vi.fn(() => ({ success: true })),
   deleteLegacy: vi.fn(),
   setDetails: vi.fn(),
+  saveVisibility: vi.fn(async () => true),
+  notify: vi.fn(),
 }));
 vi.mock("@/features/i18n/tr.service", () => ({
   tr: (key: string) => key,
   trDynamic: (key: string) => key,
 }));
 vi.mock("@/features/notifications/notification", () => ({
-  ShowNotification: vi.fn(),
+  ShowNotification: state.notify,
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -104,6 +106,7 @@ function host(overrides: Partial<DashboardSettingsHost> = {}) {
     canManagePermissions: true,
     onManagePermissions: vi.fn(),
     onDelete: vi.fn().mockResolvedValue(undefined),
+    saveVisibility: state.saveVisibility,
     ...overrides,
   };
 }
@@ -226,7 +229,7 @@ it("leaves tags to the legacy store's own pages", () => {
   render(<DashboardSettingsDropdown canManagePermissions={false} />);
   fireEvent.click(screen.getByTitle("Dashboard settings"));
   expect(
-    screen.queryByRole("button", { name: "dashboard.settings.tagsButton" })
+    screen.queryByRole("button", { name: /dashboard\.settings\.tagsTitle/ })
   ).not.toBeInTheDocument();
 });
 
@@ -246,6 +249,41 @@ it("keeps the dashboard to who it names from its settings", async () => {
     screen.getByRole("button", { name: "dashboard.permissions.save" })
   );
   await waitFor(() =>
-    expect(state.setDetails).toHaveBeenCalledWith({ visibility: "restricted" })
+    expect(state.saveVisibility).toHaveBeenCalledWith("restricted")
+  );
+});
+
+it("reports failed visibility persistence and keeps a retry available", async () => {
+  state.saveVisibility.mockResolvedValueOnce(false);
+  open(host({ permissions: PERMISSIONS }));
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: /dashboard\.settings\.accessControlTitle/,
+    })
+  );
+  fireEvent.click(
+    screen.getByRole("radio", {
+      name: "dashboard.setup.permissions.visibility.restricted",
+    })
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "dashboard.permissions.save" })
+  );
+  await waitFor(() =>
+    expect(state.notify).toHaveBeenCalledWith({
+      type: "error",
+      message: "dashboard.permissions.saveError",
+    })
+  );
+  const retry = screen.getByRole("button", {
+    name: "dashboard.permissions.save",
+  });
+  expect(retry).toBeEnabled();
+  fireEvent.click(retry);
+  await waitFor(() =>
+    expect(state.notify).toHaveBeenCalledWith({
+      type: "success",
+      message: "dashboard.permissions.saveSuccess",
+    })
   );
 });

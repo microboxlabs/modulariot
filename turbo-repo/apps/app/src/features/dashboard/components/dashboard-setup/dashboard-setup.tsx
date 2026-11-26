@@ -39,7 +39,7 @@ interface DashboardSetupProps {
   /** The dashboard's tags, where the tags step starts from. */
   initialTags: readonly string[];
   /** Saves the tags and ends the setup, on leaving the tags step. */
-  onFinish?: (tags: string[]) => void;
+  onFinish?: (tags: string[], visibility: Visibility) => void;
   /** Who sees the dashboard, where the permissions step starts from. */
   visibility: Visibility;
   /** Saves who sees it, on leaving the permissions step. */
@@ -131,34 +131,33 @@ function SetupFlow({
   const [visibilityDraft, setVisibilityDraft] = useState(visibility);
   const step: SetupStep = SETUP_STEPS[active] ?? "permissions";
   const isLast = active === SETUP_STEPS.length - 1;
+  const busy = saving || permissionsState.busy || permissionsState.loading;
 
-  const advance = () => {
-    setUnlocked((current) => Math.max(current, active + 1));
-    setActive(active + 1);
-  };
-  /** Leaving the permissions step saves them; a failure keeps you there. */
-  const next = async () => {
-    if (step === "tags") {
-      onFinish?.(tags);
-      advance();
-      return;
-    }
-    if (step !== "permissions" || !permissionsState.canManage) {
-      advance();
-      return;
-    }
+  const savePermissions = async () => {
+    if (!permissionsState.canManage) return true;
     setSaving(true);
     const saved = await permissionsState.save();
     setSaving(false);
-    if (saved) {
-      if (visibilityDraft !== visibility) onVisibilityChange?.(visibilityDraft);
-      advance();
-      return;
+    if (!saved) {
+      ShowNotification({ type: "error", message: t("permissions.saveError") });
     }
-    ShowNotification({ type: "error", message: t("permissions.saveError") });
+    return saved;
   };
 
-  const back = () => setActive(Math.max(active - 1, 0));
+  /** Every forward route saves the steps it leaves, including stepper links. */
+  const select = async (target: number) => {
+    if (busy || target === active) return;
+    if (target > active) {
+      if (step === "permissions" && !(await savePermissions())) return;
+      if (SETUP_STEPS[target] === "dashlet") {
+        onFinish?.(tags, visibilityDraft);
+      } else if (visibilityDraft !== visibility) {
+        onVisibilityChange?.(visibilityDraft);
+      }
+      setUnlocked((current) => Math.max(current, target));
+    }
+    setActive(target);
+  };
 
   return (
     <section className="mx-auto w-full px-4 py-10 md:max-w-2xl">
@@ -166,7 +165,8 @@ function SetupFlow({
         steps={SETUP_STEPS.map((id) => ({ title: t(`steps.${id}`) }))}
         currentStepIndex={active}
         reachedStepIndex={unlocked}
-        onSelect={setActive}
+        onSelect={(index) => void select(index)}
+        disabled={busy}
       />
       {/* Nothing in the card clips: the search's list has to float out of it.
           The sign-up flow's card: content, then a footer with the progress
@@ -221,8 +221,8 @@ function SetupFlow({
               color="light"
               size="sm"
               type="button"
-              disabled={active === 0}
-              onClick={back}
+              disabled={busy || active === 0}
+              onClick={() => void select(Math.max(active - 1, 0))}
               className={`w-1/3 ${BUTTON_SHAPE}`}
             >
               <span className="flex items-center gap-1.5">
@@ -248,8 +248,8 @@ function SetupFlow({
                 color="blue"
                 size="sm"
                 type="button"
-                disabled={saving}
-                onClick={() => void next()}
+                disabled={busy}
+                onClick={() => void select(active + 1)}
                 className={`w-2/3 ${BUTTON_SHAPE}`}
               >
                 <span className="flex items-center gap-1.5">

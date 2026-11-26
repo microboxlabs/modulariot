@@ -1329,6 +1329,8 @@ export interface DashboardSettingsHost {
   onManagePermissions: () => void;
   /** Where the permissions live, for the new dashboard's setup steps. */
   permissions?: DashboardPermissionsOptions;
+  /** Confirms the document's visibility was persisted before reporting success. */
+  saveVisibility?: (visibility: "organization" | "restricted") => Promise<boolean>;
   onDelete?: () => Promise<void>;
 }
 
@@ -1614,9 +1616,7 @@ export default function DashboardSettingsDropdown({
                   <SettingsPermissionsForm
                     permissions={host.permissions}
                     visibility={visibility}
-                    onVisibilityChange={(next) =>
-                      setDetails({ visibility: next })
-                    }
+                    onVisibilityChange={host.saveVisibility ?? (async () => false)}
                     dictionary={dictionary}
                   />
                 )

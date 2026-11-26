@@ -7482,6 +7482,8 @@
           "Coordinator": "Edits, deletes and manages access"
         },
         "search": "Search for a member or a team…",
+        "email": "Member email",
+        "addEmail": "Add by email",
         "membersHeader": "Members",
         "teamsHeader": "Teams",
         "teamSize": "{count} members",

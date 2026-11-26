@@ -24,6 +24,7 @@ type TopStepperProps = Readonly<{
    */
   reachedStepIndex?: number;
   onSelect?: (index: number) => void;
+  disabled?: boolean;
   className?: string;
 }>;
 
@@ -32,6 +33,7 @@ export default function TopStepper({
   currentStepIndex,
   reachedStepIndex = currentStepIndex,
   onSelect,
+  disabled = false,
   className,
 }: TopStepperProps) {
   const furthest = Math.max(reachedStepIndex, currentStepIndex);
@@ -62,7 +64,7 @@ export default function TopStepper({
             </span>
             <span
               className={twMerge(
-                "whitespace-nowrap text-sm font-medium transition-colors duration-300",
+                "min-w-0 text-center text-xs font-medium transition-colors duration-300 sm:whitespace-nowrap sm:text-left sm:text-sm",
                 isLit
                   ? "text-gray-900 dark:text-white"
                   : "text-gray-400 dark:text-gray-500"
@@ -76,22 +78,25 @@ export default function TopStepper({
         return (
           <li
             key={step.title}
-            className={twMerge("flex items-center", !isLast && "flex-1")}
+            className={twMerge(
+              "flex min-w-0 flex-1 items-center",
+              isLast && "sm:flex-none"
+            )}
           >
             {onSelect ? (
               <button
                 type="button"
-                disabled={!isReached}
+                disabled={disabled || !isReached}
                 aria-current={isCurrent ? "step" : undefined}
                 onClick={() => onSelect(index)}
-                className="flex shrink-0 items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed"
+                className="flex w-full min-w-0 flex-col items-center gap-1 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed sm:w-auto sm:shrink-0 sm:flex-row sm:gap-2"
               >
                 {marker}
               </button>
             ) : (
               <div
                 aria-current={isCurrent ? "step" : undefined}
-                className="flex shrink-0 items-center gap-2"
+                className="flex w-full min-w-0 flex-col items-center gap-1 sm:w-auto sm:shrink-0 sm:flex-row sm:gap-2"
               >
                 {marker}
               </div>
@@ -100,7 +105,7 @@ export default function TopStepper({
             {!isLast && (
               <div
                 aria-hidden
-                className="mx-3 h-px flex-1 bg-gray-200 dark:bg-gray-700"
+                className="mx-3 hidden h-px flex-1 bg-gray-200 sm:block dark:bg-gray-700"
               />
             )}
           </li>

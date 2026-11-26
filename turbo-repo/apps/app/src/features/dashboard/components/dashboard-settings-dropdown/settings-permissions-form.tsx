@@ -16,7 +16,7 @@ interface SettingsPermissionsFormProps {
   /** Who sees the dashboard now. */
   visibility: Visibility;
   /** Saves who sees it, with the dashboard. */
-  onVisibilityChange: (visibility: Visibility) => void;
+  onVisibilityChange: (visibility: Visibility) => Promise<boolean>;
   dictionary: I18nRecord;
 }
 
@@ -33,23 +33,27 @@ export function SettingsPermissionsForm({
   const state = useSetupPermissions(permissions);
   const directory = usePrincipalDirectory(state.canManage);
   const [visibilityDraft, setVisibilityDraft] = useState(visibility);
-  const dirty = state.dirty || visibilityDraft !== visibility;
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const dirty = saveFailed || state.dirty || visibilityDraft !== visibility;
   const save = async () => {
-    if (await state.save()) {
-      if (visibilityDraft !== visibility) onVisibilityChange(visibilityDraft);
-      ShowNotification({
-        type: "success",
-        message: tr("dashboard.permissions.saveSuccess", dictionary),
-      });
-      return;
-    }
+    setSaving(true);
+    const saved =
+      (await state.save()) && (await onVisibilityChange(visibilityDraft));
+    setSaving(false);
+    setSaveFailed(!saved);
     ShowNotification({
-      type: "error",
-      message: tr("dashboard.permissions.saveError", dictionary),
+      type: saved ? "success" : "error",
+      message: saved
+        ? tr("dashboard.permissions.saveSuccess", dictionary)
+        : tr("dashboard.permissions.saveError", dictionary),
     });
   };
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <fieldset
+      disabled={saving || state.busy}
+      className="flex min-w-0 flex-col gap-4 p-4"
+    >
       <PermissionsStep
         assignments={state.assignments}
         onChange={state.onChange}
@@ -67,13 +71,13 @@ export function SettingsPermissionsForm({
         <Button
           type="button"
           size="sm"
-          disabled={!dirty || state.busy}
+          disabled={!dirty || saving || state.busy}
           onClick={() => void save()}
           className="self-end"
         >
           {tr("dashboard.permissions.save", dictionary)}
         </Button>
       )}
-    </div>
+    </fieldset>
   );
 }

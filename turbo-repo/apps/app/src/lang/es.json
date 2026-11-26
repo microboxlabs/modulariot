@@ -7482,6 +7482,8 @@
           "Coordinator": "Edita, elimina y gestiona el acceso"
         },
         "search": "Busca un miembro o un equipo…",
+        "email": "Correo del miembro",
+        "addEmail": "Añadir por correo",
         "membersHeader": "Miembros",
         "teamsHeader": "Equipos",
         "teamSize": "{count} miembros",

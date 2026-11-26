@@ -7,7 +7,7 @@
  * every member and team that matches under its header ("Miembros (2)",
  * "Equipos (1)"); picking one gives it access, then its role is chosen.
  */
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   HiOutlineTrash,
   HiOutlineUser,
@@ -46,6 +46,48 @@ const ICON = "h-4 w-4 text-gray-600 dark:text-gray-400";
 
 /** How many members and teams a click on the empty search shows of each. */
 const SHOWN_BEFORE_TYPING = 5;
+
+/** Sharing still works when organization directory access is unavailable. */
+function EmailPermissionForm({
+  taken,
+  onAdd,
+  t,
+}: Readonly<{
+  taken: ReadonlySet<string>;
+  onAdd: (email: string) => void;
+  t: T;
+}>) {
+  const [email, setEmail] = useState("");
+  const trimmed = email.trim();
+  return (
+    <form
+      className="flex gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!trimmed || taken.has(trimmed)) return;
+        onAdd(trimmed);
+        setEmail("");
+      }}
+    >
+      <input
+        type="email"
+        required
+        aria-label={t("email")}
+        placeholder={t("email")}
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white text-sm dark:border-gray-600 dark:bg-gray-700"
+      />
+      <button
+        type="submit"
+        disabled={!trimmed || taken.has(trimmed)}
+        className="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50"
+      >
+        {t("addEmail")}
+      </button>
+    </form>
+  );
+}
 
 /** What a kind of principal is searched by. */
 function searchText(principal: Principal, kind: PrincipalKind) {
@@ -364,6 +406,15 @@ export function PermissionsStep({
         showWhenEmpty={SHOWN_BEFORE_TYPING}
         renderItem={(item) => <PrincipalOption principal={item} t={t} />}
       />
+      {principals.length === 0 && !loading && (
+        <EmailPermissionForm
+          taken={taken}
+          onAdd={(email) =>
+            add({ authorityId: email, kind: "member", name: email })
+          }
+          t={t}
+        />
+      )}
       {/* With the switch, its box below says what the empty list means. */}
       {assignments.length === 0 && !onVisibilityChange && (
         <EmptyBox>{t("noAccess")}</EmptyBox>

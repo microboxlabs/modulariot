@@ -26,7 +26,7 @@ interface EmptyStateProps {
   /** The dashboard's tags, where the setup's tags step starts from. */
   tags?: readonly string[];
   /** Saves the tags and ends the setup, on leaving its tags step. */
-  onFinishSetup?: (tags: string[]) => void;
+  onFinishSetup?: (tags: string[], visibility: Visibility) => void;
   /** Who sees the dashboard: the whole organization unless it says so. */
   visibility?: Visibility;
   /** Saves who sees it, on leaving the setup's permissions step. */

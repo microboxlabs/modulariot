@@ -469,6 +469,45 @@ describe("parallel dashboard pages", () => {
     expect(removal?.[0]).toBe("/app/api/dashboards/fleet?org=acme");
     expect(state.push).toHaveBeenCalledWith("/en/dashboards");
   });
+  it.each([200, 503])(
+    "confirms visibility only after the server responds %s",
+    async (status) => {
+      state.canEdit = true;
+      show("fleet");
+      await screen.findByText("Widget canvas");
+      act(() =>
+        state.storage!.onChange({
+          ...state.storage!.config,
+          name: "Latest draft",
+        })
+      );
+      const response = deferredResponse();
+      fetcher.mockReturnValueOnce(response.promise);
+      let saving!: Promise<boolean>;
+      act(() => {
+        saving = state.host!.saveVisibility!("restricted");
+      });
+      const write = fetcher.mock.calls.find(
+        ([, init]) => init?.method === "PUT"
+      );
+      expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
+        name: "Latest draft",
+        visibility: "restricted",
+      });
+      expect(write?.[1]?.headers).toMatchObject({ "if-match": '"7"' });
+      await act(async () => {
+        response.resolve(
+          status === 200
+            ? Response.json(
+                { data: { revision: 8, updatedAt: "now" } },
+                { headers: { ETag: '"8"' } }
+              )
+            : new Response(null, { status })
+        );
+        expect(await saving).toBe(status === 200);
+      });
+    }
+  );
   it("does not expose an editor for a missing dashboard", async () => {
     state.canEdit = true;
     state.missing = true;

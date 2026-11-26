@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { HiPlus } from "react-icons/hi";
 import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import { useRouter } from "next/navigation";
@@ -172,6 +172,8 @@ function ServerDashboardEditor({
     [dictionary]
   );
   const document = useDashboardDocument(org, slug, empty, sessionKey);
+  const documentRef = useRef(document);
+  documentRef.current = document;
   const router = useRouter();
   const [removing, setRemoving] = useState(false);
   const [permissionsOpen, setPermissionsOpen] = useState(false);
@@ -227,6 +229,12 @@ function ServerDashboardEditor({
     canManagePermissions: document.capabilities?.canManagePermissions === true,
     onManagePermissions: () => setPermissionsOpen(true),
     permissions: { client: document.client, slug, sessionKey },
+    saveVisibility: async (visibility) => {
+      const current = documentRef.current;
+      if (removing || current.readOnly || current.busy) return false;
+      current.onChange({ ...current.config, visibility });
+      return current.save();
+    },
     onDelete: document.capabilities?.canDelete ? remove : undefined,
   };
   // Changes save on their own; a failed save keeps the draft and offers a reload.

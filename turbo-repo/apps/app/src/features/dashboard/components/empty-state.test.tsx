@@ -64,7 +64,10 @@ function setup(
   tags: readonly string[] = []
 ) {
   const onAdd = vi.fn();
-  const onFinishSetup = vi.fn<(tags: string[]) => void>();
+  const onFinishSetup =
+    vi.fn<
+      (tags: string[], visibility: "organization" | "restricted") => void
+    >();
   const onVisibilityChange =
     vi.fn<(visibility: "organization" | "restricted") => void>();
   const view = (isStarted: boolean) => (
@@ -274,6 +277,71 @@ describe("EmptyState setup steps", () => {
     setup();
     expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
     expect(screen.queryByText(/Only an administrator/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+  });
+
+  it("saves edited tags when the stepper opens the reached dashlet step", async () => {
+    const { user, onFinishSetup } = setup();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    onFinishSetup.mockClear();
+    await user.click(step("Tags"));
+    await user.type(
+      screen.getByRole("textbox", { name: "Type a tag and press Enter" }),
+      "night{Enter}"
+    );
+    await user.click(step("3 First dashlet"));
+    expect(onFinishSetup).toHaveBeenCalledWith(["night"], "restricted");
+  });
+
+  it("keeps failed permission edits on screen when advancing with the stepper", async () => {
+    const { user } = setup();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(step("Permissions"));
+    await user.click(search());
+    await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+    perms.save.mockResolvedValue(false);
+    await user.click(step("3 First dashlet"));
+    await waitFor(() => expect(perms.save).toHaveBeenCalled());
+    expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+  });
+
+  it("blocks navigation until a permission save finishes", async () => {
+    const { user } = setup();
+    await user.click(search());
+    await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+    let finish!: (saved: boolean) => void;
+    perms.save.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        })
+    );
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+    expect(step("1 Permissions")).toBeDisabled();
+    finish(false);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled()
+    );
+    expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+  });
+
+  it("finishes skipped steps with tags and visibility in one document change", async () => {
+    const { user, onFinishSetup, onVisibilityChange } = setup();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Type a tag and press Enter" }),
+      "night{Enter}"
+    );
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    onFinishSetup.mockClear();
+    await user.click(step("Permissions"));
+    await user.click(screen.getByRole("radio", { name: /Whole organization/ }));
+    await user.click(step("3 First dashlet"));
+    expect(onFinishSetup).toHaveBeenCalledWith(["night"], "organization");
+    expect(onVisibilityChange).not.toHaveBeenCalled();
   });
 
   it("explains, without the controls, when access is not the caller's to set", () => {
@@ -328,7 +396,10 @@ describe("EmptyState setup steps", () => {
       "night{Enter}"
     );
     await user.click(screen.getByRole("button", { name: "Continue" }));
-    expect(onFinishSetup).toHaveBeenCalledWith(["fleet", "night"]);
+    expect(onFinishSetup).toHaveBeenCalledWith(
+      ["fleet", "night"],
+      "restricted"
+    );
     // Saved as started, the steps stay on screen on their last one.
     markStarted();
     expect(step("3 First dashlet")).toHaveAttribute("aria-current", "step");

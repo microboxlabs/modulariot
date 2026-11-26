@@ -40,7 +40,7 @@ interface DashboardPlaceholderProps {
   permissions?: DashboardPermissionsOptions;
   started: boolean;
   tags: readonly string[];
-  onFinishSetup: (tags: string[]) => void;
+  onFinishSetup: (tags: string[], visibility: Visibility) => void;
   visibility: Visibility;
   onVisibilityChange: (visibility: Visibility) => void;
 }
@@ -201,7 +201,8 @@ export function DashboardView({
 
   /** Leaving the setup's tags step: its tags are saved and the setup is over. */
   const finishSetup = useCallback(
-    (nextTags: string[]) => setDetails({ tags: nextTags, started: true }),
+    (nextTags: string[], nextVisibility: Visibility) =>
+      setDetails({ tags: nextTags, visibility: nextVisibility, started: true }),
     [setDetails]
   );
 

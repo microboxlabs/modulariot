@@ -12,7 +12,11 @@ import {
 } from "../access/errors";
 import { withVisibilitySnapshot } from "../access/visibility-snapshot";
 
-type Route = (request: Request, match: RouteMatch) => Promise<Response>;
+export type ScopedRoute = (
+  request: Request,
+  match: RouteMatch,
+  initialRevision?: number,
+) => Promise<Response>;
 const FOLDER_ROUTES = new Set<RouteMatch["route"]>([
   "folders",
   "folder",
@@ -43,8 +47,8 @@ export function createScopedRouteRunner(options: {
   transaction: DashboardFolderStore["transaction"] | undefined;
   folders: DashboardFolderStore | undefined;
   readBody: (request: Request) => Promise<unknown>;
-  routes: Record<RouteMatch["route"], Route>;
-}): Route {
+  routes: Record<RouteMatch["route"], ScopedRoute>;
+}): ScopedRoute {
   async function auditDenial(
     decision: AccessDecision,
     action: DashboardAction,
@@ -88,7 +92,12 @@ export function createScopedRouteRunner(options: {
     try {
       return await options.transaction(
         { tenantId: decision.identity.tenantId, scopeId: match.scopeId },
-        () => withVisibilitySnapshot(() => route(request, match)),
+        () =>
+          withVisibilitySnapshot(() =>
+            // Recheck permissions under the lock, preserving the revision seen
+            // before the body so a concurrent save cannot become our baseline.
+            route(request, match, decision.dashboard?.record?.revision ?? 0),
+          ),
       );
     } catch (error) {
       if (isDashboardServerError(error) && [403, 404].includes(error.status)) {

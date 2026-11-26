@@ -90,7 +90,10 @@ export interface AccessDecision {
 }
 
 export interface AccessControlOptions<TRequest> {
-  /** Read dashboard records, grants and folder visibility in one consistent scope view. */
+  /**
+   * Read records, grants and folder visibility in one consistent scope view.
+   * Defaults to store.scopeTransaction when the store provides it.
+   */
   snapshot?<T>(
     scope: { tenantId: string; scopeId: string },
     read: () => Promise<T>,
@@ -315,7 +318,9 @@ export function createAccessControl<TRequest>(
   } = options;
 
   const snapshot: NonNullable<AccessControlOptions<TRequest>["snapshot"]> =
-    options.snapshot ?? ((_scope, read) => read());
+    options.snapshot ??
+    ((scope, read) =>
+      store.scopeTransaction ? store.scopeTransaction(scope, read) : read());
 
   const visibilityOf = (scope: { tenantId: string; scopeId: string }) =>
     readVisibility ? readVisibility(scope) : Promise.resolve(OPEN_SCOPE);

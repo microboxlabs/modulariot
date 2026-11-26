@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDashboardHandler } from "./handler";
+import { createAccessControl } from "../access/access-control";
+import { isDashboardServerError } from "../access/errors";
+import { scopeVisibilityLoader } from "../access/visibility";
 import {
   createInsecureHeaderIdentityResolver,
   createMemoryFolderStore,
@@ -84,12 +87,17 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
               ops: { owner: "Coordinator" as const, bob: "Consumer" as const },
             },
           };
-          const handler = createDashboardHandler({
+          const options = {
             store,
             ...(withFolders ? { folders } : {}),
             identity: createInsecureHeaderIdentityResolver(),
             tenants: createMemoryTenantAuthority(memberships),
             scopes: createMemoryScopeAuthority(memberships),
+          };
+          const handler = createDashboardHandler(options);
+          const access = createAccessControl({
+            ...options,
+            visibility: scopeVisibilityLoader(folders),
           });
           const remove = (user = "owner") =>
             handler(
@@ -121,64 +129,123 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
             remove,
             pauseAuthorization,
             handler,
+            access,
           };
         }
 
-        it("does not combine an old public config with a new public placement", async () => {
-          const { store, folders, parent, handler } = await setup();
-          await folders.setVisibility(scope, parent.id, "restricted");
-          const entered = gate();
-          const finish = gate();
-          const load = store.load.bind(store);
-          store.load = async (target) => {
-            const record = await load(target);
-            entered.release();
-            await finish.promise;
-            return record;
-          };
-          const reading = handler(
-            new Request(
+        it.each(["http", "access"] as const)(
+          "does not combine an old public config with a new public placement via %s",
+          async (entry) => {
+            const { store, folders, parent, handler, access } = await setup();
+            await folders.setVisibility(scope, parent.id, "restricted");
+            const entered = gate();
+            const finish = gate();
+            const load = store.load.bind(store);
+            store.load = async (target) => {
+              const record = await load(target);
+              entered.release();
+              await finish.promise;
+              return record;
+            };
+            const request = new Request(
               "http://localhost/tenants/acme/scopes/ops/dashboards/fleet",
               {
                 headers: { "x-dev-user": "bob" },
               },
-            ),
-          );
-          await entered.promise;
-          let written = false;
-          const writing = folders
-            .transaction(scope, async () => {
-              await store.save(
-                ref,
-                sampleConfig({ visibility: "restricted" }),
-                {
-                  updatedBy: "owner",
-                },
-              );
-              await folders.placeDashboard(scope, ref.slug, null);
-            })
-            .then(() => {
-              written = true;
-            });
-          try {
-            if (admin) {
-              await vi.waitFor(async () => {
-                const waiting = await admin!.all<{ count: number }>(
-                  "SELECT count(*)::int AS count FROM pg_stat_activity WHERE application_name = $1 AND wait_event = 'advisory'",
-                  [schema],
+            );
+            const reading =
+              entry === "http"
+                ? handler(request).then((response) => response.status)
+                : access
+                    .authorize(request, { ...ref, action: "dashboard.load" })
+                    .then(
+                      () => 200,
+                      (error: unknown) => {
+                        if (!isDashboardServerError(error)) throw error;
+                        return error.status;
+                      },
+                    );
+            await entered.promise;
+            let written = false;
+            const writing = folders
+              .transaction(scope, async () => {
+                await store.save(
+                  ref,
+                  sampleConfig({ visibility: "restricted" }),
+                  {
+                    updatedBy: "owner",
+                  },
                 );
-                expect(written || waiting[0]!.count > 0).toBe(true);
+                await folders.placeDashboard(scope, ref.slug, null);
+              })
+              .then(() => {
+                written = true;
               });
-            } else {
-              await new Promise<void>((resolve) => setImmediate(resolve));
+            try {
+              if (admin) {
+                await vi.waitFor(async () => {
+                  const waiting = await admin!.all<{ count: number }>(
+                    "SELECT count(*)::int AS count FROM pg_stat_activity WHERE application_name = $1 AND wait_event = 'advisory'",
+                    [schema],
+                  );
+                  expect(written || waiting[0]!.count > 0).toBe(true);
+                });
+              } else {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+              }
+              expect(written).toBe(false);
+            } finally {
+              finish.release();
+              await Promise.all([reading, writing]);
             }
-            expect(written).toBe(false);
-          } finally {
-            finish.release();
-          }
-          expect((await reading).status).toBe(403);
-          await writing;
-        });
+            expect(await reading).toBe(403);
+            await writing;
+          },
+        );
+
+        it.each(["existing", "new"] as const)(
+          "rejects a concurrent %s save during the request body without If-Match",
+          async (kind) => {
+            const { store, handler } = await setup();
+            const target =
+              kind === "existing" ? ref : { ...scope, slug: "new" };
+            const concurrent = sampleConfig({ name: "Concurrent" });
+            const body = new ReadableStream<Uint8Array>(
+              {
+                async pull(controller) {
+                  await store.save(target, concurrent, { updatedBy: "owner" });
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      JSON.stringify(sampleConfig({ name: "Stale" })),
+                    ),
+                  );
+                  controller.close();
+                },
+              },
+              { highWaterMark: 0 },
+            );
+            const init: RequestInit = {
+              method: "PUT",
+              duplex: "half",
+              body,
+              headers: {
+                "x-dev-user": "owner",
+                "content-type": "application/json",
+              },
+            };
+            const response = await handler(
+              new Request(
+                `http://localhost/tenants/acme/scopes/ops/dashboards/${target.slug}`,
+                init,
+              ),
+            );
+            expect(response.status).toBe(409);
+            expect((await store.load(target))?.config).toEqual(concurrent);
+            expect((await store.load(target))?.revision).toBe(
+              kind === "existing" ? 2 : 1,
+            );
+          },
+        );
 
         it("checks an ACL revoked during the request body without a folder adapter", async () => {
           const { store, handler } = await setup(false);

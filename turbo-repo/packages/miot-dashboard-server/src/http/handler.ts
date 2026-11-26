@@ -64,7 +64,7 @@ import {
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
 import { withoutVisibilitySnapshot } from "../access/visibility-snapshot";
-import { createScopedRouteRunner } from "./folder-transaction";
+import { createScopedRouteRunner, type ScopedRoute } from "./folder-transaction";
 import { removeAuthorizedDashboard } from "./remove-dashboard";
 import { createFolderRoutes } from "./folder-routes";
 import { parseAssignments } from "./parse-assignments";
@@ -275,10 +275,7 @@ export function createDashboardHandler(
   }
 
   // Build once. Each route keeps its authorization before parsing and storage.
-  const routes: Record<
-    RouteMatch["route"],
-    (request: Request, match: RouteMatch) => Promise<Response>
-  > = {
+  const routes: Record<RouteMatch["route"], ScopedRoute> = {
     ...createFolderRoutes({
       access,
       store: options.store,
@@ -296,7 +293,7 @@ export function createDashboardHandler(
       return jsonResponse({ data });
     },
 
-    async dashboard(request, match) {
+    async dashboard(request, match, initialRevision) {
       const method = request.method.toUpperCase();
       const slug = requireSlug(match);
       if (method === "GET") {
@@ -337,7 +334,8 @@ export function createDashboardHandler(
           config,
           scopeTransaction !== undefined,
         );
-        const expectedRevision = decision.dashboard?.record?.revision ?? 0;
+        const expectedRevision =
+          initialRevision ?? decision.dashboard?.record?.revision ?? 0;
         const requestedRevision = readExpectedRevision(request);
         if (
           requestedRevision !== undefined &&

@@ -14,7 +14,7 @@ const state = vi.hoisted(() => ({
   importDashboard: vi.fn(() => ({ success: true })),
   deleteLegacy: vi.fn(),
   setDetails: vi.fn(),
-  saveVisibility: vi.fn(async () => true),
+  saveDetails: vi.fn(async () => true),
   notify: vi.fn(),
 }));
 vi.mock("@/features/i18n/tr.service", () => ({
@@ -50,6 +50,8 @@ vi.mock("../dashboard-setup/use-setup-permissions", () => ({
     busy: false,
     canManage: true,
     loading: false,
+    error: null,
+    retry: vi.fn(),
   }),
 }));
 vi.mock(
@@ -106,7 +108,7 @@ function host(overrides: Partial<DashboardSettingsHost> = {}) {
     canManagePermissions: true,
     onManagePermissions: vi.fn(),
     onDelete: vi.fn().mockResolvedValue(undefined),
-    saveVisibility: state.saveVisibility,
+    saveDetails: state.saveDetails,
     ...overrides,
   };
 }
@@ -223,7 +225,7 @@ it("saves the permissions edited in the settings", async () => {
     screen.getByRole("button", { name: "dashboard.permissions.save" })
   );
   await waitFor(() => expect(perms.save).toHaveBeenCalledOnce());
-  expect(state.saveVisibility).not.toHaveBeenCalled();
+  expect(state.saveDetails).not.toHaveBeenCalled();
 });
 
 it("leaves tags to the legacy store's own pages", () => {
@@ -250,12 +252,12 @@ it("keeps the dashboard to who it names from its settings", async () => {
     screen.getByRole("button", { name: "dashboard.permissions.save" })
   );
   await waitFor(() =>
-    expect(state.saveVisibility).toHaveBeenCalledWith("restricted")
+    expect(state.saveDetails).toHaveBeenCalledWith({ visibility: "restricted" })
   );
 });
 
 it("reports failed visibility persistence and keeps a retry available", async () => {
-  state.saveVisibility.mockResolvedValueOnce(false);
+  state.saveDetails.mockResolvedValueOnce(false);
   open(host({ permissions: PERMISSIONS }));
   fireEvent.click(
     screen.getByRole("button", {

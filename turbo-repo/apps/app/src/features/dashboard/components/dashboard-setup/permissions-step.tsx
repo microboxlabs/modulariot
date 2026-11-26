@@ -150,7 +150,11 @@ function principalOf(
   const known = directory.get(authorityId);
   if (known) return known;
   return authorityId.startsWith(TEAM_AUTHORITY_PREFIX)
-    ? { authorityId, kind: "team", name: t("unknownTeam") }
+    ? {
+        authorityId,
+        kind: "team",
+        name: `${t("unknownTeam")} (${authorityId})`,
+      }
     : { authorityId, kind: "member", name: authorityId };
 }
 
@@ -273,6 +277,8 @@ interface PermissionsStepProps {
   canManage: boolean;
   /** Still finding out; shows the step's shape rather than "not yours". */
   checkingAccess?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
   /** Who sees it; the switch shows only with `onVisibilityChange`. */
   visibility?: Visibility;
   onVisibilityChange?: (visibility: Visibility) => void;
@@ -320,6 +326,8 @@ export function PermissionsStep({
   loading,
   canManage,
   checkingAccess = false,
+  error = false,
+  onRetry,
   visibility = "organization",
   onVisibilityChange,
   t,
@@ -368,6 +376,16 @@ export function PermissionsStep({
       </output>
     );
   }
+  if (error) {
+    return (
+      <div role="alert" className="space-y-2 text-sm text-red-600">
+        <p>{t("loadError")}</p>
+        <button type="button" onClick={onRetry} className="underline">
+          {t("retry")}
+        </button>
+      </div>
+    );
+  }
   if (!canManage) {
     return (
       <p className="text-sm text-gray-500 dark:text-gray-400">{t("locked")}</p>
@@ -406,7 +424,7 @@ export function PermissionsStep({
         showWhenEmpty={SHOWN_BEFORE_TYPING}
         renderItem={(item) => <PrincipalOption principal={item} t={t} />}
       />
-      {principals.length === 0 && !loading && (
+      {!loading && (
         <EmailPermissionForm
           taken={taken}
           onAdd={(email) =>

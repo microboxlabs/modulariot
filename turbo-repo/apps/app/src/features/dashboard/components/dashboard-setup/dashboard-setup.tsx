@@ -39,11 +39,11 @@ interface DashboardSetupProps {
   /** The dashboard's tags, where the tags step starts from. */
   initialTags: readonly string[];
   /** Saves the tags and ends the setup, on leaving the tags step. */
-  onFinish?: (tags: string[], visibility: Visibility) => void;
+  onFinish?: (tags: string[], visibility?: Visibility) => Promise<boolean>;
   /** Who sees the dashboard, where the permissions step starts from. */
   visibility: Visibility;
   /** Saves who sees it, on leaving the permissions step. */
-  onVisibilityChange?: (visibility: Visibility) => void;
+  onVisibilityChange?: (visibility: Visibility) => Promise<boolean>;
 }
 
 /**
@@ -114,6 +114,7 @@ function SetupFlow({
   onFinish,
   visibility,
   onVisibilityChange,
+  started,
 }: Readonly<DashboardSetupProps & { permissionsState: PermissionsState }>) {
   const t: T = (key, params) =>
     trDynamic(`dashboard.setup.${key}`, dictionary, params);
@@ -127,17 +128,23 @@ function SetupFlow({
   const [unlocked, setUnlocked] = useState(active);
   const [saving, setSaving] = useState(false);
   const directory = usePrincipalDirectory(permissionsState.canManage);
-  const [tags, setTags] = useState<string[]>(() => [...initialTags]);
-  const [visibilityDraft, setVisibilityDraft] = useState(visibility);
+  const [tagsDraft, setTags] = useState<string[] | null>(null);
+  const tags = tagsDraft ?? [...initialTags];
+  const [visibilityDraft, setVisibilityDraft] = useState<Visibility | null>(
+    null
+  );
   const step: SetupStep = SETUP_STEPS[active] ?? "permissions";
   const isLast = active === SETUP_STEPS.length - 1;
   const busy = saving || permissionsState.busy || permissionsState.loading;
+  const blocked = busy || permissionsState.error !== null;
+  const visibilityChange =
+    permissionsState.canManage && visibilityDraft !== visibility
+      ? (visibilityDraft ?? undefined)
+      : undefined;
 
   const savePermissions = async () => {
     if (!permissionsState.canManage) return true;
-    setSaving(true);
     const saved = await permissionsState.save();
-    setSaving(false);
     if (!saved) {
       ShowNotification({ type: "error", message: t("permissions.saveError") });
     }
@@ -146,17 +153,54 @@ function SetupFlow({
 
   /** Every forward route saves the steps it leaves, including stepper links. */
   const select = async (target: number) => {
-    if (busy || target === active) return;
-    if (target > active) {
-      if (step === "permissions" && !(await savePermissions())) return;
-      if (SETUP_STEPS[target] === "dashlet") {
-        onFinish?.(tags, visibilityDraft);
-      } else if (visibilityDraft !== visibility) {
-        onVisibilityChange?.(visibilityDraft);
-      }
-      setUnlocked((current) => Math.max(current, target));
+    if (blocked || target === active) return;
+    if (target < active) {
+      setActive(target);
+      return;
     }
-    setActive(target);
+    setSaving(true);
+    try {
+      if (step === "permissions" && !(await savePermissions())) return;
+      let saved = true;
+      if (SETUP_STEPS[target] === "dashlet") {
+        saved = (await onFinish?.(tags, visibilityChange)) ?? true;
+      } else if (visibilityChange !== undefined) {
+        saved = (await onVisibilityChange?.(visibilityChange)) ?? true;
+      }
+      if (!saved) {
+        ShowNotification({
+          type: "error",
+          message: t("permissions.saveError"),
+        });
+        return;
+      }
+      setVisibilityDraft(null);
+      if (SETUP_STEPS[target] === "dashlet") setTags(null);
+      setUnlocked((current) => Math.max(current, target));
+      setActive(target);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addFirstDashlet = async () => {
+    if (blocked) return;
+    if (started) {
+      onAdd();
+      return;
+    }
+    setSaving(true);
+    try {
+      const saved = (await onFinish?.(tags, visibilityChange)) ?? true;
+      if (saved) onAdd();
+      else
+        ShowNotification({
+          type: "error",
+          message: t("permissions.saveError"),
+        });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -166,14 +210,18 @@ function SetupFlow({
         currentStepIndex={active}
         reachedStepIndex={unlocked}
         onSelect={(index) => void select(index)}
-        disabled={busy}
+        disabled={blocked}
       />
       {/* Nothing in the card clips: the search's list has to float out of it.
           The sign-up flow's card: content, then a footer with the progress
           bar on its edge and the back / next buttons. */}
       <div className="flex w-full flex-col rounded-2xl border border-gray-200 bg-white transition-colors duration-200 dark:border-gray-700 dark:bg-gray-800">
         <div className="relative px-6 py-4 pt-6 sm:px-8 lg:px-10">
-          <div key={step} className="animate-step-fade-in">
+          <fieldset
+            key={step}
+            disabled={busy}
+            className="min-w-0 animate-step-fade-in"
+          >
             <div className="mb-6">
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -192,7 +240,9 @@ function SetupFlow({
                 loading={directory.isLoading || permissionsState.busy}
                 canManage={permissionsState.canManage}
                 checkingAccess={permissionsState.loading}
-                visibility={visibilityDraft}
+                error={permissionsState.error !== null}
+                onRetry={() => void permissionsState.retry()}
+                visibility={visibilityDraft ?? visibility}
                 onVisibilityChange={
                   onVisibilityChange && permissionsState.canManage
                     ? setVisibilityDraft
@@ -205,9 +255,12 @@ function SetupFlow({
               <TagsStep tags={tags} onChange={setTags} t={scoped("tags")} />
             )}
             {step === "dashlet" && (
-              <DashletStep onAdd={onAdd} t={scoped("dashlet")} />
+              <DashletStep
+                onAdd={() => void addFirstDashlet()}
+                t={scoped("dashlet")}
+              />
             )}
-          </div>
+          </fieldset>
         </div>
 
         <div className="rounded-b-2xl bg-gray-50 dark:bg-gray-900/40">
@@ -221,7 +274,7 @@ function SetupFlow({
               color="light"
               size="sm"
               type="button"
-              disabled={busy || active === 0}
+              disabled={blocked || active === 0}
               onClick={() => void select(Math.max(active - 1, 0))}
               className={`w-1/3 ${BUTTON_SHAPE}`}
             >
@@ -235,7 +288,8 @@ function SetupFlow({
                 color="blue"
                 size="sm"
                 type="button"
-                onClick={onAdd}
+                disabled={blocked}
+                onClick={() => void addFirstDashlet()}
                 className={`w-2/3 ${BUTTON_SHAPE}`}
               >
                 <span className="flex items-center gap-1.5">
@@ -248,7 +302,7 @@ function SetupFlow({
                 color="blue"
                 size="sm"
                 type="button"
-                disabled={busy}
+                disabled={blocked}
                 onClick={() => void select(active + 1)}
                 className={`w-2/3 ${BUTTON_SHAPE}`}
               >

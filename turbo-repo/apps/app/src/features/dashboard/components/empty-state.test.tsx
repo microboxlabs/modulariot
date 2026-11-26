@@ -9,6 +9,9 @@ import { EmptyState } from "./empty-state";
 const perms = vi.hoisted(() => ({
   assignments: [] as { authorityId: string; role: string }[],
   loaded: true,
+  busy: false,
+  error: null as number | null,
+  retry: vi.fn(async () => true),
   save: vi.fn<(draft: unknown) => Promise<boolean>>(async () => true),
 }));
 vi.mock("@microboxlabs/miot-dashboard-ui/react", async (importOriginal) => ({
@@ -16,12 +19,12 @@ vi.mock("@microboxlabs/miot-dashboard-ui/react", async (importOriginal) => ({
   useDashboardPermissions: () => ({
     assignments: perms.assignments,
     editorKey: "k",
-    editable: true,
+    editable: !perms.busy,
     loaded: perms.loaded,
-    busy: false,
-    error: null,
+    busy: perms.busy,
+    error: perms.error,
     save: perms.save,
-    reload: vi.fn(),
+    reload: perms.retry,
   }),
 }));
 vi.mock("@/features/settings-admin/team/team-api", () => ({
@@ -61,34 +64,48 @@ const PERMISSIONS = {
 function setup(
   canManagePermissions = true,
   started = false,
-  tags: readonly string[] = []
+  tags: readonly string[] = [],
+  visibility: "organization" | "restricted" = "restricted"
 ) {
   const onAdd = vi.fn();
-  const onFinishSetup =
-    vi.fn<
-      (tags: string[], visibility: "organization" | "restricted") => void
-    >();
-  const onVisibilityChange =
-    vi.fn<(visibility: "organization" | "restricted") => void>();
-  const view = (isStarted: boolean) => (
+  let currentTags = tags;
+  let refresh = () => {};
+  const onFinishSetup = vi.fn<
+    (
+      tags: string[],
+      visibility?: "organization" | "restricted"
+    ) => Promise<boolean>
+  >(async (next) => {
+    currentTags = next;
+    refresh();
+    return true;
+  });
+  const onVisibilityChange = vi.fn<
+    (visibility: "organization" | "restricted") => Promise<boolean>
+  >(async () => true);
+  const view = (isStarted: boolean, currentVisibility = visibility) => (
     <EmptyState
       dictionary={dictionary}
       onAdd={onAdd}
       canManagePermissions={canManagePermissions}
       permissions={PERMISSIONS}
       started={isStarted}
-      tags={tags}
+      tags={currentTags}
       onFinishSetup={onFinishSetup}
-      visibility="restricted"
+      visibility={currentVisibility}
       onVisibilityChange={onVisibilityChange}
     />
   );
-  const { rerender } = render(view(started));
+  const { rerender, unmount } = render(view(started));
+  refresh = () => rerender(view(started));
   return {
     user: userEvent.setup(),
     onAdd,
     onFinishSetup,
     onVisibilityChange,
+    unmount,
+    changeSavedVisibility: (next: "organization" | "restricted") =>
+      rerender(view(started, next)),
     /** The dashboard as saved after `onFinishSetup`, rendered again. */
     markStarted: () => rerender(view(true)),
   };
@@ -101,6 +118,9 @@ const search = () =>
 beforeEach(() => {
   perms.assignments = [];
   perms.loaded = true;
+  perms.busy = false;
+  perms.error = null;
+  perms.retry.mockClear();
   perms.save.mockReset().mockResolvedValue(true);
   notify.mockReset();
   openAt("");
@@ -280,6 +300,86 @@ describe("EmptyState setup steps", () => {
     expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   });
 
+  it("shows progress and blocks editing while permissions are being saved", () => {
+    perms.busy = true;
+    setup();
+    expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByText(/Only an administrator/)).toBeNull();
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+  });
+
+  it("offers retry and prevents advancing after a permission load error", async () => {
+    perms.loaded = false;
+    perms.error = 503;
+    const { user } = setup();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Access could not be confirmed"
+    );
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+    await user.click(
+      screen.getByRole("button", { name: "Reload permissions" })
+    );
+    expect(perms.retry).toHaveBeenCalledOnce();
+  });
+
+  it("does not overwrite visibility changed from settings when saving tags", async () => {
+    const { user, onFinishSetup, onVisibilityChange, changeSavedVisibility } =
+      setup(true, false, [], "organization");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    changeSavedVisibility("restricted");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(onFinishSetup).toHaveBeenLastCalledWith([], undefined);
+    expect(onVisibilityChange).not.toHaveBeenCalled();
+  });
+
+  it("stays on permissions or tags when the document save fails", async () => {
+    const { user, onVisibilityChange, onFinishSetup } = setup();
+    onVisibilityChange.mockResolvedValueOnce(false);
+    await user.click(screen.getByRole("radio", { name: /Whole organization/ }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    onFinishSetup.mockResolvedValueOnce(false);
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(step("2 Tags")).toHaveAttribute("aria-current", "step");
+  });
+
+  it("confirms setup before adding a dashlet through a direct step URL", async () => {
+    openAt("?step=dashlet");
+    const { user, onAdd, onFinishSetup } = setup();
+    onFinishSetup.mockResolvedValueOnce(false);
+    await user.click(
+      screen.getAllByRole("button", { name: /Add a dashlet/ })[0]!
+    );
+    expect(onAdd).not.toHaveBeenCalled();
+    await user.click(
+      screen.getAllByRole("button", { name: /Add a dashlet/ })[0]!
+    );
+    expect(onAdd).toHaveBeenCalledOnce();
+  });
+
+  it("leaves the destination URL alone after unmounting during a save", async () => {
+    const { user, unmount } = setup();
+    await user.click(search());
+    await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+    let finish!: (value: boolean) => void;
+    perms.save.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    unmount();
+    globalThis.history.replaceState(null, "", "/en/another-page?view=list");
+    finish(true);
+    await waitFor(() =>
+      expect(globalThis.location.href).toContain("/en/another-page?view=list")
+    );
+    expect(globalThis.location.search).toBe("?view=list");
+  });
+
   it("saves edited tags when the stepper opens the reached dashlet step", async () => {
     const { user, onFinishSetup } = setup();
     await user.click(screen.getByRole("button", { name: "Continue" }));
@@ -291,7 +391,7 @@ describe("EmptyState setup steps", () => {
       "night{Enter}"
     );
     await user.click(step("3 First dashlet"));
-    expect(onFinishSetup).toHaveBeenCalledWith(["night"], "restricted");
+    expect(onFinishSetup).toHaveBeenCalledWith(["night"], undefined);
   });
 
   it("keeps failed permission edits on screen when advancing with the stepper", async () => {
@@ -321,6 +421,12 @@ describe("EmptyState setup steps", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
     expect(step("1 Permissions")).toBeDisabled();
+    expect(
+      screen.getByRole("radio", { name: /Whole organization/ })
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("combobox", { name: "Access for Operaciones" })
+    ).toBeDisabled();
     finish(false);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled()
@@ -396,10 +502,7 @@ describe("EmptyState setup steps", () => {
       "night{Enter}"
     );
     await user.click(screen.getByRole("button", { name: "Continue" }));
-    expect(onFinishSetup).toHaveBeenCalledWith(
-      ["fleet", "night"],
-      "restricted"
-    );
+    expect(onFinishSetup).toHaveBeenCalledWith(["fleet", "night"], undefined);
     // Saved as started, the steps stay on screen on their last one.
     markStarted();
     expect(step("3 First dashlet")).toHaveAttribute("aria-current", "step");

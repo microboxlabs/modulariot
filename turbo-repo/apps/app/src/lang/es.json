@@ -7489,9 +7489,11 @@
         "teamSize": "{count} miembros",
         "noResults": "Ningún miembro ni equipo coincide.",
         "loading": "Cargando…",
-        "noAccess": "Solo tú tienes acceso. Busca un miembro o equipo arriba para compartirlo.",
+        "noAccess": "No hay permisos explícitos. Añade un miembro o equipo para compartirlo.",
         "unknownTeam": "Equipo que ya no existe",
         "saveError": "No se pudieron guardar los permisos. Inténtalo de nuevo.",
+        "loadError": "No se pudo confirmar el acceso. Los cambios podrían estar guardados. Recarga los permisos para confirmarlo.",
+        "retry": "Recargar permisos",
         "minCharacters": "Escribe al menos 2 caracteres",
         "noResultsFor": "Sin resultados para",
         "visibility": {

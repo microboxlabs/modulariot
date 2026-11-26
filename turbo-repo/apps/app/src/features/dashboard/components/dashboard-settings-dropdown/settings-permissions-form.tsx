@@ -32,7 +32,8 @@ export function SettingsPermissionsForm({
 }: Readonly<SettingsPermissionsFormProps>) {
   const state = useSetupPermissions(permissions);
   const directory = usePrincipalDirectory(state.canManage);
-  const [visibilityDraft, setVisibilityDraft] = useState(visibility);
+  const [draft, setVisibilityDraft] = useState<Visibility | null>(null);
+  const visibilityDraft = draft ?? visibility;
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const dirty = saveFailed || state.dirty || visibilityDraft !== visibility;
@@ -44,6 +45,7 @@ export function SettingsPermissionsForm({
       (!needsVisibilitySave || (await onVisibilityChange(visibilityDraft)));
     setSaving(false);
     setSaveFailed(needsVisibilitySave && !saved);
+    if (saved) setVisibilityDraft(null);
     ShowNotification({
       type: saved ? "success" : "error",
       message: saved
@@ -63,6 +65,8 @@ export function SettingsPermissionsForm({
         loading={directory.isLoading || state.busy}
         canManage={state.canManage}
         checkingAccess={state.loading}
+        error={state.error !== null}
+        onRetry={() => void state.retry()}
         visibility={visibilityDraft}
         onVisibilityChange={state.canManage ? setVisibilityDraft : undefined}
         t={(key, params) =>

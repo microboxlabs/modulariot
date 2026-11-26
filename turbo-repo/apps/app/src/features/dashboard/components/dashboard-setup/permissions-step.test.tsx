@@ -8,7 +8,9 @@ it("shares by email when the directory is unavailable, validating input and dupl
   const props = {
     assignments: [],
     onChange,
-    principals: [],
+    principals: [
+      { authorityId: "team:ops", kind: "team" as const, name: "Ops" },
+    ],
     loading: false,
     canManage: true,
     t: (key: string) => key,
@@ -33,4 +35,29 @@ it("shares by email when the directory is unavailable, validating input and dupl
   );
   await user.type(email, "ana@acme.io");
   expect(screen.getByRole("button", { name: "addEmail" })).toBeDisabled();
+});
+
+it("distinguishes unknown teams in labels and accessible action names", () => {
+  render(
+    <PermissionsStep
+      assignments={[
+        { authorityId: "team:ops", role: "Consumer" },
+        { authorityId: "team:support", role: "Consumer" },
+      ]}
+      onChange={vi.fn()}
+      principals={[]}
+      loading={false}
+      canManage
+      t={(key, params) => (params?.name ? `${key}: ${params.name}` : key)}
+    />
+  );
+  for (const id of ["team:ops", "team:support"]) {
+    expect(screen.getByText(`unknownTeam (${id})`)).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: `roleOf: unknownTeam (${id})` })
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: `removePerson: unknownTeam (${id})` })
+    ).toBeVisible();
+  }
 });

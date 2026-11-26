@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { SETUP_STEPS } from "./setup.types";
 
@@ -24,10 +24,22 @@ export function setupStepIndex(value: string | null): number {
  */
 export function useSetupStep(): [number, (index: number) => void] {
   const searchParams = useSearchParams();
+  const location = useRef<string | null>(null);
+  useEffect(() => {
+    location.current = globalThis.location.pathname;
+    return () => {
+      location.current = null;
+    };
+  }, []);
   const [active, setActive] = useState(() =>
     setupStepIndex(searchParams.get(SETUP_STEP_PARAM))
   );
   const select = useCallback((index: number) => {
+    if (
+      location.current === null ||
+      location.current !== globalThis.location.pathname
+    )
+      return;
     const step = SETUP_STEPS[index];
     if (step === undefined) return;
     setActive(index);

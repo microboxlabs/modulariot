@@ -485,7 +485,7 @@ describe("parallel dashboard pages", () => {
       fetcher.mockReturnValueOnce(response.promise);
       let saving!: Promise<boolean>;
       act(() => {
-        saving = state.host!.saveVisibility!("restricted");
+        saving = state.host!.saveDetails!({ visibility: "restricted" });
       });
       const write = fetcher.mock.calls.find(
         ([, init]) => init?.method === "PUT"

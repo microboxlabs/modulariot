@@ -229,10 +229,16 @@ function ServerDashboardEditor({
     canManagePermissions: document.capabilities?.canManagePermissions === true,
     onManagePermissions: () => setPermissionsOpen(true),
     permissions: { client: document.client, slug, sessionKey },
-    saveVisibility: async (visibility) => {
+    saveDetails: async (details) => {
       const current = documentRef.current;
-      if (removing || current.readOnly || current.busy) return false;
-      current.onChange({ ...current.config, visibility });
+      if (
+        removing ||
+        current.readOnly ||
+        current.busy ||
+        current.editorKey !== document.editorKey
+      )
+        return false;
+      current.onChange({ ...current.config, ...details });
       return current.save();
     },
     onDelete: document.capabilities?.canDelete ? remove : undefined,

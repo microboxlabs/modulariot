@@ -66,7 +66,7 @@ def request(pr, settings=None, copilot=False, coderabbit=True, full=False):
 
     ctx = {"pr": pr, "owner": "o", "name": "r",
            "settings": dict(prcert.DEFAULTS, **(settings or {}))}
-    args = types.SimpleNamespace(copilot=copilot, coderabbit=coderabbit, full=full)
+    args = types.SimpleNamespace(copilot=copilot, coderabbit=coderabbit, codex=False, full=full)
     buf = io.StringIO()
     with patch.object(prcert, "gh", fake_gh), contextlib.redirect_stdout(buf):
         prcert.cmd_request(args, ctx)
@@ -194,6 +194,130 @@ class StatusTest(unittest.TestCase):
         st = self.assess(pr, requireCodeRabbit=True)
         self.assertFalse(st["providers"]["coderabbit"]["available"])
         self.assertFalse([b for b in st["blockers"] if "coderabbit" in b])
+
+
+def codex_comment(sha, at, login="korutx", association="MEMBER", text="- media: a.py:3 ..."):
+    c = comment(login, "%s\n\nHead `%s`\n\n%s\n\n<!-- codex-review head=%s -->"
+                % (prcert.CODEX_TITLE, sha[:9], text, sha), at)
+    c["authorAssociation"] = association
+    c["url"] = "https://github.com/o/r/pull/7#issuecomment-1"
+    return c
+
+
+COPILOT_OFF = {"maxCopilotRounds": 0}
+
+
+class IndependentRoundsTest(unittest.TestCase):
+    """Where Copilot is off, codex-review-pr gets maxIndependentRounds (one) per PR."""
+
+    def assess(self, pr, **settings):
+        base = dict(prcert.DEFAULTS, requireCopilot=False, requireSonar=False,
+                    requireCodeRabbit=False, **COPILOT_OFF)
+        base.update(settings)
+        return prcert.assess(pr, base, None, skip_sonar=True)
+
+    def run_request(self, pr, settings=None):
+        ran = []
+
+        def fake_run(cmd, **kw):
+            ran.append(cmd)
+            return types.SimpleNamespace(returncode=0, stdout="review", stderr="")
+
+        ctx = {"pr": pr, "owner": "o", "name": "r",
+               "settings": dict(prcert.DEFAULTS, **dict(COPILOT_OFF, **(settings or {})))}
+        args = types.SimpleNamespace(copilot=False, coderabbit=False, codex=True, full=False)
+        buf = io.StringIO()
+        with patch.object(prcert.subprocess, "run", fake_run), \
+                contextlib.redirect_stdout(buf):
+            prcert.cmd_request(args, ctx)
+        return ran, {r["provider"]: r for r in json.loads(buf.getvalue())["requested"]}
+
+    def test_defaults(self):
+        self.assertEqual(prcert.DEFAULTS["maxRounds"], 2)
+        self.assertEqual(prcert.DEFAULTS["maxIndependentRounds"], 1)
+
+    def test_codex_reviews_are_counted_per_head(self):
+        pr = make_pr([codex_comment(OLD, "2026-11-09T20:00:00Z"),
+                      codex_comment(OLD, "2026-11-09T20:05:00Z"),
+                      codex_comment(HEAD, "2026-11-09T23:50:00Z")])
+        self.assertEqual(prcert.codex_rounds(pr), 2)
+
+    def test_untrusted_or_broken_comments_are_not_reviews(self):
+        pr = make_pr([codex_comment(OLD, "2026-11-09T20:00:00Z", login="stranger",
+                                    association="NONE"),
+                      codex_comment(HEAD, "2026-11-09T23:50:00Z",
+                                    text="failed to initialize sandbox")])
+        self.assertEqual(prcert.codex_rounds(pr), 0)
+
+    def test_cot_app_comment_counts(self):
+        pr = make_pr([codex_comment(OLD, "2026-11-09T20:00:00Z", login="cot-bot",
+                                    association="NONE")])
+        self.assertEqual(prcert.codex_rounds(pr), 1)
+
+    def test_first_round_runs_codex_review(self):
+        ran, out = self.run_request(make_pr())
+        self.assertEqual(ran, [["codex-review-pr", "o/r#7"]])
+        self.assertTrue(out["codex"]["ok"])
+
+    def test_after_one_round_request_skips_codex(self):
+        ran, out = self.run_request(make_pr([codex_comment(OLD, "2026-11-09T20:00:00Z")]))
+        self.assertEqual(ran, [])
+        self.assertTrue(out["codex"]["skipped"])
+        self.assertIn("round cap spent (1 of 1)", out["codex"]["reason"])
+
+    def test_raised_cap_allows_a_second_round(self):
+        ran, _ = self.run_request(make_pr([codex_comment(OLD, "2026-11-09T20:00:00Z")]),
+                                  {"maxIndependentRounds": 2})
+        self.assertEqual(len(ran), 1)
+
+    def test_copilot_on_means_no_codex_request(self):
+        ran, out = self.run_request(make_pr(), {"maxCopilotRounds": 1})
+        self.assertEqual(ran, [])
+        self.assertTrue(out["codex"]["skipped"])
+
+    def test_stale_review_after_the_cap_is_a_warning_naming_the_commits(self):
+        st = self.assess(make_pr([codex_comment(OLD, "2026-11-09T20:00:00Z")]))
+        self.assertFalse([b for b in st["blockers"] if "codex" in b])
+        warn = [w for w in st["warnings"] if w.startswith("codex reviewed")]
+        self.assertEqual(len(warn), 1)
+        self.assertIn("%s..%s" % (OLD[:8], HEAD[:8]), warn[0])
+        self.assertEqual(st["providers"]["codex"]["rounds"], 1)
+
+    def test_no_review_yet_is_a_warning(self):
+        pr = make_pr()
+        pr["url"] = "https://github.com/o/r/pull/7"
+        st = self.assess(pr)
+        self.assertTrue([w for w in st["warnings"] if "run codex-review-pr o/r#7" in w])
+
+    def test_over_the_cap_is_reported(self):
+        st = self.assess(make_pr([codex_comment(OLD, "2026-11-09T20:00:00Z"),
+                                  codex_comment(HEAD, "2026-11-09T23:50:00Z")]))
+        self.assertTrue([w for w in st["warnings"] if "over the cap" in w])
+
+    def test_open_copilot_threads_still_block_after_the_cap(self):
+        pr = make_pr(reviews=[review(prcert.COPILOT_BOT, OLD, "2026-11-09T20:00:00Z",
+                                     body="### \U0001F7E1 Changes recommended")])
+        pr["reviewThreads"] = {"nodes": [{"id": "T1", "isResolved": False, "isOutdated": False,
+                                          "path": "a.py", "line": 3, "comments": {"nodes": [{
+                                              "databaseId": 2,
+                                              "author": {"login": prcert.COPILOT_BOT},
+                                              "body": "bug", "url": "u"}]}}]}
+        st = self.assess(pr, requireCopilot=True, maxCopilotRounds=1)
+        self.assertTrue([w for w in st["warnings"] if "round cap is spent" in w])
+        self.assertIn("1 unresolved bot review thread(s)", st["blockers"])
+
+    def test_fresh_codex_review_is_a_finding(self):
+        pr = make_pr([codex_comment(HEAD, "2026-11-09T23:50:00Z")])
+        settings = dict(prcert.DEFAULTS, **COPILOT_OFF)
+        args = types.SimpleNamespace(include_outdated=False, limit=10)
+        with patch.object(prcert, "sonar_findings", lambda *a: []):
+            items = prcert.collect_findings(pr, settings, None, args)
+        self.assertEqual([i["source"] for i in items], ["codex"])
+
+    def test_stamp_lists_codex_rounds(self):
+        st = self.assess(make_pr([codex_comment(OLD, "2026-11-09T20:00:00Z")]))
+        body = prcert.render_stamp(st, 2, "")
+        self.assertIn("| codex | reviewed (stale head) | rounds 1 of 1 |", body)
 
 
 if __name__ == "__main__":

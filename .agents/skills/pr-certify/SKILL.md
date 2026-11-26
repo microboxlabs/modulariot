@@ -4,8 +4,8 @@ description: >
   Drive a pull request to merge-ready by looping over its AI reviewers. Requests Copilot and
   CodeRabbit reviews once per PR where the org allows them, reads SonarCloud quality-gate issues
   and hotspots, triages every finding, applies fixes, replies to and resolves each review thread,
-  pushes, and repeats until the required reviewers are clean on the current head SHA — then
-  stamps the PR so `gh pr merge` is unblocked. Use when the user asks to certify
+  pushes once, confirms CI and threads on the fix push, then stamps the PR so `gh pr merge` is
+  unblocked or lists what is still open. Use when the user asks to certify
   a PR, get a PR reviewed and merge-ready, fix Copilot/CodeRabbit/SonarCloud findings, check
   whether a PR is ready to merge, or when a PR was just created or pushed to.
 ---
@@ -99,6 +99,7 @@ analyses on push.
 | Reviewer | Skipped when |
 | --- | --- |
 | Copilot | `maxCopilotRounds` is `0`, or its rounds are spent |
+| Codex | Copilot is on, `maxIndependentRounds` is `0`, it already reviewed the head, or its rounds are spent |
 | CodeRabbit | `requestCodeRabbit` is `false` for the org |
 | CodeRabbit | it says it is rate limited, or reviews are disabled for the base branch |
 | CodeRabbit | it says it already reviewed ("Already reviewed the last commit") |
@@ -109,8 +110,11 @@ mencionar. A rate-limited CodeRabbit review can still run through usage-based bi
 extra ping can cost money. Do not post `@coderabbitai` comments by hand.
 
 Where the org has Copilot off (`maxCopilotRounds: 0`), the independent review is
-`codex-review-pr owner/name#N`. Run it once per head and answer each finding like a review
-thread.
+`codex-review-pr owner/name#N`. `prcert request --all` (or `--codex`) runs it. Run it once per
+PR, in the first round, like Copilot (`maxIndependentRounds`, default 1). Do not run it again on
+the fix commits. `prcert` counts every `codex-review-pr` comment on the PR, also the ones you run
+by hand, and `status` shows the count as `rounds: n/cap`. Answer each of its findings in the PR
+like a review thread.
 
 Do not reach for `gh pr edit --add-reviewer @copilot` or the REST `requested_reviewers` endpoint
 instead — both exit 0 without reliably queuing anything. And do not check the result over REST:
@@ -200,15 +204,22 @@ thread with no reply leaves no record of the decision.
 Do not resolve a thread you did not act on. If a finding needs a product decision, leave it open,
 say so in the reply, and carry it into the final report as a blocker for the human.
 
-### 7. Loop — once for Copilot
+### 7. Confirm the fix push, then stop
 
-After you push, go back to step 3 with the new head. Do not run `prcert request` again: reviews
-are requested once per PR (step 2). Stop when `prcert status` reports certified, or after
-`maxRounds` (default 5), whichever comes first. Do not start a round that changes nothing.
+After you push, go back to step 3 once with the new head, to confirm CI and the threads. Do not
+run `prcert request` or `codex-review-pr` again: the independent review gets one round per PR
+(step 2). Stop when `prcert status` reports certified, or after `maxRounds` (default 2: one
+review round and one round to confirm the fix push), whichever comes first. Do not start a round
+that changes nothing.
 
-**Copilot gets one round** (`maxCopilotRounds`, default 1). Triage what it said, fix what holds,
-reply, resolve, push — then report and hand over. `prcert request` skips it after that and says
-so; raise the setting for a PR that earns another pass, and ask the user first.
+**The independent review gets one round** (Copilot: `maxCopilotRounds`; `codex-review-pr`:
+`maxIndependentRounds`; both default 1). Triage what it said, fix what holds, reply, resolve,
+push once. Then report and hand over. `prcert request` skips it after that and says so. Raise
+the setting for a PR that needs another pass only when the user asks for it.
+
+**When the cap is spent and real findings are still open, stop.** Do not fix them in another
+round. Stamp the PR as blocked (step 8) and pass `--notes` with one line per open finding:
+`path:line - what is wrong`. A follow-up dev round fixes them from that list.
 
 The cap exists because the loop does not converge. Your fix is new code, which is new material for
 the next review, so there is always something to find. One PR ran eight rounds: every finding was
@@ -217,9 +228,10 @@ trigger. It also bounds how much unverified reviewer reasoning you act on — in
 claimed a token counter ignored tool calls, the fix for it introduced a double-counting bug, and
 the next round refuted the original claim with a measurement.
 
-Once the cap is spent, `status` turns Copilot's stale verdict into a warning instead of a blocker,
-naming what went unreviewed. Its open threads still block, so the PR only clears when every
-finding it did make has been answered.
+Once the cap is spent, `status` turns the stale independent verdict into a warning instead of a
+blocker, naming the commits that went unreviewed. Copilot's open threads still block, so the PR
+only clears when every finding it made has been answered. `codex-review-pr` posts one comment,
+not threads: its findings that are still open go in the stamp notes.
 
 ### 8. Stamp
 
@@ -239,13 +251,14 @@ from an `OWNER`, `MEMBER` or `COLLABORATOR` — someone who could merge the PR a
 outside that set is reported and refused.
 
 Stamp even when the PR is **not** certified. `verdict=blocked` plus the blocker list records where
-the loop stopped, for the next session and for the user.
+the loop stopped, for the next session and for the user. With open findings, add them with
+`--notes -`, one line each: `path:line - what is wrong`.
 
 ### 9. Report
 
 Tell the user: the depth verdict, how many rounds it took, what was fixed, what was rejected and
-why, and anything still blocking. Say plainly when the Copilot cap is spent and its fixes went
-unreviewed — that is the user's call to make, not a detail to bury. Link the PR.
+why, and anything still blocking. List each open finding with `path:line` and one line on what is
+wrong. Say when the independent review's cap is spent and the fixes went unreviewed. Link the PR.
 
 ## The merge gate
 
@@ -271,6 +284,9 @@ Check the gate by hand with `prcert gate` (exit 0 certified, 3 blocked).
 | Copilot | review headline `### 🟢 Approval recommended` | `### 🟡 Changes recommended`; `### 🔵 Needs a closer look` blocks too — it means Copilot could not decide, so a human has to, and then re-request |
 | CodeRabbit | `**Actionable comments posted: 0**` | any count above zero |
 | SonarCloud | quality gate `OK`, zero open PR issues, zero hotspots to review | anything else |
+
+`prcert` does not read a verdict from `codex-review-pr`. It counts its rounds, and a missing or
+stale Codex review is a warning. You judge its findings in step 4.
 
 One rule decides every reviewer: only a **fresh, clean** verdict is not a blocker. Stale, pending,
 unreadable, errored — all block. A reviewer degrades to a warning only when it said it is switched
@@ -337,8 +353,15 @@ prcert config --disable-org acme
 prcert config --gate off                   # stop blocking gh pr merge everywhere
 ```
 
-Per-org overrides go under `orgs.<name>`: `maxRounds`, `maxCopilotRounds` (`0` = never request
-Copilot), `requestCodeRabbit` (default `true`; `false` = never ping CodeRabbit), `sonarHost`,
+Per-org overrides go under `orgs.<name>`:
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `maxRounds` | `2` | rounds per PR: one review round, one to confirm the fix push |
+| `maxCopilotRounds` | `1` | Copilot review rounds; `0` = Copilot off, `codex-review-pr` is the independent review |
+| `maxIndependentRounds` | `1` | `codex-review-pr` rounds where Copilot is off; `0` = never run it |
+
+Also `requestCodeRabbit` (default `true`; `false` = never ping CodeRabbit), `sonarHost`,
 `sonarOrg`, `sonarTokenEnv`, and a `balanced` block (`loc`, `files`, `pathHints`, `labels`) to
 retune the depth heuristic.
 

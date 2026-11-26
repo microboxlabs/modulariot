@@ -111,3 +111,39 @@ it("blocks conflicting edits to one grant until the user discards and reloads", 
   expect(result.current.assignments).toEqual([]);
   expect(result.current.dirty).toBe(false);
 });
+
+it("keeps the confirmed server baseline across a concurrent grant and later revocation", async () => {
+  const other: PermissionAssignment = {
+    authorityId: "other",
+    role: "Consumer",
+  };
+  const { result, rerender } = renderHook(() => useSetupPermissions(options));
+  act(() => result.current.onChange([editor]));
+  let finish!: (saved: boolean) => void;
+  state.save.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      })
+  );
+  let saving!: Promise<boolean>;
+  act(() => {
+    saving = result.current.save();
+  });
+  state.assignments = [editor, other];
+  rerender();
+  await act(async () => {
+    finish(true);
+    expect(await saving).toBe(true);
+  });
+  expect(result.current.dirty).toBe(false);
+  state.assignments = [editor];
+  rerender();
+  expect(result.current.assignments).toEqual([editor]);
+  expect(result.current.dirty).toBe(false);
+  act(() => result.current.onChange([reader]));
+  await act(async () => {
+    await result.current.save();
+  });
+  expect(state.save).toHaveBeenLastCalledWith([reader]);
+});

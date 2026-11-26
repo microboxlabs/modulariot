@@ -76,7 +76,11 @@ export function SettingsPermissionsForm({
         error={state.error}
         onRetry={() => void state.retry()}
         visibility={visibilityDraft}
-        onVisibilityChange={state.canManage ? setDraft : undefined}
+        onVisibilityChange={
+          state.canManage
+            ? (next) => setDraft(next === visibility ? null : next)
+            : undefined
+        }
         t={(key, params) =>
           trDynamic(`dashboard.setup.permissions.${key}`, dictionary, params)
         }

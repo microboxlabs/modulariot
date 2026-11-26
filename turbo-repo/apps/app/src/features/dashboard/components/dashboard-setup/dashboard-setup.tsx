@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "flowbite-react";
 import { HiArrowLeft, HiArrowRight, HiPlus } from "react-icons/hi2";
 import type { DashboardPermissionsOptions } from "@microboxlabs/miot-dashboard-ui/react";
@@ -125,7 +125,12 @@ function SetupFlow({
     (prefix: string): T =>
     (key, params) =>
       t(`${prefix}.${key}`, params);
-  const [active, setActive] = useSetupStep();
+  const navigation = useRef<((target: number) => Promise<boolean>) | null>(
+    null
+  );
+  const [active, setActive] = useSetupStep(
+    (target) => navigation.current?.(target) ?? Promise.resolve(false)
+  );
   // Opened at a later step (a reload, a shared link): the ones before it
   // count as done.
   const [unlocked, setUnlocked] = useState(active);
@@ -159,14 +164,15 @@ function SetupFlow({
 
   /** Every forward route saves the steps it leaves, including stepper links. */
   const select = async (target: number) => {
-    if (blocked || target === active) return;
+    if (target === active) return true;
+    if (blocked) return false;
     if (target < active) {
       setActive(target);
-      return;
+      return true;
     }
     setSaving(true);
     try {
-      if (step === "permissions" && !(await savePermissions())) return;
+      if (step === "permissions" && !(await savePermissions())) return false;
       let saved = true;
       if (SETUP_STEPS[target] === "dashlet") {
         saved =
@@ -179,16 +185,25 @@ function SetupFlow({
           type: "error",
           message: t("permissions.saveError"),
         });
-        return;
+        return false;
       }
       setVisibilityDraft(null);
       if (SETUP_STEPS[target] === "dashlet") setTagsDraft(null);
       setUnlocked((current) => Math.max(current, target));
       setActive(target);
+      return true;
     } finally {
       setSaving(false);
     }
   };
+
+  navigation.current = select;
+  const changeTags = (next: string[]) =>
+    setTagsDraft(
+      JSON.stringify(next) === JSON.stringify(initialTags) ? null : next
+    );
+  const changeVisibility = (next: Visibility) =>
+    setVisibilityDraft(next === visibility ? null : next);
 
   const addFirstDashlet = async () => {
     if (blocked) return;
@@ -275,18 +290,14 @@ function SetupFlow({
                 visibility={visibilityDraft ?? visibility}
                 onVisibilityChange={
                   onVisibilityChange && permissionsState.canManage
-                    ? setVisibilityDraft
+                    ? changeVisibility
                     : undefined
                 }
                 t={scoped("permissions")}
               />
             )}
             {step === "tags" && (
-              <TagsStep
-                tags={tags}
-                onChange={setTagsDraft}
-                t={scoped("tags")}
-              />
+              <TagsStep tags={tags} onChange={changeTags} t={scoped("tags")} />
             )}
             {step === "dashlet" && (
               <DashletStep

@@ -56,6 +56,12 @@ function canonicalEmail(value: string) {
     : email.slice(0, at + 1) + email.slice(at + 1).toLowerCase();
 }
 
+function principalKey(authorityId: string) {
+  return authorityId.startsWith(TEAM_AUTHORITY_PREFIX)
+    ? authorityId
+    : canonicalEmail(authorityId);
+}
+
 /** Sharing still works when organization directory access is unavailable. */
 function EmailPermissionForm({
   taken,
@@ -157,7 +163,7 @@ function principalOf(
   directory: ReadonlyMap<string, Principal>,
   t: T
 ): Principal {
-  const known = directory.get(authorityId);
+  const known = directory.get(principalKey(authorityId));
   if (known) return known;
   return authorityId.startsWith(TEAM_AUTHORITY_PREFIX)
     ? {
@@ -343,13 +349,13 @@ export function PermissionsStep({
   t,
 }: Readonly<PermissionsStepProps>) {
   const taken = useMemo(
-    () => new Set(assignments.map((a) => a.authorityId)),
+    () => new Set(assignments.map((a) => principalKey(a.authorityId))),
     [assignments]
   );
   const items = useMemo<SearchItem[]>(
     () =>
       principals
-        .filter((p) => !taken.has(p.authorityId))
+        .filter((p) => !taken.has(principalKey(p.authorityId)))
         .map((p) => ({ ...p, id: p.authorityId })),
     [principals, taken]
   );
@@ -401,12 +407,14 @@ export function PermissionsStep({
       <p className="text-sm text-gray-500 dark:text-gray-400">{t("locked")}</p>
     );
   }
-  const directory = new Map(principals.map((p) => [p.authorityId, p]));
-  const add = (principal: Principal) =>
-    onChange([
-      ...assignments,
-      { authorityId: principal.authorityId, role: "Consumer" },
-    ]);
+  const directory = new Map(
+    principals.map((p) => [principalKey(p.authorityId), p])
+  );
+  const add = (principal: Principal) => {
+    const authorityId = principalKey(principal.authorityId);
+    if (taken.has(authorityId)) return;
+    onChange([...assignments, { authorityId, role: "Consumer" }]);
+  };
   const setRole = (authorityId: string, role: PermissionAssignment["role"]) =>
     onChange(
       assignments.map((a) =>

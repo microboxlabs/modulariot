@@ -61,3 +61,31 @@ it("distinguishes unknown teams in labels and accessible action names", () => {
     ).toBeVisible();
   }
 });
+
+it("uses the same canonical email key for directory selection and typed assignments", async () => {
+  const user = userEvent.setup();
+  const onChange = vi.fn();
+  const props = {
+    onChange,
+    principals: [
+      { authorityId: "ana@Acme.io", kind: "member" as const, name: "Ana" },
+    ],
+    loading: false,
+    canManage: true,
+    t: (key: string) => key,
+  };
+  const { rerender } = render(
+    <PermissionsStep
+      {...props}
+      assignments={[{ authorityId: "ana@acme.io", role: "Consumer" }]}
+    />
+  );
+  const search = screen.getByPlaceholderText("search");
+  await user.type(search, "ana");
+  expect(screen.queryByRole("option", { name: /Ana/ })).toBeNull();
+  rerender(<PermissionsStep {...props} assignments={[]} />);
+  await user.click(await screen.findByRole("option", { name: /Ana/ }));
+  expect(onChange).toHaveBeenCalledWith([
+    { authorityId: "ana@acme.io", role: "Consumer" },
+  ]);
+});

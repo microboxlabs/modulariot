@@ -35,7 +35,9 @@ export function SettingsTagsForm({
     <fieldset disabled={saving} className="flex min-w-0 flex-col gap-4 p-4">
       <TagsStep
         tags={draftTags}
-        onChange={setDraft}
+        onChange={(next) =>
+          setDraft(JSON.stringify(next) === JSON.stringify(tags) ? null : next)
+        }
         t={(key, params) =>
           trDynamic(`dashboard.setup.tags.${key}`, dictionary, params)
         }

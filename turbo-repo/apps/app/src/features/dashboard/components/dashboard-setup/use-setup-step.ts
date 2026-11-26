@@ -21,8 +21,12 @@ export function setupStepIndex(value: string | null): number {
  * Written with `history.replaceState`, not `router.replace`: the router
  * would navigate, fetching and rendering the page again on the server for
  * every step. Next.js keeps `useSearchParams` in step with the native call.
+ * URL-driven changes pass through the host's save transition when supplied;
+ * rejected changes restore the current step without dropping its draft.
  */
-export function useSetupStep(): [number, (index: number) => void] {
+export function useSetupStep(
+  onUrlSelect?: (index: number) => Promise<boolean>
+): [number, (index: number) => void] {
   const searchParams = useSearchParams();
   const location = useRef<string | null>(null);
   useEffect(() => {
@@ -35,9 +39,11 @@ export function useSetupStep(): [number, (index: number) => void] {
     setupStepIndex(searchParams.get(SETUP_STEP_PARAM))
   );
   const requested = searchParams.get(SETUP_STEP_PARAM);
-  useEffect(() => {
-    setActive(setupStepIndex(requested));
-  }, [requested]);
+  const previousRequested = useRef(requested);
+  const urlSelect = useRef(onUrlSelect);
+  urlSelect.current = onUrlSelect;
+  const activeStep = useRef(active);
+  activeStep.current = active;
   const select = useCallback((index: number) => {
     if (
       location.current === null ||
@@ -51,5 +57,17 @@ export function useSetupStep(): [number, (index: number) => void] {
     params.set(SETUP_STEP_PARAM, step);
     globalThis.history.replaceState(null, "", `?${params.toString()}`);
   }, []);
+  useEffect(() => {
+    if (previousRequested.current === requested) return;
+    previousRequested.current = requested;
+    const target = setupStepIndex(requested);
+    if (urlSelect.current) {
+      void urlSelect.current(target).then((saved) => {
+        if (!saved) select(activeStep.current);
+      });
+    } else {
+      setActive(target);
+    }
+  }, [requested, select]);
   return [active, select];
 }

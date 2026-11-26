@@ -185,11 +185,13 @@ describe("EmptyState setup steps", () => {
     expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
   });
 
-  it("follows client-side changes of the step query while the wizard stays mounted", () => {
+  it("follows client-side changes of the step query while the wizard stays mounted", async () => {
     const { refreshUrl } = setup();
     openAt("?step=tags");
     refreshUrl();
-    expect(step("2 Tags")).toHaveAttribute("aria-current", "step");
+    await waitFor(() =>
+      expect(step("2 Tags")).toHaveAttribute("aria-current", "step")
+    );
     openAt("?step=permissions");
     refreshUrl();
     expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
@@ -363,11 +365,50 @@ describe("EmptyState setup steps", () => {
   it("does not overwrite visibility changed from settings when saving tags", async () => {
     const { user, onFinishSetup, onVisibilityChange, changeSavedVisibility } =
       setup(true, false, [], "organization");
+    await user.click(
+      screen.getByRole("radio", { name: /Only people with access/ })
+    );
+    await user.click(screen.getByRole("radio", { name: /Whole organization/ }));
     await user.click(screen.getByRole("button", { name: "Continue" }));
     changeSavedVisibility("restricted");
     await user.click(screen.getByRole("button", { name: "Continue" }));
     expect(onFinishSetup).toHaveBeenLastCalledWith(undefined, undefined);
     expect(onVisibilityChange).not.toHaveBeenCalled();
+  });
+
+  it("drops a tag draft when its edits are undone before settings changes tags", async () => {
+    const { user, changeSavedTags, onFinishSetup } = setup(true, false, [
+      "old",
+    ]);
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Type a tag and press Enter" }),
+      "temp{Enter}"
+    );
+    await user.click(screen.getByRole("button", { name: "Remove temp" }));
+    changeSavedTags(["new"]);
+    expect(screen.getByRole("button", { name: "Remove new" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(onFinishSetup).toHaveBeenLastCalledWith(undefined, undefined);
+  });
+
+  it("routes a URL step change through the pending permission save", async () => {
+    const { user, refreshUrl, onFinishSetup } = setup();
+    await user.click(search());
+    await user.click(screen.getByRole("option", { name: /Operaciones/ }));
+    perms.save.mockResolvedValueOnce(false);
+    openAt("?step=dashlet");
+    refreshUrl();
+    await waitFor(() =>
+      expect(perms.save).toHaveBeenCalledWith([
+        { authorityId: "team:t1", role: "Consumer" },
+      ])
+    );
+    await waitFor(() =>
+      expect(globalThis.location.search).toBe("?step=permissions")
+    );
+    expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
+    expect(onFinishSetup).not.toHaveBeenCalled();
   });
 
   it("stays on permissions or tags when the document save fails", async () => {

@@ -121,14 +121,9 @@ export function useSetupPermissions(
       )
         return false;
       if (!dirty) return true;
-      const saved = await state.save(assignments);
-      if (saved)
-        setDraft((current) =>
-          current.key === state.editorKey
-            ? { ...current, base: assignments }
-            : current
-        );
-      return saved;
+      // The confirmation refresh is authoritative. Its assignments update the
+      // base through the effect, including grants added by other managers.
+      return state.save(assignments);
     },
     dirty,
     busy: state.busy,

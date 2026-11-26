@@ -36,8 +36,10 @@ function setup(withRecents = true) {
     tenants: createMemoryTenantAuthority(memberships),
     scopes: createMemoryScopeAuthority(memberships),
     store,
-    folders: createMemoryFolderStore(),
-    ...(withRecents ? { recents: createMemoryRecentStore({ now }) } : {}),
+    folders: createMemoryFolderStore(store),
+    ...(withRecents
+      ? { recents: createMemoryRecentStore({ now, store }) }
+      : {}),
   });
   const call = (user: string, method: string, path: string, body?: unknown) =>
     handler(
@@ -58,10 +60,27 @@ function setup(withRecents = true) {
     };
     return data.map((open) => open.slug);
   };
-  return { call, recentsOf };
+  return { call, recentsOf, handler };
 }
 
 describe("recents routes", () => {
+  it("accepts a relative request URL and preserves its limit", async () => {
+    const { call, handler } = setup();
+    await call("lector", "PUT", "/dashboards/fleet/open");
+    await call("lector", "PUT", "/dashboards/sales/open");
+    const request = new Request(`${BASE}/recents?limit=1`, {
+      headers: { "x-dev-user": "lector" },
+    });
+    Object.defineProperty(request, "url", {
+      value: "/tenants/acme/scopes/ops/recents?limit=1",
+    });
+    const response = await handler(request);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      data: [{ slug: "sales", openedAt: expect.any(String) }],
+    });
+  });
+
   it("lists each member's opens, newest first, each once", async () => {
     const { call, recentsOf } = setup();
     for (const slug of ["fleet", "sales", "fleet"]) {

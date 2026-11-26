@@ -11,6 +11,7 @@ import type {
   DashboardMetadataStore,
 } from "../seams/metadata";
 import { createCompositeStore, dashboardDisplayName } from "./composite";
+import { removeAuthorizedDashboard } from "../http/remove-dashboard";
 
 const ref = { tenantId: "acme", scopeId: "ops", slug: "fleet" };
 
@@ -45,6 +46,7 @@ function recorder(
     calls,
     bodies,
     metadata: {
+      afterCommit: (work) => work(),
       read: () => {
         calls.push("read");
         return Promise.resolve(row);
@@ -86,6 +88,30 @@ function recorder(
 }
 
 describe("the write protocol", () => {
+  it("requires serialization when metadata has no revision-aware removal", async () => {
+    const fake = recorder({
+      row: {
+        slug: "fleet",
+        name: "Fleet",
+        revision: 1,
+        documentKey: "acme/fleet.json",
+        updatedAt: "2026-09-02T00:00:00.000Z",
+        updatedBy: "ana",
+      },
+    });
+    const store = createCompositeStore({
+      metadata: fake.metadata,
+      documents: fake.documents,
+    });
+    expect(store.removeIfRevision).toBeUndefined();
+    await expect(
+      removeAuthorizedDashboard(store, ref, 1),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(fake.calls).not.toContain("remove");
+    await removeAuthorizedDashboard(store, ref, 1, true);
+    expect(fake.calls).toContain("remove");
+    expect(fake.calls).toContain("delete:acme/fleet.json");
+  });
   it("writes the document before it commits the row", async () => {
     const fake = recorder();
     const store = createCompositeStore({

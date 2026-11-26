@@ -5,6 +5,7 @@ import { matchRoute } from "./routes";
 import {
   createInsecureHeaderIdentityResolver,
   createMemoryStore,
+  createMemoryFolderStore,
   createMemoryTenantAuthority,
   createMemoryScopeAuthority,
 } from "../testing";
@@ -62,6 +63,34 @@ function request(body: string, user = "viewer", route = path) {
 }
 
 describe("saved query HTTP route", () => {
+  it("uses folder visibility for saved query authorization", async () => {
+    const { options, execute } = setup();
+    const folders = createMemoryFolderStore(options.store);
+    const folder = await folders.create(
+      ref,
+      { name: "Private", parentId: null },
+      "owner",
+    );
+    await folders.setVisibility(ref, folder.id, "restricted");
+    await folders.placeDashboard(ref, ref.slug, folder.id);
+    const handler = createDashboardHandler({ ...options, folders });
+    const get = () =>
+      handler(
+        new Request(`https://dashboard.test${path.split("/queries/")[0]}`, {
+          headers: { "x-dev-user": "viewer" },
+        }),
+      );
+    expect((await get()).status).toBe(403);
+    expect((await handler(request("{}"))).status).toBe(403);
+    expect(execute).not.toHaveBeenCalled();
+    await folders.setPermissions(ref, folder.id, [
+      { authorityId: "viewer", role: "Consumer" },
+    ]);
+    expect((await get()).status).toBe(200);
+    expect((await handler(request("{}"))).status).toBe(200);
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
   it("runs a saved operation and returns a private response", async () => {
     const { handler, execute } = setup();
     const response = await handler(

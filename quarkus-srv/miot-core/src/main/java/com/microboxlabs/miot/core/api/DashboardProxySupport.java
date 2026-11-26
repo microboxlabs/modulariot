@@ -23,6 +23,9 @@ public class DashboardProxySupport {
     /** How a team is named in a dashboard permission; the app saves the same. */
     static final String TEAM_AUTHORITY_PREFIX = "team:";
 
+    /** Matches the dashboard server's limit for asserted groups. */
+    private static final int MAX_ASSERTED_GROUPS = 200;
+
     private final OrganizationContext organizationContext;
     private final DashboardTeamsContext teamsContext;
     private final String defaultScopeId;
@@ -96,9 +99,18 @@ public class DashboardProxySupport {
                 groupsHeader(teamsContext.teamIds()));
     }
 
-    /** The teams as {@code team:<id>}, comma-separated; null for none. */
+    /** Whether this deployment has a key with which to authenticate assertions. */
+    boolean assertionsEnabled() {
+        return proxyKey != null;
+    }
+
+    /**
+     * The teams as {@code team:<id>}, comma-separated; null for none or overflow.
+     * Omitting teams on overflow preserves direct and role-based access instead
+     * of making the dashboard server reject the entire assertion.
+     */
     static String groupsHeader(java.util.List<String> teamIds) {
-        if (teamIds == null || teamIds.isEmpty()) {
+        if (teamIds == null || teamIds.isEmpty() || teamIds.size() > MAX_ASSERTED_GROUPS) {
             return null;
         }
         return String.join(",", teamIds.stream().map(id -> TEAM_AUTHORITY_PREFIX + id).toList());

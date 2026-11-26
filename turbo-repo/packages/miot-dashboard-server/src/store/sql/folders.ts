@@ -5,6 +5,8 @@
  * two concurrent moves cannot each pass the cycle check and together put two
  * folders inside one another. A scope holds a handful of folders, so reading
  * all of them is cheaper than walking the tree one query at a time.
+ * Mount it with the dashboard store assembled from this same SqlDriver:
+ * another driver connected to the same database does not share its transaction.
  */
 
 import {
@@ -21,8 +23,10 @@ import {
   folderNameKey,
   folderSubtree,
   requireFreeName,
+  requireCompleteFolderRemoval,
   requireParent,
 } from "../folder-tree";
+import { sqlScopeTransaction } from "./scope";
 import { placeholders, type SqlDriver } from "./driver";
 import type { PermissionAssignment } from "../../seams/store";
 import { isDashboardRole } from "../../access/roles";
@@ -53,6 +57,22 @@ export interface SqlFolderStoreOptions {
   now?: () => Date;
   /** Id factory, overridable so tests can make ids predictable. */
   newId?: () => string;
+}
+
+/** Turns a lost race on the unique name into the same 409 the check gives. */
+async function guardUnique<T>(name: string, body: () => Promise<T>) {
+  try {
+    return await body();
+  } catch (error) {
+    if (isDashboardServerError(error)) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    if (/unique|duplicate/i.test(message)) {
+      throw DashboardServerError.conflict(
+        `A folder named "${name.trim()}" already exists there`,
+      );
+    }
+    throw error;
+  }
 }
 
 export function createSqlFolderStore(
@@ -88,29 +108,21 @@ export function createSqlFolderStore(
     return new Map(rows.map((row) => [row.slug, row.folder_id]));
   }
 
-  /** Turns a lost race on the unique name into the same 409 the check gives. */
-  async function guardUnique<T>(name: string, body: () => Promise<T>) {
-    try {
-      return await body();
-    } catch (error) {
-      if (isDashboardServerError(error)) throw error;
-      const message = error instanceof Error ? error.message : String(error);
-      if (/unique|duplicate/i.test(message)) {
-        throw DashboardServerError.conflict(
-          `A folder named "${name.trim()}" already exists there`,
-        );
-      }
-      throw error;
-    }
+  function transaction<T>(
+    scope: FolderScope,
+    body: () => Promise<T>,
+  ): Promise<T> {
+    return sqlScopeTransaction(driver, scope, body);
   }
 
   return {
+    transaction,
     list: (scope) => readAll(scope),
     placements: readPlacements,
 
     create(scope, input, createdBy) {
       return guardUnique(input.name, () =>
-        driver.transaction(async () => {
+        transaction(scope, async () => {
           const folders = await readAll(scope, true);
           requireParent(folders, input.parentId);
           requireFreeName(folders, input.parentId, input.name);
@@ -147,7 +159,7 @@ export function createSqlFolderStore(
 
     update(scope, id, patch) {
       return guardUnique(patch.name ?? "", () =>
-        driver.transaction(async () => {
+        transaction(scope, async () => {
           const folders = await readAll(scope, true);
           const next = applyFolderPatch(folders, id, patch);
           const p = placeholders(driver.dialect);
@@ -179,7 +191,11 @@ export function createSqlFolderStore(
 
     async removeFolders(scope, ids) {
       if (ids.length === 0) return;
-      await driver.transaction(async () => {
+      await transaction(scope, async () => {
+        // Placement and structural writers take these locks before changing
+        // references. Acquire them before clearing references as well.
+        const current = await readAll(scope, true);
+        requireCompleteFolderRemoval(current, ids);
         for (const id of ids) {
           const p = placeholders(driver.dialect);
           await driver.all(
@@ -225,8 +241,8 @@ export function createSqlFolderStore(
       return byFolder;
     },
 
-    setPermissions(scope, folderId, assignments) {
-      return driver.transaction(async () => {
+    setPermissions(scope, folderId, assignments, visibility) {
+      return transaction(scope, async () => {
         requireParent(await readAll(scope, true), folderId);
         const p = placeholders(driver.dialect);
         await driver.all(
@@ -249,11 +265,19 @@ export function createSqlFolderStore(
             ],
           );
         }
+        if (visibility !== undefined) {
+          const q = placeholders(driver.dialect);
+          await driver.all(
+            `UPDATE dashboard_folders SET visibility = ${q()}
+              WHERE tenant_id = ${q()} AND scope_id = ${q()} AND id = ${q()}`,
+            [visibility, scope.tenantId, scope.scopeId, folderId],
+          );
+        }
       });
     },
 
     setVisibility(scope, folderId, visibility) {
-      return driver.transaction(async () => {
+      return transaction(scope, async () => {
         requireParent(await readAll(scope, true), folderId);
         const p = placeholders(driver.dialect);
         await driver.all(
@@ -265,7 +289,7 @@ export function createSqlFolderStore(
     },
 
     placeDashboard(scope, slug, folderId) {
-      return driver.transaction(async () => {
+      return transaction(scope, async () => {
         if (folderId !== null) {
           // Locked, so the folder cannot be removed between this check and
           // the update below and leave the dashboard pointing at nothing.

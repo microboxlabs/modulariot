@@ -18,6 +18,8 @@ export interface RecentRouteOptions {
   access: AccessControl<Request>;
   /** Omitted: every recents route answers 404. */
   recents: DashboardRecentStore | undefined;
+  /** The handler can serialize these writes with dashboard deletion. */
+  atomic: boolean;
 }
 
 /** How many opens a listing returns unless `?limit=` asks for fewer or more. */
@@ -29,7 +31,7 @@ const notFound = () => DashboardServerError.notFound("No such endpoint");
 
 /** `?limit=`, within 1 and the maximum; the default when absent. */
 function limitOf(request: Request): number {
-  const raw = new URL(request.url).searchParams.get("limit");
+  const raw = new URL(request.url, "http://localhost").searchParams.get("limit");
   if (raw === null) return DEFAULT_RECENTS_LIMIT;
   const limit = Number(raw);
   if (!Number.isInteger(limit) || limit < 1) {
@@ -86,6 +88,11 @@ export function createRecentRoutes(
       });
       if (decision.dashboard?.record == null) {
         throw DashboardServerError.notFound("Dashboard not found");
+      }
+      if (!options.atomic) {
+        throw DashboardServerError.badRequest(
+          "Recording dashboard opens requires a store with scope transactions",
+        );
       }
       await recents.record(
         { tenantId: decision.identity.tenantId, scopeId: match.scopeId },

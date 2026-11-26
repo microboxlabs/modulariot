@@ -25,6 +25,11 @@ Mount it in your backend, or run the standalone server. Same code either way.
 
 Import only the layer you need.
 
+Creating stars and recording opens require `store.scopeTransaction`, or a folder
+adapter whose transaction also serializes dashboard writes. Without that support,
+those PUT requests return 400. Build SQL adapters on the same driver. Bind memory
+stars and recents with `{ store }` so deletion and rollback cover them too.
+
 ### Mounting it
 
 ```ts
@@ -619,6 +624,18 @@ used to enumerate tenants.
 
 Denials are audited. Embed tokens are read-only and locked to one dashboard
 (`403` `EMBED_SCOPE` otherwise).
+They also obey the current dashboard and folder visibility, including datasource
+requests that omit the dashboard slug. A session whose subject is no longer
+included in that visibility is denied. Visibility is evaluated as Consumer:
+embed credentials do not inherit their subject's scope administration role.
+A restricted audience must include the embed subject or one of its authorities.
+
+Every handler reading the same store must use the same visibility source.
+`folders` supplies the default source and mounts folder routes; a host that
+omits those routes can still supply `visibility` explicitly. Omitting both
+is valid only for stores without folder restrictions. Updating a restricted
+dashboard without `visibility` preserves its restriction; opening it requires
+an explicit `visibility: "organization"` and permission-management rights.
 
 `access.capabilities(request, { tenantId, scopeId, slug })` tells an embed host
 what the caller can do.

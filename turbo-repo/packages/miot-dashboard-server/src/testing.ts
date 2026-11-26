@@ -13,6 +13,10 @@
  * persists anything, so it is not safe to deploy.
  */
 
+import {
+  createMemoryTransaction,
+  snapshotMap,
+} from "./store/memory-transaction";
 import { DashboardServerError } from "./access/errors";
 import { dashboardDisplayName } from "./store/composite";
 import { dashboardSortOrder } from "./store/display-name";
@@ -40,6 +44,7 @@ import {
   applyFolderPatch,
   folderSubtree,
   requireFreeName,
+  requireCompleteFolderRemoval,
   requireParent,
 } from "./store/folder-tree";
 import type {
@@ -100,6 +105,15 @@ interface Entry {
   record: DashboardRecord;
 }
 
+export interface MemoryStore extends ServerDashboardStore {
+  transaction<T>(body: () => Promise<T>): Promise<T>;
+  /** Listener and optional rollback snapshot join the dashboard transaction. */
+  onRemove(
+    listener: (ref: ServerDashboardRef) => void,
+    snapshot?: () => () => void,
+  ): () => void;
+}
+
 export interface MemoryStoreOptions {
   seed?: SeedDashboard[];
   /** Clock, so tests can pin `updatedAt`. */
@@ -115,7 +129,7 @@ export interface MemoryStoreOptions {
  */
 export function createMemoryStore(
   options: MemoryStoreOptions = {},
-): ServerDashboardStore {
+): MemoryStore {
   const { seed = [], now = () => new Date() } = options;
   const entries = new Map<string, Entry>();
   const revisions = new Map<string, number>();
@@ -139,7 +153,25 @@ export function createMemoryStore(
     permissions.set(key(item.ref), item.assignments ?? []);
   }
 
-  return {
+  const removed = new Map<
+    (ref: ServerDashboardRef) => void,
+    (() => () => void) | undefined
+  >();
+  const tx = createMemoryTransaction(() => {
+    const restore = [
+      snapshotMap(entries),
+      snapshotMap(revisions),
+      snapshotMap(permissions),
+      ...[...removed.values()].flatMap((snapshot) =>
+        snapshot ? [snapshot()] : [],
+      ),
+    ];
+    return () => restore.forEach((undo) => undo());
+  });
+  const notifyRemoval = (ref: ServerDashboardRef) => {
+    for (const listener of removed.keys()) listener(ref);
+  };
+  const store: ServerDashboardStore = {
     load(ref) {
       const stored = entries.get(key(ref))?.record;
       return Promise.resolve(stored ? copyRecord(stored) : null);
@@ -235,6 +267,31 @@ export function createMemoryStore(
       permissions.set(key(ref), [...assignments]);
       return Promise.resolve();
     },
+  };
+  return {
+    ...store,
+    transaction: tx.run,
+    scopeTransaction: (_scope, body) => tx.run(body),
+    onRemove(listener, snapshot) {
+      tx.participate(snapshot);
+      removed.set(listener, snapshot);
+      return () => removed.delete(listener);
+    },
+    save: (ref, config, settings) =>
+      tx.run(() => store.save(ref, config, settings)),
+    setPermissions: (ref, assignments) =>
+      tx.run(() => store.setPermissions(ref, assignments)),
+    remove: (ref) =>
+      tx.run(async () => {
+        await store.remove(ref);
+        notifyRemoval(ref);
+      }),
+    removeIfRevision: (ref, revision) =>
+      tx.run(async () => {
+        const deleted = await store.removeIfRevision!(ref, revision);
+        if (deleted) notifyRemoval(ref);
+        return deleted;
+      }),
   };
 }
 
@@ -511,11 +568,12 @@ export function createMemoryDataSourceStore(
 
 /**
  * Folders and placements in memory, with the same rules as the SQL store.
- * It cannot see the dashboard store, so `placeDashboard` trusts that the
- * dashboard exists (the handler has already loaded it) and a deleted
- * dashboard keeps its placement until it is filed again.
+ * Bound to the dashboard store so transactions, existence checks and deletion
+ * notifications cover both adapters, including deletion and reuse of a slug.
  */
-export function createMemoryFolderStore(): DashboardFolderStore {
+export function createMemoryFolderStore(
+  store: MemoryStore,
+): DashboardFolderStore {
   const folders = new Map<string, DashboardFolder[]>();
   const placements = new Map<string, Map<string, string>>();
   /** Scope key → folder id → its permissions. */
@@ -551,7 +609,26 @@ export function createMemoryFolderStore(): DashboardFolderStore {
     return rows;
   };
 
-  return {
+  store.onRemove(
+    (ref) => placementsOf(ref).delete(ref.slug),
+    () => {
+      const restore = [
+        snapshotMap(folders, (rows) => rows.map((folder) => ({ ...folder }))),
+        snapshotMap(placements, (rows) => new Map(rows)),
+        snapshotMap(grants, (rows) => new Map(rows)),
+      ];
+      return () => restore.forEach((undo) => undo());
+    },
+  );
+  function transaction<T>(
+    _scope: { tenantId: string; scopeId: string },
+    body: () => Promise<T>,
+  ): Promise<T> {
+    return store.transaction(body);
+  }
+
+  const adapter: DashboardFolderStore = {
+    transaction,
     list: (scope) => Promise.resolve(foldersOf(scope).map((f) => ({ ...f }))),
     placements: (scope) => Promise.resolve(new Map(placementsOf(scope))),
     // async, so a rule that throws rejects the promise as the SQL store does.
@@ -585,6 +662,7 @@ export function createMemoryFolderStore(): DashboardFolderStore {
       Promise.resolve(folderSubtree(foldersOf(scope), placementsOf(scope), id)),
     removeFolders(scope, ids) {
       const gone = new Set(ids);
+      requireCompleteFolderRemoval(foldersOf(scope), ids);
       const key = keyOf(scope);
       folders.set(
         key,
@@ -607,7 +685,7 @@ export function createMemoryFolderStore(): DashboardFolderStore {
           ]),
         ),
       ),
-    async setPermissions(scope, folderId, assignments) {
+    async setPermissions(scope, folderId, assignments, visibility) {
       requireParent(foldersOf(scope), folderId);
       const granted = grantsOf(scope);
       if (assignments.length === 0) granted.delete(folderId);
@@ -616,6 +694,11 @@ export function createMemoryFolderStore(): DashboardFolderStore {
           folderId,
           assignments.map((a) => ({ ...a })),
         );
+      if (visibility !== undefined) {
+        const rows = foldersOf(scope);
+        const index = rows.findIndex((f) => f.id === folderId);
+        rows[index] = { ...rows[index]!, visibility };
+      }
     },
     async setVisibility(scope, folderId, visibility) {
       const rows = foldersOf(scope);
@@ -630,11 +713,29 @@ export function createMemoryFolderStore(): DashboardFolderStore {
     },
     async placeDashboard(scope, slug, folderId) {
       requireParent(foldersOf(scope), folderId);
+      if ((await store.load({ ...scope, slug })) === null) return false;
       const placed = placementsOf(scope);
       if (folderId === null) placed.delete(slug);
       else placed.set(slug, folderId);
       return true;
     },
+  };
+  return {
+    ...adapter,
+    create: (scope, input, creator) =>
+      transaction(scope, () => adapter.create(scope, input, creator)),
+    update: (scope, id, patch) =>
+      transaction(scope, () => adapter.update(scope, id, patch)),
+    removeFolders: (scope, ids) =>
+      transaction(scope, () => adapter.removeFolders(scope, ids)),
+    setPermissions: (scope, id, assignments, visibility) =>
+      transaction(scope, () =>
+        adapter.setPermissions(scope, id, assignments, visibility),
+      ),
+    setVisibility: (scope, id, visibility) =>
+      transaction(scope, () => adapter.setVisibility(scope, id, visibility)),
+    placeDashboard: (scope, slug, id) =>
+      transaction(scope, () => adapter.placeDashboard(scope, slug, id)),
   };
 }
 
@@ -642,7 +743,7 @@ export function createMemoryFolderStore(): DashboardFolderStore {
 
 /** Opens in memory, keyed by tenant, scope and member. */
 export function createMemoryRecentStore(
-  options: { now?: () => Date } = {},
+  options: { now?: () => Date; store?: MemoryStore } = {},
 ): DashboardRecentStore {
   const now = options.now ?? (() => new Date());
   const opens = new Map<string, Map<string, string>>();
@@ -652,6 +753,17 @@ export function createMemoryRecentStore(
   ) => JSON.stringify([scope.tenantId, scope.scopeId, userId]);
   const scopePrefix = (scope: { tenantId: string; scopeId: string }) =>
     JSON.stringify([scope.tenantId, scope.scopeId]).slice(0, -1) + ",";
+  const forget = (scope: { tenantId: string; scopeId: string }, slug: string) => {
+    const prefix = scopePrefix(scope);
+    for (const [key, mine] of opens) {
+      if (key.startsWith(prefix)) mine.delete(slug);
+    }
+  };
+  // A bound adapter joins dashboard deletion and its rollback boundary.
+  options.store?.onRemove(
+    (ref) => forget(ref, ref.slug),
+    () => snapshotMap(opens, (mine) => new Map(mine)),
+  );
   return {
     list(scope, userId, limit) {
       const mine = opens.get(keyOf(scope, userId)) ?? new Map();
@@ -667,15 +779,14 @@ export function createMemoryRecentStore(
     record(scope, userId, slug) {
       const key = keyOf(scope, userId);
       const mine = opens.get(key) ?? new Map<string, string>();
-      mine.set(slug, now().toISOString());
+      const openedAt = now().toISOString();
+      const previous = mine.get(slug);
+      if (previous === undefined || openedAt > previous) mine.set(slug, openedAt);
       opens.set(key, mine);
       return Promise.resolve();
     },
     forget(scope, slug) {
-      const prefix = scopePrefix(scope);
-      for (const [key, mine] of opens) {
-        if (key.startsWith(prefix)) mine.delete(slug);
-      }
+      forget(scope, slug);
       return Promise.resolve();
     },
   };
@@ -684,7 +795,9 @@ export function createMemoryRecentStore(
 // --------------------------------------------------------------- stars ----
 
 /** Stars in memory, keyed by tenant, scope and member. */
-export function createMemoryStarStore(): DashboardStarStore {
+export function createMemoryStarStore(
+  options: { store?: MemoryStore } = {},
+): DashboardStarStore {
   const stars = new Map<string, Set<string>>();
   const keyOf = (
     scope: { tenantId: string; scopeId: string },
@@ -692,6 +805,16 @@ export function createMemoryStarStore(): DashboardStarStore {
   ) => JSON.stringify([scope.tenantId, scope.scopeId, userId]);
   const scopePrefix = (scope: { tenantId: string; scopeId: string }) =>
     JSON.stringify([scope.tenantId, scope.scopeId]).slice(0, -1) + ",";
+  const forget = (scope: { tenantId: string; scopeId: string }, slug: string) => {
+    const prefix = scopePrefix(scope);
+    for (const [key, slugs] of stars) {
+      if (key.startsWith(prefix)) slugs.delete(slug);
+    }
+  };
+  options.store?.onRemove(
+    (ref) => forget(ref, ref.slug),
+    () => snapshotMap(stars, (slugs) => new Set(slugs)),
+  );
   return {
     list: (scope, userId) =>
       Promise.resolve(
@@ -709,10 +832,7 @@ export function createMemoryStarStore(): DashboardStarStore {
       return Promise.resolve();
     },
     forget(scope, slug) {
-      const prefix = scopePrefix(scope);
-      for (const [key, slugs] of stars) {
-        if (key.startsWith(prefix)) slugs.delete(slug);
-      }
+      forget(scope, slug);
       return Promise.resolve();
     },
   };

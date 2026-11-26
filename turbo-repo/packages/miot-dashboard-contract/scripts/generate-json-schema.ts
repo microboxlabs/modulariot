@@ -8,6 +8,7 @@ import {
   widgetSchema,
   dashboardQueryIdentifierSchema,
   dashboardQueryTextSchema,
+  dashboardTagSchema,
 } from "../src/schema";
 
 /** Where the artifact belongs, relative to this script. */
@@ -26,6 +27,9 @@ export function buildJsonSchema(): string {
       }
       if (definition === dashboardQueryTextSchema._def) {
         return { type: "string", maxLength: 2048 };
+      }
+      if (definition === dashboardTagSchema._def) {
+        return { type: "string", maxLength: 40 };
       }
       return ignoreOverride;
     },

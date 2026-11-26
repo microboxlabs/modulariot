@@ -44,6 +44,19 @@ const lugar = (place_id: string, polygon: LatLon[]): Lugar => ({
 });
 
 describe("import conflicts", () => {
+  it("keeps the replacement row attached to each dependent deletion", () => {
+    const imported = fila("replacement", cuadrado(0, 0));
+    const a = lugar("first", cuadrado(0, 0));
+    const b = lugar("second", cuadrado(0, 0));
+    const plan = planImport(
+      [imported],
+      detectarConflictos([imported], [a, b]),
+      { replacement: "nuevo" }
+    );
+    expect(plan.actualizar).toEqual([{ lugar: a, fila: imported }]);
+    expect(plan.borrar).toEqual([{ lugar: b, fila: imported }]);
+  });
+
   it("is total only with exactly the same numbers on every point", () => {
     const a = { tipo: "poligono" as const, vertices: cuadrado(0, 0) };
     const reordenado = {

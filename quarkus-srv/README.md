@@ -102,6 +102,7 @@ Migration version ranges are reserved per component so subset deployments can in
 | Symptoms | `miot_symptoms` (also reads StreamHub `prod_iot_gps`) | `V0.8.x` up to `V0.8.5`, then `V0.12.x` |
 | Fleet | `miot_fleet` (reads StreamHub `prod_iot_gps` for signals and trips) | `V0.9.x` |
 | Trips | `miot_trips` | `V0.10.x` |
+| Places | `miot_places` | `V0.13.x` |
 
 These migrations sit outside their component's range. They are applied, so they keep their versions; do not reuse them:
 

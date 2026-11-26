@@ -134,6 +134,7 @@ import {
 import type { VersionPendiente } from "../versioning/version-dialog";
 import { resumenSeleccion } from "../catalog/list-selection";
 import { enSerie } from "../data/en-serie";
+import { ejecutarImport } from "../import-export/execute-import";
 import {
   borrarBorrador,
   guardarBorrador,
@@ -151,6 +152,7 @@ import {
   requestDesdeLugar,
   requestDesdeTrayecto,
   type Guardados,
+  type MetadatosGuardados,
   type InteriorGuardable,
   type PlaceRequest,
   type VersionRequest,
@@ -453,13 +455,6 @@ let secuenciaImport = 0;
 const conUid = (filas: FilaImport[], archivo: string): FilaImport[] =>
   filas.map((f) => ({ ...f, uid: `${archivo}#${++secuenciaImport}` }));
 
-/** El servidor recibe la fila tal cual el archivo, sin el uid del gestor. */
-function sinUid(f: FilaImport): FilaImport {
-  const copia = { ...f };
-  delete copia.uid;
-  return copia;
-}
-
 /** Forma que se está dibujando: la geocerca o una de sus interiores. */
 type FormaPrevia = Pick<
   InnerGeofence,
@@ -525,20 +520,6 @@ function conClicEnForma(f: FormLugar, p: LatLon): FormLugar {
   if (f.geom === "circle") return f;
   if (esPoligonoLibre(f)) return agregarVertice(f, p);
   return f.lat == null ? aplicarFormaBase({ ...f, lat: p[0], lon: p[1] }) : f;
-}
-
-/** Dónde quedó una fila importada. */
-type DestinoImport = "servidor" | "local" | "rechazada";
-
-type ConteoImport = { creadas: number; locales: number; rechazadas: number };
-
-function contarDestinos(ds: DestinoImport[]): ConteoImport {
-  const n = (d: DestinoImport) => ds.filter((x) => x === d).length;
-  return {
-    creadas: n("servidor"),
-    locales: n("local"),
-    rechazadas: n("rechazada"),
-  };
 }
 
 /** "Importadas 3 · actualizadas 1 · rechazadas 0" (solo lo que pasó). */
@@ -690,8 +671,11 @@ export function usePlacesWorkspace(
   );
   const local = useLocalPlaces(storageScope);
   /** Guarda sin perder los tipos de la metadata guardada (ver conMetadataGuardada). */
-  const guardarConTipos = (id: string | null, body: PlaceRequest) =>
-    guardarPlace(id, conMetadataGuardada(id, body, guardados?.metadatos));
+  const guardarConTipos = (
+    id: string | null,
+    body: PlaceRequest,
+    metadatos = guardados?.metadatos
+  ) => guardarPlace(id, conMetadataGuardada(id, body, metadatos));
   const lugaresGuardados = useMemo(() => guardados?.lugares ?? [], [guardados]);
   const trayectosGuardados = useMemo(
     () => guardados?.trayectos ?? [],
@@ -1671,33 +1655,39 @@ export function usePlacesWorkspace(
    */
   const quitarInteriores = async (
     padreId: string,
-    quitar: string[]
+    quitar: string[],
+    lugares = todosLugares,
+    metadatos: MetadatosGuardados | undefined = guardados?.metadatos
   ): Promise<Escritura | null> => {
-    const padre = todosLugares.find((p) => p.place_id === padreId);
+    const padre = lugares.find((p) => p.place_id === padreId);
     if (!padre || !idGuardado(padreId)) {
       return { ok: false, error: tx("workspace.parent_not_saved") };
     }
     const fuera = new Set(quitar);
-    const quedan = todosLugares.filter(
+    const quedan = lugares.filter(
       (x) =>
         parentPlaceId(x) === padreId &&
         !fuera.has(x.place_id) &&
-        idGuardado(x.place_id)
+        !isLocalId(x.place_id)
     );
-    const cambios = todosLugares
+    const cambios = lugares
       .filter((x) => fuera.has(x.place_id))
       .map((x) => tx("workspace.inner_removed", { nombre: x.name }));
-    return guardarConTipos(padreId, {
-      ...requestDesdeGeocerca(
-        padre,
-        quedan.map((h) => ({ lugar: h, id: h.place_id }))
-      ),
-      version: {
-        bump: "MINOR",
-        reason: tx("workspace.deleted_from_list"),
-        changes: cambios,
+    return guardarConTipos(
+      padreId,
+      {
+        ...requestDesdeGeocerca(
+          padre,
+          quedan.map((h) => ({ lugar: h, id: h.place_id }))
+        ),
+        version: {
+          bump: "MINOR",
+          reason: tx("workspace.deleted_from_list"),
+          changes: cambios,
+        },
       },
-    });
+      metadatos
+    );
   };
 
   const borrarLugar = (l: Lugar) => {
@@ -2155,12 +2145,15 @@ export function usePlacesWorkspace(
   /** Guarda un trayecto importado; sin servidor, queda rechazado. */
   const guardarTrayectoImport = async (
     fila: FilaImport,
-    trayectoId: string | null
-  ): Promise<DestinoImport> => {
+    trayectoId: string | null,
+    datos: Guardados
+  ): Promise<boolean> => {
     const id = idGuardado(trayectoId);
-    const antes = id ? trayectos.find((t) => t.trayecto_id === id) : undefined;
+    const antes = id
+      ? datos.trayectos.find((t) => t.trayecto_id === id)
+      : undefined;
     if (antes?.categorias?.length && !antes.categorias_lista?.trim())
-      return "rechazada";
+      return false;
     // el archivo no trae ícono ni categorías: al reemplazar, quedan los guardados
     const body = requestDesdeTrayecto({
       ...trayectoDeFila(fila, id ?? ""),
@@ -2169,20 +2162,24 @@ export function usePlacesWorkspace(
       categorias_lista: antes?.categorias_lista ?? null,
       external_id: fila.external_id || antes?.external_id || null,
     });
-    const res = await guardarConTipos(id, {
-      ...body,
-      version: antes
-        ? versionAutomatica(
-            bumpDeReemplazo(requestDesdeTrayecto(antes), body),
-            tx("workspace.updated_by_import"),
-            tx("workspace.replaced_with_file")
-          )
-        : undefined,
-    });
-    if (!escrituraOk(res)) return "rechazada";
+    const res = await guardarConTipos(
+      id,
+      {
+        ...body,
+        version: antes
+          ? versionAutomatica(
+              bumpDeReemplazo(requestDesdeTrayecto(antes), body),
+              tx("workspace.updated_by_import"),
+              tx("workspace.replaced_with_file")
+            )
+          : undefined,
+      },
+      datos.metadatos
+    );
+    if (!escrituraOk(res)) return false;
     // uno de prueba de este navegador ya está en el servidor
     if (trayectoId && isLocalId(trayectoId)) local.deleteTrayecto(trayectoId);
-    return "servidor";
+    return true;
   };
 
   // ── Gestor de conflictos del import ──
@@ -2281,9 +2278,11 @@ export function usePlacesWorkspace(
   /** "Usar nuevo" contra un lugar guardado: toma la forma y datos importados. */
   const reemplazarConFila = async (
     l: Lugar,
-    fila: FilaImport
+    fila: FilaImport,
+    datos: Guardados
   ): Promise<boolean> => {
     if (esDeStreamhub(l.place_id)) return false;
+    l = datos.lugares.find((p) => p.place_id === l.place_id) ?? l;
     const poly = filaEsPoligono(fila);
     const radio = poly
       ? null
@@ -2300,7 +2299,7 @@ export function usePlacesWorkspace(
       polygon: poly ? (fila.vertices ?? []) : null,
       radius_m: radio,
     };
-    const res = await guardarReemplazo(l, nuevo);
+    const res = await guardarReemplazo(l, nuevo, datos);
     if (!escrituraOk(res)) return false;
     // uno de prueba de este navegador ya está en el servidor
     if (isLocalId(l.place_id)) quitarCopiasLocales(l.place_id);
@@ -2313,25 +2312,33 @@ export function usePlacesWorkspace(
    */
   const guardarReemplazo = async (
     l: Lugar,
-    nuevo: Lugar
+    nuevo: Lugar,
+    datos: Guardados
   ): Promise<Escritura | null> => {
     if (categoriasDeLugar(nuevo).length && !listaDeLugar(nuevo)?.trim())
       return { ok: false, error: tx("validation.category_list_missing") };
     const id = idGuardado(l.place_id);
     const padreId = parentPlaceId(nuevo);
-    if (padreId) return reemplazarInterior(padreId, id, nuevo, l);
+    if (padreId) return reemplazarInterior(padreId, id, nuevo, l, datos);
     if (!id) return guardarConTipos(null, requestDesdeLugar(nuevo, null));
-    return guardarConTipos(id, {
-      ...requestDesdeGeocerca(nuevo, interioresGuardadasDe(id)),
-      version: versionAutomatica(
-        bumpDeReemplazo(
-          requestDesdeLugar(l, null),
-          requestDesdeLugar(nuevo, null)
+    return guardarConTipos(
+      id,
+      {
+        ...requestDesdeGeocerca(
+          nuevo,
+          interioresGuardadasDe(id, datos.lugares)
         ),
-        tx("workspace.updated_by_import"),
-        tx("workspace.replaced_with_file")
-      ),
-    });
+        version: versionAutomatica(
+          bumpDeReemplazo(
+            requestDesdeLugar(l, null),
+            requestDesdeLugar(nuevo, null)
+          ),
+          tx("workspace.updated_by_import"),
+          tx("workspace.replaced_with_file")
+        ),
+      },
+      datos.metadatos
+    );
   };
 
   /** Una interior del archivo: una versión de su geocerca, que la agrega o reemplaza. */
@@ -2339,13 +2346,14 @@ export function usePlacesWorkspace(
     padreId: string,
     id: string | null,
     nuevo: Lugar,
-    antes: Lugar
+    antes: Lugar,
+    datos: Guardados
   ): Promise<Escritura | null> => {
-    const padre = todosLugares.find((p) => p.place_id === padreId);
+    const padre = datos.lugares.find((p) => p.place_id === padreId);
     if (!padre || !idGuardado(padreId)) {
       return { ok: false, error: tx("workspace.parent_not_saved") };
     }
-    const guardadas = interioresGuardadasDe(padreId);
+    const guardadas = interioresGuardadasDe(padreId, datos.lugares);
     const interiores = id
       ? guardadas.map((h) => (h.id === id ? { lugar: nuevo, id } : h))
       : [...guardadas, { lugar: nuevo, id: null }];
@@ -2363,87 +2371,103 @@ export function usePlacesWorkspace(
           tx("workspace.added_by_import"),
           tx("workspace.inner_added", { nombre: nuevo.name })
         );
-    return guardarConTipos(padreId, {
-      ...requestDesdeGeocerca(padre, interiores),
-      version,
-    });
+    return guardarConTipos(
+      padreId,
+      {
+        ...requestDesdeGeocerca(padre, interiores),
+        version,
+      },
+      datos.metadatos
+    );
   };
 
   /** Las interiores guardadas de una geocerca, como van en su escritura. */
-  const interioresGuardadasDe = (padreId: string): InteriorGuardable[] =>
-    todosLugares
-      .filter((x) => parentPlaceId(x) === padreId && idGuardado(x.place_id))
+  const interioresGuardadasDe = (
+    padreId: string,
+    lugares: Lugar[]
+  ): InteriorGuardable[] =>
+    lugares
+      .filter((x) => parentPlaceId(x) === padreId && !isLocalId(x.place_id))
       .map((h) => ({ lugar: h, id: h.place_id }));
 
   /** Otro lugar guardado que la fila nueva reemplaza (con sus interiores). */
-  const quitarReemplazado = async (l: Lugar): Promise<boolean> => {
+  const quitarReemplazado = async (
+    l: Lugar,
+    datos: Guardados
+  ): Promise<boolean> => {
     if (esDeStreamhub(l.place_id)) return false;
-    const ids = [...idsHijosDe(l.place_id, todosLugares), l.place_id];
-    for (const id of ids) local.deleteLugar(id);
-    if (isLocalId(l.place_id)) return true;
+    if (isLocalId(l.place_id)) {
+      quitarCopiasLocales(l.place_id);
+      return true;
+    }
+    // Deleting a parent already removed its children.
+    if (!datos.lugares.some((p) => p.place_id === l.place_id)) return true;
     // en el servidor, la geocerca se lleva sus interiores; una interior se
     // quita editando su geocerca
     const padreId = parentPlaceId(l);
     const res = padreId
-      ? await quitarInteriores(padreId, [l.place_id])
+      ? await quitarInteriores(
+          padreId,
+          [l.place_id],
+          datos.lugares,
+          datos.metadatos
+        )
       : await borrarPlace(codigoGuardado(l.place_id), tx);
+    if (escrituraOk(res)) quitarCopiasLocales(l.place_id);
     return escrituraOk(res);
   };
 
   /** Una geocerca importada, nueva: en el servidor o rechazada. */
-  const crearLugarImport = async (fila: FilaImport): Promise<DestinoImport> => {
+  const crearLugarImport = async (fila: FilaImport): Promise<boolean> => {
     const lugar = lugarDesdeFilaImport(fila, [], "", null);
     const res = await guardarConTipos(null, requestDesdeLugar(lugar, null));
-    return escrituraOk(res) ? "servidor" : "rechazada";
+    return escrituraOk(res);
   };
 
   const confirmarImport = async () => {
+    if (!puedeEditar || guardando) return;
     setGuardando(true);
-    const plan = planImport(filasImp, conflictosImp, imp.decisiones);
-    const filas = plan.crear.map(sinUid);
-    const lineas = filas.filter(filaEsLinea);
-    const geocercas = filas.filter((f) => !filaEsLinea(f));
-    // en este orden, una cosa a la vez: geocercas y trayectos nuevos,
-    // trayectos y lugares que se actualizan y, al final, los reemplazados
-    const nuevos = contarDestinos([
-      ...(await enSerie(geocercas, crearLugarImport)),
-      ...(await enSerie(lineas, (f) => guardarTrayectoImport(f, null))),
-    ]);
-    const traysActualizados = await enSerie(
-      plan.actualizarTrayectos,
-      ({ trayecto, fila }) =>
-        guardarTrayectoImport(sinUid(fila), trayecto.trayecto_id)
-    );
-    const lugaresActualizados = await enSerie(
-      plan.actualizar,
-      ({ lugar, fila }) => reemplazarConFila(lugar, fila)
-    );
-    const reemplazos = await enSerie(plan.borrar, quitarReemplazado);
-
-    const cuenta = (xs: boolean[]) => xs.filter(Boolean).length;
-    const trayOk = traysActualizados.map((r) => r !== "rechazada");
-    setGuardando(false);
-    setHoverImportUid(null);
-    setImp((s) => ({
-      ...s,
-      resultado: textoResultadoImport(
+    try {
+      const resultado = await ejecutarImport(
+        planImport(filasImp, conflictosImp, imp.decisiones),
         {
-          creadas: nuevos.creadas,
-          actualizadas: cuenta(trayOk) + cuenta(lugaresActualizados),
-          reemplazadas: cuenta(reemplazos),
-          locales: nuevos.locales,
-          rechazadas:
-            nuevos.rechazadas +
-            (trayOk.length - cuenta(trayOk)) +
-            (lugaresActualizados.length - cuenta(lugaresActualizados)),
-        },
-        tx
-      ),
-      lotes: [],
-      decisiones: {},
-      seleccion: [],
-    }));
-    refrescarTodo();
+          refrescar: async () => {
+            if (workspaceScope.current !== storageScope)
+              throw new Error("The active organization changed during import");
+            const datos = await refG();
+            if (workspaceScope.current !== storageScope)
+              throw new Error("The active organization changed during import");
+            if (!datos) throw new Error("Saved places could not be refreshed");
+            return {
+              ...datos,
+              lugares: fusionarPorId(
+                local.lugares,
+                datos.lugares,
+                (l) => l.place_id
+              ),
+            };
+          },
+          crearLugar: crearLugarImport,
+          guardarTrayecto: guardarTrayectoImport,
+          reemplazarLugar: reemplazarConFila,
+          quitarLugar: quitarReemplazado,
+        }
+      );
+      setHoverImportUid(null);
+      setImp((s) => ({
+        ...s,
+        resultado: textoResultadoImport(resultado, tx),
+        lotes: [],
+        decisiones: {},
+        seleccion: [],
+      }));
+    } catch {
+      if (workspaceScope.current === storageScope)
+        setMsg(tx("workspace.import_refresh_failed"));
+    } finally {
+      setGuardando(false);
+      refrescarTodo();
+    }
   };
 
   const abrirImport = () => {

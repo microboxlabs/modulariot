@@ -57,6 +57,7 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
             await admin.exec(`CREATE SCHEMA ${schema}`);
             const url = new URL(postgresUrl!);
             url.searchParams.set("options", `-c search_path=${schema}`);
+            url.searchParams.set("application_name", schema);
             opened = await openPostgresStore({ url: url.toString() });
           }
           const memory = createMemoryStore();
@@ -142,13 +143,37 @@ describe.each(["memory", "sqlite", "postgres"] as const)(
             ),
           );
           await entered.promise;
-          const writing = folders.transaction(scope, async () => {
-            await store.save(ref, sampleConfig({ visibility: "restricted" }), {
-              updatedBy: "owner",
+          let written = false;
+          const writing = folders
+            .transaction(scope, async () => {
+              await store.save(
+                ref,
+                sampleConfig({ visibility: "restricted" }),
+                {
+                  updatedBy: "owner",
+                },
+              );
+              await folders.placeDashboard(scope, ref.slug, null);
+            })
+            .then(() => {
+              written = true;
             });
-            await folders.placeDashboard(scope, ref.slug, null);
-          });
-          finish.release();
+          try {
+            if (admin) {
+              await vi.waitFor(async () => {
+                const waiting = await admin!.all<{ count: number }>(
+                  "SELECT count(*)::int AS count FROM pg_stat_activity WHERE application_name = ? AND wait_event = 'advisory'",
+                  [schema],
+                );
+                expect(written || waiting[0]!.count > 0).toBe(true);
+              });
+            } else {
+              await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+            expect(written).toBe(false);
+          } finally {
+            finish.release();
+          }
           expect((await reading).status).toBe(403);
           await writing;
         });

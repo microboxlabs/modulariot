@@ -33,6 +33,11 @@ function parseName(value: unknown): string {
     throw DashboardServerError.badRequest('"name" must be a non-empty string');
   }
   const name = value.trim();
+  if (name.includes("\0")) {
+    throw DashboardServerError.badRequest(
+      '"name" must not contain a null character',
+    );
+  }
   if (name.length > MAX_FOLDER_NAME_LENGTH) {
     throw DashboardServerError.badRequest(
       `"name" must be at most ${MAX_FOLDER_NAME_LENGTH} characters`,

@@ -535,8 +535,12 @@ describe("the spec against the router", () => {
 
   let running: RunningServer;
   /** 404 is how the handler answers a path or method it does not serve. */
-  const served = async (path: string, method: string) =>
-    (await fetch(`${running.url}${path}`, { method })).status !== 404;
+  const served = async (path: string, method: string) => {
+    const { status } = await fetch(`${running.url}${path}`, { method });
+    if (status !== 401 && status !== 404)
+      throw new Error(`Unexpected status ${status} for ${method} ${path}`);
+    return status === 401;
+  };
 
   beforeAll(async () => {
     const store = createMemoryStore();

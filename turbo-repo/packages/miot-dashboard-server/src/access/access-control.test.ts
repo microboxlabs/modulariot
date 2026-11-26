@@ -205,6 +205,16 @@ describe("embed principals", () => {
   const token = embed("acme", "ops", "fleet");
 
   it.each(["dashboard.load", "dashboard.query", "datasource.query"] as const)(
+    "revokes an embed %s when its bound dashboard is deleted", async (action) => {
+      const h = harness({ memberships, seed });
+      const target = { scopeId: "ops", action, ...(action === "datasource.query" ? {} : { slug: "fleet" }) };
+      await h.control.authorize(token, target);
+      await h.store.remove(A);
+      expect((await expectError(h.control.authorize(token, target))).reason).toBe("CAPABILITY");
+    },
+  );
+
+  it.each(["dashboard.load", "dashboard.query", "datasource.query"] as const)(
     "rechecks dashboard privacy for %s on an existing embed session",
     async (action) => {
       const h = harness({ memberships, seed });

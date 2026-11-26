@@ -28,7 +28,10 @@ import {
   type ScopeVisibility,
 } from "../access/visibility";
 import type { DashboardFolderStore, FolderScope } from "../seams/folders";
-import type { ServerDashboardStore } from "../seams/store";
+import type {
+  PermissionAssignment,
+  ServerDashboardStore,
+} from "../seams/store";
 import { parseAssignments, parseVisibility } from "./parse-assignments";
 import {
   parseFolderPatch,
@@ -37,7 +40,6 @@ import {
 } from "./parse-folder";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import type { RouteMatch } from "./routes";
-import type { PermissionAssignment } from "../seams/store";
 import type { DashboardVisibility } from "@microboxlabs/miot-dashboard-contract/document";
 import { removeAuthorizedDashboard } from "./remove-dashboard";
 
@@ -213,6 +215,7 @@ export function createFolderRoutes(
         options.store,
         { ...scope, slug },
         revision,
+        true,
       );
     }
     await folders.removeFolders(scope, subtree.folderIds);
@@ -387,6 +390,7 @@ export function createFolderRoutes(
       const scope = scopeOf(decision.identity.tenantId, match);
       const folderId = parsePlacement(await readBody(request));
       const visibility = await visibilityOf(scope);
+      if (folderId !== null) requireOn(decision, folderId, "edit", visibility);
       if (
         movementChangesVisibility(
           visibility.placements.get(match.slug) ?? null,
@@ -399,9 +403,6 @@ export function createFolderRoutes(
           "CAPABILITY",
           "Only who manages this dashboard's permissions may change its audience by moving it",
         );
-      }
-      if (folderId !== null) {
-        requireOn(decision, folderId, "edit", visibility);
       }
       const placed = await folders.placeDashboard(scope, match.slug, folderId);
       if (!placed) throw DashboardServerError.notFound("Dashboard not found");

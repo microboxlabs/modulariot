@@ -9,6 +9,7 @@ import {
 } from "../testing";
 import { sampleConfig } from "../test/fixtures";
 import type { DashboardCapabilities } from "../seams/identity";
+import type { AuditEvent } from "../seams/audit";
 import type { PermissionAssignment } from "../seams/store";
 
 const BASE = "http://localhost/tenants/acme/scopes/ops";
@@ -374,6 +375,71 @@ describe("visibility", () => {
     ).toBe(204);
   });
 
+  it("audits the final folder denial after successful scope authorization", async () => {
+    const { store, memberships } = setup();
+    const folders = createMemoryFolderStore(store);
+    const scope = { tenantId: "acme", scopeId: "ops" };
+    const folder = await folders.create(
+      scope,
+      { name: "Team", parentId: null, visibility: "organization" },
+      "owner",
+    );
+    const events: AuditEvent[] = [];
+    const handler = createDashboardHandler({
+      identity: createInsecureHeaderIdentityResolver(),
+      tenants: createMemoryTenantAuthority(memberships),
+      scopes: createMemoryScopeAuthority(memberships),
+      store,
+      folders,
+      audit: {
+        record(event) {
+          events.push(event);
+        },
+      },
+    });
+    expect(
+      (
+        await handler(
+          new Request(`${BASE}/folders/${folder.id}`, {
+            method: "DELETE",
+            headers: { "x-dev-user": "editor" },
+          }),
+        )
+      ).status,
+    ).toBe(403);
+    expect(events.at(-1)).toMatchObject({
+      action: "folder.delete",
+      outcome: "denied",
+      userId: "editor",
+      target: `ops/${folder.id}`,
+    });
+    expect(await folders.list(scope)).toHaveLength(1);
+  });
+
+  it("conceals hidden and missing placement destinations before checking sharing rights", async () => {
+    const { call, createFolder, restrictFolder } = setup();
+    const hidden = await createFolder("owner", "Hidden");
+    await restrictFolder("owner", hidden.id);
+    for (const folderId of [hidden.id, "missing"]) {
+      expect(
+        (await call("editor", "PUT", "/dashboards/sales/folder", { folderId }))
+          .status,
+      ).toBe(404);
+    }
+  });
+
+  it.each(["POST", "PATCH"])(
+    "rejects null characters in a folder name for %s",
+    async (method) => {
+      const { call, createFolder } = setup();
+      const folder = await createFolder("owner", "Existing");
+      const path = method === "POST" ? "/folders" : `/folders/${folder.id}`;
+      expect(
+        (await call("owner", method, path, { name: "Bad\0Name" })).status,
+      ).toBe(400);
+    },
+  );
+
   it("checks a permission revoked during the body read even without folders", async () => {
     const { handler, store } = setup(["sales"], {}, false);
     const ref = { tenantId: "acme", scopeId: "ops", slug: "sales" };
@@ -401,6 +467,7 @@ describe("visibility", () => {
     expect(
       (await handler(new Request(`${BASE}/dashboards/sales`, init))).status,
     ).toBe(403);
+    expect(await store.getPermissions(ref)).toEqual([]);
     const record = await store.load(ref);
     expect(record?.revision).toBe(1);
     expect(record?.config).toMatchObject({ visibility: "restricted" });
@@ -420,6 +487,33 @@ describe("visibility", () => {
       }),
     );
     expect(response.status).toBe(409);
+  });
+
+  it("refuses an unguarded delete when a legacy store cannot compare revisions", async () => {
+    const { store, memberships } = setup([], {}, false);
+    const handler = createDashboardHandler({
+      identity: createInsecureHeaderIdentityResolver(),
+      tenants: createMemoryTenantAuthority(memberships),
+      scopes: createMemoryScopeAuthority(memberships),
+      store: {
+        ...store,
+        scopeTransaction: undefined,
+        removeIfRevision: undefined,
+      },
+    });
+    const ref = { tenantId: "acme", scopeId: "ops", slug: "sales" };
+    await store.save(ref, sampleConfig(), { updatedBy: "owner" });
+    expect(
+      (
+        await handler(
+          new Request(`${BASE}/dashboards/sales`, {
+            method: "DELETE",
+            headers: { "x-dev-user": "owner" },
+          }),
+        )
+      ).status,
+    ).toBe(409);
+    expect(await store.load(ref)).not.toBeNull();
   });
 
   it("fails closed for visibility changes on stores without atomic scope support", async () => {
@@ -447,6 +541,9 @@ describe("visibility", () => {
       sampleConfig({ visibility: "restricted" }),
       { updatedBy: "owner" },
     );
+    const ref = { tenantId: "acme", scopeId: "ops", slug: "sales" };
+    const grants = [{ authorityId: "editor", role: "Consumer" as const }];
+    await store.setPermissions(ref, grants);
     for (const [method, suffix, body] of [
       ["PUT", "", sampleConfig({ visibility: "restricted" })],
       ["PUT", "/permissions", { assignments: [] }],
@@ -458,6 +555,7 @@ describe("visibility", () => {
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
       expect((await handler(request)).status).toBe(400);
+      expect(await store.getPermissions(ref)).toEqual(grants);
     }
     expect(
       (await store.load({ tenantId: "acme", scopeId: "ops", slug: "sales" }))

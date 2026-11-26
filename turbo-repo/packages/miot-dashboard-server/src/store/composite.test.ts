@@ -88,7 +88,7 @@ function recorder(
 }
 
 describe("the write protocol", () => {
-  it("preserves deletion when metadata has no revision-aware removal", async () => {
+  it("requires serialization when metadata has no revision-aware removal", async () => {
     const fake = recorder({
       row: {
         slug: "fleet",
@@ -104,7 +104,11 @@ describe("the write protocol", () => {
       documents: fake.documents,
     });
     expect(store.removeIfRevision).toBeUndefined();
-    await removeAuthorizedDashboard(store, ref, 1);
+    await expect(
+      removeAuthorizedDashboard(store, ref, 1),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(fake.calls).not.toContain("remove");
+    await removeAuthorizedDashboard(store, ref, 1, true);
     expect(fake.calls).toContain("remove");
     expect(fake.calls).toContain("delete:acme/fleet.json");
   });

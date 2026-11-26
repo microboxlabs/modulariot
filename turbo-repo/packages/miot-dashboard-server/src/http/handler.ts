@@ -190,7 +190,12 @@ export function createDashboardHandler(
   const queries =
     options.queries === undefined
       ? null
-      : createDashboardQueryService({ ...options, ...options.queries });
+      : createDashboardQueryService({
+          ...options,
+          ...options.queries,
+          visibility,
+          snapshot,
+        });
 
   /**
    * The hook belongs to the host, so it is not trusted to return. A logger
@@ -368,6 +373,7 @@ export function createDashboardHandler(
           options.store,
           ref,
           decision.dashboard.record.revision,
+          scopeTransaction !== undefined,
         );
         return noContentResponse();
       }
@@ -777,6 +783,9 @@ export function createDashboardHandler(
 
   const runRoute = createScopedRouteRunner({
     access,
+    audit: options.audit,
+    now: options.now,
+    onAuditError: options.onAuditError,
     folders: options.folders,
     transaction: scopeTransaction,
     readBody,

@@ -132,7 +132,7 @@ export interface AccessControl<TRequest> {
   list(
     request: TRequest,
     target: { tenantId: string; scopeId: string },
-  ): Promise<DashboardSummary[]>;
+  ): Promise<(DashboardSummary & { folderId?: string })[]>;
   /**
    * The caller's effective capabilities on one dashboard — the server half
    * of the UI package's Seam F. Throws 403 when the caller cannot see the
@@ -434,8 +434,15 @@ export function createAccessControl<TRequest>(
           "Consumer",
           async () => viewer,
         );
+        if (!dashboard?.record) {
+          return deny(
+            identity,
+            target,
+            "CAPABILITY",
+            "The embedded dashboard no longer exists",
+          );
+        }
         if (
-          dashboard &&
           dashboardHidden(
             identity,
             "Consumer",
@@ -492,7 +499,7 @@ export function createAccessControl<TRequest>(
   async function list(
     request: TRequest,
     target: { tenantId: string; scopeId: string },
-  ): Promise<DashboardSummary[]> {
+  ): Promise<(DashboardSummary & { folderId?: string })[]> {
     const decision = await authorize(request, {
       ...target,
       action: "dashboard.list",
@@ -508,7 +515,7 @@ export function createAccessControl<TRequest>(
           tenantId: decision.identity.tenantId,
           scopeId: target.scopeId,
         });
-        const visible: DashboardSummary[] = [];
+        const visible: (DashboardSummary & { folderId?: string })[] = [];
         // Bound policy/store work without re-verifying the credential for each item.
         for (let offset = 0; offset < summaries.length; offset += 4) {
           const batch = summaries.slice(offset, offset + 4);

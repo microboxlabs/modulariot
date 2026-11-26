@@ -11,18 +11,27 @@ export function snapshotMap<K, V>(map: Map<K, V>, copy = (value: V) => value) {
 
 /** One reentrant transaction queue with rollback for the in-memory adapters. */
 export function createMemoryTransaction(snapshot: () => () => void) {
-  const active = new AsyncLocalStorage<true>();
+  const active = new AsyncLocalStorage<{
+    live: boolean;
+    undo: (() => void)[];
+  }>();
   let queue: Promise<unknown> = Promise.resolve();
   return {
+    participate(snapshot: (() => () => void) | undefined): void {
+      const context = active.getStore();
+      if (context?.live && snapshot) context.undo.push(snapshot());
+    },
     run<T>(body: () => Promise<T>): Promise<T> {
-      if (active.getStore()) return body();
+      if (active.getStore()?.live) return body();
       const execute = async () => {
-        const restore = snapshot();
+        const context = { live: true, undo: [snapshot()] };
         try {
-          return await active.run(true, body);
+          return await active.run(context, body);
         } catch (error) {
-          restore();
+          for (const undo of context.undo.reverse()) undo();
           throw error;
+        } finally {
+          context.live = false;
         }
       };
       const result = queue.then(execute, execute);

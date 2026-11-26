@@ -316,6 +316,19 @@ describe("dashboard stars", () => {
 });
 
 describe("dashboard recents", () => {
+  it.each(["500", "999", "1000", "9007199254740993", "9".repeat(1000)])(
+    "caps a positive limit at the upstream maximum: %s",
+    async (limit) => {
+      await listRecents(
+        new Request(`https://app.test/api/dashboard-recents?limit=${limit}`)
+      );
+      expect(forwardMock).toHaveBeenCalledWith(
+        "/api/v1/orgs/acme%20org/dashboard-recents?limit=500",
+        { method: "GET" }
+      );
+    }
+  );
+
   it("lists the signed-in user's recent opens, passing a plain limit on", async () => {
     await listRecents(
       new Request(
@@ -354,21 +367,43 @@ describe("dashboard recents", () => {
 
 describe("scope capabilities proxy", () => {
   it("uses authenticated organization context instead of browser identity or tenant headers", async () => {
-    await scopeCapabilities(new Request("https://app.test/api/dashboard-capabilities?tenantId=foreign", {
-      headers: { Authorization: "Bearer attacker", "x-tenant-id": "foreign" },
-    }));
-    expect(forwardMock).toHaveBeenCalledWith("/api/v1/orgs/acme%20org/dashboard-capabilities", {
-      method: "GET",
-    });
+    await scopeCapabilities(
+      new Request(
+        "https://app.test/api/dashboard-capabilities?tenantId=foreign",
+        {
+          headers: {
+            Authorization: "Bearer attacker",
+            "x-tenant-id": "foreign",
+          },
+        }
+      )
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/dashboard-capabilities",
+      {
+        method: "GET",
+      }
+    );
   });
   it("rejects a stale organization before forwarding", async () => {
-    const response = await scopeCapabilities(new Request("https://app.test/api/dashboard-capabilities?org=old"));
+    const response = await scopeCapabilities(
+      new Request("https://app.test/api/dashboard-capabilities?org=old")
+    );
     expect(response.status).toBe(409);
     expect(forwardMock).not.toHaveBeenCalled();
   });
   it("keeps scope denial without contacting the host", async () => {
-    scopeMock.mockResolvedValue({ resolved: false, response: new Response(null, { status: 403 }) });
-    expect((await scopeCapabilities(new Request("https://app.test/api/dashboard-capabilities"))).status).toBe(403);
+    scopeMock.mockResolvedValue({
+      resolved: false,
+      response: new Response(null, { status: 403 }),
+    });
+    expect(
+      (
+        await scopeCapabilities(
+          new Request("https://app.test/api/dashboard-capabilities")
+        )
+      ).status
+    ).toBe(403);
     expect(forwardMock).not.toHaveBeenCalled();
   });
 });

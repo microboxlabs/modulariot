@@ -379,10 +379,14 @@ export function createDashboardHandler(
           slug,
           action: "dashboard.delete",
         });
+        const ref = refOf(decision.identity.tenantId, match.scopeId, slug);
         if (decision.dashboard?.record == null) {
+          // A nontransactional host may have removed the dashboard before a
+          // cleanup failed. An authorized retry still finishes that cleanup.
+          await options.stars?.forget(ref, slug);
+          await options.recents?.forget(ref, slug);
           throw DashboardServerError.notFound("Dashboard not found");
         }
-        const ref = refOf(decision.identity.tenantId, match.scopeId, slug);
         requireAtomicPrivateMutation(
           decision.dashboard.record.config,
           scopeTransaction !== undefined,

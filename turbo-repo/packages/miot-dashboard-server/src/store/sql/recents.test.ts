@@ -55,6 +55,18 @@ describe("SQL recent store", () => {
     expect(slugs(await recents.list(scope, "ana", 2))).toEqual(["c", "b"]);
   });
 
+  it("keeps the latest time when opens arrive out of order", async () => {
+    await setup();
+    let time = new Date("2026-11-23T12:00:02Z");
+    const recents = createSqlRecentStore(opened!.driver, { now: () => time });
+    await recents.record(scope, "ana", "fleet");
+    time = new Date("2026-11-23T12:00:01Z");
+    await recents.record(scope, "ana", "fleet");
+    expect(await recents.list(scope, "ana", 10)).toEqual([
+      { slug: "fleet", openedAt: "2026-11-23T12:00:02.000Z" },
+    ]);
+  });
+
   it("forgets every member's open of a deleted dashboard", async () => {
     const recents = await setup();
     await recents.record(scope, "ana", "fleet");

@@ -566,7 +566,9 @@ export function createAccessControl<TRequest>(
               ...(order === undefined ? {} : { order }),
               ...(folderId === undefined ? {} : { folderId }),
               ...(tags.length === 0 ? {} : { tags }),
-              ...(record.createdAt === undefined ? {} : { createdAt: record.createdAt }),
+              ...(record.createdAt === undefined
+                ? {}
+                : { createdAt: record.createdAt }),
               updatedAt: record.updatedAt,
             });
           });

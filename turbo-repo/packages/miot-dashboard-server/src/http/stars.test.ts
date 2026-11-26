@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createDashboardHandler } from "./handler";
 import {
   createInsecureHeaderIdentityResolver,
   createMemoryScopeAuthority,
   createMemoryStarStore,
+  createMemoryRecentStore,
   createMemoryStore,
   createMemoryTenantAuthority,
 } from "../testing";
@@ -33,13 +34,14 @@ function setup(withStars = true) {
       },
     })),
   });
-  const handler = createDashboardHandler({
+  const options = {
     identity: createInsecureHeaderIdentityResolver(),
     tenants: createMemoryTenantAuthority(memberships),
     scopes: createMemoryScopeAuthority(memberships),
     store,
-    ...(withStars ? { stars: createMemoryStarStore() } : {}),
-  });
+    ...(withStars ? { stars: createMemoryStarStore({ store }) } : {}),
+  };
+  const handler = createDashboardHandler(options);
   const call = (user: string, method: string, path: string) =>
     handler(
       new Request(`${BASE}${path}`, {
@@ -52,10 +54,37 @@ function setup(withStars = true) {
     expect(response.status).toBe(200);
     return ((await response.json()) as { data: string[] }).data;
   };
-  return { call, starsOf };
+  return { call, starsOf, options, store };
 }
 
 describe("star routes", () => {
+  it("retries personal cleanup after a nontransactional delete failed", async () => {
+    const { options, store } = setup();
+    const recents = createMemoryRecentStore();
+    const scope = { tenantId: "acme", scopeId: "ops" };
+    await recents.record(scope, "lector", "fleet");
+    const forget = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Cleanup failed"))
+      .mockImplementation(recents.forget);
+    const handler = createDashboardHandler({
+      ...options,
+      store: { ...store, scopeTransaction: undefined },
+      recents: { ...recents, forget },
+    });
+    const remove = () =>
+      handler(
+        new Request(`${BASE}/dashboards/fleet`, {
+          method: "DELETE",
+          headers: { "x-dev-user": "admin" },
+        }),
+      );
+    expect((await remove()).status).toBe(500);
+    expect(await store.load({ ...scope, slug: "fleet" })).toBeNull();
+    expect((await remove()).status).toBe(404);
+    expect(await recents.list(scope, "lector", 10)).toEqual([]);
+  });
+
   it("lets any member star what they can open, privately", async () => {
     const { call, starsOf } = setup();
     expect((await call("lector", "PUT", "/dashboards/fleet/star")).status).toBe(

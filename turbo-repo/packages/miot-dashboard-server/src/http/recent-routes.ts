@@ -29,7 +29,7 @@ const notFound = () => DashboardServerError.notFound("No such endpoint");
 
 /** `?limit=`, within 1 and the maximum; the default when absent. */
 function limitOf(request: Request): number {
-  const raw = new URL(request.url).searchParams.get("limit");
+  const raw = new URL(request.url, "http://localhost").searchParams.get("limit");
   if (raw === null) return DEFAULT_RECENTS_LIMIT;
   const limit = Number(raw);
   if (!Number.isInteger(limit) || limit < 1) {

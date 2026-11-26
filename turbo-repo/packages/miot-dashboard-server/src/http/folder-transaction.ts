@@ -28,6 +28,8 @@ const SCOPED_ACTIONS: Partial<
   Record<RouteMatch["route"], Partial<Record<string, DashboardAction>>>
 > = {
   dashboard: { PUT: "dashboard.save", DELETE: "dashboard.delete" },
+  dashboardStar: { PUT: "dashboard.star", DELETE: "dashboard.star" },
+  dashboardOpen: { PUT: "dashboard.open" },
   permissions: { PUT: "dashboard.permissions.write" },
   folders: { POST: "folder.write" },
   folder: { PATCH: "folder.write", DELETE: "folder.delete" },
@@ -87,7 +89,10 @@ export function createScopedRouteRunner(options: {
       action,
     });
     // A slow request stream must not hold a scope's write lock.
-    if (!["DELETE", "GET"].includes(request.method))
+    if (
+      !["DELETE", "GET"].includes(request.method) &&
+      !["dashboardStar", "dashboardOpen"].includes(match.route)
+    )
       await options.readBody(request);
     try {
       return await options.transaction(

@@ -743,7 +743,7 @@ export function createMemoryFolderStore(
 
 /** Opens in memory, keyed by tenant, scope and member. */
 export function createMemoryRecentStore(
-  options: { now?: () => Date } = {},
+  options: { now?: () => Date; store?: MemoryStore } = {},
 ): DashboardRecentStore {
   const now = options.now ?? (() => new Date());
   const opens = new Map<string, Map<string, string>>();
@@ -753,6 +753,17 @@ export function createMemoryRecentStore(
   ) => JSON.stringify([scope.tenantId, scope.scopeId, userId]);
   const scopePrefix = (scope: { tenantId: string; scopeId: string }) =>
     JSON.stringify([scope.tenantId, scope.scopeId]).slice(0, -1) + ",";
+  const forget = (scope: { tenantId: string; scopeId: string }, slug: string) => {
+    const prefix = scopePrefix(scope);
+    for (const [key, mine] of opens) {
+      if (key.startsWith(prefix)) mine.delete(slug);
+    }
+  };
+  // A bound adapter joins dashboard deletion and its rollback boundary.
+  options.store?.onRemove(
+    (ref) => forget(ref, ref.slug),
+    () => snapshotMap(opens, (mine) => new Map(mine)),
+  );
   return {
     list(scope, userId, limit) {
       const mine = opens.get(keyOf(scope, userId)) ?? new Map();
@@ -768,15 +779,14 @@ export function createMemoryRecentStore(
     record(scope, userId, slug) {
       const key = keyOf(scope, userId);
       const mine = opens.get(key) ?? new Map<string, string>();
-      mine.set(slug, now().toISOString());
+      const openedAt = now().toISOString();
+      const previous = mine.get(slug);
+      if (previous === undefined || openedAt > previous) mine.set(slug, openedAt);
       opens.set(key, mine);
       return Promise.resolve();
     },
     forget(scope, slug) {
-      const prefix = scopePrefix(scope);
-      for (const [key, mine] of opens) {
-        if (key.startsWith(prefix)) mine.delete(slug);
-      }
+      forget(scope, slug);
       return Promise.resolve();
     },
   };
@@ -785,7 +795,9 @@ export function createMemoryRecentStore(
 // --------------------------------------------------------------- stars ----
 
 /** Stars in memory, keyed by tenant, scope and member. */
-export function createMemoryStarStore(): DashboardStarStore {
+export function createMemoryStarStore(
+  options: { store?: MemoryStore } = {},
+): DashboardStarStore {
   const stars = new Map<string, Set<string>>();
   const keyOf = (
     scope: { tenantId: string; scopeId: string },
@@ -793,6 +805,16 @@ export function createMemoryStarStore(): DashboardStarStore {
   ) => JSON.stringify([scope.tenantId, scope.scopeId, userId]);
   const scopePrefix = (scope: { tenantId: string; scopeId: string }) =>
     JSON.stringify([scope.tenantId, scope.scopeId]).slice(0, -1) + ",";
+  const forget = (scope: { tenantId: string; scopeId: string }, slug: string) => {
+    const prefix = scopePrefix(scope);
+    for (const [key, slugs] of stars) {
+      if (key.startsWith(prefix)) slugs.delete(slug);
+    }
+  };
+  options.store?.onRemove(
+    (ref) => forget(ref, ref.slug),
+    () => snapshotMap(stars, (slugs) => new Set(slugs)),
+  );
   return {
     list: (scope, userId) =>
       Promise.resolve(
@@ -810,10 +832,7 @@ export function createMemoryStarStore(): DashboardStarStore {
       return Promise.resolve();
     },
     forget(scope, slug) {
-      const prefix = scopePrefix(scope);
-      for (const [key, slugs] of stars) {
-        if (key.startsWith(prefix)) slugs.delete(slug);
-      }
+      forget(scope, slug);
       return Promise.resolve();
     },
   };

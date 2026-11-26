@@ -24,11 +24,11 @@ const SCOPE_PATHS = {
   recents: "dashboard-recents",
 } as const;
 
-/** `?limit=` passed on when it is a plain positive number, else nothing. */
+/** Positive integer limits are capped at the upstream maximum. */
 function limitQuery(request: Request): string {
   const limit = new URL(request.url).searchParams.get("limit");
-  return limit !== null && /^[1-9]\d{0,2}$/.test(limit)
-    ? `?limit=${limit}`
+  return limit !== null && /^[1-9]\d*$/.test(limit)
+    ? `?limit=${Math.min(Number(limit), 500)}`
     : "";
 }
 

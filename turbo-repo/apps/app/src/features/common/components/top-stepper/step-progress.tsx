@@ -8,6 +8,7 @@ type StepProgressProps = Readonly<{
   className?: string;
   /** Pill-shaped bar (default) vs. square edges, e.g. used flush as a separator. */
   rounded?: boolean;
+  label: string;
 }>;
 
 /**
@@ -19,6 +20,7 @@ export default function StepProgress({
   totalSteps,
   className,
   rounded = true,
+  label,
 }: StepProgressProps) {
   const percent = ((currentStepIndex + 1) / totalSteps) * 100;
   const roundedClass = rounded ? "rounded-full" : "rounded-none";
@@ -32,6 +34,7 @@ export default function StepProgress({
     >
       {/* The native element carries the progress; the bar below draws it. */}
       <progress
+        aria-label={label}
         className="sr-only"
         value={currentStepIndex + 1}
         max={totalSteps}

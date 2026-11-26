@@ -479,13 +479,17 @@ describe("parallel dashboard pages", () => {
         state.storage!.onChange({
           ...state.storage!.config,
           name: "Latest draft",
+          started: false,
         })
       );
       const response = deferredResponse();
       fetcher.mockReturnValueOnce(response.promise);
       let saving!: Promise<boolean>;
       act(() => {
-        saving = state.host!.saveDetails!({ visibility: "restricted" });
+        saving = state.host!.saveDetails!({
+          visibility: "restricted",
+          started: true,
+        });
       });
       const write = fetcher.mock.calls.find(
         ([, init]) => init?.method === "PUT"
@@ -506,6 +510,21 @@ describe("parallel dashboard pages", () => {
         );
         expect(await saving).toBe(status === 200);
       });
+      expect(state.storage!.config.started).toBe(status === 200);
+      expect(state.storage!.config.visibility).toBe(
+        status === 200 ? "restricted" : undefined
+      );
+      if (status === 503) {
+        await act(async () => {
+          expect(
+            await state.host!.saveDetails!({
+              visibility: "restricted",
+              started: true,
+            })
+          ).toBe(true);
+        });
+        expect(state.storage!.config.visibility).toBe("restricted");
+      }
     }
   );
   it("does not expose an editor for a missing dashboard", async () => {

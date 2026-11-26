@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/lang/en.json";
@@ -130,7 +130,9 @@ describe("EmptyState setup steps", () => {
   it("opens each step only after the one before it", async () => {
     const { user } = setup();
     expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
-    expect(screen.getByRole("progressbar")).toHaveAttribute("value", "1");
+    expect(
+      screen.getByRole("progressbar", { name: "Dashboard setup progress" })
+    ).toHaveAttribute("value", "1");
     expect(step("1 Permissions")).toHaveAttribute("aria-current", "step");
     expect(step("2 Tags")).toBeDisabled();
     expect(step("3 First dashlet")).toBeDisabled();
@@ -323,6 +325,25 @@ describe("EmptyState setup steps", () => {
     expect(perms.retry).toHaveBeenCalledOnce();
   });
 
+  it.each(["tags", "dashlet"])(
+    "offers permission retry when a direct URL opens %s",
+    async (target) => {
+      openAt(`?step=${target}`);
+      perms.loaded = false;
+      perms.error = 503;
+      const { user } = setup();
+      await user.click(
+        screen.getByRole("button", { name: "Reload permissions" })
+      );
+      expect(perms.retry).toHaveBeenCalledOnce();
+      for (const button of screen.getAllByRole("button", {
+        name: /Continue|Add a dashlet/,
+      })) {
+        expect(button).toBeDisabled();
+      }
+    }
+  );
+
   it("does not overwrite visibility changed from settings when saving tags", async () => {
     const { user, onFinishSetup, onVisibilityChange, changeSavedVisibility } =
       setup(true, false, [], "organization");
@@ -373,7 +394,7 @@ describe("EmptyState setup steps", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
     unmount();
     globalThis.history.replaceState(null, "", "/en/another-page?view=list");
-    finish(true);
+    await act(async () => finish(true));
     await waitFor(() =>
       expect(globalThis.location.href).toContain("/en/another-page?view=list")
     );

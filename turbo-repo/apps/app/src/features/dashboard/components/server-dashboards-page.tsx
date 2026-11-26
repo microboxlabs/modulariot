@@ -238,8 +238,26 @@ function ServerDashboardEditor({
         current.editorKey !== document.editorKey
       )
         return false;
-      current.onChange({ ...current.config, ...details });
-      return current.save();
+      const attempted = { ...current.config, ...details };
+      if (!current.onChange(attempted)) return false;
+      documentRef.current = { ...current, config: attempted };
+      const saved = await current.save();
+      const latest = documentRef.current;
+      if (!saved && latest.editorKey === current.editorKey) {
+        // Restore only the attempted details, keeping unrelated edits made
+        // while the request was pending. Setup decisions use confirmed values.
+        const restored = { ...latest.config };
+        for (const field of ["tags", "started", "visibility"] as const) {
+          if (!(field in details) || latest.config[field] !== details[field])
+            continue;
+          Object.assign(restored, { [field]: current.config[field] });
+          if (current.config[field] === undefined) delete restored[field];
+        }
+        if (latest.onChange(restored)) {
+          documentRef.current = { ...latest, config: restored };
+        }
+      }
+      return saved;
     },
     onDelete: document.capabilities?.canDelete ? remove : undefined,
   };

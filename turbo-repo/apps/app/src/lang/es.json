@@ -7120,6 +7120,10 @@
       "roleEditorHelp": "Puede modificar configuración y filtros",
       "roleCoordinatorHelp": "Control total, incluyendo gestión de permisos",
       "saveSuccess": "Permisos actualizados",
+      "saveVisibility": "Guardar visibilidad",
+      "saveAssignments": "Guardar permisos de personas y equipos",
+      "visibilitySaveSuccess": "Visibilidad actualizada",
+      "visibilitySaveError": "No se pudo guardar la visibilidad. Reintenta guardar la visibilidad.",
       "saveError": "No se pudieron actualizar los permisos",
       "loadError": "No se pudieron cargar los permisos",
       "notAuthorized": "No tienes autorización para gestionar los permisos de este dashboard.",
@@ -7456,6 +7460,7 @@
       }
     },
     "setup": {
+      "progress": "Progreso de configuración del dashboard",
       "next": "Continuar",
       "back": "Atrás",
       "steps": {
@@ -7493,6 +7498,8 @@
         "unknownTeam": "Equipo que ya no existe",
         "saveError": "No se pudieron guardar los permisos. Inténtalo de nuevo.",
         "loadError": "No se pudo confirmar el acceso. Los cambios podrían estar guardados. Recarga los permisos para confirmarlo.",
+        "conflictError": "Otro administrador modificó la misma concesión de acceso. Descarta tus cambios pendientes de permisos y recarga antes de reintentar.",
+        "discardAndReload": "Descartar cambios y recargar permisos",
         "retry": "Recargar permisos",
         "minCharacters": "Escribe al menos 2 caracteres",
         "noResultsFor": "Sin resultados para",

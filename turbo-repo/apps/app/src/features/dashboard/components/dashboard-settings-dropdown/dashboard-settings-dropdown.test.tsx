@@ -209,7 +209,9 @@ it("edits who may use the dashboard in its settings, with the setup's permission
   expect(screen.getByText("ana@acme.io")).toBeInTheDocument();
   // Nothing changed yet: nothing to save.
   expect(
-    screen.getByRole("button", { name: "dashboard.permissions.save" })
+    screen.getByRole("button", {
+      name: "dashboard.permissions.saveAssignments",
+    })
   ).toBeDisabled();
 });
 
@@ -222,7 +224,9 @@ it("saves the permissions edited in the settings", async () => {
     })
   );
   fireEvent.click(
-    screen.getByRole("button", { name: "dashboard.permissions.save" })
+    screen.getByRole("button", {
+      name: "dashboard.permissions.saveAssignments",
+    })
   );
   await waitFor(() => expect(perms.save).toHaveBeenCalledOnce());
   expect(state.saveDetails).not.toHaveBeenCalled();
@@ -249,7 +253,7 @@ it("keeps the dashboard to who it names from its settings", async () => {
     })
   );
   fireEvent.click(
-    screen.getByRole("button", { name: "dashboard.permissions.save" })
+    screen.getByRole("button", { name: "dashboard.permissions.saveVisibility" })
   );
   await waitFor(() =>
     expect(state.saveDetails).toHaveBeenCalledWith({ visibility: "restricted" })
@@ -270,23 +274,54 @@ it("reports failed visibility persistence and keeps a retry available", async ()
     })
   );
   fireEvent.click(
-    screen.getByRole("button", { name: "dashboard.permissions.save" })
+    screen.getByRole("button", { name: "dashboard.permissions.saveVisibility" })
   );
   await waitFor(() =>
     expect(state.notify).toHaveBeenCalledWith({
       type: "error",
-      message: "dashboard.permissions.saveError",
+      message: "dashboard.permissions.visibilitySaveError",
     })
   );
   const retry = screen.getByRole("button", {
-    name: "dashboard.permissions.save",
+    name: "dashboard.permissions.saveVisibility",
   });
   expect(retry).toBeEnabled();
   fireEvent.click(retry);
   await waitFor(() =>
     expect(state.notify).toHaveBeenCalledWith({
       type: "success",
-      message: "dashboard.permissions.saveSuccess",
+      message: "dashboard.permissions.visibilitySaveSuccess",
     })
   );
+});
+
+it("confirms assignments and visibility through separate save actions", async () => {
+  perms.dirty = true;
+  open(host({ permissions: PERMISSIONS }));
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: /dashboard\.settings\.accessControlTitle/,
+    })
+  );
+  fireEvent.click(
+    screen.getByRole("radio", {
+      name: "dashboard.setup.permissions.visibility.restricted",
+    })
+  );
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "dashboard.permissions.saveAssignments",
+    })
+  );
+  await waitFor(() => expect(perms.save).toHaveBeenCalledOnce());
+  expect(state.saveDetails).not.toHaveBeenCalled();
+  const visibilitySave = screen.getByRole("button", {
+    name: "dashboard.permissions.saveVisibility",
+  });
+  await waitFor(() => expect(visibilitySave).toBeEnabled());
+  fireEvent.click(visibilitySave);
+  await waitFor(() =>
+    expect(state.saveDetails).toHaveBeenCalledWith({ visibility: "restricted" })
+  );
+  expect(perms.save).toHaveBeenCalledOnce();
 });

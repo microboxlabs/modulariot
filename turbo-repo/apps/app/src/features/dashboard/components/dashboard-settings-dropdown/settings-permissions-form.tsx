@@ -36,21 +36,29 @@ export function SettingsPermissionsForm({
   const visibilityDraft = draft ?? visibility;
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
-  const dirty = saveFailed || state.dirty || visibilityDraft !== visibility;
-  const save = async () => {
+  const visibilityDirty = saveFailed || visibilityDraft !== visibility;
+  const saveAssignments = async () => {
     setSaving(true);
-    const needsVisibilitySave = visibilityDraft !== visibility || saveFailed;
-    const saved =
-      (await state.save()) &&
-      (!needsVisibilitySave || (await onVisibilityChange(visibilityDraft)));
+    const saved = await state.save();
     setSaving(false);
-    setSaveFailed(needsVisibilitySave && !saved);
-    if (saved) setVisibilityDraft(null);
     ShowNotification({
       type: saved ? "success" : "error",
       message: saved
         ? tr("dashboard.permissions.saveSuccess", dictionary)
         : tr("dashboard.permissions.saveError", dictionary),
+    });
+  };
+  const saveVisibility = async () => {
+    setSaving(true);
+    const saved = await onVisibilityChange(visibilityDraft);
+    setSaving(false);
+    setSaveFailed(!saved);
+    if (saved) setVisibilityDraft(null);
+    ShowNotification({
+      type: saved ? "success" : "error",
+      message: saved
+        ? tr("dashboard.permissions.visibilitySaveSuccess", dictionary)
+        : tr("dashboard.permissions.visibilitySaveError", dictionary),
     });
   };
   return (
@@ -65,7 +73,7 @@ export function SettingsPermissionsForm({
         loading={directory.isLoading || state.busy}
         canManage={state.canManage}
         checkingAccess={state.loading}
-        error={state.error !== null}
+        error={state.error}
         onRetry={() => void state.retry()}
         visibility={visibilityDraft}
         onVisibilityChange={state.canManage ? setVisibilityDraft : undefined}
@@ -77,11 +85,22 @@ export function SettingsPermissionsForm({
         <Button
           type="button"
           size="sm"
-          disabled={!dirty || saving || state.busy}
-          onClick={() => void save()}
+          disabled={!state.dirty || saving || state.busy}
+          onClick={() => void saveAssignments()}
           className="self-end"
         >
-          {tr("dashboard.permissions.save", dictionary)}
+          {tr("dashboard.permissions.saveAssignments", dictionary)}
+        </Button>
+      )}
+      {state.canManage && (
+        <Button
+          type="button"
+          size="sm"
+          disabled={!visibilityDirty || saving || state.busy}
+          onClick={() => void saveVisibility()}
+          className="self-end"
+        >
+          {tr("dashboard.permissions.saveVisibility", dictionary)}
         </Button>
       )}
     </fieldset>

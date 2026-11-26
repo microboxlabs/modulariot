@@ -78,3 +78,36 @@ it("retains an unconfirmed draft while access is revoked and confirms it after r
   expect(result.current.dirty).toBe(false);
   expect(result.current.assignments).toEqual([editor]);
 });
+
+it("reapplies only local changes over remote grants and revocations", () => {
+  const other: PermissionAssignment = {
+    authorityId: "other",
+    role: "Consumer",
+  };
+  const removed: PermissionAssignment = {
+    authorityId: "revoked",
+    role: "Consumer",
+  };
+  state.assignments = [reader, removed];
+  const { result, rerender } = renderHook(() => useSetupPermissions(options));
+  act(() => result.current.onChange([editor, removed]));
+  state.assignments = [reader, other];
+  rerender();
+  expect(result.current.assignments).toEqual([editor, other]);
+  expect(result.current.error).toBeNull();
+});
+
+it("blocks conflicting edits to one grant until the user discards and reloads", async () => {
+  const { result, rerender } = renderHook(() => useSetupPermissions(options));
+  act(() => result.current.onChange([editor]));
+  state.assignments = [];
+  rerender();
+  expect(result.current.error).toBe(409);
+  expect(await result.current.save()).toBe(false);
+  expect(state.save).not.toHaveBeenCalled();
+  await act(async () => {
+    await result.current.retry();
+  });
+  expect(result.current.assignments).toEqual([]);
+  expect(result.current.dirty).toBe(false);
+});

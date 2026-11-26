@@ -277,7 +277,7 @@ interface PermissionsStepProps {
   canManage: boolean;
   /** Still finding out; shows the step's shape rather than "not yours". */
   checkingAccess?: boolean;
-  error?: boolean;
+  error?: number | null;
   onRetry?: () => void;
   /** Who sees it; the switch shows only with `onVisibilityChange`. */
   visibility?: Visibility;
@@ -326,7 +326,7 @@ export function PermissionsStep({
   loading,
   canManage,
   checkingAccess = false,
-  error = false,
+  error = null,
   onRetry,
   visibility = "organization",
   onVisibilityChange,
@@ -376,12 +376,12 @@ export function PermissionsStep({
       </output>
     );
   }
-  if (error) {
+  if (error !== null) {
     return (
       <div role="alert" className="space-y-2 text-sm text-red-600">
-        <p>{t("loadError")}</p>
+        <p>{t(error === 409 ? "conflictError" : "loadError")}</p>
         <button type="button" onClick={onRetry} className="underline">
-          {t("retry")}
+          {t(error === 409 ? "discardAndReload" : "retry")}
         </button>
       </div>
     );

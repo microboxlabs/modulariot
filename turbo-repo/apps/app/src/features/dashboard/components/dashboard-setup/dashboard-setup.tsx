@@ -212,6 +212,28 @@ function SetupFlow({
         onSelect={(index) => void select(index)}
         disabled={blocked}
       />
+      {permissionsState.error !== null && step !== "permissions" && (
+        <div role="alert" className="mb-4 space-y-2 text-sm text-red-600">
+          <p>
+            {t(
+              permissionsState.error === 409
+                ? "permissions.conflictError"
+                : "permissions.loadError"
+            )}
+          </p>
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void permissionsState.retry()}
+          >
+            {t(
+              permissionsState.error === 409
+                ? "permissions.discardAndReload"
+                : "permissions.retry"
+            )}
+          </button>
+        </div>
+      )}
       {/* Nothing in the card clips: the search's list has to float out of it.
           The sign-up flow's card: content, then a footer with the progress
           bar on its edge and the back / next buttons. */}
@@ -240,7 +262,7 @@ function SetupFlow({
                 loading={directory.isLoading || permissionsState.busy}
                 canManage={permissionsState.canManage}
                 checkingAccess={permissionsState.loading}
-                error={permissionsState.error !== null}
+                error={permissionsState.error}
                 onRetry={() => void permissionsState.retry()}
                 visibility={visibilityDraft ?? visibility}
                 onVisibilityChange={
@@ -256,7 +278,7 @@ function SetupFlow({
             )}
             {step === "dashlet" && (
               <DashletStep
-                onAdd={() => void addFirstDashlet()}
+                onAdd={blocked ? undefined : () => void addFirstDashlet()}
                 t={scoped("dashlet")}
               />
             )}
@@ -265,6 +287,7 @@ function SetupFlow({
 
         <div className="rounded-b-2xl bg-gray-50 dark:bg-gray-900/40">
           <StepProgress
+            label={t("progress")}
             currentStepIndex={active}
             totalSteps={SETUP_STEPS.length}
             rounded={false}

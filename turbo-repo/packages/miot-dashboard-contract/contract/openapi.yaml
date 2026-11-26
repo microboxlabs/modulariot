@@ -255,8 +255,7 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "dashboard-config.schema.json#/definitions/DashboardConfig"
+            schema: {}
       responses:
         "200":
           description: The problems found. Empty when the document is clean.

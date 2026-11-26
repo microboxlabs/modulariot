@@ -204,8 +204,9 @@ describe("the OpenAPI document", () => {
       expect(validate?.parameters).toEqual(
         put?.parameters?.filter((p) => !p.$ref?.endsWith("/ifMatch")),
       );
-      expect(validate?.requestBody?.content?.["application/json"]?.schema?.$ref)
-        .toBe("dashboard-config.schema.json#/definitions/DashboardConfig");
+      // Invalid documents must reach the linter and receive contract problems.
+      expect(validate?.requestBody?.content?.["application/json"]?.schema)
+        .toEqual({});
       for (const status of ["400", "401", "403"]) {
         expect(validate?.responses?.[status]).toEqual(put?.responses?.[status]);
       }

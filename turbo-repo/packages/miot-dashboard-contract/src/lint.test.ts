@@ -244,6 +244,33 @@ describe("lintDashboardConfig", () => {
         "filter-binding",
       );
     });
+    it("bounds repeated hints by the number and length of delivered names", () => {
+      const { problems } = lintDashboardConfig({
+        ...clean,
+        filters: Array.from({ length: 12 }, (_, index) => ({
+          key: `filter-${index}-${"x".repeat(1000)}`,
+          label: "Long key",
+          type: "text",
+        })),
+        queries: [{
+          ...costs,
+          parameters: {
+            a: { kind: "filter", key: "missing-a" },
+            b: { kind: "filter", key: "missing-b" },
+          },
+        }],
+      });
+      const bindings = problems.filter((problem) => problem.rule === "filter-binding");
+      expect(bindings).toHaveLength(2);
+      for (const binding of bindings) {
+        expect(binding.message).toContain("(2 more)");
+        expect(binding.message).not.toContain("filter-10-");
+        expect(binding.message.length).toBeLessThan(1600);
+      }
+      expect(bindings[0]?.message.split("Delivered names: ")[1]).toBe(
+        bindings[1]?.message.split("Delivered names: ")[1],
+      );
+    });
   });
 
   describe("date-range-binding", () => {
@@ -311,6 +338,25 @@ describe("lintDashboardConfig", () => {
         widgets: [widget("table", "data_table", { dataMode: "planner" })],
       });
       expect(rules(problems)).toEqual(["widget-query"]);
+    });
+    it.each([undefined, ""])("rejects an unnamed widget even with an empty legacy variable (%s)", (name) => {
+      const { problems } = lintDashboardConfig({
+        ...clean,
+        requestPlanner: [{
+          id: "legacy",
+          variableName: "",
+          pgrestFunctionName: "legacy",
+          pgrestHttpMethod: "GET",
+          pgrestParams: [],
+        }],
+        widgets: [widget("table", "data_table", {
+          dataMode: "planner",
+          ...(name === undefined ? {} : { plannerVariableName: name }),
+        })],
+      });
+      expect(problems).toEqual([
+        expect.objectContaining({ rule: "widget-query", severity: "error" }),
+      ]);
     });
     it("accepts query and legacy planner variables, and static widgets", () => {
       const legacy = widget("legacy", "data_table", {

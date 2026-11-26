@@ -69,6 +69,17 @@ function quoted(names: Iterable<string>): string {
   return list.length > 0 ? list.join(", ") : "none";
 }
 
+/** Bound repeated hints even when legacy filter keys are arbitrarily long. */
+function deliveredNamesHint(names: ReadonlySet<string>): string {
+  const preview: string[] = [];
+  for (const name of names) {
+    if (preview.length === 10) break;
+    preview.push(name.length > 128 ? `${name.slice(0, 128)}…` : name);
+  }
+  const omitted = names.size - preview.length;
+  return quoted(preview) + (omitted > 0 ? `, … (${omitted} more)` : "");
+}
+
 /** A widget config as an object: stored as one, or as a JSON string of one. */
 function readConfig(value: unknown): Record<string, unknown> | null {
   let parsed = value;
@@ -134,6 +145,7 @@ function duplicates(
 function bindingProblems(config: DashboardStorageSchema): DashboardProblem[] {
   const filters = config.filters ?? [];
   const delivered = new Set(filters.flatMap(deliveredFilterNames));
+  const deliveredHint = deliveredNamesHint(delivered);
   const dateRangeKeys = new Set(
     filters.filter((filter) => filter.type === "date_range").map((filter) => filter.key),
   );
@@ -155,7 +167,7 @@ function bindingProblems(config: DashboardStorageSchema): DashboardProblem[] {
           problem(
             "filter-binding",
             path,
-            `Parameter "${name}" of query "${query.id}" is bound to filter "${binding.key}", which no filter delivers. Delivered names: ${quoted(delivered)}.`,
+            `Parameter "${name}" of query "${query.id}" is bound to filter "${binding.key}", which no filter delivers. Delivered names: ${deliveredHint}.`,
           ),
         );
       }
@@ -200,7 +212,7 @@ function widgetQueryProblems(config: DashboardStorageSchema): DashboardProblem[]
   const found: DashboardProblem[] = [];
   for (const { widget, path, config: widgetConfig } of walkWidgets(config.widgets, "widgets")) {
     const variable = plannerVariable(widgetConfig);
-    if (!variable || variables.has(variable.name)) continue;
+    if (!variable || (variable.name !== "" && variables.has(variable.name))) continue;
     found.push(
       problem(
         "widget-query",

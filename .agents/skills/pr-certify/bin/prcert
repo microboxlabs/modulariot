@@ -853,7 +853,8 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, de
     if pr.get("isDraft"):
         blockers.append("PR is a draft")
     if pr.get("mergeable") == "CONFLICTING":
-        blockers.append("PR conflicts with %s - rebase before reviewing again" % pr.get("baseRefName"))
+        blockers.append("PR conflicts with %s - merge the base into the branch (never rebase) and review the new head"
+                        % pr.get("baseRefName"))
     elif pr.get("mergeable") == "UNKNOWN":
         warnings.append("GitHub has not finished computing mergeability")
     require_copilot = settings.get("requireCopilot", True)

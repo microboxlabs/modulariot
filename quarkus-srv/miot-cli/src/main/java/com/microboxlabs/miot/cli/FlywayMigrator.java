@@ -44,6 +44,9 @@ public class FlywayMigrator {
     @ConfigProperty(name = "miot.component.places.enabled", defaultValue = "false")
     boolean placesEnabled;
 
+    @ConfigProperty(name = "miot.component.teltonika.enabled", defaultValue = "false")
+    boolean teltonikaEnabled;
+
     @ConfigProperty(name = "quarkus.datasource.active", defaultValue = "true")
     boolean dataSourceActive;
 
@@ -60,7 +63,8 @@ public class FlywayMigrator {
         // Skip migration entirely when no DB-dependent component is active
         // to avoid connecting to (or validating against) a database that isn't needed.
         if (!fleetEnabled && !trackingEnabled && !integrationsEnabled
-                && !conversationalEnabled && !symptomsEnabled && !tripsEnabled && !placesEnabled) {
+                && !conversationalEnabled && !symptomsEnabled && !tripsEnabled && !placesEnabled
+                && !teltonikaEnabled) {
             LOG.debug("No DB-dependent components enabled — skipping Flyway");
             return;
         }
@@ -130,6 +134,9 @@ public class FlywayMigrator {
         }
         if (placesEnabled) {
             locations.add("db/migration/places");
+        }
+        if (teltonikaEnabled) {
+            locations.add("db/migration/teltonika");
         }
 
         return locations;

@@ -11,6 +11,7 @@ miot-fleet/           Fleet component (fleet directory)
 miot-tracking/        Asset tracking (GPS ingestion via Pulsar)
 miot-symptoms/        Symptoms dispatcher (CDC → RouteTable → process_symptoms_* / webhook)
 miot-gateway/         Routing gateway (body-aware traffic forking, canary splits) → README
+miot-teltonika/       Teltonika GPS devices over TCP (Codec 8 / 8 Extended) → README
 miot-integrations/    External API connections, credential profiles, auth resolution
 miot-cli/             Application entrypoint
 ```
@@ -37,6 +38,7 @@ miot-cli/             Application entrypoint
 # Start specific components
 ./start.sh fleet            # fleet only
 ./start.sh gateway          # gateway only (no DB required)
+./start.sh teltonika        # Teltonika TCP receiver on :5027 (needs the modulith DB; own deployment, not in "all")
 ./start.sh integrations     # integration connections and credential profiles
 ./start.sh symptoms         # symptoms dispatcher (RouteTable + Pulsar; GPS optional for readiness)
 
@@ -158,6 +160,7 @@ Endpoints are grouped by component tag (Asset Tracking, Integration Connections,
 | Gateway | `POST /internal/fork/rules/{id}/filter` | Add routing keys to in-memory filter |
 | Gateway | `DELETE /internal/fork/rules/{id}/filter/{key}` | Remove a routing key |
 | Gateway | `POST /internal/fork/rules/{id}/filter/reload` | Reload filter from ConfigMap file |
+| Teltonika | `TCP :5027` | Codec 8 / 8 Extended device sessions |
 | Health | `GET /q/health` | Health check (component status) |
 | Metrics | `GET /q/metrics` | Prometheus metrics |
 

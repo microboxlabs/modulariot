@@ -56,10 +56,21 @@ reaction to what this prints.
 
 Stop here and report if:
 - the org is not in the allowlist (the warning names the command to fix it),
-- the PR is a draft — ask whether to mark it ready or certify the draft anyway,
-- the PR conflicts with its base — rebase first; a review of a conflicted diff is not useful.
+- the PR is a draft — ask whether to mark it ready or certify the draft anyway.
 
-Drafts and conflicts are blockers, not advice: neither can certify.
+Drafts and conflicts are blockers, not advice: neither can certify. A draft needs the user; a
+conflict with the base you resolve yourself before step 1, because a review of a conflicted diff
+is not useful. Merge the base into the branch; never rebase and never force-push:
+
+```bash
+git fetch origin && git merge origin/<base>
+```
+
+- CHANGELOG entries and indices: keep both sides.
+- Code: keep both intents, then run the tests of the files you touched.
+- Commit the merge, push, wait for CI on the new head, and continue from step 0.
+
+Stop and report only a conflict you cannot resolve safely, with the files listed.
 
 ### 1. Classify the depth
 

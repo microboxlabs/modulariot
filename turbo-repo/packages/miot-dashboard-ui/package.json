@@ -84,7 +84,7 @@
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.13",
     "@lezer/highlight": "1.2.5",
-    "@microboxlabs/miot-dashboard-contract": "^0.6.0",
+    "@microboxlabs/miot-dashboard-contract": "^0.7.0",
     "zod": "^4.6.6",
     "handlebars": "^4.7.10",
     "react-grid-layout": "2.2.3"

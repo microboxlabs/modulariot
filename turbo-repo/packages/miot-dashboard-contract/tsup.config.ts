@@ -9,6 +9,8 @@ export default defineConfig({
     "src/roles.ts",
     "src/errors.ts",
     "src/authoring.ts",
+    "src/catalog.ts",
+    "src/lint.ts",
   ],
   format: ["esm"],
   outDir: "dist",

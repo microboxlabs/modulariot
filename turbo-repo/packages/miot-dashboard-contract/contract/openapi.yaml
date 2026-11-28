@@ -257,6 +257,45 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/validate:
+    post:
+      operationId: validateDashboard
+      tags: [dashboards]
+      summary: Check a dashboard document without saving it
+      description: >
+        Applies the contract validation and the lint rules of
+        `lintDashboardConfig` to the body, and stores nothing. A document that
+        fails the contract is answered here with `valid: false` and its
+        problems, not with 400. `valid` is false when any problem has severity
+        `error`; warnings alone leave it true. Requires the same access as a
+        save of this slug.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {}
+      responses:
+        "200":
+          description: The problems found. Empty when the document is clean.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ValidationResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/queries/{queryId}:
     post:
       operationId: executeDashboardQuery
@@ -335,8 +374,8 @@ paths:
       description: >
         Requires permission to edit an existing dashboard. The optional host
         provider must filter active read-only operations by caller, tenant and
-        scope. Only IDs, display labels and result column names are returned;
-        execution schemas, SQL, URLs and credentials are excluded. At most 100
+        scope. Only IDs, display labels, result column names and parameter
+        metadata are returned; execution schemas, SQL, URLs and credentials are excluded. At most 100
         connections, 100 operations per connection and 100 columns per operation,
         with a total response metadata limit of 256 KiB. Discovery does not grant
         execution authority; execution independently reauthorizes every query.
@@ -377,6 +416,11 @@ paths:
                                 maxItems: 100
                                 items:
                                   { type: string, minLength: 1, maxLength: 128 }
+                              parameters:
+                                type: array
+                                maxItems: 100
+                                items:
+                                  $ref: "#/components/schemas/CatalogParameter"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2014,6 +2058,48 @@ components:
           type: string
           description: Present on 403 only.
           enum: [TENANT_SCOPE, EMBED_SCOPE, CAPABILITY]
+        problems:
+          type: array
+          description: One entry per problem, when the server checked a document.
+          items:
+            $ref: "#/components/schemas/DashboardProblem"
+    DashboardProblem:
+      description: >
+        One finding of `lintDashboardConfig`. `path` is dotted from the
+        document root (`queries.0.parameters.from.key`). Contract failures use
+        rule `contract`.
+      type: object
+      required: [rule, path, message, severity]
+      properties:
+        rule:
+          type: string
+          examples: [contract, filter-binding, column-exists]
+        path:
+          type: string
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [error, warning]
+    ValidationResult:
+      type: object
+      required: [valid, problems]
+      properties:
+        valid:
+          type: boolean
+          description: False when any problem has severity `error`.
+        problems:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardProblem"
+    CatalogParameter:
+      description: A value an operation reads, named as a query binding names it.
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 128 }
+        required: { type: boolean }
+        description: { type: string, maxLength: 1024 }
     DashboardSummary:
       type: object
       required: [slug, name]

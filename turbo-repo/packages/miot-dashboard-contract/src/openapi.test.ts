@@ -10,6 +10,8 @@ import { parse } from "yaml";
 
 import { DASHBOARD_ROLES, type DashboardCapabilities } from "./roles";
 import { type DashboardErrorCode, type ForbiddenReason } from "./errors";
+import { DASHBOARD_LINT_RULES, type DashboardProblem } from "./lint";
+import type { DashboardCatalogParameter } from "./catalog";
 
 const SPEC_URL = new URL("../contract/openapi.yaml", import.meta.url);
 const ARTIFACT_URL = new URL(
@@ -18,7 +20,9 @@ const ARTIFACT_URL = new URL(
 );
 
 interface SchemaNode {
+  $ref?: string;
   type?: unknown;
+  items?: SchemaNode;
   enum?: string[];
   properties?: Record<string, SchemaNode>;
   required?: string[];
@@ -29,6 +33,14 @@ interface SchemaNode {
 
 interface Operation {
   security?: Record<string, string[]>[];
+  parameters?: { $ref?: string }[];
+  responses?: Record<
+    string,
+    {
+      $ref?: string;
+      content?: Record<string, { schema?: SchemaNode }>;
+    }
+  >;
   requestBody?: {
     content?: Record<string, { schema?: SchemaNode & { $ref?: string } }>;
   };
@@ -167,5 +179,85 @@ describe("the OpenAPI document", () => {
     expect(spec.components.schemas.CredentialInput?.unevaluatedProperties).toBe(
       false,
     );
+  });
+
+  describe("dashboard lint", () => {
+    const base = "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}";
+    const put = spec.paths[base]?.put;
+    const validate = spec.paths[`${base}/validate`]?.post;
+
+    const PROBLEM_KEYS = {
+      rule: true,
+      path: true,
+      message: true,
+      severity: true,
+    } as const satisfies Record<keyof DashboardProblem, true>;
+    const PARAMETER_KEYS = {
+      name: true,
+      required: true,
+      description: true,
+    } as const satisfies Record<keyof DashboardCatalogParameter, true>;
+
+    it("serves validate with the auth, parameters and errors of a save", () => {
+      expect(validate).toBeDefined();
+      expect(validate?.security).toEqual(put?.security);
+      expect(validate?.parameters).toEqual(
+        put?.parameters?.filter((p) => !p.$ref?.endsWith("/ifMatch")),
+      );
+      // Invalid documents must reach the linter and receive contract problems.
+      expect(validate?.requestBody?.content?.["application/json"]?.schema)
+        .toEqual({});
+      for (const status of ["400", "401", "403"]) {
+        expect(validate?.responses?.[status]).toEqual(put?.responses?.[status]);
+      }
+    });
+
+    it("answers validate with valid and the problems", () => {
+      const data =
+        validate?.responses?.["200"]?.content?.["application/json"]?.schema
+          ?.properties?.data;
+      expect(data?.$ref).toBe("#/components/schemas/ValidationResult");
+      const result = spec.components.schemas.ValidationResult;
+      expect([...(result?.required ?? [])].sort()).toEqual(["problems", "valid"]);
+      expect(result?.properties?.problems?.items?.$ref).toBe(
+        "#/components/schemas/DashboardProblem",
+      );
+    });
+
+    it("describes the problem type, with the severities of the rules", () => {
+      const problem = spec.components.schemas.DashboardProblem;
+      expect(Object.keys(problem?.properties ?? {})).toEqual(
+        Object.keys(PROBLEM_KEYS),
+      );
+      expect([...(problem?.required ?? [])].sort()).toEqual(
+        Object.keys(PROBLEM_KEYS).sort(),
+      );
+      expect([...(problem?.properties?.severity?.enum ?? [])].sort()).toEqual(
+        [...new Set(Object.values(DASHBOARD_LINT_RULES))].sort(),
+      );
+    });
+
+    it("lets the error envelope carry problems", () => {
+      expect(
+        spec.components.schemas.Error?.properties?.problems?.items?.$ref,
+      ).toBe("#/components/schemas/DashboardProblem");
+      expect(spec.components.schemas.Error?.required).not.toContain("problems");
+    });
+
+    it("publishes optional operation parameters in the query catalog", () => {
+      const catalog = spec.paths[`${base}/query-catalog`]?.get;
+      const operation =
+        catalog?.responses?.["200"]?.content?.["application/json"]?.schema
+          ?.properties?.connections?.items?.properties?.operations?.items;
+      expect(operation?.required).toEqual(["id", "label"]);
+      expect(operation?.properties?.parameters?.items?.$ref).toBe(
+        "#/components/schemas/CatalogParameter",
+      );
+      const parameter = spec.components.schemas.CatalogParameter;
+      expect(Object.keys(parameter?.properties ?? {})).toEqual(
+        Object.keys(PARAMETER_KEYS),
+      );
+      expect(parameter?.required).toEqual(["name"]);
+    });
   });
 });

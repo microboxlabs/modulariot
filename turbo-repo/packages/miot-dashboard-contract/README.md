@@ -17,11 +17,13 @@ There is no root entry. Import the subpath you need.
 | `.../schema`                       | zod schemas, `validateDashboardConfig`, `CURRENT_DASHBOARD_CONFIG_VERSION` |
 | `.../roles`                        | `DashboardRole`, `DashboardCapabilities`, `roleAtLeast`, `highestRole`     |
 | `.../errors`                       | `ErrorEnvelope`, `DashboardErrorCode`, `STATUS_BY_CODE`                    |
+| `.../lint`                         | `lintDashboardConfig`, `deliveredFilterNames`, `DashboardProblem`          |
+| `.../catalog`                      | Query catalog types (`DashboardQueryCatalogResponse`)                      |
 | `.../openapi.yaml`                 | The OpenAPI 3.1 document                                                   |
 | `.../dashboard-config.schema.json` | JSON Schema for the document                                               |
 
-`document`, `roles` and `errors` are types and constants only. `schema` is the
-one that loads zod.
+`document`, `roles`, `errors` and `catalog` are types and constants only.
+`schema` and `lint` load zod.
 
 ## Validate a document
 
@@ -38,6 +40,56 @@ await store.save(ref, result.config);
 `problems` are strings of the form `path: message`, dotted from the document
 root (`widgets.0.layout.x`). They are not zod issues, so your code is not tied
 to this package's version of zod.
+
+## Lint a document
+
+A document can match the contract and still show nothing, for example when a
+query parameter is bound to a filter name that no filter delivers.
+`lintDashboardConfig` finds these cases.
+
+```ts
+import { lintDashboardConfig } from "@microboxlabs/miot-dashboard-contract/lint";
+
+const { valid, problems } = lintDashboardConfig(document, catalog);
+```
+
+It runs `dashboardConfigSchema` first. If that fails, it returns the contract
+issues as problems with rule `contract` and applies no other rule. `catalog` is
+optional and has the shape of the `GET …/query-catalog` response. `valid` is
+false when any problem has severity `error`.
+
+Each problem is `{ rule, path, message, severity }`. `path` is dotted from the
+document root, as in `validateDashboardConfig`.
+
+**Names a filter delivers** (`deliveredFilterNames`):
+
+| Filter type      | Delivers                 |
+| ---------------- | ------------------------ |
+| `text`, `select` | `<key>`                  |
+| `date_range`     | `<key>_from`, `<key>_to` |
+
+**Rules:**
+
+| Rule                 | Severity | Reports                                                                                                    |
+| -------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `contract`           | error    | The document does not match the zod schema.                                                                |
+| `filter-key-unique`  | error    | Two filters with the same key.                                                                             |
+| `query-id-unique`    | error    | Two queries with the same id.                                                                              |
+| `filter-binding`     | error    | A `filter` parameter whose key no filter delivers. The message lists the delivered names.                  |
+| `date-range-binding` | error    | A `filter` parameter bound to the bare key of a `date_range` filter.                                       |
+| `widget-query`       | error    | A widget with `dataMode: "planner"` whose `plannerVariableName` matches no `queries` or `requestPlanner` variable. |
+| `operation-exists`   | error    | A query whose connection or operation is not in the catalog. Only with a catalog.                          |
+| `filter-unused`      | warning  | A filter whose delivered names no query reads. A `{{filter.x}}` template in a `requestPlanner` value counts as a read. |
+| `column-exists`      | warning  | A chart column that the operation's catalog `schema` does not list. Only with a catalog.                   |
+
+`column-exists` checks `xAxisColumn` and `series[].columnKey` of `chart`, and
+`xAxisColumn` and `representations[].columnKey` of `chart_v2`. It does not
+check tables, because their column keys are templates. It skips widgets bound
+to a `requestPlanner` variable and operations without a `schema`.
+
+When a server rejects a document, `ErrorEnvelope.problems` carries these
+problems. `POST …/dashboards/{slug}/validate` returns
+`{ data: { valid, problems } }` and saves nothing.
 
 ## Compare roles
 
@@ -146,3 +198,8 @@ legacy hosts may supply planner results through their adapter. The contract only
 validates metadata shape: result projection, loading states and selection behavior
 belong to the UI. Blank legacy source fields remain readable; authoring interfaces
 should require complete references. Existing extension fields remain preserved.
+
+## Query catalog parameters (v0.7.0)
+
+A catalog operation may list `parameters: { name, required?, description? }[]`,
+the values the operation reads. Hosts that do not publish them omit the field.

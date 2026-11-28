@@ -5,6 +5,8 @@
  * exists, so it cannot be used to discover what does.
  */
 
+import type { DashboardProblem } from "./lint";
+
 export type DashboardErrorCode =
   | "UNAUTHENTICATED"
   | "FORBIDDEN"
@@ -44,4 +46,6 @@ export interface ErrorEnvelope {
   code: DashboardErrorCode;
   /** Present on 403 only. */
   reason?: ForbiddenReason;
+  /** One entry per problem, when the server checked a document. */
+  problems?: DashboardProblem[];
 }
